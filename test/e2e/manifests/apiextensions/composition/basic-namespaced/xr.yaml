@@ -1,0 +1,10 @@
+apiVersion: example.org/v1alpha1
+kind: Test
+metadata:
+  namespace: default
+  name: basic-xr-namespaced
+spec:
+  coolField: "I'm cool!"
+  crossplane:
+    compositionRef:
+      name: basic-composition-namespaced

@@ -106,6 +106,7 @@ func TestStartController(t *testing.T) {
 		mgr  manager.Manager
 		infs TrackingInformers
 		c    client.Client
+		uc   client.Client
 		opts []ControllerEngineOption
 	}
 	type args struct {
@@ -212,7 +213,7 @@ func TestStartController(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.opts...)
+			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.uc, tc.params.opts...)
 			err := e.Start(tc.args.name, tc.args.opts...)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Start(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -240,6 +241,7 @@ func TestIsRunning(t *testing.T) {
 		mgr  manager.Manager
 		infs TrackingInformers
 		c    client.Client
+		uc   client.Client
 		opts []ControllerEngineOption
 	}
 
@@ -328,7 +330,7 @@ func TestIsRunning(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.opts...)
+			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.uc, tc.params.opts...)
 			_ = e.Start(tc.args.name, tc.argsStart.opts...)
 
 			// Give the start goroutine a little time to fail.
@@ -358,6 +360,7 @@ func TestStopController(t *testing.T) {
 		mgr  manager.Manager
 		infs TrackingInformers
 		c    client.Client
+		uc   client.Client
 		opts []ControllerEngineOption
 	}
 	type args struct {
@@ -388,6 +391,9 @@ func TestStopController(t *testing.T) {
 					MockActiveInformers: func() []schema.GroupVersionKind {
 						return nil
 					},
+					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
+						return nil, nil
+					},
 				},
 			},
 			args: args{
@@ -405,7 +411,7 @@ func TestStopController(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.opts...)
+			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.uc, tc.params.opts...)
 			err := e.Start(tc.args.name, WithNewControllerFn(func(_ string, _ manager.Manager, _ kcontroller.Options) (kcontroller.Controller, error) {
 				return &MockController{
 					MockStart: func(ctx context.Context) error {
@@ -425,7 +431,7 @@ func TestStopController(t *testing.T) {
 			u := &unstructured.Unstructured{}
 			u.SetAPIVersion("test.crossplane.io/v1")
 			u.SetKind("Composed")
-			err = e.StartWatches(tc.args.name, WatchFor(u, WatchTypeComposedResource, nil))
+			err = e.StartWatches(tc.args.ctx, tc.args.name, WatchFor(u, WatchTypeComposedResource, nil))
 			if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.StartWatches(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -450,6 +456,7 @@ func TestStartWatches(t *testing.T) {
 		mgr  manager.Manager
 		infs TrackingInformers
 		c    client.Client
+		uc   client.Client
 		opts []ControllerEngineOption
 	}
 	// We need to control how we start the controller.
@@ -458,6 +465,7 @@ func TestStartWatches(t *testing.T) {
 		opts []ControllerOption
 	}
 	type args struct {
+		ctx  context.Context
 		name string
 		ws   []Watch
 	}
@@ -492,6 +500,9 @@ func TestStartWatches(t *testing.T) {
 								Kind:    "Composed",
 							},
 						}
+					},
+					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
+						return nil, nil
 					},
 				},
 			},
@@ -546,6 +557,9 @@ func TestStartWatches(t *testing.T) {
 								Kind:    "Resource",
 							},
 						}
+					},
+					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
+						return nil, nil
 					},
 				},
 			},
@@ -617,20 +631,20 @@ func TestStartWatches(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.opts...)
+			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.uc, tc.params.opts...)
 			err := e.Start(tc.argsStart.name, tc.argsStart.opts...)
 			if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
 				t.Fatalf("\n%s\ne.Start(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			err = e.StartWatches(tc.args.name, tc.args.ws...)
+			err = e.StartWatches(tc.args.ctx, tc.args.name, tc.args.ws...)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.StartWatches(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
 			// Start the same watches again to exercise the code that ensures we
 			// only add each watch once.
-			err = e.StartWatches(tc.args.name, tc.args.ws...)
+			err = e.StartWatches(tc.args.ctx, tc.args.name, tc.args.ws...)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.StartWatches(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -662,6 +676,7 @@ func TestStopWatches(t *testing.T) {
 		mgr  manager.Manager
 		infs TrackingInformers
 		c    client.Client
+		uc   client.Client
 		opts []ControllerEngineOption
 	}
 	type args struct {
@@ -694,6 +709,9 @@ func TestStopWatches(t *testing.T) {
 				infs: &MockTrackingInformers{
 					MockActiveInformers: func() []schema.GroupVersionKind {
 						return nil
+					},
+					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
+						return nil, nil
 					},
 				},
 			},
@@ -749,6 +767,9 @@ func TestStopWatches(t *testing.T) {
 					MockActiveInformers: func() []schema.GroupVersionKind {
 						return nil
 					},
+					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
+						return nil, nil
+					},
 				},
 			},
 			args: args{
@@ -795,6 +816,9 @@ func TestStopWatches(t *testing.T) {
 					MockActiveInformers: func() []schema.GroupVersionKind {
 						return nil
 					},
+					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
+						return nil, nil
+					},
 				},
 			},
 			args: args{
@@ -840,7 +864,7 @@ func TestStopWatches(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.opts...)
+			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.uc, tc.params.opts...)
 			err := e.Start(tc.args.name, WithNewControllerFn(func(_ string, _ manager.Manager, _ kcontroller.Options) (kcontroller.Controller, error) {
 				return &MockController{
 					MockStart: func(ctx context.Context) error {
@@ -860,7 +884,7 @@ func TestStopWatches(t *testing.T) {
 			u1 := &unstructured.Unstructured{}
 			u1.SetAPIVersion("test.crossplane.io/v1")
 			u1.SetKind("Resource")
-			err = e.StartWatches(tc.args.name,
+			err = e.StartWatches(tc.args.ctx, tc.args.name,
 				WatchFor(u1, WatchTypeComposedResource, nil),
 				WatchFor(u1, WatchTypeCompositeResource, nil),
 			)

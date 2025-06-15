@@ -17,19 +17,9 @@ package composite
 
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/xresource"
 )
-
-// A CompositeResource is an output of the composition process.
-type CompositeResource struct { //nolint:revive // stick with CompositeResource
-	// Ready indicated whether the composite resource should be marked as
-	// ready or unready regardless of the state of the composed resoureces.
-	// If it is nil the readiness of the composite is determined by the
-	// readiness of the composed resources.
-	Ready *bool
-}
 
 // A ResourceName uniquely identifies the composed resource within a Composition
 // and within Composition Function gRPC calls. This is not the metadata.name of
@@ -57,13 +47,10 @@ type ComposedResource struct {
 // ComposedResourceState represents a composed resource (either desired or
 // observed).
 type ComposedResourceState struct {
-	Resource          resource.Composed
+	Resource          xresource.Composed
 	ConnectionDetails managed.ConnectionDetails
 	Ready             bool
 }
 
 // ComposedResourceStates tracks the state of composed resources.
 type ComposedResourceStates map[ResourceName]ComposedResourceState
-
-// ComposedResourceTemplates are the P&T templates for composed resources.
-type ComposedResourceTemplates map[ResourceName]v1.ComposedTemplate

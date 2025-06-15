@@ -93,7 +93,9 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	for _, o := range bo {
 		o(n)
 	}
-	ref, err := name.ParseReference(n.pr.GetSource(), name.WithDefaultRegistry(i.registry))
+	// Use the package recorded in the status rather than the one from the spec,
+	// since it may have been rewritten by an image config.
+	ref, err := name.ParseReference(n.pr.GetResolvedSource(), name.WithDefaultRegistry(i.registry))
 	if err != nil {
 		return nil, errors.Wrap(err, errBadReference)
 	}

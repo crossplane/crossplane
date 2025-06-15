@@ -12,7 +12,7 @@ deploymentStrategy: RollingUpdate
 
 image:
   # -- Repository for the Crossplane pod image.
-  repository: xpkg.upbound.io/crossplane/crossplane
+  repository: xpkg.crossplane.io/crossplane/crossplane
   # -- The Crossplane image tag. Defaults to the value of `appVersion` in `Chart.yaml`.
   tag: ""
   # -- The image pull policy used for Crossplane and RBAC Manager pods.
@@ -80,6 +80,8 @@ service:
 webhooks:
   # -- Enable webhooks for Crossplane and installed Provider packages.
   enabled: true
+  # -- The port the webhook server listens on.
+  port: ""
 
 rbacManager:
   # -- Deploy the RBAC Manager pod and its required roles.
@@ -103,12 +105,11 @@ rbacManager:
   # -- Add `topologySpreadConstraints` to the RBAC Manager pod deployment.
   topologySpreadConstraints: []
 
-packageManager:
-  # -- Enable automatic dependency version downgrades. This configuration is only used when `--enable-dependency-version-upgrades` flag is passed.
-  enableAutomaticDependencyDowngrade: false
-
 # -- The PriorityClass name to apply to the Crossplane and RBAC Manager pods.
 priorityClassName: ""
+
+# -- The runtimeClassName name to apply to the Crossplane and RBAC Manager pods.
+runtimeClassName: ""
 
 resourcesCrossplane:
   limits:
@@ -142,6 +143,14 @@ packageCache:
   # -- The name of a ConfigMap to use as the package cache. Disables the default package cache `emptyDir` Volume.
   configMap: ""
 
+functionCache:
+  # -- Set to `Memory` to hold the function cache in a RAM backed file system. Useful for Crossplane development.
+  medium: ""
+  # -- The size limit for the function cache. If medium is `Memory` the `sizeLimit` can't exceed Node memory.
+  sizeLimit: 512Mi
+  # -- The name of a PersistentVolumeClaim to use as the function cache. Disables the default function cache `emptyDir` Volume.
+  pvc: ""
+
 resourcesRBACManager:
   limits:
     # -- CPU resource limits for the RBAC Manager pod.
@@ -167,6 +176,12 @@ securityContextRBACManager:
 metrics:
   # -- Enable Prometheus path, port and scrape annotations and expose port 8080 for both the Crossplane and RBAC Manager pods.
   enabled: false
+  # -- The port the metrics server listens on.
+  port: ""
+
+readiness:
+  # -- The port the readyz server listens on.
+  port: ""
 
 # -- Add custom environmental variables to the Crossplane pod deployment.
 # Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`.
@@ -190,13 +205,3 @@ extraVolumeMountsCrossplane: {}
 
 # -- To add arbitrary Kubernetes Objects during a Helm Install
 extraObjects: []
-  # - apiVersion: pkg.crossplane.io/v1alpha1
-  #   kind: ControllerConfig
-  #   metadata:
-  #     name: aws-config
-  #     annotations:
-  #       eks.amazonaws.com/role-arn: arn:aws:iam::123456789101:role/example
-  #       helm.sh/hook: post-install
-  #   spec:
-  #     podSecurityContext:
-  #       fsGroup: 2000

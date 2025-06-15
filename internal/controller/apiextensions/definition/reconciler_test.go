@@ -48,9 +48,10 @@ type MockEngine struct {
 	MockStop            func(ctx context.Context, name string) error
 	MockIsRunning       func(name string) bool
 	MockGetWatches      func(name string) ([]engine.WatchID, error)
-	MockStartWatches    func(name string, ws ...engine.Watch) error
+	MockStartWatches    func(ctx context.Context, name string, ws ...engine.Watch) error
 	MockStopWatches     func(ctx context.Context, name string, ws ...engine.WatchID) (int, error)
-	MockGetClient       func() client.Client
+	MockGetCached       func() client.Client
+	MockGetUncached     func() client.Client
 	MockGetFieldIndexer func() client.FieldIndexer
 }
 
@@ -70,16 +71,20 @@ func (m *MockEngine) GetWatches(name string) ([]engine.WatchID, error) {
 	return m.MockGetWatches(name)
 }
 
-func (m *MockEngine) StartWatches(name string, ws ...engine.Watch) error {
-	return m.MockStartWatches(name, ws...)
+func (m *MockEngine) StartWatches(ctx context.Context, name string, ws ...engine.Watch) error {
+	return m.MockStartWatches(ctx, name, ws...)
 }
 
 func (m *MockEngine) StopWatches(ctx context.Context, name string, ws ...engine.WatchID) (int, error) {
 	return m.MockStopWatches(ctx, name, ws...)
 }
 
-func (m *MockEngine) GetClient() client.Client {
-	return m.MockGetClient()
+func (m *MockEngine) GetCached() client.Client {
+	return m.MockGetCached()
+}
+
+func (m *MockEngine) GetUncached() client.Client {
+	return m.MockGetUncached()
 }
 
 func (m *MockEngine) GetFieldIndexer() client.FieldIndexer {
@@ -594,7 +599,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"VersionChangedStopControllerError": {
-			reason: "We should return any error we encounter while stopping our controller because the XRD's referencable version changed.",
+			reason: "We should return any error we encounter while stopping our controller because the XRD's referenceable version changed.",
 			args: args{
 				ca: resource.ClientApplicator{
 					Client: &test.MockClient{
@@ -688,7 +693,8 @@ func TestReconcile(t *testing.T) {
 						MockStart: func(_ string, _ ...engine.ControllerOption) error {
 							return errBoom
 						},
-						MockGetClient: func() client.Client { return test.NewMockClient() },
+						MockGetCached:   func() client.Client { return test.NewMockClient() },
+						MockGetUncached: func() client.Client { return test.NewMockClient() },
 					}),
 				},
 			},
@@ -726,10 +732,11 @@ func TestReconcile(t *testing.T) {
 						MockStart: func(_ string, _ ...engine.ControllerOption) error {
 							return nil
 						},
-						MockStartWatches: func(_ string, _ ...engine.Watch) error {
+						MockStartWatches: func(_ context.Context, _ string, _ ...engine.Watch) error {
 							return errBoom
 						},
-						MockGetClient: func() client.Client { return test.NewMockClient() },
+						MockGetCached:   func() client.Client { return test.NewMockClient() },
+						MockGetUncached: func() client.Client { return test.NewMockClient() },
 					}),
 				},
 			},
@@ -739,7 +746,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"SuccessfulStart": {
-			reason: "We should return without requeueing if we successfully ensured our CRD exists and controller is started.",
+			reason: "We should return without requeuing if we successfully ensured our CRD exists and controller is started.",
 			args: args{
 				ca: resource.ClientApplicator{
 					Client: &test.MockClient{
@@ -774,8 +781,9 @@ func TestReconcile(t *testing.T) {
 					WithControllerEngine(&MockEngine{
 						MockIsRunning:    func(_ string) bool { return false },
 						MockStart:        func(_ string, _ ...engine.ControllerOption) error { return nil },
-						MockStartWatches: func(_ string, _ ...engine.Watch) error { return nil },
-						MockGetClient:    func() client.Client { return test.NewMockClient() },
+						MockStartWatches: func(_ context.Context, _ string, _ ...engine.Watch) error { return nil },
+						MockGetCached:    func() client.Client { return test.NewMockClient() },
+						MockGetUncached:  func() client.Client { return test.NewMockClient() },
 					}),
 				},
 			},
@@ -784,7 +792,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"SuccessfulUpdateControllerVersion": {
-			reason: "We should return without requeueing if we successfully ensured our CRD exists, the old controller stopped, and the new one started.",
+			reason: "We should return without requeuing if we successfully ensured our CRD exists, the old controller stopped, and the new one started.",
 			args: args{
 				ca: resource.ClientApplicator{
 					Client: &test.MockClient{
@@ -833,8 +841,9 @@ func TestReconcile(t *testing.T) {
 						MockStart:        func(_ string, _ ...engine.ControllerOption) error { return nil },
 						MockStop:         func(_ context.Context, _ string) error { return nil },
 						MockIsRunning:    func(_ string) bool { return false },
-						MockStartWatches: func(_ string, _ ...engine.Watch) error { return nil },
-						MockGetClient:    func() client.Client { return test.NewMockClient() },
+						MockStartWatches: func(_ context.Context, _ string, _ ...engine.Watch) error { return nil },
+						MockGetCached:    func() client.Client { return test.NewMockClient() },
+						MockGetUncached:  func() client.Client { return test.NewMockClient() },
 					}),
 				},
 			},
@@ -843,7 +852,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"NotRestartingWithoutVersionChange": {
-			reason: "We should return without requeueing if we successfully ensured our CRD exists and controller is started.",
+			reason: "We should return without requeuing if we successfully ensured our CRD exists and controller is started.",
 			args: args{
 				ca: resource.ClientApplicator{
 					Client: &test.MockClient{

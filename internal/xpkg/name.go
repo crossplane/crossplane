@@ -61,7 +61,7 @@ const (
 
 	// DefaultRegistry is the registry name that will be used when no registry
 	// is provided.
-	DefaultRegistry string = "xpkg.upbound.io"
+	DefaultRegistry string = "xpkg.crossplane.io"
 )
 
 const (
@@ -143,4 +143,10 @@ func parseNameFromPackage(bs []byte) (string, error) {
 	p := &metaPkg{}
 	err := yaml.Unmarshal(bs, p)
 	return p.Metadata.Name, err
+}
+
+// ReplaceExt replaces the file extension of the given path.
+func ReplaceExt(path, ext string) string {
+	old := filepath.Ext(path)
+	return path[0:len(path)-len(old)] + ext
 }

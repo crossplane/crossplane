@@ -23,11 +23,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	kcache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -40,6 +38,7 @@ type MockInformer struct {
 
 	MockAddEventHandler    func(handler kcache.ResourceEventHandler) (kcache.ResourceEventHandlerRegistration, error)
 	MockRemoveEventHandler func(handle kcache.ResourceEventHandlerRegistration) error
+	MockIsStopped          func() bool
 }
 
 func (m *MockInformer) AddEventHandler(handler kcache.ResourceEventHandler) (kcache.ResourceEventHandlerRegistration, error) {
@@ -50,12 +49,15 @@ func (m *MockInformer) RemoveEventHandler(handle kcache.ResourceEventHandlerRegi
 	return m.MockRemoveEventHandler(handle)
 }
 
+func (m *MockInformer) IsStopped() bool {
+	return m.MockIsStopped()
+}
+
 func TestStartSource(t *testing.T) {
 	type params struct {
-		infs cache.Informers
-		t    client.Object
-		h    handler.EventHandler
-		ps   []predicate.Predicate
+		inf cache.Informer
+		h   handler.EventHandler
+		ps  []predicate.Predicate
 	}
 	type args struct {
 		ctx context.Context
@@ -71,37 +73,14 @@ func TestStartSource(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"GetInformerError": {
-			reason: "Start should return an error if it can't get an informer for the supplied type.",
-			params: params{
-				infs: &MockCache{
-					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
-						return nil, errors.New("boom")
-					},
-				},
-				t: &unstructured.Unstructured{},
-			},
-			args: args{
-				ctx: context.Background(),
-				q:   nil, // Not called, just plumbed down to the event handler.
-			},
-			want: want{
-				err: cmpopts.AnyError,
-			},
-		},
 		"AddEventHandlerError": {
 			reason: "Start should return an error if it can't add an event handler to the informer.",
 			params: params{
-				infs: &MockCache{
-					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
-						return &MockInformer{
-							MockAddEventHandler: func(_ kcache.ResourceEventHandler) (kcache.ResourceEventHandlerRegistration, error) {
-								return nil, errors.New("boom")
-							},
-						}, nil
+				inf: &MockInformer{
+					MockAddEventHandler: func(_ kcache.ResourceEventHandler) (kcache.ResourceEventHandlerRegistration, error) {
+						return nil, errors.New("boom")
 					},
 				},
-				t: &unstructured.Unstructured{},
 			},
 			args: args{
 				ctx: context.Background(),
@@ -114,16 +93,11 @@ func TestStartSource(t *testing.T) {
 		"SuccessfulStart": {
 			reason: "Start should return nil if it successfully starts the source.",
 			params: params{
-				infs: &MockCache{
-					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
-						return &MockInformer{
-							MockAddEventHandler: func(_ kcache.ResourceEventHandler) (kcache.ResourceEventHandlerRegistration, error) {
-								return nil, nil
-							},
-						}, nil
+				inf: &MockInformer{
+					MockAddEventHandler: func(_ kcache.ResourceEventHandler) (kcache.ResourceEventHandlerRegistration, error) {
+						return nil, nil
 					},
 				},
-				t: &unstructured.Unstructured{},
 			},
 			args: args{
 				ctx: context.Background(),
@@ -137,7 +111,7 @@ func TestStartSource(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			s := NewStoppableSource(tc.params.infs, tc.params.t, tc.params.h, tc.params.ps...)
+			s := NewStoppableSource(tc.params.inf, tc.params.h, tc.params.ps...)
 
 			err := s.Start(tc.args.ctx, tc.args.q)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
@@ -155,10 +129,9 @@ func (m *MockRegistration) HasSynced() bool { return true }
 
 func TestStopSource(t *testing.T) {
 	type params struct {
-		infs cache.Informers
-		t    client.Object
-		h    handler.EventHandler
-		ps   []predicate.Predicate
+		inf cache.Informer
+		h   handler.EventHandler
+		ps  []predicate.Predicate
 	}
 	type args struct {
 		ctx context.Context
@@ -167,9 +140,6 @@ func TestStopSource(t *testing.T) {
 	type want struct {
 		err error
 	}
-
-	// Used to return an error only when getting an informer to stop it.
-	started := false
 
 	cases := map[string]struct {
 		reason string
@@ -180,19 +150,15 @@ func TestStopSource(t *testing.T) {
 		"SuccessfulStop": {
 			reason: "Stop should return nil if it successfully stops the source.",
 			params: params{
-				infs: &MockCache{
-					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
-						return &MockInformer{
-							MockAddEventHandler: func(_ kcache.ResourceEventHandler) (kcache.ResourceEventHandlerRegistration, error) {
-								return &MockRegistration{}, nil
-							},
-							MockRemoveEventHandler: func(_ kcache.ResourceEventHandlerRegistration) error {
-								return nil
-							},
-						}, nil
+				inf: &MockInformer{
+					MockAddEventHandler: func(_ kcache.ResourceEventHandler) (kcache.ResourceEventHandlerRegistration, error) {
+						return &MockRegistration{}, nil
 					},
+					MockRemoveEventHandler: func(_ kcache.ResourceEventHandlerRegistration) error {
+						return nil
+					},
+					MockIsStopped: func() bool { return false },
 				},
-				t: &unstructured.Unstructured{},
 			},
 			args: args{
 				ctx: context.Background(),
@@ -202,48 +168,18 @@ func TestStopSource(t *testing.T) {
 				err: nil,
 			},
 		},
-		"GetInformerError": {
-			reason: "Stop should return an error if it can't get an informer.",
-			params: params{
-				infs: &MockCache{
-					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
-						if !started {
-							started = true
-							return &MockInformer{
-								MockAddEventHandler: func(_ kcache.ResourceEventHandler) (kcache.ResourceEventHandlerRegistration, error) {
-									return &MockRegistration{}, nil
-								},
-							}, nil
-						}
-						return nil, errors.New("boom")
-					},
-				},
-				t: &unstructured.Unstructured{},
-			},
-			args: args{
-				ctx: context.Background(),
-				q:   nil, // Not called, just plumbed down to the event handler.
-			},
-			want: want{
-				err: cmpopts.AnyError,
-			},
-		},
 		"RemoveEventHandlerError": {
 			reason: "Stop should return an error if it can't remove the source's event handler.",
 			params: params{
-				infs: &MockCache{
-					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
-						return &MockInformer{
-							MockAddEventHandler: func(_ kcache.ResourceEventHandler) (kcache.ResourceEventHandlerRegistration, error) {
-								return &MockRegistration{}, nil
-							},
-							MockRemoveEventHandler: func(_ kcache.ResourceEventHandlerRegistration) error {
-								return errors.New("boom")
-							},
-						}, nil
+				inf: &MockInformer{
+					MockAddEventHandler: func(_ kcache.ResourceEventHandler) (kcache.ResourceEventHandlerRegistration, error) {
+						return &MockRegistration{}, nil
 					},
+					MockRemoveEventHandler: func(_ kcache.ResourceEventHandlerRegistration) error {
+						return errors.New("boom")
+					},
+					MockIsStopped: func() bool { return false },
 				},
-				t: &unstructured.Unstructured{},
 			},
 			args: args{
 				ctx: context.Background(),
@@ -257,7 +193,7 @@ func TestStopSource(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			s := NewStoppableSource(tc.params.infs, tc.params.t, tc.params.h, tc.params.ps...)
+			s := NewStoppableSource(tc.params.inf, tc.params.h, tc.params.ps...)
 
 			err := s.Start(tc.args.ctx, tc.args.q)
 			if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {

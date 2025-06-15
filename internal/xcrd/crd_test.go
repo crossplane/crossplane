@@ -199,8 +199,269 @@ func TestForCompositeResource(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"Successful": {
-			reason: "A CRD should be generated from a CompositeResourceDefinitionVersion.",
+		"Namespaced": {
+			reason: "A CRD should be generated from a modern CompositeResourceDefinitionVersion of a namespaced XR.",
+			args: args{
+				xrd: &v1.CompositeResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        name,
+						Labels:      labels,
+						Annotations: annotations,
+						UID:         types.UID("you-you-eye-dee"),
+					},
+					Spec: v1.CompositeResourceDefinitionSpec{
+						Scope: ptr.To(v1.CompositeResourceScopeNamespaced),
+						Group: group,
+						Names: extv1.CustomResourceDefinitionNames{
+							Plural:   plural,
+							Singular: singular,
+							Kind:     kind,
+							ListKind: listKind,
+						},
+						Versions: []v1.CompositeResourceDefinitionVersion{{
+							Name:          version,
+							Referenceable: true,
+							Served:        true,
+						}},
+					},
+				},
+				v: &v1.CompositeResourceValidation{
+					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(schema)},
+				},
+			},
+			want: want{
+				c: &extv1.CustomResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   name,
+						Labels: labels,
+						OwnerReferences: []metav1.OwnerReference{
+							meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
+						},
+					},
+					Spec: extv1.CustomResourceDefinitionSpec{
+						Group: group,
+						Names: extv1.CustomResourceDefinitionNames{
+							Plural:     plural,
+							Singular:   singular,
+							Kind:       kind,
+							ListKind:   listKind,
+							Categories: []string{CategoryComposite},
+						},
+						Scope: extv1.NamespaceScoped,
+						Versions: []extv1.CustomResourceDefinitionVersion{{
+							Name:    version,
+							Served:  true,
+							Storage: true,
+							Subresources: &extv1.CustomResourceSubresources{
+								Status: &extv1.CustomResourceSubresourceStatus{},
+							},
+							AdditionalPrinterColumns: []extv1.CustomResourceColumnDefinition{
+								{
+									Name:     "SYNCED",
+									Type:     "string",
+									JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+								},
+								{
+									Name:     "READY",
+									Type:     "string",
+									JSONPath: ".status.conditions[?(@.type=='Ready')].status",
+								},
+								{
+									Name:     "COMPOSITION",
+									Type:     "string",
+									JSONPath: ".spec.crossplane.compositionRef.name",
+								},
+								{
+									Name:     "COMPOSITIONREVISION",
+									Type:     "string",
+									JSONPath: ".spec.crossplane.compositionRevisionRef.name",
+									Priority: 1,
+								},
+								{
+									Name:     "AGE",
+									Type:     "date",
+									JSONPath: ".metadata.creationTimestamp",
+								},
+							},
+							Schema: &extv1.CustomResourceValidation{
+								OpenAPIV3Schema: &extv1.JSONSchemaProps{
+									Type:        "object",
+									Description: "What the resource is for.",
+									Required:    []string{"spec"},
+									Properties: map[string]extv1.JSONSchemaProps{
+										"apiVersion": {
+											Type: "string",
+										},
+										"kind": {
+											Type: "string",
+										},
+										"metadata": {
+											// NOTE(muvaf): api-server takes care of validating
+											// metadata.
+											Type: "object",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"name": {
+													Type:      "string",
+													MaxLength: ptr.To[int64](63),
+												},
+											},
+										},
+										"spec": {
+											Type:        "object",
+											Required:    []string{"storageGB", "engineVersion"},
+											Description: "Specification of the resource.",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"storageGB": {Type: "integer", Description: "Pretend this is useful."},
+												"engineVersion": {
+													Type: "string",
+													Enum: []extv1.JSON{
+														{Raw: []byte(`"5.6"`)},
+														{Raw: []byte(`"5.7"`)},
+													},
+												},
+												"someField":      {Type: "string", Description: "Pretend this is useful."},
+												"someOtherField": {Type: "string", Description: "Pretend this is useful."},
+												"crossplane": {
+													Type:        "object",
+													Description: "Configures how Crossplane will reconcile this composite resource",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"compositionRef": {
+															Type:     "object",
+															Required: []string{"name"},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"name": {Type: "string"},
+															},
+														},
+														"compositionSelector": {
+															Type:     "object",
+															Required: []string{"matchLabels"},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"matchLabels": {
+																	Type: "object",
+																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																		Allows: true,
+																		Schema: &extv1.JSONSchemaProps{Type: "string"},
+																	},
+																},
+															},
+														},
+														"compositionRevisionRef": {
+															Type:     "object",
+															Required: []string{"name"},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"name": {Type: "string"},
+															},
+														},
+														"compositionRevisionSelector": {
+															Type:     "object",
+															Required: []string{"matchLabels"},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"matchLabels": {
+																	Type: "object",
+																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																		Allows: true,
+																		Schema: &extv1.JSONSchemaProps{Type: "string"},
+																	},
+																},
+															},
+														},
+														"compositionUpdatePolicy": {
+															Type: "string",
+															Enum: []extv1.JSON{
+																{Raw: []byte(`"Automatic"`)},
+																{Raw: []byte(`"Manual"`)},
+															},
+														},
+														"resourceRefs": {
+															Type: "array",
+															Items: &extv1.JSONSchemaPropsOrArray{
+																Schema: &extv1.JSONSchemaProps{
+																	Type: "object",
+																	Properties: map[string]extv1.JSONSchemaProps{
+																		"apiVersion": {Type: "string"},
+																		"name":       {Type: "string"},
+																		"kind":       {Type: "string"},
+																	},
+																	Required: []string{"apiVersion", "kind"},
+																},
+															},
+															XListType: ptr.To("atomic"),
+														},
+													},
+												},
+											},
+											XValidations: extv1.ValidationRules{
+												{
+													Message: "Cannot change engine version",
+													Rule:    "self.engineVersion == oldSelf.engineVersion",
+												},
+											},
+											OneOf: []extv1.JSONSchemaProps{
+												{Required: []string{"someField"}},
+												{Required: []string{"someOtherField"}},
+											},
+										},
+										"status": {
+											Type:        "object",
+											Description: "Status of the resource.",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"phase":     {Type: "string"},
+												"something": {Type: "string"},
+
+												"conditions": {
+													Description:  "Conditions of the resource.",
+													Type:         "array",
+													XListType:    ptr.To("map"),
+													XListMapKeys: []string{"type"},
+													Items: &extv1.JSONSchemaPropsOrArray{
+														Schema: &extv1.JSONSchemaProps{
+															Type:     "object",
+															Required: []string{"lastTransitionTime", "reason", "status", "type"},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"lastTransitionTime": {Type: "string", Format: "date-time"},
+																"message":            {Type: "string"},
+																"reason":             {Type: "string"},
+																"status":             {Type: "string"},
+																"type":               {Type: "string"},
+																"observedGeneration": {Type: "integer", Format: "int64"},
+															},
+														},
+													},
+												},
+												"crossplane": {
+													Description: "Indicates how Crossplane is reconciling this composite resource",
+													Type:        "object",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"connectionDetails": {
+															Type: "object",
+															Properties: map[string]extv1.JSONSchemaProps{
+																"lastPublishedTime": {Type: "string", Format: "date-time"},
+															},
+														},
+													},
+												},
+											},
+											XValidations: extv1.ValidationRules{
+												{
+													Message: "Phase is required once set",
+													Rule:    "!has(oldSelf.phase) || has(self.phase)",
+												},
+											},
+											OneOf: []extv1.JSONSchemaProps{
+												{Required: []string{"phase"}},
+												{Required: []string{"something"}},
+											},
+										},
+									},
+								},
+							},
+						}},
+					},
+				},
+			},
+		},
+		"Legacy": {
+			reason: "A CRD should be generated from a legacy CompositeResourceDefinitionVersion.",
 			args: args{
 				v: &v1.CompositeResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(schema)},
@@ -247,6 +508,12 @@ func TestForCompositeResource(t *testing.T) {
 									Name:     "COMPOSITION",
 									Type:     "string",
 									JSONPath: ".spec.compositionRef.name",
+								},
+								{
+									Name:     "COMPOSITIONREVISION",
+									Type:     "string",
+									JSONPath: ".spec.compositionRevisionRef.name",
+									Priority: 1,
 								},
 								{
 									Name:     "AGE",
@@ -360,50 +627,13 @@ func TestForCompositeResource(t *testing.T) {
 															Properties: map[string]extv1.JSONSchemaProps{
 																"apiVersion": {Type: "string"},
 																"name":       {Type: "string"},
+																"namespace":  {Type: "string"},
 																"kind":       {Type: "string"},
 															},
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
 													XListType: ptr.To("atomic"),
-												},
-												"publishConnectionDetailsTo": {
-													Type:     "object",
-													Required: []string{"name"},
-													Properties: map[string]extv1.JSONSchemaProps{
-														"name": {Type: "string"},
-														"configRef": {
-															Type:    "object",
-															Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
-															Properties: map[string]extv1.JSONSchemaProps{
-																"name": {
-																	Type: "string",
-																},
-															},
-														},
-														"metadata": {
-															Type: "object",
-															Properties: map[string]extv1.JSONSchemaProps{
-																"labels": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"annotations": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"type": {
-																	Type: "string",
-																},
-															},
-														},
-													},
 												},
 												"writeConnectionSecretToRef": {
 													Type:     "object",
@@ -448,6 +678,7 @@ func TestForCompositeResource(t *testing.T) {
 																"reason":             {Type: "string"},
 																"status":             {Type: "string"},
 																"type":               {Type: "string"},
+																"observedGeneration": {Type: "integer", Format: "int64"},
 															},
 														},
 													},
@@ -558,6 +789,12 @@ func TestForCompositeResource(t *testing.T) {
 									Name:     "COMPOSITION",
 									Type:     "string",
 									JSONPath: ".spec.compositionRef.name",
+								},
+								{
+									Name:     "COMPOSITIONREVISION",
+									Type:     "string",
+									JSONPath: ".spec.compositionRevisionRef.name",
+									Priority: 1,
 								},
 								{
 									Name:     "AGE",
@@ -672,50 +909,13 @@ func TestForCompositeResource(t *testing.T) {
 															Properties: map[string]extv1.JSONSchemaProps{
 																"apiVersion": {Type: "string"},
 																"name":       {Type: "string"},
+																"namespace":  {Type: "string"},
 																"kind":       {Type: "string"},
 															},
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
 													XListType: ptr.To("atomic"),
-												},
-												"publishConnectionDetailsTo": {
-													Type:     "object",
-													Required: []string{"name"},
-													Properties: map[string]extv1.JSONSchemaProps{
-														"name": {Type: "string"},
-														"configRef": {
-															Type:    "object",
-															Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
-															Properties: map[string]extv1.JSONSchemaProps{
-																"name": {
-																	Type: "string",
-																},
-															},
-														},
-														"metadata": {
-															Type: "object",
-															Properties: map[string]extv1.JSONSchemaProps{
-																"labels": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"annotations": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"type": {
-																	Type: "string",
-																},
-															},
-														},
-													},
 												},
 												"writeConnectionSecretToRef": {
 													Type:     "object",
@@ -760,6 +960,7 @@ func TestForCompositeResource(t *testing.T) {
 																"reason":             {Type: "string"},
 																"status":             {Type: "string"},
 																"type":               {Type: "string"},
+																"observedGeneration": {Type: "integer", Format: "int64"},
 															},
 														},
 													},
@@ -847,6 +1048,12 @@ func TestForCompositeResource(t *testing.T) {
 									Name:     "COMPOSITION",
 									Type:     "string",
 									JSONPath: ".spec.compositionRef.name",
+								},
+								{
+									Name:     "COMPOSITIONREVISION",
+									Type:     "string",
+									JSONPath: ".spec.compositionRevisionRef.name",
+									Priority: 1,
 								},
 								{
 									Name:     "AGE",
@@ -947,50 +1154,13 @@ func TestForCompositeResource(t *testing.T) {
 															Properties: map[string]extv1.JSONSchemaProps{
 																"apiVersion": {Type: "string"},
 																"name":       {Type: "string"},
+																"namespace":  {Type: "string"},
 																"kind":       {Type: "string"},
 															},
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
 													XListType: ptr.To("atomic"),
-												},
-												"publishConnectionDetailsTo": {
-													Type:     "object",
-													Required: []string{"name"},
-													Properties: map[string]extv1.JSONSchemaProps{
-														"name": {Type: "string"},
-														"configRef": {
-															Type:    "object",
-															Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
-															Properties: map[string]extv1.JSONSchemaProps{
-																"name": {
-																	Type: "string",
-																},
-															},
-														},
-														"metadata": {
-															Type: "object",
-															Properties: map[string]extv1.JSONSchemaProps{
-																"labels": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"annotations": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"type": {
-																	Type: "string",
-																},
-															},
-														},
-													},
 												},
 												"writeConnectionSecretToRef": {
 													Type:     "object",
@@ -1022,6 +1192,7 @@ func TestForCompositeResource(t *testing.T) {
 																"reason":             {Type: "string"},
 																"status":             {Type: "string"},
 																"type":               {Type: "string"},
+																"observedGeneration": {Type: "integer", Format: "int64"},
 															},
 														},
 													},
@@ -1099,6 +1270,12 @@ func TestForCompositeResource(t *testing.T) {
 									Name:     "COMPOSITION",
 									Type:     "string",
 									JSONPath: ".spec.compositionRef.name",
+								},
+								{
+									Name:     "COMPOSITIONREVISION",
+									Type:     "string",
+									JSONPath: ".spec.compositionRevisionRef.name",
+									Priority: 1,
 								},
 								{
 									Name:     "AGE",
@@ -1212,50 +1389,13 @@ func TestForCompositeResource(t *testing.T) {
 															Properties: map[string]extv1.JSONSchemaProps{
 																"apiVersion": {Type: "string"},
 																"name":       {Type: "string"},
+																"namespace":  {Type: "string"},
 																"kind":       {Type: "string"},
 															},
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
 													XListType: ptr.To("atomic"),
-												},
-												"publishConnectionDetailsTo": {
-													Type:     "object",
-													Required: []string{"name"},
-													Properties: map[string]extv1.JSONSchemaProps{
-														"name": {Type: "string"},
-														"configRef": {
-															Type:    "object",
-															Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
-															Properties: map[string]extv1.JSONSchemaProps{
-																"name": {
-																	Type: "string",
-																},
-															},
-														},
-														"metadata": {
-															Type: "object",
-															Properties: map[string]extv1.JSONSchemaProps{
-																"labels": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"annotations": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"type": {
-																	Type: "string",
-																},
-															},
-														},
-													},
 												},
 												"writeConnectionSecretToRef": {
 													Type:     "object",
@@ -1300,6 +1440,7 @@ func TestForCompositeResource(t *testing.T) {
 																"reason":             {Type: "string"},
 																"status":             {Type: "string"},
 																"type":               {Type: "string"},
+																"observedGeneration": {Type: "integer", Format: "int64"},
 															},
 														},
 													},
@@ -1387,6 +1528,12 @@ func TestForCompositeResource(t *testing.T) {
 									Name:     "COMPOSITION",
 									Type:     "string",
 									JSONPath: ".spec.compositionRef.name",
+								},
+								{
+									Name:     "COMPOSITIONREVISION",
+									Type:     "string",
+									JSONPath: ".spec.compositionRevisionRef.name",
+									Priority: 1,
 								},
 								{
 									Name:     "AGE",
@@ -1500,50 +1647,13 @@ func TestForCompositeResource(t *testing.T) {
 															Properties: map[string]extv1.JSONSchemaProps{
 																"apiVersion": {Type: "string"},
 																"name":       {Type: "string"},
+																"namespace":  {Type: "string"},
 																"kind":       {Type: "string"},
 															},
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
 													XListType: ptr.To("atomic"),
-												},
-												"publishConnectionDetailsTo": {
-													Type:     "object",
-													Required: []string{"name"},
-													Properties: map[string]extv1.JSONSchemaProps{
-														"name": {Type: "string"},
-														"configRef": {
-															Type:    "object",
-															Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
-															Properties: map[string]extv1.JSONSchemaProps{
-																"name": {
-																	Type: "string",
-																},
-															},
-														},
-														"metadata": {
-															Type: "object",
-															Properties: map[string]extv1.JSONSchemaProps{
-																"labels": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"annotations": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"type": {
-																	Type: "string",
-																},
-															},
-														},
-													},
 												},
 												"writeConnectionSecretToRef": {
 													Type:     "object",
@@ -1588,6 +1698,7 @@ func TestForCompositeResource(t *testing.T) {
 																"reason":             {Type: "string"},
 																"status":             {Type: "string"},
 																"type":               {Type: "string"},
+																"observedGeneration": {Type: "integer", Format: "int64"},
 															},
 														},
 													},
@@ -1685,6 +1796,12 @@ func TestForCompositeResource(t *testing.T) {
 									Name:     "COMPOSITION",
 									Type:     "string",
 									JSONPath: ".spec.compositionRef.name",
+								},
+								{
+									Name:     "COMPOSITIONREVISION",
+									Type:     "string",
+									JSONPath: ".spec.compositionRevisionRef.name",
+									Priority: 1,
 								},
 								{
 									Name:     "AGE",
@@ -1799,50 +1916,13 @@ func TestForCompositeResource(t *testing.T) {
 															Properties: map[string]extv1.JSONSchemaProps{
 																"apiVersion": {Type: "string"},
 																"name":       {Type: "string"},
+																"namespace":  {Type: "string"},
 																"kind":       {Type: "string"},
 															},
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
 													XListType: ptr.To("atomic"),
-												},
-												"publishConnectionDetailsTo": {
-													Type:     "object",
-													Required: []string{"name"},
-													Properties: map[string]extv1.JSONSchemaProps{
-														"name": {Type: "string"},
-														"configRef": {
-															Type:    "object",
-															Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
-															Properties: map[string]extv1.JSONSchemaProps{
-																"name": {
-																	Type: "string",
-																},
-															},
-														},
-														"metadata": {
-															Type: "object",
-															Properties: map[string]extv1.JSONSchemaProps{
-																"labels": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"annotations": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"type": {
-																	Type: "string",
-																},
-															},
-														},
-													},
 												},
 												"writeConnectionSecretToRef": {
 													Type:     "object",
@@ -1887,6 +1967,7 @@ func TestForCompositeResource(t *testing.T) {
 																"reason":             {Type: "string"},
 																"status":             {Type: "string"},
 																"type":               {Type: "string"},
+																"observedGeneration": {Type: "integer", Format: "int64"},
 															},
 														},
 													},
@@ -1930,6 +2011,9 @@ func TestForCompositeResource(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			// TODO(negz): This is surprising - refactor it. We should always
+			// pass the xrd as an argument, not default it here. Same with the
+			// version.
 			var xrd *v1.CompositeResourceDefinition
 			if tc.args.xrd != nil {
 				xrd = tc.args.xrd
@@ -2304,44 +2388,6 @@ func TestForCompositeResourceClaim(t *testing.T) {
 														"name":       {Type: "string"},
 													},
 												},
-												"publishConnectionDetailsTo": {
-													Type:     "object",
-													Required: []string{"name"},
-													Properties: map[string]extv1.JSONSchemaProps{
-														"name": {Type: "string"},
-														"configRef": {
-															Type:    "object",
-															Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
-															Properties: map[string]extv1.JSONSchemaProps{
-																"name": {
-																	Type: "string",
-																},
-															},
-														},
-														"metadata": {
-															Type: "object",
-															Properties: map[string]extv1.JSONSchemaProps{
-																"labels": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"annotations": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"type": {
-																	Type: "string",
-																},
-															},
-														},
-													},
-												},
 												"writeConnectionSecretToRef": {
 													Type:     "object",
 													Required: []string{"name"},
@@ -2379,6 +2425,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 																"reason":             {Type: "string"},
 																"status":             {Type: "string"},
 																"type":               {Type: "string"},
+																"observedGeneration": {Type: "integer", Format: "int64"},
 															},
 														},
 													},
@@ -2599,44 +2646,6 @@ func TestForCompositeResourceClaim(t *testing.T) {
 														"name":       {Type: "string"},
 													},
 												},
-												"publishConnectionDetailsTo": {
-													Type:     "object",
-													Required: []string{"name"},
-													Properties: map[string]extv1.JSONSchemaProps{
-														"name": {Type: "string"},
-														"configRef": {
-															Type:    "object",
-															Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
-															Properties: map[string]extv1.JSONSchemaProps{
-																"name": {
-																	Type: "string",
-																},
-															},
-														},
-														"metadata": {
-															Type: "object",
-															Properties: map[string]extv1.JSONSchemaProps{
-																"labels": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"annotations": {
-																	Type: "object",
-																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																		Allows: true,
-																		Schema: &extv1.JSONSchemaProps{Type: "string"},
-																	},
-																},
-																"type": {
-																	Type: "string",
-																},
-															},
-														},
-													},
-												},
 												"writeConnectionSecretToRef": {
 													Type:     "object",
 													Required: []string{"name"},
@@ -2674,6 +2683,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 																"reason":             {Type: "string"},
 																"status":             {Type: "string"},
 																"type":               {Type: "string"},
+																"observedGeneration": {Type: "integer", Format: "int64"},
 															},
 														},
 													},
@@ -2916,44 +2926,6 @@ func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
 												"name":       {Type: "string"},
 											},
 										},
-										"publishConnectionDetailsTo": {
-											Type:     "object",
-											Required: []string{"name"},
-											Properties: map[string]extv1.JSONSchemaProps{
-												"name": {Type: "string"},
-												"configRef": {
-													Type:    "object",
-													Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
-													Properties: map[string]extv1.JSONSchemaProps{
-														"name": {
-															Type: "string",
-														},
-													},
-												},
-												"metadata": {
-													Type: "object",
-													Properties: map[string]extv1.JSONSchemaProps{
-														"labels": {
-															Type: "object",
-															AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																Allows: true,
-																Schema: &extv1.JSONSchemaProps{Type: "string"},
-															},
-														},
-														"annotations": {
-															Type: "object",
-															AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																Allows: true,
-																Schema: &extv1.JSONSchemaProps{Type: "string"},
-															},
-														},
-														"type": {
-															Type: "string",
-														},
-													},
-												},
-											},
-										},
 										"writeConnectionSecretToRef": {
 											Type:     "object",
 											Required: []string{"name"},
@@ -2983,6 +2955,7 @@ func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
 														"reason":             {Type: "string"},
 														"status":             {Type: "string"},
 														"type":               {Type: "string"},
+														"observedGeneration": {Type: "integer", Format: "int64"},
 													},
 												},
 											},

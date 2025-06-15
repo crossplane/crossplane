@@ -27,12 +27,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 // LoadCompositeResource from a YAML manifest.
@@ -65,6 +65,16 @@ func LoadComposition(fs afero.Fs, file string) (*apiextensionsv1.Composition, er
 	default:
 		return nil, errors.Errorf("not a composition: %s/%s", gvk.Kind, comp.GetName())
 	}
+}
+
+// LoadXRD from a YAML manifest.
+func LoadXRD(fs afero.Fs, file string) (*apiextensionsv1.CompositeResourceDefinition, error) {
+	y, err := afero.ReadFile(fs, file)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot read XRD file")
+	}
+	xrd := &apiextensionsv1.CompositeResourceDefinition{}
+	return xrd, errors.Wrap(yaml.Unmarshal(y, xrd), "cannot unmarshal XRD YAML")
 }
 
 // TODO(negz): Support optionally loading functions and observed resources from

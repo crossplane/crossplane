@@ -44,7 +44,7 @@ const (
 func WellKnownTemplates() map[string]string {
 	return map[string]string{
 		"provider-template":        "https://github.com/crossplane/provider-template",
-		"provider-template-upjet":  "https://github.com/upbound/upjet-provider-template",
+		"provider-template-upjet":  "https://github.com/crossplane/upjet-provider-template",
 		"function-template-go":     "https://github.com/crossplane/function-template-go",
 		"function-template-python": "https://github.com/crossplane/function-template-python",
 		"configuration-template":   "https://github.com/crossplane/configuration-template",
@@ -56,7 +56,7 @@ type initCmd struct {
 	Name     string `arg:"" help:"The name of the new package to initialize."`
 	Template string `arg:"" help:"The template name or URL to use to initialize the new package."`
 
-	Directory     string `default:"."                                                     help:"The directory to initialize. It must be empty. It will be created if it doesn't exist." short:"d" type:"path"`
+	Directory     string `default:"."                                                     help:"The directory to initialize. It must be empty. It will be created if it doesn't exist." predictor:"directory" short:"d" type:"path"`
 	RunInitScript bool   `help:"Runs the init.sh script if it exists without prompting"   name:"run-init-script"                                                                        short:"r"`
 	RefName       string `help:"The branch or tag to clone from the template repository." name:"ref-name"                                                                               short:"b"`
 }

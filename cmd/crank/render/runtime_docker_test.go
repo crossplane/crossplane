@@ -19,10 +19,8 @@ package render
 import (
 	"context"
 	"io"
-	"os"
 	"testing"
 
-	"github.com/docker/cli/cli/config"
 	"github.com/docker/docker/api/types/image"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -63,9 +61,10 @@ func TestGetRuntimeDocker(t *testing.T) {
 				fn: pkgv1.Function{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
-							AnnotationKeyRuntimeDockerCleanup:    string(AnnotationValueRuntimeDockerCleanupOrphan),
-							AnnotationKeyRuntimeDockerPullPolicy: string(AnnotationValueRuntimeDockerPullPolicyAlways),
-							AnnotationKeyRuntimeDockerImage:      "test-image-from-annotation",
+							AnnotationKeyRuntimeDockerCleanup:        string(AnnotationValueRuntimeDockerCleanupOrphan),
+							AnnotationKeyRuntimeDockerPullPolicy:     string(AnnotationValueRuntimeDockerPullPolicyAlways),
+							AnnotationKeyRuntimeDockerImage:          "test-image-from-annotation",
+							AnnotationKeyRuntimeEnvironmentVariables: "KCL_DEFAULT_REGISTRY=registry.example.com,ANOTHER_ENV_VAR=another-value",
 						},
 					},
 					Spec: pkgv1.FunctionSpec{
@@ -78,9 +77,9 @@ func TestGetRuntimeDocker(t *testing.T) {
 			want: want{
 				rd: &RuntimeDocker{
 					Image:      "test-image-from-annotation",
-					ConfigFile: config.LoadDefaultConfigFile(os.Stderr),
 					Cleanup:    AnnotationValueRuntimeDockerCleanupOrphan,
 					PullPolicy: AnnotationValueRuntimeDockerPullPolicyAlways,
+					Env:        []string{"KCL_DEFAULT_REGISTRY=registry.example.com", "ANOTHER_ENV_VAR=another-value"},
 				},
 			},
 		},
@@ -90,9 +89,10 @@ func TestGetRuntimeDocker(t *testing.T) {
 				fn: pkgv1.Function{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
-							AnnotationKeyRuntimeDockerCleanup:  string(AnnotationValueRuntimeDockerCleanupOrphan),
-							AnnotationKeyRuntimeNamedContainer: "test-container-name-function",
-							AnnotationKeyRuntimeDockerImage:    "test-image-from-annotation",
+							AnnotationKeyRuntimeDockerCleanup:        string(AnnotationValueRuntimeDockerCleanupOrphan),
+							AnnotationKeyRuntimeNamedContainer:       "test-container-name-function",
+							AnnotationKeyRuntimeDockerImage:          "test-image-from-annotation",
+							AnnotationKeyRuntimeEnvironmentVariables: "SKIPPED_KEYvalue,KCL_DEFAULT_REGISTRY=registry.example.com",
 						},
 					},
 					Spec: pkgv1.FunctionSpec{
@@ -105,10 +105,10 @@ func TestGetRuntimeDocker(t *testing.T) {
 			want: want{
 				rd: &RuntimeDocker{
 					Image:      "test-image-from-annotation",
-					ConfigFile: config.LoadDefaultConfigFile(os.Stderr),
 					Cleanup:    AnnotationValueRuntimeDockerCleanupOrphan,
 					Name:       "test-container-name-function",
 					PullPolicy: AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
+					Env:        []string{"KCL_DEFAULT_REGISTRY=registry.example.com"},
 				},
 			},
 		},
@@ -129,7 +129,6 @@ func TestGetRuntimeDocker(t *testing.T) {
 			want: want{
 				rd: &RuntimeDocker{
 					Image:      "test-package",
-					ConfigFile: config.LoadDefaultConfigFile(os.Stderr),
 					Cleanup:    AnnotationValueRuntimeDockerCleanupRemove,
 					PullPolicy: AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
 				},
@@ -181,7 +180,8 @@ func TestGetRuntimeDocker(t *testing.T) {
 				fn: pkgv1.Function{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
-							AnnotationKeyRuntimeDockerCleanup: string(AnnotationValueRuntimeDockerCleanupStop),
+							AnnotationKeyRuntimeDockerCleanup:        string(AnnotationValueRuntimeDockerCleanupStop),
+							AnnotationKeyRuntimeEnvironmentVariables: "SKIPPED_KEYvalue",
 						},
 					},
 					Spec: pkgv1.FunctionSpec{
@@ -194,9 +194,9 @@ func TestGetRuntimeDocker(t *testing.T) {
 			want: want{
 				rd: &RuntimeDocker{
 					Image:      "test-package",
-					ConfigFile: config.LoadDefaultConfigFile(os.Stderr),
 					Cleanup:    AnnotationValueRuntimeDockerCleanupStop,
 					PullPolicy: AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
+					Env:        nil,
 				},
 			},
 		},
@@ -204,7 +204,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			rd, err := GetRuntimeDocker(tc.args.fn, logging.NewNopLogger())
-			if diff := cmp.Diff(tc.want.rd, rd, cmpopts.IgnoreUnexported(RuntimeDocker{})); diff != "" {
+			if diff := cmp.Diff(tc.want.rd, rd, cmpopts.IgnoreUnexported(RuntimeDocker{}), cmpopts.IgnoreFields(RuntimeDocker{}, "Keychain")); diff != "" {
 				t.Errorf("\n%s\nGetRuntimeDocker(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {

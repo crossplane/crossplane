@@ -51,6 +51,11 @@ const (
 	errFmtUpdateOwnedObject         = "cannot update owned object: %s/%s"
 )
 
+const (
+	// ServicePort is the port number used by package services for webhook communication.
+	ServicePort = 9443
+)
+
 // An Establisher establishes control or ownership of a set of resources in the
 // API server by checking that control or ownership can be established for all
 // resources and then establishing it.
@@ -344,7 +349,7 @@ func (e *APIEstablisher) enrichControlledResource(res runtime.Object, webhookTLS
 			}
 			conf.Webhooks[i].ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
 			conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
-			conf.Webhooks[i].ClientConfig.Service.Port = ptr.To[int32](servicePort)
+			conf.Webhooks[i].ClientConfig.Service.Port = ptr.To[int32](ServicePort)
 		}
 	case *admv1.MutatingWebhookConfiguration:
 		if len(webhookTLSCert) == 0 {
@@ -360,7 +365,7 @@ func (e *APIEstablisher) enrichControlledResource(res runtime.Object, webhookTLS
 			}
 			conf.Webhooks[i].ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
 			conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
-			conf.Webhooks[i].ClientConfig.Service.Port = ptr.To[int32](servicePort)
+			conf.Webhooks[i].ClientConfig.Service.Port = ptr.To[int32](ServicePort)
 		}
 	case *extv1.CustomResourceDefinition:
 		if conf.Spec.Conversion != nil && conf.Spec.Conversion.Strategy == extv1.WebhookConverter {
@@ -379,7 +384,7 @@ func (e *APIEstablisher) enrichControlledResource(res runtime.Object, webhookTLS
 			conf.Spec.Conversion.Webhook.ClientConfig.CABundle = webhookTLSCert
 			conf.Spec.Conversion.Webhook.ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
 			conf.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = e.namespace
-			conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = ptr.To[int32](servicePort)
+			conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = ptr.To[int32](ServicePort)
 		}
 	}
 	return nil

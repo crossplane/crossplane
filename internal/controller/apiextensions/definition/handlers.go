@@ -30,52 +30,61 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 // EnqueueForCompositionRevision enqueues reconciles for all XRs that will use a
 // newly created CompositionRevision.
-func EnqueueForCompositionRevision(of resource.CompositeKind, c client.Reader, log logging.Logger) handler.Funcs {
+func EnqueueForCompositionRevision(of schema.GroupVersionKind, s composite.Schema, c client.Reader, log logging.Logger) handler.Funcs {
 	return handler.Funcs{
 		CreateFunc: func(ctx context.Context, e kevent.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			rev, ok := e.Object.(*v1.CompositionRevision)
 			if !ok {
-				// should not happen
 				return
 			}
 
-			// TODO(negz): Check whether the revision's compositeTypeRef matches
-			// the supplied CompositeKind. If it doesn't, we can return early.
-
-			// get all XRs
-			xrs := kunstructured.UnstructuredList{}
-			xrs.SetGroupVersionKind(schema.GroupVersionKind(of))
-			xrs.SetKind(schema.GroupVersionKind(of).Kind + "List")
-			// TODO(negz): Index XRs by composition revision name?
-			if err := c.List(ctx, &xrs); err != nil {
-				// logging is most we can do here. This is a programming error if it happens.
-				log.Info("cannot list in CompositionRevision handler", "type", schema.GroupVersionKind(of).String(), "error", err)
-				return
-			}
-
-			// enqueue all those that reference the Composition of this revision
+			// We don't know what composition this revision is for,
+			// so we can't determine whether an XR might use it.
+			// This should never happen in practice - the
+			// composition controller sets this label when it
+			// creates a revision.
 			compName := rev.Labels[v1.LabelCompositionName]
-			// TODO(negz): Check this before we get all XRs.
 			if compName == "" {
 				return
 			}
-			for _, u := range xrs.Items {
-				xr := composite.Unstructured{Unstructured: u}
 
-				// only automatic
+			// This handler is for a specific type of XR. This
+			// revisionisn't compatible with that type.
+			if rev.Spec.CompositeTypeRef.APIVersion != of.GroupVersion().String() {
+				return
+			}
+			if rev.Spec.CompositeTypeRef.Kind != of.Kind {
+				return
+			}
+
+			xrs := kunstructured.UnstructuredList{}
+			xrs.SetGroupVersionKind(of)
+			xrs.SetKind(of.Kind + "List")
+			// TODO(negz): Index XRs by composition revision name?
+			if err := c.List(ctx, &xrs); err != nil {
+				// Logging is most we can do here. This is a programming error if it happens.
+				log.Info("cannot list in CompositionRevision handler", "type", of.String(), "error", err)
+				return
+			}
+
+			for _, u := range xrs.Items {
+				xr := composite.Unstructured{Unstructured: u, Schema: s}
+
+				// We only care about XRs that would
+				// automatically update to this new revision.
 				if pol := xr.GetCompositionUpdatePolicy(); pol != nil && *pol == xpv1.UpdateManual {
 					continue
 				}
 
-				// only those that reference the right Composition
+				// We only care about XRs that reference the
+				// composition this revision derives from.
 				if ref := xr.GetCompositionReference(); ref == nil || ref.Name != compName {
 					continue
 				}
@@ -91,10 +100,10 @@ func EnqueueForCompositionRevision(of resource.CompositeKind, c client.Reader, l
 
 // EnqueueCompositeResources enqueues reconciles for all XRs that reference an
 // updated composed resource.
-func EnqueueCompositeResources(of resource.CompositeKind, c client.Reader, log logging.Logger) handler.Funcs {
+func EnqueueCompositeResources(of schema.GroupVersionKind, c client.Reader, log logging.Logger) handler.Funcs {
 	return handler.Funcs{
 		UpdateFunc: func(ctx context.Context, ev kevent.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-			xrGVK := schema.GroupVersionKind(of)
+			xrGVK := of
 			cdGVK := ev.ObjectNew.GetObjectKind().GroupVersionKind()
 			key := refKey(ev.ObjectNew.GetNamespace(), ev.ObjectNew.GetName(), cdGVK.Kind, cdGVK.GroupVersion().String())
 

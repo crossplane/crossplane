@@ -25,13 +25,15 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/names"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 // Error strings.
@@ -165,7 +167,7 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// Create an empty XR patch object. We'll use this object to ensure we only
 	// SSA our desired state, not the state we previously read from the API
 	// server.
-	xrPatch := composite.New(composite.WithGroupVersionKind(xr.GroupVersionKind()))
+	xrPatch := composite.New(composite.WithGroupVersionKind(xr.GroupVersionKind()), composite.WithSchema(composite.SchemaLegacy))
 
 	// If the claim references an XR, make sure we're going to apply that XR. We
 	// do this instead of using the supplied XR's name just in case the XR
@@ -215,7 +217,7 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// 1. Grabbing a map whose keys represent all well-known claim fields.
 	// 2. Deleting any well-known fields that we want to propagate.
 	// 3. Using the resulting map keys to filter the claim's spec.
-	wellKnownClaimFields := xcrd.CompositeResourceClaimSpecProps()
+	wellKnownClaimFields := xcrd.CompositeResourceClaimSpecProps(nil)
 	for _, field := range xcrd.PropagateSpecProps {
 		delete(wellKnownClaimFields, field)
 	}
@@ -313,18 +315,15 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	}
 
 	// Preserve Crossplane machinery, like status conditions.
-	synced := cm.GetCondition(xpv1.TypeSynced)
-	ready := cm.GetCondition(xpv1.TypeReady)
+	cmcs := xpv1.ConditionedStatus{}
+	_ = fieldpath.Pave(cm.Object).GetValueInto("status", &cmcs)
 	pub := cm.GetConnectionDetailsLastPublishedTime()
 
 	// Update the claim's user-defined status fields to match the XRs.
-	cm.Object["status"] = withoutKeys(xrStatus, xcrd.GetPropFields(xcrd.CompositeResourceStatusProps())...)
+	cm.Object["status"] = withoutKeys(xrStatus, xcrd.GetPropFields(xcrd.CompositeResourceStatusProps(v1.CompositeResourceScopeLegacyCluster))...)
 
-	if !synced.Equal(xpv1.Condition{}) {
-		cm.SetConditions(synced)
-	}
-	if !ready.Equal(xpv1.Condition{}) {
-		cm.SetConditions(ready)
+	if cmcs.Conditions != nil {
+		cm.SetConditions(cmcs.Conditions...)
 	}
 	if pub != nil {
 		cm.SetConnectionDetailsLastPublishedTime(pub)

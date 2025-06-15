@@ -90,7 +90,6 @@ func TestRenderClusterRoles(t *testing.T) {
 							keyAggregateToNSAdmin: valTrue,
 							keyAggregateToEdit:    valTrue,
 							keyAggregateToNSEdit:  valTrue,
-							keyXRD:                name,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
@@ -108,7 +107,6 @@ func TestRenderClusterRoles(t *testing.T) {
 						Labels: map[string]string{
 							keyAggregateToView:   valTrue,
 							keyAggregateToNSView: valTrue,
-							keyXRD:               name,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
@@ -125,7 +123,6 @@ func TestRenderClusterRoles(t *testing.T) {
 						OwnerReferences: []metav1.OwnerReference{owner},
 						Labels: map[string]string{
 							keyAggregateToBrowse: valTrue,
-							keyXRD:               name,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
@@ -189,7 +186,6 @@ func TestRenderClusterRoles(t *testing.T) {
 							keyAggregateToNSAdmin: valTrue,
 							keyAggregateToEdit:    valTrue,
 							keyAggregateToNSEdit:  valTrue,
-							keyXRD:                name,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
@@ -212,7 +208,6 @@ func TestRenderClusterRoles(t *testing.T) {
 						Labels: map[string]string{
 							keyAggregateToView:   valTrue,
 							keyAggregateToNSView: valTrue,
-							keyXRD:               name,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
@@ -235,7 +230,6 @@ func TestRenderClusterRoles(t *testing.T) {
 						OwnerReferences: []metav1.OwnerReference{owner},
 						Labels: map[string]string{
 							keyAggregateToBrowse: valTrue,
-							keyXRD:               name,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{

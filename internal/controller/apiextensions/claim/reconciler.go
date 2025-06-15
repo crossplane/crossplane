@@ -31,16 +31,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	"github.com/crossplane/crossplane/internal/names"
+	"github.com/crossplane/crossplane/internal/xresource"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 const (
@@ -98,7 +99,7 @@ type CompositeSyncer interface {
 // composite resource (XR).
 type CompositeSyncerFn func(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error
 
-// Sync the supplied claim with the supplied composite resource..
+// Sync the supplied claim with the supplied composite resource.
 func (fn CompositeSyncerFn) Sync(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error {
 	return fn(ctx, cm, xr)
 }
@@ -106,15 +107,15 @@ func (fn CompositeSyncerFn) Sync(ctx context.Context, cm *claim.Unstructured, xr
 // A ConnectionPropagator is responsible for propagating information required to
 // connect to a resource.
 type ConnectionPropagator interface {
-	PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error)
+	PropagateConnection(ctx context.Context, to xresource.LocalConnectionSecretOwner, from xresource.ConnectionSecretOwner) (propagated bool, err error)
 }
 
 // A ConnectionPropagatorFn is responsible for propagating information required
 // to connect to a resource.
-type ConnectionPropagatorFn func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error)
+type ConnectionPropagatorFn func(ctx context.Context, to xresource.LocalConnectionSecretOwner, from xresource.ConnectionSecretOwner) (propagated bool, err error)
 
 // PropagateConnection details from one resource to the other.
-func (fn ConnectionPropagatorFn) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+func (fn ConnectionPropagatorFn) PropagateConnection(ctx context.Context, to xresource.LocalConnectionSecretOwner, from xresource.ConnectionSecretOwner) (propagated bool, err error) {
 	return fn(ctx, to, from)
 }
 
@@ -126,7 +127,7 @@ type ConnectionPropagatorChain []ConnectionPropagator
 // chain and returns propagated if at least one ConnectionPropagator propagates
 // the connection details but exits with an error if any of them fails without
 // calling the remaining ones.
-func (pc ConnectionPropagatorChain) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+func (pc ConnectionPropagatorChain) PropagateConnection(ctx context.Context, to xresource.LocalConnectionSecretOwner, from xresource.ConnectionSecretOwner) (propagated bool, err error) {
 	for _, p := range pc {
 		var pg bool
 		pg, err = p.PropagateConnection(ctx, to, from)
@@ -140,32 +141,18 @@ func (pc ConnectionPropagatorChain) PropagateConnection(ctx context.Context, to 
 	return propagated, nil
 }
 
-// A ConnectionUnpublisher is responsible for cleaning up connection secret.
-type ConnectionUnpublisher interface {
-	// UnpublishConnection details for the supplied Managed resource.
-	UnpublishConnection(ctx context.Context, so resource.LocalConnectionSecretOwner, c managed.ConnectionDetails) error
-}
-
-// A ConnectionUnpublisherFn is responsible for cleaning up connection secret.
-type ConnectionUnpublisherFn func(ctx context.Context, so resource.LocalConnectionSecretOwner, c managed.ConnectionDetails) error
-
-// UnpublishConnection details of a local connection secret owner.
-func (fn ConnectionUnpublisherFn) UnpublishConnection(ctx context.Context, so resource.LocalConnectionSecretOwner, c managed.ConnectionDetails) error {
-	return fn(ctx, so, c)
-}
-
 // A DefaultsSelector copies default values from the CompositeResourceDefinition when the corresponding field
 // in the Claim is not set.
 type DefaultsSelector interface {
 	// SelectDefaults from CompositeResourceDefinition when needed.
-	SelectDefaults(ctx context.Context, cm resource.CompositeClaim) error
+	SelectDefaults(ctx context.Context, cm xresource.Claim) error
 }
 
 // A DefaultsSelectorFn is responsible for copying default values from the CompositeResourceDefinition.
-type DefaultsSelectorFn func(ctx context.Context, cm resource.CompositeClaim) error
+type DefaultsSelectorFn func(ctx context.Context, cm xresource.Claim) error
 
 // SelectDefaults copies default values from the XRD if necessary.
-func (fn DefaultsSelectorFn) SelectDefaults(ctx context.Context, cm resource.CompositeClaim) error {
+func (fn DefaultsSelectorFn) SelectDefaults(ctx context.Context, cm xresource.Claim) error {
 	return fn(ctx, cm)
 }
 
@@ -188,9 +175,9 @@ type Reconciler struct {
 	composite crComposite
 	claim     crClaim
 
-	log          logging.Logger
-	record       event.Recorder
-	pollInterval time.Duration
+	log        logging.Logger
+	record     event.Recorder
+	conditions conditions.Manager
 }
 
 type crComposite struct {
@@ -207,13 +194,11 @@ func defaultCRComposite(c client.Client) crComposite {
 
 type crClaim struct {
 	resource.Finalizer
-	ConnectionUnpublisher
 }
 
 func defaultCRClaim(c client.Client) crClaim {
 	return crClaim{
-		Finalizer:             resource.NewAPIFinalizer(c, finalizer),
-		ConnectionUnpublisher: NewNopConnectionUnpublisher(),
+		Finalizer: resource.NewAPIFinalizer(c, finalizer),
 	}
 }
 
@@ -245,14 +230,6 @@ func WithConnectionPropagator(p ConnectionPropagator) ReconcilerOption {
 	}
 }
 
-// WithConnectionUnpublisher specifies which ConnectionUnpublisher should be
-// used to unpublish resource connection details.
-func WithConnectionUnpublisher(u ConnectionUnpublisher) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.claim.ConnectionUnpublisher = u
-	}
-}
-
 // WithClaimFinalizer specifies which ClaimFinalizer should be used to finalize
 // claims when they are deleted.
 func WithClaimFinalizer(f resource.Finalizer) ReconcilerOption {
@@ -275,32 +252,22 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
-// WithPollInterval specifies how long the Reconciler should wait before queueing
-// a new reconciliation after a successful reconcile. The Reconciler requeues
-// after a specified duration when it is not actively waiting for an external
-// operation, but wishes to check whether resources it does not have a watch on
-// (i.e. composed resources) need to be reconciled.
-func WithPollInterval(after time.Duration) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.pollInterval = after
-	}
-}
-
 // NewReconciler returns a Reconciler that reconciles composite resource claims of
-// the supplied CompositeClaimKind with resources of the supplied CompositeKind.
+// the supplied ClaimKind with resources of the supplied CompositeKind.
 // The returned Reconciler will apply only the ObjectMetaConfigurator by
 // default; most callers should supply one or more CompositeConfigurators to
 // configure their composite resources.
-func NewReconciler(c client.Client, of resource.CompositeClaimKind, with resource.CompositeKind, o ...ReconcilerOption) *Reconciler {
+func NewReconciler(c client.Client, of, with schema.GroupVersionKind, o ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
 		client:        c,
-		gvkClaim:      schema.GroupVersionKind(of),
-		gvkXR:         schema.GroupVersionKind(with),
+		gvkClaim:      of,
+		gvkXR:         with,
 		managedFields: &NopManagedFieldsUpgrader{},
 		composite:     defaultCRComposite(c),
 		claim:         defaultCRClaim(c),
 		log:           logging.NewNopLogger(),
 		record:        event.NewNopRecorder(),
+		conditions:    conditions.ObservedGenerationPropagationManager{},
 	}
 
 	for _, ro := range o {
@@ -325,6 +292,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetClaim, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetClaim)
 	}
+	status := r.conditions.For(cm)
 
 	record := r.record.WithAnnotations("external-name", meta.GetExternalName(cm))
 	log = log.WithValues(
@@ -337,14 +305,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// logging, publishing an event and updating the Synced status condition.
 	if meta.IsPaused(cm) {
 		r.record.Event(cm, event.Normal(reasonPaused, reconcilePausedMsg))
-		cm.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+		status.MarkConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
 		// If the pause annotation is removed, we will have a chance to
 		// reconcile again and resume and if status update fails, we will
 		// reconcile again to retry to update the status.
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
-	xr := composite.New(composite.WithGroupVersionKind(r.gvkXR))
+	xr := composite.New(composite.WithGroupVersionKind(r.gvkXR), composite.WithSchema(composite.SchemaLegacy))
 	if ref := cm.GetResourceReference(); ref != nil {
 		record = record.WithAnnotations("composite-name", cm.GetResourceReference().Name)
 		log = log.WithValues("composite-name", cm.GetResourceReference().Name)
@@ -352,7 +320,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.client.Get(ctx, types.NamespacedName{Name: ref.Name}, xr); resource.IgnoreNotFound(err) != nil {
 			err = errors.Wrap(err, errGetComposite)
 			record.Event(cm, event.Warning(reasonBind, err))
-			cm.SetConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv1.ReconcileError(err))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 		}
 	}
@@ -371,7 +339,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if ref := xr.GetClaimReference(); meta.WasCreated(xr) && ref != nil && !cmp.Equal(cm.GetReference(), ref) {
 		err := errors.Errorf(errFmtUnbound, xr.GetName(), ref.Name)
 		record.Event(cm, event.Warning(reasonBind, err))
-		cm.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
@@ -386,14 +354,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errUpgradeManagedFields)
 		record.Event(cm, event.Warning(reasonBind, err))
-		cm.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
 	if meta.WasDeleted(cm) {
 		log = log.WithValues("deletion-timestamp", cm.GetDeletionTimestamp())
 
-		cm.SetConditions(xpv1.Deleting())
+		status.MarkConditions(xpv1.Deleting())
 		if meta.WasCreated(xr) {
 			requiresForegroundDeletion := false
 			if cdp := cm.GetCompositeDeletePolicy(); cdp != nil && *cdp == xpv1.CompositeDeleteForeground {
@@ -410,7 +378,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if err := r.client.Delete(ctx, xr, do); resource.IgnoreNotFound(err) != nil {
 				err = errors.Wrap(err, errDeleteComposite)
 				record.Event(cm, event.Warning(reasonDelete, err))
-				cm.SetConditions(xpv1.ReconcileError(err))
+				status.MarkConditions(xpv1.ReconcileError(err))
 				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 			}
 			if requiresForegroundDeletion {
@@ -419,27 +387,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 		}
 
-		// Claims do not publish connection details but may propagate XR
-		// secrets. Hence, we need to clean up propagated secrets when the
-		// claim is deleted.
-		if err := r.claim.UnpublishConnection(ctx, cm, nil); err != nil {
-			err = errors.Wrap(err, errDeleteCDs)
-			record.Event(cm, event.Warning(reasonDelete, err))
-			cm.SetConditions(xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
-		}
-
 		record.Event(cm, event.Normal(reasonDelete, "Successfully deleted composite resource"))
 
 		if err := r.claim.RemoveFinalizer(ctx, cm); err != nil {
 			err = errors.Wrap(err, errRemoveFinalizer)
 			record.Event(cm, event.Warning(reasonDelete, err))
-			cm.SetConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv1.ReconcileError(err))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 		}
 
 		log.Debug("Successfully deleted claim")
-		cm.SetConditions(xpv1.ReconcileSuccess())
+		status.MarkConditions(xpv1.ReconcileSuccess())
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
@@ -449,7 +407,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errAddFinalizer)
 		record.Event(cm, event.Warning(reasonBind, err))
-		cm.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
@@ -463,7 +421,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errSync)
 		record.Event(cm, event.Warning(reasonBind, err))
-		cm.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
@@ -472,12 +430,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		record.Event(cm, event.Normal(reasonBind, "Successfully bound composite resource"))
 	}
 
-	cm.SetConditions(xpv1.ReconcileSuccess())
+	status.MarkConditions(xpv1.ReconcileSuccess())
 
 	// Copy any custom status conditions from the XR to the claim.
 	for _, cType := range xr.GetClaimConditionTypes() {
 		c := xr.GetCondition(cType)
-		cm.SetConditions(c)
+		status.MarkConditions(c)
 	}
 
 	if !resource.IsConditionTrue(xr.GetCondition(xpv1.TypeReady)) {
@@ -485,7 +443,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		// We should be watching the composite resource and will have a
 		// request queued if it changes, so no need to requeue.
-		cm.SetConditions(Waiting())
+		status.MarkConditions(Waiting())
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
@@ -493,7 +451,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		err = errors.Wrap(err, errPropagateCDs)
 		record.Event(cm, event.Warning(reasonPropagate, err))
-		cm.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 	if propagated {
@@ -503,7 +461,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// We have a watch on both the claim and its composite, so there's no
 	// need to requeue here.
-	cm.SetConditions(xpv1.Available())
+	status.MarkConditions(xpv1.Available())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 }
 

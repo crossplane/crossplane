@@ -1,0 +1,50 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: parent
+spec:
+  compositeTypeRef:
+    apiVersion: nop.example.org/v1alpha1
+    kind: XNopResource
+  mode: Pipeline
+  pipeline:
+  - step: be-a-dummy
+    functionRef:
+      name: function-dummy-ext-functions
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      # This is a YAML-serialized RunFunctionResponse. function-dummy will
+      # overlay the desired state on any that was passed into it.
+      response:
+        desired:
+          composite:
+            resource:
+              status:
+                coolerField: "I'M COOLER!"
+            connectionDetails:
+              super: c2VjcmV0Cg==  # The string 'secret'
+          resources:
+            # We compose a nested XR, which in turn composes an MR. This tests
+            # regression of https://github.com/crossplane/crossplane/issues/4715.
+            nested-xr:
+              resource:
+                apiVersion: nop.example.org/v1alpha1
+                kind: XNopResource
+                spec:
+                  compositionRef:
+                    name: child
+                  coolField: "I'm cool!"
+        results:
+         - severity: SEVERITY_NORMAL
+           message: "I am doing a compose!"
+    credentials:
+    - name: important-secret
+      source: Secret
+      secretRef:
+        namespace: crossplane-system
+        name: super-secret
+  - step: detect-readiness
+    functionRef:
+      name: function-auto-ready-ext-functions
+  writeConnectionSecretsToNamespace: crossplane-system

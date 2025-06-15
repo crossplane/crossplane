@@ -25,7 +25,19 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
+// CompositeResourceScope specifies the scope of a composite resource.
+type CompositeResourceScope string
+
+// Composite resource scopes.
+const (
+	CompositeResourceScopeNamespaced    CompositeResourceScope = "Namespaced"
+	CompositeResourceScopeCluster       CompositeResourceScope = "Cluster"
+	CompositeResourceScopeLegacyCluster CompositeResourceScope = "LegacyCluster"
+)
+
 // CompositeResourceDefinitionSpec specifies the desired state of the definition.
+// +kubebuilder:validation:XValidation:rule="self.scope == 'LegacyCluster' || !has(self.claimNames)",message="Only LegacyCluster composite resources can offer claims"
+// +kubebuilder:validation:XValidation:rule="self.scope == 'LegacyCluster' || !has(self.connectionSecretKeys)",message="Only LegacyCluster composite resources support connection secrets"
 type CompositeResourceDefinitionSpec struct {
 	// Group specifies the API group of the defined composite resource.
 	// Composite resources are served under `/apis/<group>/...`. Must match the
@@ -36,7 +48,20 @@ type CompositeResourceDefinitionSpec struct {
 	// Names specifies the resource and kind names of the defined composite
 	// resource.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.plural == self.plural.lowerAscii()",message="Plural name must be lowercase"
+	// +kubebuilder:validation:XValidation:rule="!has(self.singular) || self.singular == self.singular.lowerAscii()",message="Singular name must be lowercase"
 	Names extv1.CustomResourceDefinitionNames `json:"names"`
+
+	// Scope of the defined composite resource. Namespaced composite resources
+	// are scoped to a single namespace. Cluster scoped composite resource exist
+	// outside the scope of any namespace. Neither can be claimed. Legacy
+	// cluster scoped composite resources are cluster scoped resources that can
+	// be claimed.
+	// +optional
+	// +kubebuilder:validation:Enum=LegacyCluster;Namespaced;Cluster
+	// +kubebuilder:default=LegacyCluster
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	Scope *CompositeResourceScope `json:"scope,omitempty"`
 
 	// ClaimNames specifies the names of an optional composite resource claim.
 	// When claim names are specified Crossplane will create a namespaced
@@ -48,11 +73,15 @@ type CompositeResourceDefinitionSpec struct {
 	// be changed or removed once they have been set.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.plural == self.plural.lowerAscii()",message="Plural name must be lowercase"
+	// +kubebuilder:validation:XValidation:rule="!has(self.singular) || self.singular == self.singular.lowerAscii()",message="Singular name must be lowercase"
 	ClaimNames *extv1.CustomResourceDefinitionNames `json:"claimNames,omitempty"`
 
-	// ConnectionSecretKeys is the list of keys that will be exposed to the end
-	// user of the defined kind.
-	// If the list is empty, all keys will be published.
+	// ConnectionSecretKeys is the list of connection secret keys the
+	// defined XR can publish. If the list is empty, all keys will be
+	// published. If the list isn't empty, any connection secret keys that
+	// don't appear in the list will be filtered out. Only LegacyCluster XRs
+	// support connection secrets.
 	// +optional
 	ConnectionSecretKeys []string `json:"connectionSecretKeys,omitempty"`
 
@@ -94,6 +123,7 @@ type CompositeResourceDefinitionSpec struct {
 
 	// Conversion defines all conversion settings for the defined Composite resource.
 	// +optional
+	// +kubebuilder:validation:XValidation:rule="self.strategy == 'Webhook' && has(self.webhook)",message="Webhook configuration is required when conversion strategy is Webhook"
 	Conversion *extv1.CustomResourceConversion `json:"conversion,omitempty"`
 
 	// Metadata specifies the desired metadata for the defined composite resource and claim CRD's.
@@ -228,6 +258,18 @@ type CompositeResourceDefinition struct {
 
 	Spec   CompositeResourceDefinitionSpec   `json:"spec,omitempty"`
 	Status CompositeResourceDefinitionStatus `json:"status,omitempty"`
+}
+
+// SetConditions delegates to Status.SetConditions.
+// Implements Conditioned.SetConditions.
+func (c *CompositeResourceDefinition) SetConditions(cs ...xpv1.Condition) {
+	c.Status.SetConditions(cs...)
+}
+
+// GetCondition delegates to Status.GetCondition.
+// Implements Conditioned.GetCondition.
+func (c *CompositeResourceDefinition) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return c.Status.GetCondition(ct)
 }
 
 // +kubebuilder:object:root=true

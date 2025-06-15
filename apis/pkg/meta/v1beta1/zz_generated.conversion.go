@@ -32,67 +32,47 @@ func (c *GeneratedFromHubConverter) pV1CrossplaneConstraintsToPV1beta1Crossplane
 }
 func (c *GeneratedFromHubConverter) v1DependencyToV1beta1Dependency(source v1.Dependency) Dependency {
 	var v1beta1Dependency Dependency
-	var pString *string
 	if source.APIVersion != nil {
 		xstring := *source.APIVersion
-		pString = &xstring
+		v1beta1Dependency.APIVersion = &xstring
 	}
-	v1beta1Dependency.APIVersion = pString
-	var pString2 *string
 	if source.Kind != nil {
 		xstring2 := *source.Kind
-		pString2 = &xstring2
+		v1beta1Dependency.Kind = &xstring2
 	}
-	v1beta1Dependency.Kind = pString2
-	var pString3 *string
 	if source.Package != nil {
 		xstring3 := *source.Package
-		pString3 = &xstring3
+		v1beta1Dependency.Package = &xstring3
 	}
-	v1beta1Dependency.Package = pString3
-	var pString4 *string
 	if source.Provider != nil {
 		xstring4 := *source.Provider
-		pString4 = &xstring4
+		v1beta1Dependency.Provider = &xstring4
 	}
-	v1beta1Dependency.Provider = pString4
-	var pString5 *string
 	if source.Configuration != nil {
 		xstring5 := *source.Configuration
-		pString5 = &xstring5
+		v1beta1Dependency.Configuration = &xstring5
 	}
-	v1beta1Dependency.Configuration = pString5
-	var pString6 *string
 	if source.Function != nil {
 		xstring6 := *source.Function
-		pString6 = &xstring6
+		v1beta1Dependency.Function = &xstring6
 	}
-	v1beta1Dependency.Function = pString6
 	v1beta1Dependency.Version = source.Version
 	return v1beta1Dependency
 }
 func (c *GeneratedFromHubConverter) v1FunctionSpecToV1beta1FunctionSpec(source v1.FunctionSpec) FunctionSpec {
 	var v1beta1FunctionSpec FunctionSpec
 	v1beta1FunctionSpec.MetaSpec = c.v1MetaSpecToV1beta1MetaSpec(source.MetaSpec)
-	var pString *string
-	if source.Image != nil {
-		xstring := *source.Image
-		pString = &xstring
-	}
-	v1beta1FunctionSpec.Image = pString
 	return v1beta1FunctionSpec
 }
 func (c *GeneratedFromHubConverter) v1MetaSpecToV1beta1MetaSpec(source v1.MetaSpec) MetaSpec {
 	var v1beta1MetaSpec MetaSpec
 	v1beta1MetaSpec.Crossplane = c.pV1CrossplaneConstraintsToPV1beta1CrossplaneConstraints(source.Crossplane)
-	var v1beta1DependencyList []Dependency
 	if source.DependsOn != nil {
-		v1beta1DependencyList = make([]Dependency, len(source.DependsOn))
+		v1beta1MetaSpec.DependsOn = make([]Dependency, len(source.DependsOn))
 		for i := 0; i < len(source.DependsOn); i++ {
-			v1beta1DependencyList[i] = c.v1DependencyToV1beta1Dependency(source.DependsOn[i])
+			v1beta1MetaSpec.DependsOn[i] = c.v1DependencyToV1beta1Dependency(source.DependsOn[i])
 		}
 	}
-	v1beta1MetaSpec.DependsOn = v1beta1DependencyList
 	return v1beta1MetaSpec
 }
 func (c *GeneratedFromHubConverter) v1TypeMetaToV1TypeMeta(source v11.TypeMeta) v11.TypeMeta {
@@ -108,7 +88,7 @@ func (c *GeneratedToHubConverter) Function(source *Function) *v1.Function {
 	var pV1Function *v1.Function
 	if source != nil {
 		var v1Function v1.Function
-		v1Function.TypeMeta = c.v1TypeMetaToV1TypeMeta((*source).TypeMeta)
+		v1Function.TypeMeta = c.v1TypeMetaToV1TypeMeta2((*source).TypeMeta)
 		v1Function.ObjectMeta = ConvertObjectMeta((*source).ObjectMeta)
 		v1Function.Spec = c.v1beta1FunctionSpecToV1FunctionSpec((*source).Spec)
 		pV1Function = &v1Function
@@ -124,7 +104,7 @@ func (c *GeneratedToHubConverter) pV1beta1CrossplaneConstraintsToPV1CrossplaneCo
 	}
 	return pV1CrossplaneConstraints
 }
-func (c *GeneratedToHubConverter) v1TypeMetaToV1TypeMeta(source v11.TypeMeta) v11.TypeMeta {
+func (c *GeneratedToHubConverter) v1TypeMetaToV1TypeMeta2(source v11.TypeMeta) v11.TypeMeta {
 	var v1TypeMeta v11.TypeMeta
 	v1TypeMeta.Kind = source.Kind
 	v1TypeMeta.APIVersion = source.APIVersion
@@ -132,66 +112,46 @@ func (c *GeneratedToHubConverter) v1TypeMetaToV1TypeMeta(source v11.TypeMeta) v1
 }
 func (c *GeneratedToHubConverter) v1beta1DependencyToV1Dependency(source Dependency) v1.Dependency {
 	var v1Dependency v1.Dependency
-	var pString *string
 	if source.APIVersion != nil {
 		xstring := *source.APIVersion
-		pString = &xstring
+		v1Dependency.APIVersion = &xstring
 	}
-	v1Dependency.APIVersion = pString
-	var pString2 *string
 	if source.Kind != nil {
 		xstring2 := *source.Kind
-		pString2 = &xstring2
+		v1Dependency.Kind = &xstring2
 	}
-	v1Dependency.Kind = pString2
-	var pString3 *string
 	if source.Package != nil {
 		xstring3 := *source.Package
-		pString3 = &xstring3
+		v1Dependency.Package = &xstring3
 	}
-	v1Dependency.Package = pString3
-	var pString4 *string
 	if source.Provider != nil {
 		xstring4 := *source.Provider
-		pString4 = &xstring4
+		v1Dependency.Provider = &xstring4
 	}
-	v1Dependency.Provider = pString4
-	var pString5 *string
 	if source.Configuration != nil {
 		xstring5 := *source.Configuration
-		pString5 = &xstring5
+		v1Dependency.Configuration = &xstring5
 	}
-	v1Dependency.Configuration = pString5
-	var pString6 *string
 	if source.Function != nil {
 		xstring6 := *source.Function
-		pString6 = &xstring6
+		v1Dependency.Function = &xstring6
 	}
-	v1Dependency.Function = pString6
 	v1Dependency.Version = source.Version
 	return v1Dependency
 }
 func (c *GeneratedToHubConverter) v1beta1FunctionSpecToV1FunctionSpec(source FunctionSpec) v1.FunctionSpec {
 	var v1FunctionSpec v1.FunctionSpec
 	v1FunctionSpec.MetaSpec = c.v1beta1MetaSpecToV1MetaSpec(source.MetaSpec)
-	var pString *string
-	if source.Image != nil {
-		xstring := *source.Image
-		pString = &xstring
-	}
-	v1FunctionSpec.Image = pString
 	return v1FunctionSpec
 }
 func (c *GeneratedToHubConverter) v1beta1MetaSpecToV1MetaSpec(source MetaSpec) v1.MetaSpec {
 	var v1MetaSpec v1.MetaSpec
 	v1MetaSpec.Crossplane = c.pV1beta1CrossplaneConstraintsToPV1CrossplaneConstraints(source.Crossplane)
-	var v1DependencyList []v1.Dependency
 	if source.DependsOn != nil {
-		v1DependencyList = make([]v1.Dependency, len(source.DependsOn))
+		v1MetaSpec.DependsOn = make([]v1.Dependency, len(source.DependsOn))
 		for i := 0; i < len(source.DependsOn); i++ {
-			v1DependencyList[i] = c.v1beta1DependencyToV1Dependency(source.DependsOn[i])
+			v1MetaSpec.DependsOn[i] = c.v1beta1DependencyToV1Dependency(source.DependsOn[i])
 		}
 	}
-	v1MetaSpec.DependsOn = v1DependencyList
 	return v1MetaSpec
 }

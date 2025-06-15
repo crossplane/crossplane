@@ -26,11 +26,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 
 	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
 )
 
 type xrcOpt func(c *claim.Unstructured)
@@ -62,12 +62,6 @@ type xrOpt func(c *composite.Unstructured)
 func withXRRefs(refs ...v1.ObjectReference) xrOpt {
 	return func(c *composite.Unstructured) {
 		c.SetResourceReferences(refs)
-	}
-}
-
-func withXRSecretRef(ref *xpv1.SecretReference) xrOpt {
-	return func(c *composite.Unstructured) {
-		c.SetWriteConnectionSecretToReference(ref)
 	}
 }
 
@@ -215,68 +209,6 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 						APIVersion: "example.com/v1",
 						Kind:       "XR",
 						Name:       "xr-1",
-					},
-				},
-			},
-		},
-		"XRWithChildrenAndSecret": {
-			reason: "Should return a list of children refs for an XR.",
-			args: args{
-				witSecrets: true,
-				resource: &resource2.Resource{
-					Unstructured: *buildXR("root-xr", withXRSecretRef(&xpv1.SecretReference{
-						Name:      "secret-1",
-						Namespace: "ns-1",
-					}), withXRRefs(v1.ObjectReference{
-						APIVersion: "example.com/v1",
-						Kind:       "MR",
-						Name:       "mr-1",
-					},
-						v1.ObjectReference{
-							APIVersion: "example2.com/v1",
-							Kind:       "MR",
-							Name:       "mr-2",
-						},
-						v1.ObjectReference{
-							APIVersion: "example2.com/v1",
-							Kind:       "XR",
-							Name:       "xr-1",
-						},
-						v1.ObjectReference{
-							APIVersion: "example2.com/v1",
-							Kind:       "XRC",
-							Name:       "xrc-1",
-						},
-					)),
-				},
-			},
-			want: want{
-				refs: []v1.ObjectReference{
-					{
-						APIVersion: "v1",
-						Kind:       "Secret",
-						Namespace:  "ns-1",
-						Name:       "secret-1",
-					},
-					{
-						APIVersion: "example.com/v1",
-						Kind:       "MR",
-						Name:       "mr-1",
-					},
-					{
-						APIVersion: "example2.com/v1",
-						Kind:       "MR",
-						Name:       "mr-2",
-					},
-					{
-						APIVersion: "example2.com/v1",
-						Kind:       "XR",
-						Name:       "xr-1",
-					},
-					{
-						APIVersion: "example2.com/v1",
-						Kind:       "XRC",
-						Name:       "xrc-1",
 					},
 				},
 			},

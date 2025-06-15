@@ -3,7 +3,7 @@ VERSION --try --raw-output 0.8
 
 PROJECT crossplane/crossplane
 
-ARG --global GO_VERSION=1.23.4
+ARG --global GO_VERSION=1.23.9
 
 # reviewable checks that a branch is ready for review. Run it before opening a
 # pull request. It will catch a lot of the things our CI workflow will catch.
@@ -51,6 +51,7 @@ e2e:
   ARG GOARCH=${TARGETARCH}
   ARG GOOS=${TARGETOS}
   ARG FLAGS="-test-suite=base"
+  ARG GOTESTSUM_FORMAT="standard-verbose"
   # Using earthly image to allow compatibility with different development environments e.g. WSL
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
   RUN wget https://dl.google.com/go/go${GO_VERSION}.${GOOS}-${GOARCH}.tar.gz
@@ -71,10 +72,18 @@ e2e:
     WITH DOCKER --load crossplane-e2e/crossplane:latest=(+image --CROSSPLANE_VERSION=v0.0.0-e2e)
       # TODO(negz:) Set GITHUB_ACTIONS=true and use RUN --raw-output when
       # https://github.com/earthly/earthly/issues/4143 is fixed.
-      RUN gotestsum --no-color=false --format testname --junitfile e2e-tests.xml --raw-command go tool test2json -t -p E2E ./e2e -test.v ${FLAGS}
+      RUN gotestsum \
+        --rerun-fails \
+        --rerun-fails-report e2e-rerun-fails.txt \
+        --hide-summary output \ # See https://github.com/gotestyourself/gotestsum/issues/423
+        --no-color=false \
+        --format ${GOTESTSUM_FORMAT} \
+        --junitfile e2e-tests.xml \
+        --raw-command go tool test2json -t -p E2E ./e2e -test.v ${FLAGS}
     END
   FINALLY
     SAVE ARTIFACT --if-exists e2e-tests.xml AS LOCAL _output/tests/e2e-tests.xml
+    SAVE ARTIFACT --if-exists e2e-rerun-fails.txt AS LOCAL _output/tests/e2e-rerun-fails.txt
   END
 
 # hack builds Crossplane, and deploys it to a kind cluster. It runs in your
@@ -85,6 +94,7 @@ hack:
   # TODO(negz): This could run an interactive shell inside a temporary container
   # once https://github.com/earthly/earthly/issues/3206 is fixed.
   ARG USERPLATFORM
+  ARG SIMULATE_CROSSPLANE_VERSION=v0.0.0-hack
   ARG XPARGS="--debug"
   LOCALLY
   WAIT
@@ -93,15 +103,15 @@ hack:
   COPY --platform=${USERPLATFORM} +helm-setup/helm .hack/helm
   COPY --platform=${USERPLATFORM} +kind-setup/kind .hack/kind
   COPY (+helm-build/output --CROSSPLANE_VERSION=v0.0.0-hack) .hack/charts
-  WITH DOCKER --load crossplane-hack/crossplane:hack=+image
+  WITH DOCKER --load crossplane-hack/crossplane:${SIMULATE_CROSSPLANE_VERSION}=(+image --CROSSPLANE_VERSION=${SIMULATE_CROSSPLANE_VERSION})
     RUN \
       .hack/kind create cluster --name crossplane-hack && \
-      .hack/kind load docker-image --name crossplane-hack crossplane-hack/crossplane:hack && \
+      .hack/kind load docker-image --name crossplane-hack crossplane-hack/crossplane:${SIMULATE_CROSSPLANE_VERSION} && \
       .hack/helm install --create-namespace --namespace crossplane-system crossplane .hack/charts/crossplane-0.0.0-hack.tgz \
-        --set "image.pullPolicy=Never,image.repository=crossplane-hack/crossplane,image.tag=hack" \
+        --set "image.pullPolicy=Never,image.repository=crossplane-hack/crossplane,image.tag=${SIMULATE_CROSSPLANE_VERSION}" \
         --set "args={${XPARGS}}"
   END
-  RUN docker image rm crossplane-hack/crossplane:hack
+  RUN docker image rm crossplane-hack/crossplane:${SIMULATE_CROSSPLANE_VERSION}
   RUN rm -rf .hack
 
 # unhack deletes the kind cluster created by the hack target.
@@ -128,7 +138,8 @@ go-modules:
 go-modules-tidy:
   FROM +go-modules
   CACHE --id go-build --sharing shared /root/.cache/go-build
-  COPY --dir apis/ cmd/ internal/ pkg/ test/ .
+  COPY generate.go .
+  COPY --dir apis/ cmd/ internal/ test/ .
   RUN go mod tidy
   RUN go mod verify
   SAVE ARTIFACT go.mod AS LOCAL go.mod
@@ -139,9 +150,10 @@ go-generate:
   FROM +go-modules
   CACHE --id go-build --sharing shared /root/.cache/go-build
   COPY +kubectl-setup/kubectl /usr/local/bin/kubectl
+  COPY generate.go buf.yaml buf.gen.yaml .
   COPY --dir cluster/crd-patches cluster/crd-patches
   COPY --dir hack/ apis/ internal/ .
-  RUN go generate -tags 'generate' ./apis/...
+  RUN go generate -tags 'generate' .
   # TODO(negz): Can this move into generate.go? Ideally it would live there with
   # the code that actually generates the CRDs, but it depends on kubectl.
   RUN kubectl patch --local --type=json \
@@ -150,6 +162,7 @@ go-generate:
     --output=yaml > /tmp/patched.yaml \
     && mv /tmp/patched.yaml cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml
   SAVE ARTIFACT apis/ AS LOCAL apis
+  SAVE ARTIFACT internal/ AS LOCAL internal
   SAVE ARTIFACT cluster/crds AS LOCAL cluster/crds
   SAVE ARTIFACT cluster/meta AS LOCAL cluster/meta
 
@@ -170,7 +183,7 @@ go-build:
     SET ext = ".exe"
   END
   CACHE --id go-build --sharing shared /root/.cache/go-build
-  COPY --dir apis/ cmd/ internal/ pkg/ .
+  COPY --dir apis/ cmd/ internal/ .
   RUN go build -o crossplane${ext} ./cmd/crossplane
   RUN sha256sum crossplane${ext} | head -c 64 > crossplane${ext}.sha256
   RUN go build -o crank${ext} ./cmd/crank
@@ -210,7 +223,7 @@ go-build-e2e:
 go-test:
   FROM +go-modules
   CACHE --id go-build --sharing shared /root/.cache/go-build
-  COPY --dir apis/ cmd/ internal/ pkg/ .
+  COPY --dir apis/ cmd/ internal/ .
   RUN go test -covermode=count -coverprofile=coverage.txt ./...
   SAVE ARTIFACT coverage.txt AS LOCAL _output/tests/coverage.txt
 
@@ -223,12 +236,11 @@ go-lint:
   CACHE --id go-build --sharing shared /root/.cache/go-build
   RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin ${GOLANGCI_LINT_VERSION}
   COPY .golangci.yml .
-  COPY --dir apis/ cmd/ internal/ pkg/ test/ .
+  COPY --dir apis/ cmd/ internal/ test/ .
   RUN golangci-lint run --fix
   SAVE ARTIFACT apis AS LOCAL apis
   SAVE ARTIFACT cmd AS LOCAL cmd
   SAVE ARTIFACT internal AS LOCAL internal
-  SAVE ARTIFACT pkg AS LOCAL pkg
   SAVE ARTIFACT test AS LOCAL test
 
 # image builds the Crossplane OCI image for your native architecture.
@@ -371,6 +383,7 @@ ci-version:
 ci-artifacts:
   BUILD +multiplatform-build \
     --CROSSPLANE_REPO=index.docker.io/crossplane/crossplane \
+    --CROSSPLANE_REPO=ghcr.io/crossplane/crossplane \
     --CROSSPLANE_REPO=xpkg.upbound.io/crossplane/crossplane
 
 # ci-codeql-setup sets up CodeQL for the ci-codeql target.
@@ -394,7 +407,7 @@ ci-codeql:
   END
   COPY --dir +ci-codeql-setup/codeql /codeql
   CACHE --id go-build --sharing shared /root/.cache/go-build
-  COPY --dir apis/ cmd/ internal/ pkg/ .
+  COPY --dir apis/ cmd/ internal/ .
   RUN /codeql/codeql database create /codeqldb --language=go
   RUN /codeql/codeql database analyze /codeqldb --threads=0 --format=sarif-latest --output=go.sarif --sarif-add-baseline-file-info
   SAVE ARTIFACT go.sarif AS LOCAL _output/codeql/go.sarif

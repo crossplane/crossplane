@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Generated from pkg/meta/v1/function_types.go by ../hack/duplicate_api_type.sh. DO NOT EDIT.
+// Generated from apis/pkg/meta/v1/function_types.go by ./hack/duplicate_api_type.sh. DO NOT EDIT.
 
 package v1beta1
 
@@ -25,9 +25,6 @@ import (
 // FunctionSpec specifies the configuration of a Function.
 type FunctionSpec struct {
 	MetaSpec `json:",inline"`
-
-	// Image is the packaged Function image.
-	Image *string `json:"image,omitempty"`
 }
 
 // +kubebuilder:object:root=true

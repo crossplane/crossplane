@@ -1,0 +1,9 @@
+apiVersion: example.org/v1alpha1
+kind: ClusterTest
+metadata:
+  name: basic-xr-cluster
+spec:
+  coolField: "I'm cool!"
+  crossplane:
+    compositionRef:
+      name: basic-composition-cluster

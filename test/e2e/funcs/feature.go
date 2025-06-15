@@ -57,8 +57,9 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 // DefaultPollInterval is the suggested poll interval for wait.For.
@@ -348,6 +349,7 @@ func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv1.Condi
 		desired := strings.Join(reasons, ", ")
 
 		t.Logf("Waiting %s for %s to become %s...", d, identifier(o), desired)
+		ogReport := make(map[string]bool)
 		old := make([]xpv1.Condition, len(cds))
 		match := func(o k8s.Object) bool {
 			u := asUnstructured(o)
@@ -355,10 +357,28 @@ func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv1.Condi
 			_ = fieldpath.Pave(u.Object).GetValueInto("status", &s)
 
 			for i, want := range cds {
+				// Update the wanted observed generation to the latest object generation.
+				want.ObservedGeneration = u.GetGeneration()
+
 				got := s.GetCondition(want.Type)
+
+				// Until https://github.com/crossplane/crossplane/issues/6420 is resolved, crossplane will be in a
+				// transition period. A condition with an observedGeneration of zero means it is not yet being
+				// propagated when setting the conditions. To help that transition, we will move the generation forward
+				// ONLY if it is zero. But we will also log this fact to find it in the logs.
+				if got.ObservedGeneration == 0 {
+					got.ObservedGeneration = u.GetGeneration()
+					key := fmt.Sprintf("%s[%s]", u.GetKind(), got.Type)
+					if !ogReport[key] {
+						ogReport[key] = true
+						t.Logf("https://github.com/crossplane/crossplane/issues/6420: Warning, an unset observedGeneration was artificially updated for %s.status.conditions[%s]", u.GetKind(), got.Type)
+					}
+				}
+
 				if !got.Equal(old[i]) {
 					old[i] = got
-					t.Logf("- CONDITION: %s: %s=%s Reason=%s: %s (%s)", identifier(u), got.Type, got.Status, got.Reason, or(got.Message, `""`), got.LastTransitionTime)
+					t.Logf("- CONDITION: %s[@%d]: %s=%s[@%d] Reason=%s: %s (%s)",
+						identifier(u), u.GetGeneration(), got.Type, got.Status, got.ObservedGeneration, got.Reason, or(got.Message, `""`), got.LastTransitionTime)
 				}
 
 				// do compare modulo message as the message in e2e tests
@@ -648,16 +668,17 @@ func ApplyHandler(r *resources.Resources, manager string, osh ...onSuccessHandle
 	}
 }
 
-// DeleteResources deletes (from the environment) all resources defined by the
-// manifests under the supplied directory that match the supplied glob pattern
-// (e.g. *.yaml).
-func DeleteResources(dir, pattern string, options ...decoder.DecodeOption) features.Func {
+// DeleteResourcesWithPropagationPolicy deletes (from the environment) all
+// resources defined by the manifests under the supplied directory that match
+// the supplied glob pattern (e.g. *.yaml). Deletion is done using the
+// supplied deletion propagation policy.
+func DeleteResourcesWithPropagationPolicy(dir, pattern string, deletePropagation metav1.DeletionPropagation, options ...decoder.DecodeOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
 		dfs := os.DirFS(dir)
 
-		if err := decoder.DecodeEachFile(ctx, dfs, pattern, decoder.DeleteHandler(c.Client().Resources()), options...); err != nil {
+		if err := decoder.DecodeEachFile(ctx, dfs, pattern, decoder.DeleteHandler(c.Client().Resources(), resources.WithDeletePropagation(string(deletePropagation))), options...); err != nil {
 			t.Fatal(err)
 			return ctx
 		}
@@ -666,6 +687,13 @@ func DeleteResources(dir, pattern string, options ...decoder.DecodeOption) featu
 		t.Logf("Deleted resources from %s (matched %d manifests)", filepath.Join(dir, pattern), len(files))
 		return ctx
 	}
+}
+
+// DeleteResources deletes (from the environment) all resources defined by the
+// manifests under the supplied directory that match the supplied glob pattern
+// (e.g. *.yaml).
+func DeleteResources(dir, pattern string, options ...decoder.DecodeOption) features.Func {
+	return DeleteResourcesWithPropagationPolicy(dir, pattern, metav1.DeletePropagationBackground, options...)
 }
 
 // ClaimUnderTestMustNotChangeWithin asserts that the claim available in
@@ -900,9 +928,10 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 			return ctx
 		}
 
-		xrRef := cm.GetResourceReference()
-		uxr := &composite.Unstructured{}
+		// We always find this XR from a claim, so it'll always be legacy.
+		uxr := &composite.Unstructured{Schema: composite.SchemaLegacy}
 
+		xrRef := cm.GetResourceReference()
 		uxr.SetGroupVersionKind(xrRef.GroupVersionKind())
 		if err := c.Client().Resources().Get(ctx, xrRef.Name, "", uxr); err != nil {
 			t.Errorf("cannot get composite %s: %v", xrRef.Name, err)
@@ -1124,7 +1153,7 @@ func DeletionBlockedByUsageWebhook(dir, pattern string, options ...decoder.Decod
 			return ctx
 		}
 
-		if !strings.Contains(err.Error(), "admission webhook \"nousages.apiextensions.crossplane.io\" denied the request") {
+		if !strings.Contains(err.Error(), "admission webhook \"nousages.protection.crossplane.io\" denied the request") {
 			t.Fatalf("expected the usage webhook to deny the request but it failed with err: %s", err.Error())
 			return ctx
 		}
@@ -1141,7 +1170,7 @@ func DeletionBlockedByUsageWebhook(dir, pattern string, options ...decoder.Decod
 func ResourcesDeletedAfterListedAreGone(d time.Duration, dir, pattern string, list k8s.ObjectList, listOptions ...resources.ListOption) features.Func {
 	return AllOf(
 		ListedResourcesDeletedWithin(d, list, listOptions...),
-		DeleteResources(dir, pattern),
+		DeleteResourcesWithPropagationPolicy(dir, pattern, metav1.DeletePropagationForeground),
 		ResourcesDeletedWithin(d, dir, pattern),
 	)
 }

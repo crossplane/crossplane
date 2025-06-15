@@ -37,14 +37,15 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/internal/xfn"
+	"github.com/crossplane/crossplane/internal/xresource"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	ucomposite "github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 // Wait for the server to be ready before sending RPCs. Notably this gives
@@ -178,8 +179,13 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		return Outputs{}, errors.Wrap(err, "cannot start function runtimes")
 	}
 
-	defer func() {
-		if err := runtimes.Stop(ctx); err != nil {
+	defer func() { //nolint:contextcheck // See comment on next line.
+		// Don't use the main context, since it may be cancelled by the time we
+		// get to cleanup (e.g., if render times out).
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := runtimes.Stop(stopCtx); err != nil {
 			log.Info("Error stopping function runtimes", "error", err)
 		}
 	}()
@@ -388,7 +394,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 // crossplane.io/claim-namespace, and crossplane.io/claim-name annotations.
 //
 // https://github.com/crossplane/crossplane/blob/0965f0/internal/controller/apiextensions/composite/composition_render.go#L117
-func SetComposedResourceMetadata(cd resource.Object, xr resource.Composite, name string) error {
+func SetComposedResourceMetadata(cd resource.Object, xr xresource.LegacyComposite, name string) error {
 	cd.SetGenerateName(xr.GetName() + "-")
 	meta.AddAnnotations(cd, map[string]string{AnnotationKeyCompositionResourceName: name})
 	meta.AddLabels(cd, map[string]string{AnnotationKeyCompositeName: xr.GetName()})

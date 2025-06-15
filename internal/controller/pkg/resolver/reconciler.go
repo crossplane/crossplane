@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
@@ -73,6 +74,8 @@ const (
 	errInvalidDependency      = "dependency package is not valid"
 	errFindDependency         = "cannot find dependency version to install"
 	errGetPullConfig          = "cannot get image pull secret from config"
+	errRewriteImage           = "cannot rewrite image path using config"
+	errInvalidRewrite         = "rewritten image path is invalid"
 	errFetchTags              = "cannot fetch dependency package tags"
 	errFindDependencyUpgrade  = "cannot find dependency version to upgrade"
 	errFmtNoValidVersion      = "dependency (%s) does not have a valid version to upgrade that satisfies all constraints. If there is a valid version that requires downgrade, manual intervention is required. Constraints: %v"
@@ -147,14 +150,15 @@ func WithDowngradesEnabled() ReconcilerOption {
 
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client   client.Client
-	log      logging.Logger
-	lock     resource.Finalizer
-	newDag   internaldag.NewDAGFn
-	fetcher  xpkg.Fetcher
-	config   xpkg.ConfigStore
-	registry string
-	features *feature.Flags
+	client     client.Client
+	log        logging.Logger
+	lock       resource.Finalizer
+	newDag     internaldag.NewDAGFn
+	fetcher    xpkg.Fetcher
+	config     xpkg.ConfigStore
+	registry   string
+	features   *feature.Flags
+	conditions conditions.Manager
 
 	downgradesEnabled bool
 }
@@ -181,7 +185,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	if o.Features.Enabled(features.EnableAlphaDependencyVersionUpgrades) {
 		opts = append(opts, WithNewDagFn(internaldag.NewUpgradingMapDag))
-		if o.AutomaticDependencyDowngradeEnabled {
+
+		if o.Features.Enabled(features.EnableAlphaDependencyVersionDowngrades) {
 			opts = append(opts, WithDowngradesEnabled())
 		}
 	}
@@ -206,11 +211,12 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 // NewReconciler creates a new lock dependency reconciler.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		client:  mgr.GetClient(),
-		lock:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
-		log:     logging.NewNopLogger(),
-		newDag:  internaldag.NewMapDag,
-		fetcher: xpkg.NewNopFetcher(),
+		client:     mgr.GetClient(),
+		lock:       resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
+		log:        logging.NewNopLogger(),
+		newDag:     internaldag.NewMapDag,
+		fetcher:    xpkg.NewNopFetcher(),
+		conditions: conditions.ObservedGenerationPropagationManager{},
 	}
 
 	for _, f := range opts {
@@ -235,6 +241,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetLock, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetLock)
 	}
+	status := r.conditions.For(lock)
 
 	// If no packages exist in Lock then we remove finalizer and wait until
 	// a package is added to reconcile again. This allows for cleanup of the
@@ -270,7 +277,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	implied, err := dag.Init(v1beta1.ToNodes(lock.Packages...))
 	if err != nil {
 		log.Debug(errBuildDAG, "error", err)
-		lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errBuildDAG)))
+		status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errBuildDAG)))
 		_ = r.client.Status().Update(ctx, lock)
 		return reconcile.Result{}, errors.Wrap(err, errBuildDAG)
 	}
@@ -280,13 +287,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	_, err = dag.Sort()
 	if err != nil {
 		log.Debug(errSortDAG, "error", err)
-		lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errSortDAG)))
+		status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errSortDAG)))
 		_ = r.client.Status().Update(ctx, lock)
 		return reconcile.Result{}, errors.Wrap(err, errSortDAG)
 	}
 
 	if len(implied) == 0 {
-		lock.SetConditions(v1beta1.ResolutionSucceeded())
+		status.MarkConditions(v1beta1.ResolutionSucceeded())
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
 
@@ -298,14 +305,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	depID := dep.Identifier()
 	if !ok {
 		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, depID))
-		lock.SetConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtMissingDependency, depID)))
+		status.MarkConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtMissingDependency, depID)))
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
 
 	ref, err := name.ParseReference(depID, name.WithDefaultRegistry(r.registry))
 	if err != nil {
 		log.Debug(errInvalidDependency, "error", err)
-		lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errInvalidDependency)))
+		status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errInvalidDependency)))
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
 
@@ -315,14 +322,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		l, err := NewPackageList(dep)
 		if err != nil {
 			log.Debug(errGetDependency, "error", err)
-			lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errGetDependency)))
+			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errGetDependency)))
 			_ = r.client.Status().Update(ctx, lock)
 			return reconcile.Result{}, errors.Wrap(err, errGetDependency)
 		}
 
 		if err := r.client.List(ctx, l); err != nil {
 			log.Debug(errGetDependency, "error", err)
-			lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errGetDependency)))
+			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errGetDependency)))
 			_ = r.client.Status().Update(ctx, lock)
 			return reconcile.Result{}, errors.Wrap(err, errGetDependency)
 		}
@@ -349,7 +356,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		var addVer string
 		if addVer, err = r.findDependencyVersionToInstall(ctx, dep, log, ref); err != nil {
 			log.Debug(errFindDependency, "error", errors.Wrapf(err, depID, dep.Constraints))
-			lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errFindDependency)))
+			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errFindDependency)))
 			_ = r.client.Status().Update(ctx, lock)
 			return reconcile.Result{Requeue: false}, errors.Wrap(err, errFindDependency)
 		}
@@ -358,14 +365,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// dictating constraints.
 		if addVer == "" {
 			log.Debug(errFindDependencyUpgrade, "error", errors.Errorf(errFmtNoValidVersion, depID, dep.Constraints))
-			lock.SetConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtNoValidVersion, depID, dep.Constraints)))
+			status.MarkConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtNoValidVersion, depID, dep.Constraints)))
 			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 		}
 
 		pack, err := NewPackage(dep, addVer, ref)
 		if err != nil {
 			log.Debug(errConstructDependency, "error", err)
-			lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errConstructDependency)))
+			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errConstructDependency)))
 			_ = r.client.Status().Update(ctx, lock)
 			return reconcile.Result{}, errors.Wrap(err, errConstructDependency)
 		}
@@ -374,12 +381,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// it creates.
 		if err := r.client.Create(ctx, pack); err != nil && !kerrors.IsAlreadyExists(err) {
 			log.Debug(errCreateDependency, "error", err)
-			lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errCreateDependency)))
+			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errCreateDependency)))
 			_ = r.client.Status().Update(ctx, lock)
 			return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
 		}
 
-		lock.SetConditions(v1beta1.ResolutionSucceeded())
+		status.MarkConditions(v1beta1.ResolutionSucceeded())
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
 
@@ -394,7 +401,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	n, err := dag.GetNode(depID)
 	if err != nil {
 		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, depID))
-		lock.SetConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtMissingDependency, depID)))
+		status.MarkConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtMissingDependency, depID)))
 		_ = r.client.Status().Update(ctx, lock)
 		return reconcile.Result{}, errors.Errorf(errFmtMissingDependency, depID)
 	}
@@ -402,7 +409,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	newVer, err := r.findDependencyVersionToUpdate(ctx, ref, installedVersion, n, log)
 	if err != nil {
 		log.Debug(errFindDependencyUpgrade, "error", errors.Wrapf(err, depID, dep.Constraints))
-		lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errFindDependencyUpgrade)))
+		status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errFindDependencyUpgrade)))
 		_ = r.client.Status().Update(ctx, lock)
 		return reconcile.Result{}, errors.Wrap(err, errFindDependencyUpgrade)
 	}
@@ -416,12 +423,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.client.Update(ctx, pkg); err != nil {
 		log.Debug(errUpdateDependency, "error", err)
-		lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errUpdateDependency)))
+		status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errUpdateDependency)))
 		_ = r.client.Status().Update(ctx, lock)
 		return reconcile.Result{}, errors.Wrap(err, errUpdateDependency)
 	}
 
-	lock.SetConditions(v1beta1.ResolutionSucceeded())
+	status.MarkConditions(v1beta1.ResolutionSucceeded())
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 }
 
@@ -439,7 +446,23 @@ func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1
 		return "", errors.Wrap(err, errInvalidConstraint)
 	}
 
-	ic, ps, err := r.config.PullSecretFor(ctx, ref.String())
+	// Rewrite the image path if necessary. We need to do this before looking
+	// for pull secrets, since the rewritten path may use different secrets than
+	// the original.
+	rewriteConfigName, newPath, err := r.config.RewritePath(ctx, ref.String())
+	if err != nil {
+		log.Info("cannot rewrite image path using config", "error", err)
+		return "", errors.Wrap(err, errRewriteImage)
+	}
+	if newPath != "" {
+		ref, err = name.ParseReference(newPath, name.WithDefaultRegistry(r.registry))
+		if err != nil {
+			log.Info("rewritten image path is invalid", "error", err)
+			return "", errors.Wrap(err, errInvalidRewrite)
+		}
+	}
+
+	psConfig, ps, err := r.config.PullSecretFor(ctx, ref.String())
 	if err != nil {
 		log.Info("cannot get pull secret from image config store", "error", err)
 		return "", errors.Wrap(err, errGetPullConfig)
@@ -447,7 +470,7 @@ func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1
 
 	var s []string
 	if ps != "" {
-		log.Debug("Selected pull secret from image config store", "image", ref.String(), "imageConfig", ic, "pullSecret", ps)
+		log.Debug("Selected pull secret from image config store", "image", ref.String(), "pullSecretConfig", psConfig, "pullSecret", ps, "rewriteConfig", rewriteConfigName)
 		s = append(s, ps)
 	}
 	// NOTE(hasheddan): we will be unable to fetch tags for private
@@ -456,7 +479,7 @@ func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1
 	tags, err := r.fetcher.Tags(ctx, ref, s...)
 	if err != nil {
 		log.Debug(errFetchTags, "error", err)
-		return "", errors.New(errFetchTags)
+		return "", errors.Wrap(err, errFetchTags)
 	}
 
 	vs := []*semver.Version{}
@@ -493,7 +516,23 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 		return digest, nil
 	}
 
-	ic, ps, err := r.config.PullSecretFor(ctx, ref.String())
+	// Rewrite the image path if necessary. We need to do this before looking
+	// for pull secrets, since the rewritten path may use different secrets than
+	// the original.
+	rewriteConfigName, newPath, err := r.config.RewritePath(ctx, ref.String())
+	if err != nil {
+		log.Info("cannot rewrite image path using config", "error", err)
+		return "", errors.Wrap(err, errRewriteImage)
+	}
+	if newPath != "" {
+		ref, err = name.ParseReference(newPath, name.WithDefaultRegistry(r.registry))
+		if err != nil {
+			log.Info("rewritten image path is invalid", "error", err)
+			return "", errors.Wrap(err, errInvalidRewrite)
+		}
+	}
+
+	psConfig, ps, err := r.config.PullSecretFor(ctx, ref.String())
 	if err != nil {
 		log.Info("cannot get pull secret from image config store", "error", err)
 		return "", errors.Wrap(err, errGetPullConfig)
@@ -501,14 +540,14 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 
 	var s []string
 	if ps != "" {
-		log.Debug("Selected pull secret from image config store", "image", ref.String(), "imageConfig", ic, "pullSecret", ps)
+		log.Debug("Selected pull secret from image config store", "image", ref.String(), "pullSecretConfig", psConfig, "pullSecret", ps, "rewriteConfig", rewriteConfigName)
 		s = append(s, ps)
 	}
 
 	tags, err := r.fetcher.Tags(ctx, ref, s...)
 	if err != nil {
 		log.Debug(errFetchTags, "error", err)
-		return "", errors.New(errFetchTags)
+		return "", errors.Wrap(err, errFetchTags)
 	}
 
 	availableVersions := make([]*semver.Version, 0, len(tags))

@@ -14,13 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Generated from pkg/v1/revision_types.go by ../hack/duplicate_api_type.sh. DO NOT EDIT.
+// Generated from apis/pkg/v1/revision_types.go by ./hack/duplicate_api_type.sh. DO NOT EDIT.
 
 package v1beta1
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
@@ -103,10 +102,14 @@ type PackageRevisionStatus struct {
 	InstalledDependencies int64 `json:"installedDependencies,omitempty"`
 	InvalidDependencies   int64 `json:"invalidDependencies,omitempty"`
 
-	// PermissionRequests made by this package. The package declares that its
-	// controller needs these permissions to run. The RBAC manager is
-	// responsible for granting them.
-	PermissionRequests []rbacv1.PolicyRule `json:"permissionRequests,omitempty"`
+	// AppliedImageConfigRefs records any image configs that were applied in
+	// reconciling this revision, and what they were used for.
+	AppliedImageConfigRefs []ImageConfigRef `json:"appliedImageConfigRefs,omitempty"`
+
+	// ResolvedPackage is the name of the package that was installed. It may be
+	// different from spec.image if the package path was rewritten using an
+	// image config.
+	ResolvedPackage string `json:"resolvedImage,omitempty"`
 }
 
 // A ControllerReference references the controller (e.g. Deployment), if any,

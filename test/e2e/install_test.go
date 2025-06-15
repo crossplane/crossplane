@@ -17,11 +17,15 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
@@ -68,7 +72,16 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "claim.yaml"),
 			)).
-			Assess("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			Assess("DeletePrerequisites",
+				funcs.AllOf(
+					funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList),
+					// Wait for package revisions to be deleted before we
+					// uninstall Crossplane.
+					// TODO(negz): Use foreground deletion?
+					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.ProviderRevisionList{}),
+					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.FunctionRevisionList{}),
+				),
+			).
 			Assess("UninstallCrossplane", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUninstall(
 					helm.WithName(helmReleaseName),
@@ -125,11 +138,39 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			Assess("RBACManagerDeploymentIsAvailable", funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane-rbac-manager")).
 			Assess("CoreCRDsAreEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, crdsDir, "*.yaml", funcs.CRDInitialNamesAccepted())).
 			Assess("ClaimIsStillAvailable", funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+			// TODO(turkenh): Backport provider deployment label selector migration to the previous stable
+			//  Crossplane version and remove the following step. Currently, when we downgrade from main to
+			//  the previous stable version, provider stuck as unhealthy because the label selector
+			//  of the provider deployment is not compatible with the previous stable version.
+			//  Tracking issue https://github.com/crossplane/crossplane/issues/6506
+			Assess("DeleteProviderNopDeployment", func(ctx context.Context, t *testing.T, e *envconf.Config) context.Context {
+				t.Helper()
+				err := e.Client().Resources("crossplane-system").Delete(ctx, &appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "provider-nop-lifecycle-upgrade-37f3300ebfa7",
+						Namespace: "crossplane-system",
+					},
+				})
+				if client.IgnoreNotFound(err) != nil {
+					t.Errorf("Failed to delete provider-nop-lifecycle-upgrade-37f3300ebfa7 deployment: %v", err)
+				}
+				return ctx
+			}).
+			Assess("ProviderIsReady",
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			Assess("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DeletePrerequisites",
+				funcs.AllOf(
+					funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList),
+					// Wait for package revisions to be deleted before we
+					// uninstall Crossplane.
+					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.ProviderRevisionList{}),
+					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.FunctionRevisionList{}),
+				),
+			).
 			// Uninstalling the Crossplane Helm chart doesn't remove its CRDs. We
 			// want to make sure they can be deleted cleanly. If they can't, it's a
 			// sign something they define might have stuck around.

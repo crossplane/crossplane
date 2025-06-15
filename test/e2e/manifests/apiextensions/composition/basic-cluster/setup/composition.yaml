@@ -1,0 +1,63 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: basic-composition-cluster
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: ClusterTest
+  mode: Pipeline
+  pipeline:
+  - step: be-a-dummy
+    functionRef:
+      name: function-dummy-ext-basic
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      # This is a YAML-serialized RunFunctionResponse. function-dummy will
+      # overlay the desired state on any that was passed into it.
+      response:
+        desired:
+          composite:
+            resource:
+              status:
+                coolerField: "I'M COOLER!"
+          resources:
+            configmap:
+              resource:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  namespace: default
+                data:
+                  coolData: "I'm cool!"
+              ready: READY_TRUE
+            crd:
+              resource:
+                apiVersion: apiextensions.k8s.io/v1
+                kind: CustomResourceDefinition
+                metadata:
+                  name: controllers.test.example.org
+                spec:
+                  group: test.example.org
+                  names:
+                    kind: Controller
+                    plural: controllers
+                  scope: Cluster
+                  versions:
+                  - name: v1alpha1
+                    served: true
+                    storage: true
+                    schema:
+                      openAPIV3Schema:
+                       type: object
+              ready: READY_TRUE
+        results:
+         - severity: SEVERITY_NORMAL
+           message: "I am doing a compose!"
+    credentials:
+    - name: important-secret
+      source: Secret
+      secretRef:
+        namespace: crossplane-system
+        name: super-secret

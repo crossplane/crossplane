@@ -36,16 +36,16 @@ import (
 // Cmd arguments and flags for render subcommand.
 type Cmd struct {
 	// Arguments.
-	Extensions string `arg:"" help:"Extensions source which can be a file, directory, or '-' for standard input."`
-	Resources  string `arg:"" help:"Resources source which can be a file, directory, or '-' for standard input."`
+	Extensions string `arg:"" help:"Extension sources as a comma-separated list of files, directories, or '-' for standard input."`
+	Resources  string `arg:"" help:"Resource sources as a comma-separated list of files, directories, or '-' for standard input."`
 
 	// Flags. Keep them in alphabetical order.
-	CacheDir           string `default:"~/.crossplane/cache"                                                       help:"Absolute path to the cache directory where downloaded schemas are stored."`
-	CleanCache         bool   `help:"Clean the cache directory before downloading package schemas."`
-	SkipSuccessResults bool   `help:"Skip printing success results."`
-	CrossplaneImage    string `help:"Specify the Crossplane image to be used for validating the built-in schemas."`
-
-	fs afero.Fs
+	CacheDir              string `default:"~/.crossplane/cache"                                                       help:"Absolute path to the cache directory where downloaded schemas are stored." predictor:"directory"`
+	CleanCache            bool   `help:"Clean the cache directory before downloading package schemas."`
+	SkipSuccessResults    bool   `help:"Skip printing success results."`
+	CrossplaneImage       string `help:"Specify the Crossplane image to be used for validating the built-in schemas."`
+	ErrorOnMissingSchemas bool   `default:"false"                                                                     help:"Return non zero exit code if not all schemas are provided."`
+	fs                    afero.Fs
 }
 
 // Help prints out the help for the validate command.
@@ -67,8 +67,11 @@ Examples:
   # Validate all resources in the resources.yaml file against the extensions in the extensions.yaml file
   crossplane beta validate extensions.yaml resources.yaml
 
+  # Validate all resources in the resourceDir folder against the extensions in the crossplane.yaml file and extensionsDir folder
+  crossplane beta validate crossplane.yaml,extensionsDir/ resourceDir/
+
   # Validate all resources in the resources.yaml file against the extensions in the extensions.yaml file using a specific Crossplane image version
-  crossplane beta validate extensions.yaml resources.yaml --crossplane-image=xpkg.upbound.io/crossplane/crossplane:v1.16.0
+  crossplane beta validate extensions.yaml resources.yaml --crossplane-image=xpkg.crossplane.io/crossplane/crossplane:v1.20.0
 
   # Validate all resources in the resourceDir folder against the extensions in the extensionsDir folder and skip
   # success logs
@@ -139,7 +142,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	}
 
 	// Validate resources against schemas
-	if err := SchemaValidation(resources, m.crds, c.SkipSuccessResults, k.Stdout); err != nil {
+	if err := SchemaValidation(resources, m.crds, c.ErrorOnMissingSchemas, c.SkipSuccessResults, k.Stdout); err != nil {
 		return errors.Wrapf(err, "cannot validate resources")
 	}
 

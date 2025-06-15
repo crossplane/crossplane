@@ -17,6 +17,8 @@ limitations under the License.
 package v1
 
 import (
+	"slices"
+
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -61,13 +63,15 @@ func RefNames(refs []corev1.LocalObjectReference) []string {
 	return stringRefs
 }
 
+// TODO(negz): Move these interfaces out of the apis package and closer to where
+// they're consumed. This'll probably require internal duplicates of some of the
+// returned types. We could generate converters from the public API types to the
+// internal types, like we do for the Usage types.
+
 // PackageWithRuntime is the interface satisfied by packages with runtime types.
 // +k8s:deepcopy-gen=false
-type PackageWithRuntime interface { //nolint:interfacebloat // TODO(negz): Could this be composed of smaller interfaces?
+type PackageWithRuntime interface {
 	Package
-
-	GetControllerConfigRef() *ControllerConfigReference
-	SetControllerConfigRef(r *ControllerConfigReference)
 
 	GetRuntimeConfigRef() *RuntimeConfigReference
 	SetRuntimeConfigRef(r *RuntimeConfigReference)
@@ -75,6 +79,37 @@ type PackageWithRuntime interface { //nolint:interfacebloat // TODO(negz): Could
 	GetTLSServerSecretName() *string
 
 	GetTLSClientSecretName() *string
+}
+
+// SetAppliedImageConfigRefs sets applied image config refs, replacing any
+// existing refs with the same reason.
+func (s *PackageStatus) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	for _, ref := range refs {
+		exists := false
+		for i, existing := range s.AppliedImageConfigRefs {
+			if existing.Reason != ref.Reason {
+				continue
+			}
+			s.AppliedImageConfigRefs[i] = ref
+			exists = true
+		}
+		if !exists {
+			s.AppliedImageConfigRefs = append(s.AppliedImageConfigRefs, ref)
+		}
+	}
+}
+
+// ClearAppliedImageConfigRef removes the applied image config ref with the
+// given reason.
+func (s *PackageStatus) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	for i, ref := range s.AppliedImageConfigRefs {
+		if ref.Reason == reason {
+			// There should only be one ref with the given reason; remove it and
+			// return.
+			s.AppliedImageConfigRefs = slices.Delete(s.AppliedImageConfigRefs, i, i+1)
+			break
+		}
+	}
 }
 
 // Package is the interface satisfied by package types.
@@ -117,6 +152,13 @@ type Package interface { //nolint:interfacebloat // TODO(negz): Could we break t
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
+
+	GetAppliedImageConfigRefs() []ImageConfigRef
+	SetAppliedImageConfigRefs(refs ...ImageConfigRef)
+	ClearAppliedImageConfigRef(reason ImageConfigRefReason)
+
+	GetResolvedSource() string
+	SetResolvedSource(s string)
 }
 
 // GetCondition of this Provider.
@@ -194,16 +236,6 @@ func (p *Provider) SetIgnoreCrossplaneConstraints(b *bool) {
 	p.Spec.IgnoreCrossplaneConstraints = b
 }
 
-// GetControllerConfigRef of this Provider.
-func (p *Provider) GetControllerConfigRef() *ControllerConfigReference {
-	return p.Spec.ControllerConfigReference
-}
-
-// SetControllerConfigRef of this Provider.
-func (p *Provider) SetControllerConfigRef(r *ControllerConfigReference) {
-	p.Spec.ControllerConfigReference = r
-}
-
 // GetRuntimeConfigRef of this Provider.
 func (p *Provider) GetRuntimeConfigRef() *RuntimeConfigReference {
 	return p.Spec.RuntimeConfigReference
@@ -272,6 +304,31 @@ func (p *Provider) GetTLSServerSecretName() *string {
 // GetTLSClientSecretName of this Provider.
 func (p *Provider) GetTLSClientSecretName() *string {
 	return GetSecretNameWithSuffix(p.GetName(), TLSClientSecretNameSuffix)
+}
+
+// GetAppliedImageConfigRefs of this Provider.
+func (p *Provider) GetAppliedImageConfigRefs() []ImageConfigRef {
+	return p.Status.AppliedImageConfigRefs
+}
+
+// SetAppliedImageConfigRefs of this Provider.
+func (p *Provider) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	p.Status.SetAppliedImageConfigRefs(refs...)
+}
+
+// ClearAppliedImageConfigRef of this Provider.
+func (p *Provider) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	p.Status.ClearAppliedImageConfigRef(reason)
+}
+
+// GetResolvedSource of this Provider.
+func (p *Provider) GetResolvedSource() string {
+	return p.Status.ResolvedPackage
+}
+
+// SetResolvedSource of this Provider.
+func (p *Provider) SetResolvedSource(s string) {
+	p.Status.ResolvedPackage = s
 }
 
 // GetCondition of this Configuration.
@@ -399,14 +456,36 @@ func (p *Configuration) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
+// GetAppliedImageConfigRefs of this Configuration.
+func (p *Configuration) GetAppliedImageConfigRefs() []ImageConfigRef {
+	return p.Status.AppliedImageConfigRefs
+}
+
+// SetAppliedImageConfigRefs of this Configuration.
+func (p *Configuration) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	p.Status.SetAppliedImageConfigRefs(refs...)
+}
+
+// ClearAppliedImageConfigRef of this Configuration.
+func (p *Configuration) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	p.Status.ClearAppliedImageConfigRef(reason)
+}
+
+// GetResolvedSource of this Configuration.
+func (p *Configuration) GetResolvedSource() string {
+	return p.Status.ResolvedPackage
+}
+
+// SetResolvedSource of this Configuration.
+func (p *Configuration) SetResolvedSource(s string) {
+	p.Status.ResolvedPackage = s
+}
+
 // PackageRevisionWithRuntime is the interface satisfied by revision of packages
 // with runtime types.
 // +k8s:deepcopy-gen=false
 type PackageRevisionWithRuntime interface { //nolint:interfacebloat // TODO(negz): Could this be composed of smaller interfaces?
 	PackageRevision
-
-	GetControllerConfigRef() *ControllerConfigReference
-	SetControllerConfigRef(r *ControllerConfigReference)
 
 	GetRuntimeConfigRef() *RuntimeConfigReference
 	SetRuntimeConfigRef(r *RuntimeConfigReference)
@@ -416,6 +495,37 @@ type PackageRevisionWithRuntime interface { //nolint:interfacebloat // TODO(negz
 
 	GetTLSClientSecretName() *string
 	SetTLSClientSecretName(n *string)
+}
+
+// SetAppliedImageConfigRefs sets applied image config refs, replacing any
+// existing refs with the same reason.
+func (s *PackageRevisionStatus) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	for _, ref := range refs {
+		exists := false
+		for i, existing := range s.AppliedImageConfigRefs {
+			if existing.Reason != ref.Reason {
+				continue
+			}
+			s.AppliedImageConfigRefs[i] = ref
+			exists = true
+		}
+		if !exists {
+			s.AppliedImageConfigRefs = append(s.AppliedImageConfigRefs, ref)
+		}
+	}
+}
+
+// ClearAppliedImageConfigRef removes the applied image config ref with the
+// given reason.
+func (s *PackageRevisionStatus) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	for i, ref := range s.AppliedImageConfigRefs {
+		if ref.Reason == reason {
+			// There should only be one ref with the given reason; remove it and
+			// return.
+			s.AppliedImageConfigRefs = slices.Delete(s.AppliedImageConfigRefs, i, i+1)
+			break
+		}
+	}
 }
 
 // PackageRevision is the interface satisfied by package revision types.
@@ -458,6 +568,13 @@ type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
+
+	GetAppliedImageConfigRefs() []ImageConfigRef
+	SetAppliedImageConfigRefs(refs ...ImageConfigRef)
+	ClearAppliedImageConfigRef(reason ImageConfigRefReason)
+
+	GetResolvedSource() string
+	SetResolvedSource(s string)
 }
 
 // GetCondition of this ProviderRevision.
@@ -557,16 +674,6 @@ func (p *ProviderRevision) SetIgnoreCrossplaneConstraints(b *bool) {
 	p.Spec.IgnoreCrossplaneConstraints = b
 }
 
-// GetControllerConfigRef of this ProviderRevision.
-func (p *ProviderRevision) GetControllerConfigRef() *ControllerConfigReference {
-	return p.Spec.ControllerConfigReference
-}
-
-// SetControllerConfigRef of this ProviderRevision.
-func (p *ProviderRevision) SetControllerConfigRef(r *ControllerConfigReference) {
-	p.Spec.ControllerConfigReference = r
-}
-
 // GetRuntimeConfigRef of this ProviderRevision.
 func (p *ProviderRevision) GetRuntimeConfigRef() *RuntimeConfigReference {
 	return p.Spec.RuntimeConfigReference
@@ -625,6 +732,31 @@ func (p *ProviderRevision) GetCommonLabels() map[string]string {
 // SetCommonLabels of this ProviderRevision.
 func (p *ProviderRevision) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
+}
+
+// GetAppliedImageConfigRefs of this ProviderRevision.
+func (p *ProviderRevision) GetAppliedImageConfigRefs() []ImageConfigRef {
+	return p.Status.AppliedImageConfigRefs
+}
+
+// SetAppliedImageConfigRefs of this ProviderRevision.
+func (p *ProviderRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	p.Status.SetAppliedImageConfigRefs(refs...)
+}
+
+// ClearAppliedImageConfigRef of this ProviderRevision.
+func (p *ProviderRevision) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	p.Status.ClearAppliedImageConfigRef(reason)
+}
+
+// GetResolvedSource of this ProviderRevision.
+func (p *ProviderRevision) GetResolvedSource() string {
+	return p.Status.ResolvedPackage
+}
+
+// SetResolvedSource of this ProviderRevision.
+func (p *ProviderRevision) SetResolvedSource(s string) {
+	p.Status.ResolvedPackage = s
 }
 
 // GetCondition of this ConfigurationRevision.
@@ -752,6 +884,31 @@ func (p *ConfigurationRevision) GetCommonLabels() map[string]string {
 // SetCommonLabels of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
+}
+
+// GetAppliedImageConfigRefs of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetAppliedImageConfigRefs() []ImageConfigRef {
+	return p.Status.AppliedImageConfigRefs
+}
+
+// SetAppliedImageConfigRefs of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	p.Status.SetAppliedImageConfigRefs(refs...)
+}
+
+// ClearAppliedImageConfigRef of this ConfigurationRevision.
+func (p *ConfigurationRevision) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	p.Status.ClearAppliedImageConfigRef(reason)
+}
+
+// GetResolvedSource of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetResolvedSource() string {
+	return p.Status.ResolvedPackage
+}
+
+// SetResolvedSource of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetResolvedSource(s string) {
+	p.Status.ResolvedPackage = s
 }
 
 // PackageRevisionList is the interface satisfied by package revision list
@@ -882,14 +1039,6 @@ func (f *Function) SetIgnoreCrossplaneConstraints(b *bool) {
 	f.Spec.IgnoreCrossplaneConstraints = b
 }
 
-// GetControllerConfigRef of this Function.
-func (f *Function) GetControllerConfigRef() *ControllerConfigReference {
-	return nil
-}
-
-// SetControllerConfigRef of this Function.
-func (f *Function) SetControllerConfigRef(*ControllerConfigReference) {}
-
 // GetRuntimeConfigRef of this Function.
 func (f *Function) GetRuntimeConfigRef() *RuntimeConfigReference {
 	return f.Spec.RuntimeConfigReference
@@ -958,6 +1107,31 @@ func (f *Function) GetTLSServerSecretName() *string {
 // GetTLSClientSecretName of this Function.
 func (f *Function) GetTLSClientSecretName() *string {
 	return nil
+}
+
+// GetAppliedImageConfigRefs of this Function.
+func (f *Function) GetAppliedImageConfigRefs() []ImageConfigRef {
+	return f.Status.AppliedImageConfigRefs
+}
+
+// SetAppliedImageConfigRefs of this Function.
+func (f *Function) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	f.Status.SetAppliedImageConfigRefs(refs...)
+}
+
+// ClearAppliedImageConfigRef of this Function.
+func (f *Function) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	f.Status.ClearAppliedImageConfigRef(reason)
+}
+
+// GetResolvedSource of this Function.
+func (f *Function) GetResolvedSource() string {
+	return f.Status.ResolvedPackage
+}
+
+// SetResolvedSource of this Function.
+func (f *Function) SetResolvedSource(s string) {
+	f.Status.ResolvedPackage = s
 }
 
 // GetCondition of this FunctionRevision.
@@ -1057,16 +1231,6 @@ func (r *FunctionRevision) SetIgnoreCrossplaneConstraints(b *bool) {
 	r.Spec.IgnoreCrossplaneConstraints = b
 }
 
-// GetControllerConfigRef of this FunctionRevision.
-func (r *FunctionRevision) GetControllerConfigRef() *ControllerConfigReference {
-	return r.Spec.ControllerConfigReference
-}
-
-// SetControllerConfigRef of this FunctionRevision.
-func (r *FunctionRevision) SetControllerConfigRef(ref *ControllerConfigReference) {
-	r.Spec.ControllerConfigReference = ref
-}
-
 // GetRuntimeConfigRef of this FunctionRevision.
 func (r *FunctionRevision) GetRuntimeConfigRef() *RuntimeConfigReference {
 	return r.Spec.RuntimeConfigReference
@@ -1125,6 +1289,31 @@ func (r *FunctionRevision) GetCommonLabels() map[string]string {
 // SetCommonLabels of this FunctionRevision.
 func (r *FunctionRevision) SetCommonLabels(l map[string]string) {
 	r.Spec.CommonLabels = l
+}
+
+// GetAppliedImageConfigRefs of this FunctionRevision.
+func (r *FunctionRevision) GetAppliedImageConfigRefs() []ImageConfigRef {
+	return r.Status.AppliedImageConfigRefs
+}
+
+// SetAppliedImageConfigRefs of this FunctionRevision.
+func (r *FunctionRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	r.Status.SetAppliedImageConfigRefs(refs...)
+}
+
+// ClearAppliedImageConfigRef of this FunctionRevision.
+func (r *FunctionRevision) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	r.Status.ClearAppliedImageConfigRef(reason)
+}
+
+// GetResolvedSource of this FunctionRevision.
+func (r *FunctionRevision) GetResolvedSource() string {
+	return r.Status.ResolvedPackage
+}
+
+// SetResolvedSource of this FunctionRevision.
+func (r *FunctionRevision) SetResolvedSource(s string) {
+	r.Status.ResolvedPackage = s
 }
 
 // GetRevisions of this ConfigurationRevisionList.
