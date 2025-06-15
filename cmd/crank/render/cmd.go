@@ -54,8 +54,8 @@ type Cmd struct {
 	IncludeContext         bool              `help:"Include the context in the rendered output as a resource of kind: Context."                                                                short:"c"`
 	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                      placeholder:"PATH" predictor:"yaml_file_or_directory" type:"path"`
 
-	Timeout time.Duration `default:"1m" help:"How long to run before timing out."`
-	XRD     string        `help:"A YAML file specifying the CompositeResourceDefinition (XRD) that defines the XR's schema and properties."                                                  optional:""        placeholder:"PATH" type:"existingfile"`
+	Timeout time.Duration `default:"1m"                                                                                                     help:"How long to run before timing out."`
+	XRD     string        `help:"A YAML file specifying the CompositeResourceDefinition (XRD) that defines the XR's schema and properties." optional:""                               placeholder:"PATH" type:"existingfile"`
 
 	fs afero.Fs
 }
