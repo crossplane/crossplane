@@ -102,11 +102,15 @@ func RenderComposedResourceMetadata(cd, xr resource.Object, n ResourceName) erro
 
 	// TODO(negz): What happens if there is no claim? Will this set empty
 	// claim name/namespace labels?
-	meta.AddLabels(cd, map[string]string{
+	metaLabels := map[string]string{
 		xcrd.LabelKeyNamePrefixForComposed: xr.GetLabels()[xcrd.LabelKeyNamePrefixForComposed],
-		xcrd.LabelKeyClaimName:             xr.GetLabels()[xcrd.LabelKeyClaimName],
-		xcrd.LabelKeyClaimNamespace:        xr.GetLabels()[xcrd.LabelKeyClaimNamespace],
-	})
+	}
+	if xr.GetLabels()[xcrd.LabelKeyClaimName] != "" && xr.GetLabels()[xcrd.LabelKeyClaimNamespace] != "" {
+		metaLabels[xcrd.LabelKeyClaimName] = xr.GetLabels()[xcrd.LabelKeyClaimName]
+		metaLabels[xcrd.LabelKeyClaimNamespace] = xr.GetLabels()[xcrd.LabelKeyClaimNamespace]
+	}
+
+	meta.AddLabels(cd, metaLabels)
 
 	or := meta.AsController(meta.TypedReferenceTo(xr, xr.GetObjectKind().GroupVersionKind()))
 	return errors.Wrap(meta.AddControllerReference(cd, or), errSetControllerRef)
