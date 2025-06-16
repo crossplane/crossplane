@@ -254,7 +254,7 @@ image:
   ARG TARGETPLATFORM
   ARG TARGETARCH
   ARG TARGETOS
-  FROM --platform=${TARGETPLATFORM} gcr.io/distroless/static@sha256:5c7e2b465ac6a2a4e5f4f7f722ce43b147dabe87cb21ac6c4007ae5178a1fa58
+  FROM --platform=${TARGETPLATFORM} gcr.io/distroless/static@sha256:b7b9a6953e7bed6baaf37329331051d7bdc1b99c885f6dbeb72d75b1baad54f9
   COPY --platform=${NATIVEPLATFORM} (+go-build/crossplane --GOOS=${TARGETOS} --GOARCH=${TARGETARCH}) /usr/local/bin/
   COPY --dir cluster/crds/ /crds
   COPY --dir cluster/webhookconfigurations/ /webhookconfigurations
