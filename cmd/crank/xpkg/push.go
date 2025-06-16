@@ -102,7 +102,7 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 		return err
 	}
 
-	tag, err := name.NewTag(c.Package, name.WithDefaultRegistry(xpkg.DefaultRegistry))
+	tag, err := name.NewTag(c.Package, name.StrictValidation)
 	if err != nil {
 		return errors.Wrapf(err, errFmtNewTag, c.Package)
 	}
@@ -181,7 +181,7 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 				return errors.Wrapf(err, errFmtGetDigest, file)
 			}
 			n := fmt.Sprintf("%s@%s", tag.Repository.Name(), d.String())
-			ref, err := name.NewDigest(n, name.WithDefaultRegistry(xpkg.DefaultRegistry))
+			ref, err := name.NewDigest(n, name.StrictValidation)
 			if err != nil {
 				return errors.Wrapf(err, errFmtNewDigest, n, file)
 			}
