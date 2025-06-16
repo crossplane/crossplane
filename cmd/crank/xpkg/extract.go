@@ -105,12 +105,7 @@ func (c *extractCmd) AfterApply() error {
 		if c.Package == "" {
 			return errors.New(errMustProvideTag)
 		}
-		upCtx, err := upbound.NewFromFlags(c.Flags)
-		if err != nil {
-			return err
-		}
-
-		name, err := name.ParseReference(c.Package, name.WithDefaultRegistry(upCtx.RegistryEndpoint.Hostname()))
+		name, err := name.ParseReference(c.Package, name.StrictValidation)
 		if err != nil {
 			return errors.Wrap(err, errInvalidTag)
 		}

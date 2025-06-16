@@ -34,31 +34,31 @@ import (
 )
 
 const (
-	errFmtGetProvider              = "unexpected name in provider get: %s"
-	errFmtPatchProvider            = "unexpected name in provider update: %s"
-	errFmtPatchProviderSource      = "unexpected source in provider update: %s"
-	errFmtGetConfiguration         = "unexpected name in configuration get: %s"
-	errFmtPatchConfiguration       = "unexpected name in configuration update: %s"
-	errFmtPatchConfigurationSource = "unexpected source in configuration update: %s"
-	errFmtGetFunction              = "unexpected name in function get: %s"
-	errFmtPatchFunction            = "unexpected name in function update: %s"
-	errFmtPatchFunctionSource      = "unexpected source in function update: %s"
+	errFmtGetProvider              = "unexpected name in provider get: %s, expected: %s"
+	errFmtPatchProvider            = "unexpected name in provider update: %s, expected: %s"
+	errFmtPatchProviderSource      = "unexpected source in provider update: %s, expected: %s"
+	errFmtGetConfiguration         = "unexpected name in configuration get: %s, expected: %s"
+	errFmtPatchConfiguration       = "unexpected name in configuration update: %s, expected: %s"
+	errFmtPatchConfigurationSource = "unexpected source in configuration update: %s, expected: %s"
+	errFmtGetFunction              = "unexpected name in function get: %s, expected: %s"
+	errFmtPatchFunction            = "unexpected name in function update: %s, expected: %s"
+	errFmtPatchFunctionSource      = "unexpected source in function update: %s, expected: %s"
 )
 
 var errBoom = errors.New("boom")
 
 func TestInstaller(t *testing.T) {
 	p1Existing := "existing-provider"
-	p1 := "crossplane/provider-aws:v1.16.0"
-	p1Repo := "crossplane/provider-aws"
+	p1 := "xpkg.crossplane.io/crossplane/provider-aws:v1.16.0"
+	p1Repo := "xpkg.crossplane.io/crossplane/provider-aws"
 	p1Name := "crossplane-provider-aws"
 	c1Existing := "existing-configuration"
-	c1 := "crossplane/getting-started-aws:v0.0.1"
-	c1Repo := "crossplane/getting-started-aws"
+	c1 := "xpkg.crossplane.io/crossplane/getting-started-aws:v0.0.1"
+	c1Repo := "xpkg.crossplane.io/crossplane/getting-started-aws"
 	c1Name := "crossplane-getting-started-aws"
 	f1Existing := "existing-function"
-	f1 := "crossplane/function-auto-ready:v0.0.1"
-	f1Repo := "crossplane/function-auto-ready"
+	f1 := "xpkg.crossplane.io/crossplane/function-auto-ready:v0.0.1"
+	f1Repo := "xpkg.crossplane.io/crossplane/function-auto-ready"
 	f1Name := "crossplane-function-auto-ready"
 
 	type args struct {
@@ -136,15 +136,15 @@ func TestInstaller(t *testing.T) {
 						switch obj.(type) {
 						case *v1.Provider:
 							if key.Name != p1Name {
-								t.Errorf(errFmtGetProvider, key.Name)
+								t.Errorf(errFmtGetProvider, key.Name, p1Name)
 							}
 						case *v1.Configuration:
 							if key.Name != c1Name {
-								t.Errorf(errFmtGetConfiguration, key.Name)
+								t.Errorf(errFmtGetConfiguration, key.Name, c1Name)
 							}
 						case *v1.Function:
 							if key.Name != f1Name {
-								t.Errorf(errFmtGetFunction, key.Name)
+								t.Errorf(errFmtGetFunction, key.Name, f1Name)
 							}
 						default:
 							t.Errorf("unexpected type")
@@ -155,15 +155,15 @@ func TestInstaller(t *testing.T) {
 						switch obj.(type) {
 						case *v1.Provider:
 							if obj.GetName() != p1Name {
-								t.Errorf(errFmtPatchProvider, obj.GetName())
+								t.Errorf(errFmtPatchProvider, obj.GetName(), p1Name)
 							}
 						case *v1.Configuration:
 							if obj.GetName() != c1Name {
-								t.Errorf(errFmtPatchConfiguration, obj.GetName())
+								t.Errorf(errFmtPatchConfiguration, obj.GetName(), c1Name)
 							}
 						case *v1.Function:
 							if obj.GetName() != f1Name {
-								t.Errorf(errFmtPatchFunction, obj.GetName())
+								t.Errorf(errFmtPatchFunction, obj.GetName(), f1Name)
 							}
 						default:
 							t.Errorf("unexpected type")
@@ -235,15 +235,15 @@ func TestInstaller(t *testing.T) {
 						switch obj.(type) {
 						case *v1.Provider:
 							if key.Name != p1Existing {
-								t.Errorf(errFmtGetProvider, key.Name)
+								t.Errorf(errFmtGetProvider, key.Name, p1Existing)
 							}
 						case *v1.Configuration:
 							if key.Name != c1Existing {
-								t.Errorf(errFmtGetConfiguration, key.Name)
+								t.Errorf(errFmtGetConfiguration, key.Name, c1Existing)
 							}
 						case *v1.Function:
 							if key.Name != f1Existing {
-								t.Errorf(errFmtGetFunction, key.Name)
+								t.Errorf(errFmtGetFunction, key.Name, f1Existing)
 							}
 						default:
 							t.Errorf("unexpected type")
@@ -254,24 +254,24 @@ func TestInstaller(t *testing.T) {
 						switch o := obj.(type) {
 						case *v1.Provider:
 							if o.GetName() != p1Existing {
-								t.Errorf(errFmtPatchProvider, o.GetName())
+								t.Errorf(errFmtPatchProvider, o.GetName(), p1Existing)
 							}
 							if o.GetSource() != p1 {
-								t.Errorf(errFmtPatchProviderSource, o.GetSource())
+								t.Errorf(errFmtPatchProviderSource, o.GetSource(), p1)
 							}
 						case *v1.Configuration:
 							if o.GetName() != c1Existing {
-								t.Errorf(errFmtPatchConfiguration, o.GetName())
+								t.Errorf(errFmtPatchConfiguration, o.GetName(), c1Existing)
 							}
 							if o.GetSource() != c1 {
-								t.Errorf(errFmtPatchConfigurationSource, o.GetSource())
+								t.Errorf(errFmtPatchConfigurationSource, o.GetSource(), c1)
 							}
 						case *v1.Function:
 							if o.GetName() != f1Existing {
-								t.Errorf(errFmtPatchFunction, o.GetName())
+								t.Errorf(errFmtPatchFunction, o.GetName(), f1Existing)
 							}
 							if o.GetSource() != f1 {
-								t.Errorf(errFmtPatchFunctionSource, o.GetSource())
+								t.Errorf(errFmtPatchFunctionSource, o.GetSource(), f1)
 							}
 						default:
 							t.Errorf("unexpected type")
@@ -294,15 +294,15 @@ func TestInstaller(t *testing.T) {
 						switch obj.(type) {
 						case *v1.Provider:
 							if key.Name != p1Name {
-								t.Errorf(errFmtGetProvider, key.Name)
+								t.Errorf(errFmtGetProvider, key.Name, p1Name)
 							}
 						case *v1.Configuration:
 							if key.Name != c1Name {
-								t.Errorf(errFmtGetConfiguration, key.Name)
+								t.Errorf(errFmtGetConfiguration, key.Name, c1Name)
 							}
 						case *v1.Function:
 							if key.Name != f1Name {
-								t.Errorf(errFmtGetFunction, key.Name)
+								t.Errorf(errFmtGetFunction, key.Name, f1Name)
 							}
 						default:
 							t.Errorf("unexpected type")
@@ -384,15 +384,15 @@ func TestInstaller(t *testing.T) {
 						switch obj.(type) {
 						case *v1.Provider:
 							if key.Name != p1Name {
-								t.Errorf(errFmtGetProvider, key.Name)
+								t.Errorf(errFmtGetProvider, key.Name, p1Name)
 							}
 						case *v1.Configuration:
 							if key.Name != c1Name {
-								t.Errorf(errFmtGetConfiguration, key.Name)
+								t.Errorf(errFmtGetConfiguration, key.Name, c1Name)
 							}
 						case *v1.Function:
 							if key.Name != f1Name {
-								t.Errorf(errFmtGetFunction, key.Name)
+								t.Errorf(errFmtGetFunction, key.Name, f1Name)
 							}
 						default:
 							t.Errorf("unexpected type")

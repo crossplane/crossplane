@@ -48,18 +48,16 @@ const (
 
 // FunctionHooks performs runtime operations for function packages.
 type FunctionHooks struct {
-	client          resource.ClientApplicator
-	defaultRegistry string
+	client resource.ClientApplicator
 }
 
 // NewFunctionHooks returns a new FunctionHooks.
-func NewFunctionHooks(client client.Client, defaultRegistry string) *FunctionHooks {
+func NewFunctionHooks(client client.Client) *FunctionHooks {
 	return &FunctionHooks{
 		client: resource.ClientApplicator{
 			Client:     client,
 			Applicator: resource.NewAPIPatchingApplicator(client),
 		},
-		defaultRegistry: defaultRegistry,
 	}
 }
 
@@ -123,8 +121,8 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 
 	sa := build.ServiceAccount()
 
-	// Determine the function's image, taking into account the default registry.
-	image, err := name.ParseReference(pr.GetResolvedSource(), name.WithDefaultRegistry(h.defaultRegistry))
+	// Determine the function's image.
+	image, err := name.ParseReference(pr.GetResolvedSource(), name.StrictValidation)
 	if err != nil {
 		return errors.Wrap(err, errParseFunctionImage)
 	}

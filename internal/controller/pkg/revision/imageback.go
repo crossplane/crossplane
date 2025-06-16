@@ -55,19 +55,11 @@ const (
 
 // ImageBackend is a backend for parser.
 type ImageBackend struct {
-	registry string
-	fetcher  xpkg.Fetcher
+	fetcher xpkg.Fetcher
 }
 
 // An ImageBackendOption sets configuration for an image backend.
 type ImageBackendOption func(i *ImageBackend)
-
-// WithDefaultRegistry sets the default registry that an image backend will use.
-func WithDefaultRegistry(registry string) ImageBackendOption {
-	return func(i *ImageBackend) {
-		i.registry = registry
-	}
-}
 
 // NewImageBackend creates a new image backend.
 func NewImageBackend(fetcher xpkg.Fetcher, opts ...ImageBackendOption) *ImageBackend {
@@ -96,7 +88,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	}
 	// Use the package recorded in the status rather than the one from the spec,
 	// since it may have been rewritten by an image config.
-	ref, err := name.ParseReference(n.pr.GetResolvedSource(), name.WithDefaultRegistry(i.registry))
+	ref, err := name.ParseReference(n.pr.GetResolvedSource(), name.StrictValidation)
 	if err != nil {
 		return nil, errors.Wrap(err, errBadReference)
 	}

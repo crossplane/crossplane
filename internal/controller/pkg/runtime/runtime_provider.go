@@ -49,18 +49,16 @@ const (
 
 // ProviderHooks performs runtime operations for provider packages.
 type ProviderHooks struct {
-	client          resource.ClientApplicator
-	defaultRegistry string
+	client resource.ClientApplicator
 }
 
 // NewProviderHooks returns a new ProviderHooks.
-func NewProviderHooks(client client.Client, defaultRegistry string) *ProviderHooks {
+func NewProviderHooks(client client.Client) *ProviderHooks {
 	return &ProviderHooks{
 		client: resource.ClientApplicator{
 			Client:     client,
 			Applicator: resource.NewAPIPatchingApplicator(client),
 		},
-		defaultRegistry: defaultRegistry,
 	}
 }
 
@@ -123,8 +121,8 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 
 	sa := build.ServiceAccount()
 
-	// Determine the function's image, taking into account the default registry.
-	image, err := name.ParseReference(pr.GetResolvedSource(), name.WithDefaultRegistry(h.defaultRegistry))
+	// Determine the function's image.
+	image, err := name.ParseReference(pr.GetResolvedSource(), name.StrictValidation)
 	if err != nil {
 		return errors.Wrap(err, errParseProviderImage)
 	}

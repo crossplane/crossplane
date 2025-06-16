@@ -100,7 +100,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		WithOrgDiffer(OrgDiffer{DefaultRegistry: o.DefaultRegistry}))
+		WithOrgDiffer(OrgDiffer{}))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -353,21 +353,18 @@ func ClusterRolesDiffer(current, desired runtime.Object) bool {
 //   - The registry (e.g. xpkg.upbound.io or index.docker.io).
 //   - The part of the repository path before the first slash (e.g. crossplane
 //     in crossplane/provider-aws).
-type OrgDiffer struct {
-	// The default OCI registry to use when parsing references.
-	DefaultRegistry string
-}
+type OrgDiffer struct{}
 
 // Differs returns true if the supplied references are not part of the same OCI
 // registry and org.
 func (d OrgDiffer) Differs(a, b string) bool {
 	// If we can't parse either reference we can't compare them. Safest thing to
 	// do is to assume they're not part of the same org.
-	ra, err := name.ParseReference(a, name.WithDefaultRegistry(d.DefaultRegistry))
+	ra, err := name.ParseReference(a, name.WithDefaultRegistry(""))
 	if err != nil {
 		return true
 	}
-	rb, err := name.ParseReference(b, name.WithDefaultRegistry(d.DefaultRegistry))
+	rb, err := name.ParseReference(b, name.WithDefaultRegistry(""))
 	if err != nil {
 		return true
 	}
