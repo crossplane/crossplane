@@ -143,7 +143,10 @@ func (p *DefaultPrinter) Print(w io.Writer, root *resource.Resource) error {
 		return errors.Wrap(err, errWriteHeader)
 	}
 
-	p.printResourceTree(tw, root, isPackageOrRevision)
+	err := p.printResourceTree(tw, root, isPackageOrRevision)
+	if err != nil {
+		return errors.Wrap(err, "cannot print resource tree")
+	}
 
 	if err := tw.Flush(); err != nil {
 		return errors.Wrap(err, errFlushTabWriter)
