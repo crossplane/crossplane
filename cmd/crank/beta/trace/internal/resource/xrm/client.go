@@ -152,7 +152,7 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 	// For legacy XRs, we need to check at spec.resourceRefs path
 	// We can determine if it's a legacy XR by checking for the presence of the claimRef field
 	out := &reference.Claim{}
-	if err := fieldpath.Pave(obj.Object).GetValueInto("spec.claimRef", out); err == nil {
+	if err := fieldpath.Pave(obj.Object).GetValueInto("spec.crossplane", out); err != nil {
 		xr.Schema = composite.SchemaLegacy
 	}
 	xrRefs := xr.GetResourceReferences()
