@@ -51,7 +51,6 @@ const (
 	errGetDiscoveryClient     = "cannot get discovery client"
 	errGetMapping             = "cannot get mapping for resource"
 	errInitPrinter            = "cannot init new printer"
-	errMissingName            = "missing name, must be provided separately 'TYPE[.VERSION][.GROUP] [NAME]' or in the 'TYPE[.VERSION][.GROUP][/NAME]' format"
 	errNameDoubled            = "name provided twice, must be provided separately 'TYPE[.VERSION][.GROUP] [NAME]' or in the 'TYPE[.VERSION][.GROUP][/NAME]' format"
 	errInvalidResource        = "invalid resource, must be provided in the 'TYPE[.VERSION][.GROUP][/NAME]' format"
 	errInvalidResourceAndName = "invalid resource and name"
@@ -190,22 +189,40 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	}
 
 	logger.Debug("Getting resource tree", "rootRef", rootRef.String())
-	// Get client for k8s package
-	root := resource.GetResource(ctx, client, rootRef)
+	var resourceList *resource.ResourceList
+	if name == "" {
+		// If no name is provided, we list all resources of the kind.
+		logger.Debug("No name provided, listing all resources of the kind")
+		resourceList = resource.ListResources(ctx, client, rootRef)
+	} else {
+		// If a name is provided, we get the specific resource.
+		logger.Debug("Name provided, getting specific resource", "name", name)
+		res := resource.GetResource(ctx, client, rootRef)
+		resourceList = &resource.ResourceList{
+			Items: []resource.Resource{*res},
+			Error: res.Error,
+		}
+	}
+
 	// We should just surface any error getting the root resource immediately.
-	if err := root.Error; err != nil {
+	if err := resourceList.Error; err != nil {
 		return errors.Wrap(err, errGetResource)
 	}
 
-	root, err = c.getResourceTree(root, mapping, client, logger)
-	if err != nil {
-		logger.Debug(errGetResource, "error", err)
-		return errors.Wrap(err, errGetResource)
+	rootList := make([]*resource.Resource, 0, len(resourceList.Items))
+	for _, res := range resourceList.Items {
+		root, err := c.getResourceTree(&res, mapping, client, logger)
+		
+		if err != nil {
+			logger.Debug(errGetResource, "error", err)
+			return errors.Wrap(err, errGetResource)
+		}
+		logger.Debug("Got resource tree", "root", root)
+		rootList = append(rootList, root)
 	}
-	logger.Debug("Got resource tree", "root", root)
 
 	// Print resources
-	err = p.Print(k.Stdout, root)
+	err = p.PrintList(k.Stdout, rootList)
 	if err != nil {
 		return errors.Wrap(err, errCliOutput)
 	}
@@ -225,11 +242,6 @@ func (c *Cmd) getResourceAndName() (string, string, error) {
 	length := len(splittedResource)
 
 	if length == 1 {
-		// If no name is provided, error out
-		if c.Name == "" {
-			return "", "", errors.New(errMissingName)
-		}
-
 		// Resource has only kind and the name is separately provided
 		return splittedResource[0], c.Name, nil
 	}
