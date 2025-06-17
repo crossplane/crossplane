@@ -44,3 +44,13 @@ func (p *JSONPrinter) Print(w io.Writer, root *resource.Resource) error {
 	_, err = fmt.Fprintln(w, string(out))
 	return err
 }
+
+// PrintList implements the Printer interface.
+func (p *JSONPrinter) PrintList(w io.Writer, root *resource.ResourceList) error {
+	out, err := json.MarshalIndent(root, "", "  ")
+	if err != nil {
+		return errors.Wrap(err, errCannotMarshalJSON)
+	}
+	_, err = fmt.Fprintln(w, string(out))
+	return err
+}
