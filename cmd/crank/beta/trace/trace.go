@@ -188,9 +188,12 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		rootRef.Namespace = namespace
 	}
 
+	// If no name is provided, we should print a list of resources.
+	shouldPrintAsList := name == ""
+
 	logger.Debug("Getting resource tree", "rootRef", rootRef.String())
 	var resourceList *resource.ResourceList
-	if name == "" {
+	if shouldPrintAsList {
 		// If no name is provided, we list all resources of the kind.
 		logger.Debug("No name provided, listing all resources of the kind")
 		resourceList = resource.ListResources(ctx, client, rootRef)
@@ -220,7 +223,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		logger.Debug("Got resource tree", "root", root)
 	}
 
-	if name == "" {
+	if shouldPrintAsList {
 		// Print list of resources
 		err = p.PrintList(k.Stdout, resourceList)
 	} else {
