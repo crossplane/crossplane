@@ -209,18 +209,25 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		return errors.Wrap(err, errGetResource)
 	}
 
-	for _, root := range resourceList.Items {
-		root, err = c.getResourceTree(root, mapping, client, logger)
-		
+	for i, root := range resourceList.Items {
+		root, err = c.getResourceTree(ctx, root, mapping, client, logger)		
 		if err != nil {
 			logger.Debug(errGetResource, "error", err)
 			return errors.Wrap(err, errGetResource)
 		}
+
+		resourceList.Items[i] = root
 		logger.Debug("Got resource tree", "root", root)
 	}
 
-	// Print resources
-	err = p.PrintList(k.Stdout, resourceList)
+	if name == "" {
+		// Print list of resources
+		err = p.PrintList(k.Stdout, resourceList)
+	} else {
+		// Print a single resource
+		err = p.Print(k.Stdout, resourceList.Items[0])
+	}
+	
 	if err != nil {
 		return errors.Wrap(err, errCliOutput)
 	}
@@ -258,10 +265,9 @@ func (c *Cmd) getResourceAndName() (string, string, error) {
 	return "", "", errors.New(errInvalidResource)
 }
 
-func (c *Cmd) getResourceTree(root *resource.Resource, mapping *meta.RESTMapping, client client.Client, logger logging.Logger) (*resource.Resource, error) {
+func (c *Cmd) getResourceTree(ctx context.Context, root *resource.Resource, mapping *meta.RESTMapping, client client.Client, logger logging.Logger) (*resource.Resource, error) {
 	var treeClient resource.TreeClient
 	var err error
-	ctx := context.Background()
 	switch {
 	case xpkg.IsPackageType(mapping.GroupVersionKind.GroupKind()):
 		logger.Debug("Requested resource is an Package")
