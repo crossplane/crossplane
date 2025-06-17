@@ -12,7 +12,7 @@ import (
 )
 
 // Define a test for PrintDotGraph.
-func TestPrintDotGraph(t *testing.T) {
+func TestPrintDotGraphPrint(t *testing.T) {
 	type args struct {
 		resource *resource.Resource
 	}
@@ -106,3 +106,82 @@ func TestPrintDotGraph(t *testing.T) {
 		})
 	}
 }
+
+func TestPrintDotGraphPrintList(t *testing.T) {
+	type args struct {
+		resourceList *resource.ResourceList
+	}
+
+	type want struct {
+		dotString string
+		err       error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		// Test valid resource
+		"MultipleResourceWithChildren": {
+			reason: "Should print multiple resources with children.",
+			args: args{
+				resourceList: &resource.ResourceList{
+					Items: []*resource.Resource{
+						GetComplexResource(),
+						GetSimpleResource(),
+					},
+				},
+			},
+			want: want{
+				dotString: `graph  {
+	
+	n1[label="Name: ObjectStorage/test-resource\nApiVersion: test.cloud/v1alpha1\nNamespace: default\nReady: True\nSynced: True\n",penwidth="2"];
+	n2[label="Name: SimpleResource/simple-resource\nApiVersion: test.cloud/v1alpha1\nNamespace: default\nReady: True\nSynced: True\n",penwidth="2"];
+	n11[label="Name: User/test-resource-child-2-1-bucket-hash\nApiVersion: test.cloud/v1alpha1\nReady: \nSynced: True\n",penwidth="2"];
+	n3[label="Name: XObjectStorage/test-resource-hash\nApiVersion: test.cloud/v1alpha1\nReady: True\nSynced: True\n",penwidth="2"];
+	n4[label="Name: XSimpleResource/simple-resource-hash\nApiVersion: test.cloud/v1alpha1\nReady: True\nSynced: True\n",penwidth="2"];
+	n5[label="Name: Bucket/test-resource-bucket-hash\nApiVersion: test.cloud/v1alpha1\nReady: True\nSynced: True\n",penwidth="2"];
+	n6[label="Name: User/test-resource-user-hash\nApiVersion: test.cloud/v1alpha1\nReady: True\nSynced: Unknown\n",penwidth="2"];
+	n7[label="Name: Something/simple-resource-something-hash\nApiVersion: test.cloud/v1alpha1\nReady: True\nSynced: True\n",penwidth="2"];
+	n8[label="Name: User/test-resource-child-1-bucket-hash\nApiVersion: test.cloud/v1alpha1\nReady: False\nSynced: True\n",penwidth="2"];
+	n9[label="Name: User/test-resource-child-mid-bucket-hash\nApiVersion: test.cloud/v1alpha1\nReady: True\nSynced: False\n",penwidth="2"];
+	n10[label="Name: User/test-resource-child-2-bucket-hash\nApiVersion: test.cloud/v1alpha1\nReady: False\nSynced: True\n",penwidth="2"];
+	n1--n3;
+	n2--n4;
+	n3--n5;
+	n3--n6;
+	n4--n7;
+	n5--n8;
+	n5--n9;
+	n5--n10;
+	n10--n11;
+	
+}
+`,
+				err: nil,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			// Create a GraphPrinter
+			p := &DotPrinter{}
+			var buf bytes.Buffer
+			err := p.PrintList(&buf, tc.args.resourceList)
+			got := buf.String()
+
+			// Check error
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("%s\ndotPrinter.Print(): -want, +got:\n%s", tc.reason, diff)
+			}
+
+			// Check if dotString is correct
+			if diff := cmp.Diff(tc.want.dotString, got); diff != "" {
+				t.Errorf("%s\nDotPrinter.Print(): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
