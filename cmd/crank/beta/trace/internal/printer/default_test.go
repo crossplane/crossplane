@@ -160,7 +160,7 @@ Configuration/platform-ref-aws                                               xpk
 func TestDefaultPrinterPrintList(t *testing.T) {
 	type args struct {
 		resourceList *resource.ResourceList
-		wide     bool
+		wide         bool
 	}
 
 	type want struct {
@@ -183,7 +183,7 @@ func TestDefaultPrinterPrintList(t *testing.T) {
 						GetSimpleResource(),
 					},
 				},
-				wide:     false,
+				wide: false,
 			},
 			want: want{
 				// Note: Use spaces instead of tabs for indentation
@@ -215,7 +215,7 @@ SimpleResource/simple-resource (default)               True      True
 						GetSimpleResource(),
 					},
 				},
-				wide:     true,
+				wide: true,
 			},
 			want: want{
 				// Note: Use spaces instead of tabs for indentation

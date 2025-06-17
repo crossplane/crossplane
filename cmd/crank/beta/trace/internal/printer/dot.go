@@ -98,7 +98,7 @@ func (r *dotPackageLabel) String() string {
 func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 	g := dot.NewGraph(dot.Undirected)
 	queue := []*queueItem{{root, nil}}
-	
+
 	printGraphQueue(g, queue)
 
 	dotString := g.String()
@@ -114,14 +114,14 @@ func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 func (p *DotPrinter) PrintList(w io.Writer, root *resource.ResourceList) error {
 	g := dot.NewGraph(dot.Undirected)
 	queue := make([]*queueItem, 0, len(root.Items))
-	
+
 	// Initialize the queue with all items in the resource list
 	for _, r := range root.Items {
 		queue = append(queue, &queueItem{r, nil})
 	}
 
 	printGraphQueue(g, queue)
-	
+
 	dotString := g.String()
 	if dotString == "" {
 		return errors.New("graph is empty")

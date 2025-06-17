@@ -327,11 +327,11 @@ func TestJSONPrinterPrintList(t *testing.T) {
 			reason: "Should print multiple resources with children.",
 			args: args{
 				resourceList: &resource.ResourceList{
-          Items: []*resource.Resource{
-            GetComplexResource(),
-            GetSimpleResource(),
-          },
-        },
+					Items: []*resource.Resource{
+						GetComplexResource(),
+						GetSimpleResource(),
+					},
+				},
 			},
 			want: want{
 				// Note: Use spaces instead of tabs for intendation
@@ -677,4 +677,3 @@ func TestJSONPrinterPrintList(t *testing.T) {
 		})
 	}
 }
-

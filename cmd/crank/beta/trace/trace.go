@@ -217,7 +217,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	for i := range resourceList.Items {
 		root := resourceList.Items[i]
-		root, err = c.getResourceTree(ctx, root, mapping, client, logger)		
+		root, err = c.getResourceTree(ctx, root, mapping, client, logger)
 		if err != nil {
 			logger.Debug(errGetResource, "error", err)
 			return errors.Wrap(err, errGetResource)
@@ -233,7 +233,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		// Print a single resource
 		err = p.Print(k.Stdout, resourceList.Items[0])
 	}
-	
+
 	if err != nil {
 		return errors.Wrap(err, errCliOutput)
 	}
