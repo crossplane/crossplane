@@ -197,30 +197,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		return errors.Wrap(err, errGetResource)
 	}
 
-	var treeClient resource.TreeClient
-	switch {
-	case xpkg.IsPackageType(mapping.GroupVersionKind.GroupKind()):
-		logger.Debug("Requested resource is an Package")
-		treeClient, err = xpkg.NewClient(client,
-			xpkg.WithDependencyOutput(xpkg.DependencyOutput(c.ShowPackageDependencies)),
-			xpkg.WithPackageRuntimeConfigs(c.ShowPackageRuntimeConfigs),
-			xpkg.WithRevisionOutput(xpkg.RevisionOutput(c.ShowPackageRevisions)))
-		if err != nil {
-			return errors.Wrap(err, errInitKubeClient)
-		}
-	default:
-		logger.Debug("Requested resource is not a package, assumed to be an XR, XRC or MR")
-		treeClient, err = xrm.NewClient(client,
-			xrm.WithConnectionSecrets(c.ShowConnectionSecrets),
-			xrm.WithConcurrency(c.Concurrency),
-		)
-		if err != nil {
-			return errors.Wrap(err, errInitKubeClient)
-		}
-	}
-	logger.Debug("Built client")
-
-	root, err = treeClient.GetResourceTree(ctx, root)
+	root, err = c.getResourceTree(root, mapping, client, logger)
 	if err != nil {
 		logger.Debug(errGetResource, "error", err)
 		return errors.Wrap(err, errGetResource)
@@ -269,4 +246,33 @@ func (c *Cmd) getResourceAndName() (string, string, error) {
 
 	// Handle the case when resource format is invalid
 	return "", "", errors.New(errInvalidResource)
+}
+
+func (c *Cmd) getResourceTree(root *resource.Resource, mapping *meta.RESTMapping, client client.Client, logger logging.Logger) (*resource.Resource, error) {
+	var treeClient resource.TreeClient
+	var err error
+	ctx := context.Background()
+	switch {
+	case xpkg.IsPackageType(mapping.GroupVersionKind.GroupKind()):
+		logger.Debug("Requested resource is an Package")
+		treeClient, err = xpkg.NewClient(client,
+			xpkg.WithDependencyOutput(xpkg.DependencyOutput(c.ShowPackageDependencies)),
+			xpkg.WithPackageRuntimeConfigs(c.ShowPackageRuntimeConfigs),
+			xpkg.WithRevisionOutput(xpkg.RevisionOutput(c.ShowPackageRevisions)))
+		if err != nil {
+			return nil, errors.Wrap(err, errInitKubeClient)
+		}
+	default:
+		logger.Debug("Requested resource is not a package, assumed to be an XR, XRC or MR")
+		treeClient, err = xrm.NewClient(client,
+			xrm.WithConnectionSecrets(c.ShowConnectionSecrets),
+			xrm.WithConcurrency(c.Concurrency),
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, errInitKubeClient)
+		}
+	}
+	logger.Debug("Built client")
+
+	return treeClient.GetResourceTree(ctx, root)
 }
