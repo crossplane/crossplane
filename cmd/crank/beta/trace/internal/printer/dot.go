@@ -97,8 +97,9 @@ func (r *dotPackageLabel) String() string {
 // Print gets all the nodes and then return the graph as a dot format string to the Writer.
 func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 	g := dot.NewGraph(dot.Undirected)
+	queue := []*queueItem{{root, nil}}
 	
-	addToGraph(g, root)
+	printGraphQueue(g, queue)
 
 	dotString := g.String()
 	if dotString == "" {
@@ -112,11 +113,14 @@ func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 // PrintList gets all the nodes and then return the graph as a dot format string to the Writer.
 func (p *DotPrinter) PrintList(w io.Writer, root *resource.ResourceList) error {
 	g := dot.NewGraph(dot.Undirected)
-
+	queue := make([]*queueItem, 0, len(root.Items))
+	
+	// Initialize the queue with all items in the resource list
 	for _, r := range root.Items {
-		addToGraph(g, r)
+		queue = append(queue, &queueItem{r, nil})
 	}
 
+	printGraphQueue(g, queue)
 	
 	dotString := g.String()
 	if dotString == "" {
@@ -128,8 +132,7 @@ func (p *DotPrinter) PrintList(w io.Writer, root *resource.ResourceList) error {
 	return nil
 }
 
-func addToGraph(g *dot.Graph, root *resource.Resource) {
-	queue := []*queueItem{{root, nil}}
+func printGraphQueue(g *dot.Graph, queue []*queueItem) {
 	var id int
 
 	for len(queue) > 0 {
