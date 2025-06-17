@@ -34,7 +34,7 @@ type Resource struct {
 
 // ResourceList struct represents a list of kubernetes resources.
 type ResourceList struct {
-	Items        []Resource `json:"items"`
+	Items        []*Resource `json:"items"`
 	Error        error      `json:"error,omitempty"`
 }
 

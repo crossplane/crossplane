@@ -53,9 +53,9 @@ func ListResources(ctx context.Context, client client.Client, ref *v1.ObjectRefe
 	result.SetGroupVersionKind(ref.GroupVersionKind())
 
 	err := client.List(context.Background(), &result)
-	resources := make([]Resource, 0, len(result.Items))
+	resources := make([]*Resource, 0, len(result.Items))
 	for _, item := range result.Items {
-		resources = append(resources, Resource{
+		resources = append(resources, &Resource{
 			Unstructured: item,
 		})
 	}

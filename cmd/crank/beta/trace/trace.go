@@ -199,7 +199,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		logger.Debug("Name provided, getting specific resource", "name", name)
 		res := resource.GetResource(ctx, client, rootRef)
 		resourceList = &resource.ResourceList{
-			Items: []resource.Resource{*res},
+			Items: []*resource.Resource{res},
 			Error: res.Error,
 		}
 	}
@@ -209,20 +209,18 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		return errors.Wrap(err, errGetResource)
 	}
 
-	rootList := make([]*resource.Resource, 0, len(resourceList.Items))
-	for _, res := range resourceList.Items {
-		root, err := c.getResourceTree(&res, mapping, client, logger)
+	for _, root := range resourceList.Items {
+		root, err = c.getResourceTree(root, mapping, client, logger)
 		
 		if err != nil {
 			logger.Debug(errGetResource, "error", err)
 			return errors.Wrap(err, errGetResource)
 		}
 		logger.Debug("Got resource tree", "root", root)
-		rootList = append(rootList, root)
 	}
 
 	// Print resources
-	err = p.PrintList(k.Stdout, rootList)
+	err = p.PrintList(k.Stdout, resourceList)
 	if err != nil {
 		return errors.Wrap(err, errCliOutput)
 	}
