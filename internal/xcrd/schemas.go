@@ -186,12 +186,10 @@ func CompositeResourceSpecProps(s v1.CompositeResourceScope, defaultPol *xpv1.Up
 
 		props["writeConnectionSecretToRef"] = extv1.JSONSchemaProps{
 			Type:     "object",
-			Required: []string{"apiVersion", "kind", "namespace", "name"},
+			Required: []string{"name", "namespace"},
 			Properties: map[string]extv1.JSONSchemaProps{
-				"apiVersion": {Type: "string"},
-				"kind":       {Type: "string"},
-				"namespace":  {Type: "string"},
-				"name":       {Type: "string"},
+				"name":      {Type: "string"},
+				"namespace": {Type: "string"},
 			},
 		}
 
