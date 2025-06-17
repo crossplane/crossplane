@@ -312,6 +312,39 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 				},
 			},
 		},
+		"NoClaimLabels": {
+			reason: "MR should not have claim labels when XR doesn't have them",
+			args: args{
+				xr: &xfake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "ns",
+						Name:      "cool-xr",
+						UID:       "somewhat-random",
+						Labels: map[string]string{
+							xcrd.LabelKeyNamePrefixForComposed: "prefix",
+						},
+					},
+				},
+				cd: &fake.Composed{},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace:    "ns",
+						GenerateName: "prefix-",
+						OwnerReferences: []metav1.OwnerReference{{
+							Controller:         ptr.To(true),
+							BlockOwnerDeletion: ptr.To(true),
+							UID:                "somewhat-random",
+							Name:               "cool-xr",
+						}},
+						Labels: map[string]string{
+							xcrd.LabelKeyNamePrefixForComposed: "prefix",
+						},
+					},
+				},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -1,11 +1,12 @@
 package render
 
 import (
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	schema "k8s.io/apiextensions-apiserver/pkg/apiserver/schema"
 	structuraldefaulting "k8s.io/apiextensions-apiserver/pkg/apiserver/schema/defaulting"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
 // DefaultValues sets default values on the XR based on the CRD schema.
