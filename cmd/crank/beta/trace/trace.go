@@ -215,14 +215,14 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		return errors.Wrap(err, errGetResource)
 	}
 
-	for i, root := range resourceList.Items {
+	for i := range resourceList.Items {
+		root := resourceList.Items[i]
 		root, err = c.getResourceTree(ctx, root, mapping, client, logger)		
 		if err != nil {
 			logger.Debug(errGetResource, "error", err)
 			return errors.Wrap(err, errGetResource)
 		}
 
-		resourceList.Items[i] = root
 		logger.Debug("Got resource tree", "root", root)
 	}
 
