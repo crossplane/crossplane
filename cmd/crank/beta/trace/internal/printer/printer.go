@@ -44,6 +44,7 @@ const (
 // Printer implements the interface which is used by all printers in this package.
 type Printer interface {
 	Print(w io.Writer, r *resource.Resource) error
+	PrintList(w io.Writer, r *resource.ResourceList) error
 }
 
 // New creates a new printer based on the specified type.
