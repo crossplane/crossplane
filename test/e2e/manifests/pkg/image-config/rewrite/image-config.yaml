@@ -1,0 +1,9 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: ImageConfig
+metadata:
+  name: e2e-rewrite
+spec:
+  matchImages:
+    - prefix: registry.example.com
+  rewriteImage:
+    prefix: xpkg.crossplane.io

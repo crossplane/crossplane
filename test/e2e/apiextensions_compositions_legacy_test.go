@@ -20,6 +20,8 @@ import (
 	"testing"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
@@ -52,6 +54,9 @@ func TestLegacyComposition(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("ClaimHasPatchedField",
 				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOLER!"),
+			).
+			Assess("ConnectionSecretCreated",
+				funcs.ResourceHasFieldValueWithin(30*time.Second, &v1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "basic-secret"}}, "data[super]", "c2VjcmV0Cg=="),
 			).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),

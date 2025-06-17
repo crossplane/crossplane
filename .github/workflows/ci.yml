@@ -8,7 +8,7 @@ on:
       # TODO(negz): Remove this and all references to the v2 branches below
       # if/when v2 is merged into main. It's a temporary branch for v2 preview
       # development.
-      - v2 
+      - v2
   pull_request: {}
   workflow_dispatch: {}
 
@@ -42,14 +42,14 @@ jobs:
           version: ${{ env.EARTHLY_VERSION }}
 
       - name: Login to DockerHub
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         if: env.DOCKER_USR != ''
         with:
           username: ${{ secrets.DOCKER_USR }}
           password: ${{ secrets.DOCKER_PSW }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -88,14 +88,14 @@ jobs:
           version: ${{ env.EARTHLY_VERSION }}
 
       - name: Login to DockerHub
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         if: env.DOCKER_USR != ''
         with:
           username: ${{ secrets.DOCKER_USR }}
           password: ${{ secrets.DOCKER_PSW }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -124,14 +124,14 @@ jobs:
           version: ${{ env.EARTHLY_VERSION }}
 
       - name: Login to DockerHub
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         if: env.DOCKER_USR != ''
         with:
           username: ${{ secrets.DOCKER_USR }}
           password: ${{ secrets.DOCKER_PSW }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -147,7 +147,7 @@ jobs:
         run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +ci-codeql
 
       - name: Upload CodeQL Results to GitHub
-        uses: github/codeql-action/upload-sarif@df409f7d9260372bd5f19e5b04e83cb3c43714ae # v3
+        uses: github/codeql-action/upload-sarif@ce28f5bb42b7a9f2c824e633a3f6ee835bab6858 # v3
         with:
           sarif_file: '_output/codeql/go.sarif'
 
@@ -173,7 +173,7 @@ jobs:
           output: 'trivy-results.sarif'
 
       - name: Upload Trivy Results to GitHub
-        uses: github/codeql-action/upload-sarif@df409f7d9260372bd5f19e5b04e83cb3c43714ae # v3
+        uses: github/codeql-action/upload-sarif@ce28f5bb42b7a9f2c824e633a3f6ee835bab6858 # v3
         with:
           sarif_file: 'trivy-results.sarif'
 
@@ -191,14 +191,14 @@ jobs:
           version: ${{ env.EARTHLY_VERSION }}
 
       - name: Login to DockerHub
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         if: env.DOCKER_USR != ''
         with:
           username: ${{ secrets.DOCKER_USR }}
           password: ${{ secrets.DOCKER_PSW }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -227,9 +227,9 @@ jobs:
       matrix:
         test-suite:
           - base
-          - realtime-compositions
           - package-dependency-updates
           - package-signature-verification
+          - function-response-cache
 
     steps:
       - name: Checkout
@@ -242,14 +242,14 @@ jobs:
           version: ${{ env.EARTHLY_VERSION }}
 
       - name: Login to DockerHub
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         if: env.DOCKER_USR != ''
         with:
           username: ${{ secrets.DOCKER_USR }}
           password: ${{ secrets.DOCKER_PSW }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -288,7 +288,7 @@ jobs:
       - name: Run E2E Tests
         run: |
           earthly --strict --allow-privileged --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }}-${{ matrix.test-suite}} \
-            +e2e --FLAGS="-test.failfast -fail-fast -prior-crossplane-version=${CROSSPLANE_PRIOR_VERSION} --test-suite ${{ matrix.test-suite }}"
+            +e2e --GOTESTSUM_FORMAT="testname" --FLAGS="-test.failfast -fail-fast -prior-crossplane-version=${CROSSPLANE_PRIOR_VERSION} --test-suite ${{ matrix.test-suite }}"
 
       - name: Publish E2E Test Flakes
         if: '!cancelled()'
@@ -299,6 +299,13 @@ jobs:
           key: ${{ secrets.BUILDPULSE_ACCESS_KEY_ID }}
           secret: ${{ secrets.BUILDPULSE_SECRET_ACCESS_KEY }}
           path: _output/tests/e2e-tests.xml
+
+      - name: Upload E2E Test Artifacts to GitHub
+        if: '!cancelled()'
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4
+        with:
+          name: e2e-tests-${{ matrix.test-suite }}
+          path: _output/tests/**
 
   publish-artifacts:
     runs-on: ubuntu-22.04
@@ -330,14 +337,14 @@ jobs:
           version: ${{ env.EARTHLY_VERSION }}
 
       - name: Login to DockerHub
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         if: env.DOCKER_USR != ''
         with:
           username: ${{ secrets.DOCKER_USR }}
           password: ${{ secrets.DOCKER_PSW }}
 
       - name: Login to Upbound
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         if: env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''
         with:
           registry: xpkg.upbound.io
@@ -345,7 +352,7 @@ jobs:
           password: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_PSW }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -429,29 +436,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
-      - name: Setup Buf
-        uses: bufbuild/buf-setup-action@76ddbd1bcb9da6da11cb7c41bd97e47f81c39a39 # v1.37.0
+      - name: Lint and Push Protocol Buffers
+        uses: bufbuild/buf-action@c231a1aa9281e5db706c970f468f0744a37561fd # v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.BUF_TOKEN }}
+          pr_comment: false
 
-      - name: Lint Protocol Buffers
-        uses: bufbuild/buf-lint-action@06f9dd823d873146471cfaaf108a993fe00e5325 # v1.1.1
-        with:
-          input: apis
-
-      # buf-breaking-action doesn't support branches
-      # https://github.com/bufbuild/buf-push-action/issues/34
-      - name: Detect Breaking Changes in Protocol Buffers
-        uses: bufbuild/buf-breaking-action@a074e988ee34efcd4927079e79c611f428354c01 # v1
-        # We want to run this for the main branch, and PRs against main.
-        if: ${{ github.ref == 'refs/heads/main' || github.base_ref == 'main' }}
-        with:
-          input: apis
-          against: "https://github.com/${GITHUB_REPOSITORY}.git#branch=main,subdir=apis"
-
-      - name: Push Protocol Buffers to Buf Schema Registry
-        if: ${{ github.repository == 'crossplane/crossplane' && github.ref == 'refs/heads/main' }}
-        uses: bufbuild/buf-push-action@a654ff18effe4641ebea4a4ce242c49800728459 # v1.2.0
-        with:
-          input: apis
-          buf_token: ${{ secrets.BUF_TOKEN }}

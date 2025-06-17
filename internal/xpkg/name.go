@@ -144,3 +144,9 @@ func parseNameFromPackage(bs []byte) (string, error) {
 	err := yaml.Unmarshal(bs, p)
 	return p.Metadata.Name, err
 }
+
+// ReplaceExt replaces the file extension of the given path.
+func ReplaceExt(path, ext string) string {
+	old := filepath.Ext(path)
+	return path[0:len(path)-len(old)] + ext
+}

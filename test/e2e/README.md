@@ -89,21 +89,6 @@ $ apk add kubectl
 # Now you can use kubectl to access the cluster
 ```
 
-### Test Logging
-
-The E2E tests are run using [`gotestsum`] that helps output the test results in
-a format that integrates easily with CI systems. The downside though is that
-test logging statements, like `t.Logf("foo")`, are not streamed in real time and
-they are only included in the output if there is a failure.
-
-To change this behavior when running the E2E tests locally, you can update the
-`Earthfile` to call `gotestsum` with a format like `--format standard-verbose`
-instead, for example:
-
-```Dockerfile
-RUN gotestsum --no-color=false --format standard-verbose ...
-```
-
 ### Running Tests Directly
 
 The E2E tests are typically run via `earthly` for convenience and consistency.

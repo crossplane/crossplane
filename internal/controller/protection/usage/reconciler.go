@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
@@ -232,8 +233,9 @@ func NewReconciler(mgr manager.Manager, u protection.Usage, f Finder, opts ...Re
 		},
 		resource: f,
 
-		log:    logging.NewNopLogger(),
-		record: event.NewNopRecorder(),
+		log:        logging.NewNopLogger(),
+		record:     event.NewNopRecorder(),
+		conditions: conditions.ObservedGenerationPropagationManager{},
 	}
 
 	for _, f := range opts {
@@ -251,8 +253,9 @@ type Reconciler struct {
 	usage    usageResource
 	resource Finder
 
-	log    logging.Logger
-	record event.Recorder
+	log        logging.Logger
+	record     event.Recorder
+	conditions conditions.Manager
 
 	pollInterval time.Duration
 }
@@ -275,8 +278,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Validate APIVersion of used object provided as input.
 	// We parse this value while indexing the objects, and we need to make sure it is valid.
-	_, err := schema.ParseGroupVersion(of.APIVersion)
-	if err != nil {
+	if _, err := schema.ParseGroupVersion(of.APIVersion); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, errParseAPIVersion)
 	}
 
@@ -288,6 +290,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(u, event.Warning(reasonResolveSelectors, err))
 		return reconcile.Result{}, err
 	}
+
+	status := r.conditions.For(u)
 
 	// Identify used as an unstructured object. It might not actually be
 	// composed by an XR; we use composed as a convenience.
@@ -318,15 +322,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				APIVersion: by.APIVersion,
 			}))
 			// Get the using resource
-			err := r.client.Get(ctx, client.ObjectKeyFromObject(using), using)
-			if xpresource.IgnoreNotFound(err) != nil {
+			if err := r.client.Get(ctx, client.ObjectKeyFromObject(using), using); xpresource.IgnoreNotFound(err) != nil {
 				log.Debug(errGetUsing, "error", err)
 				err = errors.Wrap(xpresource.IgnoreNotFound(err), errGetUsing)
 				r.record.Event(u, event.Warning(reasonGetUsing, err))
 				return reconcile.Result{}, err
-			}
-
-			if err == nil {
+			} else if err == nil {
 				// Using resource is still there, so we need to wait for it to be deleted.
 				msg := fmt.Sprintf("Waiting for the using resource (which is a %q named %q) to be deleted.", by.Kind, by.ResourceRef.Name)
 				log.Debug(msg)
@@ -346,17 +347,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// So, we can proceed with the deletion of the usage.
 
 		// Get the used resource
-		var err error
-		if err = r.client.Get(ctx, client.ObjectKeyFromObject(used), used); xpresource.IgnoreNotFound(err) != nil {
+		if err := r.client.Get(ctx, client.ObjectKeyFromObject(used), used); xpresource.IgnoreNotFound(err) != nil {
 			log.Debug(errGetUsed, "error", err)
 			err = errors.Wrap(err, errGetUsed)
 			r.record.Event(u, event.Warning(reasonGetUsed, err))
 			return reconcile.Result{}, err
-		}
+		} else if err == nil {
+			// Remove the in-use label from the used resource if no other usages exists.
 
-		// Remove the in-use label from the used resource if no other usages
-		// exists.
-		if err == nil {
 			usages, err := r.resource.FindUsageOf(ctx, used)
 			if err != nil {
 				log.Debug(errFindUsages, "error", err)
@@ -391,7 +389,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 					// very soon.
 					time.Sleep(2 * time.Second)
 					log.Info("Replaying deletion of the used resource", "apiVersion", used.GetAPIVersion(), "kind", used.GetKind(), "name", used.GetName(), "policy", policy)
-					if err = r.client.Delete(context.Background(), used, client.PropagationPolicy(policy)); err != nil {
+					if err := r.client.Delete(context.Background(), used, client.PropagationPolicy(policy)); err != nil {
 						log.Info("Error when replaying deletion of the used resource", "apiVersion", used.GetAPIVersion(), "kind", used.GetKind(), "name", used.GetName(), "err", err)
 					}
 				}()
@@ -399,7 +397,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		// Remove the finalizer from the usage
-		if err = r.usage.RemoveFinalizer(ctx, u); err != nil {
+		if err := r.usage.RemoveFinalizer(ctx, u); err != nil {
 			log.Debug(errRemoveFinalizer, "error", err)
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
@@ -498,7 +496,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	u.SetConditions(xpv1.Available())
+	status.MarkConditions(xpv1.Available())
 
 	// We are only watching the Usage itself but not using or used resources.
 	// So, we need to reconcile the Usage periodically to check if the using

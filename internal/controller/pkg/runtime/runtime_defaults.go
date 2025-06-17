@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package revision
+package runtime
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
@@ -56,7 +56,9 @@ func deploymentFromRuntimeConfig(tmpl *v1beta1.DeploymentTemplate) *appsv1.Deplo
 	}
 
 	if spec := tmpl.Spec; spec != nil {
-		d.Spec = *spec
+		// use DeepCopy to prevent modifications to the
+		// DeploymentTemplate itself.
+		d.Spec = *spec.DeepCopy()
 	}
 
 	return d

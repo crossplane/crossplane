@@ -50,35 +50,15 @@ import (
 const (
 	timeout = 2 * time.Minute
 
-	errGetPR               = "cannot get ProviderRevision"
-	errListPRs             = "cannot list ProviderRevisions"
-	errApplyRole           = "cannot apply ClusterRole"
-	errValidatePermissions = "cannot validate permission requests"
-	errRejectedPermission  = "refusing to apply any RBAC roles due to request for disallowed permission"
+	errGetPR     = "cannot get ProviderRevision"
+	errListPRs   = "cannot list ProviderRevisions"
+	errApplyRole = "cannot apply ClusterRole"
 )
 
 // Event reasons.
 const (
 	reasonApplyRoles event.Reason = "ApplyClusterRoles"
 )
-
-// A PermissionRequestsValidator validates requested RBAC rules.
-type PermissionRequestsValidator interface {
-	// ValidatePermissionRequests validates the supplied slice of RBAC rules. It
-	// returns a slice of any rejected (i.e. disallowed) rules. It returns an
-	// error if it is unable to validate permission requests.
-	ValidatePermissionRequests(ctx context.Context, requested ...rbacv1.PolicyRule) ([]Rule, error)
-}
-
-// A PermissionRequestsValidatorFn validates requested RBAC rules.
-type PermissionRequestsValidatorFn func(ctx context.Context, requested ...rbacv1.PolicyRule) ([]Rule, error)
-
-// ValidatePermissionRequests validates the supplied slice of RBAC rules. It
-// returns a slice of any rejected (i.e. disallowed) rules. It returns an error
-// if it is unable to validate permission requests.
-func (fn PermissionRequestsValidatorFn) ValidatePermissionRequests(ctx context.Context, requested ...rbacv1.PolicyRule) ([]Rule, error) {
-	return fn(ctx, requested...)
-}
 
 // A ClusterRoleRenderer renders ClusterRoles for the given resources.
 type ClusterRoleRenderer interface {
@@ -113,11 +93,6 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 			Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 	}
 
-	wrh := &EnqueueRequestForAllRevisionsWithRequests{
-		client:          mgr.GetClient(),
-		clusterRoleName: o.AllowClusterRole,
-	}
-
 	sfh := &EnqueueRequestForAllRevisionsInFamily{
 		client: mgr.GetClient(),
 	}
@@ -125,14 +100,12 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		WithPermissionRequestsValidator(NewClusterRoleBackedValidator(mgr.GetClient(), o.AllowClusterRole)),
 		WithOrgDiffer(OrgDiffer{DefaultRegistry: o.DefaultRegistry}))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ProviderRevision{}).
 		Owns(&rbacv1.ClusterRole{}).
-		Watches(&rbacv1.ClusterRole{}, wrh).
 		Watches(&v1.ProviderRevision{}, sfh).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
@@ -171,14 +144,6 @@ func WithClusterRoleRenderer(rr ClusterRoleRenderer) ReconcilerOption {
 	}
 }
 
-// WithPermissionRequestsValidator specifies how the Reconciler should validate
-// requests for extra RBAC permissions.
-func WithPermissionRequestsValidator(rv PermissionRequestsValidator) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.rbac.PermissionRequestsValidator = rv
-	}
-}
-
 // WithOrgDiffer specifies how the Reconciler should diff OCI orgs. It does this
 // to ensure that two providers may only be part of the same family if they're
 // in the same OCI org.
@@ -198,8 +163,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		},
 
 		rbac: rbac{
-			PermissionRequestsValidator: PermissionRequestsValidatorFn(VerySecureValidator),
-			ClusterRoleRenderer:         ClusterRoleRenderFn(RenderClusterRoles),
+			ClusterRoleRenderer: ClusterRoleRenderFn(RenderClusterRoles),
 		},
 
 		log:    logging.NewNopLogger(),
@@ -213,7 +177,6 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 }
 
 type rbac struct {
-	PermissionRequestsValidator
 	ClusterRoleRenderer
 }
 
@@ -229,7 +192,7 @@ type Reconciler struct {
 
 // Reconcile a ProviderRevision by creating a series of opinionated ClusterRoles
 // that may be bound to allow access to the resources it defines.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Slightly over (13).
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
@@ -308,27 +271,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 			resources = append(resources, DefinedResources(member.Status.ObjectRefs)...)
 		}
-	}
-
-	rejected, err := r.rbac.ValidatePermissionRequests(ctx, pr.Status.PermissionRequests...)
-	if err != nil {
-		err = errors.Wrap(err, errValidatePermissions)
-		r.record.Event(pr, event.Warning(reasonApplyRoles, err))
-		return reconcile.Result{}, err
-	}
-
-	for _, rule := range rejected {
-		r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Errorf("%s %s", errRejectedPermission, rule)))
-	}
-
-	// We return early and don't grant _any_ RBAC permissions if we would reject
-	// any requested permission. It's better for the provider to be completely
-	// and obviously broken than for it to be subtly broken in a way that may
-	// not surface immediately, i.e. due to missing an RBAC permission it only
-	// occasionally needs. There's no need to requeue - the revisions requests
-	// won't change, and we're watching the ClusterRole of allowed requests.
-	if len(rejected) > 0 {
-		return reconcile.Result{Requeue: false}, nil
 	}
 
 	applied := make([]string, 0)

@@ -25,6 +25,7 @@ import (
 	"k8s.io/apiextensions-apiserver/pkg/apiserver/schema"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	runtimeschema "k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/ptr"
 
@@ -479,6 +480,7 @@ func TestConvertToCRDs(t *testing.T) {
 																		"reason":             {Type: "string"},
 																		"status":             {Type: "string"},
 																		"type":               {Type: "string"},
+																		"observedGeneration": {Type: "integer", Format: "int64"},
 																	},
 																},
 															},
@@ -786,6 +788,7 @@ func TestConvertToCRDs(t *testing.T) {
 																		"reason":             {Type: "string"},
 																		"status":             {Type: "string"},
 																		"type":               {Type: "string"},
+																		"observedGeneration": {Type: "integer", Format: "int64"},
 																	},
 																},
 															},
@@ -1001,6 +1004,7 @@ func TestConvertToCRDs(t *testing.T) {
 																		"reason":             {Type: "string"},
 																		"status":             {Type: "string"},
 																		"type":               {Type: "string"},
+																		"observedGeneration": {Type: "integer", Format: "int64"},
 																	},
 																},
 															},
@@ -1071,8 +1075,9 @@ func TestConvertToCRDs(t *testing.T) {
 
 func TestValidateResources(t *testing.T) {
 	type args struct {
-		resources []*unstructured.Unstructured
-		crds      []*extv1.CustomResourceDefinition
+		resources             []*unstructured.Unstructured
+		crds                  []*extv1.CustomResourceDefinition
+		errorOnMissingSchemas bool
 	}
 	type want struct {
 		err error
@@ -1126,6 +1131,53 @@ func TestValidateResources(t *testing.T) {
 				crds: []*extv1.CustomResourceDefinition{
 					testCRDWithCEL,
 				},
+			},
+		},
+		"ValidWithMissingSchemasEnabled": {
+			reason: "Should not return an error if the resources are valid and schemas are not missing",
+			args: args{
+				resources: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "test.org/v1alpha1",
+							"kind":       "Test",
+							"metadata": map[string]interface{}{
+								"name": "test",
+							},
+							"spec": map[string]interface{}{
+								"replicas": 1,
+							},
+						},
+					},
+				},
+				crds: []*extv1.CustomResourceDefinition{
+					testCRD,
+				},
+				errorOnMissingSchemas: true,
+			},
+		},
+		"ErrorOnMissingSchemas": {
+			reason: "Should return an error if schemas are missing",
+			args: args{
+				resources: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "test.org/v1alpha1",
+							"kind":       "Test",
+							"metadata": map[string]interface{}{
+								"name": "test",
+							},
+							"spec": map[string]interface{}{
+								"replicas": 1,
+							},
+						},
+					},
+				},
+				crds:                  []*extv1.CustomResourceDefinition{},
+				errorOnMissingSchemas: true,
+			},
+			want: want{
+				err: errors.New("could not validate all resources, schema(s) missing"),
 			},
 		},
 		"Invalid": {
@@ -1204,7 +1256,7 @@ func TestValidateResources(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			w := &bytes.Buffer{}
-			got := SchemaValidation(tc.args.resources, tc.args.crds, false, w)
+			got := SchemaValidation(tc.args.resources, tc.args.crds, tc.args.errorOnMissingSchemas, false, w)
 
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nvalidateResources(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -1294,6 +1346,356 @@ func TestValidateUnknownFields(t *testing.T) {
 			errs := validateUnknownFields(tc.args.mr, tc.args.sch)
 			if diff := cmp.Diff(tc.want.errs, errs, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nvalidateUnknownFields(...): -want errs, +got errs:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestApplyDefaults(t *testing.T) {
+	type args struct {
+		resource *unstructured.Unstructured
+		gvk      runtimeschema.GroupVersionKind
+		crds     []*extv1.CustomResourceDefinition
+	}
+	type want struct {
+		resource *unstructured.Unstructured
+		err      error
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NoCRDFound": {
+			reason: "Should return nil when no matching CRD is found (skip defaulting)",
+			args: args{
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "test.org/v1alpha1",
+						"kind":       "Test",
+						"spec": map[string]interface{}{
+							"replicas": 3,
+						},
+					},
+				},
+				gvk: runtimeschema.GroupVersionKind{
+					Group:   "test.org",
+					Version: "v1alpha1",
+					Kind:    "Test",
+				},
+				crds: []*extv1.CustomResourceDefinition{},
+			},
+			want: want{
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "test.org/v1alpha1",
+						"kind":       "Test",
+						"spec": map[string]interface{}{
+							"replicas": 3,
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+		"ApplySimpleDefault": {
+			reason: "Should apply default value to missing property",
+			args: args{
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "test.org/v1alpha1",
+						"kind":       "Test",
+						"spec": map[string]interface{}{
+							"replicas": 3,
+						},
+					},
+				},
+				gvk: runtimeschema.GroupVersionKind{
+					Group:   "test.org",
+					Version: "v1alpha1",
+					Kind:    "Test",
+				},
+				crds: []*extv1.CustomResourceDefinition{
+					{
+						Spec: extv1.CustomResourceDefinitionSpec{
+							Group: "test.org",
+							Names: extv1.CustomResourceDefinitionNames{
+								Kind: "Test",
+							},
+							Versions: []extv1.CustomResourceDefinitionVersion{
+								{
+									Name: "v1alpha1",
+									Schema: &extv1.CustomResourceValidation{
+										OpenAPIV3Schema: &extv1.JSONSchemaProps{
+											Type: "object",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"spec": {
+													Type: "object",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"replicas": {
+															Type: "integer",
+														},
+														"deletionPolicy": {
+															Type:    "string",
+															Default: &extv1.JSON{Raw: []byte(`"Delete"`)},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "test.org/v1alpha1",
+						"kind":       "Test",
+						"spec": map[string]interface{}{
+							"replicas":       3,
+							"deletionPolicy": "Delete",
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+		"DoNotOverrideExisting": {
+			reason: "Should not override existing values with defaults",
+			args: args{
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "test.org/v1alpha1",
+						"kind":       "Test",
+						"spec": map[string]interface{}{
+							"replicas":       3,
+							"deletionPolicy": "Retain",
+						},
+					},
+				},
+				gvk: runtimeschema.GroupVersionKind{
+					Group:   "test.org",
+					Version: "v1alpha1",
+					Kind:    "Test",
+				},
+				crds: []*extv1.CustomResourceDefinition{
+					{
+						Spec: extv1.CustomResourceDefinitionSpec{
+							Group: "test.org",
+							Names: extv1.CustomResourceDefinitionNames{
+								Kind: "Test",
+							},
+							Versions: []extv1.CustomResourceDefinitionVersion{
+								{
+									Name: "v1alpha1",
+									Schema: &extv1.CustomResourceValidation{
+										OpenAPIV3Schema: &extv1.JSONSchemaProps{
+											Type: "object",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"spec": {
+													Type: "object",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"replicas": {
+															Type: "integer",
+														},
+														"deletionPolicy": {
+															Type:    "string",
+															Default: &extv1.JSON{Raw: []byte(`"Delete"`)},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "test.org/v1alpha1",
+						"kind":       "Test",
+						"spec": map[string]interface{}{
+							"replicas":       3,
+							"deletionPolicy": "Retain",
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+		"NestedDefaults": {
+			reason: "Should apply defaults to nested objects",
+			args: args{
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "test.org/v1alpha1",
+						"kind":       "Test",
+						"spec": map[string]interface{}{
+							"forProvider": map[string]interface{}{
+								"region": "us-east-1",
+							},
+						},
+					},
+				},
+				gvk: runtimeschema.GroupVersionKind{
+					Group:   "test.org",
+					Version: "v1alpha1",
+					Kind:    "Test",
+				},
+				crds: []*extv1.CustomResourceDefinition{
+					{
+						Spec: extv1.CustomResourceDefinitionSpec{
+							Group: "test.org",
+							Names: extv1.CustomResourceDefinitionNames{
+								Kind: "Test",
+							},
+							Versions: []extv1.CustomResourceDefinitionVersion{
+								{
+									Name: "v1alpha1",
+									Schema: &extv1.CustomResourceValidation{
+										OpenAPIV3Schema: &extv1.JSONSchemaProps{
+											Type: "object",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"spec": {
+													Type: "object",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"forProvider": {
+															Type: "object",
+															Properties: map[string]extv1.JSONSchemaProps{
+																"region": {
+																	Type: "string",
+																},
+																"instanceType": {
+																	Type:    "string",
+																	Default: &extv1.JSON{Raw: []byte(`"t3.micro"`)},
+																},
+															},
+														},
+														"deletionPolicy": {
+															Type:    "string",
+															Default: &extv1.JSON{Raw: []byte(`"Delete"`)},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "test.org/v1alpha1",
+						"kind":       "Test",
+						"spec": map[string]interface{}{
+							"forProvider": map[string]interface{}{
+								"region":       "us-east-1",
+								"instanceType": "t3.micro",
+							},
+							"deletionPolicy": "Delete",
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+		"ComplexDefaults": {
+			reason: "Should apply complex default values (objects, arrays)",
+			args: args{
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "test.org/v1alpha1",
+						"kind":       "Test",
+						"spec": map[string]interface{}{
+							"name": "test",
+						},
+					},
+				},
+				gvk: runtimeschema.GroupVersionKind{
+					Group:   "test.org",
+					Version: "v1alpha1",
+					Kind:    "Test",
+				},
+				crds: []*extv1.CustomResourceDefinition{
+					{
+						Spec: extv1.CustomResourceDefinitionSpec{
+							Group: "test.org",
+							Names: extv1.CustomResourceDefinitionNames{
+								Kind: "Test",
+							},
+							Versions: []extv1.CustomResourceDefinitionVersion{
+								{
+									Name: "v1alpha1",
+									Schema: &extv1.CustomResourceValidation{
+										OpenAPIV3Schema: &extv1.JSONSchemaProps{
+											Type: "object",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"spec": {
+													Type: "object",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"name": {
+															Type: "string",
+														},
+														"metadata": {
+															Type:    "object",
+															Default: &extv1.JSON{Raw: []byte(`{"labels":{"app":"default-app"}}`)},
+														},
+														"tags": {
+															Type:    "array",
+															Default: &extv1.JSON{Raw: []byte(`["default","tag"]`)},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "test.org/v1alpha1",
+						"kind":       "Test",
+						"spec": map[string]interface{}{
+							"name": "test",
+							"metadata": map[string]interface{}{
+								"labels": map[string]interface{}{
+									"app": "default-app",
+								},
+							},
+							"tags": []interface{}{"default", "tag"},
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := applyDefaults(tc.args.resource, tc.args.gvk, tc.args.crds)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("%s\napplyDefaults(...): -want err, +got err:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.resource, tc.args.resource); diff != "" {
+				t.Errorf("%s\napplyDefaults(...): -want resource, +got resource:\n%s", tc.reason, diff)
 			}
 		})
 	}

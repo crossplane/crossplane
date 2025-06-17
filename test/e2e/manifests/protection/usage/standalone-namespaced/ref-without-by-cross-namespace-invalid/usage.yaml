@@ -1,0 +1,14 @@
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  namespace: default
+  name: using-uses-used-across-namespaces-invalid
+spec:
+  replayDeletion: true
+  of:
+    apiVersion: v1
+    kind: ConfigMap
+    resourceRef:
+      name: using-resource
+      namespace: crossplane-system
+  reason: "This resource is protected across namespaces!"

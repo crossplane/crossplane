@@ -21,12 +21,13 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/pkg/features"
+	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
@@ -36,10 +37,64 @@ import (
 // extensions (i.e. Composition, XRDs, etc).
 const LabelAreaAPIExtensions = "apiextensions"
 
+// Tests that should be part of the test suite for the alpha function response
+// caching feature. There's no special tests for this; we just run the regular
+// test suite with caching enabled.
+const SuiteFunctionResponseCache = "function-response-cache"
+
+func init() {
+	environment.AddTestSuite(SuiteFunctionResponseCache,
+		config.WithHelmInstallOpts(
+			helm.WithArgs("--set args={--debug,--enable-function-response-cache}"),
+		),
+		config.WithLabelsToSelect(features.Labels{
+			config.LabelTestSuite: []string{SuiteFunctionResponseCache, config.TestSuiteDefault},
+		}),
+	)
+}
+
 var nopList = composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
 	APIVersion: "nop.crossplane.io/v1alpha1",
 	Kind:       "NopResource",
 }))
+
+func TestCompositionRevisionSelection(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/realtime-revision-selection"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests Crossplane's Composition functionality to react in realtime to changes in a Composition by selecting the new CompositionRevision and reconcile the XRs.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateClaim", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+			)).
+			Assess("ClaimIsReady",
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "claim.yaml", xpv1.Available()),
+			).
+			Assess("ClaimHasOriginalField",
+				funcs.ResourcesHaveFieldValueWithin(10*time.Second, manifests, "claim.yaml", "status.coolerField", "from-original-composition"),
+			).
+			Assess("UpdateComposition", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "composition-update.yaml"),
+			)).
+			Assess("ClaimHasUpdatedField",
+				funcs.ResourcesHaveFieldValueWithin(10*time.Second, manifests, "claim.yaml", "status.coolerField", "from-updated-composition"),
+			).
+			WithTeardown("DeleteClaim", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			Feature(),
+	)
+}
 
 func TestBasicCompositionNamespaced(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/basic-namespaced"
@@ -61,9 +116,6 @@ func TestBasicCompositionNamespaced(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess())).
 			Assess("XRHasStatusField",
 				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
-			).
-			Assess("ConnectionSecretCreated",
-				funcs.ResourceHasFieldValueWithin(30*time.Second, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "basic-secret-namespaced"}}, "data[super]", "c2VjcmV0Cg=="),
 			).
 			WithTeardown("DeleteXR", funcs.AllOf(
 				funcs.DeleteResources(manifests, "xr.yaml"),
@@ -94,9 +146,6 @@ func TestBasicCompositionCluster(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess())).
 			Assess("XRHasStatusField",
 				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
-			).
-			Assess("ConnectionSecretCreated",
-				funcs.ResourceHasFieldValueWithin(30*time.Second, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "basic-secret-cluster"}}, "data[super]", "c2VjcmV0Cg=="),
 			).
 			WithTeardown("DeleteXR", funcs.AllOf(
 				funcs.DeleteResources(manifests, "xr.yaml"),

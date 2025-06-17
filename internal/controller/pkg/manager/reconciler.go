@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -74,12 +75,10 @@ const (
 	errApplyPackageRevision = "cannot apply package revision"
 	errGCPackageRevision    = "cannot garbage collect old package revision"
 	errGetPullConfig        = "cannot get image pull secret from config"
+	errRewriteImage         = "cannot rewrite image path using config"
 
 	errUpdateStatus                  = "cannot update package status"
 	errUpdateInactivePackageRevision = "cannot update inactive package revision"
-
-	errUnhealthyPackageRevision     = "current package revision is unhealthy"
-	errUnknownPackageRevisionHealth = "current package revision health is unknown"
 
 	errCreateK8sClient = "failed to initialize clientset"
 	errBuildFetcher    = "cannot build fetcher"
@@ -151,11 +150,12 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client resource.ClientApplicator
-	pkg    Revisioner
-	config xpkg.ConfigStore
-	log    logging.Logger
-	record event.Recorder
+	client     resource.ClientApplicator
+	pkg        Revisioner
+	config     xpkg.ConfigStore
+	log        logging.Logger
+	record     event.Recorder
+	conditions conditions.Manager
 
 	newPackage             func() v1.Package
 	newPackageRevision     func() v1.PackageRevision
@@ -277,9 +277,10 @@ func NewReconciler(mgr ctrl.Manager, opts ...ReconcilerOption) *Reconciler {
 			Client:     mgr.GetClient(),
 			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
 		},
-		pkg:    NewNopRevisioner(),
-		log:    logging.NewNopLogger(),
-		record: event.NewNopRecorder(),
+		pkg:        NewNopRevisioner(),
+		log:        logging.NewNopLogger(),
+		record:     event.NewNopRecorder(),
+		conditions: conditions.ObservedGenerationPropagationManager{},
 	}
 
 	for _, f := range opts {
@@ -304,12 +305,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetPackage, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetPackage)
 	}
+	status := r.conditions.For(p)
 
 	// Check the pause annotation and return if it has the value "true"
 	// after logging, publishing an event and updating the SYNC status condition
 	if meta.IsPaused(p) {
 		r.record.Event(p, event.Normal(reasonPaused, reconcilePausedMsg))
-		p.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+		status.MarkConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
 		// and if status update fails, we will reconcile again to retry to update the status
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
@@ -329,10 +331,35 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	imageConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, p.GetSource())
+	// Rewrite the image path if necessary. We need to do this before looking
+	// for pull secrets, since the rewritten path may use different secrets than
+	// the original.
+	imagePath := p.GetSource()
+	rewriteConfigName, newPath, err := r.config.RewritePath(ctx, imagePath)
+	if err != nil {
+		err = errors.Wrap(err, errRewriteImage)
+		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
+		_ = r.client.Status().Update(ctx, p)
+
+		r.record.Event(p, event.Warning(reasonImageConfig, err))
+
+		return reconcile.Result{}, err
+	}
+	if newPath != "" {
+		imagePath = newPath
+		p.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+			Name:   rewriteConfigName,
+			Reason: v1.ImageConfigReasonRewrite,
+		})
+	} else {
+		p.ClearAppliedImageConfigRef(v1.ImageConfigReasonRewrite)
+	}
+	p.SetResolvedSource(imagePath)
+
+	pullSecretConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, p.GetResolvedSource())
 	if err != nil {
 		err = errors.Wrap(err, errGetPullConfig)
-		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
+		status.MarkConditions(v1.Unpacking().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, p)
 
 		r.record.Event(p, event.Warning(reasonImageConfig, err))
@@ -343,11 +370,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	var secrets []string
 	if pullSecretFromConfig != "" {
 		secrets = append(secrets, pullSecretFromConfig)
+		p.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+			Name:   pullSecretConfig,
+			Reason: v1.ImageConfigReasonSetPullSecret,
+		})
+	} else {
+		p.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
 	}
+
 	revisionName, err := r.pkg.Revision(ctx, p, secrets...)
 	if err != nil {
 		err = errors.Wrap(err, errUnpack)
-		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
+		status.MarkConditions(v1.Unpacking().WithMessage(err.Error()))
 		r.record.Event(p, event.Warning(reasonUnpack, err))
 
 		if updateErr := r.client.Status().Update(ctx, p); updateErr != nil {
@@ -358,13 +392,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if revisionName == "" {
-		p.SetConditions(v1.Unpacking().WithMessage("Waiting for unpack to complete"))
+		status.MarkConditions(v1.Unpacking().WithMessage("Waiting for unpack to complete"))
 		r.record.Event(p, event.Normal(reasonUnpack, "Waiting for unpack to complete"))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
 	// Set the current revision and identifier.
 	p.SetCurrentRevision(revisionName)
+	// Use the original source as the identifier, even if it was rewritten by
+	// ImageConfig. The revisioning and dependency resolution logic are all
+	// based on the original package sources, so it's important that we preserve
+	// the original until it's time to actually pull an image.
 	p.SetCurrentIdentifier(p.GetSource())
 
 	pr := r.newPackageRevision()
@@ -430,34 +468,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	// TODO(phisco): refactor these conditions to make it clearer
-	if pr.GetCondition(v1.TypeHealthy).Status == corev1.ConditionTrue {
-		if p.GetCondition(v1.TypeHealthy).Status != corev1.ConditionTrue {
-			// NOTE(phisco): We don't want to spam the user with events if the
-			// package is already healthy.
-			r.record.Event(p, event.Normal(reasonInstall, "Successfully installed package revision"))
-		}
-		p.SetConditions(v1.Healthy())
+	health := v1.PackageHealth(pr)
+	if health.Status == corev1.ConditionTrue && p.GetCondition(v1.TypeHealthy).Status != corev1.ConditionTrue {
+		// NOTE(phisco): We don't want to spam the user with events if the
+		// package is already healthy.
+		r.record.Event(p, event.Normal(reasonInstall, "Successfully installed package revision"))
 	}
-	if prHealthy := pr.GetCondition(v1.TypeHealthy); prHealthy.Status == corev1.ConditionFalse {
-		p.SetConditions(v1.Unhealthy().WithMessage(prHealthy.Message))
-		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnhealthyPackageRevision)))
-	}
-	if prHealthy := pr.GetCondition(v1.TypeHealthy); prHealthy.Status == corev1.ConditionUnknown {
-		p.SetConditions(v1.UnknownHealth().WithMessage(prHealthy.Message))
-		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnknownPackageRevisionHealth)))
-	}
+	status.MarkConditions(health)
 
-	if pr.GetUID() == "" && imageConfig != "" {
+	if pr.GetUID() == "" && pullSecretConfig != "" {
 		// We only record this event if the revision is new, as we don't want to
 		// spam the user with events if the revision already exists.
-		log.Debug("Selected pull secret from image config store", "image", p.GetSource(), "imageConfig", imageConfig, "pullSecret", pullSecretFromConfig)
-		r.record.Event(p, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, imageConfig)))
+		log.Debug("Selected pull secret from image config store", "image", p.GetResolvedSource(), "pullSecretConfig", pullSecretConfig, "pullSecret", pullSecretFromConfig, "rewriteConfig", rewriteConfigName)
+		r.record.Event(p, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, pullSecretConfig)))
 	}
 
 	// Create the non-existent package revision.
 	pr.SetName(revisionName)
 	pr.SetLabels(map[string]string{v1.LabelParentPackage: p.GetName()})
+	// Use the original source; the revision reconciler will rewrite it if
+	// needed. The revision reconciler also inserts packages into the dependency
+	// manager's lock, which must use the original source to ensure dependency
+	// packages have the expected names even when rewritten.
 	pr.SetSource(p.GetSource())
 	pr.SetPackagePullPolicy(p.GetPackagePullPolicy())
 	pr.SetPackagePullSecrets(p.GetPackagePullSecrets())
@@ -473,7 +505,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		prwr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
 	}
 
-	// If current revision is not active, and we have an automatic or
+	// If the current revision is not active, and we have an automatic or
 	// undefined activation policy, always activate.
 	if pr.GetDesiredState() != v1.PackageRevisionActive && (p.GetActivationPolicy() == nil || *p.GetActivationPolicy() == v1.AutomaticActivation) {
 		pr.SetDesiredState(v1.PackageRevisionActive)
@@ -505,11 +537,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	p.SetConditions(v1.Active())
+	status.MarkConditions(v1.Active())
 
 	// If current revision is still not active, the package is inactive.
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
-		p.SetConditions(v1.Inactive().WithMessage("Package is inactive"))
+		status.MarkConditions(v1.Inactive().WithMessage("Package is inactive"))
 	}
 
 	// NOTE(hasheddan): when the first package revision is created for a
@@ -540,7 +572,7 @@ func enqueueProvidersForImageConfig(kube client.Client, log logging.Logger) hand
 		var matches []reconcile.Request
 		for _, p := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(p.GetSource(), m.Prefix) {
+				if strings.HasPrefix(p.GetSource(), m.Prefix) || strings.HasPrefix(p.GetResolvedSource(), m.Prefix) {
 					log.Debug("Enqueuing provider for image config", "provider", p.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
 				}
@@ -571,7 +603,7 @@ func enqueueConfigurationsForImageConfig(kube client.Client, log logging.Logger)
 		var matches []reconcile.Request
 		for _, c := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(c.GetSource(), m.Prefix) {
+				if strings.HasPrefix(c.GetSource(), m.Prefix) || strings.HasPrefix(c.GetResolvedSource(), m.Prefix) {
 					log.Debug("Enqueuing configuration for image config", "configuration", c.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: c.Name}})
 				}
@@ -602,7 +634,7 @@ func enqueueFunctionsForImageConfig(kube client.Client, log logging.Logger) hand
 		var matches []reconcile.Request
 		for _, fn := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(fn.GetSource(), m.Prefix) {
+				if strings.HasPrefix(fn.GetSource(), m.Prefix) || strings.HasPrefix(fn.GetResolvedSource(), m.Prefix) {
 					log.Debug("Enqueuing function for image config", "function", fn.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: fn.Name}})
 				}

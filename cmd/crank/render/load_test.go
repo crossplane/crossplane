@@ -25,8 +25,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/afero"
+	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
@@ -86,6 +88,71 @@ func TestLoadCompositeResource(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("LoadCompositeResource(..), -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestLoadXRD(t *testing.T) {
+	fs := afero.FromIOFS{FS: testdatafs}
+	type want struct {
+		xrd *apiextensionsv1.CompositeResourceDefinition
+		err error
+	}
+	cases := map[string]struct {
+		file string
+		want want
+	}{
+		"Success": {
+			file: "testdata/xrd.yaml",
+			want: want{
+				xrd: &apiextensionsv1.CompositeResourceDefinition{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       apiextensionsv1.CompositeResourceDefinitionKind,
+						APIVersion: apiextensionsv1.SchemeGroupVersion.String(),
+					},
+					ObjectMeta: metav1.ObjectMeta{Name: "xnopresources.nop.example.org"},
+					Spec: apiextensionsv1.CompositeResourceDefinitionSpec{
+						Group: "nop.example.org",
+						Names: v1.CustomResourceDefinitionNames{
+							Kind:       "XNopResource",
+							Plural:     "xnopresources",
+							Singular:   "xnopresource",
+							ShortNames: []string{"xnr"},
+						},
+						Versions: []apiextensionsv1.CompositeResourceDefinitionVersion{
+							{
+								Name:   "v1",
+								Served: true,
+								Schema: &apiextensionsv1.CompositeResourceValidation{
+									OpenAPIV3Schema: runtime.RawExtension{
+										Raw: []byte(`{"description":"A test resource","properties":{"spec":{"properties":{"coolField":{"type":"string"}},"type":"object"}},"type":"object"}`),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"NoSuchFile": {
+			file: "testdata/nonexist.yaml",
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			xrd, err := LoadXRD(fs, tc.file)
+
+			if diff := cmp.Diff(tc.want.xrd, xrd, test.EquateConditions()); diff != "" {
+				t.Errorf("LoadXRD(..), -want, +got:\n%s", diff)
+			}
+
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("LoadXRD(..), -want, +got:\n%s", diff)
 			}
 		})
 	}

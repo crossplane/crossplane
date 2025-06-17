@@ -20,6 +20,7 @@ import (
 	"archive/tar"
 	"context"
 	"io"
+	"path/filepath"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
@@ -93,7 +94,9 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	for _, o := range bo {
 		o(n)
 	}
-	ref, err := name.ParseReference(n.pr.GetSource(), name.WithDefaultRegistry(i.registry))
+	// Use the package recorded in the status rather than the one from the spec,
+	// since it may have been rewritten by an image config.
+	ref, err := name.ParseReference(n.pr.GetResolvedSource(), name.WithDefaultRegistry(i.registry))
 	if err != nil {
 		return nil, errors.Wrap(err, errBadReference)
 	}
@@ -164,7 +167,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 		if err != nil {
 			return nil, errors.Wrapf(err, errFmtNoPackageFileFound, read, foundAnnotated)
 		}
-		if h.Name == xpkg.StreamFile {
+		if filepath.Base(h.Name) == xpkg.StreamFile {
 			break
 		}
 		read++

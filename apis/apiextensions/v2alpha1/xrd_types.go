@@ -36,6 +36,7 @@ const (
 
 // CompositeResourceDefinitionSpec specifies the desired state of the definition.
 // +kubebuilder:validation:XValidation:rule="!has(self.claimNames)",message="Claims aren't supported in apiextensions.crossplane.io/v2"
+// +kubebuilder:validation:XValidation:rule="!has(self.connectionSecretKeys)",message="XR connection secrets aren't supported in apiextensions.crossplane.io/v2"
 type CompositeResourceDefinitionSpec struct {
 	// Group specifies the API group of the defined composite resource.
 	// Composite resources are served under `/apis/<group>/...`. Must match the
@@ -57,12 +58,6 @@ type CompositeResourceDefinitionSpec struct {
 	// +kubebuilder:default=Namespaced
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	Scope CompositeResourceScope `json:"scope,omitempty"`
-
-	// ConnectionSecretKeys is the list of keys that will be exposed to the end
-	// user of the defined kind.
-	// If the list is empty, all keys will be published.
-	// +optional
-	ConnectionSecretKeys []string `json:"connectionSecretKeys,omitempty"`
 
 	// DefaultCompositionRef refers to the Composition resource that will be used
 	// in case no composition selector is given.
@@ -121,6 +116,17 @@ type CompositeResourceDefinitionSpec struct {
 	// Deprecated: Claims aren't supported in apiextensions.crossplane.io/v2.
 	// +optional
 	DefaultCompositeDeletePolicy *xpv1.CompositeDeletePolicy `json:"defaultCompositeDeletePolicy,omitempty"`
+
+	// ConnectionSecretKeys is the list of connection secret keys the
+	// defined XR can publish. If the list is empty, all keys will be
+	// published. If the list isn't empty, any connection secret keys that
+	// don't appear in the list will be filtered out. Only LegacyCluster XRs
+	// support connection secrets.
+	//
+	// Deprecated: XR connection secrets aren't supported in
+	// apiextensions.crossplane.io/v2. Compose a secret instead.
+	// +optional
+	ConnectionSecretKeys []string `json:"connectionSecretKeys,omitempty"`
 }
 
 // A CompositionReference references a Composition.

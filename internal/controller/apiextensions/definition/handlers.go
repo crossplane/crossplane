@@ -45,15 +45,22 @@ func EnqueueForCompositionRevision(of schema.GroupVersionKind, s composite.Schem
 				return
 			}
 
+			// We don't know what composition this revision is for,
+			// so we can't determine whether an XR might use it.
+			// This should never happen in practice - the
+			// composition controller sets this label when it
+			// creates a revision.
+			compName := rev.Labels[v1.LabelCompositionName]
+			if compName == "" {
+				return
+			}
+
+			// This handler is for a specific type of XR. This
+			// revisionisn't compatible with that type.
 			if rev.Spec.CompositeTypeRef.APIVersion != of.GroupVersion().String() {
 				return
 			}
 			if rev.Spec.CompositeTypeRef.Kind != of.Kind {
-				return
-			}
-
-			compName := rev.Labels[v1.LabelCompositionName]
-			if compName == "" {
 				return
 			}
 
@@ -62,7 +69,7 @@ func EnqueueForCompositionRevision(of schema.GroupVersionKind, s composite.Schem
 			xrs.SetKind(of.Kind + "List")
 			// TODO(negz): Index XRs by composition revision name?
 			if err := c.List(ctx, &xrs); err != nil {
-				// logging is most we can do here. This is a programming error if it happens.
+				// Logging is most we can do here. This is a programming error if it happens.
 				log.Info("cannot list in CompositionRevision handler", "type", of.String(), "error", err)
 				return
 			}
@@ -70,12 +77,14 @@ func EnqueueForCompositionRevision(of schema.GroupVersionKind, s composite.Schem
 			for _, u := range xrs.Items {
 				xr := composite.Unstructured{Unstructured: u, Schema: s}
 
-				// only automatic
+				// We only care about XRs that would
+				// automatically update to this new revision.
 				if pol := xr.GetCompositionUpdatePolicy(); pol != nil && *pol == xpv1.UpdateManual {
 					continue
 				}
 
-				// only those that reference the right Composition
+				// We only care about XRs that reference the
+				// composition this revision derives from.
 				if ref := xr.GetCompositionReference(); ref == nil || ref.Name != compName {
 					continue
 				}

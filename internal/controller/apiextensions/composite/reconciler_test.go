@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
@@ -45,7 +46,6 @@ import (
 	"github.com/crossplane/crossplane/internal/engine"
 	"github.com/crossplane/crossplane/internal/xresource"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
 )
@@ -338,7 +338,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 		"ComposedResourcesNotReady": {
@@ -443,11 +443,10 @@ func TestReconcile(t *testing.T) {
 						}
 						return true, nil
 					})),
-					WithWatchStarter("cool-controller", nil, WatchStarterFn(func(_ string, ws ...engine.Watch) error {
-						cd := composed.New(composed.FromReference(corev1.ObjectReference{
-							APIVersion: "example.org/v1",
-							Kind:       "ComposedResource",
-						}))
+					WithWatchStarter("cool-controller", nil, WatchStarterFn(func(_ context.Context, _ string, ws ...engine.Watch) error {
+						cd := &kunstructured.Unstructured{}
+						cd.SetAPIVersion("example.org/v1")
+						cd.SetKind("ComposedResource")
 						want := []engine.Watch{engine.WatchFor(cd, engine.WatchTypeComposedResource, nil)}
 
 						if diff := cmp.Diff(want, ws, cmp.AllowUnexported(engine.Watch{})); diff != "" {
@@ -459,7 +458,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 		"ReconciliationPausedSuccessful": {
@@ -494,7 +493,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ReconciliationResumes": {
-			reason: `If a composite resource has the pause annotation with some value other than "true" and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeueing.`,
+			reason: `If a composite resource has the pause annotation with some value other than "true" and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeuing.`,
 			args: args{
 				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
@@ -529,11 +528,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 		"ReconciliationResumesAfterAnnotationRemoval": {
-			reason: `If a composite resource has the pause annotation removed and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeueing.`,
+			reason: `If a composite resource has the pause annotation removed and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeuing.`,
 			args: args{
 				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
@@ -568,7 +567,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 		"CustomEventsAndConditions": {
@@ -719,7 +718,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 		"CustomEventsAndConditionFatal": {
@@ -1049,7 +1048,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 		"SystemConditionUpdate": {
@@ -1071,10 +1070,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.Schema = composite.SchemaLegacy
 						cr.SetCompositionReference(&corev1.ObjectReference{})
-						cr.SetConditions(
-							xpv1.ReconcileSuccess(),
-							xpv1.Creating().WithMessage("Composite resource was explicitly marked as unready by the composer"),
-						)
+						cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Creating())
 						cr.SetClaimReference(&reference.Claim{})
 					})),
 				},
@@ -1105,11 +1101,9 @@ func TestReconcile(t *testing.T) {
 					})),
 					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
 						return CompositionResult{
-							Composite: CompositeResource{
-								Ready: ptr.To(false),
-							},
 							Composed:          []ComposedResource{},
 							ConnectionDetails: cd,
+							Ready:             ptr.To(false),
 							Events:            []TargetedEvent{},
 							Conditions:        []TargetedCondition{},
 						}, nil
@@ -1117,7 +1111,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 		"CustomEventsFailToGetClaim": {
@@ -1198,7 +1192,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 	}

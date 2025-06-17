@@ -53,10 +53,7 @@ const (
 func init() {
 	environment.AddTestSuite(SuitePackageDependencyUpdates,
 		config.WithHelmInstallOpts(
-			helm.WithArgs("--set args={--debug,--enable-dependency-version-upgrades}"),
-		),
-		config.WithHelmInstallOpts(
-			helm.WithArgs("--set packageManager.enableAutomaticDependencyDowngrade=\"true\""),
+			helm.WithArgs("--set args={--debug,--enable-dependency-version-upgrades,--enable-dependency-version-downgrades}"),
 		),
 		config.WithLabelsToSelect(features.Labels{
 			config.LabelTestSuite: []string{SuitePackageDependencyUpdates, config.TestSuiteDefault},
@@ -463,7 +460,7 @@ func TestNoValidVersion(t *testing.T) {
 			Assess("RequiredProviderIsHealthy",
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			Assess("RequiredConfigurationIsUnhealthy",
-				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-nop.yaml", pkgv1.UnknownHealth(), pkgv1.Active())).
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-nop.yaml", pkgv1.Unhealthy(), pkgv1.Active())).
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
@@ -599,7 +596,7 @@ func TestImageConfigVerificationWithKey(t *testing.T) {
 			)).
 			Assess("SignatureVerificationSucceeded", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "configuration-signed.yaml"),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ConfigurationRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-configuration-signed-with-key-1765fb139d01"}}, pkgv1.Healthy(), pkgv1.VerificationSucceeded("").WithMessage("")),
+				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ConfigurationRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-configuration-signed-with-key-1765fb139d01"}}, pkgv1.RevisionHealthy(), pkgv1.VerificationSucceeded("").WithMessage("")),
 				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "e2e-configuration-signed-with-key"}}, pkgv1.Active(), pkgv1.Healthy()),
 			)).
 			WithTeardown("DeletePackageAndImageConfig", funcs.AllOf(
@@ -635,7 +632,7 @@ func TestImageConfigVerificationKeyless(t *testing.T) {
 			)).
 			Assess("SignatureVerificationSucceeded", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-signed.yaml"),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-provider-signed-keyless-37f3300ebfa7"}}, pkgv1.Healthy(), pkgv1.VerificationSucceeded("").WithMessage("")),
+				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-provider-signed-keyless-37f3300ebfa7"}}, pkgv1.RevisionHealthy(), pkgv1.VerificationSucceeded("").WithMessage("")),
 				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-provider-signed-keyless"}}, pkgv1.Active(), pkgv1.Healthy()),
 			)).
 			WithTeardown("DeletePackageAndImageConfig", funcs.AllOf(
@@ -676,7 +673,7 @@ func TestImageConfigAttestationVerificationPrivateKeyless(t *testing.T) {
 			)).
 			Assess("SignatureVerificationSucceeded", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-signed.yaml"),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-37f3300ebfa7"}}, pkgv1.Healthy(), pkgv1.VerificationSucceeded("").WithMessage("")),
+				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-37f3300ebfa7"}}, pkgv1.RevisionHealthy(), pkgv1.VerificationSucceeded("").WithMessage("")),
 				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless"}}, pkgv1.Active(), pkgv1.Healthy()),
 			)).
 			WithTeardown("DeletePackageAndImageConfig", funcs.AllOf(
@@ -686,6 +683,59 @@ func TestImageConfigAttestationVerificationPrivateKeyless(t *testing.T) {
 				// Providers are a copy of provider-nop, so waiting until nop
 				// CRD is gone is sufficient to ensure the provider completely
 				// deleted including all revisions.
+				funcs.ResourceDeletedWithin(2*time.Minute, &k8sapiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}}),
+			)).Feature(),
+	)
+}
+
+// TestImageConfigRewrite tests that we can install a package and its
+// dependencies from an alternative registry by rewriting image paths with the
+// ImageConfig API.
+//
+// The packages used in this test are built and pushed manually and the
+// manifests must remain unchanged to ensure the test scenario is not
+// broken. Corresponding meta file can be found at
+// test/e2e/manifests/pkg/image-config/rewrite/package.
+func TestImageConfigRewrite(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/image-config/rewrite"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that we can install a package and its dependencies from an alternative registry by rewriting image paths with the ImageConfig API.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("ApplyImageConfig", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "image-config.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			Assess("ProviderInstalledAndHealthy", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "provider.yaml", "status.resolvedPackage", "xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.4.0"),
+				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "provider.yaml", "status.appliedImageConfigRefs[0].name", "e2e-rewrite"),
+				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "provider.yaml", "status.appliedImageConfigRefs[0].reason", string(pkgv1.ImageConfigReasonRewrite)),
+			)).
+			Assess("ConfigurationInstalledAndHealthy", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "configuration.yaml", "status.resolvedPackage", "xpkg.crossplane.io/crossplane/e2e-rewrite:v0.1.0"),
+				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "configuration.yaml", "status.appliedImageConfigRefs[0].name", "e2e-rewrite"),
+				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "configuration.yaml", "status.appliedImageConfigRefs[0].reason", string(pkgv1.ImageConfigReasonRewrite)),
+			)).
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+				// We wait until the configuration revision is gone, otherwise
+				// the provider we will be deleting next might come back as a
+				// result of the configuration revision being reconciled again.
+				funcs.ResourceDeletedWithin(1*time.Minute, &pkgv1.ConfigurationRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-rewrite-8c444e8bcd1e"}}),
+			)).
+			// Dependencies are not automatically deleted.
+			WithTeardown("DeleteProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
+				// Provider is provider-nop, so waiting until nop CRD is gone is
+				// sufficient to ensure the provider completely deleted
+				// including all revisions.
 				funcs.ResourceDeletedWithin(2*time.Minute, &k8sapiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}}),
 			)).Feature(),
 	)

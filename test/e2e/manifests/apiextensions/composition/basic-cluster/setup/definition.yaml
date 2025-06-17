@@ -8,8 +8,6 @@ spec:
   names:
     kind: ClusterTest
     plural: clustertests
-  connectionSecretKeys:
-  - super
   versions:
   - name: v1alpha1
     served: true

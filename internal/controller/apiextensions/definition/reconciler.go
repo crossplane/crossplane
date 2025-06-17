@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
@@ -98,7 +99,7 @@ type ControllerEngine interface {
 	Stop(ctx context.Context, name string) error
 	IsRunning(name string) bool
 	GetWatches(name string) ([]engine.WatchID, error)
-	StartWatches(name string, ws ...engine.Watch) error
+	StartWatches(ctx context.Context, name string, ws ...engine.Watch) error
 	StopWatches(ctx context.Context, name string, ws ...engine.WatchID) (int, error)
 	GetCached() client.Client
 	GetUncached() client.Client
@@ -109,7 +110,9 @@ type ControllerEngine interface {
 type NopEngine struct{}
 
 // Start does nothing.
-func (e *NopEngine) Start(_ string, _ ...engine.ControllerOption) error { return nil }
+func (e *NopEngine) Start(_ string, _ ...engine.ControllerOption) error {
+	return nil
+}
 
 // Stop does nothing.
 func (e *NopEngine) Stop(_ context.Context, _ string) error { return nil }
@@ -121,7 +124,7 @@ func (e *NopEngine) IsRunning(_ string) bool { return true }
 func (e *NopEngine) GetWatches(_ string) ([]engine.WatchID, error) { return nil, nil }
 
 // StartWatches does nothing.
-func (e *NopEngine) StartWatches(_ string, _ ...engine.Watch) error { return nil }
+func (e *NopEngine) StartWatches(_ context.Context, _ string, _ ...engine.Watch) error { return nil }
 
 // StopWatches does nothing.
 func (e *NopEngine) StopWatches(_ context.Context, _ string, _ ...engine.WatchID) (int, error) {
@@ -219,7 +222,7 @@ func WithControllerEngine(c ControllerEngine) ReconcilerOption {
 	}
 }
 
-// WithCRDRenderer specifies how the Reconciler should render an
+// WithCRDRenderer specifies how the Reconciler should render a
 // CompositeResourceDefinition's corresponding CustomResourceDefinition.
 func WithCRDRenderer(c CRDRenderer) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -251,8 +254,9 @@ func NewReconciler(ca resource.ClientApplicator, opts ...ReconcilerOption) *Reco
 
 		engine: &NopEngine{},
 
-		log:    logging.NewNopLogger(),
-		record: event.NewNopRecorder(),
+		log:        logging.NewNopLogger(),
+		record:     event.NewNopRecorder(),
+		conditions: conditions.ObservedGenerationPropagationManager{},
 
 		options: apiextensionscontroller.Options{
 			Options: controller.DefaultOptions(),
@@ -278,8 +282,9 @@ type Reconciler struct {
 
 	engine ControllerEngine
 
-	log    logging.Logger
-	record event.Recorder
+	log        logging.Logger
+	record     event.Recorder
+	conditions conditions.Manager
 
 	options apiextensionscontroller.Options
 }
@@ -301,6 +306,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetXRD, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetXRD)
 	}
+	status := r.conditions.For(d)
 
 	log = log.WithValues(
 		"uid", d.GetUID(),
@@ -316,7 +322,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if meta.WasDeleted(d) {
-		d.Status.SetConditions(v1.TerminatingComposite())
+		status.MarkConditions(v1.TerminatingComposite())
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			log.Debug(errUpdateStatus, "error", err)
 			if kerrors.IsConflict(err) {
@@ -467,7 +473,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if r.engine.IsRunning(composite.ControllerName(d.GetName())) {
 		log.Debug("Composite resource controller is running")
-		d.Status.SetConditions(v1.WatchingComposite())
+		status.MarkConditions(v1.WatchingComposite())
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
@@ -486,7 +492,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	ro := []composite.ReconcilerOption{
 		composite.WithCompositeSchema(schema),
-		composite.WithConnectionPublishers(composite.NewAPIFilteredSecretPublisher(r.engine.GetCached(), d.GetConnectionSecretKeys())),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
 			composite.NewEnforcedCompositionSelector(*d, r.record),
 			composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record),
@@ -496,11 +501,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		composite.WithRecorder(r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
 		composite.WithPollInterval(r.options.PollInterval),
 		composite.WithComposer(fc),
+		composite.WithFeatures(r.options.Features),
+	}
+
+	if schema == ucomposite.SchemaLegacy {
+		ro = append(ro,
+			composite.WithConnectionPublishers(composite.NewAPIFilteredSecretPublisher(r.engine.GetCached(), d.GetConnectionSecretKeys())),
+		)
 	}
 
 	// If realtime compositions are enabled we pass the ControllerEngine to the
 	// XR reconciler so that it can start watches for composed resources.
-	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
+	if r.options.Features.Enabled(features.EnableBetaRealtimeCompositions) {
 		gvk := d.GetCompositeGroupVersionKind()
 		u := &kunstructured.Unstructured{}
 		u.SetAPIVersion(gvk.GroupVersion().String())
@@ -512,7 +524,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		h := EnqueueCompositeResources(d.GetCompositeGroupVersionKind(), r.engine.GetCached(), r.log)
-		ro = append(ro, composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine))
+		ro = append(ro,
+			composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine),
+			composite.WithPollInterval(0), // Disable polling.
+		)
 	}
 
 	cr := composite.NewReconciler(r.engine.GetCached(), d.GetCompositeGroupVersionKind(), ro...)
@@ -534,7 +549,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// ControllerOptions instead? It bothers me that this is the only feature
 	// flagged block outside that method.
 	co := []engine.ControllerOption{engine.WithRuntimeOptions(ko)}
-	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
+	if r.options.Features.Enabled(features.EnableBetaRealtimeCompositions) {
 		// If realtime composition is enabled we'll start watches dynamically,
 		// so we want to garbage collect watches for composed resource kinds
 		// that aren't used anymore.
@@ -556,7 +571,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xr.SetGroupVersionKind(gvk)
 
 	crh := EnqueueForCompositionRevision(gvk, schema, r.engine.GetCached(), log)
-	if err := r.engine.StartWatches(name,
+	if err := r.engine.StartWatches(ctx, name,
 		engine.WatchFor(xr, engine.WatchTypeCompositeResource, &handler.EnqueueRequestForObject{}),
 		engine.WatchFor(&v1.CompositionRevision{}, engine.WatchTypeCompositionRevision, crh),
 	); err != nil {
@@ -569,6 +584,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	log.Debug("Started composite resource controller")
 
 	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
-	d.Status.SetConditions(v1.WatchingComposite())
+	status.MarkConditions(v1.WatchingComposite())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }

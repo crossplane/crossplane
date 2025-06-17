@@ -7,6 +7,3 @@ spec:
   crossplane:
     compositionRef:
       name: basic-composition-cluster
-    writeConnectionSecretToRef:
-      name: basic-secret-cluster
-      namespace: default

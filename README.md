@@ -24,12 +24,12 @@ documentation].
 
 | Release | Release Date  |   EOL    |
 |:-------:|:-------------:|:--------:|
-|  v1.17  | Aug 29, 2024  | May 2025 |
 |  v1.18  | Nov 5, 2024   | Aug 2025 |
 |  v1.19  | Feb 11, 2025  | Nov 2025 |
-|  v1.20  | Early May '25 | Feb 2026 |
-|  v1.21  | Early Aug '25 | May 2026 |
-|  v1.22  | Early Nov '25 | Aug 2026 |
+|  v1.20  | May 21, 2025  | Feb 2026 |
+|  v2.0   | Early Aug '25 | May 2026 |
+|  v2.1   | Early Nov '25 | Aug 2026 |
+|  v2.2   | Early Feb '26 | Nov 2026 |
 
 You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
@@ -89,6 +89,7 @@ encouraged to join.
 
 Each SIG collaborates in Slack and some groups have regular meetings, you can
 find the meetings in the [Community Calendar][community calendar].
+- [#sig-cli][sig-cli]
 - [#sig-composition-environments][sig-composition-environments-slack]
 - [#sig-composition-functions][sig-composition-functions-slack]
 - [#sig-deletion-ordering][sig-deletion-ordering-slack]
@@ -138,6 +139,7 @@ Crossplane is under the Apache 2.0 license.
 [ADOPTERS.md]: ADOPTERS.md
 [regular community meetings]: https://github.com/crossplane/crossplane/blob/main/README.md#get-involved
 [Crossplane Roadmap]: https://github.com/orgs/crossplane/projects/20/views/9?pane=info
+[sig-cli]: https://crossplane.slack.com/archives/C08V9PMLRQA
 [sig-composition-environments-slack]: https://crossplane.slack.com/archives/C05BP6QFLUW
 [sig-composition-functions-slack]: https://crossplane.slack.com/archives/C031Y29CSAE
 [sig-deletion-ordering-slack]: https://crossplane.slack.com/archives/C05BP8W5ALW

@@ -3,7 +3,7 @@ VERSION --try --raw-output 0.8
 
 PROJECT crossplane/crossplane
 
-ARG --global GO_VERSION=1.23.4
+ARG --global GO_VERSION=1.23.9
 
 # reviewable checks that a branch is ready for review. Run it before opening a
 # pull request. It will catch a lot of the things our CI workflow will catch.
@@ -51,6 +51,7 @@ e2e:
   ARG GOARCH=${TARGETARCH}
   ARG GOOS=${TARGETOS}
   ARG FLAGS="-test-suite=base"
+  ARG GOTESTSUM_FORMAT="standard-verbose"
   # Using earthly image to allow compatibility with different development environments e.g. WSL
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
   RUN wget https://dl.google.com/go/go${GO_VERSION}.${GOOS}-${GOARCH}.tar.gz
@@ -71,10 +72,18 @@ e2e:
     WITH DOCKER --load crossplane-e2e/crossplane:latest=(+image --CROSSPLANE_VERSION=v0.0.0-e2e)
       # TODO(negz:) Set GITHUB_ACTIONS=true and use RUN --raw-output when
       # https://github.com/earthly/earthly/issues/4143 is fixed.
-      RUN gotestsum --no-color=false --format testname --junitfile e2e-tests.xml --raw-command go tool test2json -t -p E2E ./e2e -test.v ${FLAGS}
+      RUN gotestsum \
+        --rerun-fails \
+        --rerun-fails-report e2e-rerun-fails.txt \
+        --hide-summary output \ # See https://github.com/gotestyourself/gotestsum/issues/423
+        --no-color=false \
+        --format ${GOTESTSUM_FORMAT} \
+        --junitfile e2e-tests.xml \
+        --raw-command go tool test2json -t -p E2E ./e2e -test.v ${FLAGS}
     END
   FINALLY
     SAVE ARTIFACT --if-exists e2e-tests.xml AS LOCAL _output/tests/e2e-tests.xml
+    SAVE ARTIFACT --if-exists e2e-rerun-fails.txt AS LOCAL _output/tests/e2e-rerun-fails.txt
   END
 
 # hack builds Crossplane, and deploys it to a kind cluster. It runs in your
@@ -129,6 +138,7 @@ go-modules:
 go-modules-tidy:
   FROM +go-modules
   CACHE --id go-build --sharing shared /root/.cache/go-build
+  COPY generate.go .
   COPY --dir apis/ cmd/ internal/ test/ .
   RUN go mod tidy
   RUN go mod verify
@@ -140,9 +150,10 @@ go-generate:
   FROM +go-modules
   CACHE --id go-build --sharing shared /root/.cache/go-build
   COPY +kubectl-setup/kubectl /usr/local/bin/kubectl
+  COPY generate.go buf.yaml buf.gen.yaml .
   COPY --dir cluster/crd-patches cluster/crd-patches
   COPY --dir hack/ apis/ internal/ .
-  RUN go generate -tags 'generate' ./apis/...
+  RUN go generate -tags 'generate' .
   # TODO(negz): Can this move into generate.go? Ideally it would live there with
   # the code that actually generates the CRDs, but it depends on kubectl.
   RUN kubectl patch --local --type=json \
@@ -151,6 +162,7 @@ go-generate:
     --output=yaml > /tmp/patched.yaml \
     && mv /tmp/patched.yaml cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml
   SAVE ARTIFACT apis/ AS LOCAL apis
+  SAVE ARTIFACT internal/ AS LOCAL internal
   SAVE ARTIFACT cluster/crds AS LOCAL cluster/crds
   SAVE ARTIFACT cluster/meta AS LOCAL cluster/meta
 
@@ -242,7 +254,7 @@ image:
   ARG TARGETPLATFORM
   ARG TARGETARCH
   ARG TARGETOS
-  FROM --platform=${TARGETPLATFORM} gcr.io/distroless/static@sha256:5c7e2b465ac6a2a4e5f4f7f722ce43b147dabe87cb21ac6c4007ae5178a1fa58
+  FROM --platform=${TARGETPLATFORM} gcr.io/distroless/static@sha256:b7b9a6953e7bed6baaf37329331051d7bdc1b99c885f6dbeb72d75b1baad54f9
   COPY --platform=${NATIVEPLATFORM} (+go-build/crossplane --GOOS=${TARGETOS} --GOARCH=${TARGETARCH}) /usr/local/bin/
   COPY --dir cluster/crds/ /crds
   COPY --dir cluster/webhookconfigurations/ /webhookconfigurations
@@ -303,6 +315,22 @@ kubectl-setup:
   FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.8.0
   RUN curl -fsSL https://dl.k8s.io/${KUBECTL_VERSION}/kubernetes-client-${TARGETOS}-${TARGETARCH}.tar.gz|tar zx
   SAVE ARTIFACT kubernetes/client/bin/kubectl
+
+# Ko init will create the kodata dir for crd and webhook files in the crossplane controller binary path.
+ko-init:
+  FROM alpine:3.20
+  COPY (+go-generate/crds) ./kodata/crds
+  COPY --dir cluster/webhookconfigurations ./kodata/
+  RUN echo && \
+      echo "Now build the helm chart and apply the template in dry run mode through ko:" && \
+      echo "   earthly +helm-build" && \
+      echo "   helm template --dry-run --namespace crossplane-system --set image.ignoreTag=true \\" && \
+      echo "     --set image.repository=ko://github.com/crossplane/crossplane/cmd/crossplane \\" && \
+      echo "     --set extraEnvVarsCrossplaneInit.CRDS_PATH=/var/run/ko/crds \\" && \
+      echo "     --set extraEnvVarsCrossplaneInit.WEBHOOK_CONFIGS_PATH=/var/run/ko/webhookconfigurations \\" && \
+      echo "     crossplane ./_output/charts/crossplane*.tgz | ko apply -f -" && \
+      echo
+  SAVE ARTIFACT ./kodata AS LOCAL cmd/crossplane/kodata
 
 # kind-setup is used by other targets to setup kind.
 kind-setup:

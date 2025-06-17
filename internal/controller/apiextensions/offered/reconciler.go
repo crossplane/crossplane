@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
@@ -92,7 +93,7 @@ type ControllerEngine interface {
 	Start(name string, o ...engine.ControllerOption) error
 	Stop(ctx context.Context, name string) error
 	IsRunning(name string) bool
-	StartWatches(name string, ws ...engine.Watch) error
+	StartWatches(ctx context.Context, name string, ws ...engine.Watch) error
 	GetCached() client.Client
 }
 
@@ -109,7 +110,7 @@ func (e *NopEngine) Stop(_ context.Context, _ string) error { return nil }
 func (e *NopEngine) IsRunning(_ string) bool { return true }
 
 // StartWatches does nothing.
-func (e *NopEngine) StartWatches(_ string, _ ...engine.Watch) error { return nil }
+func (e *NopEngine) StartWatches(_ context.Context, _ string, _ ...engine.Watch) error { return nil }
 
 // GetCached returns a nil client.
 func (e *NopEngine) GetCached() client.Client {
@@ -225,8 +226,9 @@ func NewReconciler(ca resource.ClientApplicator, opts ...ReconcilerOption) *Reco
 
 		engine: &NopEngine{},
 
-		log:    logging.NewNopLogger(),
-		record: event.NewNopRecorder(),
+		log:        logging.NewNopLogger(),
+		record:     event.NewNopRecorder(),
+		conditions: conditions.ObservedGenerationPropagationManager{},
 
 		options: apiextensionscontroller.Options{
 			Options: controller.DefaultOptions(),
@@ -256,8 +258,9 @@ type Reconciler struct {
 
 	engine ControllerEngine
 
-	log    logging.Logger
-	record event.Recorder
+	log        logging.Logger
+	record     event.Recorder
+	conditions conditions.Manager
 
 	options apiextensionscontroller.Options
 }
@@ -276,6 +279,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetXRD, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetXRD)
 	}
+	status := r.conditions.For(d)
 
 	log = log.WithValues(
 		"uid", d.GetUID(),
@@ -291,7 +295,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if meta.WasDeleted(d) {
-		d.Status.SetConditions(v1.TerminatingClaim())
+		status.MarkConditions(v1.TerminatingClaim())
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
@@ -428,7 +432,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	o := []claim.ReconcilerOption{
 		claim.WithLogger(log.WithValues("controller", claim.ControllerName(d.GetName()))),
 		claim.WithRecorder(r.record.WithAnnotations("controller", claim.ControllerName(d.GetName()))),
-		claim.WithPollInterval(r.options.PollInterval),
 	}
 
 	// We only want to use the server-side XR syncer if the relevant feature
@@ -457,7 +460,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if r.engine.IsRunning(claim.ControllerName(d.GetName())) {
 		log.Debug("Composite resource claim controller is running")
-		d.Status.SetConditions(v1.WatchingClaim())
+		status.MarkConditions(v1.WatchingClaim())
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
@@ -481,7 +484,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xr := &kunstructured.Unstructured{}
 	xr.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
 
-	if err := r.engine.StartWatches(claim.ControllerName(d.GetName()),
+	if err := r.engine.StartWatches(ctx, claim.ControllerName(d.GetName()),
 		engine.WatchFor(cm, engine.WatchTypeClaim, &handler.EnqueueRequestForObject{}),
 		engine.WatchFor(xr, engine.WatchTypeCompositeResource, &EnqueueRequestForClaim{}),
 	); err != nil {
@@ -491,6 +494,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	d.Status.Controllers.CompositeResourceClaimTypeRef = v1.TypeReferenceTo(d.GetClaimGroupVersionKind())
-	d.Status.SetConditions(v1.WatchingClaim())
+	status.MarkConditions(v1.WatchingClaim())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }
