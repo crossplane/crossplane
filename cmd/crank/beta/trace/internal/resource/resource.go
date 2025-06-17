@@ -33,6 +33,7 @@ type Resource struct {
 }
 
 // ResourceList struct represents a list of kubernetes resources.
+// revive:disable-next-line:exported For consistency with Resource.
 type ResourceList struct {
 	Items        []*Resource `json:"items"`
 	Error        error      `json:"error,omitempty"`
