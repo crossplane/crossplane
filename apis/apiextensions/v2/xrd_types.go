@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Crossplane Authors.
+Copyright 2025 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v2alpha1
+package v2
 
 import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -271,7 +271,6 @@ type CompositeResourceDefinitionList struct {
 // the composite resource this CompositeResourceDefinition defines.
 func (c *CompositeResourceDefinition) GetCompositeGroupVersionKind() schema.GroupVersionKind {
 	v := ""
-
 	for _, vr := range c.Spec.Versions {
 		if vr.Referenceable {
 			v = vr.Name
@@ -297,7 +296,6 @@ func (c *CompositeResourceDefinition) GetClaimGroupVersionKind() schema.GroupVer
 	}
 
 	v := ""
-
 	for _, vr := range c.Spec.Versions {
 		if vr.Referenceable {
 			v = vr.Name
