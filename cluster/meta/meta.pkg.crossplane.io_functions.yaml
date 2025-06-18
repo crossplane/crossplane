@@ -66,11 +66,13 @@ spec:
                     configuration:
                       description: |-
                         Configuration is the name of a Configuration package image.
+                        Must be a fully qualified image name, including the registry,
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     function:
                       description: |-
                         Function is the name of a Function package image.
+                        Must be a fully qualified image name, including the registry,
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     kind:
@@ -80,10 +82,13 @@ spec:
                       description: |-
                         Package OCI reference of the dependency. Only used when apiVersion and
                         kind are set.
+                        Musth be a fully qualified image name, including the registry,
+                        repository, and tag. For example, "registry.example.com/repo/package:tag".
                       type: string
                     provider:
                       description: |-
                         Provider is the name of a Provider package image.
+                        Must be a fully qualified image name, including the registry,
                         Deprecated: Specify an apiVersion and kind instead.
                       type: string
                     version:
@@ -152,11 +157,13 @@ spec:
                     configuration:
                       description: |-
                         Configuration is the name of a Configuration package image.
+                        Must be a fully qualified image name, including the registry,
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     function:
                       description: |-
                         Function is the name of a Function package image.
+                        Must be a fully qualified image name, including the registry,
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     kind:
@@ -166,10 +173,13 @@ spec:
                       description: |-
                         Package OCI reference of the dependency. Only used when apiVersion and
                         kind are set.
+                        Musth be a fully qualified image name, including the registry,
+                        repository, and tag. For example, "registry.example.com/repo/package:tag".
                       type: string
                     provider:
                       description: |-
                         Provider is the name of a Provider package image.
+                        Must be a fully qualified image name, including the registry,
                         Deprecated: Specify an apiVersion and kind instead.
                       type: string
                     version:
