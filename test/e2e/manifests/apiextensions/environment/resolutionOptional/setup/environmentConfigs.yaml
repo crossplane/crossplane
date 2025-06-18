@@ -1,5 +1,5 @@
 ---
-apiVersion: apiextensions.crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
   name: example-environment-1
@@ -12,7 +12,7 @@ data:
 # We want to test that with Optional resolution, claims still become ready even
 # if one of the environment configs is missing, using the other one.
 #---
-#apiVersion: apiextensions.crossplane.io/v1alpha1
+#apiVersion: apiextensions.crossplane.io/v1beta1
 #kind: EnvironmentConfig
 #metadata:
 #  name: example-environment-2

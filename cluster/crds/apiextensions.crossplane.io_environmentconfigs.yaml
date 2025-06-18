@@ -22,48 +22,6 @@ spec:
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
-    name: v1alpha1
-    schema:
-      openAPIV3Schema:
-        description: |-
-          An EnvironmentConfig contains user-defined unstructured values for
-          use in a Composition.
-
-          Read the Crossplane documentation for
-          [more information about EnvironmentConfigs](https://docs.crossplane.io/latest/concepts/environment-configs).
-        properties:
-          apiVersion:
-            description: |-
-              APIVersion defines the versioned schema of this representation of an object.
-              Servers should convert recognized schemas to the latest internal value, and
-              may reject unrecognized values.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
-            type: string
-          data:
-            additionalProperties:
-              x-kubernetes-preserve-unknown-fields: true
-            description: |-
-              The data of this EnvironmentConfig.
-              This may contain any kind of structure that can be serialized into JSON.
-            type: object
-          kind:
-            description: |-
-              Kind is a string value representing the REST resource this object represents.
-              Servers may infer this from the endpoint the client submits requests to.
-              Cannot be updated.
-              In CamelCase.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
-            type: string
-          metadata:
-            type: object
-        type: object
-    served: true
-    storage: false
-    subresources: {}
-  - additionalPrinterColumns:
-    - jsonPath: .metadata.creationTimestamp
-      name: AGE
-      type: date
     name: v1beta1
     schema:
       openAPIV3Schema:
