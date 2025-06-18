@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v2alpha1
+package v2
 
 import (
 	"reflect"
@@ -26,7 +26,7 @@ import (
 // Package type metadata.
 const (
 	Group   = "apiextensions.crossplane.io"
-	Version = "v2alpha1"
+	Version = "v2"
 )
 
 var (
@@ -42,20 +42,14 @@ var (
 
 // CompositeResourceDefinition type metadata.
 var (
-	ManagedResourceDefinitionKind             = reflect.TypeOf(ManagedResourceDefinition{}).Name()
-	ManagedResourceDefinitionGroupKind        = schema.GroupKind{Group: Group, Kind: ManagedResourceDefinitionKind}.String()
-	ManagedResourceDefinitionKindAPIVersion   = ManagedResourceDefinitionKind + "." + SchemeGroupVersion.String()
-	ManagedResourceDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(ManagedResourceDefinitionKind)
-
-	ManagedResourceActivationPolicyKind             = reflect.TypeOf(ManagedResourceActivationPolicy{}).Name()
-	ManagedResourceActivationPolicyGroupKind        = schema.GroupKind{Group: Group, Kind: ManagedResourceActivationPolicyKind}.String()
-	ManagedResourceActivationPolicyKindAPIVersion   = ManagedResourceActivationPolicyKind + "." + SchemeGroupVersion.String()
-	ManagedResourceActivationPolicyGroupVersionKind = SchemeGroupVersion.WithKind(ManagedResourceActivationPolicyKind)
+	CompositeResourceDefinitionKind             = reflect.TypeOf(CompositeResourceDefinition{}).Name()
+	CompositeResourceDefinitionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositeResourceDefinitionKind}.String()
+	CompositeResourceDefinitionKindAPIVersion   = CompositeResourceDefinitionKind + "." + SchemeGroupVersion.String()
+	CompositeResourceDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(CompositeResourceDefinitionKind)
 )
 
 func init() {
 	SchemeBuilder.Register(
-		&ManagedResourceDefinition{}, &ManagedResourceDefinitionList{},
-		&ManagedResourceActivationPolicy{}, &ManagedResourceActivationPolicyList{},
+		&CompositeResourceDefinition{}, &CompositeResourceDefinitionList{},
 	)
 }
