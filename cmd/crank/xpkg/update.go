@@ -43,7 +43,7 @@ import (
 type updateCmd struct {
 	// Arguments.
 	Kind    string `arg:"" enum:"provider,configuration,function"                                                                                  help:"The kind of package to update. One of \"provider\", \"configuration\", or \"function\"."`
-	Package string `arg:"" help:"The package to update to."`
+	Package string `arg:"" help:"The package to update to. Must be fully qualified, including the registry, repository, and tag." placeholder:"REGISTRY/REPOSITORY:TAG"`
 	Name    string `arg:"" help:"The name of the package to update in the Crossplane API. Derived from the package repository and tag by default." optional:""`
 }
 
@@ -52,6 +52,8 @@ func (c *updateCmd) Help() string {
 This command updates a package in a Crossplane control plane. It uses
 ~/.kube/config to connect to the control plane. You can override this using the
 KUBECONFIG environment variable.
+
+IMPORTANT: the package must be fully qualified, including the registry, repository, and tag.
 
 Examples:
 

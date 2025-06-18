@@ -25,6 +25,8 @@ type RevisionActivationPolicy string
 // PackageSpec specifies the desired state of a Package.
 type PackageSpec struct {
 	// Package is the name of the package that is being requested.
+	// must be a fully qualified image name, including the registry,
+	// repository, and tag. for example, "registry.example.com/repo/package:tag".
 	Package string `json:"package"`
 
 	// RevisionActivationPolicy specifies how the package controller should

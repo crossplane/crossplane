@@ -77,7 +77,10 @@ spec:
                   Default is false.
                 type: boolean
               package:
-                description: Package is the name of the package that is being requested.
+                description: |-
+                  Package is the name of the package that is being requested.
+                  must be a fully qualified image name, including the registry,
+                  repository, and tag. for example, "registry.example.com/repo/package:tag".
                 type: string
               packagePullPolicy:
                 default: IfNotPresent
@@ -310,7 +313,10 @@ spec:
                   Default is false.
                 type: boolean
               package:
-                description: Package is the name of the package that is being requested.
+                description: |-
+                  Package is the name of the package that is being requested.
+                  must be a fully qualified image name, including the registry,
+                  repository, and tag. for example, "registry.example.com/repo/package:tag".
                 type: string
               packagePullPolicy:
                 default: IfNotPresent
