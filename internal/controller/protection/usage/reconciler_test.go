@@ -37,11 +37,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane/apis/protection/v1beta1"
 	"github.com/crossplane/crossplane/internal/protection"
 	"github.com/crossplane/crossplane/internal/protection/usage"
 	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 )
 
 type fakeSelectorResolver struct {

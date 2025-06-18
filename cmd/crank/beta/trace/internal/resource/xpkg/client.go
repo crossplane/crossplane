@@ -31,11 +31,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
 
+	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 	"github.com/crossplane/crossplane/internal/xpkg"
-	xpunstructured "github.com/crossplane/crossplane/internal/xresource/unstructured"
 )
 
 // Client to get a Package with all its dependencies.

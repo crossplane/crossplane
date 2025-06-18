@@ -36,10 +36,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/internal/xresource"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 )
 
 func TestReconcile(t *testing.T) {
@@ -125,7 +124,7 @@ func TestReconcile(t *testing.T) {
 						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
 					}),
 					WithCompositeSyncer(CompositeSyncerFn(func(_ context.Context, _ *claim.Unstructured, _ *composite.Unstructured) error { return nil })),
-					WithConnectionPropagator(ConnectionPropagatorFn(func(_ context.Context, _ xresource.LocalConnectionSecretOwner, _ xresource.ConnectionSecretOwner) (propagated bool, err error) {
+					WithConnectionPropagator(ConnectionPropagatorFn(func(_ context.Context, _ LocalConnectionSecretOwner, _ ConnectionSecretOwner) (propagated bool, err error) {
 						return true, nil
 					})),
 				},
@@ -462,7 +461,7 @@ func TestReconcile(t *testing.T) {
 						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
 					}),
 					WithCompositeSyncer(CompositeSyncerFn(func(_ context.Context, _ *claim.Unstructured, _ *composite.Unstructured) error { return nil })),
-					WithConnectionPropagator(ConnectionPropagatorFn(func(_ context.Context, _ xresource.LocalConnectionSecretOwner, _ xresource.ConnectionSecretOwner) (propagated bool, err error) {
+					WithConnectionPropagator(ConnectionPropagatorFn(func(_ context.Context, _ LocalConnectionSecretOwner, _ ConnectionSecretOwner) (propagated bool, err error) {
 						return false, errBoom
 					})),
 				},
@@ -502,7 +501,7 @@ func TestReconcile(t *testing.T) {
 						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
 					}),
 					WithCompositeSyncer(CompositeSyncerFn(func(_ context.Context, _ *claim.Unstructured, _ *composite.Unstructured) error { return nil })),
-					WithConnectionPropagator(ConnectionPropagatorFn(func(_ context.Context, _ xresource.LocalConnectionSecretOwner, _ xresource.ConnectionSecretOwner) (propagated bool, err error) {
+					WithConnectionPropagator(ConnectionPropagatorFn(func(_ context.Context, _ LocalConnectionSecretOwner, _ ConnectionSecretOwner) (propagated bool, err error) {
 						return true, nil
 					})),
 				},
@@ -589,7 +588,7 @@ func TestReconcile(t *testing.T) {
 						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
 					}),
 					WithCompositeSyncer(CompositeSyncerFn(func(_ context.Context, _ *claim.Unstructured, _ *composite.Unstructured) error { return nil })),
-					WithConnectionPropagator(ConnectionPropagatorFn(func(_ context.Context, _ xresource.LocalConnectionSecretOwner, _ xresource.ConnectionSecretOwner) (propagated bool, err error) {
+					WithConnectionPropagator(ConnectionPropagatorFn(func(_ context.Context, _ LocalConnectionSecretOwner, _ ConnectionSecretOwner) (propagated bool, err error) {
 						return true, nil
 					})),
 				},
