@@ -19,11 +19,11 @@ env:
   # Force Earthly to use color output
   FORCE_COLOR: "1"
 
-  # Common users. We can't run a step 'if secrets.AWS_USR != ""' but we can run
-  # a step 'if env.AWS_USR' != ""', so we copy these to succinctly test whether
+  # Common users. We can't run a step 'if secrets.DOCKER_USR != ""' but we can run
+  # a step 'if env.DOCKER_USR' != ""', so we copy these to succinctly test whether
   # credentials have been provided before trying to run steps that need them.
   DOCKER_USR: ${{ secrets.DOCKER_USR }}
-  AWS_USR: ${{ secrets.AWS_USR }}
+  ORACLE_USR: ${{ secrets.ORACLE_USR }}
   UPBOUND_MARKETPLACE_PUSH_ROBOT_USR: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }}
 
 
@@ -363,7 +363,7 @@ jobs:
         run: echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Configure Earthly to Push Artifacts
-        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v2' || startsWith(github.ref, 'refs/heads/release-')) && env.DOCKER_USR != '' && env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != '' && env.AWS_USR != ''
+        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v2' || startsWith(github.ref, 'refs/heads/release-')) && env.DOCKER_USR != '' && env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != '' && env.ORACLE_USR != ''
         run: echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
 
       - name: Set CROSSPLANE_VERSION GitHub Environment Variable
@@ -373,28 +373,42 @@ jobs:
         run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +ci-artifacts --CROSSPLANE_VERSION=${CROSSPLANE_VERSION}
 
       - name: Push Artifacts to https://releases.crossplane.io/build/
-        if: env.AWS_USR != ''
+        if: env.ORACLE_USR != ''
         run: |
           earthly --strict \
-            --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
-            --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
-            +ci-push-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --BUILD_DIR=${GITHUB_REF##*/}
+            --secret=AWS_ACCESS_KEY_ID=${{ secrets.ORACLE_USR }} \
+            --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.ORACLE_PSW }} \
+            +ci-push-build-artifacts \
+            --ENDPOINT_URL=${{ vars.ORACLE_ENDPOINT }} \
+            --AWS_DEFAULT_REGION=us-sanjose-1 \
+            --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} \
+            --BUILD_DIR=${GITHUB_REF##*/}
 
       - name: Push Artifacts to https://releases.crossplane.io/master/ and https://charts.crossplane.io/master
-        if: env.AWS_USR != '' && github.ref == 'refs/heads/main'
+        if: env.ORACLE_USR != '' && github.ref == 'refs/heads/main'
         run: |
           earthly --strict \
-            --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
-            --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
-            +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --BUILD_DIR=${GITHUB_REF##*/} --CHANNEL=master
+            --secret=AWS_ACCESS_KEY_ID=${{ secrets.ORACLE_USR }} \
+            --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.ORACLE_PSW }} \
+            +ci-promote-build-artifacts \
+            --ENDPOINT_URL=${{ vars.ORACLE_ENDPOINT }} \
+            --AWS_DEFAULT_REGION=us-sanjose-1 \
+            --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} \
+            --BUILD_DIR=${GITHUB_REF##*/} \
+            --CHANNEL=master
 
       - name: Push Artifacts to https://releases.crossplane.io/preview/ and https://charts.crossplane.io/preview
-        if: env.AWS_USR != '' && github.ref == 'refs/heads/v2'
+        if: env.ORACLE_USR != '' && github.ref == 'refs/heads/v2'
         run: |
           earthly --strict \
-            --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
-            --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
-            +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --BUILD_DIR=${GITHUB_REF##*/} --CHANNEL=preview
+            --secret=AWS_ACCESS_KEY_ID=${{ secrets.ORACLE_USR }} \
+            --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.ORACLE_PSW }} \
+            +ci-promote-build-artifacts \
+            --ENDPOINT_URL=${{ vars.ORACLE_ENDPOINT }} \
+            --AWS_DEFAULT_REGION=us-sanjose-1 \
+            --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} \
+            --BUILD_DIR=${GITHUB_REF##*/} \
+            --CHANNEL=preview
 
       - name: Upload Artifacts to GitHub
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4
