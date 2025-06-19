@@ -1,0 +1,354 @@
+# Day Two Operations
+
+* Owner: Nic Cope (@negz)
+* Reviewer: Hasan Turken (@turkenh)
+* Status: Draft
+
+## Background
+
+Crossplane has three main components:
+
+* Composition - an engine used to build opinionated self-service APIs (composite
+  resources, or XRs)
+* Managed resources (MRs) - a library of Kubernetes APIs for managing popular
+  cloud resources
+* The package manager - a tool for declaratively extending Crossplane with new
+  functionality
+
+Most organizations use these components to manage cloud infrastructure. Platform
+engineering teams use Composition to build opinionated, self-service APIs that
+are abstractions of one or more kinds of MR.
+
+With [Crossplane v2][1] Crossplane will be simpler and better suited to managing
+applications, not just the infrastructure they depend on. Notably XRs will be
+able to compose any Kubernetes resource - not only Crossplane MRs.
+
+This means you can use Crossplane v2 to build a great control plane for basic
+lifecycle management of applications and infrastructure. By basic lifecycle
+management I mean the control plane can create, update, and delete (CRUD) things.
+
+On the other hand, it's hard today to use Crossplane to build a control plane
+that can handle "day two" operations. Things like rolling upgrades, scheduling,
+backups, restores, or misconfiguration detection and remediation. Essentially
+anything beyond CRUD operations. Typically organizations must break out of the
+Crossplane ecosystem and use a tool like [kubebuilder][2] to build a bespoke
+controller for their day two operations.
+
+## Goals
+
+The goal of this design is to enable you to use Crossplane to build a control
+plane that handles your day two operations.
+
+Examples of day two operations include:
+
+* A rolling update of a fleet of Kubernetes cluster XRs
+* Scheduling App XRs to Kubernetes cluster XRs
+* Detecting and pausing MRs stuck in a tight reconcile loop
+* Backing up databases when you delete an RDS instance MR
+
+This is far from an exhaustive list - day two operations are pretty open ended.
+
+The design should make it possible for you to:
+
+* Use a function pipeline to build controllers that handle day two operations.
+* Package and depend on day two operation controllers.
+* Trigger a day two operation when an arbitary KRM resource changes.
+* Trigger a day two operation on a regular interval.
+* Mutate arbitrary KRM resources as part of a day two operation.
+
+It's an explicit goal to use function pipelines because we've found them to be a
+powerful way to build composition controllers. They allow you to focus on your
+business logic, and in some cases to build controllers without writing code at
+all. We think these benefits will extend to day two operation controllers.
+
+It's explicitly _not_ a goal for Crossplane to handle arbitrary workflow
+executions, like for example [Argo Workflows][3]. 
+
+## Proposal
+
+I propose we add a new Operation type to Crossplane. Here's an example:
+
+```yaml
+apiVersion: daytwo.crossplane.io/v1alpha1
+kind: Operation
+metadata:
+  name: cluster-rolling-upgrade
+spec:
+  # How many times the pipeline can fail before the Operation fails.
+  failureLimit: 5
+  # A pipeline of functions - just like a Composition.
+  mode: Pipeline
+  pipeline:
+  - step: rolling-upgrade
+    functionRef:
+      name: function-rolling-upgrade
+    input:
+      targets:
+        apiVersion: example.org/v1
+        kind: KubernetesCluster
+        selector:
+          matchLabels:
+            daytwo.crossplane.io/eligible-for-rolling-update: "true"
+      batches:
+      - 0.01  # First upgrade 1% of clusters
+      - 0.1   # Then if that works, 10%
+      - 0.5   # Then 50%
+      - 1.0   # Then 100%
+      fromVersions:
+      - "v1.29"
+      toVersion: "v1.30"
+      versionField: spec.version
+      healthyConditions:
+      - Synced
+      - Ready
+status:
+  # An optional status output for each function.
+  pipeline:
+  - step: rolling-upgrade
+    output:
+      matchedTargets: 100
+      upgradedTargets: 1
+  # How many times the pipeline failed and was retried.
+  failures: 1
+  # What resources, if any, the Operation mutated.
+  mutatedResources:
+  - apiVersion: example.org/v1
+    kind: KubernetesCluster
+    namespace: default
+    name: cluster-a
+  # The status conditions of the Operation.
+  conditions:
+  - type: Succeeded
+    status: "True"
+    reason: PipelineSuccess
+```
+
+An Operation is a bit like a Kubernetes Job, except it runs a Crossplane
+function pipeline (like a Composition), not a set of pods. It runs once to
+completion, though it will retry up to its `spec.failureLimit` if the function
+pipeline returns an error.
+
+The Operation controller's logic will be very similar to the XR controller's
+logic. It'll call a pipeline of _operation functions_ instead of composition
+functions.
+
+The example shows a hypothetical operation function designed to perform a
+rolling upgrade of a fleet of KubernetesCluster XRs from Kubernetes v1.29 to
+v1.30 by updating the `spec.version` field in increasingly larger batches. It's
+important to note this is just example of a potential operation function. I
+expect a broad ecosystem of operation functions to appear, just like composition
+functions.
+
+An operation function will serve the same [`FunctionRunnerService`][4] RPC as a
+composition function. In fact a function could act as both a composition
+function and an operation function. We'll allow functions to advertise their
+capabilities by adding a new field to their package metadata:
+
+```yaml
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-python
+spec:
+  # A new optional field - defaults to composition for backward compatibility.
+  capabilities:
+  - composition
+  - operation
+```
+
+These capabilities will be reflected in an installed Function package's status.
+This'll allow Crossplane to avoid trying to use a composition (only) function
+for operations and vice versa, e.g. due to a misconfiguration.
+
+Using the same `FunctionRunnerService` RPC means you'll be able to use existing
+Crossplane function SDKs like [function-sdk-go][5] and [function-sdk-python][6]
+to build operation functions.
+
+We'll add two new fields to `run_function.proto` - `req.meta.usage`, and
+`rsp.output`:
+
+```proto
+message RequestMeta {
+    // Existing fields omitted.
+
+    // How the function is being used.
+    Usage usage = 2;
+}
+
+enum Usage {
+    // Assumed to be composition.
+    USAGE_UNSPECIFIED = 0;
+
+    // Function is being used for composition.
+    USAGE_COMPOSITION = 1;
+
+    // Function is being used for an operation.
+    USAGE_OPERATION = 2;
+}
+
+message RunFunctionResponse {
+    // Existing fields omitted.
+
+    // An arbitrary output object, to be written to the Operation's
+    // status.pipeline field.
+    optional google.protobuf.Struct output = 7;
+}
+```
+
+By convention Crossplane will never set `req.observed` when calling an operation
+function. However an operation function can return `rsp.requirements` to request
+Crossplane call it again immediately with a set of 'extra' [^1] resources it's
+interested in, per the [extra resources design][7].
+
+An operation function can instruct Crossplane to create or update[^2] arbitary
+resources by including server-side apply [fully-specified intent][8] patches in
+`rsp.desired.resources`, just like a composition function.
+
+An Operation's pipeline will run to completion once, as soon as you create it.
+I propose we support three ways - in addition to manual creation - to create an
+Operation:
+
+1. Compose an Operation using an XR
+1. Create an Operation on a regular schedule using a CronOperation
+1. Create an Operation when a resource changes using a WatchOperation
+
+Composing an Operation is hopefully self-explanatory. Operation doesn't have an
+abstraction resource (like an XR) by design. XRs exist so that one team (a
+platform team) can build abstractions like 'an app' or 'a cluster' to expose to
+other teams. In most cases I expect that kind of abstraction would be overkill
+for Operations.
+
+Consider for example a platform team who wants to ensure all RDS instances are
+automatically backed up before they're deleted. They probably don't need to
+create an abstract RDSAutoBackup resource to configure this. They'd be defining
+an abstraction only they would use.
+
+On the other hand if they _did_ want to create an abstraction, they could do
+that by defining an XR that composes an Operation. For example a one-shot
+RDSBackup XR that simply composed an Operation.
+
+CronOperation and WatchOperation will be to Operation as CronJob is to Job in
+Kubernetes. Here's an example CronOperation:
+
+```yaml
+apiVersion: daytwo.crossplane.io/v1alpha1
+kind: CronOperation
+metadata:
+  name: cluster-rolling-upgrade
+spec:
+  # Crontab schedule
+  schedule: "0 12 * * *"
+  # How long after the scheduled time to wait before considering it too late to
+  # create the Operation.
+  startDeadline: 10m
+  # How many completed Operations to keep around.
+  successfulHistoryLimit: 3
+  failedHistoryLimit: 3
+  # Specifies how to treat concurrent executions of an operation - Allow
+  # (default), Forbid, or Replace.
+  concurrencyPolicy: Forbid
+  operationTemplate:
+    spec:
+      # How many times the pipeline can fail before the Operation fails.
+      failureLimit: 5
+      # A pipeline of functions - just like a Composition.
+      mode: Pipeline
+      pipeline:
+      - step: rolling-upgrade
+        functionRef:
+          name: function-rolling-upgrade
+        input:
+          targets:
+            apiVersion: example.org/v1
+            kind: KubernetesCluster
+            selector:
+              matchLabels:
+                daytwo.crossplane.io/eligible-for-rolling-update: "true"
+          batches:
+          - 0.01  # First upgrade 1% of clusters
+          - 0.1   # Then if that works, 10%
+          - 0.5   # Then 50%
+          - 1.0   # Then 100%
+          fromVersions:
+          - "v1.29"
+          toVersion: "v1.30"
+          versionField: spec.version
+          healthyConditions:
+          - Synced
+          - Ready
+status:
+  # Operations that're currently running
+  active:
+  - name: cluster-rolling-upgrade-amfka
+  lastScheduleTime: "2024-04-18T12:00:37+00:00"
+  lastSuccessfulTime: "2024-04-18T12:00:37+00:00"
+```
+
+This CronOperation makes a lot more sense than a bare Operation for the
+hypothetical rolling ugprade scenario. An Operation isn't long-running - it's
+akin to a single reconcile loop. So to upgrade a fleet of clusters in four
+batches you'd want the Operation to run (at least) four times, with each
+Operation handling the next largest batch.
+
+Here's an example of a WatchOperation:
+
+```yaml
+apiVersion: daytwo.crossplane.io/v1alpha1
+kind: WatchOperation
+metadata:
+  name: backup-database-on-delete
+spec:
+  # Watch for all DatabaseInstance XRs
+  apiVersion: example.org/v1
+  kind: DatabaseInstance
+  matchLabels:
+    daytwo.crossplane.io/backup-on-delete: "true"
+  # What we're watching for changes - ResourceVersion or Generation.
+  watch: ResourceVersion
+  # WatchOperation also supports all the top-level spec fields shown in
+  # CronOperation, except for schedule.
+status:
+  # Operations that're currently running.
+  active:
+  - name: backup-database-on-delete
+  # Resources the WatchOperation is watching.
+  watching:
+  - apiVersion: example.org/v1
+    kind: DatabaseInstance
+    namespace: default
+    name: rip-db1
+    lastResourceVersion: 42
+    lastGeneration: 4
+  lastScheduleTime: "2024-04-18T12:00:37+00:00"
+  lastSuccessfulTime: "2024-04-18T12:00:37+00:00"
+```
+
+Note that unlike an XR the watched resources aren't automatically passed to the
+Operation. It's up to the Operation to explicitly request the resources it needs
+by returning requirements to Crossplane for extra resources.
+
+## Alternatives Considered
+
+TODO
+
+* Just use XRs and Compositions
+* Always have an XR-like abstraction resource for Operations
+
+
+[^1]: Maybe we should rename these to 'required' resources? They're not 'extra'
+    in the context of an operation function. They're the only input resources.
+[^2]: I'm unsure about delete. Composition functions delete resources by
+    omitting them from `rsp.desired.resources`. That won't work for operation
+    functions - they'd need to set an explicit tombstone to delete a resource. I
+    propose we don't support deletes until there's a clear demand.
+
+
+
+[1]: https://github.com/crossplane/crossplane/blob/c98ccb3/design/proposal-crossplane-v2.md
+[2]: https://book.kubebuilder.io
+[3]: https://argoproj.github.io/workflows/
+[4]: https://github.com/crossplane/crossplane/blob/c98ccb3/apis/apiextensions/fn/proto/v1/run_function.proto
+[5]: https://github.com/crossplane/function-sdk-go
+[6]: https://github.com/crossplane/function-sdk-python
+[7]: https://github.com/crossplane/crossplane/blob/c98ccb3/design/design-doc-composition-functions-extra-resources.md
+[8]: https://kubernetes.io/docs/reference/using-api/server-side-apply/
