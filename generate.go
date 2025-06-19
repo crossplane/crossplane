@@ -26,7 +26,6 @@ limitations under the License.
 
 // Replicate identical API versions
 
-//go:generate ./hack/duplicate_api_type.sh apis/apiextensions/v1beta1/environment_config_types.go apis/apiextensions/v1alpha1 false
 //go:generate ./hack/duplicate_api_type.sh apis/apiextensions/v1beta1/usage_types.go apis/apiextensions/v1alpha1 true
 
 //go:generate ./hack/duplicate_api_type.sh apis/pkg/v1/package_types.go apis/pkg/v1beta1
