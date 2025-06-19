@@ -127,13 +127,6 @@ func WithConfigStore(c xpkg.ConfigStore) ReconcilerOption {
 	}
 }
 
-// WithDefaultRegistry sets the default registry to use.
-func WithDefaultRegistry(registry string) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.registry = registry
-	}
-}
-
 // WithFeatures specifies which feature flags should be enabled.
 func WithFeatures(f *feature.Flags) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -156,7 +149,6 @@ type Reconciler struct {
 	newDag     internaldag.NewDAGFn
 	fetcher    xpkg.Fetcher
 	config     xpkg.ConfigStore
-	registry   string
 	features   *feature.Flags
 	conditions conditions.Manager
 
@@ -178,7 +170,6 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	opts := []ReconcilerOption{
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithFetcher(f),
-		WithDefaultRegistry(o.DefaultRegistry),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithFeatures(o.Features),
 	}
@@ -309,7 +300,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
 
-	ref, err := name.ParseReference(depID, name.WithDefaultRegistry(r.registry))
+	// NOTE(phisco): dependencies identifiers are without registry and tag, so we can't enforce strict validation.
+	ref, err := name.ParseReference(depID)
 	if err != nil {
 		log.Debug(errInvalidDependency, "error", err)
 		status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errInvalidDependency)))
@@ -339,7 +331,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if err != nil {
 				continue
 			}
-			pref, err := name.ParseReference(source, name.WithDefaultRegistry(r.registry))
+			pref, err := name.ParseReference(source, name.StrictValidation)
 			if err != nil {
 				continue
 			}
@@ -455,7 +447,8 @@ func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1
 		return "", errors.Wrap(err, errRewriteImage)
 	}
 	if newPath != "" {
-		ref, err = name.ParseReference(newPath, name.WithDefaultRegistry(r.registry))
+		// NOTE(phisco): it's a dependency's reference, so we can not do strict validation.
+		ref, err = name.ParseReference(newPath)
 		if err != nil {
 			log.Info("rewritten image path is invalid", "error", err)
 			return "", errors.Wrap(err, errInvalidRewrite)
@@ -525,7 +518,8 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 		return "", errors.Wrap(err, errRewriteImage)
 	}
 	if newPath != "" {
-		ref, err = name.ParseReference(newPath, name.WithDefaultRegistry(r.registry))
+		// NOTE(phisco): it's a dependency's reference, so we can not enforce strict validation.
+		ref, err = name.ParseReference(newPath)
 		if err != nil {
 			log.Info("rewritten image path is invalid", "error", err)
 			return "", errors.Wrap(err, errInvalidRewrite)

@@ -40,19 +40,11 @@ type Revisioner interface {
 
 // PackageRevisioner extracts a revision name for a package source.
 type PackageRevisioner struct {
-	fetcher  xpkg.Fetcher
-	registry string
+	fetcher xpkg.Fetcher
 }
 
 // A PackageRevisionerOption sets configuration for a package revisioner.
 type PackageRevisionerOption func(r *PackageRevisioner)
-
-// WithDefaultRegistry sets the default registry that a package revisioner will use.
-func WithDefaultRegistry(registry string) PackageRevisionerOption {
-	return func(r *PackageRevisioner) {
-		r.registry = registry
-	}
-}
 
 // NewPackageRevisioner returns a new PackageRevisioner.
 func NewPackageRevisioner(fetcher xpkg.Fetcher, opts ...PackageRevisionerOption) *PackageRevisioner {
@@ -78,7 +70,7 @@ func (r *PackageRevisioner) Revision(ctx context.Context, p v1.Package, extraPul
 	}
 	// Use the package recorded in the status rather than the one in the spec,
 	// since it may have been rewritten by image config.
-	ref, err := name.ParseReference(p.GetResolvedSource(), name.WithDefaultRegistry(r.registry))
+	ref, err := name.ParseReference(p.GetResolvedSource(), name.StrictValidation)
 	if err != nil {
 		return "", errors.Wrap(err, errBadReference)
 	}

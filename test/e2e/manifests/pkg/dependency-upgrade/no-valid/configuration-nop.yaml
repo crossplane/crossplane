@@ -3,4 +3,4 @@ kind: Configuration
 metadata:
   name: crossplane-e2e-depends-on-provider-nop
 spec:
-  package: xpkg.upbound.io/crossplane/e2e-depends-on-provider-nop:v0.2.1
+  package: xpkg.crossplane.io/crossplane/e2e-depends-on-provider-nop:v0.2.1

@@ -337,12 +337,9 @@ func getPkgResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stri
 	}
 
 	// Parse the image reference extracting the tag, we'll leave it empty if we
-	// couldn't parse it and leave the whole thing as package instead. We pass
-	// an empty default registry here so the displayed package image will be
-	// unmodified from what we found in the spec, similar to how kubectl output
-	// behaves.
+	// couldn't parse it and leave the whole thing as package instead.
 	var packageImgTag string
-	if tag, err := gcrname.NewTag(packageImg, gcrname.WithDefaultRegistry("")); err == nil {
+	if tag, err := gcrname.NewTag(packageImg, gcrname.StrictValidation); err == nil {
 		packageImgTag = tag.TagStr()
 		packageImg = tag.RepositoryStr()
 		if tag.RegistryStr() != "" {

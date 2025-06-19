@@ -54,7 +54,7 @@ const (
 type installCmd struct {
 	// Arguments.
 	Kind    string `arg:"" enum:"provider,configuration,function"                                                                            help:"The kind of package to install. One of \"provider\", \"configuration\", or \"function\"."`
-	Package string `arg:"" help:"The package to install."`
+	Package string `arg:"" help:"The package to install, must  be fully qualified, including the registry, repository, and tag." placeholder:"REGISTRY/REPOSITORY:TAG"`
 	Name    string `arg:"" help:"The name of the new package in the Crossplane API. Derived from the package repository and tag by default." optional:""`
 
 	// Flags. Keep sorted alphabetically.
@@ -71,14 +71,16 @@ This command installs a package in a Crossplane control plane. It uses
 ~/.kube/config to connect to the control plane. You can override this using the
 KUBECONFIG environment variable.
 
+IMPORTANT: the package must be fully qualified, including the registry, repository, and tag.
+
 Examples:
 
   # Wait 1 minute for the package to finish installing before returning.
-  crossplane xpkg install provider upbound/provider-aws-eks:v0.41.0 --wait=1m
+  crossplane xpkg install provider xpkg.crossplane.io/upbound/provider-aws-eks:v0.41.0 --wait=1m
 
   # Install a Function named function-eg that uses a runtime config named
   # customconfig.
-  crossplane xpkg install function upbound/function-example:v0.1.4 function-eg \
+  crossplane xpkg install function xpkg.crossplane.io/upbound/function-example:v0.1.4 function-eg \
     --runtime-config=customconfig
 `
 }
@@ -87,7 +89,7 @@ Examples:
 func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	pkgName := c.Name
 	if pkgName == "" {
-		ref, err := name.ParseReference(c.Package, name.WithDefaultRegistry(xpkg.DefaultRegistry))
+		ref, err := name.ParseReference(c.Package, name.StrictValidation)
 		if err != nil {
 			logger.Debug(errPkgIdentifier, "error", err)
 			return errors.Wrap(err, errPkgIdentifier)

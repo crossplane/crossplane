@@ -35,12 +35,11 @@ import (
 const (
 	namespace = "crossplane-system"
 
-	providerImage        = "crossplane/provider-foo:v1.2.3"
+	providerImage        = "xpkg.crossplane.io/crossplane/provider-foo:v1.2.3"
 	providerName         = "upbound-provider-foo"
-	providerMetaName     = "provider-foo"
 	providerRevisionName = "provider-foo-1234"
 
-	functionImage        = "crossplane/function-foo:v1.2.3"
+	functionImage        = "xpkg.crossplane.io/crossplane/function-foo:v1.2.3"
 	functionName         = "function-foo"
 	functionRevisionName = "function-foo-1234"
 

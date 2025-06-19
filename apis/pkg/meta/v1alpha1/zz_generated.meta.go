@@ -49,20 +49,25 @@ type Dependency struct {
 
 	// Package OCI reference of the dependency. Only used when apiVersion and
 	// kind are set.
+	// Musth be a fully qualified image name, including the registry,
+	// repository, and tag. For example, "registry.example.com/repo/package:tag".
 	// +optional
 	Package *string `json:"package,omitempty"`
 
 	// Provider is the name of a Provider package image.
+	// Must be a fully qualified image name, including the registry,
 	// +optional
 	// Deprecated: Specify an apiVersion and kind instead.
 	Provider *string `json:"provider,omitempty"`
 
 	// Configuration is the name of a Configuration package image.
+	// Must be a fully qualified image name, including the registry,
 	// +optional
 	// Deprecated: Specify an apiVersion, kind, and package instead.
 	Configuration *string `json:"configuration,omitempty"`
 
 	// Function is the name of a Function package image.
+	// Must be a fully qualified image name, including the registry,
 	// +optional
 	// Deprecated: Specify an apiVersion, kind, and package instead.
 	Function *string `json:"function,omitempty"`

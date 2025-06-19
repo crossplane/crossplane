@@ -123,7 +123,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 		return found, installed, invalid, errors.Wrap(err, errGetOrCreateLock)
 	}
 
-	prRef, err := name.ParseReference(pr.GetSource(), name.WithDefaultRegistry(""))
+	prRef, err := name.ParseReference(pr.GetSource(), name.StrictValidation)
 	if err != nil {
 		return found, installed, invalid, err
 	}
