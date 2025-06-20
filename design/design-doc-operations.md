@@ -52,7 +52,7 @@ The design should make it possible for you to:
 
 * Use a function pipeline to build controllers that handle day two operations.
 * Package and depend on day two operation controllers.
-* Trigger a day two operation when an arbitary KRM resource changes.
+* Trigger a day two operation by watching arbitrary KRM resources.
 * Trigger a day two operation on a regular interval.
 * Mutate arbitrary KRM resources as part of a day two operation.
 
