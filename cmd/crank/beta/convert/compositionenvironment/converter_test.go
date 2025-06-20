@@ -64,7 +64,7 @@ spec:
       resources:
       - name: bucket
         base:
-          apiVersion: s3.aws.upbound.io/v1beta1
+          apiVersion: s3.aws.crossplane.io/v1beta1
           kind: Bucket
           spec:
             forProvider:
@@ -120,7 +120,7 @@ spec:
       resources:
       - name: bucket
         base:
-          apiVersion: s3.aws.upbound.io/v1beta1
+          apiVersion: s3.aws.crossplane.io/v1beta1
           kind: Bucket
           spec:
             forProvider:
@@ -163,7 +163,7 @@ spec:
       resources:
       - name: bucket
         base:
-          apiVersion: s3.aws.upbound.io/v1beta1
+          apiVersion: s3.aws.crossplane.io/v1beta1
           kind: Bucket
           spec:
             forProvider:

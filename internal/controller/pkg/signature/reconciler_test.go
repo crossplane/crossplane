@@ -417,7 +417,7 @@ func withAppliedImageConfigRef(name string) revisionOption {
 
 func testRevision(opts ...revisionOption) v1.ConfigurationRevision {
 	r := v1.ConfigurationRevision{}
-	r.SetResolvedSource("xpkg.upbound.io/crossplane/signature-verification-unit-test:v0.0.1")
+	r.SetResolvedSource("xpkg.crossplane.io/crossplane/signature-verification-unit-test:v0.0.1")
 	r.SetDesiredState(v1.PackageRevisionActive)
 
 	for _, o := range opts {

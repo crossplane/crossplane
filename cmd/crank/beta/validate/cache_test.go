@@ -32,7 +32,7 @@ func TestLocalCacheExists(t *testing.T) {
 		"Exists": {
 			reason: "Exists should return an empty path with no error if it exists",
 			args: args{
-				image: "xpkg.upbound.io/crossplane-contrib/provider-nop:v0.2.0",
+				image: "xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.2.0",
 			},
 			want: want{
 				path: "",
@@ -42,10 +42,10 @@ func TestLocalCacheExists(t *testing.T) {
 		"DoesNotExist": {
 			reason: "Exists should return the path with no error",
 			args: args{
-				image: "xpkg.upbound.io/crossplane-contrib/provider-nop:v0.2.1",
+				image: "xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.2.1",
 			},
 			want: want{
-				path: "testdata/cache/xpkg.upbound.io/crossplane-contrib/provider-nop@v0.2.1",
+				path: "testdata/cache/xpkg.crossplane.io/crossplane-contrib/provider-nop@v0.2.1",
 				err:  nil,
 			},
 		},
@@ -164,7 +164,7 @@ func TestLocalCacheLoad(t *testing.T) {
 			reason: "Load should load the schemas from the cache",
 			args: args{
 				cacheDir: "./testdata/crds",
-				image:    "xpkg.upbound.io/provider-dummy:v1.0.0",
+				image:    "xpkg.crossplane.io/provider-dummy:v1.0.0",
 			},
 			want: want{
 				schemas: []*unstructured.Unstructured{
@@ -228,7 +228,7 @@ func TestLocalCacheStore(t *testing.T) {
 				schemas: [][]byte{
 					[]byte("apiVersion: apiextensions.k8s.io/v1beta1\nkind: CustomResourceDefinition\nmetadata:\n  name: test\n"),
 				},
-				path: "testdata/cache/xpkg.upbound.io/crossplane-contrib/dummy@v0.2.0",
+				path: "testdata/cache/xpkg.crossplane.io/crossplane-contrib/dummy@v0.2.0",
 				fs:   fs,
 			},
 			want: want{

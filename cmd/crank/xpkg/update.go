@@ -56,7 +56,7 @@ KUBECONFIG environment variable.
 Examples:
 
   # Update the Function named function-eg
-  crossplane xpkg update function upbound/function-example:v0.1.5 function-eg
+  crossplane xpkg update function xpkg.crossplane.io/crossplane/function-example:v0.1.5 function-eg
 `
 }
 
