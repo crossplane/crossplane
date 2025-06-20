@@ -197,10 +197,30 @@ message RunFunctionResponse {
 
 By convention Crossplane will never set `req.observed` when calling an operation
 function. However an operation function can return `rsp.requirements` to request
-Crossplane call it again immediately with a set of 'extra' [^1] resources it's
+Crossplane call it again immediately with a set of extra resources it's
 interested in, per the [extra resources design][7].
 
-An operation function can instruct Crossplane to create or update[^2] arbitary
+'Extra' resources is a misnomer in the context of an Operation. There's no
+observed resources for them to be extra to. I propose we rename extra resources
+to 'required' resources in the function protobuf and SDKs:
+
+```proto
+message Requirements {
+  map<string, ResourceSelector> required_resources = 1;
+}
+
+message RunFunctionRequest {
+    // All other fields omitted.
+
+    map<string, Resources> required_resources = 6;
+}
+
+```
+
+Renaming a protobuf message field isn't a breaking change, so older function
+SDKs that use e.g. `GetExtraResources()` will continue to work.
+
+An operation function can instruct Crossplane to create or update[^1] arbitary
 resources by including server-side apply [fully-specified intent][8] patches in
 `rsp.desired.resources`, just like a composition function.
 
@@ -228,7 +248,10 @@ that by defining an XR that composes an Operation. For example a one-shot
 RDSBackup XR that simply composed an Operation.
 
 CronOperation and WatchOperation will be to Operation as CronJob is to Job in
-Kubernetes. Here's an example CronOperation:
+Kubernetes. They'll contain a template for an Operation, and create one as
+needed. Either on a cron schedule, or when a watched resource changes.
+
+Here's an example CronOperation:
 
 ```yaml
 apiVersion: daytwo.crossplane.io/v1alpha1
@@ -285,7 +308,7 @@ status:
 ```
 
 This CronOperation makes a lot more sense than a bare Operation for the
-hypothetical rolling ugprade scenario. An Operation isn't long-running - it's
+hypothetical rolling upgrade scenario. An Operation isn't long-running - it's
 akin to a single reconcile loop. So to upgrade a fleet of clusters in four
 batches you'd want the Operation to run (at least) four times, with each
 Operation handling the next largest batch.
@@ -323,9 +346,69 @@ status:
   lastSuccessfulTime: "2024-04-18T12:00:37+00:00"
 ```
 
-Note that unlike an XR the watched resources aren't automatically passed to the
-Operation. It's up to the Operation to explicitly request the resources it needs
-by returning requirements to Crossplane for extra resources.
+The WatchOperation needs a way to tell the Operation it creates what watched
+resource changed. Without this information the Operation's function pipeline
+can't know what resource it was created to act on - e.g. what DatabaseInstance
+to back up.
+
+I propose we address this by allowing a function pipeline step to be
+'bootstrapped' with a set of required resources, like this:
+
+```yaml
+apiVersion: daytwo.crossplane.io/v1alpha1
+kind: Operation
+metadata:
+  name: example
+spec:
+  mode: Pipeline
+  pipeline:
+  - step: example
+    functionRef: function-example
+    requirements:
+      requiredResources:
+      - requirementName: function-needs-these-resources
+        apiVersion: example.org
+        kind: App
+        namespace: default # Namespace is optional.
+        name: example-xr   # One of name or matchLabels is required.
+```
+
+Pipeline steps in Compositions and Operations would both support these explicit
+'bootstrapped' requirements. Crossplane would handle these requirements as if a
+function had returned them in a RunFunctionResponse. They allow Crossplane to
+avoid calling a function to learn its requirements if they're known in advance.
+
+The WatchOperation controller can then use this functionality to inject the
+watched resource that changed using a special, well-known requirement name. For
+example:
+
+```yaml
+apiVersion: daytwo.crossplane.io/v1alpha1
+kind: Operation
+metadata:
+  name: example
+spec:
+  mode: Pipeline
+  pipeline:
+  - step: rolling-upgrade
+    functionRef:
+      name: function-rolling-upgrade
+    input:
+      # Omitted for brevity
+    requirements:
+      requiredResources:
+      - requirementName: daytwo.crossplane.io/watched-resource-changed
+        apiVersion: example.org/v1
+        kind: DatabaseInstance
+        namespace: default
+        name: rip-db1
+```
+
+Note this requirement wouldn't explicitly appear in the WatchOperation's
+operation template. It would be injected automatically.
+
+With this in place, a function designed to operate on a watched resource would
+always be called with the watched resource pre-populated in the RunFunctionRequest.
 
 ## Alternatives Considered
 
@@ -333,11 +416,10 @@ TODO
 
 * Just use XRs and Compositions
 * Always have an XR-like abstraction resource for Operations
+* Use Argo Workflows, or similar
 
 
-[^1]: Maybe we should rename these to 'required' resources? They're not 'extra'
-    in the context of an operation function. They're the only input resources.
-[^2]: I'm unsure about delete. Composition functions delete resources by
+[^1]: I'm unsure about delete. Composition functions delete resources by
     omitting them from `rsp.desired.resources`. That won't work for operation
     functions - they'd need to set an explicit tombstone to delete a resource. I
     propose we don't support deletes until there's a clear demand.
