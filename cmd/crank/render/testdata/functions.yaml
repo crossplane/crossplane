@@ -6,7 +6,7 @@ metadata:
     render.crossplane.io/runtime: Docker
     render.crossplane.io/runtime-docker-cleanup: Orphan
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.1.2
+  package: xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.1.2
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Function
@@ -16,7 +16,7 @@ metadata:
     render.crossplane.io/runtime: Development
     render.crossplane.io/runtime-development-target: localhost:9444
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/function-dummy:v0.2.1
+  package: xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.2.1
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Function
@@ -27,4 +27,4 @@ metadata:
     render.crossplane.io/runtime-docker-cleanup: Orphan
     render.crossplane.io/runtime-docker-name: function-auto-ready
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.1.2
+  package: xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.1.2

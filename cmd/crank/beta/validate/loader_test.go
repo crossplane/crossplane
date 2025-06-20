@@ -408,7 +408,7 @@ spec:
         resources:
           - name: instanceNodeRole
             base:
-              apiVersion: iam.aws.upbound.io/v1beta1
+              apiVersion: iam.aws.crossplane.io/v1beta1
               kind: Role
               spec: {}
 `),
@@ -424,7 +424,7 @@ spec:
 								map[string]interface{}{
 									"name": "instanceNodeRole",
 									"base": map[string]interface{}{
-										"apiVersion": "iam.aws.upbound.io/v1beta1",
+										"apiVersion": "iam.aws.crossplane.io/v1beta1",
 										"kind":       "Role",
 										"spec":       map[string]interface{}{},
 									},
@@ -457,7 +457,7 @@ spec:
 												map[string]interface{}{
 													"name": "instanceNodeRole",
 													"base": map[string]interface{}{
-														"apiVersion": "iam.aws.upbound.io/v1beta1",
+														"apiVersion": "iam.aws.crossplane.io/v1beta1",
 														"kind":       "Role",
 														"spec":       map[string]interface{}{},
 													},

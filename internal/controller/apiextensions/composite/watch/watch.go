@@ -27,8 +27,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+
 	"github.com/crossplane/crossplane/internal/engine"
 )
 

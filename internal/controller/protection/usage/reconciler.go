@@ -42,9 +42,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
-
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+
 	legacy "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	"github.com/crossplane/crossplane/apis/protection/v1beta1"
 	"github.com/crossplane/crossplane/internal/protection"

@@ -54,7 +54,7 @@ const (
 type installCmd struct {
 	// Arguments.
 	Kind    string `arg:"" enum:"provider,configuration,function"                                                                            help:"The kind of package to install. One of \"provider\", \"configuration\", or \"function\"."`
-	Package string `arg:"" help:"The package to install, must  be fully qualified, including the registry, repository, and tag." placeholder:"REGISTRY/REPOSITORY:TAG"`
+	Package string `arg:"" help:"The package to install, must  be fully qualified, including the registry, repository, and tag."             placeholder:"REGISTRY/REPOSITORY:TAG"`
 	Name    string `arg:"" help:"The name of the new package in the Crossplane API. Derived from the package repository and tag by default." optional:""`
 
 	// Flags. Keep sorted alphabetically.
@@ -76,11 +76,11 @@ IMPORTANT: the package must be fully qualified, including the registry, reposito
 Examples:
 
   # Wait 1 minute for the package to finish installing before returning.
-  crossplane xpkg install provider xpkg.crossplane.io/upbound/provider-aws-eks:v0.41.0 --wait=1m
+  crossplane xpkg install provider xpkg.crossplane.io/crossplane-contrib/provider-aws-eks:v0.41.0 --wait=1m
 
   # Install a Function named function-eg that uses a runtime config named
   # customconfig.
-  crossplane xpkg install function xpkg.crossplane.io/upbound/function-example:v0.1.4 function-eg \
+  crossplane xpkg install function xpkg.crossplane.io/crossplane/function-example:v0.1.4 function-eg \
     --runtime-config=customconfig
 `
 }

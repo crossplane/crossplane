@@ -372,7 +372,7 @@ func TestAddDependencies(t *testing.T) {
 			return &pd1, nil
 		case "function-dep-1:v1.3.0":
 			return &fd1, nil
-		case "xpkg.upbound.io/crossplane/crossplane:v1.16.0":
+		case "xpkg.crossplane.io/crossplane/crossplane:v1.16.0":
 			return &crossplaneLayer, nil
 		default:
 			return nil, fmt.Errorf("unknown image: %s", image)
@@ -381,7 +381,7 @@ func TestAddDependencies(t *testing.T) {
 
 	fetchImageMockFunc := func(image string) ([]conregv1.Layer, error) {
 		switch image {
-		case "xpkg.upbound.io/crossplane/crossplane:v1.16.0":
+		case "xpkg.crossplane.io/crossplane/crossplane:v1.16.0":
 			return []conregv1.Layer{crossplaneLayer}, nil
 		default:
 			return nil, fmt.Errorf("unknown image: %s", image)
@@ -408,7 +408,7 @@ func TestAddDependencies(t *testing.T) {
 			// └─►config-dep-2
 			//   ├─►provider-dep-1
 			//   └─►function-dep-1
-			// └─►crossplaneImage (xpkg.upbound.io/crossplane/crossplane:v1.16.0)
+			// └─►crossplaneImage (xpkg.crossplane.io/crossplane/crossplane:v1.16.0)
 			reason: "All dependencies including the crossplane image should be successfully fetched and added",
 			args: args{
 				fetcher: &MockFetcher{
@@ -429,7 +429,7 @@ func TestAddDependencies(t *testing.T) {
 						},
 					},
 				},
-				crossplaneImage: "xpkg.upbound.io/crossplane/crossplane:v1.16.0",
+				crossplaneImage: "xpkg.crossplane.io/crossplane/crossplane:v1.16.0",
 			},
 			want: want{
 				confs: 2, // 1 Base configuration (config-dep-1), 1 child configuration (config-dep-2)
