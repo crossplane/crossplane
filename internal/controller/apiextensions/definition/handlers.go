@@ -31,8 +31,8 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 // EnqueueForCompositionRevision enqueues reconciles for all XRs that will use a

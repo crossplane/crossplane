@@ -24,13 +24,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
-	"github.com/crossplane/crossplane/internal/xresource"
 )
 
 // Error strings.
@@ -54,7 +54,7 @@ func NewAPIConnectionPropagator(c client.Client) *APIConnectionPropagator {
 }
 
 // PropagateConnection details from the supplied resource.
-func (a *APIConnectionPropagator) PropagateConnection(ctx context.Context, to xresource.LocalConnectionSecretOwner, from xresource.ConnectionSecretOwner) (bool, error) {
+func (a *APIConnectionPropagator) PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) (bool, error) {
 	// Either from does not expose a connection secret, or to does not want one.
 	if from.GetWriteConnectionSecretToReference() == nil || to.GetWriteConnectionSecretToReference() == nil {
 		return false, nil
@@ -76,7 +76,7 @@ func (a *APIConnectionPropagator) PropagateConnection(ctx context.Context, to xr
 		return false, errors.New(errSecretConflict)
 	}
 
-	ts := xresource.LocalConnectionSecretFor(to, to.GetObjectKind().GroupVersionKind())
+	ts := LocalConnectionSecretFor(to, to.GetObjectKind().GroupVersionKind())
 	ts.Data = fs.Data
 
 	err := a.client.Apply(ctx, ts,
@@ -98,4 +98,18 @@ func (a *APIConnectionPropagator) PropagateConnection(ctx context.Context, to xr
 	}
 
 	return true, nil
+}
+
+// LocalConnectionSecretFor creates a connection secret in the namespace of the
+// supplied LocalConnectionSecretOwner, assumed to be of the supplied kind.
+func LocalConnectionSecretFor(o LocalConnectionSecretOwner, kind schema.GroupVersionKind) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       o.GetNamespace(),
+			Name:            o.GetWriteConnectionSecretToReference().Name,
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(o, kind))},
+		},
+		Type: resource.SecretTypeConnection,
+		Data: make(map[string][]byte),
+	}
 }

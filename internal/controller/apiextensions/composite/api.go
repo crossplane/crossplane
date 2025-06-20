@@ -24,7 +24,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -37,7 +39,6 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource"
 )
 
 // Error strings.
@@ -77,13 +78,13 @@ func NewAPIFilteredSecretPublisher(c client.Client, filter []string) *APIFiltere
 
 // PublishConnection publishes the supplied ConnectionDetails to the Secret
 // referenced in the resource.
-func (a *APIFilteredSecretPublisher) PublishConnection(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) (bool, error) {
+func (a *APIFilteredSecretPublisher) PublishConnection(ctx context.Context, o ConnectionSecretOwner, c managed.ConnectionDetails) (bool, error) {
 	// This resource does not want to expose a connection secret.
 	if o.GetWriteConnectionSecretToReference() == nil {
 		return false, nil
 	}
 
-	s := xresource.ConnectionSecretFor(o, o.GetObjectKind().GroupVersionKind())
+	s := ConnectionSecretFor(o, o.GetObjectKind().GroupVersionKind())
 	m := map[string]bool{}
 	for _, key := range a.filter {
 		m[key] = true
@@ -117,6 +118,22 @@ func (a *APIFilteredSecretPublisher) PublishConnection(ctx context.Context, o xr
 	return true, nil
 }
 
+// ConnectionSecretFor creates a connection for the supplied
+// ConnectionSecretOwner, assumed to be of the supplied kind. The secret is
+// written to 'default' namespace if the ConnectionSecretOwner does not specify
+// a namespace.
+func ConnectionSecretFor(o ConnectionSecretOwner, kind schema.GroupVersionKind) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       o.GetWriteConnectionSecretToReference().Namespace,
+			Name:            o.GetWriteConnectionSecretToReference().Name,
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(o, kind))},
+		},
+		Type: resource.SecretTypeConnection,
+		Data: make(map[string][]byte),
+	}
+}
+
 // An APIRevisionFetcher selects the appropriate CompositionRevision for a
 // composite resource, fetches it, and returns it as a Composition. This is done
 // for compatibility with existing Composition logic while CompositionRevisions
@@ -134,7 +151,7 @@ func NewAPIRevisionFetcher(c client.Client) *APIRevisionFetcher {
 // Fetch the appropriate CompositionRevision for the supplied XR. Panics if the
 // composite resource's composition reference is nil, but handles setting the
 // composition revision reference.
-func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr xresource.Composite) (*v1.CompositionRevision, error) {
+func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (*v1.CompositionRevision, error) {
 	current := cr.GetCompositionRevisionReference()
 	pol := cr.GetCompositionUpdatePolicy()
 
@@ -174,7 +191,7 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr xresource.Composite) 
 	return latest, nil
 }
 
-func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr xresource.Composite, comp *v1.Composition) (*v1.CompositionRevisionList, error) {
+func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr resource.Composite, comp *v1.Composition) (*v1.CompositionRevisionList, error) {
 	rl := &v1.CompositionRevisionList{}
 	ml := client.MatchingLabels{}
 
@@ -202,7 +219,7 @@ type CompositionSelectorChain struct {
 
 // SelectComposition calls all SelectComposition functions of CompositionSelectors
 // in the list.
-func (r *CompositionSelectorChain) SelectComposition(ctx context.Context, cp xresource.Composite) error {
+func (r *CompositionSelectorChain) SelectComposition(ctx context.Context, cp resource.Composite) error {
 	for _, cs := range r.list {
 		if err := cs.SelectComposition(ctx, cp); err != nil {
 			return err
@@ -223,7 +240,7 @@ type APILabelSelectorResolver struct {
 }
 
 // SelectComposition resolves selector to a reference if it doesn't exist.
-func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp xresource.Composite) error {
+func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp resource.Composite) error {
 	// TODO(muvaf): need to block the deletion of composition via finalizer once
 	// it's selected since it's integral to this resource.
 	// TODO(muvaf): We don't rely on UID in practice. It should not be there
@@ -278,7 +295,7 @@ type APIDefaultCompositionSelector struct {
 
 // SelectComposition selects the default compositionif neither a reference nor
 // selector is given in composite resource.
-func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, cp xresource.Composite) error {
+func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, cp resource.Composite) error {
 	if cp.GetCompositionReference() != nil || cp.GetCompositionSelector() != nil {
 		return nil
 	}
@@ -307,7 +324,7 @@ type EnforcedCompositionSelector struct {
 }
 
 // SelectComposition selects the enforced composition if it's given in definition.
-func (s *EnforcedCompositionSelector) SelectComposition(_ context.Context, cp xresource.Composite) error {
+func (s *EnforcedCompositionSelector) SelectComposition(_ context.Context, cp resource.Composite) error {
 	// We don't need to fetch the CompositeResourceDefinition at every reconcile
 	// because enforced composition ref is immutable as opposed to default
 	// composition ref.
@@ -335,7 +352,7 @@ type ConfiguratorChain struct {
 }
 
 // Configure calls Configure function of every Configurator in the list.
-func (cc *ConfiguratorChain) Configure(ctx context.Context, cp xresource.Composite, rev *v1.CompositionRevision) error {
+func (cc *ConfiguratorChain) Configure(ctx context.Context, cp resource.Composite, rev *v1.CompositionRevision) error {
 	for _, c := range cc.list {
 		if err := c.Configure(ctx, cp, rev); err != nil {
 			return err
@@ -358,17 +375,23 @@ type APIConfigurator struct {
 
 // Configure any required fields that were omitted from the composite resource
 // by copying them from its composition.
-func (c *APIConfigurator) Configure(ctx context.Context, cp xresource.Composite, rev *v1.CompositionRevision) error {
-	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
+func (c *APIConfigurator) Configure(ctx context.Context, cp resource.Composite, rev *v1.CompositionRevision) error {
+	// Only legacy XRs support writing connection secrets.
+	lcp, ok := cp.(resource.LegacyComposite)
+	if !ok {
+		return nil
+	}
+
+	apiVersion, kind := lcp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
 	if rev.Spec.CompositeTypeRef.APIVersion != apiVersion || rev.Spec.CompositeTypeRef.Kind != kind {
 		return errors.New(errCompositionNotCompatible)
 	}
 
-	if cp.GetWriteConnectionSecretToReference() != nil || rev.Spec.WriteConnectionSecretsToNamespace == nil {
+	if lcp.GetWriteConnectionSecretToReference() != nil || rev.Spec.WriteConnectionSecretsToNamespace == nil {
 		return nil
 	}
 
-	cp.SetWriteConnectionSecretToReference(&xpv1.SecretReference{
+	lcp.SetWriteConnectionSecretToReference(&xpv1.SecretReference{
 		Name:      string(cp.GetUID()),
 		Namespace: *rev.Spec.WriteConnectionSecretsToNamespace,
 	})
@@ -389,7 +412,7 @@ type APINamingConfigurator struct {
 }
 
 // Configure the supplied composite resource's root name prefix.
-func (c *APINamingConfigurator) Configure(ctx context.Context, cp xresource.Composite, _ *v1.CompositionRevision) error {
+func (c *APINamingConfigurator) Configure(ctx context.Context, cp resource.Composite, _ *v1.CompositionRevision) error {
 	if cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] != "" {
 		return nil
 	}

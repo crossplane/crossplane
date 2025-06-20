@@ -31,10 +31,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
-	"github.com/crossplane/crossplane/internal/xresource/xfake"
 )
 
 func TestRenderFromJSON(t *testing.T) {
@@ -182,7 +180,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 	errRef := meta.AddControllerReference(controlled, metav1.OwnerReference{UID: "not-very-random"})
 
 	type args struct {
-		xr xresource.Composite
+		xr resource.Composite
 		cd resource.Composed
 		rn ResourceName
 	}
@@ -198,7 +196,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 		"ConflictingControllerReference": {
 			reason: "We should return an error if the composed resource has an existing (and different) controller reference",
 			args: args{
-				xr: &xfake.Composite{
+				xr: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "somewhat-random",
 						Labels: map[string]string{
@@ -238,7 +236,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 		"CompatibleControllerReference": {
 			reason: "We should not return an error if the composed resource has an existing (and matching) controller reference",
 			args: args{
-				xr: &xfake.Composite{
+				xr: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "somewhat-random",
 						Labels: map[string]string{
@@ -278,7 +276,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 		"NoControllerReference": {
 			reason: "We should not return an error if the composed resource has no controller reference",
 			args: args{
-				xr: &xfake.Composite{
+				xr: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "ns",
 						Name:      "cool-xr",
@@ -315,7 +313,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 		"NoClaimLabels": {
 			reason: "MR should not have claim labels when XR doesn't have them",
 			args: args{
-				xr: &xfake.Composite{
+				xr: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "ns",
 						Name:      "cool-xr",

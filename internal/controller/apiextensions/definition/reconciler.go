@@ -46,6 +46,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
+	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite/watch"
@@ -53,7 +54,6 @@ import (
 	"github.com/crossplane/crossplane/internal/engine"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
-	ucomposite "github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 const (
