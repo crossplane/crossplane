@@ -221,8 +221,24 @@ Renaming a protobuf message field isn't a breaking change, so older function
 SDKs that use e.g. `GetExtraResources()` will continue to work.
 
 An operation function can instruct Crossplane to create or update[^1] arbitary
-resources by including server-side apply [fully-specified intent][8] patches in
-`rsp.desired.resources`, just like a composition function.
+resources by including server-side apply [fully-specified intent][8] (FSI)
+patches in `rsp.desired.resources`, just like a composition function.
+
+Each unique Operation will be the server-side apply field manager of any applied
+fields, and the Operation controller will force conflicts. This means the
+Operation controller will assume management of a field that's already set, and
+overwrite its value.
+
+This has a few implications:
+
+1. Operations must take care not to fight over fields with XRs and other
+   Operations. For example if an XR and an Operation both try to own an MR's
+   `spec.forProvider.version` field, they'll enter an endless loop fighting over
+   it.
+1. Unlike an XR, an Operation can't delete a field simply by omitting it from
+   its desired state (i.e. SSA FSI). XRs delete fields by first setting them in
+   FSI, then later omitting them from FSI. Operations will only run once.
+   They'll need to delete fields by explicitly setting them to `null`.
 
 An Operation's pipeline will run to completion once, as soon as you create it.
 I propose we support three ways - in addition to manual creation - to create an
