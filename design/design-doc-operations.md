@@ -249,19 +249,8 @@ Operation:
 1. Create an Operation when a resource changes using a WatchOperation
 
 Composing an Operation is hopefully self-explanatory. Operation doesn't have an
-abstraction resource (like an XR) by design. XRs exist so that one team (a
-platform team) can build abstractions like 'an app' or 'a cluster' to expose to
-other teams. In most cases I expect that kind of abstraction would be overkill
-for Operations.
-
-Consider for example a platform team who wants to ensure all RDS instances are
-automatically backed up before they're deleted. They probably don't need to
-create an abstract RDSAutoBackup resource to configure this. They'd be defining
-an abstraction only they would use.
-
-On the other hand if they _did_ want to create an abstraction, they could do
-that by defining an XR that composes an Operation. For example a one-shot
-RDSBackup XR that simply composed an Operation.
+abstraction resource (like an XR) by design - see [Alternatives
+Considered][#alternatives-considered] for more details.
 
 CronOperation and WatchOperation will be to Operation as CronJob is to Job in
 Kubernetes. They'll contain a template for an Operation, and create one as
@@ -428,17 +417,76 @@ always be called with the watched resource pre-populated in the RunFunctionReque
 
 ## Alternatives Considered
 
-TODO
+I considered the following alternatives before arriving at this proposal.
 
-* Just use XRs and Compositions
-* Always have an XR-like abstraction resource for Operations
-* Use Argo Workflows, or similar
 
+### Require Operations to Define a Custom Resource
+
+In this alternative an Operation would have an abstraction resource like an XR.
+
+XRs exist so that one team (a platform team) can build abstractions like 'an
+app' or 'a cluster' to expose to other teams. I expect that kind of abstraction
+would be overkill for most Operations.
+
+Consider for example a platform team who wants to ensure all RDS instances are
+automatically backed up before they're deleted. They probably don't need to
+create an abstract RDSAutoBackup resource to configure this. They'd be defining
+an abstraction only they would use.
+
+On the other hand if they _did_ want to create an abstraction for other teams to
+use, they could do that by defining an XR that composes an Operation. For
+example a RDSBackup XR that composes an Operation derived from the XR.
+
+
+### Just use Compositions
+
+In this alternative we wouldn't add a new Operation type, and would use XRs to
+implement all day two operations.
+
+There's a couple of challenges with using XRs and Compositions as they exist
+today:
+
+* Conceptually, many day two operations aren't "API extensions" or "composing"
+  resources. So names like XR, Composition, etc would become misnomers.
+* XRs can't mutate arbitrary resources - ones they don't compose.
+* XRs can't run on a cron schedule, or as one-shot reconciles.
+* XRs don't run a function pipeline when the XR is deleted, and it's
+  [unclear][9] what the UX for function authors should be if they did.
+
+We could make changes to XRs and Compositions to address these, but the changes
+would be significant. It'd be difficult to adapt XRs to cover the day two use
+case while maintaining backward compatibility with existing Compositions, for
+example.
+
+### Use an Existing Workflow Engine
+
+In this alternative Crossplane wouldn't address day two scenarios, and users
+would use existing tools like CronJobs or [Argo Workflows][3] to handle them.
+
+While the Operation design looks a lot like a generic Job or workflow on the
+surface, it helps to think of it as a way to extend Crossplane with new
+controllers. Like XRs and Compositions.
+
+A key difference compared to Jobs or Workflows is that Operations and functions
+just tell _Crossplane_ what to do. It's the core Crossplane pod that'll fetch
+any needed resources, and mutate them. Being able to read and mutate KRM
+resources is important for the kind of day two operations this proposal
+addresses.
+
+To read and mutate KRM resources using Jobs or Argo Workflows[^2] you'd need to
+spawn pods that acted as Kubernetes clients with their own identity and RBAC
+permissions. You'd need to write whatever logic these pods needed without the
+help of an SDK like Crossplane's function SDKS.
+
+Jobs and Workflows also lack some of the functionality proposed by this design,
+like watch-triggered reconciles.
 
 [^1]: I'm unsure about delete. Composition functions delete resources by
     omitting them from `rsp.desired.resources`. That won't work for operation
     functions - they'd need to set an explicit tombstone to delete a resource. I
     propose we don't support deletes until there's a clear demand.
+[^2]: Workflows can actually do basic (fixed) KRM resource templating, but can't
+    run a function produce a template of a resource to change.
 
 
 
@@ -450,3 +498,4 @@ TODO
 [6]: https://github.com/crossplane/function-sdk-python
 [7]: https://github.com/crossplane/crossplane/blob/c98ccb3/design/design-doc-composition-functions-extra-resources.md
 [8]: https://kubernetes.io/docs/reference/using-api/server-side-apply/
+[9]: https://github.com/crossplane/crossplane/issues/5092#issuecomment-1874728842
