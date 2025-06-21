@@ -508,7 +508,7 @@ The earlier effort about building code generator for Terraform providers had mad
 the choice of interacting with provider servers via gRPC. So, the logic that existed
 in Terraform CLI had to be implemented and in some cases, like `cty` conversion,
 it used code generation instead of generic marshaling like Terraform CLI.
-Additionally, due to the fact that that effort wasn't finished, it didn't cover
+Additionally, due to the fact that effort wasn't finished, it didn't cover
 all Terraform logic, hence there are places where we need to keep implementing
 functionality of CLI.
 

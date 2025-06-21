@@ -84,7 +84,7 @@ func kubernetesResourcePredictor() complete.PredictFunc {
 				}
 
 				// This way we can filter the resources by the last completed argument of any valid format
-				// by just cheking the prefix.
+				// by just checking the prefix.
 				if strings.HasPrefix(resourceName, a.Last) {
 					predictions = append(predictions, resourceName)
 				}

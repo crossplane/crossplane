@@ -50,7 +50,7 @@ testing environments but it not responsible for the actual execution of tests.
 
 ### Definition of a Testable Unit
 
-Any controller that that is able to successfully register with the Kubernetes
+Any controller that is able to successfully register with the Kubernetes
 control plane should be testable. Any valid CustomResourceDefinitions that are
 able to be registered with the [Scheme] of the Kubernetes API should be
 testable.
