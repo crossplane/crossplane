@@ -38,7 +38,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	"github.com/crossplane/crossplane/internal/xpkg"
-	"github.com/crossplane/crossplane/internal/xpkg/upbound"
 )
 
 const (
@@ -105,12 +104,8 @@ func (c *extractCmd) AfterApply() error {
 		if c.Package == "" {
 			return errors.New(errMustProvideTag)
 		}
-		upCtx, err := upbound.NewFromFlags(c.Flags)
-		if err != nil {
-			return err
-		}
 
-		name, err := name.ParseReference(c.Package, name.WithDefaultRegistry(upCtx.RegistryEndpoint.Hostname()))
+		name, err := name.ParseReference(c.Package, name.StrictValidation)
 		if err != nil {
 			return errors.Wrap(err, errInvalidTag)
 		}
@@ -130,9 +125,6 @@ type extractCmd struct {
 	FromDaemon bool   `help:"Indicates that the image should be fetched from the Docker daemon."`
 	FromXpkg   bool   `help:"Indicates that the image should be fetched from a local xpkg. If package is not specified and only one exists in current directory it will be used."`
 	Output     string `default:"out.gz"                                                                                                                                           help:"Package output file path. Extension must be .gz or will be replaced."                          short:"o"`
-
-	// Common API configuration
-	Flags upbound.Flags `embed:""`
 }
 
 // Run runs the xpkg extract cmd.

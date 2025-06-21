@@ -350,7 +350,7 @@ func ClusterRolesDiffer(current, desired runtime.Object) bool {
 // An OrgDiffer determines whether two references are part of the same org. In
 // this context we consider an org to consist of:
 //
-//   - The registry (e.g. xpkg.upbound.io or index.docker.io).
+//   - The registry (e.g. xpkg.crossplane.io or index.docker.io).
 //   - The part of the repository path before the first slash (e.g. crossplane
 //     in crossplane/provider-aws).
 type OrgDiffer struct {
@@ -375,7 +375,7 @@ func (d OrgDiffer) Differs(a, b string) bool {
 	ca := ra.Context()
 	cb := rb.Context()
 
-	// If the registries (e.g. xpkg.upbound.io) don't match they're not in the
+	// If the registries (e.g. xpkg.crossplane.io) don't match they're not in the
 	// same org.
 	if ca.RegistryStr() != cb.RegistryStr() {
 		return true

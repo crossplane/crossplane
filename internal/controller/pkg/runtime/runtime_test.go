@@ -36,7 +36,7 @@ const (
 	namespace = "crossplane-system"
 
 	providerImage        = "crossplane/provider-foo:v1.2.3"
-	providerName         = "upbound-provider-foo"
+	providerName         = "crossplane-provider-foo"
 	providerMetaName     = "provider-foo"
 	providerRevisionName = "provider-foo-1234"
 

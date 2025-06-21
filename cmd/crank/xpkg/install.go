@@ -74,11 +74,11 @@ KUBECONFIG environment variable.
 Examples:
 
   # Wait 1 minute for the package to finish installing before returning.
-  crossplane xpkg install provider upbound/provider-aws-eks:v0.41.0 --wait=1m
+  crossplane xpkg install provider xpkg.crossplane.io/crossplane/provider-aws-eks:v0.41.0 --wait=1m
 
   # Install a Function named function-eg that uses a runtime config named
   # customconfig.
-  crossplane xpkg install function upbound/function-example:v0.1.4 function-eg \
+  crossplane xpkg install function xpkg.crossplane.io/crossplane/function-example:v0.1.4 function-eg \
     --runtime-config=customconfig
 `
 }

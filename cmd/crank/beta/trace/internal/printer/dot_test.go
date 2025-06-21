@@ -65,13 +65,13 @@ func TestPrintDotGraph(t *testing.T) {
 			want: want{
 				dotString: `graph  {
 	
-	n1[label="Name: platform-ref-aws\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.upbound.io/upbound/platform-ref-aws:v0.9.0\nInstalled: True\nHealthy: True\n",penwidth="2"];
-	n2[label="Name: platform-ref-aws-9ad7b5db2899\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.upbound.io/upbound/platform-ref-aws:v0.9.0\nHealthy: True\nState: HealthyPackageRevision\n",penwidth="2"];
-	n3[label="Name: upbound-configuration-aws-network\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.upbound.io/upbound/configuration-aws-network:v0.7.0\nInstalled: True\nHealthy: True\n",penwidth="2"];
-	n4[label="Name: upbound-configuration-aws-network-97be9100cfe1\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.upbound.io/upbound/configuration-aws-network:v0.7.0\nHealthy: True\nState: HealthyPackageRevision\n",penwidth="2"];
-	n5[label="Name: upbound-provider-aws-ec2\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.upbound.io/upbound/provider-aws-ec2:v0.47.0\nInstalled: True\nHealthy: Unknown\n",penwidth="2"];
-	n6[label="Name: upbound-provider-aws-ec2-9ad7b5db2899\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.upbound.io/upbound/provider-aws-ec2:v0.47.0\nHealthy: False\nState: UnhealthyPackageRevision\n",penwidth="2"];
-	n7[label="Name: upbound-provider-aws-something\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.upbound.io/upbound/provider-aws-something:v0.47.0\nInstalled: True\nHealthy: \n",penwidth="2"];
+	n1[label="Name: platform-ref-aws\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.crossplane.io/crossplane/platform-ref-aws:v0.9.0\nInstalled: True\nHealthy: True\n",penwidth="2"];
+	n2[label="Name: platform-ref-aws-9ad7b5db2899\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.crossplane.io/crossplane/platform-ref-aws:v0.9.0\nHealthy: True\nState: HealthyPackageRevision\n",penwidth="2"];
+	n3[label="Name: crossplane-configuration-aws-network\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.crossplane.io/crossplane/configuration-aws-network:v0.7.0\nInstalled: True\nHealthy: True\n",penwidth="2"];
+	n4[label="Name: crossplane-configuration-aws-network-97be9100cfe1\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.crossplane.io/crossplane/configuration-aws-network:v0.7.0\nHealthy: True\nState: HealthyPackageRevision\n",penwidth="2"];
+	n5[label="Name: crossplane-provider-aws-ec2\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.crossplane.io/crossplane/provider-aws-ec2:v0.47.0\nInstalled: True\nHealthy: Unknown\n",penwidth="2"];
+	n6[label="Name: crossplane-provider-aws-ec2-9ad7b5db2899\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.crossplane.io/crossplane/provider-aws-ec2:v0.47.0\nHealthy: False\nState: UnhealthyPackageRevision\n",penwidth="2"];
+	n7[label="Name: crossplane-provider-aws-something\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.crossplane.io/crossplane/provider-aws-something:v0.47.0\nInstalled: True\nHealthy: \n",penwidth="2"];
 	n1--n2;
 	n1--n3;
 	n3--n4;
