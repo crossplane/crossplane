@@ -356,7 +356,7 @@ Cluster / Namespace scoped packages and package-manager provide a very clean way
 
 We will model our roles to define a clear separation of concerns for cluster(environment) scoped resources,
  and namespaced resources. In our model we assume that any Cluster Package resources are global will be for the
- environment or infrastructure scope, whereas any namespace package resources will be for the namespace that that package
+ environment or infrastructure scope, whereas any namespace package resources will be for the namespace that package
  is installed into.
 
 At install time:
