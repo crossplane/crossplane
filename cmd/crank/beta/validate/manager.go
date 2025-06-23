@@ -30,7 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	metav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
@@ -109,7 +109,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 			m.crds = append(m.crds, crd)
 
 		case schema.GroupKind{Group: "apiextensions.crossplane.io", Kind: "CompositeResourceDefinition"}:
-			xrd := &v1.CompositeResourceDefinition{}
+			xrd := &v2.CompositeResourceDefinition{}
 
 			bytes, err := e.MarshalJSON()
 			if err != nil {

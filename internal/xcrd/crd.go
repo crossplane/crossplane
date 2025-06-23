@@ -32,7 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 )
 
 // Category names for generated claim and composite CRDs.
@@ -52,7 +52,7 @@ const (
 
 // ForCompositeResource derives the CustomResourceDefinition for a composite
 // resource from the supplied CompositeResourceDefinition.
-func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+func ForCompositeResource(xrd *v2.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 	crd := &extv1.CustomResourceDefinition{
 		Spec: extv1.CustomResourceDefinitionSpec{
 			Group:      xrd.Spec.Group,
@@ -65,16 +65,20 @@ func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomRes
 	crd.SetName(xrd.GetName())
 	setCrdMetadata(crd, xrd)
 	crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
-		meta.TypedReferenceTo(xrd, v1.CompositeResourceDefinitionGroupVersionKind),
+		meta.TypedReferenceTo(xrd, v2.CompositeResourceDefinitionGroupVersionKind),
 	)})
 
-	scope := ptr.Deref(xrd.Spec.Scope, v1.CompositeResourceScopeLegacyCluster)
+	scope := xrd.Spec.Scope
+	if scope == "" {
+		scope = v2.CompositeResourceScopeLegacyCluster
+	}
+
 	switch scope {
-	case v1.CompositeResourceScopeNamespaced:
+	case v2.CompositeResourceScopeNamespaced:
 		crd.Spec.Scope = extv1.NamespaceScoped
-	case v1.CompositeResourceScopeCluster:
+	case v2.CompositeResourceScopeCluster:
 		crd.Spec.Scope = extv1.ClusterScoped
-	case v1.CompositeResourceScopeLegacyCluster:
+	case v2.CompositeResourceScopeLegacyCluster:
 		crd.Spec.Scope = extv1.ClusterScoped
 	}
 
@@ -110,7 +114,7 @@ func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomRes
 
 // ForCompositeResourceClaim derives the CustomResourceDefinition for a
 // composite resource claim from the supplied CompositeResourceDefinition.
-func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+func ForCompositeResourceClaim(xrd *v2.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 	if err := validateClaimNames(xrd); err != nil {
 		return nil, errors.Wrap(err, errInvalidClaimNames)
 	}
@@ -128,7 +132,7 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 	crd.SetName(xrd.Spec.ClaimNames.Plural + "." + xrd.Spec.Group)
 	setCrdMetadata(crd, xrd)
 	crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
-		meta.TypedReferenceTo(xrd, v1.CompositeResourceDefinitionGroupVersionKind),
+		meta.TypedReferenceTo(xrd, v2.CompositeResourceDefinitionGroupVersionKind),
 	)})
 
 	crd.Spec.Names.Categories = append(crd.Spec.Names.Categories, CategoryClaim)
@@ -152,7 +156,7 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 		}
 		// TODO(negz): This means claims will have status.claimConditionTypes.
 		// I think that's a bug - only XRs should have that field.
-		props = CompositeResourceStatusProps(v1.CompositeResourceScopeLegacyCluster)
+		props = CompositeResourceStatusProps(v2.CompositeResourceScopeLegacyCluster)
 		for k, v := range props {
 			crdv.Schema.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
@@ -163,7 +167,7 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 	return crd, nil
 }
 
-func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64) (*extv1.CustomResourceDefinitionVersion, error) {
+func genCrdVersion(vr v2.CompositeResourceDefinitionVersion, maxNameLength int64) (*extv1.CustomResourceDefinitionVersion, error) {
 	crdv := extv1.CustomResourceDefinitionVersion{
 		Name:                     vr.Name,
 		Served:                   vr.Served,
@@ -232,7 +236,7 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64
 	return &crdv, nil
 }
 
-func validateClaimNames(d *v1.CompositeResourceDefinition) error {
+func validateClaimNames(d *v2.CompositeResourceDefinition) error {
 	if d.Spec.ClaimNames == nil {
 		return errors.New(errMissingClaimNames)
 	}
@@ -256,7 +260,7 @@ func validateClaimNames(d *v1.CompositeResourceDefinition) error {
 	return nil
 }
 
-func parseSchema(v *v1.CompositeResourceValidation) (*extv1.JSONSchemaProps, error) {
+func parseSchema(v *v2.CompositeResourceValidation) (*extv1.JSONSchemaProps, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -270,7 +274,7 @@ func parseSchema(v *v1.CompositeResourceValidation) (*extv1.JSONSchemaProps, err
 }
 
 // setCrdMetadata sets the labels and annotations on the CRD.
-func setCrdMetadata(crd *extv1.CustomResourceDefinition, xrd *v1.CompositeResourceDefinition) *extv1.CustomResourceDefinition {
+func setCrdMetadata(crd *extv1.CustomResourceDefinition, xrd *v2.CompositeResourceDefinition) *extv1.CustomResourceDefinition {
 	crd.SetLabels(xrd.GetLabels())
 
 	if xrd.Spec.Metadata != nil {

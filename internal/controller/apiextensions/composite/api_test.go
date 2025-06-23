@@ -36,6 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -815,8 +816,8 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
 						switch cr := obj.(type) {
-						case *v1.CompositeResourceDefinition:
-							withRef := &v1.CompositeResourceDefinition{Spec: v1.CompositeResourceDefinitionSpec{DefaultCompositionRef: &v1.CompositionReference{Name: comp.Name}}}
+						case *v2.CompositeResourceDefinition:
+							withRef := &v2.CompositeResourceDefinition{Spec: v2.CompositeResourceDefinitionSpec{DefaultCompositionRef: &v2.CompositionReference{Name: comp.Name}}}
 							withRef.DeepCopyInto(cr)
 							return nil
 						case *v1.Composition:
@@ -864,7 +865,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 	}
 
 	type args struct {
-		def v1.CompositeResourceDefinition
+		def v2.CompositeResourceDefinition
 		cp  resource.Composite
 	}
 
@@ -881,7 +882,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		"NoEnforced": {
 			reason: "Should be no-op if no enforced composition ref is given in definition",
 			args: args{
-				def: v1.CompositeResourceDefinition{},
+				def: v2.CompositeResourceDefinition{},
 				cp:  &fake.Composite{},
 			},
 			want: want{
@@ -891,8 +892,8 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		"EnforcedAlreadySet": {
 			reason: "Should be no-op if enforced composition reference is already set",
 			args: args{
-				def: v1.CompositeResourceDefinition{
-					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
+				def: v2.CompositeResourceDefinition{
+					Spec: v2.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v2.CompositionReference{Name: comp.Name}},
 				},
 				cp: &fake.Composite{
 					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
@@ -907,8 +908,8 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		"Success": {
 			reason: "Successfully set the default composition reference",
 			args: args{
-				def: v1.CompositeResourceDefinition{
-					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
+				def: v2.CompositeResourceDefinition{
+					Spec: v2.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v2.CompositionReference{Name: comp.Name}},
 				},
 				cp: &fake.Composite{},
 			},
@@ -921,8 +922,8 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		"SuccessOverride": {
 			reason: "Successfully set the default composition reference even if another one was set",
 			args: args{
-				def: v1.CompositeResourceDefinition{
-					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
+				def: v2.CompositeResourceDefinition{
+					Spec: v2.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v2.CompositionReference{Name: comp.Name}},
 				},
 				cp: &fake.Composite{
 					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: "ola"}},
