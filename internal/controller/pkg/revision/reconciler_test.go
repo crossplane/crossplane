@@ -1380,12 +1380,14 @@ func TestReconcile(t *testing.T) {
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision {
 						return &v1.ProviderRevision{
-							Status: v1.PackageRevisionStatus{
-								ObjectRefs: []xpv1.TypedReference{
-									{
-										APIVersion: "apiextensions.k8s.io/v1",
-										Kind:       "CustomResourceDefinition",
-										Name:       "releases.helm.crossplane.io",
+							Status: v1.ProviderRevisionStatus{
+								PackageRevisionStatus: v1.PackageRevisionStatus{
+									ObjectRefs: []xpv1.TypedReference{
+										{
+											APIVersion: "apiextensions.k8s.io/v1",
+											Kind:       "CustomResourceDefinition",
+											Name:       "releases.helm.crossplane.io",
+										},
 									},
 								},
 							},
@@ -1404,12 +1406,14 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ProviderRevision{
-									Status: v1.PackageRevisionStatus{
-										ObjectRefs: []xpv1.TypedReference{
-											{
-												APIVersion: "apiextensions.k8s.io/v1",
-												Kind:       "CustomResourceDefinition",
-												Name:       "releases.helm.crossplane.io",
+									Status: v1.ProviderRevisionStatus{
+										PackageRevisionStatus: v1.PackageRevisionStatus{
+											ObjectRefs: []xpv1.TypedReference{
+												{
+													APIVersion: "apiextensions.k8s.io/v1",
+													Kind:       "CustomResourceDefinition",
+													Name:       "releases.helm.crossplane.io",
+												},
 											},
 										},
 									},
@@ -1518,12 +1522,14 @@ func TestReconcile(t *testing.T) {
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision {
 						return &v1.ProviderRevision{
-							Status: v1.PackageRevisionStatus{
-								ObjectRefs: []xpv1.TypedReference{
-									{
-										APIVersion: "apiextensions.k8s.io/v1",
-										Kind:       "CustomResourceDefinition",
-										Name:       "releases.helm.crossplane.io",
+							Status: v1.ProviderRevisionStatus{
+								PackageRevisionStatus: v1.PackageRevisionStatus{
+									ObjectRefs: []xpv1.TypedReference{
+										{
+											APIVersion: "apiextensions.k8s.io/v1",
+											Kind:       "CustomResourceDefinition",
+											Name:       "releases.helm.crossplane.io",
+										},
 									},
 								},
 							},
@@ -1542,12 +1548,14 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ProviderRevision{
-									Status: v1.PackageRevisionStatus{
-										ObjectRefs: []xpv1.TypedReference{
-											{
-												APIVersion: "apiextensions.k8s.io/v1",
-												Kind:       "CustomResourceDefinition",
-												Name:       "releases.helm.crossplane.io",
+									Status: v1.ProviderRevisionStatus{
+										PackageRevisionStatus: v1.PackageRevisionStatus{
+											ObjectRefs: []xpv1.TypedReference{
+												{
+													APIVersion: "apiextensions.k8s.io/v1",
+													Kind:       "CustomResourceDefinition",
+													Name:       "releases.helm.crossplane.io",
+												},
 											},
 										},
 									},

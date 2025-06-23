@@ -149,6 +149,22 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
+// WithManagingRevisionRuntimeSpec will allow this reconciler to propagate the
+// runtime spec fields to revisions.
+func WithManagingRevisionRuntimeSpec() ReconcilerOption {
+	return func(r *Reconciler) {
+		r.setPackageRuntimeSecrets = func(p v1.Package, pr v1.PackageRevision) {
+			pwr, pwok := p.(v1.PackageWithRuntime)
+			prwr, prok := pr.(v1.PackageRevisionWithRuntime)
+			if pwok && prok {
+				prwr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
+				prwr.SetTLSServerSecretName(pwr.GetTLSServerSecretName())
+				prwr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
+			}
+		}
+	}
+}
+
 // Reconciler reconciles packages.
 type Reconciler struct {
 	client     resource.ClientApplicator
@@ -157,6 +173,8 @@ type Reconciler struct {
 	log        logging.Logger
 	record     event.Recorder
 	conditions conditions.Manager
+
+	setPackageRuntimeSecrets func(p v1.Package, pr v1.PackageRevision)
 
 	newPackage             func() v1.Package
 	newPackageRevision     func() v1.PackageRevision
@@ -189,6 +207,10 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+	}
+
+	if o.PackageRuntime.For(v1.ProviderKind) == controller.PackageRuntimeDeployment {
+		opts = append(opts, WithManagingRevisionRuntimeSpec())
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -263,6 +285,10 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+	}
+
+	if o.PackageRuntime.For(v1.FunctionKind) == controller.PackageRuntimeDeployment {
+		opts = append(opts, WithManagingRevisionRuntimeSpec())
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -517,13 +543,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetSkipDependencyResolution(p.GetSkipDependencyResolution())
 	pr.SetCommonLabels(p.GetCommonLabels())
 
-	pwr, pwok := p.(v1.PackageWithRuntime)
-
-	prwr, prok := pr.(v1.PackageRevisionWithRuntime)
-	if pwok && prok {
-		prwr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
-		prwr.SetTLSServerSecretName(pwr.GetTLSServerSecretName())
-		prwr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
+	if r.setPackageRuntimeSecrets != nil {
+		r.setPackageRuntimeSecrets(p, pr)
 	}
 
 	// If the current revision is not active, and we have an automatic or

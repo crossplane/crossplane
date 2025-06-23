@@ -20,6 +20,7 @@ package pkg
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/controller/pkg/manager"
 	"github.com/crossplane/crossplane/internal/controller/pkg/resolver"
@@ -41,9 +42,14 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		revision.SetupFunctionRevision,
 	}
 
-	if o.PackageRuntime == controller.PackageRuntimeDeployment {
+	if o.PackageRuntime.For(pkgv1.ProviderKind) == controller.PackageRuntimeDeployment {
 		setupFuncs = append(setupFuncs, []func(c ctrl.Manager, options controller.Options) error{
 			runtime.SetupProviderRevision,
+		}...)
+	}
+
+	if o.PackageRuntime.For(pkgv1.FunctionKind) == controller.PackageRuntimeDeployment {
+		setupFuncs = append(setupFuncs, []func(c ctrl.Manager, options controller.Options) error{
 			runtime.SetupFunctionRevision,
 		}...)
 	}
