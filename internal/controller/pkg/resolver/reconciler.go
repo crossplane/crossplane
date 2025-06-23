@@ -447,7 +447,7 @@ func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1
 		return "", errors.Wrap(err, errRewriteImage)
 	}
 	if newPath != "" {
-		// NOTE(phisco): it's a dependency's reference, so we can not do strict validation.
+		// NOTE(phisco): newPath is a depedency identifier, which are without registry and tag, so we can't enforce strict validation.
 		ref, err = name.ParseReference(newPath)
 		if err != nil {
 			log.Info("rewritten image path is invalid", "error", err)

@@ -148,7 +148,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 	if c.Registry != "" {
 		//nolint:revive // This is long and easier to read with punctuation.
-		return errors.New("The --registry flag is no longer supported since support for a default registry value has been removed. Please ensure that all packages have fully qualified names that explicitly state their registry. This also applies to all of a packages dependencies.")
+		return errors.New("the --registry flag is no longer supported since support for a default registry value has been removed. Please ensure that all packages have fully qualified names that explicitly state their registry. This also applies to all of a packages dependencies")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
