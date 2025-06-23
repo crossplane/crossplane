@@ -131,8 +131,9 @@ type startCommand struct {
 	// error when you enable them. This ensures you'll see an explicit and
 	// informative error on startup, instead of a potentially surprising one
 	// later.
-	EnableCompositionWebhookSchemaValidation bool `hidden:""`
-	EnableExternalSecretStores               bool `hidden:""`
+	EnableCompositionWebhookSchemaValidation bool   `hidden:""`
+	EnableExternalSecretStores               bool   `hidden:""`
+	Registry                                 string `hidden:""`
 }
 
 // Run core Crossplane controllers.
@@ -144,6 +145,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableExternalSecretStores {
 		//nolint:revive // This is long and easier to read with punctuation.
 		return errors.New("Crossplane removed support for external secret stores. The --enable-external-secret-stores flag will be removed in a future release.")
+	}
+	if c.Registry != "" {
+		//nolint:revive // This is long and easier to read with punctuation.
+		return errors.New("Crossplane removed support for the --registry flag, as a default registry is not supported. Please fully qualify images by explicitly providing a registry.")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
