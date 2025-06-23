@@ -22,7 +22,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 )
 
 const (
@@ -60,7 +60,7 @@ var (
 )
 
 // RenderClusterRoles returns ClusterRoles for the supplied XRD.
-func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole {
+func RenderClusterRoles(d *v2.CompositeResourceDefinition) []rbacv1.ClusterRole {
 	system := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namePrefix + d.GetName() + nameSuffixSystem,
@@ -197,7 +197,7 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 	}
 
 	for _, o := range []metav1.Object{system, edit, view, browse} {
-		meta.AddOwnerReference(o, meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)))
+		meta.AddOwnerReference(o, meta.AsController(meta.TypedReferenceTo(d, v2.CompositeResourceDefinitionGroupVersionKind)))
 	}
 
 	return []rbacv1.ClusterRole{*system, *edit, *view, *browse}

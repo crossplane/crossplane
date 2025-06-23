@@ -30,7 +30,6 @@ import (
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,6 +47,7 @@ import (
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite/watch"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
@@ -149,23 +149,23 @@ func (e *NopEngine) GetFieldIndexer() client.FieldIndexer {
 // A CRDRenderer renders a CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
 type CRDRenderer interface {
-	Render(d *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
+	Render(d *v2.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
 }
 
 // A CRDRenderFn renders a CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
-type CRDRenderFn func(d *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
+type CRDRenderFn func(d *v2.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
 
 // Render the supplied CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
-func (fn CRDRenderFn) Render(d *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+func (fn CRDRenderFn) Render(d *v2.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 	return fn(d)
 }
 
 // Setup adds a controller that reconciles CompositeResourceDefinitions by
 // defining a composite resource and starting a controller to reconcile it.
 func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
-	name := "defined/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
+	name := "defined/" + strings.ToLower(v2.CompositeResourceDefinitionGroupKind)
 
 	r := NewReconciler(NewClientApplicator(mgr.GetClient()),
 		WithLogger(o.Logger.WithValues("controller", name)),
@@ -175,7 +175,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1.CompositeResourceDefinition{}).
+		For(&v2.CompositeResourceDefinition{}).
 		Owns(&extv1.CustomResourceDefinition{}, builder.WithPredicates(resource.NewPredicates(IsCompositeResourceCRD()))).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
@@ -298,7 +298,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	d := &v1.CompositeResourceDefinition{}
+	d := &v2.CompositeResourceDefinition{}
 	if err := r.client.Get(ctx, req.NamespacedName, d); err != nil {
 		// In case object is not found, most likely the object was deleted and
 		// then disappeared while the event was in the processing queue. We
@@ -324,7 +324,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if meta.WasDeleted(d) {
-		status.MarkConditions(v1.TerminatingComposite())
+		status.MarkConditions(v2.TerminatingComposite())
 
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			log.Debug(errUpdateStatus, "error", err)
@@ -488,7 +488,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	observed := d.Status.Controllers.CompositeResourceTypeRef
 
-	desired := v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
+	desired := v2.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	if observed.APIVersion != "" && observed != desired {
 		if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
 			err = errors.Wrap(err, errStopController)
@@ -504,7 +504,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if r.engine.IsRunning(composite.ControllerName(d.GetName())) {
 		log.Debug("Composite resource controller is running")
-		status.MarkConditions(v1.WatchingComposite())
+		status.MarkConditions(v2.WatchingComposite())
 
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
@@ -518,7 +518,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// All XRs have modern schema unless their XRD's scope is LegacyCluster.
 	schema := ucomposite.SchemaModern
-	if ptr.Deref(d.Spec.Scope, v1.CompositeResourceScopeLegacyCluster) == v1.CompositeResourceScopeLegacyCluster {
+	if d.Spec.Scope == "" || d.Spec.Scope == v2.CompositeResourceScopeLegacyCluster {
 		schema = ucomposite.SchemaLegacy
 	}
 
@@ -526,7 +526,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		composite.WithCompositeSchema(schema),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
 			composite.NewEnforcedCompositionSelector(*d, r.record),
-			composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record),
+			composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v2.CompositeResourceDefinitionGroupVersionKind), r.record),
 			composite.NewAPILabelSelectorResolver(r.engine.GetCached()),
 		)),
 		composite.WithLogger(r.log.WithValues("controller", composite.ControllerName(d.GetName()))),
@@ -617,8 +617,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	log.Debug("Started composite resource controller")
 
-	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
-	status.MarkConditions(v1.WatchingComposite())
+	d.Status.Controllers.CompositeResourceTypeRef = v2.TypeReferenceTo(d.GetCompositeGroupVersionKind())
+	status.MarkConditions(v2.WatchingComposite())
 
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }

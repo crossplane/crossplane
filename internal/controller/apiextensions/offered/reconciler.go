@@ -45,6 +45,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/claim"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/engine"
@@ -125,16 +126,16 @@ func (e *NopEngine) GetFieldIndexer() client.FieldIndexer {
 // A CRDRenderer renders a CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
 type CRDRenderer interface {
-	Render(d *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
+	Render(d *v2.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
 }
 
 // A CRDRenderFn renders a CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
-type CRDRenderFn func(d *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
+type CRDRenderFn func(d *v2.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
 
 // Render the supplied CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
-func (fn CRDRenderFn) Render(d *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+func (fn CRDRenderFn) Render(d *v2.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 	return fn(d)
 }
 
@@ -275,7 +276,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	d := &v1.CompositeResourceDefinition{}
+	d := &v2.CompositeResourceDefinition{}
 	if err := r.client.Get(ctx, req.NamespacedName, d); err != nil {
 		log.Debug(errGetXRD, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetXRD)
@@ -472,7 +473,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	observed := d.Status.Controllers.CompositeResourceClaimTypeRef
 
-	desired := v1.TypeReferenceTo(d.GetClaimGroupVersionKind())
+	desired := v2.TypeReferenceTo(d.GetClaimGroupVersionKind())
 	if observed.APIVersion != "" && observed != desired {
 		if err := r.engine.Stop(ctx, claim.ControllerName(d.GetName())); err != nil {
 			err = errors.Wrap(err, errStopController)
@@ -526,7 +527,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	d.Status.Controllers.CompositeResourceClaimTypeRef = v1.TypeReferenceTo(d.GetClaimGroupVersionKind())
+	d.Status.Controllers.CompositeResourceClaimTypeRef = v2.TypeReferenceTo(d.GetClaimGroupVersionKind())
 	status.MarkConditions(v1.WatchingClaim())
 
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
