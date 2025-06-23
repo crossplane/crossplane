@@ -269,7 +269,7 @@ func TestConvertToCRDs(t *testing.T) {
 							Name: "test",
 							OwnerReferences: []metav1.OwnerReference{
 								{
-									APIVersion:         "apiextensions.crossplane.io/v1",
+									APIVersion:         "apiextensions.crossplane.io/v2",
 									Kind:               "CompositeResourceDefinition",
 									Name:               "test",
 									Controller:         ptr.To[bool](true),
@@ -577,7 +577,7 @@ func TestConvertToCRDs(t *testing.T) {
 							Name: "test",
 							OwnerReferences: []metav1.OwnerReference{
 								{
-									APIVersion:         "apiextensions.crossplane.io/v1",
+									APIVersion:         "apiextensions.crossplane.io/v2",
 									Kind:               "CompositeResourceDefinition",
 									Name:               "test",
 									Controller:         ptr.To[bool](true),
@@ -822,7 +822,7 @@ func TestConvertToCRDs(t *testing.T) {
 							Name: "testclaims.test.org",
 							OwnerReferences: []metav1.OwnerReference{
 								{
-									APIVersion:         "apiextensions.crossplane.io/v1",
+									APIVersion:         "apiextensions.crossplane.io/v2",
 									Kind:               "CompositeResourceDefinition",
 									Name:               "test",
 									Controller:         ptr.To[bool](true),

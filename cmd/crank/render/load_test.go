@@ -35,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	apiextensionsv2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
@@ -96,7 +97,7 @@ func TestLoadCompositeResource(t *testing.T) {
 func TestLoadXRD(t *testing.T) {
 	fs := afero.FromIOFS{FS: testdatafs}
 	type want struct {
-		xrd *apiextensionsv1.CompositeResourceDefinition
+		xrd *apiextensionsv2.CompositeResourceDefinition
 		err error
 	}
 	cases := map[string]struct {
@@ -106,13 +107,13 @@ func TestLoadXRD(t *testing.T) {
 		"Success": {
 			file: "testdata/xrd.yaml",
 			want: want{
-				xrd: &apiextensionsv1.CompositeResourceDefinition{
+				xrd: &apiextensionsv2.CompositeResourceDefinition{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       apiextensionsv1.CompositeResourceDefinitionKind,
 						APIVersion: apiextensionsv1.SchemeGroupVersion.String(),
 					},
 					ObjectMeta: metav1.ObjectMeta{Name: "xnopresources.nop.example.org"},
-					Spec: apiextensionsv1.CompositeResourceDefinitionSpec{
+					Spec: apiextensionsv2.CompositeResourceDefinitionSpec{
 						Group: "nop.example.org",
 						Names: v1.CustomResourceDefinitionNames{
 							Kind:       "XNopResource",
@@ -120,11 +121,11 @@ func TestLoadXRD(t *testing.T) {
 							Singular:   "xnopresource",
 							ShortNames: []string{"xnr"},
 						},
-						Versions: []apiextensionsv1.CompositeResourceDefinitionVersion{
+						Versions: []apiextensionsv2.CompositeResourceDefinitionVersion{
 							{
 								Name:   "v1",
 								Served: true,
-								Schema: &apiextensionsv1.CompositeResourceValidation{
+								Schema: &apiextensionsv2.CompositeResourceValidation{
 									OpenAPIV3Schema: runtime.RawExtension{
 										Raw: []byte(`{"description":"A test resource","properties":{"spec":{"properties":{"coolField":{"type":"string"}},"type":"object"}},"type":"object"}`),
 									},
