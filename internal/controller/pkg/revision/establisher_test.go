@@ -478,12 +478,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -505,12 +507,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -552,12 +556,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -621,12 +627,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -680,12 +688,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -736,12 +746,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},

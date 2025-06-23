@@ -64,7 +64,9 @@ var (
 			PackageRevisionSpec: v1.PackageRevisionSpec{
 				Package: providerImage,
 			},
-			PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+		},
+		Status: v1.ProviderRevisionStatus{
+			PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
 				TLSServerSecretName: ptr.To(tlsServerSecretName),
 				TLSClientSecretName: ptr.To(tlsClientSecretName),
 			},
@@ -86,7 +88,9 @@ var (
 			PackageRevisionSpec: v1.PackageRevisionSpec{
 				Package: functionImage,
 			},
-			PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+		},
+		Status: v1.FunctionRevisionStatus{
+			PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
 				TLSServerSecretName: ptr.To(tlsServerSecretName),
 			},
 		},
