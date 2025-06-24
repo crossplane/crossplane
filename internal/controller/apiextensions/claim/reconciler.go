@@ -326,7 +326,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cm *claim.Unstructured) (rec
 		err := errors.Errorf(errFmtUnbound, xr.GetName(), ref.Name)
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: false}, nil 
+		return reconcile.Result{Requeue: false}, nil
 	}
 
 	// TODO(negz): Remove this call to Upgrade once no supported version of
@@ -341,7 +341,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cm *claim.Unstructured) (rec
 		err = errors.Wrap(err, errUpgradeManagedFields)
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, nil 
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	if meta.WasDeleted(cm) {
@@ -379,7 +379,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cm *claim.Unstructured) (rec
 			err = errors.Wrap(err, errRemoveFinalizer)
 			record.Event(cm, event.Warning(reasonDelete, err))
 			status.MarkConditions(xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, nil 
+			return reconcile.Result{Requeue: true}, nil
 		}
 
 		log.Debug("Successfully deleted claim")
@@ -394,7 +394,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cm *claim.Unstructured) (rec
 		err = errors.Wrap(err, errAddFinalizer)
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, nil 
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// The XR's claim reference before syncing. Used to determine if we bind it.
@@ -408,7 +408,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cm *claim.Unstructured) (rec
 		err = errors.Wrap(err, errSync)
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, nil 
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// The XR didn't reference the claim before the sync, but does now.
@@ -438,7 +438,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cm *claim.Unstructured) (rec
 		err = errors.Wrap(err, errPropagateCDs)
 		record.Event(cm, event.Warning(reasonPropagate, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, nil 
+		return reconcile.Result{Requeue: true}, nil
 	}
 	if propagated {
 		cm.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})

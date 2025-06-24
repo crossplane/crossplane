@@ -22,10 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/xreconcile"
-
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/xreconcile"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
