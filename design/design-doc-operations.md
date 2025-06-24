@@ -69,7 +69,7 @@ executions, like for example [Argo Workflows][3].
 I propose we add a new Operation type to Crossplane. Here's an example:
 
 ```yaml
-apiVersion: daytwo.crossplane.io/v1alpha1
+apiVersion: ops.crossplane.io/v1alpha1
 kind: Operation
 metadata:
   name: cluster-rolling-upgrade
@@ -88,7 +88,7 @@ spec:
         kind: KubernetesCluster
         selector:
           matchLabels:
-            daytwo.crossplane.io/eligible-for-rolling-update: "true"
+            ops.crossplane.io/eligible-for-rolling-update: "true"
       batches:
       - 0.01  # First upgrade 1% of clusters
       - 0.1   # Then if that works, 10%
@@ -259,7 +259,7 @@ needed. Either on a cron schedule, or when a watched resource changes.
 Here's an example CronOperation:
 
 ```yaml
-apiVersion: daytwo.crossplane.io/v1alpha1
+apiVersion: ops.crossplane.io/v1alpha1
 kind: CronOperation
 metadata:
   name: cluster-rolling-upgrade
@@ -291,7 +291,7 @@ spec:
             kind: KubernetesCluster
             selector:
               matchLabels:
-                daytwo.crossplane.io/eligible-for-rolling-update: "true"
+                ops.crossplane.io/eligible-for-rolling-update: "true"
           batches:
           - 0.01  # First upgrade 1% of clusters
           - 0.1   # Then if that works, 10%
@@ -321,7 +321,7 @@ Operation handling the next largest batch.
 Here's an example of a WatchOperation:
 
 ```yaml
-apiVersion: daytwo.crossplane.io/v1alpha1
+apiVersion: ops.crossplane.io/v1alpha1
 kind: WatchOperation
 metadata:
   name: backup-database-on-delete
@@ -332,7 +332,7 @@ spec:
     kind: DatabaseInstance
     # Optional. Defaults to all resources.
     matchLabels:
-      daytwo.crossplane.io/backup-on-delete: "true"
+      ops.crossplane.io/backup-on-delete: "true"
     # Optional. Defaults to metadata.generation.
     fields:
     - fieldPath: metadata.resourceVersion
@@ -366,7 +366,7 @@ I propose we address this by allowing a function pipeline step to be
 'bootstrapped' with a set of required resources, like this:
 
 ```yaml
-apiVersion: daytwo.crossplane.io/v1alpha1
+apiVersion: ops.crossplane.io/v1alpha1
 kind: Operation
 metadata:
   name: example
@@ -394,7 +394,7 @@ watched resource that changed using a special, well-known requirement name. For
 example:
 
 ```yaml
-apiVersion: daytwo.crossplane.io/v1alpha1
+apiVersion: ops.crossplane.io/v1alpha1
 kind: Operation
 metadata:
   name: example
@@ -408,7 +408,7 @@ spec:
       # Omitted for brevity
     requirements:
       requiredResources:
-      - requirementName: daytwo.crossplane.io/watched-resource-changed
+      - requirementName: ops.crossplane.io/watched-resource-changed
         apiVersion: example.org/v1
         kind: DatabaseInstance
         namespace: default
