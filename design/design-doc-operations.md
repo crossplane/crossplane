@@ -164,28 +164,9 @@ Using the same `FunctionRunnerService` RPC means you'll be able to use existing
 Crossplane function SDKs like [function-sdk-go][5] and [function-sdk-python][6]
 to build operation functions.
 
-We'll add two new fields to `run_function.proto` - `req.meta.usage`, and
-`rsp.output`:
+We'll add a new field to `run_function.proto` - `rsp.output`:
 
 ```proto
-message RequestMeta {
-    // Existing fields omitted.
-
-    // How the function is being used.
-    Usage usage = 2;
-}
-
-enum Usage {
-    // Assumed to be composition.
-    USAGE_UNSPECIFIED = 0;
-
-    // Function is being used for composition.
-    USAGE_COMPOSITION = 1;
-
-    // Function is being used for an operation.
-    USAGE_OPERATION = 2;
-}
-
 message RunFunctionResponse {
     // Existing fields omitted.
 
