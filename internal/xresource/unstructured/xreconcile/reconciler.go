@@ -91,7 +91,7 @@ func (r *objectReconcilerAdapter[object]) Reconcile(ctx context.Context, req rec
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
-	// Pre-amble
+	// Preamble
 
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
@@ -117,7 +117,7 @@ func (r *objectReconcilerAdapter[object]) Reconcile(ctx context.Context, req rec
 
 	result, resultErr := r.objReconciler.Reconcile(ctx, o)
 
-	// Post-ample
+	// Postamble
 
 	// Synchronize the status.
 	switch {
