@@ -421,6 +421,11 @@ operation template. It would be injected automatically.
 With this in place, a function designed to operate on a watched resource would
 always be called with the watched resource pre-populated in the RunFunctionRequest.
 
+I propose Operations, CronOperations, and WatchOperations be valid payloads for
+a Configuration package. A Configuration that delivers an Operation would cause
+that Operation to run once at Configuration install time. This could be used as
+an alternative to the [init XRs][10] proposal.
+
 ## Alternatives Considered
 
 I considered the following alternatives before arriving at this proposal.
@@ -505,3 +510,4 @@ like watch-triggered reconciles.
 [7]: https://github.com/crossplane/crossplane/blob/c98ccb3/design/design-doc-composition-functions-extra-resources.md
 [8]: https://kubernetes.io/docs/reference/using-api/server-side-apply/
 [9]: https://github.com/crossplane/crossplane/issues/5092#issuecomment-1874728842
+[10]: https://github.com/crossplane/crossplane/issues/5259
