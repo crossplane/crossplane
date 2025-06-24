@@ -327,14 +327,19 @@ metadata:
   name: backup-database-on-delete
 spec:
   # Watch for all DatabaseInstance XRs
-  apiVersion: example.org/v1
-  kind: DatabaseInstance
-  matchLabels:
-    daytwo.crossplane.io/backup-on-delete: "true"
-  # What we're watching for changes - ResourceVersion or Generation.
-  watch: ResourceVersion
+  watch:
+  - apiVersion: example.org/v1
+    kind: DatabaseInstance
+    # Optional. Defaults to all resources.
+    matchLabels:
+      daytwo.crossplane.io/backup-on-delete: "true"
+    # Optional. Defaults to metadata.generation.
+    fields:
+    - fieldPath: metadata.resourceVersion
   # WatchOperation also supports all the top-level spec fields shown in
   # CronOperation, except for schedule.
+  operationTemplate:
+    # Omitted for brevity.
 status:
   # Operations that're currently running.
   active:
@@ -345,8 +350,9 @@ status:
     kind: DatabaseInstance
     namespace: default
     name: rip-db1
-    lastResourceVersion: 42
-    lastGeneration: 4
+    fields:
+    - fieldPath: metadata.resourceVersion
+      lastValue: 42
   lastScheduleTime: "2024-04-18T12:00:37+00:00"
   lastSuccessfulTime: "2024-04-18T12:00:37+00:00"
 ```
