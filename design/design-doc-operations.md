@@ -75,7 +75,7 @@ metadata:
   name: cluster-rolling-upgrade
 spec:
   # How many times the pipeline can fail before the Operation fails.
-  failureLimit: 5
+  retryLimit: 5
   # A pipeline of functions - just like a Composition.
   mode: Pipeline
   pipeline:
@@ -125,7 +125,7 @@ status:
 
 An Operation is a bit like a Kubernetes Job, except it runs a Crossplane
 function pipeline (like a Composition), not a set of pods. It runs once to
-completion, though it will retry up to its `spec.failureLimit` if the function
+completion, though it will retry up to its `spec.retryLimit` if the function
 pipeline returns an error.
 
 The Operation controller's logic will be very similar to the XR controller's
@@ -278,7 +278,7 @@ spec:
   operationTemplate:
     spec:
       # How many times the pipeline can fail before the Operation fails.
-      failureLimit: 5
+      retryLimit: 5
       # A pipeline of functions - just like a Composition.
       mode: Pipeline
       pipeline:
