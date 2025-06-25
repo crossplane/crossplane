@@ -306,15 +306,15 @@ Here's an example of a WatchOperation:
 apiVersion: ops.crossplane.io/v1alpha1
 kind: WatchOperation
 metadata:
-  name: backup-database-on-delete
+  name: schedule-app-to-cluster
 spec:
-  # Watch for all DatabaseInstance XRs
+  # Watch for all App XRs
   watch:
     apiVersion: example.org/v1
-    kind: DatabaseInstance
+    kind: App
     # Optional. Defaults to all resources.
     matchLabels:
-      ops.crossplane.io/backup-on-delete: "true"
+      ops.crossplane.io/auto-schedule: "true"
   # WatchOperation also supports all the top-level spec fields shown in
   # CronOperation, except for schedule.
   operationTemplate:
@@ -322,15 +322,15 @@ spec:
 status:
   # Operations that're currently running.
   active:
-  - name: backup-database-on-delete
+  - name: schedule-app-to-cluster-anjda
+  - name: schedule-app-to-cluster-f0d92
   # Number of resources the WatchOperation is watching.
   watchingResources: 42
 ```
 
 The WatchOperation needs a way to tell the Operation it creates what watched
 resource changed. Without this information the Operation's function pipeline
-can't know what resource it was created to act on - e.g. what DatabaseInstance
-to back up.
+can't know what resource it was created to act on - e.g. what App to schedule.
 
 I propose we address this by allowing a function pipeline step to be
 'bootstrapped' with a set of required resources, like this:
@@ -348,7 +348,7 @@ spec:
     requirements:
       requiredResources:
       - requirementName: function-needs-these-resources
-        apiVersion: example.org
+        apiVersion: example.org/v1
         kind: App
         namespace: default # Namespace is optional.
         name: example-xr   # One of name or matchLabels is required.
@@ -380,7 +380,7 @@ spec:
       requiredResources:
       - requirementName: ops.crossplane.io/watched-resource-changed
         apiVersion: example.org/v1
-        kind: DatabaseInstance
+        kind: App
         namespace: default
         name: rip-db1
 ```
@@ -418,34 +418,27 @@ If this turns out to be the case, we could support watching specific fields:
 apiVersion: ops.crossplane.io/v1alpha1
 kind: WatchOperation
 metadata:
-  name: backup-database-on-delete
+  name: schedule-app-to-cluster
 spec:
-  # Watch for all DatabaseInstance XRs
   watch:
     apiVersion: example.org/v1
-    kind: DatabaseInstance
-    # Optional. Defaults to all resources.
-    matchLabels:
-      ops.crossplane.io/backup-on-delete: "true"
-    # Optional. Defaults to metadata.resourceVersion
+    kind: App
+    # Optional. Defaults to any change.
     fields:
     - fieldPath: metadata.generation
-  # WatchOperation also supports all the top-level spec fields shown in
-  # CronOperation, except for schedule.
   operationTemplate:
     # Omitted for brevity.
 status:
-  # Operations that're currently running.
   active:
-  - name: backup-database-on-delete
-  # Resources the WatchOperation is watching.
+  - name: schedule-app-to-cluster-anjda
+  - name: schedule-app-to-cluster-f0d92
   watchingResources: 42
   lastScheduleTime: "2024-04-18T12:00:37+00:00"
   lastSuccessfulTime: "2024-04-18T12:00:37+00:00"
 ```
 
-In this example the WatchOperation would only produce an Operation if a
-DatabaseInstance's `metadata.generation` changed.
+In this example the WatchOperation would only produce an Operation if a App's
+`metadata.generation` changed.
 
 To do this the WatchOperation would need to track the current value of fields.
 This isn't needed with resource versions, because Kubernetes watches are
