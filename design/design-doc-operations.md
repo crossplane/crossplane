@@ -310,14 +310,11 @@ metadata:
 spec:
   # Watch for all DatabaseInstance XRs
   watch:
-  - apiVersion: example.org/v1
+    apiVersion: example.org/v1
     kind: DatabaseInstance
     # Optional. Defaults to all resources.
     matchLabels:
       ops.crossplane.io/backup-on-delete: "true"
-    # Optional. Defaults to metadata.generation.
-    fields:
-    - fieldPath: metadata.resourceVersion
   # WatchOperation also supports all the top-level spec fields shown in
   # CronOperation, except for schedule.
   operationTemplate:
@@ -326,17 +323,8 @@ status:
   # Operations that're currently running.
   active:
   - name: backup-database-on-delete
-  # Resources the WatchOperation is watching.
-  watching:
-  - apiVersion: example.org/v1
-    kind: DatabaseInstance
-    namespace: default
-    name: rip-db1
-    fields:
-    - fieldPath: metadata.resourceVersion
-      lastValue: 42
-  lastScheduleTime: "2024-04-18T12:00:37+00:00"
-  lastSuccessfulTime: "2024-04-18T12:00:37+00:00"
+  # Number of resources the WatchOperation is watching.
+  watchingResources: 42
 ```
 
 The WatchOperation needs a way to tell the Operation it creates what watched
@@ -407,6 +395,64 @@ I propose Operations, CronOperations, and WatchOperations be valid payloads for
 a Configuration package. A Configuration that delivers an Operation would cause
 that Operation to run once at Configuration install time. This could be used as
 an alternative to the [init XRs][10] proposal.
+
+## Future Improvements
+
+The following ideas aren't in scope for the first release of this feature, but
+could be added in future.
+
+### Track Specific Fields
+
+Under the proposed design, a WatchOperation will create an Operation any time a
+watched resource's `metadata.resourceVersion` changes. The `resourceVersion`
+changes whenever the resource changes in any way - e.g. something updates its
+metadata, spec, or status.
+
+This may result in too many Operations. Perhaps for example the Operation should
+only be created when the watched resource's status conditions change, or
+`spec.size` changes.
+
+If this turns out to be the case, we could support watching specific fields:
+
+```yaml
+apiVersion: ops.crossplane.io/v1alpha1
+kind: WatchOperation
+metadata:
+  name: backup-database-on-delete
+spec:
+  # Watch for all DatabaseInstance XRs
+  watch:
+    apiVersion: example.org/v1
+    kind: DatabaseInstance
+    # Optional. Defaults to all resources.
+    matchLabels:
+      ops.crossplane.io/backup-on-delete: "true"
+    # Optional. Defaults to metadata.resourceVersion
+    fields:
+    - fieldPath: metadata.generation
+  # WatchOperation also supports all the top-level spec fields shown in
+  # CronOperation, except for schedule.
+  operationTemplate:
+    # Omitted for brevity.
+status:
+  # Operations that're currently running.
+  active:
+  - name: backup-database-on-delete
+  # Resources the WatchOperation is watching.
+  watchingResources: 42
+  lastScheduleTime: "2024-04-18T12:00:37+00:00"
+  lastSuccessfulTime: "2024-04-18T12:00:37+00:00"
+```
+
+In this example the WatchOperation would only produce an Operation if a
+DatabaseInstance's `metadata.generation` changed.
+
+To do this the WatchOperation would need to track the current value of fields.
+This isn't needed with resource versions, because Kubernetes watches are
+natively based on resource versions. You get a watch even each time the version
+changes. To watch only certain fields Crossplane would need to filter those
+watch events - e.g. by checking the new field value against its last known
+value.
 
 ## Alternatives Considered
 
@@ -480,8 +526,6 @@ like watch-triggered reconciles.
     propose we don't support deletes until there's a clear demand.
 [^2]: Workflows can actually do basic (fixed) KRM resource templating, but can't
     run a function produce a template of a resource to change.
-
-
 
 [1]: https://github.com/crossplane/crossplane/blob/c98ccb3/design/proposal-crossplane-v2.md
 [2]: https://book.kubebuilder.io
