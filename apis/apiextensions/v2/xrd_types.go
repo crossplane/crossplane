@@ -38,8 +38,8 @@ const (
 )
 
 // CompositeResourceDefinitionSpec specifies the desired state of the definition.
-// +kubebuilder:validation:XValidation:rule="!has(self.claimNames)",message="Claims aren't supported in apiextensions.crossplane.io/v2"
-// +kubebuilder:validation:XValidation:rule="!has(self.connectionSecretKeys)",message="XR connection secrets aren't supported in apiextensions.crossplane.io/v2"
+// +kubebuilder:validation:XValidation:rule="!has(self.claimNames) || self.scope == 'LegacyCluster'",message="Claims aren't supported in apiextensions.crossplane.io/v2"
+// +kubebuilder:validation:XValidation:rule="!has(self.connectionSecretKeys) || self.scope == 'LegacyCluster'",message="XR connection secrets aren't supported in apiextensions.crossplane.io/v2"
 type CompositeResourceDefinitionSpec struct {
 	// Group specifies the API group of the defined composite resource.
 	// Composite resources are served under `/apis/<group>/...`. Must match the

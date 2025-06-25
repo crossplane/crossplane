@@ -1086,9 +1086,9 @@ spec:
             type: object
             x-kubernetes-validations:
             - message: Claims aren't supported in apiextensions.crossplane.io/v2
-              rule: '!has(self.claimNames)'
+              rule: '!has(self.claimNames) || self.scope == ''LegacyCluster'''
             - message: XR connection secrets aren't supported in apiextensions.crossplane.io/v2
-              rule: '!has(self.connectionSecretKeys)'
+              rule: '!has(self.connectionSecretKeys) || self.scope == ''LegacyCluster'''
           status:
             description: CompositeResourceDefinitionStatus shows the observed state
               of the definition.
