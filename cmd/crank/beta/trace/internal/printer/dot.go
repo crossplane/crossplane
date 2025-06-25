@@ -30,6 +30,11 @@ type dotLabel struct {
 	error      string
 }
 
+type queueItem struct {
+	resource *resource.Resource
+	parent   *dot.Node
+}
+
 func (r *dotLabel) String() string {
 	out := []string{
 		"Name: " + r.name,
@@ -92,13 +97,42 @@ func (r *dotPackageLabel) String() string {
 // Print gets all the nodes and then return the graph as a dot format string to the Writer.
 func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 	g := dot.NewGraph(dot.Undirected)
+	queue := []*queueItem{{root, nil}}
 
-	type queueItem struct {
-		resource *resource.Resource
-		parent   *dot.Node
+	printGraphQueue(g, queue)
+
+	dotString := g.String()
+	if dotString == "" {
+		return errors.New("graph is empty")
+	}
+	g.Write(w)
+
+	return nil
+}
+
+// PrintList gets all the nodes and then return the graph as a dot format string to the Writer.
+func (p *DotPrinter) PrintList(w io.Writer, root *resource.ResourceList) error {
+	g := dot.NewGraph(dot.Undirected)
+	queue := make([]*queueItem, 0, len(root.Items))
+
+	// Initialize the queue with all items in the resource list
+	for _, r := range root.Items {
+		queue = append(queue, &queueItem{r, nil})
 	}
 
-	queue := []*queueItem{{root, nil}}
+	printGraphQueue(g, queue)
+
+	dotString := g.String()
+	if dotString == "" {
+		return errors.New("graph is empty")
+	}
+
+	g.Write(w)
+
+	return nil
+}
+
+func printGraphQueue(g *dot.Graph, queue []*queueItem) {
 	var id int
 
 	for len(queue) > 0 {
@@ -158,12 +192,4 @@ func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 			queue = append(queue, &queueItem{child, &node})
 		}
 	}
-	dotString := g.String()
-	if dotString == "" {
-		return errors.New("graph is empty")
-	}
-
-	g.Write(w)
-
-	return nil
 }
