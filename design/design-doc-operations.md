@@ -62,7 +62,8 @@ business logic, and in some cases to build controllers without writing code at
 all. We think these benefits will extend to day two operation controllers.
 
 It's explicitly _not_ a goal for Crossplane to handle arbitrary workflow
-executions, like for example [Argo Workflows][3]. 
+executions, like for example [Argo Workflows][3]. Operations aren't designed to
+load and batch process gigabytes of billing data, for example.
 
 ## Proposal
 
