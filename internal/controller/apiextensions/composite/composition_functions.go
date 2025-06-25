@@ -44,15 +44,14 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/names"
 	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 // Error strings.
@@ -139,22 +138,28 @@ func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fn
 	return fn(ctx, name, req)
 }
 
+// A ConnectionSecretOwner is a resource with a connection secret.
+type ConnectionSecretOwner interface {
+	resource.Object
+	resource.ConnectionSecretWriterTo
+}
+
 // A ConnectionDetailsFetcher fetches connection details for the supplied
 // Connection Secret owner.
 type ConnectionDetailsFetcher interface {
-	FetchConnection(ctx context.Context, so xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error)
+	FetchConnection(ctx context.Context, so ConnectionSecretOwner) (managed.ConnectionDetails, error)
 }
 
 // A ComposedResourceObserver observes existing composed resources.
 type ComposedResourceObserver interface {
-	ObserveComposedResources(ctx context.Context, xr xresource.Composite) (ComposedResourceStates, error)
+	ObserveComposedResources(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error)
 }
 
 // A ComposedResourceObserverFn observes existing composed resources.
-type ComposedResourceObserverFn func(ctx context.Context, xr xresource.Composite) (ComposedResourceStates, error)
+type ComposedResourceObserverFn func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error)
 
 // ObserveComposedResources observes existing composed resources.
-func (fn ComposedResourceObserverFn) ObserveComposedResources(ctx context.Context, xr xresource.Composite) (ComposedResourceStates, error) {
+func (fn ComposedResourceObserverFn) ObserveComposedResources(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 	return fn(ctx, xr)
 }
 
@@ -653,7 +658,7 @@ func NewExistingComposedResourceObserver(c, uc client.Reader, f ConnectionDetail
 // ObserveComposedResources begins building composed resource state by
 // fetching any existing composed resources referenced by the supplied composite
 // resource, as well as their connection details.
-func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.Context, xr xresource.Composite) (ComposedResourceStates, error) {
+func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 	ors := ComposedResourceStates{}
 
 	for _, ref := range xr.GetResourceReferences() {
@@ -719,7 +724,7 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 
 // AsState builds state for a RunFunctionRequest from the XR and composed
 // resources.
-func AsState(xr xresource.Composite, xc managed.ConnectionDetails, rs ComposedResourceStates) (*fnv1.State, error) {
+func AsState(xr resource.Composite, xc managed.ConnectionDetails, rs ComposedResourceStates) (*fnv1.State, error) {
 	r, err := AsStruct(xr)
 	if err != nil {
 		return nil, errors.Wrap(err, errXRAsStruct)
@@ -843,7 +848,7 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 
 // UpdateResourceRefs updates the supplied state to ensure the XR references all
 // composed resources that exist or are pending creation.
-func UpdateResourceRefs(xr xresource.Composite, desired ComposedResourceStates) {
+func UpdateResourceRefs(xr resource.Composite, desired ComposedResourceStates) {
 	namespaced := xr.GetNamespace() != ""
 	refs := make([]corev1.ObjectReference, 0, len(desired))
 	for _, dr := range desired {

@@ -38,10 +38,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane/internal/names"
-	"github.com/crossplane/crossplane/internal/xresource"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 const (
@@ -104,18 +103,32 @@ func (fn CompositeSyncerFn) Sync(ctx context.Context, cm *claim.Unstructured, xr
 	return fn(ctx, cm, xr)
 }
 
+// A ConnectionSecretOwner may create and manage a connection secret in any
+// namespace.
+type ConnectionSecretOwner interface {
+	resource.Object
+	resource.ConnectionSecretWriterTo
+}
+
+// A LocalConnectionSecretOwner may create and manage a connection secret in its
+// own namespace.
+type LocalConnectionSecretOwner interface {
+	resource.Object
+	resource.LocalConnectionSecretWriterTo
+}
+
 // A ConnectionPropagator is responsible for propagating information required to
 // connect to a resource.
 type ConnectionPropagator interface {
-	PropagateConnection(ctx context.Context, to xresource.LocalConnectionSecretOwner, from xresource.ConnectionSecretOwner) (propagated bool, err error)
+	PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) (propagated bool, err error)
 }
 
 // A ConnectionPropagatorFn is responsible for propagating information required
 // to connect to a resource.
-type ConnectionPropagatorFn func(ctx context.Context, to xresource.LocalConnectionSecretOwner, from xresource.ConnectionSecretOwner) (propagated bool, err error)
+type ConnectionPropagatorFn func(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) (propagated bool, err error)
 
 // PropagateConnection details from one resource to the other.
-func (fn ConnectionPropagatorFn) PropagateConnection(ctx context.Context, to xresource.LocalConnectionSecretOwner, from xresource.ConnectionSecretOwner) (propagated bool, err error) {
+func (fn ConnectionPropagatorFn) PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) (propagated bool, err error) {
 	return fn(ctx, to, from)
 }
 
@@ -127,7 +140,7 @@ type ConnectionPropagatorChain []ConnectionPropagator
 // chain and returns propagated if at least one ConnectionPropagator propagates
 // the connection details but exits with an error if any of them fails without
 // calling the remaining ones.
-func (pc ConnectionPropagatorChain) PropagateConnection(ctx context.Context, to xresource.LocalConnectionSecretOwner, from xresource.ConnectionSecretOwner) (propagated bool, err error) {
+func (pc ConnectionPropagatorChain) PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) (propagated bool, err error) {
 	for _, p := range pc {
 		var pg bool
 		pg, err = p.PropagateConnection(ctx, to, from)
@@ -145,14 +158,14 @@ func (pc ConnectionPropagatorChain) PropagateConnection(ctx context.Context, to 
 // in the Claim is not set.
 type DefaultsSelector interface {
 	// SelectDefaults from CompositeResourceDefinition when needed.
-	SelectDefaults(ctx context.Context, cm xresource.Claim) error
+	SelectDefaults(ctx context.Context, cm resource.Claim) error
 }
 
 // A DefaultsSelectorFn is responsible for copying default values from the CompositeResourceDefinition.
-type DefaultsSelectorFn func(ctx context.Context, cm xresource.Claim) error
+type DefaultsSelectorFn func(ctx context.Context, cm resource.Claim) error
 
 // SelectDefaults copies default values from the XRD if necessary.
-func (fn DefaultsSelectorFn) SelectDefaults(ctx context.Context, cm xresource.Claim) error {
+func (fn DefaultsSelectorFn) SelectDefaults(ctx context.Context, cm resource.Claim) error {
 	return fn(ctx, cm)
 }
 
