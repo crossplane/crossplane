@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/crossplane/crossplane/internal/xerrors"
 	"sort"
 	"strings"
 	"time"
@@ -430,6 +431,8 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			cd.SetName(or.Resource.GetName())
 		}
 
+		cd.GroupVersionKind()
+
 		// Set standard composed resource metadata that is derived from the XR.
 		if err := RenderComposedResourceMetadata(cd, xr, ResourceName(name)); err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtRenderMetadata, name)
@@ -444,7 +447,11 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// million names).
 		if cd.GetName() == "" {
 			if err := c.composite.GenerateName(ctx, cd); err != nil {
-				return CompositionResult{}, errors.Wrapf(err, errFmtGenerateName, name)
+				return CompositionResult{}, &xerrors.ComposedResourceError{
+					Message:  fmt.Sprintf(errFmtGenerateName, name),
+					Composed: cd,
+					Err:      err,
+				}
 			}
 		}
 
