@@ -20,15 +20,19 @@ package definition
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"strings"
 	"time"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
@@ -105,7 +109,7 @@ type ControllerEngine interface {
 	GetCached() client.Client
 	GetUncached() client.Client
 	GetFieldIndexer() client.FieldIndexer
-	IsAuthorizedFor(ctx context.Context, namespace string, gvk schema.GroupVersionKind) (bool, error)
+	IsAuthorizedFor(ctx context.Context, gvk schema.GroupVersionKind, namespace string) (bool, error)
 }
 
 // A NopEngine does nothing.
@@ -149,7 +153,7 @@ func (e *NopEngine) GetFieldIndexer() client.FieldIndexer {
 }
 
 // IsAuthorizedFor validates if this controller is allowed to control a GVK in an optional namespace.
-func (e *NopEngine) IsAuthorizedFor(ctx context.Context, gvk schema.GroupVersionKind, namespace string) (bool, error) {
+func (e *NopEngine) IsAuthorizedFor(_ context.Context, _ schema.GroupVersionKind, _ string) (bool, error) {
 	return false, nil
 }
 

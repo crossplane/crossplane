@@ -32,7 +32,7 @@ type ComposedResourceError struct {
 	Err error
 }
 
-// Error implements errors.Error
+// Error implements errors.Error.
 func (e ComposedResourceError) Error() string {
 	if e.Err != nil {
 		return fmt.Sprintf("%s: %s", e.Message, e.Err.Error())
@@ -40,7 +40,7 @@ func (e ComposedResourceError) Error() string {
 	return e.Message
 }
 
-// Unwrap implements errors.Unwrap
+// Unwrap implements errors.Unwrap.
 func (e ComposedResourceError) Unwrap() error {
 	return e.Err
 }
