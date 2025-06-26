@@ -93,11 +93,11 @@ func (r *objectReconcilerAdapter[object]) Reconcile(ctx context.Context, req rec
 
 	// Preamble
 
-	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	rctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 
 	o := r.constructorFn()
-	if err := r.client.Get(ctx, req.NamespacedName, o); err != nil {
+	if err := r.client.Get(rctx, req.NamespacedName, o); err != nil {
 		msg := fmt.Sprintf(ErrClientGet, o.GetObjectKind().GroupVersionKind().Kind)
 		log.Debug(msg, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), msg)
@@ -111,11 +111,11 @@ func (r *objectReconcilerAdapter[object]) Reconcile(ctx context.Context, req rec
 	if extName := meta.GetExternalName(o); extName != "" {
 		log = log.WithValues("external-name", extName)
 	}
-	ctx = xlogging.WithLogger(ctx, log)
+	rctx = xlogging.WithLogger(rctx, log)
 
 	// Do Reconcile
 
-	result, resultErr := r.objReconciler.Reconcile(ctx, o)
+	result, resultErr := r.objReconciler.Reconcile(rctx, o)
 
 	// Postamble
 
