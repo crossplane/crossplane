@@ -28,13 +28,13 @@ import (
 
 func TestSubjectAccessReviewError_Error(t *testing.T) {
 	errBoom := errors.New("boom")
-	
+
 	testResource := schema.GroupVersionResource{
 		Group:    "example.org",
 		Version:  "v1",
 		Resource: "bars",
 	}
-	
+
 	type args struct {
 		user        string
 		resource    schema.GroupVersionResource
@@ -45,7 +45,7 @@ func TestSubjectAccessReviewError_Error(t *testing.T) {
 	type want struct {
 		result string
 	}
-	
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -61,7 +61,7 @@ func TestSubjectAccessReviewError_Error(t *testing.T) {
 				err:         nil,
 			},
 			want: want{
-				result: "system:serviceaccount:crossplane-system:crossplane is not allowed to [get, list, watch] resource v1.example.org/v1",
+				result: "system:serviceaccount:crossplane-system:crossplane is not allowed to [get, list, watch] resource bars.example.org/v1",
 			},
 		},
 		"NamespacedResource": {
@@ -74,7 +74,7 @@ func TestSubjectAccessReviewError_Error(t *testing.T) {
 				err:         nil,
 			},
 			want: want{
-				result: "system:serviceaccount:crossplane-system:crossplane is not allowed to [create, update, delete] resource v1.example.org/v1 in namespace test-namespace",
+				result: "system:serviceaccount:crossplane-system:crossplane is not allowed to [create, update, delete] resource bars.example.org/v1 in namespace test-namespace",
 			},
 		},
 		"SingleVerb": {
@@ -87,7 +87,7 @@ func TestSubjectAccessReviewError_Error(t *testing.T) {
 				err:         nil,
 			},
 			want: want{
-				result: "system:serviceaccount:crossplane-system:crossplane is not allowed to [delete] resource v1.example.org/v1",
+				result: "system:serviceaccount:crossplane-system:crossplane is not allowed to [delete] resource bars.example.org/v1",
 			},
 		},
 		"WithWrappedError": {
@@ -100,7 +100,7 @@ func TestSubjectAccessReviewError_Error(t *testing.T) {
 				err:         errBoom,
 			},
 			want: want{
-				result: "system:serviceaccount:crossplane-system:crossplane is not allowed to [get] resource v1.example.org/v1: boom",
+				result: "system:serviceaccount:crossplane-system:crossplane is not allowed to [get] resource bars.example.org/v1: boom",
 			},
 		},
 		"EmptyDeniedVerbs": {
@@ -113,7 +113,7 @@ func TestSubjectAccessReviewError_Error(t *testing.T) {
 				err:         nil,
 			},
 			want: want{
-				result: "system:serviceaccount:crossplane-system:crossplane is not allowed to [] resource v1.example.org/v1",
+				result: "system:serviceaccount:crossplane-system:crossplane is not allowed to [] resource bars.example.org/v1",
 			},
 		},
 		"CoreResource": {
@@ -130,7 +130,7 @@ func TestSubjectAccessReviewError_Error(t *testing.T) {
 				err:         nil,
 			},
 			want: want{
-				result: "system:serviceaccount:crossplane-system:crossplane is not allowed to [get, list] resource v1./v1 in namespace kube-system",
+				result: "system:serviceaccount:crossplane-system:crossplane is not allowed to [get, list] resource secrets/v1 in namespace kube-system",
 			},
 		},
 		"EmptyUser": {
@@ -143,11 +143,11 @@ func TestSubjectAccessReviewError_Error(t *testing.T) {
 				err:         nil,
 			},
 			want: want{
-				result: " is not allowed to [patch] resource v1.example.org/v1 in namespace test-namespace",
+				result: " is not allowed to [patch] resource bars.example.org/v1 in namespace test-namespace",
 			},
 		},
 	}
-	
+
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			e := SubjectAccessReviewError{
@@ -157,9 +157,9 @@ func TestSubjectAccessReviewError_Error(t *testing.T) {
 				DeniedVerbs: tc.args.deniedVerbs,
 				Err:         tc.args.err,
 			}
-			
+
 			got := e.Error()
-			
+
 			if diff := cmp.Diff(tc.want.result, got); diff != "" {
 				t.Errorf("\n%s\nError(): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -169,13 +169,13 @@ func TestSubjectAccessReviewError_Error(t *testing.T) {
 
 func TestSubjectAccessReviewError_Unwrap(t *testing.T) {
 	errBoom := errors.New("boom")
-	
+
 	testResource := schema.GroupVersionResource{
 		Group:    "example.org",
 		Version:  "v1",
 		Resource: "bars",
 	}
-	
+
 	type args struct {
 		user        string
 		resource    schema.GroupVersionResource
@@ -186,7 +186,7 @@ func TestSubjectAccessReviewError_Unwrap(t *testing.T) {
 	type want struct {
 		err error
 	}
-	
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -219,7 +219,7 @@ func TestSubjectAccessReviewError_Unwrap(t *testing.T) {
 			},
 		},
 	}
-	
+
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			e := SubjectAccessReviewError{
@@ -229,9 +229,9 @@ func TestSubjectAccessReviewError_Unwrap(t *testing.T) {
 				DeniedVerbs: tc.args.deniedVerbs,
 				Err:         tc.args.err,
 			}
-			
+
 			got := e.Unwrap()
-			
+
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nUnwrap(): -want error, +got error:\n%s", tc.reason, diff)
 			}

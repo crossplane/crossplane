@@ -38,11 +38,18 @@ type SubjectAccessReviewError struct {
 	Err error
 }
 
-// Error implements errors.Error
+// Error implements errors.Error.
 func (e SubjectAccessReviewError) Error() string {
 	sb := strings.Builder{}
-	sb.WriteString(fmt.Sprintf("%s is not allowed to [%s] resource %s.%s",
-		e.User, strings.Join(e.DeniedVerbs, ", "), e.Resource.Version, e.Resource.GroupVersion()))
+	sb.WriteString(fmt.Sprintf("%s is not allowed to [%s] resource %s",
+		e.User, strings.Join(e.DeniedVerbs, ", "), e.Resource.Resource))
+
+	if e.Resource.Group != "" {
+		sb.WriteString(fmt.Sprintf(".%s", e.Resource.GroupVersion()))
+	} else {
+		sb.WriteString(fmt.Sprintf("/%s", e.Resource.GroupVersion()))
+	}
+
 	if e.Namespace != "" {
 		sb.WriteString(fmt.Sprintf(" in namespace %s", e.Namespace))
 	}
@@ -52,7 +59,7 @@ func (e SubjectAccessReviewError) Error() string {
 	return sb.String()
 }
 
-// Unwrap implements errors.Unwrap
+// Unwrap implements errors.Unwrap.
 func (e SubjectAccessReviewError) Unwrap() error {
 	return e.Err
 }
