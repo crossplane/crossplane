@@ -45,6 +45,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane/internal/xerrors"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/engine"
@@ -52,8 +53,9 @@ import (
 )
 
 const (
-	timeout   = 2 * time.Minute
-	finalizer = "composite.apiextensions.crossplane.io"
+	timeout       = 2 * time.Minute
+	timeoutUpdate = timeout + 20*time.Second
+	finalizer     = "composite.apiextensions.crossplane.io"
 )
 
 // Error strings.
@@ -365,6 +367,13 @@ func WithWatchStarter(controllerName string, h handler.EventHandler, w WatchStar
 	}
 }
 
+// WithAuthorizer specifies if the reconciler can ask authorization queries.
+func WithAuthorizer(a Authorizer) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.authorizer = a
+	}
+}
+
 // WithCompositeSchema specifies whether the Reconciler should reconcile a
 // modern or a legacy type of composite resource.
 func WithCompositeSchema(s composite.Schema) ReconcilerOption {
@@ -382,6 +391,12 @@ type revision struct {
 type WatchStarter interface {
 	// StartWatches starts the supplied watches, if they're not running already.
 	StartWatches(ctx context.Context, name string, ws ...engine.Watch) error
+}
+
+// An Authorizer can explain what is allowed to be done to resources.
+type Authorizer interface {
+	// IsAuthorizedFor validates if this controller is allowed to control a GVK in an optional namespace.
+	IsAuthorizedFor(ctx context.Context, gvk schema.GroupVersionKind, namespace string) (bool, error)
 }
 
 // A NopWatchStarter does nothing.
@@ -472,6 +487,9 @@ type Reconciler struct {
 	engine         WatchStarter
 	watchHandler   handler.EventHandler
 
+	// Used to validate errors based on API issues.
+	authorizer Authorizer
+
 	log        logging.Logger
 	record     event.Recorder
 	conditions conditions.Manager
@@ -483,6 +501,9 @@ type Reconciler struct {
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Reconcile methods are often very complex. Be wary.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
+
+	updateCtx, updateCancel := context.WithTimeout(ctx, timeoutUpdate)
+	defer updateCancel()
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -508,7 +529,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		status.MarkConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
 		// and if status update fails, we will reconcile again to retry to update the status
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
 
 	if meta.WasDeleted(xr) {
@@ -525,13 +546,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			r.record.Event(xr, event.Warning(reasonDelete, err))
 			status.MarkConditions(xpv1.ReconcileError(err))
 
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 		}
 
 		log.Debug("Successfully deleted composite resource")
 		status.MarkConditions(xpv1.ReconcileSuccess())
 
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
 
 	if err := r.composite.AddFinalizer(ctx, xr); err != nil {
@@ -556,7 +577,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Warning(reasonResolve, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
 
 	if compRef := xr.GetCompositionReference(); compRef != nil && (orig == nil || *compRef != *orig) {
@@ -578,7 +599,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
 
 	if rev := xr.GetCompositionRevisionReference(); rev != nil && (origRev == nil || *rev != *origRev) {
@@ -612,7 +633,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
 
 	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Revision: rev})
@@ -637,9 +658,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			err = errors.Wrap(errors.New(errInvalidResources), errCompose)
 		}
 
+		if composeErr := new(xerrors.ComposedResourceError); errors.As(err, &composeErr) {
+			// Things to check:
+			// - Does the CRD exist?
+			// - Do we have rights to operate on that Kind?
+
+			if r.authorizer != nil {
+				// Context is already dead at this point.
+				ok, authErr := r.authorizer.IsAuthorizedFor(updateCtx, composeErr.Composed.GroupVersionKind(), composeErr.Composed.GetNamespace())
+				if !ok {
+					err = errors.Join(err, authErr)
+					r.record.Event(xr, event.Warning(reasonCompose+"Access", authErr))
+				}
+			}
+		}
 		status.MarkConditions(xpv1.ReconcileError(err))
 
-		meta := r.handleCommonCompositionResult(ctx, res, xr)
+		meta := r.handleCommonCompositionResult(updateCtx, res, xr)
 		// We encountered a fatal error. For any custom status conditions that were
 		// not received due to the fatal error, mark them as unknown.
 		for _, c := range xr.GetConditions() {
@@ -655,7 +690,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 		}
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		// TODO: there is a bug that if we get an error, we don't get the chance to update status on the xr.
+
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
 
 	ws := make([]engine.Watch, len(xr.GetResourceReferences()))
@@ -672,7 +709,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Warning(reasonWatch, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
 
 	published, err := r.composite.PublishConnection(ctx, xr, res.ConnectionDetails)
@@ -687,7 +724,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Warning(reasonPublish, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
 
 	if published {
@@ -696,7 +733,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Normal(reasonPublish, "Successfully published connection details"))
 	}
 
-	meta := r.handleCommonCompositionResult(ctx, res, xr)
+	meta := r.handleCommonCompositionResult(updateCtx, res, xr)
 
 	if meta.numWarningEvents == 0 {
 		// We don't consider warnings severe enough to prevent the XR from being
@@ -770,7 +807,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		result = reconcile.Result{RequeueAfter: jitter(res.TTL)}
 	}
 
-	return result, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+	return result, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 }
 
 type compositionResultMeta struct {
