@@ -313,8 +313,8 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
 					})),
-					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
-						return CompositionResult{}, errBoom
+					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) CompositionResult {
+						return CompositionResult{}.WithErrors(errBoom)
 					})),
 				},
 			},
@@ -344,8 +344,8 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
 					})),
-					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
-						return CompositionResult{}, nil
+					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) CompositionResult {
+						return CompositionResult{}
 					})),
 					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
 						return false, errBoom
@@ -378,7 +378,7 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
 					})),
-					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) CompositionResult {
 						return CompositionResult{
 							Events: []TargetedEvent{
 								{
@@ -386,7 +386,7 @@ func TestReconcile(t *testing.T) {
 									Target: CompositionTargetComposite,
 								},
 							},
-						}, nil
+						}
 					})),
 					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
 						return false, nil
@@ -419,7 +419,7 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
 					})),
-					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) CompositionResult {
 						return CompositionResult{
 							Composed: []ComposedResource{{
 								ResourceName: "elephant",
@@ -446,7 +446,7 @@ func TestReconcile(t *testing.T) {
 								Ready:        false,
 								Synced:       true,
 							}},
-						}, nil
+						}
 					})),
 					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
 						return false, nil
@@ -489,8 +489,8 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
 					})),
-					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
-						return CompositionResult{ConnectionDetails: cd}, nil
+					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) CompositionResult {
+						return CompositionResult{ConnectionDetails: cd}
 					})),
 					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ ConnectionSecretOwner, got managed.ConnectionDetails) (published bool, err error) {
 						want := cd
@@ -575,8 +575,8 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
 					})),
-					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
-						return CompositionResult{}, nil
+					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) CompositionResult {
+						return CompositionResult{}
 					})),
 					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
 						return true, nil
@@ -614,8 +614,8 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
 					})),
-					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
-						return CompositionResult{}, nil
+					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) CompositionResult {
+						return CompositionResult{}
 					})),
 					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
 						return true, nil
@@ -721,7 +721,7 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
 					})),
-					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) CompositionResult {
 						return CompositionResult{
 							Composed:          []ComposedResource{},
 							ConnectionDetails: cd,
@@ -769,7 +769,7 @@ func TestReconcile(t *testing.T) {
 									Target: CompositionTargetComposite,
 								},
 							},
-						}, nil
+						}
 					})),
 				},
 			},
@@ -903,7 +903,7 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
 					})),
-					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) CompositionResult {
 						return CompositionResult{
 							Composed:          []ComposedResource{},
 							ConnectionDetails: cd,
@@ -961,7 +961,7 @@ func TestReconcile(t *testing.T) {
 									Target: CompositionTargetCompositeAndClaim,
 								},
 							},
-						}, errBoom
+						}.WithErrors(errBoom)
 					})),
 				},
 			},
@@ -1068,7 +1068,7 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
 					})),
-					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) CompositionResult {
 						return CompositionResult{
 							Composed:          []ComposedResource{},
 							ConnectionDetails: cd,
@@ -1099,7 +1099,7 @@ func TestReconcile(t *testing.T) {
 									Target: CompositionTargetCompositeAndClaim,
 								},
 							},
-						}, nil
+						}
 					})),
 				},
 			},
@@ -1155,14 +1155,14 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
 					})),
-					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) CompositionResult {
 						return CompositionResult{
 							Composed:          []ComposedResource{},
 							ConnectionDetails: cd,
 							Ready:             ptr.To(false),
 							Events:            []TargetedEvent{},
 							Conditions:        []TargetedCondition{},
-						}, nil
+						}
 					})),
 				},
 			},
@@ -1227,7 +1227,7 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
 					})),
-					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) CompositionResult {
 						return CompositionResult{
 							Composed:          []ComposedResource{},
 							ConnectionDetails: cd,
@@ -1243,7 +1243,7 @@ func TestReconcile(t *testing.T) {
 									Target: CompositionTargetCompositeAndClaim,
 								},
 							},
-						}, nil
+						}
 					})),
 				},
 			},

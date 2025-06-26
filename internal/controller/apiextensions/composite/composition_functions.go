@@ -58,6 +58,7 @@ const (
 	errBuildObserved            = "cannot build observed state for RunFunctionRequest"
 	errGarbageCollectCDs        = "cannot garbage collect composed resources that are no longer desired"
 	errApplyXRRefs              = "cannot update composed resource references"
+	errUpdateAfterApplyXRRefs   = "cannot refresh composed resource after updating references"
 	errApplyXRStatus            = "cannot apply composite resource status"
 	errAnonymousCD              = "encountered composed resource without required \"" + xcrd.AnnotationKeyCompositionResourceName + "\" annotation"
 	errUnmarshalDesiredXRStatus = "cannot unmarshal desired composite resource status from RunFunctionResponse"
@@ -254,7 +255,7 @@ func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...
 }
 
 // Compose resources using the Functions pipeline.
-func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) { //nolint:gocognit // We probably don't want any further abstraction for the sake of reduced complexity.
+func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) CompositionResult { //nolint:gocognit // We probably don't want any further abstraction for the sake of reduced complexity.
 	// Observe our existing composed resources. We need to do this before we
 	// render any P&T templates, so that we can make sure we use the same
 	// composed resource names (as in, metadata.name) every time. We know what
@@ -263,7 +264,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// resource without first persisting a reference to it.
 	observed, err := c.composite.ObserveComposedResources(ctx, xr)
 	if err != nil {
-		return CompositionResult{}, errors.Wrap(err, errGetExistingCDs)
+		return CompositionResult{}.WithErrors(errors.Wrap(err, errGetExistingCDs))
 	}
 
 	// Build the initial observed and desired state to be passed to our
@@ -274,12 +275,12 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// to the observed state.
 	xrConns, err := c.composite.FetchConnection(ctx, xr)
 	if err != nil {
-		return CompositionResult{}, errors.Wrap(err, errFetchXRConnectionDetails)
+		return CompositionResult{}.WithErrors(errors.Wrap(err, errFetchXRConnectionDetails))
 	}
 
 	o, err := AsState(xr, xrConns, observed)
 	if err != nil {
-		return CompositionResult{}, errors.Wrap(err, errBuildObserved)
+		return CompositionResult{}.WithErrors(errors.Wrap(err, errBuildObserved))
 	}
 
 	// Time-to-live for this composition pipeline run. Each function returns
@@ -305,7 +306,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		if fn.Input != nil {
 			in := &structpb.Struct{}
 			if err := in.UnmarshalJSON(fn.Input.Raw); err != nil {
-				return CompositionResult{}, errors.Wrapf(err, errFmtUnmarshalPipelineStepInput, fn.Step)
+				return CompositionResult{}.WithErrors(errors.Wrapf(err, errFmtUnmarshalPipelineStepInput, fn.Step))
 			}
 
 			req.Input = in
@@ -320,7 +321,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 			s := &corev1.Secret{}
 			if err := c.client.Get(ctx, client.ObjectKey{Namespace: cs.SecretRef.Namespace, Name: cs.SecretRef.Name}, s); err != nil {
-				return CompositionResult{}, errors.Wrapf(err, errFmtGetCredentialsFromSecret, fn.Step, cs.Name)
+				return CompositionResult{}.WithErrors(errors.Wrapf(err, errFmtGetCredentialsFromSecret, fn.Step, cs.Name))
 			}
 
 			req.Credentials[cs.Name] = &fnv1.Credentials{
@@ -348,7 +349,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 		rsp, err := c.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
 		if err != nil {
-			return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
+			return CompositionResult{}.WithErrors(errors.Wrapf(err, errFmtRunPipelineStep, fn.Step))
 		}
 
 		// If this Function specified a non-zero TTL that's less than
@@ -401,7 +402,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 			switch rs.GetSeverity() {
 			case fnv1.Severity_SEVERITY_FATAL:
-				return CompositionResult{Events: events, Conditions: conditions}, errors.Errorf(errFmtFatalResult, fn.Step, rs.GetMessage())
+				return CompositionResult{Events: events, Conditions: conditions}.WithErrors(errors.Errorf(errFmtFatalResult, fn.Step, rs.GetMessage()))
 			case fnv1.Severity_SEVERITY_WARNING:
 				e.Event = event.Warning(reason, errors.New(rs.GetMessage()))
 				e.Detail = fmt.Sprintf("Pipeline step %q", fn.Step)
@@ -422,13 +423,19 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		}
 	}
 
+	// Now that we finished running the pipeline, we want to not return early on an error.
+	// Collect the errors as we hit them and return them as a collection in the final result.
+
+	var resourceErrs []error
+
 	// Load our desired composed resources from the Function pipeline.
 	desired := ComposedResourceStates{}
 
 	for name, dr := range d.GetResources() {
 		cd := composed.New()
 		if err := xfn.FromStruct(cd, dr.GetResource()); err != nil {
-			return CompositionResult{}, errors.Wrapf(err, errFmtUnmarshalDesiredCD, name)
+			resourceErrs = append(resourceErrs, errors.Wrapf(err, errFmtUnmarshalDesiredCD, name))
+			continue
 		}
 
 		// If this desired resource state pertains to an existing composed
@@ -459,7 +466,8 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 		// Set standard composed resource metadata that is derived from the XR.
 		if err := RenderComposedResourceMetadata(cd, xr, ResourceName(name)); err != nil {
-			return CompositionResult{}, errors.Wrapf(err, errFmtRenderMetadata, name)
+			resourceErrs = append(resourceErrs, errors.Wrapf(err, errFmtRenderMetadata, name))
+			continue
 		}
 
 		// Generate a name. We want to allocate this name before we actually
@@ -471,18 +479,20 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// million names).
 		if cd.GetName() == "" {
 			if err := c.composite.GenerateName(ctx, cd); err != nil {
-				return CompositionResult{}, &xerrors.ComposedResourceError{
+				resourceErrs = append(resourceErrs, xerrors.ComposedResourceError{
 					Message:  fmt.Sprintf(errFmtGenerateName, name),
 					Composed: cd,
 					Err:      err,
-				}
+				})
+				continue
 			}
 		}
 
 		// Validate the name can be used as a kubernetes resource name by checking if the name
 		// is valid RFC 1123 subdomain.
 		if errs := validation.IsDNS1123Subdomain(cd.GetName()); len(errs) > 0 {
-			return CompositionResult{}, errors.Errorf(errFmtInvalidName, name, cd.GetName())
+			resourceErrs = append(resourceErrs, errors.Errorf(errFmtInvalidName, name, cd.GetName()))
+			continue
 		}
 
 		// TODO(negz): Should we try to automatically derive readiness if the
@@ -501,7 +511,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// references to ensure that we don't forget and leak them if a delete
 	// fails.
 	if err := c.composite.GarbageCollectComposedResources(ctx, xr, observed, desired); err != nil {
-		return CompositionResult{}, errors.Wrap(err, errGarbageCollectCDs)
+		resourceErrs = append(resourceErrs, errors.Wrap(err, errGarbageCollectCDs))
 	}
 
 	// Record references to all desired composed resources. We need to do this
@@ -523,8 +533,22 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// It's important we don't proceed if this fails, because we need to be
 		// sure we've persisted our resource references before we create any new
 		// composed resources below.
-		return CompositionResult{}, errors.Wrap(err, errApplyXRRefs)
+		resourceErrs = append(resourceErrs, errors.Wrap(err, errApplyXRRefs))
 	}
+
+	// HACK HACK HACK
+	//fmt.Println("Before hack update for patch --> ", "resourceVersion", xr.GetResourceVersion())
+	//// TODO: ^^ This is a bug, this causes the downstream to fail to update status on the xr.
+	//// To address this bug, we will ask for a fresh copy of the xr.
+	//// Long term, crossplane should not store state in the spec.
+	//if err := c.client.Get(ctx, types.NamespacedName{
+	//	Namespace: xr.GetNamespace(),
+	//	Name:      xr.GetName(),
+	//}, xr); err != nil {
+	//	return CompositionResult{}, errors.Wrap(err, errUpdateAfterApplyXRRefs)
+	//}
+	//fmt.Println("After hack update for patch --> ", "resourceVersion", xr.GetResourceVersion())
+	//// HACK HACK HACK
 
 	// TODO: Remove this call to Upgrade once no supported version of Crossplane
 	// have native P&T available. We only need to upgrade field managers if the
@@ -535,8 +559,8 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// up having shared ownership of fields and field removals won't sync
 	// properly.
 	for _, cd := range observed {
-		if err := c.composite.Upgrade(ctx, cd.Resource); err != nil {
-			return CompositionResult{}, errors.Wrap(err, "cannot upgrade composed resource's managed fields from client-side to server-side apply")
+		if err := c.composite.ManagedFieldsUpgrader.Upgrade(ctx, cd.Resource); err != nil {
+			resourceErrs = append(resourceErrs, errors.Wrap(err, "cannot upgrade composed resource's managed fields from client-side to server-side apply"))
 		}
 	}
 
@@ -579,9 +603,22 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				continue
 			}
 
-			return CompositionResult{}, errors.Wrapf(err, errFmtApplyCD, name)
+			// TODO: this is a bug, if we fail on the composed resource patch, then we don't update the xr
+			// 		 which means updstream updates to the xr fail because they are not interacting with the
+			//	 	 correct one.
+			// 		 This should not be fail on first, it should really try for all desired and collect errors.
+			//return CompositionResult{}, xerrors.ComposedResourceError{
+			//	Message:  fmt.Sprintf(errFmtApplyCD, name),
+			//	Composed: cd.Resource,
+			//	Err:      err,
+			//}
+			resourceErrs = append(resourceErrs, xerrors.ComposedResourceError{
+				Message:  fmt.Sprintf(errFmtApplyCD, name),
+				Composed: cd.Resource,
+				Err:      err,
+			})
+			continue
 		}
-
 		resources = append(resources, ComposedResource{ResourceName: name, Ready: cd.Ready, Synced: true})
 	}
 
@@ -597,8 +634,9 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	n := xr.GetName()
 
 	u := xr.GetUID()
+
 	if err := xfn.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
-		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
+		resourceErrs = append(resourceErrs, errors.Wrap(err, errUnmarshalDesiredXRStatus))
 	}
 
 	xr.SetAPIVersion(v)
@@ -613,7 +651,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// Note(phisco): here we are fine with this error being terminal, as
 		// there is no other resource to apply that might eventually resolve
 		// this issue.
-		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
+		resourceErrs = append(resourceErrs, errors.Wrap(err, errApplyXRStatus))
 	}
 
 	var ready *bool
@@ -627,16 +665,15 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// Remains nil.
 	}
 
-	result := CompositionResult{
+	return CompositionResult{
 		Composed:          resources,
 		ConnectionDetails: d.GetComposite().GetConnectionDetails(),
 		Ready:             ready,
 		Events:            events,
 		Conditions:        conditions,
 		TTL:               ttl,
+		Errs:              resourceErrs,
 	}
-
-	return result, nil
 }
 
 // ToProtobufResourceSelector converts API RequiredResourceSelector to protobuf ResourceSelector.

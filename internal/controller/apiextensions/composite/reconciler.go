@@ -215,6 +215,20 @@ type CompositionResult struct {
 
 	// TTL for this composition result.
 	TTL time.Duration
+
+	// Errs produced while attempting to Compose.
+	Errs []error
+}
+
+// HasErrors is a convenience method to check if there were errors during the composition effort.
+func (c CompositionResult) HasErrors() bool {
+	return len(c.Errs) > 0
+}
+
+// WithErrors adds and returns the provided errors to the composition result.
+func (c CompositionResult) WithErrors(errs ...error) CompositionResult {
+	c.Errs = append(c.Errs, errs...)
+	return c
 }
 
 // A CompositionTarget is the target of a composition event or condition.
@@ -264,14 +278,14 @@ type TargetedCondition struct {
 // A Composer composes (i.e. creates, updates, or deletes) resources given the
 // supplied composite resource and composition request.
 type Composer interface {
-	Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error)
+	Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) CompositionResult
 }
 
 // A ComposerFn composes resources.
-type ComposerFn func(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error)
+type ComposerFn func(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) CompositionResult
 
 // Compose resources.
-func (fn ComposerFn) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) {
+func (fn ComposerFn) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) CompositionResult {
 	return fn(ctx, xr, req)
 }
 
@@ -449,8 +463,8 @@ func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...Rec
 
 		// We use a nop Composer by default. The real composed is passed in by
 		// the definition controller when it sets up this XR controller.
-		resource: ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
-			return CompositionResult{}, nil
+		resource: ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) CompositionResult {
+			return CompositionResult{}
 		}),
 
 		// Dynamic watches are disabled by default.
@@ -636,63 +650,65 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
 
-	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Revision: rev})
-	if err != nil {
-		log.Debug(errCompose, "error", err)
+	res := r.resource.Compose(ctx, xr, CompositionRequest{Revision: rev})
+	if res.HasErrors() {
+		for _, err := range res.Errs {
 
-		if kerrors.IsConflict(err) {
-			return reconcile.Result{Requeue: true}, nil
-		}
+			// TODO: This is not great, we can't do all of these things with the range of errors. FIX THIS
 
-		err = errors.Wrap(err, errCompose)
-		r.record.Event(xr, event.Warning(reasonCompose, err))
+			log.Debug(errCompose, "error", err)
+			if kerrors.IsConflict(err) {
+				log.Info("RequeueAfter here line 600")
+				return reconcile.Result{Requeue: true}, nil
+			}
+			r.record.Event(xr, event.Warning(reasonCompose, err))
+			if kerrors.IsInvalid(err) {
+				// API Server's invalid errors may be unstable due to pointers in
+				// the string representation of invalid structs (%v), among other
+				// reasons. Setting these errors in conditions could cause the
+				// resource version to increment continuously, leading to endless
+				// reconciliation of the resource. To avoid this, we only log these
+				// errors and emit an event. The conditions' message will then just
+				// point to the event.
+				err = errors.Wrap(errors.New(errInvalidResources), errCompose)
+			}
+			if composeErr := new(xerrors.ComposedResourceError); errors.As(err, composeErr) {
+				// Things to check:
+				// - Does the CRD exist?
+				// - Do we have rights to operate on that Kind?
 
-		if kerrors.IsInvalid(err) {
-			// API Server's invalid errors may be unstable due to pointers in
-			// the string representation of invalid structs (%v), among other
-			// reasons. Setting these errors in conditions could cause the
-			// resource version to increment continuously, leading to endless
-			// reconciliation of the resource. To avoid this, we only log these
-			// errors and emit an event. The conditions' message will then just
-			// point to the event.
-			err = errors.Wrap(errors.New(errInvalidResources), errCompose)
-		}
-
-		if composeErr := new(xerrors.ComposedResourceError); errors.As(err, &composeErr) {
-			// Things to check:
-			// - Does the CRD exist?
-			// - Do we have rights to operate on that Kind?
-
-			if r.authorizer != nil {
-				// Context is already dead at this point.
-				ok, authErr := r.authorizer.IsAuthorizedFor(updateCtx, composeErr.Composed.GroupVersionKind(), composeErr.Composed.GetNamespace())
-				if !ok {
-					err = errors.Join(err, authErr)
-					r.record.Event(xr, event.Warning(reasonCompose+"Access", authErr))
+				if r.authorizer != nil {
+					// Context is already dead at this point.
+					if ok, authErr := r.authorizer.IsAuthorizedFor(updateCtx,
+						composeErr.Composed.GetObjectKind().GroupVersionKind(),
+						composeErr.Composed.GetNamespace()); !ok {
+						err = errors.Join(err, authErr)
+						r.record.Event(xr, event.Warning(reasonCompose+"Access", authErr))
+					}
 				}
 			}
-		}
-		status.MarkConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv1.ReconcileError(err))
 
-		meta := r.handleCommonCompositionResult(updateCtx, res, xr)
-		// We encountered a fatal error. For any custom status conditions that were
-		// not received due to the fatal error, mark them as unknown.
-		for _, c := range xr.GetConditions() {
-			if xpv1.IsSystemConditionType(c.Type) {
-				continue
+			meta := r.handleCommonCompositionResult(updateCtx, res, xr)
+			// We encountered a fatal error. For any custom status conditions that were
+			// not received due to the fatal error, mark them as unknown.
+			for _, c := range xr.GetConditions() {
+				if xpv1.IsSystemConditionType(c.Type) {
+					continue
+				}
+				if !meta.conditionTypesSeen[c.Type] {
+					c.Status = corev1.ConditionUnknown
+					c.Reason = reasonFatalError
+					c.Message = "A fatal error occurred before the status of this condition could be determined."
+					status.MarkConditions(c)
+				}
 			}
-
-			if !meta.conditionTypesSeen[c.Type] {
-				c.Status = corev1.ConditionUnknown
-				c.Reason = reasonFatalError
-				c.Message = "A fatal error occurred before the status of this condition could be determined."
-				status.MarkConditions(c)
-			}
+			//if err := r.client.Status().Update(updateCtx, xr); err != nil {
+			//	log.Info("Failed to update status --> ", "resourceVersion", xr.GetResourceVersion(), "error", err)
+			//}
 		}
-
-		// TODO: there is a bug that if we get an error, we don't get the chance to update status on the xr.
-
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		log.Info("RequeueAfter here line 650")
+		return reconcile.Result{RequeueAfter: time.Second * 2}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
 
 	ws := make([]engine.Watch, len(xr.GetResourceReferences()))

@@ -19,7 +19,7 @@ package xerrors
 import (
 	"fmt"
 
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
 // A ComposedResourceError allows the resource composer to return context around the composition error.
@@ -27,7 +27,7 @@ type ComposedResourceError struct {
 	// Message is the body of a composed resource error.
 	Message string
 	// Composed is the Unstructured resource that was being composed.
-	Composed *composed.Unstructured
+	Composed resource.Object
 	// Err is an optional wrapped error.
 	Err error
 }
