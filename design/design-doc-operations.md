@@ -27,12 +27,16 @@ This means you can use Crossplane v2 to build a great control plane for basic
 lifecycle management of applications and infrastructure. By basic lifecycle
 management I mean the control plane can create, update, and delete (CRUD) things.
 
-On the other hand, it's hard today to use Crossplane to build a control plane
-that can handle "day two" operations. Things like rolling upgrades, scheduling,
-backups, restores, or misconfiguration detection and remediation. Essentially
-anything beyond CRUD operations. Typically organizations must break out of the
-Crossplane ecosystem and use a tool like [kubebuilder][2] to build a bespoke
-controller for their day two operations.
+On the other hand, you can't use Crossplane (alone) to build a control plane
+that can handle "day two" operations. You can only use it to build controllers
+that fit cleanly into the XR or MR paradigms. XRs are designed to turn high
+level abstract desired state into low level desired state. MRs are designed to
+take that low level desired state and control external systems accordingly.
+
+Things like rolling upgrades, scheduling, backups, or misconfiguration detection
+and remediation don't fit either the XR or MR paradigm well. Today to build a
+controller that (for example) does a rolling version upgrade of a fleet of XRs
+representing Kubernetes clusters you'd have to use a tool like [kubebuilder][2].
 
 ## Goals
 
