@@ -53,6 +53,7 @@ type MockEngine struct {
 	MockGetCached       func() client.Client
 	MockGetUncached     func() client.Client
 	MockGetFieldIndexer func() client.FieldIndexer
+	MockIsAuthorizedFor func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) (bool, error)
 }
 
 func (m *MockEngine) IsRunning(name string) bool {
@@ -89,6 +90,10 @@ func (m *MockEngine) GetUncached() client.Client {
 
 func (m *MockEngine) GetFieldIndexer() client.FieldIndexer {
 	return m.MockGetFieldIndexer()
+}
+
+func (m *MockEngine) IsAuthorizedFor(ctx context.Context, gvk schema.GroupVersionKind, namespace string) (bool, error) {
+	return m.MockIsAuthorizedFor(ctx, gvk, namespace)
 }
 
 func TestReconcile(t *testing.T) {

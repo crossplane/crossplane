@@ -29,7 +29,7 @@ import (
 
 func TestComposedResourceError_Error(t *testing.T) {
 	errBoom := errors.New("boom")
-	
+
 	testComposed := &composed.Unstructured{
 		Unstructured: unstructured.Unstructured{
 			Object: map[string]interface{}{
@@ -41,7 +41,7 @@ func TestComposedResourceError_Error(t *testing.T) {
 			},
 		},
 	}
-	
+
 	type args struct {
 		message  string
 		composed *composed.Unstructured
@@ -50,7 +50,7 @@ func TestComposedResourceError_Error(t *testing.T) {
 	type want struct {
 		result string
 	}
-	
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -112,7 +112,7 @@ func TestComposedResourceError_Error(t *testing.T) {
 			},
 		},
 	}
-	
+
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			e := ComposedResourceError{
@@ -120,9 +120,9 @@ func TestComposedResourceError_Error(t *testing.T) {
 				Composed: tc.args.composed,
 				Err:      tc.args.err,
 			}
-			
+
 			got := e.Error()
-			
+
 			if diff := cmp.Diff(tc.want.result, got); diff != "" {
 				t.Errorf("\n%s\nError(): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -132,7 +132,7 @@ func TestComposedResourceError_Error(t *testing.T) {
 
 func TestComposedResourceError_Unwrap(t *testing.T) {
 	errBoom := errors.New("boom")
-	
+
 	testComposed := &composed.Unstructured{
 		Unstructured: unstructured.Unstructured{
 			Object: map[string]interface{}{
@@ -141,7 +141,7 @@ func TestComposedResourceError_Unwrap(t *testing.T) {
 			},
 		},
 	}
-	
+
 	type args struct {
 		message  string
 		composed *composed.Unstructured
@@ -150,7 +150,7 @@ func TestComposedResourceError_Unwrap(t *testing.T) {
 	type want struct {
 		err error
 	}
-	
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -179,7 +179,7 @@ func TestComposedResourceError_Unwrap(t *testing.T) {
 			},
 		},
 	}
-	
+
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			e := ComposedResourceError{
@@ -187,9 +187,9 @@ func TestComposedResourceError_Unwrap(t *testing.T) {
 				Composed: tc.args.composed,
 				Err:      tc.args.err,
 			}
-			
+
 			got := e.Unwrap()
-			
+
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nUnwrap(): -want error, +got error:\n%s", tc.reason, diff)
 			}
