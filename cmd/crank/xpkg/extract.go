@@ -105,12 +105,7 @@ func (c *extractCmd) AfterApply() error {
 		if c.Package == "" {
 			return errors.New(errMustProvideTag)
 		}
-		upCtx, err := upbound.NewFromFlags(c.Flags)
-		if err != nil {
-			return err
-		}
-
-		name, err := name.ParseReference(c.Package, name.WithDefaultRegistry(upCtx.RegistryEndpoint.Hostname()))
+		name, err := name.ParseReference(c.Package, name.StrictValidation)
 		if err != nil {
 			return errors.Wrap(err, errInvalidTag)
 		}
@@ -126,7 +121,7 @@ type extractCmd struct {
 	name  name.Reference
 	fetch fetchFn
 
-	Package    string `arg:""                                                                                                                                                     help:"Name of the package to extract. Must be a valid OCI image tag or a path if using --from-xpkg." optional:""`
+	Package    string `arg:""                                                                                                                                                     help:"Name of the package to extract. Must be a valid and fully qualified OCI image tag or a path if using --from-xpkg." optional:"" placeholder:"REGISTRY/REPOSITORY:TAG or PATH"`
 	FromDaemon bool   `help:"Indicates that the image should be fetched from the Docker daemon."`
 	FromXpkg   bool   `help:"Indicates that the image should be fetched from a local xpkg. If package is not specified and only one exists in current directory it will be used."`
 	Output     string `default:"out.gz"                                                                                                                                           help:"Package output file path. Extension must be .gz or will be replaced."                          short:"o"`

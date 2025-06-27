@@ -107,11 +107,11 @@ func TestImageBackend(t *testing.T) {
 				opts: []parser.BackendOption{PackageRevision(&v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package: "test/test:latest",
+							Package: "xpkg.crossplane.io/test/test:latest",
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: "test/test:latest",
+						ResolvedPackage: "xpkg.crossplane.io/test/test:latest",
 					},
 				})},
 			},
@@ -126,11 +126,11 @@ func TestImageBackend(t *testing.T) {
 				opts: []parser.BackendOption{PackageRevision(&v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package: "test/test:latest",
+							Package: "xpkg.crossplane.io/test/test:latest",
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: "test/test:latest",
+						ResolvedPackage: "xpkg.crossplane.io/test/test:latest",
 					},
 				})},
 			},
@@ -145,11 +145,11 @@ func TestImageBackend(t *testing.T) {
 				opts: []parser.BackendOption{PackageRevision(&v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package: "test/test:latest",
+							Package: "xpkg.crossplane.io/test/test:latest",
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: "test/test:latest",
+						ResolvedPackage: "xpkg.crossplane.io/test/test:latest",
 					},
 				})},
 			},
@@ -164,11 +164,11 @@ func TestImageBackend(t *testing.T) {
 				opts: []parser.BackendOption{PackageRevision(&v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package: "test/test:latest",
+							Package: "xpkg.crossplane.io/test/test:latest",
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: "test/test:latest",
+						ResolvedPackage: "xpkg.crossplane.io/test/test:latest",
 					},
 				})},
 			},

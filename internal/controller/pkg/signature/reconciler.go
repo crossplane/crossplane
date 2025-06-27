@@ -89,13 +89,6 @@ func WithNamespace(n string) ReconcilerOption {
 	}
 }
 
-// WithDefaultRegistry specifies the registry to use for fetching images.
-func WithDefaultRegistry(registry string) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.registry = registry
-	}
-}
-
 // WithServiceAccount specifies the service account to use for fetching images.
 func WithServiceAccount(sa string) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -118,7 +111,6 @@ type Reconciler struct {
 	log            logging.Logger
 	serviceAccount string
 	namespace      string
-	registry       string
 	conditions     conditions.Manager
 
 	newRevision func() v1.PackageRevision
@@ -149,7 +141,6 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(np),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
-		WithDefaultRegistry(o.DefaultRegistry),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithValidator(cosignValidator),
 		WithLogger(log),
@@ -184,7 +175,6 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(np),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
-		WithDefaultRegistry(o.DefaultRegistry),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithValidator(cosignValidator),
 		WithLogger(log),
@@ -219,7 +209,6 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(np),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
-		WithDefaultRegistry(o.DefaultRegistry),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithValidator(cosignValidator),
 		WithLogger(log),
@@ -316,7 +305,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		Reason: v1.ImageConfigReasonVerify,
 	})
 
-	ref, err := name.ParseReference(imagePath, name.WithDefaultRegistry(r.registry))
+	ref, err := name.ParseReference(imagePath, name.StrictValidation)
 	if err != nil {
 		log.Debug("Cannot parse package image reference", "error", err)
 		status.MarkConditions(v1.VerificationIncomplete(errors.Wrap(err, errParseReference)))

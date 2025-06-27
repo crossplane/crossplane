@@ -11,5 +11,5 @@ spec:
   dependsOn:
     - provider: xpkg.upbound.io/crossplane-contrib/provider-nop
       version: ">=v0.1.0"
-    - configuration: xpkg.upbound.io/crossplane/e2e-depends-on-provider-nop
+    - configuration: xpkg.crossplane.io/crossplane/e2e-depends-on-provider-nop
       version: "v0.2.0-gt"

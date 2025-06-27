@@ -36,9 +36,6 @@ type Options struct {
 	// ServiceAccount is the core Crossplane ServiceAccount name.
 	ServiceAccount string
 
-	// DefaultRegistry used to pull packages.
-	DefaultRegistry string
-
 	// FetcherOptions can be used to add optional parameters to
 	// NewK8sFetcher.
 	FetcherOptions []xpkg.FetcherOpt
