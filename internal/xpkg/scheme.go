@@ -25,7 +25,6 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
-	v2alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
@@ -55,10 +54,6 @@ func BuildMetaScheme() (*runtime.Scheme, error) {
 func BuildObjectScheme() (*runtime.Scheme, error) {
 	objScheme := runtime.NewScheme()
 	if err := v1.AddToScheme(objScheme); err != nil {
-		return nil, err
-	}
-
-	if err := v2alpha1.AddToScheme(objScheme); err != nil {
 		return nil, err
 	}
 
