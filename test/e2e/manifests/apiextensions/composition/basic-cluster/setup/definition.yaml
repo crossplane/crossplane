@@ -1,4 +1,4 @@
-apiVersion: apiextensions.crossplane.io/v2alpha1
+apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
   name: clustertests.example.org

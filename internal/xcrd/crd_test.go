@@ -39,7 +39,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/apis/apiextensions/common"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 )
 
 var (
@@ -54,14 +55,14 @@ var (
 	singular = "coolcomposite"
 	plural   = "coolcomposites"
 
-	d = &v1.CompositeResourceDefinition{
+	d = &v2.CompositeResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Labels:      labels,
 			Annotations: annotations,
 			UID:         types.UID("you-you-eye-dee"),
 		},
-		Spec: v1.CompositeResourceDefinitionSpec{
+		Spec: v2.CompositeResourceDefinitionSpec{
 			Group: group,
 			Names: extv1.CustomResourceDefinitionNames{
 				Plural:   plural,
@@ -69,7 +70,7 @@ var (
 				Kind:     kind,
 				ListKind: listKind,
 			},
-			Versions: []v1.CompositeResourceDefinitionVersion{{
+			Versions: []v2.CompositeResourceDefinitionVersion{{
 				Name:          version,
 				Referenceable: true,
 				Served:        true,
@@ -187,8 +188,8 @@ func TestIsEstablished(t *testing.T) {
 func TestForCompositeResource(t *testing.T) {
 	defaultCompositionUpdatePolicy := xpv1.UpdatePolicy("Automatic")
 	type args struct {
-		xrd *v1.CompositeResourceDefinition
-		v   *v1.CompositeResourceValidation
+		xrd *v2.CompositeResourceDefinition
+		v   *v2.CompositeResourceValidation
 	}
 	type want struct {
 		c   *extv1.CustomResourceDefinition
@@ -202,15 +203,15 @@ func TestForCompositeResource(t *testing.T) {
 		"Namespaced": {
 			reason: "A CRD should be generated from a modern CompositeResourceDefinitionVersion of a namespaced XR.",
 			args: args{
-				xrd: &v1.CompositeResourceDefinition{
+				xrd: &v2.CompositeResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        name,
 						Labels:      labels,
 						Annotations: annotations,
 						UID:         types.UID("you-you-eye-dee"),
 					},
-					Spec: v1.CompositeResourceDefinitionSpec{
-						Scope: ptr.To(v1.CompositeResourceScopeNamespaced),
+					Spec: v2.CompositeResourceDefinitionSpec{
+						Scope: common.CompositeResourceScopeNamespaced,
 						Group: group,
 						Names: extv1.CustomResourceDefinitionNames{
 							Plural:   plural,
@@ -218,14 +219,14 @@ func TestForCompositeResource(t *testing.T) {
 							Kind:     kind,
 							ListKind: listKind,
 						},
-						Versions: []v1.CompositeResourceDefinitionVersion{{
+						Versions: []v2.CompositeResourceDefinitionVersion{{
 							Name:          version,
 							Referenceable: true,
 							Served:        true,
 						}},
 					},
 				},
-				v: &v1.CompositeResourceValidation{
+				v: &v2.CompositeResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(schema)},
 				},
 			},
@@ -235,7 +236,7 @@ func TestForCompositeResource(t *testing.T) {
 						Name:   name,
 						Labels: labels,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
+							meta.AsController(meta.TypedReferenceTo(d, v2.CompositeResourceDefinitionGroupVersionKind)),
 						},
 					},
 					Spec: extv1.CustomResourceDefinitionSpec{
@@ -463,7 +464,7 @@ func TestForCompositeResource(t *testing.T) {
 		"Legacy": {
 			reason: "A CRD should be generated from a legacy CompositeResourceDefinitionVersion.",
 			args: args{
-				v: &v1.CompositeResourceValidation{
+				v: &v2.CompositeResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(schema)},
 				},
 			},
@@ -473,7 +474,7 @@ func TestForCompositeResource(t *testing.T) {
 						Name:   name,
 						Labels: labels,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
+							meta.AsController(meta.TypedReferenceTo(d, v2.CompositeResourceDefinitionGroupVersionKind)),
 						},
 					},
 					Spec: extv1.CustomResourceDefinitionSpec{
@@ -721,14 +722,14 @@ func TestForCompositeResource(t *testing.T) {
 		"DefaultCompositionUpdatePolicyIsSet": {
 			reason: "A CRD should be generated from a CompositeResourceDefinitionVersion.",
 			args: args{
-				xrd: &v1.CompositeResourceDefinition{
+				xrd: &v2.CompositeResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        name,
 						Labels:      labels,
 						Annotations: annotations,
 						UID:         types.UID("you-you-eye-dee"),
 					},
-					Spec: v1.CompositeResourceDefinitionSpec{
+					Spec: v2.CompositeResourceDefinitionSpec{
 						Group: group,
 						Names: extv1.CustomResourceDefinitionNames{
 							Plural:   plural,
@@ -736,7 +737,7 @@ func TestForCompositeResource(t *testing.T) {
 							Kind:     kind,
 							ListKind: listKind,
 						},
-						Versions: []v1.CompositeResourceDefinitionVersion{{
+						Versions: []v2.CompositeResourceDefinitionVersion{{
 							Name:          version,
 							Referenceable: true,
 							Served:        true,
@@ -744,7 +745,7 @@ func TestForCompositeResource(t *testing.T) {
 						DefaultCompositionUpdatePolicy: &defaultCompositionUpdatePolicy,
 					},
 				},
-				v: &v1.CompositeResourceValidation{
+				v: &v2.CompositeResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(schema)},
 				},
 			},
@@ -754,7 +755,7 @@ func TestForCompositeResource(t *testing.T) {
 						Name:   name,
 						Labels: labels,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
+							meta.AsController(meta.TypedReferenceTo(d, v2.CompositeResourceDefinitionGroupVersionKind)),
 						},
 					},
 					Spec: extv1.CustomResourceDefinitionSpec{
@@ -1003,7 +1004,7 @@ func TestForCompositeResource(t *testing.T) {
 		"EmptyOpenAPIV3Schema": {
 			reason: "A CRD should be generated from a CompositeResourceDefinitionVersion when schema is empty.",
 			args: args{
-				v: &v1.CompositeResourceValidation{
+				v: &v2.CompositeResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(`{}`)},
 				},
 			},
@@ -1013,7 +1014,7 @@ func TestForCompositeResource(t *testing.T) {
 						Name:   name,
 						Labels: labels,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
+							meta.AsController(meta.TypedReferenceTo(d, v2.CompositeResourceDefinitionGroupVersionKind)),
 						},
 					},
 					Spec: extv1.CustomResourceDefinitionSpec{
@@ -1225,7 +1226,7 @@ func TestForCompositeResource(t *testing.T) {
 		"RestrictingNameLength": {
 			reason: "A CRD should be generated from a CompositeResourceDefinitionVersion.",
 			args: args{
-				v: &v1.CompositeResourceValidation{
+				v: &v2.CompositeResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(strings.Replace(schema, `"spec":`, `"metadata":{"type":"object","properties":{"name":{"type":"string","maxLength":10}}},"spec":`, 1))},
 				},
 			},
@@ -1235,7 +1236,7 @@ func TestForCompositeResource(t *testing.T) {
 						Name:   name,
 						Labels: labels,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
+							meta.AsController(meta.TypedReferenceTo(d, v2.CompositeResourceDefinitionGroupVersionKind)),
 						},
 					},
 					Spec: extv1.CustomResourceDefinitionSpec{
@@ -1483,7 +1484,7 @@ func TestForCompositeResource(t *testing.T) {
 		"WeaklyRestrictingNameLength": {
 			reason: "A CRD should be generated from a CompositeResourceDefinitionVersion.",
 			args: args{
-				v: &v1.CompositeResourceValidation{
+				v: &v2.CompositeResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(strings.Replace(schema, `"spec":`, `"metadata":{"type":"object","properties":{"name":{"type":"string","maxLength":100}}},"spec":`, 1))},
 				},
 			},
@@ -1493,7 +1494,7 @@ func TestForCompositeResource(t *testing.T) {
 						Name:   name,
 						Labels: labels,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
+							meta.AsController(meta.TypedReferenceTo(d, v2.CompositeResourceDefinitionGroupVersionKind)),
 						},
 					},
 					Spec: extv1.CustomResourceDefinitionSpec{
@@ -1751,7 +1752,7 @@ func TestForCompositeResource(t *testing.T) {
 		"PreserveUnknownFieldsInSpec": {
 			reason: "A CRD should set PreserveUnknownFields based on the XRD PreserveUnknownFields.",
 			args: args{
-				v: &v1.CompositeResourceValidation{
+				v: &v2.CompositeResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(strings.Replace(schema, `"spec": {`, `"spec": { "x-kubernetes-preserve-unknown-fields": true,`, 1))},
 				},
 			},
@@ -1761,7 +1762,7 @@ func TestForCompositeResource(t *testing.T) {
 						Name:   name,
 						Labels: labels,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
+							meta.AsController(meta.TypedReferenceTo(d, v2.CompositeResourceDefinitionGroupVersionKind)),
 						},
 					},
 					Spec: extv1.CustomResourceDefinitionSpec{
@@ -2014,7 +2015,7 @@ func TestForCompositeResource(t *testing.T) {
 			// TODO(negz): This is surprising - refactor it. We should always
 			// pass the xrd as an argument, not default it here. Same with the
 			// version.
-			var xrd *v1.CompositeResourceDefinition
+			var xrd *v2.CompositeResourceDefinition
 			if tc.args.xrd != nil {
 				xrd = tc.args.xrd
 			} else {
@@ -2035,16 +2036,16 @@ func TestForCompositeResource(t *testing.T) {
 
 func TestValidateClaimNames(t *testing.T) {
 	cases := map[string]struct {
-		d    *v1.CompositeResourceDefinition
+		d    *v2.CompositeResourceDefinition
 		want error
 	}{
 		"MissingClaimNames": {
-			d:    &v1.CompositeResourceDefinition{},
+			d:    &v2.CompositeResourceDefinition{},
 			want: errors.New(errMissingClaimNames),
 		},
 		"KindConflict": {
-			d: &v1.CompositeResourceDefinition{
-				Spec: v1.CompositeResourceDefinitionSpec{
+			d: &v2.CompositeResourceDefinition{
+				Spec: v2.CompositeResourceDefinitionSpec{
 					ClaimNames: &extv1.CustomResourceDefinitionNames{
 						Kind:     "a",
 						ListKind: "a",
@@ -2062,8 +2063,8 @@ func TestValidateClaimNames(t *testing.T) {
 			want: errors.Errorf(errFmtConflictingClaimName, "a"),
 		},
 		"ListKindConflict": {
-			d: &v1.CompositeResourceDefinition{
-				Spec: v1.CompositeResourceDefinitionSpec{
+			d: &v2.CompositeResourceDefinition{
+				Spec: v2.CompositeResourceDefinitionSpec{
 					ClaimNames: &extv1.CustomResourceDefinitionNames{
 						Kind:     "a",
 						ListKind: "a",
@@ -2081,8 +2082,8 @@ func TestValidateClaimNames(t *testing.T) {
 			want: errors.Errorf(errFmtConflictingClaimName, "a"),
 		},
 		"SingularConflict": {
-			d: &v1.CompositeResourceDefinition{
-				Spec: v1.CompositeResourceDefinitionSpec{
+			d: &v2.CompositeResourceDefinition{
+				Spec: v2.CompositeResourceDefinitionSpec{
 					ClaimNames: &extv1.CustomResourceDefinitionNames{
 						Kind:     "a",
 						ListKind: "a",
@@ -2100,8 +2101,8 @@ func TestValidateClaimNames(t *testing.T) {
 			want: errors.Errorf(errFmtConflictingClaimName, "a"),
 		},
 		"PluralConflict": {
-			d: &v1.CompositeResourceDefinition{
-				Spec: v1.CompositeResourceDefinitionSpec{
+			d: &v2.CompositeResourceDefinition{
+				Spec: v2.CompositeResourceDefinitionSpec{
 					ClaimNames: &extv1.CustomResourceDefinitionNames{
 						Kind:     "a",
 						ListKind: "a",
@@ -2202,19 +2203,19 @@ func TestForCompositeResourceClaim(t *testing.T) {
 
 	cases := map[string]struct {
 		reason string
-		crd    *v1.CompositeResourceDefinition
+		crd    *v2.CompositeResourceDefinition
 		want   *extv1.CustomResourceDefinition
 	}{
 		"CompositeDeletionPolicyUnspecified": {
 			reason: "If default composite deletion unspecified on XRD, set no default value on claim's spec.compositeDeletionPolicy",
-			crd: &v1.CompositeResourceDefinition{
+			crd: &v2.CompositeResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        name,
 					Labels:      labels,
 					Annotations: annotations,
 					UID:         types.UID("you-you-eye-dee"),
 				},
-				Spec: v1.CompositeResourceDefinitionSpec{
+				Spec: v2.CompositeResourceDefinitionSpec{
 					Group: group,
 					Names: extv1.CustomResourceDefinitionNames{
 						Plural:   plural,
@@ -2228,11 +2229,11 @@ func TestForCompositeResourceClaim(t *testing.T) {
 						Kind:     claimKind,
 						ListKind: claimListKind,
 					},
-					Versions: []v1.CompositeResourceDefinitionVersion{{
+					Versions: []v2.CompositeResourceDefinitionVersion{{
 						Name:          version,
 						Referenceable: true,
 						Served:        true,
-						Schema: &v1.CompositeResourceValidation{
+						Schema: &v2.CompositeResourceValidation{
 							OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(schema)},
 						},
 					}},
@@ -2244,7 +2245,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 					Name:   claimPlural + "." + group,
 					Labels: labels,
 					OwnerReferences: []metav1.OwnerReference{
-						meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
+						meta.AsController(meta.TypedReferenceTo(d, v2.CompositeResourceDefinitionGroupVersionKind)),
 					},
 				},
 				Spec: extv1.CustomResourceDefinitionSpec{
@@ -2463,14 +2464,14 @@ func TestForCompositeResourceClaim(t *testing.T) {
 		},
 		"CompositeDeletionPolicySetToDefault": {
 			reason: "Propagate default composite deletion set on XRD as the default value on claim's spec.compositeDeletionPolicy",
-			crd: &v1.CompositeResourceDefinition{
+			crd: &v2.CompositeResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        name,
 					Labels:      labels,
 					Annotations: annotations,
 					UID:         types.UID("you-you-eye-dee"),
 				},
-				Spec: v1.CompositeResourceDefinitionSpec{
+				Spec: v2.CompositeResourceDefinitionSpec{
 					Group:                        group,
 					DefaultCompositeDeletePolicy: &defaultPolicy,
 					Names: extv1.CustomResourceDefinitionNames{
@@ -2485,11 +2486,11 @@ func TestForCompositeResourceClaim(t *testing.T) {
 						Kind:     claimKind,
 						ListKind: claimListKind,
 					},
-					Versions: []v1.CompositeResourceDefinitionVersion{{
+					Versions: []v2.CompositeResourceDefinitionVersion{{
 						Name:          version,
 						Referenceable: true,
 						Served:        true,
-						Schema: &v1.CompositeResourceValidation{
+						Schema: &v2.CompositeResourceValidation{
 							OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(schema)},
 						},
 					}},
@@ -2501,7 +2502,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 					Name:   claimPlural + "." + group,
 					Labels: labels,
 					OwnerReferences: []metav1.OwnerReference{
-						meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
+						meta.AsController(meta.TypedReferenceTo(d, v2.CompositeResourceDefinitionGroupVersionKind)),
 					},
 				},
 				Spec: extv1.CustomResourceDefinitionSpec{
@@ -2755,14 +2756,14 @@ func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
 
 	schema := "{}"
 
-	d := &v1.CompositeResourceDefinition{
+	d := &v2.CompositeResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Labels:      labels,
 			Annotations: annotations,
 			UID:         types.UID("you-you-eye-dee"),
 		},
-		Spec: v1.CompositeResourceDefinitionSpec{
+		Spec: v2.CompositeResourceDefinitionSpec{
 			Group: group,
 			Names: extv1.CustomResourceDefinitionNames{
 				Plural:   plural,
@@ -2776,11 +2777,11 @@ func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
 				Kind:     claimKind,
 				ListKind: claimListKind,
 			},
-			Versions: []v1.CompositeResourceDefinitionVersion{{
+			Versions: []v2.CompositeResourceDefinitionVersion{{
 				Name:          version,
 				Referenceable: true,
 				Served:        true,
-				Schema: &v1.CompositeResourceValidation{
+				Schema: &v2.CompositeResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(schema)},
 				},
 			}},
@@ -2792,7 +2793,7 @@ func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
 			Name:   claimPlural + "." + group,
 			Labels: labels,
 			OwnerReferences: []metav1.OwnerReference{
-				meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
+				meta.AsController(meta.TypedReferenceTo(d, v2.CompositeResourceDefinitionGroupVersionKind)),
 			},
 		},
 		Spec: extv1.CustomResourceDefinitionSpec{
@@ -2998,7 +2999,7 @@ func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
 func TestSetCrdMetadata(t *testing.T) {
 	type args struct {
 		crd *extv1.CustomResourceDefinition
-		xrd *v1.CompositeResourceDefinition
+		xrd *v2.CompositeResourceDefinition
 	}
 	tests := map[string]struct {
 		reason string
@@ -3013,14 +3014,14 @@ func TestSetCrdMetadata(t *testing.T) {
 						Name: "test",
 					},
 				},
-				xrd: &v1.CompositeResourceDefinition{
+				xrd: &v2.CompositeResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test",
 						Annotations: map[string]string{
 							"example.com/some-xrd-annotation": "not-propagated",
 						},
 					},
-					Spec: v1.CompositeResourceDefinitionSpec{Metadata: &v1.CompositeResourceDefinitionSpecMetadata{
+					Spec: v2.CompositeResourceDefinitionSpec{Metadata: &v2.CompositeResourceDefinitionSpecMetadata{
 						Annotations: map[string]string{
 							"cert-manager.io/inject-ca-from": "example1-ns/webhook1-certificate",
 						},
@@ -3044,11 +3045,11 @@ func TestSetCrdMetadata(t *testing.T) {
 						Name: "test",
 					},
 				},
-				xrd: &v1.CompositeResourceDefinition{
+				xrd: &v2.CompositeResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test",
 					},
-					Spec: v1.CompositeResourceDefinitionSpec{Metadata: &v1.CompositeResourceDefinitionSpecMetadata{
+					Spec: v2.CompositeResourceDefinitionSpec{Metadata: &v2.CompositeResourceDefinitionSpecMetadata{
 						Labels: map[string]string{
 							"example.com/some-crd-label":            "value1",
 							"example.com/some-additional-crd-label": "value2",
@@ -3074,7 +3075,7 @@ func TestSetCrdMetadata(t *testing.T) {
 						Name: "test",
 					},
 				},
-				xrd: &v1.CompositeResourceDefinition{
+				xrd: &v2.CompositeResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test",
 						Labels: map[string]string{
@@ -3082,7 +3083,7 @@ func TestSetCrdMetadata(t *testing.T) {
 							"example.com/some-additional-xrd-label": "value2",
 						},
 					},
-					Spec: v1.CompositeResourceDefinitionSpec{Metadata: &v1.CompositeResourceDefinitionSpecMetadata{
+					Spec: v2.CompositeResourceDefinitionSpec{Metadata: &v2.CompositeResourceDefinitionSpecMetadata{
 						Labels: map[string]string{
 							"example.com/some-crd-label":            "value3",
 							"example.com/some-additional-crd-label": "value4",
@@ -3110,7 +3111,7 @@ func TestSetCrdMetadata(t *testing.T) {
 						Name: "test",
 					},
 				},
-				xrd: &v1.CompositeResourceDefinition{
+				xrd: &v2.CompositeResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test",
 						Annotations: map[string]string{
@@ -3122,7 +3123,7 @@ func TestSetCrdMetadata(t *testing.T) {
 							"example.com/some-additional-xrd-label": "value2",
 						},
 					},
-					Spec: v1.CompositeResourceDefinitionSpec{Metadata: &v1.CompositeResourceDefinitionSpecMetadata{
+					Spec: v2.CompositeResourceDefinitionSpec{Metadata: &v2.CompositeResourceDefinitionSpecMetadata{
 						Annotations: map[string]string{
 							"example.com/some-crd-annotation":                  "value1",
 							"example.com/some-additional-crd-label-annotation": "value2",
@@ -3158,7 +3159,7 @@ func TestSetCrdMetadata(t *testing.T) {
 						Name: "test",
 					},
 				},
-				xrd: &v1.CompositeResourceDefinition{
+				xrd: &v2.CompositeResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test",
 					},
