@@ -72,8 +72,8 @@ func TestFunctionCompose(t *testing.T) {
 		req CompositionRequest
 	}
 	type want struct {
-		res CompositionResult
-		err error
+		res  CompositionResult
+		errs []error
 	}
 
 	cases := map[string]struct {
@@ -99,7 +99,7 @@ func TestFunctionCompose(t *testing.T) {
 				req: CompositionRequest{Revision: &v1.CompositionRevision{}},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errFetchXRConnectionDetails),
+				errs: []error{errors.Wrap(errBoom, errFetchXRConnectionDetails)},
 			},
 		},
 		"GetComposedResourcesError": {
@@ -119,7 +119,7 @@ func TestFunctionCompose(t *testing.T) {
 				req: CompositionRequest{Revision: &v1.CompositionRevision{}},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errGetExistingCDs),
+				errs: []error{errors.Wrap(errBoom, errGetExistingCDs)},
 			},
 		},
 		"UnmarshalFunctionInputError": {
@@ -151,7 +151,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errProtoSyntax, errFmtUnmarshalPipelineStepInput, "run-cool-function"),
+				errs: []error{errors.Wrapf(errProtoSyntax, errFmtUnmarshalPipelineStepInput, "run-cool-function")},
 			},
 		},
 		"GetCredentialsSecretError": {
@@ -200,7 +200,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errFmtGetCredentialsFromSecret, "run-cool-function", "cool-secret"),
+				errs: []error{errors.Wrapf(errBoom, errFmtGetCredentialsFromSecret, "run-cool-function", "cool-secret")},
 			},
 		},
 		"RunFunctionError": {
@@ -234,7 +234,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errFmtRunPipelineStep, "run-cool-function"),
+				errs: []error{errors.Wrapf(errBoom, errFmtRunPipelineStep, "run-cool-function")},
 			},
 		},
 		"FatalFunctionResultError": {
@@ -315,7 +315,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Errorf(errFmtFatalResult, "run-cool-function", "oh no"),
+				errs: []error{errors.Errorf(errFmtFatalResult, "run-cool-function", "oh no")},
 				res: CompositionResult{
 					Events: []TargetedEvent{
 						// The event with minimum values.
@@ -366,6 +366,10 @@ func TestFunctionCompose(t *testing.T) {
 		"RenderComposedResourceMetadataError": {
 			reason: "We should return any error we encounter when rendering composed resource metadata",
 			params: params{
+				c: &test.MockClient{
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
@@ -405,14 +409,16 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(RenderComposedResourceMetadata(nil, composite.New(), ""), errFmtRenderMetadata, "cool-resource"),
+				errs: []error{errors.Wrapf(RenderComposedResourceMetadata(nil, composite.New(), ""), errFmtRenderMetadata, "cool-resource")},
 			},
 		},
 		"InvalidNameCreateComposedResourceError": {
 			reason: "We should return an error when a resource has an invalid name",
 			params: params{
 				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(errBoom),
+					MockGet:         test.NewMockGetFn(errBoom),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -459,14 +465,16 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Errorf(errFmtInvalidName, "cool-resource", "%!(cool)-resource"),
+				errs: []error{errors.Errorf(errFmtInvalidName, "cool-resource", "%!(cool)-resource")},
 			},
 		},
 		"GenerateNameCreateComposedResourceError": {
 			reason: "We should return any error we encounter when naming a composed resource",
 			params: params{
 				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(errBoom),
+					MockGet:         test.NewMockGetFn(errBoom),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -512,7 +520,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: &xerrors.ComposedResourceError{
+				errs: []error{xerrors.ComposedResourceError{
 					Message: fmt.Sprintf(errFmtGenerateName, "cool-resource"),
 					Composed: &composed.Unstructured{
 						Unstructured: unstructured.Unstructured{
@@ -526,14 +534,15 @@ func TestFunctionCompose(t *testing.T) {
 						},
 					},
 					Err: errBoom,
-				},
+				}},
 			},
 		},
 		"GarbageCollectComposedResourcesError": {
 			reason: "We should return any error we encounter when garbage collecting composed resources",
 			params: params{
 				c: &test.MockClient{
-					MockPatch: test.NewMockPatchFn(nil),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -570,7 +579,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errGarbageCollectCDs),
+				errs: []error{errors.Wrap(errBoom, errGarbageCollectCDs)},
 			},
 		},
 		"ApplyXRResourceReferencesError": {
@@ -586,6 +595,7 @@ func TestFunctionCompose(t *testing.T) {
 						}
 						return nil
 					}),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -622,7 +632,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errApplyXRRefs),
+				errs: []error{errors.Wrap(errBoom, errApplyXRRefs)},
 			},
 		},
 		"ApplyXRStatusError": {
@@ -676,7 +686,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errApplyXRStatus),
+				errs: []error{errors.Wrap(errBoom, errApplyXRStatus)},
 			},
 		},
 		"ApplyComposedResourceError": {
@@ -741,7 +751,18 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errFmtApplyCD, "uncool-resource"),
+				errs: []error{xerrors.ComposedResourceError{
+					Message: fmt.Sprintf(errFmtApplyCD, "uncool-resource"),
+					Composed: &composed.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "test.crossplane.io/v1",
+								"kind":       "UncoolComposed",
+							},
+						},
+					},
+					Err: errBoom,
+				}},
 			},
 		},
 		"Successful": {
@@ -968,7 +989,6 @@ func TestFunctionCompose(t *testing.T) {
 					},
 					TTL: 5 * time.Minute,
 				},
-				err: nil,
 			},
 		},
 	}
@@ -976,11 +996,14 @@ func TestFunctionCompose(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewFunctionComposer(tc.params.c, tc.params.uc, tc.params.r, tc.params.o...)
-			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
+			res := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
 
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.errs, res.Errs, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
+			// Ignore the errors from result, we already compared them.
+			res.Errs = nil
 
 			// We iterate over a map to produce ComposedResources, so they're
 			// returned in random order.
