@@ -11,8 +11,8 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/test/e2e/config"
@@ -111,12 +111,12 @@ func TestLegacyUsageComposition(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
 			)).
 			Assess("UsedResourceHasInUseLabel", funcs.AllOf(
-				funcs.ComposedResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.labels[crossplane.io/in-use]", "true", func(object k8s.Object) bool {
+				funcs.ClaimComposedResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.labels[crossplane.io/in-use]", "true", func(object k8s.Object) bool {
 					return object.GetLabels()["usage"] == "used"
 				}),
 			)).
 			Assess("UsageResourceIsInInitialVersion", funcs.AllOf(
-				funcs.ComposedResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.annotations[crossplane.io/composition-resource-name]", "usage-resource", func(object k8s.Object) bool {
+				funcs.ClaimComposedResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.annotations[crossplane.io/composition-resource-name]", "usage-resource", func(object k8s.Object) bool {
 					return object.GetLabels()["version"] == "initial"
 				}),
 			)).
@@ -125,7 +125,7 @@ func TestLegacyUsageComposition(t *testing.T) {
 			).
 			Assess("OldUsageIsGoneNewOneIsComposed", funcs.AllOf(
 				funcs.ListedResourcesDeletedWithin(2*time.Minute, usageList, resources.WithLabelSelector("version=initial")),
-				funcs.ComposedResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.annotations[crossplane.io/composition-resource-name]", "usage-resource-updated", func(object k8s.Object) bool {
+				funcs.ClaimComposedResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.annotations[crossplane.io/composition-resource-name]", "usage-resource-updated", func(object k8s.Object) bool {
 					return object.GetLabels()["version"] == "updated"
 				}),
 			)).

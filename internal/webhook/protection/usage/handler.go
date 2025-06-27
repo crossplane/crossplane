@@ -36,8 +36,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	xpmeta "github.com/crossplane/crossplane-runtime/pkg/meta"
-
 	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
+
 	"github.com/crossplane/crossplane/internal/protection"
 	"github.com/crossplane/crossplane/internal/protection/usage"
 )
