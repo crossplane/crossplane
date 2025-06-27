@@ -97,9 +97,7 @@ type startCommand struct {
 
 	XpkgCacheDir string `aliases:"cache-dir" default:"/cache/xpkg" env:"XPKG_CACHE_DIR,CACHE_DIR" help:"Directory used for caching package images." short:"c"`
 
-	PackageRuntime         string `default:"Deployment" env:"PACKAGE_RUNTIME"          help:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)"`
-	PackageFunctionRuntime string `default:"Deployment" env:"PACKAGE_FUNCTION_RUNTIME" help:"The package runtime to use for Function packages"`
-	PackageProviderRuntime string `default:"Deployment" env:"PACKAGE_PROVIDER_RUNTIME" help:"The package runtime to use for Provider packages"`
+	PackageRuntime string `default:"Deployment" env:"PACKAGE_RUNTIME" help:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)"`
 
 	SyncInterval                     time.Duration `default:"1h"  help:"How often all resources will be double-checked for drift from the desired state."                      short:"s"`
 	PollInterval                     time.Duration `default:"1m"  help:"How often individual resources will be checked for drift from the desired state."`
@@ -418,39 +416,20 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	var pr pkgcontroller.ActiveRuntime
 	switch rt := pkgcontroller.PackageRuntime(c.PackageRuntime); rt {
+	case pkgcontroller.PackageRuntimeUnspecified:
+		rt = pkgcontroller.PackageRuntimeDeployment
+		fallthrough
 	case pkgcontroller.PackageRuntimeDeployment, pkgcontroller.PackageRuntimeExternal:
 		pr = pkgcontroller.NewActiveRuntime(
 			pkgcontroller.WithDefaultPackageRuntime(rt),
 		)
-	case pkgcontroller.PackageRuntimeIndependent:
-		var opts []pkgcontroller.RuntimeOption
-		// Look for Provider runtime.
-		switch rt := pkgcontroller.PackageRuntime(c.PackageProviderRuntime); rt {
-		case pkgcontroller.PackageRuntimeDeployment, pkgcontroller.PackageRuntimeExternal:
-			opts = append(opts, pkgcontroller.WithPackageRuntime(pkgv1.ProviderKind, rt))
-		case pkgcontroller.PackageRuntimeIndependent, pkgcontroller.PackageRuntimeUnspecified:
-			fallthrough
-		default:
-			return errors.Errorf("unsupported provider package runtime %q, supported runtimes are [%q, %q]",
-				c.PackageRuntime, pkgcontroller.PackageRuntimeDeployment, pkgcontroller.PackageRuntimeExternal)
-		}
-		// Look for Function runtime.
-		switch rt := pkgcontroller.PackageRuntime(c.PackageFunctionRuntime); rt {
-		case pkgcontroller.PackageRuntimeDeployment, pkgcontroller.PackageRuntimeExternal:
-			opts = append(opts, pkgcontroller.WithPackageRuntime(pkgv1.FunctionKind, rt))
-		case pkgcontroller.PackageRuntimeIndependent, pkgcontroller.PackageRuntimeUnspecified:
-			fallthrough
-		default:
-			return errors.Errorf("unsupported function package runtime %q, supported runtimes are [%q, %q]",
-				c.PackageRuntime, pkgcontroller.PackageRuntimeDeployment, pkgcontroller.PackageRuntimeExternal)
-		}
-		pr = pkgcontroller.NewActiveRuntime(opts...)
-	case pkgcontroller.PackageRuntimeUnspecified:
 	default:
-		return errors.Errorf("unsupported package runtime %q, supported runtimes are [%q, %q, %q]",
-			c.PackageRuntime, pkgcontroller.PackageRuntimeDeployment,
-			pkgcontroller.PackageRuntimeExternal,
-			pkgcontroller.PackageRuntimeIndependent)
+		pr, err = pkgcontroller.ParsePackageRuntime(string(rt))
+		if err != nil {
+			return errors.Errorf("unsupported package runtime %q, supported runtimes are [%q, %q]",
+				c.PackageRuntime, pkgcontroller.PackageRuntimeDeployment,
+				pkgcontroller.PackageRuntimeExternal)
+		}
 	}
 	log.Info("Package Runtime for Provider: " + string(pr.For(pkgv1.ProviderKind)))
 	log.Info("Package Runtime for Function: " + string(pr.For(pkgv1.FunctionKind)))
