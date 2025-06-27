@@ -155,12 +155,12 @@ func RenderClusterRoles(d *v2.CompositeResourceDefinition) []rbacv1.ClusterRole 
 		},
 	}
 
-	if d.Spec.ClaimNames != nil {
+	if d.Spec.ClaimNames != nil { //nolint:staticcheck // we are still supporting v1 XRD
 		system.Rules = append(system.Rules, rbacv1.PolicyRule{
 			APIGroups: []string{d.Spec.Group},
 			Resources: []string{
-				d.Spec.ClaimNames.Plural,
-				d.Spec.ClaimNames.Plural + suffixStatus,
+				d.Spec.ClaimNames.Plural,                //nolint:staticcheck // we are still supporting v1 XRD
+				d.Spec.ClaimNames.Plural + suffixStatus, //nolint:staticcheck // we are still supporting v1 XRD
 			},
 			Verbs: verbsEdit,
 		},
@@ -169,7 +169,7 @@ func RenderClusterRoles(d *v2.CompositeResourceDefinition) []rbacv1.ClusterRole 
 				// that block their deletion when the OwnerReferencesPermissionEnforcement admission controller is enabled.
 				APIGroups: []string{d.Spec.Group},
 				Resources: []string{
-					d.Spec.ClaimNames.Plural + suffixFinalizers,
+					d.Spec.ClaimNames.Plural + suffixFinalizers, //nolint:staticcheck // we are still supporting v1 XRD
 				},
 				Verbs: verbsUpdate,
 			},
@@ -178,8 +178,8 @@ func RenderClusterRoles(d *v2.CompositeResourceDefinition) []rbacv1.ClusterRole 
 		edit.Rules = append(edit.Rules, rbacv1.PolicyRule{
 			APIGroups: []string{d.Spec.Group},
 			Resources: []string{
-				d.Spec.ClaimNames.Plural,
-				d.Spec.ClaimNames.Plural + suffixStatus,
+				d.Spec.ClaimNames.Plural,                //nolint:staticcheck // we are still supporting v1 XRD
+				d.Spec.ClaimNames.Plural + suffixStatus, //nolint:staticcheck // we are still supporting v1 XRD
 			},
 			Verbs: verbsEdit,
 		})
@@ -187,8 +187,8 @@ func RenderClusterRoles(d *v2.CompositeResourceDefinition) []rbacv1.ClusterRole 
 		view.Rules = append(view.Rules, rbacv1.PolicyRule{
 			APIGroups: []string{d.Spec.Group},
 			Resources: []string{
-				d.Spec.ClaimNames.Plural,
-				d.Spec.ClaimNames.Plural + suffixStatus,
+				d.Spec.ClaimNames.Plural,                //nolint:staticcheck // we are still supporting v1 XRD
+				d.Spec.ClaimNames.Plural + suffixStatus, //nolint:staticcheck // we are still supporting v1 XRD
 			},
 			Verbs: verbsView,
 		})

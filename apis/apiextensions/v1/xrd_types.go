@@ -23,16 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-)
 
-// CompositeResourceScope specifies the scope of a composite resource.
-type CompositeResourceScope string
-
-// Composite resource scopes.
-const (
-	CompositeResourceScopeNamespaced    CompositeResourceScope = "Namespaced"
-	CompositeResourceScopeCluster       CompositeResourceScope = "Cluster"
-	CompositeResourceScopeLegacyCluster CompositeResourceScope = "LegacyCluster"
+	"github.com/crossplane/crossplane/apis/apiextensions/common"
 )
 
 // CompositeResourceDefinitionSpec specifies the desired state of the definition.
@@ -61,7 +53,7 @@ type CompositeResourceDefinitionSpec struct {
 	// +kubebuilder:validation:Enum=LegacyCluster;Namespaced;Cluster
 	// +kubebuilder:default=LegacyCluster
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
-	Scope *CompositeResourceScope `json:"scope,omitempty"`
+	Scope *common.CompositeResourceScope `json:"scope,omitempty"`
 
 	// ClaimNames specifies the names of an optional composite resource claim.
 	// When claim names are specified Crossplane will create a namespaced

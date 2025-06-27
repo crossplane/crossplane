@@ -796,7 +796,7 @@ func TestReconcile(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							d := obj.(*v2.CompositeResourceDefinition)
-							d.Spec.ClaimNames = &extv1.CustomResourceDefinitionNames{}
+							d.Spec.ClaimNames = &extv1.CustomResourceDefinitionNames{} //nolint:staticcheck // we are still supporting v1 XRD
 							d.Spec.Versions = []v2.CompositeResourceDefinitionVersion{
 								{Name: "old", Referenceable: false},
 								{Name: "new", Referenceable: true},
@@ -806,7 +806,7 @@ func TestReconcile(t *testing.T) {
 						}),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 							want := &v2.CompositeResourceDefinition{}
-							want.Spec.ClaimNames = &extv1.CustomResourceDefinitionNames{}
+							want.Spec.ClaimNames = &extv1.CustomResourceDefinitionNames{} //nolint:staticcheck // we are still supporting v1 XRD
 							want.Spec.Versions = []v2.CompositeResourceDefinitionVersion{
 								{Name: "old", Referenceable: false},
 								{Name: "new", Referenceable: true},

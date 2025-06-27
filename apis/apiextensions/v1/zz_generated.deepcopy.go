@@ -22,6 +22,7 @@ package v1
 
 import (
 	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane/apis/apiextensions/common"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -108,7 +109,7 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 	in.Names.DeepCopyInto(&out.Names)
 	if in.Scope != nil {
 		in, out := &in.Scope, &out.Scope
-		*out = new(CompositeResourceScope)
+		*out = new(common.CompositeResourceScope)
 		**out = **in
 	}
 	if in.ClaimNames != nil {

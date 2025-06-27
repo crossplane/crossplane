@@ -24,7 +24,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
-	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
+	"github.com/crossplane/crossplane/apis/apiextensions/common"
 )
 
 // Label keys.
@@ -75,7 +75,7 @@ func BaseProps() *extv1.JSONSchemaProps {
 
 // CompositeResourceSpecProps is a partial OpenAPIV3Schema for the spec fields
 // that Crossplane expects to be present for all defined composite resources.
-func CompositeResourceSpecProps(s v2.CompositeResourceScope, defaultPol *xpv1.UpdatePolicy) map[string]extv1.JSONSchemaProps {
+func CompositeResourceSpecProps(s common.CompositeResourceScope, defaultPol *xpv1.UpdatePolicy) map[string]extv1.JSONSchemaProps {
 	props := map[string]extv1.JSONSchemaProps{
 		"compositionRef": {
 			Type:     "object",
@@ -151,7 +151,7 @@ func CompositeResourceSpecProps(s v2.CompositeResourceScope, defaultPol *xpv1.Up
 
 	// Namespaced XRs don't get to reference composed resources in other
 	// namespaces.
-	if s == v2.CompositeResourceScopeNamespaced {
+	if s == common.CompositeResourceScopeNamespaced {
 		props["resourceRefs"] = extv1.JSONSchemaProps{
 			Type: "array",
 			Items: &extv1.JSONSchemaPropsOrArray{
@@ -172,7 +172,7 @@ func CompositeResourceSpecProps(s v2.CompositeResourceScope, defaultPol *xpv1.Up
 
 	// Legacy XRs have their Crossplane machinery fields directly under spec.
 	// They also support referencing a claim, and writing a secret.
-	if s == v2.CompositeResourceScopeLegacyCluster {
+	if s == common.CompositeResourceScopeLegacyCluster { //nolint:staticcheck // we are still supporting v1 XRD
 		props["claimRef"] = extv1.JSONSchemaProps{
 			Type:     "object",
 			Required: []string{"apiVersion", "kind", "namespace", "name"},
@@ -292,7 +292,7 @@ func CompositeResourceClaimSpecProps(defaultPol *xpv1.CompositeDeletePolicy) map
 
 // CompositeResourceStatusProps is a partial OpenAPIV3Schema for the status
 // fields that Crossplane expects to be present for all composite resources.
-func CompositeResourceStatusProps(s v2.CompositeResourceScope) map[string]extv1.JSONSchemaProps {
+func CompositeResourceStatusProps(s common.CompositeResourceScope) map[string]extv1.JSONSchemaProps {
 	props := map[string]extv1.JSONSchemaProps{
 		"conditions": {
 			Description: "Conditions of the resource.",
@@ -319,7 +319,7 @@ func CompositeResourceStatusProps(s v2.CompositeResourceScope) map[string]extv1.
 	}
 
 	switch s {
-	case v2.CompositeResourceScopeNamespaced, v2.CompositeResourceScopeCluster:
+	case common.CompositeResourceScopeNamespaced, common.CompositeResourceScopeCluster:
 		// Modern XRs use status.crossplane, and don't support claims.
 		props["crossplane"] = extv1.JSONSchemaProps{
 			Type:        "object",
@@ -333,7 +333,7 @@ func CompositeResourceStatusProps(s v2.CompositeResourceScope) map[string]extv1.
 				},
 			},
 		}
-	case v2.CompositeResourceScopeLegacyCluster:
+	case common.CompositeResourceScopeLegacyCluster: //nolint:staticcheck // we are still supporting v1 XRD
 		// Legacy XRs don't use status.crossplane, and support claims.
 		props["connectionDetails"] = extv1.JSONSchemaProps{
 			Type: "object",
@@ -357,7 +357,7 @@ func CompositeResourceStatusProps(s v2.CompositeResourceScope) map[string]extv1.
 
 // CompositeResourcePrinterColumns returns the set of default printer columns
 // that should exist in all generated composite resource CRDs.
-func CompositeResourcePrinterColumns(s v2.CompositeResourceScope) []extv1.CustomResourceColumnDefinition {
+func CompositeResourcePrinterColumns(s common.CompositeResourceScope) []extv1.CustomResourceColumnDefinition {
 	cols := []extv1.CustomResourceColumnDefinition{
 		{
 			Name:     "SYNCED",
@@ -387,7 +387,7 @@ func CompositeResourcePrinterColumns(s v2.CompositeResourceScope) []extv1.Custom
 		},
 	}
 
-	if s == v2.CompositeResourceScopeLegacyCluster {
+	if s == common.CompositeResourceScopeLegacyCluster { //nolint:staticcheck // we are still supporting v1 XRD
 		for i := range cols {
 			if cols[i].Name == "COMPOSITION" {
 				cols[i].JSONPath = ".spec.compositionRef.name"
