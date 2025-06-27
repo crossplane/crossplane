@@ -153,7 +153,7 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 // runtime spec fields to revisions.
 func WithManagingRevisionRuntimeSpec() ReconcilerOption {
 	return func(r *Reconciler) {
-		r.setPackageRuntimeSecrets = func(p v1.Package, pr v1.PackageRevision) {
+		r.setPackageRuntimeManagedFields = func(p v1.Package, pr v1.PackageRevision) {
 			pwr, pwok := p.(v1.PackageWithRuntime)
 			prwr, prok := pr.(v1.PackageRevisionWithRuntime)
 			if pwok && prok {
@@ -174,7 +174,7 @@ type Reconciler struct {
 	record     event.Recorder
 	conditions conditions.Manager
 
-	setPackageRuntimeSecrets func(p v1.Package, pr v1.PackageRevision)
+	setPackageRuntimeManagedFields func(p v1.Package, pr v1.PackageRevision)
 
 	newPackage             func() v1.Package
 	newPackageRevision     func() v1.PackageRevision
@@ -543,8 +543,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetSkipDependencyResolution(p.GetSkipDependencyResolution())
 	pr.SetCommonLabels(p.GetCommonLabels())
 
-	if r.setPackageRuntimeSecrets != nil {
-		r.setPackageRuntimeSecrets(p, pr)
+	if r.setPackageRuntimeManagedFields != nil {
+		r.setPackageRuntimeManagedFields(p, pr)
 	}
 
 	// If the current revision is not active, and we have an automatic or
