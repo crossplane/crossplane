@@ -109,6 +109,9 @@ func TestFunctionPreHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "some-service", "some-namespace", revision.ServicePort),
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: ptr.To("some-server-secret"),
+						},
 					},
 				},
 			},
