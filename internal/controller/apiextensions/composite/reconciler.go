@@ -86,6 +86,7 @@ const (
 const (
 	reasonResolve event.Reason = "SelectComposition"
 	reasonCompose event.Reason = "ComposeResources"
+	reasonRBAC    event.Reason = "RoleBasedAccessControl"
 	reasonPublish event.Reason = "PublishConnectionSecret"
 	reasonWatch   event.Reason = "WatchComposedResources"
 	reasonInit    event.Reason = "InitializeCompositeResource"
@@ -652,15 +653,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	res := r.resource.Compose(ctx, xr, CompositionRequest{Revision: rev})
 	if res.HasErrors() {
+		// Loop on each of the Composition Errors and attempt to surface the problems to the user through events and
+		// status updates.
 		for _, err := range res.Errs {
-
-			// TODO: This is not great, we can't do all of these things with the range of errors. FIX THIS
-
 			log.Debug(errCompose, "error", err)
 			if kerrors.IsConflict(err) {
-				log.Info("RequeueAfter here line 600")
 				return reconcile.Result{Requeue: true}, nil
 			}
+			err = errors.Wrap(err, errCompose)
 			r.record.Event(xr, event.Warning(reasonCompose, err))
 			if kerrors.IsInvalid(err) {
 				// API Server's invalid errors may be unstable due to pointers in
@@ -672,43 +672,36 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				// point to the event.
 				err = errors.Wrap(errors.New(errInvalidResources), errCompose)
 			}
-			if composeErr := new(xerrors.ComposedResourceError); errors.As(err, composeErr) {
-				// Things to check:
-				// - Does the CRD exist?
-				// - Do we have rights to operate on that Kind?
-
-				if r.authorizer != nil {
-					// Context is already dead at this point.
+			if r.authorizer != nil {
+				if composeErr := new(xerrors.ComposedResourceError); errors.As(err, composeErr) {
 					if ok, authErr := r.authorizer.IsAuthorizedFor(updateCtx,
 						composeErr.Composed.GetObjectKind().GroupVersionKind(),
 						composeErr.Composed.GetNamespace()); !ok {
+						r.record.Event(xr, event.Warning(reasonRBAC, authErr))
 						err = errors.Join(err, authErr)
-						r.record.Event(xr, event.Warning(reasonCompose+"Access", authErr))
 					}
 				}
 			}
+			// TODO: We will only really get to see the last error related to compositions in the status of the resource
+			// 		 but we will get all of the events, which is an improvement.
 			status.MarkConditions(xpv1.ReconcileError(err))
 
-			meta := r.handleCommonCompositionResult(updateCtx, res, xr)
+			resultMeta := r.handleCommonCompositionResult(updateCtx, res, xr)
 			// We encountered a fatal error. For any custom status conditions that were
 			// not received due to the fatal error, mark them as unknown.
 			for _, c := range xr.GetConditions() {
 				if xpv1.IsSystemConditionType(c.Type) {
 					continue
 				}
-				if !meta.conditionTypesSeen[c.Type] {
+				if !resultMeta.conditionTypesSeen[c.Type] {
 					c.Status = corev1.ConditionUnknown
 					c.Reason = reasonFatalError
 					c.Message = "A fatal error occurred before the status of this condition could be determined."
 					status.MarkConditions(c)
 				}
 			}
-			//if err := r.client.Status().Update(updateCtx, xr); err != nil {
-			//	log.Info("Failed to update status --> ", "resourceVersion", xr.GetResourceVersion(), "error", err)
-			//}
 		}
-		log.Info("RequeueAfter here line 650")
-		return reconcile.Result{RequeueAfter: time.Second * 2}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
 
 	ws := make([]engine.Watch, len(xr.GetResourceReferences()))
