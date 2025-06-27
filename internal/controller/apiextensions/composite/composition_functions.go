@@ -444,8 +444,6 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			cd.SetName(or.Resource.GetName())
 		}
 
-		cd.GroupVersionKind()
-
 		// Set standard composed resource metadata that is derived from the XR.
 		if err := RenderComposedResourceMetadata(cd, xr, ResourceName(name)); err != nil {
 			resourceErrs = append(resourceErrs, errors.Wrapf(err, errFmtRenderMetadata, name))
@@ -517,20 +515,6 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// composed resources below.
 		resourceErrs = append(resourceErrs, errors.Wrap(err, errApplyXRRefs))
 	}
-
-	// HACK HACK HACK
-	//fmt.Println("Before hack update for patch --> ", "resourceVersion", xr.GetResourceVersion())
-	//// TODO: ^^ This is a bug, this causes the downstream to fail to update status on the xr.
-	//// To address this bug, we will ask for a fresh copy of the xr.
-	//// Long term, crossplane should not store state in the spec.
-	//if err := c.client.Get(ctx, types.NamespacedName{
-	//	Namespace: xr.GetNamespace(),
-	//	Name:      xr.GetName(),
-	//}, xr); err != nil {
-	//	return CompositionResult{}, errors.Wrap(err, errUpdateAfterApplyXRRefs)
-	//}
-	//fmt.Println("After hack update for patch --> ", "resourceVersion", xr.GetResourceVersion())
-	//// HACK HACK HACK
 
 	// TODO: Remove this call to Upgrade once no supported version of Crossplane
 	// have native P&T available. We only need to upgrade field managers if the
