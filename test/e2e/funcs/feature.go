@@ -57,7 +57,6 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 )
@@ -342,6 +341,7 @@ func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv1.Condi
 		reasons := make([]string, len(cds))
 		for i := range cds {
 			reasons[i] = string(cds[i].Reason)
+			// TODO: it would be better to let message be a regular expression and match on expected vs observed.
 			if cds[i].Message != "" {
 				t.Errorf("message must not be set in ResourceHasConditionWithin: %s", cds[i].Message)
 			}

@@ -28,6 +28,7 @@ import (
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
@@ -45,8 +46,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite/watch"
@@ -104,6 +105,7 @@ type ControllerEngine interface {
 	GetCached() client.Client
 	GetUncached() client.Client
 	GetFieldIndexer() client.FieldIndexer
+	IsAuthorizedFor(ctx context.Context, gvk schema.GroupVersionKind, namespace string) (bool, error)
 }
 
 // A NopEngine does nothing.
@@ -144,6 +146,11 @@ func (e *NopEngine) GetUncached() client.Client {
 // GetFieldIndexer returns a nil field indexer.
 func (e *NopEngine) GetFieldIndexer() client.FieldIndexer {
 	return nil
+}
+
+// IsAuthorizedFor validates if this controller is allowed to control a GVK in an optional namespace.
+func (e *NopEngine) IsAuthorizedFor(_ context.Context, _ schema.GroupVersionKind, _ string) (bool, error) {
+	return false, nil
 }
 
 // A CRDRenderer renders a CompositeResourceDefinition's corresponding
@@ -529,6 +536,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			composite.WithPollInterval(0), // Disable polling.
 		)
 	}
+	ro = append(ro, composite.WithAuthorizer(r.engine))
 
 	cr := composite.NewReconciler(r.engine.GetCached(), d.GetCompositeGroupVersionKind(), ro...)
 	ko := r.options.ForControllerRuntime()

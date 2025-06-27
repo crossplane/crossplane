@@ -17,6 +17,7 @@ limitations under the License.
 package e2e
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -25,8 +26,8 @@ import (
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/test/e2e/config"
@@ -117,6 +118,36 @@ func TestBasicCompositionNamespaced(t *testing.T) {
 			Assess("XRHasStatusField",
 				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
 			).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResources(manifests, "xr.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			Feature(),
+	)
+}
+
+func TestLackOfRightsNamespaced(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/lack-of-rights-namespaced"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Test that when attempting to compose a resource the controller has insufficient rights to manage, we get correct messaging.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRHasStatusField", funcs.AllOf(
+				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
+				// A blank error is as good as we can do at the moment. This validates we get into a reconciliation error, which is better than nothing.
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "xr.yaml", xpv1.ReconcileError(errors.New(""))),
+			)).
 			WithTeardown("DeleteXR", funcs.AllOf(
 				funcs.DeleteResources(manifests, "xr.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
