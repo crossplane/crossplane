@@ -688,6 +688,27 @@ func TestImageConfigAttestationVerificationPrivateKeyless(t *testing.T) {
 	)
 }
 
+// TestCommonAnnotationsAndLabels tests that common annotations and labels are passed
+// down to the provider revision objects.
+func TestCommonAnnotationsAndLabels(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/provider"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that commonAnnotations and commonLabels are propagated down to provider revision.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("ApplyProviderWithCommonAnnotationsAndLabels", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-common-annotations-and-labels.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-common-annotations-and-labels.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-common-annotations-and-labels.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("LabelsAndAnnotationsPropagated", funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-provider-nop.yaml", "metadata.annotations.foo", "bar")).
+			Assess("LabelsAndAnnotationsPropagated", funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-provider-nop.yaml", "metadata.labels.baz", "qux")).
+			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider-common-annotations-and-labels.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "crd-provider-nop.yaml"),
+
 // TestImageConfigRewrite tests that we can install a package and its
 // dependencies from an alternative registry by rewriting image paths with the
 // ImageConfig API.

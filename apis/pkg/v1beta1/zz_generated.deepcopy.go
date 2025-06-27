@@ -878,6 +878,13 @@ func (in *PackageRevisionSpec) DeepCopyInto(out *PackageRevisionSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.CommonAnnotations != nil {
+		in, out := &in.CommonAnnotations, &out.CommonAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.CommonLabels != nil {
 		in, out := &in.CommonLabels, &out.CommonLabels
 		*out = make(map[string]string, len(*in))
@@ -975,6 +982,13 @@ func (in *PackageSpec) DeepCopyInto(out *PackageSpec) {
 		in, out := &in.SkipDependencyResolution, &out.SkipDependencyResolution
 		*out = new(bool)
 		**out = **in
+	}
+	if in.CommonAnnotations != nil {
+		in, out := &in.CommonAnnotations, &out.CommonAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 	if in.CommonLabels != nil {
 		in, out := &in.CommonLabels, &out.CommonLabels
