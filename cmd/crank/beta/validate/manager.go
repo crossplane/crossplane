@@ -127,7 +127,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 
 			m.crds = append(m.crds, crd)
 
-			if xrd.Spec.ClaimNames != nil {
+			if xrd.Spec.ClaimNames != nil { //nolint:staticcheck // we are still supporting v1 XRD
 				claimCrd, err := xcrd.ForCompositeResourceClaim(xrd)
 				if err != nil {
 					return errors.Wrapf(err, "cannot derive claim CRD from XRD %q", xrd.GetName())

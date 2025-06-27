@@ -32,6 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
+	"github.com/crossplane/crossplane/apis/apiextensions/common"
 	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 )
 
@@ -70,15 +71,15 @@ func ForCompositeResource(xrd *v2.CompositeResourceDefinition) (*extv1.CustomRes
 
 	scope := xrd.Spec.Scope
 	if scope == "" {
-		scope = v2.CompositeResourceScopeLegacyCluster
+		scope = common.CompositeResourceScopeLegacyCluster //nolint:staticcheck // we are still supporting v1 XRD
 	}
 
 	switch scope {
-	case v2.CompositeResourceScopeNamespaced:
+	case common.CompositeResourceScopeNamespaced:
 		crd.Spec.Scope = extv1.NamespaceScoped
-	case v2.CompositeResourceScopeCluster:
+	case common.CompositeResourceScopeCluster:
 		crd.Spec.Scope = extv1.ClusterScoped
-	case v2.CompositeResourceScopeLegacyCluster:
+	case common.CompositeResourceScopeLegacyCluster: //nolint:staticcheck // we are still supporting v1 XRD
 		crd.Spec.Scope = extv1.ClusterScoped
 	}
 
@@ -123,13 +124,13 @@ func ForCompositeResourceClaim(xrd *v2.CompositeResourceDefinition) (*extv1.Cust
 		Spec: extv1.CustomResourceDefinitionSpec{
 			Scope:      extv1.NamespaceScoped,
 			Group:      xrd.Spec.Group,
-			Names:      *xrd.Spec.ClaimNames,
+			Names:      *xrd.Spec.ClaimNames, //nolint:staticcheck // we are still supporting v1 XRD
 			Versions:   make([]extv1.CustomResourceDefinitionVersion, len(xrd.Spec.Versions)),
 			Conversion: xrd.Spec.Conversion,
 		},
 	}
 
-	crd.SetName(xrd.Spec.ClaimNames.Plural + "." + xrd.Spec.Group)
+	crd.SetName(xrd.Spec.ClaimNames.Plural + "." + xrd.Spec.Group) //nolint:staticcheck // we are still supporting v1 XRD
 	setCrdMetadata(crd, xrd)
 	crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
 		meta.TypedReferenceTo(xrd, v2.CompositeResourceDefinitionGroupVersionKind),
@@ -150,13 +151,13 @@ func ForCompositeResourceClaim(xrd *v2.CompositeResourceDefinition) (*extv1.Cust
 
 		crdv.AdditionalPrinterColumns = append(crdv.AdditionalPrinterColumns, CompositeResourceClaimPrinterColumns()...)
 
-		props := CompositeResourceClaimSpecProps(xrd.Spec.DefaultCompositeDeletePolicy)
+		props := CompositeResourceClaimSpecProps(xrd.Spec.DefaultCompositeDeletePolicy) //nolint:staticcheck // we are still supporting v1 XRD
 		for k, v := range props {
 			crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
 		// TODO(negz): This means claims will have status.claimConditionTypes.
 		// I think that's a bug - only XRs should have that field.
-		props = CompositeResourceStatusProps(v2.CompositeResourceScopeLegacyCluster)
+		props = CompositeResourceStatusProps(common.CompositeResourceScopeLegacyCluster) //nolint:staticcheck // we are still supporting v1 XRD
 		for k, v := range props {
 			crdv.Schema.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
@@ -237,23 +238,23 @@ func genCrdVersion(vr v2.CompositeResourceDefinitionVersion, maxNameLength int64
 }
 
 func validateClaimNames(d *v2.CompositeResourceDefinition) error {
-	if d.Spec.ClaimNames == nil {
+	if d.Spec.ClaimNames == nil { //nolint:staticcheck // we are still supporting v1 XRD
 		return errors.New(errMissingClaimNames)
 	}
 
-	if n := d.Spec.ClaimNames.Kind; n == d.Spec.Names.Kind {
+	if n := d.Spec.ClaimNames.Kind; n == d.Spec.Names.Kind { //nolint:staticcheck // we are still supporting v1 XRD
 		return errors.Errorf(errFmtConflictingClaimName, n)
 	}
 
-	if n := d.Spec.ClaimNames.Plural; n == d.Spec.Names.Plural {
+	if n := d.Spec.ClaimNames.Plural; n == d.Spec.Names.Plural { //nolint:staticcheck // we are still supporting v1 XRD
 		return errors.Errorf(errFmtConflictingClaimName, n)
 	}
 
-	if n := d.Spec.ClaimNames.Singular; n != "" && n == d.Spec.Names.Singular {
+	if n := d.Spec.ClaimNames.Singular; n != "" && n == d.Spec.Names.Singular { //nolint:staticcheck // we are still supporting v1 XRD
 		return errors.Errorf(errFmtConflictingClaimName, n)
 	}
 
-	if n := d.Spec.ClaimNames.ListKind; n != "" && n == d.Spec.Names.ListKind {
+	if n := d.Spec.ClaimNames.ListKind; n != "" && n == d.Spec.Names.ListKind { //nolint:staticcheck // we are still supporting v1 XRD
 		return errors.Errorf(errFmtConflictingClaimName, n)
 	}
 
