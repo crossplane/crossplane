@@ -28,7 +28,6 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
-	v2alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	"github.com/crossplane/crossplane/internal/version"
 )
@@ -185,7 +184,7 @@ func IsValidatingWebhookConfiguration(o runtime.Object) error {
 // IsXRD checks that an object is a CompositeResourceDefinition.
 func IsXRD(o runtime.Object) error {
 	switch o.(type) {
-	case *v1.CompositeResourceDefinition, *v2.CompositeResourceDefinition, *v2alpha1.CompositeResourceDefinition:
+	case *v1.CompositeResourceDefinition, *v2.CompositeResourceDefinition:
 		return nil
 	default:
 		return errors.New(errNotXRD)
