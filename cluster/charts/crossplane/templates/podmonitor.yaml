@@ -1,0 +1,45 @@
+{{- if and .Values.metrics.enabled .Values.metrics.podMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  labels:
+    app: {{ template "crossplane.name" . }}
+    release: {{ .Release.Name }}
+    {{- include "crossplane.labels" . | indent 4 }}
+  name: {{ template "crossplane.name" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  jobLabel: {{ template "crossplane.name" . }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+  podMetricsEndpoints:
+  - path: /metrics
+    port: metrics
+  selector:
+    matchLabels:
+      app: {{ template "crossplane.name" . }}
+{{- if .Values.rbacManager.deploy }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  labels:
+    app: {{ template "crossplane.name" . }}-rbac-manager
+    release: {{ .Release.Name }}
+    {{- include "crossplane.labels" . | indent 4 }}
+  name: {{ template "crossplane.name" . }}-rbac-manager
+  namespace: {{ .Release.Namespace }}
+spec:
+  jobLabel: {{ template "crossplane.name" . }}-rbac-manager
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+  podMetricsEndpoints:
+  - path: /metrics
+    port: metrics
+  selector:
+    matchLabels:
+      app: {{ template "crossplane.name" . }}-rbac-manager
+{{- end }}
+{{- end}}
