@@ -82,6 +82,11 @@ spec:
                   must be a fully qualified image name, including the registry,
                   repository, and tag. for example, "registry.example.com/repo/package:tag".
                 type: string
+                x-kubernetes-validations:
+                - message: must be a fully qualified image name, including the registry,
+                    repository, and tag or digest. For example, 'registry.example.com/repo/package:tag'
+                    or 'registry.example.com/repo/package[:tag]@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'.
+                  rule: self.matches('^[^\\.\\/]+(\\.[^\\.\\/]+)+(\\/[^\\/:@]+)+(:[^:@]+(@sha256.+)?|@sha256.+)$')
               packagePullPolicy:
                 default: IfNotPresent
                 description: |-
@@ -318,6 +323,11 @@ spec:
                   must be a fully qualified image name, including the registry,
                   repository, and tag. for example, "registry.example.com/repo/package:tag".
                 type: string
+                x-kubernetes-validations:
+                - message: must be a fully qualified image name, including the registry,
+                    repository, and tag or digest. For example, 'registry.example.com/repo/package:tag'
+                    or 'registry.example.com/repo/package[:tag]@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'.
+                  rule: self.matches('^[^\\.\\/]+(\\.[^\\.\\/]+)+(\\/[^\\/:@]+)+(:[^:@]+(@sha256.+)?|@sha256.+)$')
               packagePullPolicy:
                 default: IfNotPresent
                 description: |-
