@@ -1,0 +1,30 @@
+apiVersion: apiextensions.crossplane.io/v2alpha1
+kind: CompositeResourceDefinition
+metadata:
+  name: tests.example.org
+spec:
+  scope: Namespaced
+  group: example.org
+  names:
+    kind: Test
+    plural: tests
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+     openAPIV3Schema:
+       type: object
+       properties:
+        spec:
+          type: object
+          properties:
+            coolField:
+              type: string
+          required:
+          - coolField
+        status:
+          type: object
+          properties:
+            coolerField:
+              type: string
