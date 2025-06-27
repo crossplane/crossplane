@@ -125,7 +125,7 @@ considered out of scope.
   <tr>
     <td>Package installed to extend Crossplane's API</td>
     <td>Platform engineer, package manager, RBAC manager</td>
-    <td>A platform engineer creates a cluster scoped <code>Provider</code>, <code>Function</code>, or <code>Configuration</code> object that points to a Crossplane package, i.e. an OCI image such as <code>xpkg.upbound.io/crossplane-contrib/provider-argocd:v0.9.1</code>.
+    <td>A platform engineer creates a cluster scoped <code>Provider</code>, <code>Function</code>, or <code>Configuration</code> object that points to a Crossplane package, i.e. an OCI image such as <code>xpkg.crossplane.io/crossplane-contrib/provider-argocd:v0.12.0</code>.
         The Package Manager's controllers reconcile this desired state by downloading the OCI image from the given registry.
         The contents of the image are parsed and all objects of allowed types (e.g. CRDs, XRDs, Compositions, etc.) are applied to the API server.
         A <code>Deployment</code> manifest is constructed to run the OCI image as a workload in the control plane, and then applied to the API server.

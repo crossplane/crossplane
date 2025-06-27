@@ -127,7 +127,7 @@ func TestPackageRevisioner(t *testing.T) {
 					},
 					Spec: v1.ProviderSpec{
 						PackageSpec: v1.PackageSpec{
-							Package:           "xpkg.upbound.io/crossplane/provider-aws:latest",
+							Package:           "xpkg.crossplane.io/crossplane/provider-aws:latest",
 							PackagePullPolicy: &pullIfNotPresent,
 						},
 					},

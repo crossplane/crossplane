@@ -250,7 +250,7 @@ func TestLoadFunctions(t *testing.T) {
 						},
 						Spec: pkgv1.FunctionSpec{
 							PackageSpec: pkgv1.PackageSpec{
-								Package: "xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.1.2",
+								Package: "xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.1.2",
 							},
 						},
 					},
@@ -268,7 +268,7 @@ func TestLoadFunctions(t *testing.T) {
 						},
 						Spec: pkgv1.FunctionSpec{
 							PackageSpec: pkgv1.PackageSpec{
-								Package: "xpkg.upbound.io/crossplane-contrib/function-dummy:v0.2.1",
+								Package: "xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.2.1",
 							},
 						},
 					},
@@ -287,7 +287,7 @@ func TestLoadFunctions(t *testing.T) {
 						},
 						Spec: pkgv1.FunctionSpec{
 							PackageSpec: pkgv1.PackageSpec{
-								Package: "xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.1.2",
+								Package: "xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.1.2",
 							},
 						},
 					},

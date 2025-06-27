@@ -38,8 +38,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	"github.com/crossplane/crossplane/internal/xpkg"
-	"github.com/crossplane/crossplane/internal/xpkg/upbound"
-	"github.com/crossplane/crossplane/internal/xpkg/upbound/credhelper"
 )
 
 const (
@@ -63,10 +61,8 @@ type pushCmd struct {
 	Package string `arg:"" help:"Where to push the package."`
 
 	// Flags. Keep sorted alphabetically.
-	PackageFiles []string `help:"A comma-separated list of xpkg files to push." placeholder:"PATH" predictor:"xpkg_file" short:"f" type:"existingfile"`
-
-	// Common Upbound API configuration.
-	upbound.Flags `embed:""`
+	InsecureSkipTLSVerify bool     `help:"[INSECURE] Skip verifying TLS certificates."`
+	PackageFiles          []string `help:"A comma-separated list of xpkg files to push." placeholder:"PATH" predictor:"xpkg_file" short:"f" type:"existingfile"`
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
 	fs afero.Fs
@@ -74,8 +70,7 @@ type pushCmd struct {
 
 func (c *pushCmd) Help() string {
 	return `
-Packages can be pushed to any OCI registry. Packages are pushed to the
-xpkg.upbound.io registry by default. A package's OCI tag must be a semantic
+Packages can be pushed to any OCI registry. A package's OCI tag must be a semantic
 version. Credentials for the registry are automatically retrieved from xpkg login 
 and dockers configuration as fallback.
 
@@ -97,11 +92,6 @@ func (c *pushCmd) AfterApply() error {
 
 // Run runs the push cmd.
 func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This feels easier to read as-is.
-	upCtx, err := upbound.NewFromFlags(c.Flags, upbound.AllowMissingProfile())
-	if err != nil {
-		return err
-	}
-
 	tag, err := name.NewTag(c.Package, name.WithDefaultRegistry(xpkg.DefaultRegistry))
 	if err != nil {
 		return errors.Wrapf(err, errFmtNewTag, c.Package)
@@ -122,23 +112,14 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 		logger.Debug("Found package in directory", "path", path)
 	}
 
-	kc := authn.NewMultiKeychain(
-		authn.NewKeychainFromHelper(credhelper.New(
-			credhelper.WithLogger(logger),
-			credhelper.WithProfile(upCtx.ProfileName),
-			credhelper.WithDomain(upCtx.Domain.Hostname()),
-		)),
-		authn.DefaultKeychain,
-	)
-
 	t := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: upCtx.InsecureSkipTLSVerify, //nolint:gosec // we need to support insecure connections if requested
+			InsecureSkipVerify: c.InsecureSkipTLSVerify, //nolint:gosec // we need to support insecure connections if requested
 		},
 	}
 
 	options := []remote.Option{
-		remote.WithAuthFromKeychain(kc),
+		remote.WithAuthFromKeychain(authn.DefaultKeychain),
 		remote.WithTransport(t),
 	}
 
