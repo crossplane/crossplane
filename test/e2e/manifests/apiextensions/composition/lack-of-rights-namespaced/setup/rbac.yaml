@@ -1,0 +1,21 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: crossplane-rbac-issues-namespaced-e2e
+rules:
+  - apiGroups: ["lack.of.rights"]
+    resources: ["examples"]
+    verbs: ["get", "list"] # Controller can do some things, but not all.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: crossplane-rbac-issues-namespaced-e2e
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: crossplane-rbac-issues-namespaced-e2e
+subjects:
+  - kind: ServiceAccount
+    name: crossplane
+    namespace: crossplane-system
