@@ -24,7 +24,6 @@ import (
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
 )
 
 func init() {
@@ -33,7 +32,6 @@ func init() {
 		v1.AddToScheme,
 		v1beta1.AddToScheme,
 		v1alpha1.AddToScheme,
-		v2alpha1.AddToScheme,
 		v2.AddToScheme,
 	)
 }
