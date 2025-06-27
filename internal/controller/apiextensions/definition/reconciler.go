@@ -46,6 +46,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
+	"github.com/crossplane/crossplane/apis/apiextensions/common"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
@@ -518,7 +519,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// All XRs have modern schema unless their XRD's scope is LegacyCluster.
 	schema := ucomposite.SchemaModern
-	if d.Spec.Scope == "" || d.Spec.Scope == v2.CompositeResourceScopeLegacyCluster {
+	if d.Spec.Scope == "" || d.Spec.Scope == common.CompositeResourceScopeLegacyCluster { //nolint:staticcheck // we are still supporting v1 XRD
 		schema = ucomposite.SchemaLegacy
 	}
 
