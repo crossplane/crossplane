@@ -36,9 +36,9 @@ import (
 
 	"github.com/crossplane/crossplane/apis/pkg"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/printer"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xrm"
+	"github.com/crossplane/crossplane/cmd/crank/foundation/resource"
+	"github.com/crossplane/crossplane/cmd/crank/foundation/resource/xpkg"
+	"github.com/crossplane/crossplane/cmd/crank/foundation/resource/xrm"
 	"github.com/crossplane/crossplane/cmd/crank/internal"
 )
 
