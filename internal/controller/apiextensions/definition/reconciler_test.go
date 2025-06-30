@@ -34,7 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	common "github.com/crossplane/crossplane/apis/apiextensions/common"
 	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/engine"
 )
@@ -511,7 +511,7 @@ func TestReconcile(t *testing.T) {
 							want := &v2.CompositeResourceDefinition{}
 							want.SetUID(owner)
 							want.SetDeletionTimestamp(&now)
-							want.Status.SetConditions(v1.TerminatingComposite())
+							want.Status.SetConditions(common.TerminatingComposite())
 
 							if diff := cmp.Diff(want, got); diff != "" {
 								t.Errorf("MockStatusUpdate: -want, +got:\n%s\n", diff)
@@ -755,7 +755,7 @@ func TestReconcile(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 							want := &v2.CompositeResourceDefinition{}
-							want.Status.SetConditions(v1.WatchingComposite())
+							want.Status.SetConditions(common.WatchingComposite())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -814,7 +814,7 @@ func TestReconcile(t *testing.T) {
 								{Name: "new", Referenceable: true},
 							}
 							want.Status.Controllers.CompositeResourceTypeRef = v2.TypeReference{APIVersion: "new"}
-							want.Status.SetConditions(v1.WatchingComposite())
+							want.Status.SetConditions(common.WatchingComposite())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -861,7 +861,7 @@ func TestReconcile(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 							want := &v2.CompositeResourceDefinition{}
-							want.Status.SetConditions(v1.WatchingComposite())
+							want.Status.SetConditions(common.WatchingComposite())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)

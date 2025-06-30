@@ -325,7 +325,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if meta.WasDeleted(d) {
-		status.MarkConditions(v2.TerminatingComposite())
+		status.MarkConditions(common.TerminatingComposite())
 
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			log.Debug(errUpdateStatus, "error", err)
@@ -505,7 +505,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if r.engine.IsRunning(composite.ControllerName(d.GetName())) {
 		log.Debug("Composite resource controller is running")
-		status.MarkConditions(v2.WatchingComposite())
+		status.MarkConditions(common.WatchingComposite())
 
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
@@ -619,7 +619,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	log.Debug("Started composite resource controller")
 
 	d.Status.Controllers.CompositeResourceTypeRef = v2.TypeReferenceTo(d.GetCompositeGroupVersionKind())
-	status.MarkConditions(v2.WatchingComposite())
+	status.MarkConditions(common.WatchingComposite())
 
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }

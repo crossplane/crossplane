@@ -24,7 +24,8 @@ type CompositeResourceScope string
 const (
 	CompositeResourceScopeNamespaced CompositeResourceScope = "Namespaced"
 	CompositeResourceScopeCluster    CompositeResourceScope = "Cluster"
+
 	// Deprecated: CompositeResourceScopeLegacyCluster is deprecated and will be removed in a future
-	// version. Use CompositeResourceScopeCluster instead.
+	// version.
 	CompositeResourceScopeLegacyCluster CompositeResourceScope = "LegacyCluster"
 )
