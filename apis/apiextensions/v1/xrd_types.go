@@ -244,6 +244,7 @@ type CompositeResourceDefinitionControllerStatus struct {
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=xrd;xrds
+// +kubebuilder:deprecatedversion:warning="CompositeResourceDefinition v1 is deprecated and will be removed in a future release; consider migrating to v2"
 type CompositeResourceDefinition struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
