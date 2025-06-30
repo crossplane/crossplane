@@ -26,8 +26,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
-
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+
 	"github.com/crossplane/crossplane/internal/protection"
 )
 
