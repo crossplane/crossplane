@@ -22,15 +22,16 @@ import (
 	"fmt"
 	"time"
 
+	equality "k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/xreconcile/xlogging"
 )
 
 const (
@@ -89,9 +90,9 @@ type objectReconcilerAdapter[object client.Object] struct {
 // Reconcile implements Reconciler.
 func (r *objectReconcilerAdapter[object]) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := r.log.WithValues("request", req)
-	log.Debug("Reconciling")
 
 	// Preamble
+	log.Debug("Preamble")
 
 	rctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
@@ -102,7 +103,7 @@ func (r *objectReconcilerAdapter[object]) Reconcile(ctx context.Context, req rec
 		log.Debug(msg, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), msg)
 	}
-	original := o.DeepCopyObject()
+	original := o.DeepCopyObject().(object)
 
 	log = log.WithValues(
 		"uid", o.GetUID(),
@@ -111,21 +112,21 @@ func (r *objectReconcilerAdapter[object]) Reconcile(ctx context.Context, req rec
 	if extName := meta.GetExternalName(o); extName != "" {
 		log = log.WithValues("external-name", extName)
 	}
-	rctx = xlogging.WithLogger(rctx, log)
+	rctx = WithRequest(rctx, req)
 
 	// Do Reconcile
+	log.Debug("Reconcile")
 
 	result, resultErr := r.objReconciler.Reconcile(rctx, o)
 
 	// Postamble
+	log.Debug("Postamble")
 
 	// Synchronize the status.
 	switch {
 	case r.skipStatusUpdates:
 		// This reconciler implementation is configured to skip resource updates.
-	case false: // TODO: remove this inplace of case equality...
-		_ = original // TODO: implement some way to compare unstructured status.
-		// case equality.Semantic.DeepEqual(original.Status, o.Status):
+	case statusUnchanged(log, o, original):
 		// If we didn't change anything then don't call updateStatus.
 	default:
 		if err := errors.Wrap(r.client.Status().Update(ctx, o),
@@ -136,4 +137,34 @@ func (r *objectReconcilerAdapter[object]) Reconcile(ctx context.Context, req rec
 	}
 
 	return result, resultErr
+}
+
+func statusUnchanged(log logging.Logger, a, b client.Object) bool {
+	aObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(a)
+	if err != nil {
+		log.Debug("failed to convert client.Object to unstructured", "error", err)
+		return false
+	}
+	aStatus := make(map[string]any)
+	if err := fieldpath.Pave(aObj).GetValueInto("status", &aStatus); err != nil {
+		log.Debug("failed to get object.status from unstructured", "error", err)
+		if !fieldpath.IsNotFound(err) {
+			return false
+		}
+	}
+
+	bObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(b)
+	if err != nil {
+		log.Debug("failed to convert client.Object to unstructured", "error", err)
+		return false
+	}
+	bStatus := make(map[string]any)
+	if err := fieldpath.Pave(bObj).GetValueInto("status", &bStatus); err != nil {
+		log.Debug("failed to get object.status from unstructured", "error", err)
+		if !fieldpath.IsNotFound(err) {
+			return false
+		}
+	}
+
+	return equality.Semantic.DeepEqual(aStatus, bStatus)
 }
