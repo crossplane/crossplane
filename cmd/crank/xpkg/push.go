@@ -60,7 +60,7 @@ const (
 // pushCmd pushes a package.
 type pushCmd struct {
 	// Arguments.
-	Package string `arg:"" help:"Where to push the package."`
+	Package string `arg:"" help:"Where to push the package. Must be a fully qualified OCI tag, including the registry, repository, and tag." placeholder:"REGISTRY/REPOSITORY:TAG"`
 
 	// Flags. Keep sorted alphabetically.
 	PackageFiles []string `help:"A comma-separated list of xpkg files to push." placeholder:"PATH" predictor:"xpkg_file" short:"f" type:"existingfile"`
@@ -79,10 +79,12 @@ xpkg.upbound.io registry by default. A package's OCI tag must be a semantic
 version. Credentials for the registry are automatically retrieved from xpkg login 
 and dockers configuration as fallback.
 
+IMPORTANT: the package must be fully qualified, including the registry, repository, and tag.
+
 Examples:
 
   # Push a multi-platform package.
-  crossplane xpkg push -f function-amd64.xpkg,function-arm64.xpkg crossplane/function-example:v1.0.0
+  crossplane xpkg push -f function-amd64.xpkg,function-arm64.xpkg xpkg.crossplane.io/crossplane/function-example:v1.0.0
 
   # Push the xpkg file in the current directory to a different registry.
   crossplane xpkg push index.docker.io/crossplane/function-example:v1.0.0
@@ -102,7 +104,7 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 		return err
 	}
 
-	tag, err := name.NewTag(c.Package, name.WithDefaultRegistry(xpkg.DefaultRegistry))
+	tag, err := name.NewTag(c.Package, name.StrictValidation)
 	if err != nil {
 		return errors.Wrapf(err, errFmtNewTag, c.Package)
 	}
@@ -181,7 +183,7 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 				return errors.Wrapf(err, errFmtGetDigest, file)
 			}
 			n := fmt.Sprintf("%s@%s", tag.Repository.Name(), d.String())
-			ref, err := name.NewDigest(n, name.WithDefaultRegistry(xpkg.DefaultRegistry))
+			ref, err := name.NewDigest(n, name.StrictValidation)
 			if err != nil {
 				return errors.Wrapf(err, errFmtNewDigest, n, file)
 			}

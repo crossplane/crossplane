@@ -36,7 +36,6 @@ import (
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/revision"
-	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 func TestFunctionPreHook(t *testing.T) {
@@ -117,7 +116,7 @@ func TestFunctionPreHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewFunctionHooks(tc.args.client, xpkg.DefaultRegistry)
+			h := NewFunctionHooks(tc.args.client)
 			err := h.Pre(context.TODO(), tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -581,7 +580,7 @@ func TestFunctionPostHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewFunctionHooks(tc.args.client, xpkg.DefaultRegistry)
+			h := NewFunctionHooks(tc.args.client)
 			err := h.Post(context.TODO(), tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -685,7 +684,7 @@ func TestFunctionDeactivateHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewFunctionHooks(tc.args.client, xpkg.DefaultRegistry)
+			h := NewFunctionHooks(tc.args.client)
 			err := h.Deactivate(context.TODO(), tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

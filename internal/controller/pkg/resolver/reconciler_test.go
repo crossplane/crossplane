@@ -327,7 +327,7 @@ func TestReconcile(t *testing.T) {
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
+								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
 							return nil
@@ -424,7 +424,7 @@ func TestReconcile(t *testing.T) {
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
+								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
 							return nil
@@ -476,7 +476,7 @@ func TestReconcile(t *testing.T) {
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
+								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
 							return nil
@@ -528,7 +528,7 @@ func TestReconcile(t *testing.T) {
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
+								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
 							return nil
@@ -580,7 +580,7 @@ func TestReconcile(t *testing.T) {
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
+								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
 							return nil
@@ -632,7 +632,7 @@ func TestReconcile(t *testing.T) {
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
+								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
 							return nil
@@ -649,7 +649,7 @@ func TestReconcile(t *testing.T) {
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
-										Package:     "hasheddan/config-nop-c",
+										Package:     "xpkg.crossplane.io/hasheddan/config-nop-c",
 										Constraints: ">v1.0.0",
 										Type:        ptr.To(v1beta1.ConfigurationPackageType),
 									},
@@ -686,7 +686,7 @@ func TestReconcile(t *testing.T) {
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
+								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 								Version: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
 							})
 							return nil
@@ -703,7 +703,7 @@ func TestReconcile(t *testing.T) {
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
-										Package:     "hasheddan/config-nop-c",
+										Package:     "xpkg.crossplane.io/hasheddan/config-nop-c",
 										Constraints: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
 										Type:        ptr.To(v1beta1.ConfigurationPackageType),
 									},
@@ -740,7 +740,7 @@ func TestReconcile(t *testing.T) {
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
+								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
 							return nil
@@ -757,7 +757,7 @@ func TestReconcile(t *testing.T) {
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
-										Package:     "hasheddan/config-nop-c",
+										Package:     "xpkg.crossplane.io/hasheddan/config-nop-c",
 										Constraints: ">v1.0.0",
 										Type:        ptr.To(v1beta1.ConfigurationPackageType),
 									},
@@ -794,7 +794,7 @@ func TestReconcile(t *testing.T) {
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
+								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
 							return nil
@@ -811,7 +811,7 @@ func TestReconcile(t *testing.T) {
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
-										Package:     "hasheddan/config-nop-c",
+										Package:     "xpkg.crossplane.io/hasheddan/config-nop-c",
 										Constraints: ">v1.0.0",
 										Type:        ptr.To(v1beta1.ConfigurationPackageType),
 									},
@@ -853,7 +853,7 @@ func TestReconcile(t *testing.T) {
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
+								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
 							return nil
@@ -897,7 +897,7 @@ func TestReconcile(t *testing.T) {
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
+								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
 							return nil
@@ -907,7 +907,7 @@ func TestReconcile(t *testing.T) {
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							p := &unstructured.Unstructured{}
 							p.SetName("this-is-a-cool-image")
-							_ = fieldpath.Pave(p.Object).SetString("spec.package", "cool-repo/cool-image:v0.0.1")
+							_ = fieldpath.Pave(p.Object).SetString("spec.package", "xpkg.crossplane.io/cool-repo/cool-image:v0.0.1")
 							l := obj.(*unstructured.UnstructuredList)
 							l.Items = []unstructured.Unstructured{*p}
 							return nil
@@ -928,7 +928,7 @@ func TestReconcile(t *testing.T) {
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
-										Package:     "cool-repo/cool-image",
+										Package:     "xpkg.crossplane.io/cool-repo/cool-image",
 										Constraints: ">v1.0.0",
 										Type:        ptr.To(v1beta1.ProviderPackageType),
 									},
@@ -939,7 +939,7 @@ func TestReconcile(t *testing.T) {
 							},
 							MockGetNode: func(_ string) (dag.Node, error) {
 								return &v1beta1.Dependency{
-									Package: "cool-repo/cool-image",
+									Package: "xpkg.crossplane.io/cool-repo/cool-image",
 									ParentConstraints: []string{
 										">v1.0.0",
 									},
@@ -961,7 +961,7 @@ func TestReconcile(t *testing.T) {
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
+								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
 							return nil
@@ -971,7 +971,7 @@ func TestReconcile(t *testing.T) {
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							p := &unstructured.Unstructured{}
 							p.SetName("this-is-a-cool-image")
-							_ = fieldpath.Pave(p.Object).SetString("spec.package", "cool-repo/cool-image:v0.0.1")
+							_ = fieldpath.Pave(p.Object).SetString("spec.package", "xpkg.crossplane.io/cool-repo/cool-image:v0.0.1")
 							l := obj.(*unstructured.UnstructuredList)
 							l.Items = []unstructured.Unstructured{*p}
 							return nil
@@ -997,7 +997,7 @@ func TestReconcile(t *testing.T) {
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
-										Package:     "cool-repo/cool-image",
+										Package:     "xpkg.crossplane.io/cool-repo/cool-image",
 										Constraints: ">v1.0.0",
 										Type:        ptr.To(v1beta1.ProviderPackageType),
 									},
@@ -1008,7 +1008,7 @@ func TestReconcile(t *testing.T) {
 							},
 							MockGetNode: func(_ string) (dag.Node, error) {
 								return &v1beta1.Dependency{
-									Package: "cool-repo/cool-image",
+									Package: "xpkg.crossplane.io/cool-repo/cool-image",
 									ParentConstraints: []string{
 										">v1.0.0",
 									},
@@ -1030,7 +1030,7 @@ func TestReconcile(t *testing.T) {
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
+								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
 							return nil
@@ -1040,7 +1040,7 @@ func TestReconcile(t *testing.T) {
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							p := &unstructured.Unstructured{}
 							p.SetName("this-is-a-cool-image")
-							_ = fieldpath.Pave(p.Object).SetString("spec.package", "cool-repo/cool-image:v0.0.1")
+							_ = fieldpath.Pave(p.Object).SetString("spec.package", "xpkg.crossplane.io/cool-repo/cool-image:v0.0.1")
 							l := obj.(*unstructured.UnstructuredList)
 							l.Items = []unstructured.Unstructured{*p}
 							return nil
@@ -1061,7 +1061,7 @@ func TestReconcile(t *testing.T) {
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
-										Package:     "cool-repo/cool-image",
+										Package:     "xpkg.crossplane.io/cool-repo/cool-image",
 										Constraints: ">v1.0.0",
 										Type:        ptr.To(v1beta1.ProviderPackageType),
 									},
@@ -1072,7 +1072,7 @@ func TestReconcile(t *testing.T) {
 							},
 							MockGetNode: func(_ string) (dag.Node, error) {
 								return &v1beta1.Dependency{
-									Package: "cool-repo/cool-image",
+									Package: "xpkg.crossplane.io/cool-repo/cool-image",
 									ParentConstraints: []string{
 										digest1,
 										digest1,
@@ -1119,7 +1119,7 @@ func TestFindDigestToUpdate(t *testing.T) {
 			reason: "We should be able to find the digest to update.",
 			args: args{
 				node: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+					Package: "xpkg.crossplane.io/cool-repo/cool-image",
 					ParentConstraints: []string{
 						digest1,
 						digest1,
@@ -1134,7 +1134,7 @@ func TestFindDigestToUpdate(t *testing.T) {
 			reason: "We should return an error if digests are different.",
 			args: args{
 				node: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+					Package: "xpkg.crossplane.io/cool-repo/cool-image",
 					ParentConstraints: []string{
 						digest1,
 						digest2,
@@ -1149,7 +1149,7 @@ func TestFindDigestToUpdate(t *testing.T) {
 			reason: "We should return an empty string if all parent constraints are versions.",
 			args: args{
 				node: &v1beta1.Dependency{
-					Package:           "cool-repo/cool-image",
+					Package:           "xpkg.crossplane.io/cool-repo/cool-image",
 					ParentConstraints: []string{"v0.0.1", "v0.0.2"},
 				},
 			},
@@ -1162,7 +1162,7 @@ func TestFindDigestToUpdate(t *testing.T) {
 			reason: "We should return an error if both versions and digests are present.",
 			args: args{
 				node: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+					Package: "xpkg.crossplane.io/cool-repo/cool-image",
 					ParentConstraints: []string{
 						"v0.0.1",
 						digest1,
@@ -1211,7 +1211,7 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				mgr:    &fake.Manager{Client: test.NewMockClient()},
 				insVer: "v0.0.1",
 				dep: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+					Package: "xpkg.crossplane.io/cool-repo/cool-image",
 					ParentConstraints: []string{
 						digest1,
 						digest1,
@@ -1228,7 +1228,7 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				mgr:    &fake.Manager{Client: test.NewMockClient()},
 				insVer: "v0.0.1",
 				dep: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+					Package: "xpkg.crossplane.io/cool-repo/cool-image",
 					ParentConstraints: []string{
 						digest1,
 						"v0.0.1",
@@ -1245,7 +1245,7 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				mgr:    &fake.Manager{Client: test.NewMockClient()},
 				insVer: "v1.0.0",
 				dep: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+					Package: "xpkg.crossplane.io/cool-repo/cool-image",
 					ParentConstraints: []string{
 						">=v1.0.0",
 						"v2.0.0",
@@ -1271,7 +1271,7 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				mgr:    &fake.Manager{Client: test.NewMockClient()},
 				insVer: "v1.0.0",
 				dep: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+					Package: "xpkg.crossplane.io/cool-repo/cool-image",
 					ParentConstraints: []string{
 						">=v1.0.0",
 						"v2.0.0",
@@ -1288,7 +1288,7 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Errorf(errFmtNoValidVersion, "cool-repo/cool-image", "[>=v1.0.0 v2.0.0]"),
+				err: errors.Errorf(errFmtNoValidVersion, "xpkg.crossplane.io/cool-repo/cool-image", "[>=v1.0.0 v2.0.0]"),
 			},
 		},
 		"ErrorNoValidVersionDowngrade": {
@@ -1297,7 +1297,7 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				mgr:    &fake.Manager{Client: test.NewMockClient()},
 				insVer: "v1.0.0",
 				dep: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+					Package: "xpkg.crossplane.io/cool-repo/cool-image",
 					ParentConstraints: []string{
 						"<=v1.0.0",
 						"v0.0.1",
@@ -1314,7 +1314,7 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Errorf(errFmtNoValidVersion, "cool-repo/cool-image", "[<=v1.0.0 v0.0.1]"),
+				err: errors.Errorf(errFmtNoValidVersion, "xpkg.crossplane.io/cool-repo/cool-image", "[<=v1.0.0 v0.0.1]"),
 			},
 		},
 		"UpgradeToSmallestValid": {
@@ -1323,7 +1323,7 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				mgr:    &fake.Manager{Client: test.NewMockClient()},
 				insVer: "v2.0.0",
 				dep: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+					Package: "xpkg.crossplane.io/cool-repo/cool-image",
 					ParentConstraints: []string{
 						">v2.0.0",
 						"<=v3.0.0",
@@ -1350,7 +1350,7 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				mgr:    &fake.Manager{Client: test.NewMockClient()},
 				insVer: "v3.0.0",
 				dep: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+					Package: "xpkg.crossplane.io/cool-repo/cool-image",
 					ParentConstraints: []string{
 						">=v0.0.1",
 						"<v3.0.0",

@@ -143,7 +143,7 @@ func buildPack(pack v1.Package, img string, pkgMap map[string]string) error {
 		return errors.Wrap(err, errParsePackageName)
 	}
 	objName := xpkg.ToDNSLabel(ref.Context().RepositoryStr())
-	if existing, ok := pkgMap[ref.Context().RepositoryStr()]; ok {
+	if existing, ok := pkgMap[xpkg.ParsePackageSourceFromReference(ref)]; ok {
 		objName = existing
 	}
 	pack.SetName(objName)

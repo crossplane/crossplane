@@ -75,7 +75,6 @@ type Command struct {
 // KongVars represent the kong variables associated with the CLI parser
 // required for the Registry default variable interpolation.
 var KongVars = kong.Vars{ //nolint:gochecknoglobals // We treat these as constants.
-	"default_registry":   xpkg.DefaultRegistry,
 	"default_user_agent": transport.DefaultUserAgent(),
 }
 
@@ -89,10 +88,9 @@ func (c *Command) Run() error {
 type startCommand struct {
 	Profile string `help:"Serve runtime profiling data via HTTP at /debug/pprof." placeholder:"host:port"`
 
-	Namespace      string `default:"crossplane-system"     env:"POD_NAMESPACE"                                                      help:"Namespace used to unpack and run packages."                         short:"n"`
+	Namespace      string `default:"crossplane-system"     env:"POD_NAMESPACE"                                                      help:"Namespace used to unpack and run packages."                      short:"n"`
 	ServiceAccount string `default:"crossplane"            env:"POD_SERVICE_ACCOUNT"                                                help:"Name of the Crossplane Service Account."`
-	LeaderElection bool   `default:"false"                 env:"LEADER_ELECTION"                                                    help:"Use leader election for the controller manager."                    short:"l"`
-	Registry       string `default:"${default_registry}"   env:"REGISTRY"                                                           help:"Default registry used to fetch packages when not specified in tag." short:"r"`
+	LeaderElection bool   `default:"false"                 env:"LEADER_ELECTION"                                                    help:"Use leader election for the controller manager."                 short:"l"`
 	CABundlePath   string `env:"CA_BUNDLE_PATH"            help:"Additional CA bundle to use when fetching packages from registry."`
 	UserAgent      string `default:"${default_user_agent}" env:"USER_AGENT"                                                         help:"The User-Agent header that will be set on all package requests."`
 
@@ -133,8 +131,9 @@ type startCommand struct {
 	// error when you enable them. This ensures you'll see an explicit and
 	// informative error on startup, instead of a potentially surprising one
 	// later.
-	EnableCompositionWebhookSchemaValidation bool `hidden:""`
-	EnableExternalSecretStores               bool `hidden:""`
+	EnableCompositionWebhookSchemaValidation bool   `hidden:""`
+	EnableExternalSecretStores               bool   `hidden:""`
+	Registry                                 string `hidden:""`
 }
 
 // Run core Crossplane controllers.
@@ -146,6 +145,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableExternalSecretStores {
 		//nolint:revive // This is long and easier to read with punctuation.
 		return errors.New("Crossplane removed support for external secret stores. The --enable-external-secret-stores flag will be removed in a future release.")
+	}
+	if c.Registry != "" {
+		//nolint:revive // This is long and easier to read with punctuation.
+		return errors.New("the --registry flag is no longer supported since support for a default registry value has been removed. Please ensure that all packages have fully qualified names that explicitly state their registry. This also applies to all of a packages dependencies")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -419,7 +422,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		Cache:                            xpkg.NewFsPackageCache(c.XpkgCacheDir, afero.NewOsFs()),
 		Namespace:                        c.Namespace,
 		ServiceAccount:                   c.ServiceAccount,
-		DefaultRegistry:                  c.Registry,
 		FetcherOptions:                   []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
 		PackageRuntime:                   pr,
 		MaxConcurrentPackageEstablishers: c.MaxConcurrentPackageEstablishers,

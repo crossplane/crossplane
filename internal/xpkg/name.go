@@ -58,10 +58,6 @@ const (
 	// layer.
 	// TODO(lsviben) Consider changing this to "examples".
 	ExamplesAnnotation string = "upbound"
-
-	// DefaultRegistry is the registry name that will be used when no registry
-	// is provided.
-	DefaultRegistry string = "xpkg.crossplane.io"
 )
 
 const (

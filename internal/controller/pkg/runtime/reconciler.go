@@ -172,7 +172,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
-		WithRuntimeHooks(NewProviderHooks(mgr.GetClient(), o.DefaultRegistry)),
+		WithRuntimeHooks(NewProviderHooks(mgr.GetClient())),
 		WithFeatureFlags(o.Features),
 		WithDeploymentSelectorMigrator(NewDeletingDeploymentSelectorMigrator(mgr.GetClient(), log)),
 	}
@@ -206,7 +206,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
-		WithRuntimeHooks(NewFunctionHooks(mgr.GetClient(), o.DefaultRegistry)),
+		WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())),
 		WithFeatureFlags(o.Features),
 	}
 
