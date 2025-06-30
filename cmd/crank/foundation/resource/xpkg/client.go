@@ -34,7 +34,7 @@ import (
 
 	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 	pkgv1beta1 "github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
-	"github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/v2/cmd/crank/foundation/resource"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 

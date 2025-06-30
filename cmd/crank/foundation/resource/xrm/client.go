@@ -32,7 +32,7 @@ import (
 
 	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1beta1"
-	"github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/v2/cmd/crank/foundation/resource"
 )
 
 // defaultConcurrency is the concurrency using which the resource tree if loaded when not explicitly specified.

@@ -29,6 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
+	"github.com/crossplane/crossplane/v2/cmd/crank/foundation/load"
 	"github.com/crossplane/crossplane/v2/internal/version"
 )
 
@@ -102,7 +103,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	}
 
 	// Load all extensions
-	extensionLoader, err := NewLoader(c.Extensions)
+	extensionLoader, err := load.NewLoader(c.Extensions)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load extensions from %q", c.Extensions)
 	}
@@ -113,7 +114,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	}
 
 	// Load all resources
-	resourceLoader, err := NewLoader(c.Resources)
+	resourceLoader, err := load.NewLoader(c.Resources)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load resources from %q", c.Resources)
 	}
