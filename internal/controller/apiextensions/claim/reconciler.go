@@ -19,6 +19,7 @@ package claim
 
 import (
 	"context"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/xreconcile"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -44,8 +45,6 @@ import (
 	"github.com/crossplane/crossplane/internal/xresource"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/xreconcile"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/xreconcile/xlogging"
 )
 
 const (
@@ -302,7 +301,13 @@ func NewReconciler(c client.Client, of, with schema.GroupVersionKind, o ...Recon
 
 // Reconcile a composite resource claim with a concrete composite resource.
 func (r *Reconciler) Reconcile(ctx context.Context, cm *claim.Unstructured) (reconcile.Result, error) { //nolint:gocognit // Complexity is tough to avoid here.
-	log := xlogging.FromContext(ctx)
+	log := r.log.WithValues(
+		"request", xreconcile.RequestFrom(ctx),
+		"uid", cm.GetUID(),
+		"version", cm.GetResourceVersion(),
+		"external-name", meta.GetExternalName(cm),
+	)
+	log.Debug("Reconciling")
 	status := r.conditions.For(cm)
 	record := r.record.WithAnnotations("external-name", meta.GetExternalName(cm))
 
