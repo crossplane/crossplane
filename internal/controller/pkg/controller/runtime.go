@@ -91,13 +91,14 @@ const (
 )
 
 // ParsePackageRuntime takes in a free form package runtime option string and attempts to parse it into an ActiveRuntime.
-// Example input: 'Provider=Deployment,Function=External'.
+// Example input: 'Provider=Deployment;Function=External'.
+// Note, This input matches the kong cli parsing for a map type input.
 func ParsePackageRuntime(input string) (ActiveRuntime, error) {
 	var opts []RuntimeOption
-	for _, pkgRt := range strings.Split(input, ",") {
+	for _, pkgRt := range strings.Split(input, ";") {
 		parts := strings.Split(pkgRt, "=")
 		if len(parts) != 2 {
-			return ActiveRuntime{}, errors.Errorf("invalid package runtime %q", pkgRt)
+			return ActiveRuntime{}, errors.Errorf("invalid package runtime setting %q, expected: runtime=kind", pkgRt)
 		}
 		pkg := PackageKind(strings.TrimSpace(parts[0]))
 		rt := PackageRuntime(strings.TrimSpace(parts[1]))
@@ -109,10 +110,12 @@ func ParsePackageRuntime(input string) (ActiveRuntime, error) {
 			case PackageRuntimeUnspecified:
 				fallthrough
 			default:
-				return ActiveRuntime{}, errors.Errorf("unknown package runtime %q", rt)
+				return ActiveRuntime{}, errors.Errorf("unknown package runtime %q, supported: [%s]", rt,
+					strings.Join([]string{string(PackageRuntimeDeployment), string(PackageRuntimeExternal)}, ", "))
 			}
 		default:
-			return ActiveRuntime{}, errors.Errorf("unknown package runtime kind %q", pkg)
+			return ActiveRuntime{}, errors.Errorf("unknown package runtime kind %q, supported: [%s]", pkg,
+				strings.Join([]string{string(ConfigurationPackageKind), string(ProviderPackageKind), string(FunctionPackageKind)}, ", "))
 		}
 	}
 	return NewActiveRuntime(opts...), nil

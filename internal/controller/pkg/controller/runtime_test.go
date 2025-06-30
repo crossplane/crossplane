@@ -45,7 +45,7 @@ func TestParsePackageRuntime(t *testing.T) {
 				input: "",
 			},
 			want: want{
-				err: errors.New("invalid package runtime \"\""),
+				err: errors.New("invalid package runtime setting \"\", expected: runtime=kind"),
 			},
 		},
 		"SingleValidMapping": {
@@ -62,7 +62,7 @@ func TestParsePackageRuntime(t *testing.T) {
 		"MultipleValidMappings": {
 			reason: "Should parse multiple valid package runtime mappings",
 			args: args{
-				input: "Provider=Deployment,Function=External",
+				input: "Provider=Deployment;Function=External",
 			},
 			want: want{
 				runtime: NewActiveRuntime(
@@ -74,7 +74,7 @@ func TestParsePackageRuntime(t *testing.T) {
 		"AllValidMappings": {
 			reason: "Should parse all valid package kinds and runtimes",
 			args: args{
-				input: "Provider=Deployment,Function=External,Configuration=Deployment",
+				input: "Provider=Deployment;Function=External;Configuration=Deployment",
 			},
 			want: want{
 				runtime: NewActiveRuntime(
@@ -90,7 +90,7 @@ func TestParsePackageRuntime(t *testing.T) {
 				input: "Provider",
 			},
 			want: want{
-				err: errors.New("invalid package runtime \"Provider\""),
+				err: errors.New("invalid package runtime setting \"Provider\", expected: runtime=kind"),
 			},
 		},
 		"InvalidFormatMultipleEquals": {
@@ -99,7 +99,7 @@ func TestParsePackageRuntime(t *testing.T) {
 				input: "Provider=Deployment=Extra",
 			},
 			want: want{
-				err: errors.New("invalid package runtime \"Provider=Deployment=Extra\""),
+				err: errors.New("invalid package runtime setting \"Provider=Deployment=Extra\", expected: runtime=kind"),
 			},
 		},
 		"InvalidFormatNoEquals": {
@@ -108,7 +108,7 @@ func TestParsePackageRuntime(t *testing.T) {
 				input: "ProviderDeployment",
 			},
 			want: want{
-				err: errors.New("invalid package runtime \"ProviderDeployment\""),
+				err: errors.New("invalid package runtime setting \"ProviderDeployment\", expected: runtime=kind"),
 			},
 		},
 		"UnknownPackageKind": {
@@ -117,7 +117,7 @@ func TestParsePackageRuntime(t *testing.T) {
 				input: "UnknownKind=Deployment",
 			},
 			want: want{
-				err: errors.New("unknown package runtime kind \"UnknownKind\""),
+				err: errors.New("unknown package runtime kind \"UnknownKind\", supported: [Configuration, Provider, Function]"),
 			},
 		},
 		"UnknownRuntime": {
@@ -126,16 +126,16 @@ func TestParsePackageRuntime(t *testing.T) {
 				input: "Provider=UnknownRuntime",
 			},
 			want: want{
-				err: errors.New("unknown package runtime \"UnknownRuntime\""),
+				err: errors.New("unknown package runtime \"UnknownRuntime\", supported: [Deployment, External]"),
 			},
 		},
 		"MixedValidAndInvalid": {
 			reason: "Should return error on first invalid mapping even if others are valid",
 			args: args{
-				input: "Provider=Deployment,UnknownKind=External",
+				input: "Provider=Deployment;UnknownKind=External",
 			},
 			want: want{
-				err: errors.New("unknown package runtime kind \"UnknownKind\""),
+				err: errors.New("unknown package runtime kind \"UnknownKind\", supported: [Configuration, Provider, Function]"),
 			},
 		},
 		"EmptyPackageKind": {
@@ -144,7 +144,7 @@ func TestParsePackageRuntime(t *testing.T) {
 				input: "=Deployment",
 			},
 			want: want{
-				err: errors.New("unknown package runtime kind \"\""),
+				err: errors.New("unknown package runtime kind \"\", supported: [Configuration, Provider, Function]"),
 			},
 		},
 		"EmptyRuntime": {
@@ -153,7 +153,7 @@ func TestParsePackageRuntime(t *testing.T) {
 				input: "Provider=",
 			},
 			want: want{
-				err: errors.New("unknown package runtime \"\""),
+				err: errors.New("unknown package runtime \"\", supported: [Deployment, External]"),
 			},
 		},
 		"WhitespaceInInput": {
@@ -181,7 +181,7 @@ func TestParsePackageRuntime(t *testing.T) {
 		"DuplicatePackageKind": {
 			reason: "Should handle duplicate package kinds (last one wins)",
 			args: args{
-				input: "Provider=Deployment,Provider=External",
+				input: "Provider=Deployment;Provider=External",
 			},
 			want: want{
 				runtime: NewActiveRuntime(
