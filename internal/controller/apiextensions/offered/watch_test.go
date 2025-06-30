@@ -29,7 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 )
 
 var _ handler.EventHandler = &EnqueueRequestForClaim{}
@@ -47,12 +47,12 @@ func TestOffersClaim(t *testing.T) {
 			want: false,
 		},
 		"DoesNotOfferClaim": {
-			obj:  &v1.CompositeResourceDefinition{},
+			obj:  &v2.CompositeResourceDefinition{},
 			want: false,
 		},
 		"OffersClaim": {
-			obj: &v1.CompositeResourceDefinition{
-				Spec: v1.CompositeResourceDefinitionSpec{
+			obj: &v2.CompositeResourceDefinition{
+				Spec: v2.CompositeResourceDefinitionSpec{
 					// An XRD with non-nil claim names offers a claim.
 					ClaimNames: &extv1.CustomResourceDefinitionNames{},
 				},
@@ -80,7 +80,7 @@ func TestIsClaimCRD(t *testing.T) {
 			want: false,
 		},
 		"XRD": {
-			obj:  &v1.CompositeResourceDefinition{},
+			obj:  &v2.CompositeResourceDefinition{},
 			want: false,
 		},
 		"ClaimCRD": {

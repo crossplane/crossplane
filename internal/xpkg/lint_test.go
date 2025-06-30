@@ -33,6 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
@@ -86,6 +87,11 @@ kind: CompositeResourceDefinition
 metadata:
   name: test`)
 
+	v2XRDBytes = []byte(`apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: test`)
+
 	v1CompBytes = []byte(`apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
@@ -109,6 +115,8 @@ metadata:
 	_                = yaml.Unmarshal(v1FuncBytes, v1FuncMeta)
 	v1XRD            = &v1.CompositeResourceDefinition{}
 	_                = yaml.Unmarshal(v1XRDBytes, v1XRD)
+	v2XRD            = &v2.CompositeResourceDefinition{}
+	_                = yaml.Unmarshal(v2XRDBytes, v2XRD)
 	v1Comp           = &v1.Composition{}
 	_                = yaml.Unmarshal(v1CompBytes, v1Comp)
 
@@ -439,6 +447,10 @@ func TestIsXRD(t *testing.T) {
 		"v1": {
 			reason: "Should not return error if object is XRD.",
 			obj:    v1XRD,
+		},
+		"v2": {
+			reason: "Should not return error if object is XRD.",
+			obj:    v2XRD,
 		},
 		"ErrNotConfiguration": {
 			reason: "Should return error if object is not XRD.",

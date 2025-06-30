@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Crossplane Authors.
+Copyright 2025 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package common
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -31,16 +31,19 @@ const (
 
 	// A TypeOffered XRD has created the CRD for its composite resource claim
 	// and started a controller to reconcile instances of said claim.
+	// Deprecated: Claims aren't supported in apiextensions.crossplane.io/v2.
 	TypeOffered xpv1.ConditionType = "Offered"
 )
 
 // Reasons a resource is or is not established or offered.
 const (
 	ReasonWatchingComposite xpv1.ConditionReason = "WatchingCompositeResource"
-	ReasonWatchingClaim     xpv1.ConditionReason = "WatchingCompositeResourceClaim"
+	// Deprecated: Claims aren't supported in apiextensions.crossplane.io/v2.
+	ReasonWatchingClaim xpv1.ConditionReason = "WatchingCompositeResourceClaim"
 
 	ReasonTerminatingComposite xpv1.ConditionReason = "TerminatingCompositeResource"
-	ReasonTerminatingClaim     xpv1.ConditionReason = "TerminatingCompositeResourceClaim"
+	// Deprecated: Claims aren't supported in apiextensions.crossplane.io/v2.
+	ReasonTerminatingClaim xpv1.ConditionReason = "TerminatingCompositeResourceClaim"
 )
 
 // WatchingComposite indicates that Crossplane has defined and is watching for a
@@ -67,6 +70,7 @@ func TerminatingComposite() xpv1.Condition {
 
 // WatchingClaim indicates that Crossplane has defined and is watching for a
 // new kind of composite resource claim.
+// Deprecated: Claims aren't supported in apiextensions.crossplane.io/v2.
 func WatchingClaim() xpv1.Condition {
 	return xpv1.Condition{
 		Type:               TypeOffered,
@@ -78,6 +82,7 @@ func WatchingClaim() xpv1.Condition {
 
 // TerminatingClaim indicates that Crossplane is terminating the controller and
 // removing the definition of a composite resource claim.
+// Deprecated: Claims aren't supported in apiextensions.crossplane.io/v2.
 func TerminatingClaim() xpv1.Condition {
 	return xpv1.Condition{
 		Type:               TypeOffered,

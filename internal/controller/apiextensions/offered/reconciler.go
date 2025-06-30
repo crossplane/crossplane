@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/crossplane/crossplane/apis/apiextensions/common"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
@@ -44,7 +45,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/claim"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
@@ -143,7 +143,7 @@ func (fn CRDRenderFn) Render(d *v2.CompositeResourceDefinition) (*extv1.CustomRe
 // defining a composite resource claim and starting a controller to reconcile
 // it.
 func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
-	name := "offered/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
+	name := "offered/" + strings.ToLower(v2.CompositeResourceDefinitionGroupKind)
 
 	r := NewReconciler(NewClientApplicator(mgr.GetClient()),
 		WithLogger(o.Logger.WithValues("controller", name)),
@@ -153,7 +153,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1.CompositeResourceDefinition{}, builder.WithPredicates(resource.NewPredicates(OffersClaim()))).
+		For(&v2.CompositeResourceDefinition{}, builder.WithPredicates(resource.NewPredicates(OffersClaim()))).
 		Owns(&extv1.CustomResourceDefinition{}, builder.WithPredicates(resource.NewPredicates(IsClaimCRD()))).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
@@ -299,7 +299,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if meta.WasDeleted(d) {
-		status.MarkConditions(v1.TerminatingClaim())
+		status.MarkConditions(common.TerminatingClaim()) //nolint:staticcheck // we are still supporting v1 XRD
 
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			if kerrors.IsConflict(err) {
@@ -489,7 +489,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if r.engine.IsRunning(claim.ControllerName(d.GetName())) {
 		log.Debug("Composite resource claim controller is running")
-		status.MarkConditions(v1.WatchingClaim())
+		status.MarkConditions(common.WatchingClaim()) //nolint:staticcheck // we are still supporting v1 XRD
 
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
@@ -528,7 +528,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	d.Status.Controllers.CompositeResourceClaimTypeRef = v2.TypeReferenceTo(d.GetClaimGroupVersionKind())
-	status.MarkConditions(v1.WatchingClaim())
+	status.MarkConditions(common.WatchingClaim()) //nolint:staticcheck // we are still supporting v1 XRD
 
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }

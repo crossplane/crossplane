@@ -31,14 +31,14 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 // OffersClaim accepts any CompositeResourceDefinition that offers a claim.
 func OffersClaim() resource.PredicateFn {
 	return func(obj runtime.Object) bool {
-		d, ok := obj.(*v1.CompositeResourceDefinition)
+		d, ok := obj.(*v2.CompositeResourceDefinition)
 		if !ok {
 			return false
 		}

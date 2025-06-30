@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	apiextensionscommon "github.com/crossplane/crossplane/apis/apiextensions/common"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +34,6 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
@@ -60,7 +60,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
-			WithSetup("XRDAreEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite())).
+			WithSetup("XRDAreEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionscommon.WatchingComposite())).
 			WithSetup("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
@@ -133,7 +133,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 			)).
 			Assess("XRDIsEstablished",
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite())).
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionscommon.WatchingComposite())).
 			Assess("ProviderIsReady",
 				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			Assess("CreateClaim", funcs.AllOf(
@@ -228,7 +228,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 			)).
 			Assess("XRDIsEstablished",
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite())).
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionscommon.WatchingComposite())).
 			Assess("ProviderIsReady",
 				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			Assess("CreateClaim", funcs.AllOf(
