@@ -25,8 +25,6 @@ type Cmd struct {
 	Build   buildCmd   `cmd:"" help:"Build a new package."`
 	Init    initCmd    `cmd:"" help:"Initialize a new package from a template."`
 	Install installCmd `cmd:"" help:"Install a package in a control plane."`
-	Login   loginCmd   `cmd:"" help:"Login to the default package registry."`
-	Logout  logoutCmd  `cmd:"" help:"Logout of the default package registry."`
 	Push    pushCmd    `cmd:"" help:"Push a package to a registry."`
 	Update  updateCmd  `cmd:"" help:"Update a package in a control plane."`
 	Extract extractCmd `cmd:"" help:"Extract package contents into a Crossplane cache compatible format. Fetches from a remote registry by default."`

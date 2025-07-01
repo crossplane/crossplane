@@ -154,7 +154,7 @@ func TestSourceFromReference(t *testing.T) {
 		"SuccessfulTagWithRegistryDefaulting": {
 			reason: "If no registry is supplied, but defaulting is enabled, default registry should not be reflected in parsed source.",
 			arg: func() name.Reference {
-				ref, _ := name.ParseReference("hasheddan/xpkg-test:v0.1.0", name.WithDefaultRegistry("registry.upbound.io"))
+				ref, _ := name.ParseReference("hasheddan/xpkg-test:v0.1.0", name.WithDefaultRegistry("registry.crossplane.io"))
 				return ref
 			}(),
 			want: "hasheddan/xpkg-test",
@@ -162,7 +162,7 @@ func TestSourceFromReference(t *testing.T) {
 		"SuccessfulDigestWithRegistryDefaulting": {
 			reason: "If no registry is supplied, but defaulting is enabled, default registry should not be reflected in parsed source.",
 			arg: func() name.Reference {
-				ref, _ := name.ParseReference("hasheddan/xpkg-test@sha256:c88b938d6e7b2ed43d40b71e5a55df9c60fa653bea0c0961f3294fac46d5b56e", name.WithDefaultRegistry("registry.upbound.io"))
+				ref, _ := name.ParseReference("hasheddan/xpkg-test@sha256:c88b938d6e7b2ed43d40b71e5a55df9c60fa653bea0c0961f3294fac46d5b56e", name.WithDefaultRegistry("registry.crossplane.io"))
 				return ref
 			}(),
 			want: "hasheddan/xpkg-test",

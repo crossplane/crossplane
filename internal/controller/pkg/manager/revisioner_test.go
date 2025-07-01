@@ -127,7 +127,7 @@ func TestPackageRevisioner(t *testing.T) {
 					},
 					Spec: v1.ProviderSpec{
 						PackageSpec: v1.PackageSpec{
-							Package:           "xpkg.upbound.io/crossplane/provider-aws:latest",
+							Package:           "xpkg.crossplane.io/crossplane/provider-aws:latest",
 							PackagePullPolicy: &pullIfNotPresent,
 						},
 					},
@@ -151,13 +151,13 @@ func TestPackageRevisioner(t *testing.T) {
 					},
 					Spec: v1.ProviderSpec{
 						PackageSpec: v1.PackageSpec{
-							Package:           "xpkg.upbound.io/crossplane-contrib/provider-nop@sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+							Package:           "xpkg.crossplane.io/crossplane-contrib/provider-nop@sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
 							PackagePullPolicy: &pullIfNotPresent,
 						},
 					},
 					Status: v1.ProviderStatus{
 						PackageStatus: v1.PackageStatus{
-							ResolvedPackage: "xpkg.upbound.io/crossplane-contrib/provider-nop@sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+							ResolvedPackage: "xpkg.crossplane.io/crossplane-contrib/provider-nop@sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
 						},
 					},
 				},

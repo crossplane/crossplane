@@ -30,8 +30,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
-
 	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
+
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"

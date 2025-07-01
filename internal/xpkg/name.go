@@ -56,7 +56,8 @@ const (
 
 	// ExamplesAnnotation is the annotation value used for the examples.yaml
 	// layer.
-	// TODO(lsviben) Consider changing this to "examples".
+	// TODO(lsviben) Consider changing this to "examples". This has been preserved
+	// to not break existing packages.
 	ExamplesAnnotation string = "upbound"
 )
 

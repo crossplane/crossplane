@@ -35,9 +35,9 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"

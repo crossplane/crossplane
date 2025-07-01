@@ -26,9 +26,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane/apis/protection/v1beta1"
 )
 

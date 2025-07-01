@@ -26,7 +26,6 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 )
 

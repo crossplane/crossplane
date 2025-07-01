@@ -30,10 +30,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplane/crossplane-runtime/pkg/test"
-
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
+
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
@@ -250,7 +250,7 @@ func TestLoadFunctions(t *testing.T) {
 						},
 						Spec: pkgv1.FunctionSpec{
 							PackageSpec: pkgv1.PackageSpec{
-								Package: "xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.1.2",
+								Package: "xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.1.2",
 							},
 						},
 					},
@@ -268,7 +268,7 @@ func TestLoadFunctions(t *testing.T) {
 						},
 						Spec: pkgv1.FunctionSpec{
 							PackageSpec: pkgv1.PackageSpec{
-								Package: "xpkg.upbound.io/crossplane-contrib/function-dummy:v0.2.1",
+								Package: "xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.2.1",
 							},
 						},
 					},
@@ -287,7 +287,7 @@ func TestLoadFunctions(t *testing.T) {
 						},
 						Spec: pkgv1.FunctionSpec{
 							PackageSpec: pkgv1.PackageSpec{
-								Package: "xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.1.2",
+								Package: "xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.1.2",
 							},
 						},
 					},
