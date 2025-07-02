@@ -161,6 +161,7 @@ linters:
           - gosec
           - scopelint
           - unparam
+          - embeddedstructfieldcheck
         path: _test(ing)?\.go
 
       - linters:
