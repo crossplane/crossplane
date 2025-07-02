@@ -1,32 +1,93 @@
 version: "2"
+
 output:
   formats:
     text:
       path: stderr
+
 linters:
   default: all
   disable:
-    - cyclop
-    - dupl
-    - err113
-    - exhaustruct
-    - funlen
-    - gocyclo
-    - godox
-    - ireturn
-    - lll
-    - maintidx
-    - mnd
-    - nestif
-    - nilnil
-    - nlreturn
-    - nonamedreturns
-    - paralleltest
-    - perfsprint
-    - testpackage
-    - varnamelen
+    # These are linters we'd like to enable, but that will be labor intensive to
+    # make existing code compliant.
     - wrapcheck
+    - varnamelen
+    - testpackage
+    - paralleltest
+    - nilnil
+
+    # Below are linters that lint for things we don't value. Each entry below
+    # this line must have a comment explaining the rationale.
+
+    # These linters add whitespace in an attempt to make code more readable.
+    # This isn't a widely accepted Go best practice, and would be laborious to
+    # apply to existing code.
     - wsl
+    - nlreturn
+
+    # Warns about uses of fmt.Sprintf that are less performant than alternatives
+    # such as string concatenation. We value readability more than performance
+    # unless performance is measured to be an issue.
+    - perfsprint
+
+    # This linter:
+    #
+    # 1. Requires errors.Is/errors.As to test equality.
+    # 2. Requires all errors be wrapped with fmt.Errorf specifically.
+    # 3. Disallows errors.New inline - requires package level errors.
+    #
+    # 1 is covered by other linters. 2 is covered by wrapcheck, which can also
+    # handle our use of crossplane-runtime's errors package. 3 is more strict
+    # than we need. Not every error needs to be tested for equality.
+    - err113
+
+    # These linters duplicate gocognit, but calculate complexity differently.
+    - gocyclo
+    - cyclop
+    - nestif
+    - funlen
+    - maintidx
+
+    # Enforces max line length. It's not idiomatic to enforce a strict limit on
+    # line length in Go. We'd prefer to lint for things that often cause long
+    # lines, like functions with too many parameters or long parameter names
+    # that duplicate their types.
+    - lll
+
+    # Warns about struct instantiations that don't specify every field. Could be
+    # useful in theory to catch fields that are accidentally omitted. Seems like
+    # it would have many more false positives than useful catches, though.
+    - exhaustruct
+
+    # Warns about TODO comments. The rationale being they should be issues
+    # instead. We're okay with using TODO to track minor cleanups for next time
+    # we touch a particular file.
+    - godox
+
+    # Warns about duplicated code blocks within the same file. Could be useful
+    # to prompt folks to think about whether code should be broken out into a
+    # function, but generally we're less worried about DRY and fine with a
+    # little copying. We don't want to give folks the impression that we require
+    # every duplicated code block to be factored out into a function.
+    - dupl
+
+    # Warns about returning interfaces rather than concrete types. We do think
+    # it's best to avoid returning interfaces where possible. However, at the
+    # time of writing enabling this linter would only catch the (many) cases
+    # where we must return an interface.
+    - ireturn
+
+    # Warns about returning named variables. We do think it's best to avoid
+    # returning named variables where possible. However, at the time of writing
+    # enabling this linter would only catch the (many) cases where returning
+    # named variables is useful to document what the variables are. For example
+    # we believe it makes sense to return (ready bool) rather than just (bool)
+    # to communicate what the bool means.
+    - nonamedreturns
+
+    # Warns about using magic numbers. We do think it's best to avoid magic
+    # numbers, but we should not be strict about it.
+    - mnd
   settings:
     depguard:
       rules:
@@ -95,45 +156,74 @@ linters:
           - scopelint
           - unparam
         path: _test(ing)?\.go
+
       - linters:
           - gocritic
         path: _test\.go
         text: (unnamedResult|exitAfterDefer)
+
+      # It's idiomatic to register Kubernetes types with a package scoped
+      # SchemeBuilder using an init function.
       - linters:
           - gochecknoglobals
           - gochecknoinits
         path: apis/
+
+      # These are performance optimisations rather than style issues per se.
+      # They warn when function arguments or range values copy a lot of memory
+      # rather than using a pointer.
       - linters:
           - gocritic
         text: '(hugeParam|rangeValCopy):'
+
+      # This "TestMain should call os.Exit to set exit code" warning is not clever
+      # enough to notice that we call a helper method that calls os.Exit.
       - linters:
           - staticcheck
         text: 'SA3000:'
+
+      # This is a "potential hardcoded credentials" warning. It's triggered by
+      # any variable with 'secret' in the same, and thus hits a lot of false
+      # positives in Kubernetes land where a Secret is an object type.
       - linters:
           - gosec
         text: 'G101:'
+
+      # This is an 'errors unhandled' warning that duplicates errcheck.
       - linters:
           - gosec
         text: 'G104:'
+
+      # This is about implicit memory aliasing in a range loop.
+      # This is a false positive with Go v1.22 and above.
       - linters:
           - gosec
         text: 'G601:'
+
+      # Some k8s dependencies do not have JSON tags on all fields in structs.
       - linters:
           - musttag
         path: k8s.io/
+
+      # Various fields related to native patch and transform Composition are
+      # deprecated, but we can't drop support from Crossplane 1.x. We ignore the
+      # warnings globally instead of suppressing them with comments everywhere.
       - linters:
           - staticcheck
         text: 'SA1019: .+ is deprecated: Use Composition Functions instead.'
+
     paths:
       - zz_generated\..+\.go$
       - .+\.pb.go$
       - third_party$
       - builtin$
       - examples$
+
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   new: false
+
 formatters:
   enable:
     - gci
