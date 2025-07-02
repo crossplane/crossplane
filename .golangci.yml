@@ -88,6 +88,11 @@ linters:
     # Warns about using magic numbers. We do think it's best to avoid magic
     # numbers, but we should not be strict about it.
     - mnd
+
+    # Warns about if err := Foo(); err != nil style error checks. Seems to go
+    # against idiomatic Go programming, which encourages this approach - e.g.
+    # to scope errors.
+    - noinlineerr
   settings:
     depguard:
       rules:
