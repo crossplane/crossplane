@@ -2,7 +2,7 @@
 
 * Owner: Nic Cope (@negz)
 * Reviewer: Hasan Turken (@turkenh)
-* Status: Draft
+* Status: Accepted
 
 ## Background
 
