@@ -93,8 +93,10 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	var setup []env.Func
-	var finish []env.Func
+	var (
+		setup  []env.Func
+		finish []env.Func
+	)
 
 	if environment.IsKindCluster() {
 		setup = append(setup, envfuncs.CreateClusterWithConfig(
@@ -152,6 +154,7 @@ func TestMain(m *testing.M) {
 		if _, exists := feature.Labels()[config.LabelTestSuite]; !exists {
 			t.Fatalf("Feature %q does not have the required %q label set", feature.Name(), config.LabelTestSuite)
 		}
+
 		return ctx, nil
 	})
 

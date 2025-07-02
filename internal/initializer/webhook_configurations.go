@@ -60,6 +60,7 @@ func NewWebhookConfigurations(path string, s *runtime.Scheme, tlsSecretRef types
 	for _, f := range opts {
 		f(c)
 	}
+
 	return c
 }
 
@@ -81,9 +82,11 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 	if err := kube.Get(ctx, c.TLSSecretRef, s); err != nil {
 		return errors.Wrap(err, errGetWebhookSecret)
 	}
+
 	if len(s.Data["tls.crt"]) == 0 {
 		return errors.Errorf(errFmtNoTLSCrtInSecret, c.TLSSecretRef.String())
 	}
+
 	caBundle := s.Data["tls.crt"]
 
 	r, err := parser.NewFsBackend(c.fs,
@@ -97,13 +100,18 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 	if err != nil {
 		return errors.Wrap(err, "cannot init filesystem")
 	}
+
 	defer func() { _ = r.Close() }()
+
 	p := parser.New(runtime.NewScheme(), c.Scheme)
+
 	pkg, err := p.Parse(ctx, r)
 	if err != nil {
 		return errors.Wrap(err, "cannot parse files")
 	}
+
 	pa := resource.NewAPIPatchingApplicator(kube)
+
 	for _, obj := range pkg.GetObjects() {
 		switch conf := obj.(type) {
 		case *admv1.ValidatingWebhookConfiguration:
@@ -123,6 +131,7 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 		default:
 			return errors.Errorf("only MutatingWebhookConfiguration and ValidatingWebhookConfiguration kinds are accepted, got %T", obj)
 		}
+
 		if err := pa.Apply(ctx, obj.(client.Object)); err != nil { //nolint:forcetypeassert // Should always be a client.Object.
 			return errors.Wrap(err, errApplyWebhookConfiguration)
 		}
@@ -153,11 +162,13 @@ func (c *RemoveValidatingWebhooks) Run(ctx context.Context, kube client.Client) 
 	}
 
 	vwc := &admv1.ValidatingWebhookConfiguration{}
+
 	err := kube.Get(ctx, client.ObjectKey{Name: c.ConfigName}, vwc)
 	if kerrors.IsNotFound(err) {
 		// If the webhook configuration doesn't exist there's nothing to cleanup.
 		return nil
 	}
+
 	if err != nil {
 		return errors.Wrapf(err, "cannot get ValidatingWebhookConfiguration %q", c.ConfigName)
 	}
@@ -168,6 +179,7 @@ func (c *RemoveValidatingWebhooks) Run(ctx context.Context, kube client.Client) 
 		if cleanup[wh.Name] {
 			continue
 		}
+
 		whs = append(whs, wh)
 	}
 
@@ -184,5 +196,6 @@ func (c *RemoveValidatingWebhooks) Run(ctx context.Context, kube client.Client) 
 	// TODO(negz): Retry on version conflict? I can't imagine this resource
 	// changes that much, and this only happens once at install time...
 	vwc.Webhooks = whs
+
 	return errors.Wrapf(kube.Update(ctx, vwc), "cannot update ValidatingWebhookConfiguration %q", c.ConfigName)
 }

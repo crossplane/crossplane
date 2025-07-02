@@ -71,6 +71,7 @@ func TestAllowed(t *testing.T) {
 			for _, a := range tc.allow {
 				n.Allow(a.path())
 			}
+
 			got := n.Allowed(tc.check.path())
 
 			if got != tc.want {
@@ -85,10 +86,12 @@ func TestExpand(t *testing.T) {
 		rs  []rbacv1.PolicyRule
 		ctx context.Context
 	}
+
 	type want struct {
 		err   error
 		rules []Rule
 	}
+
 	cases := map[string]struct {
 		reason string
 		args
@@ -195,15 +198,17 @@ func TestExpand(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ctx := tc.args.ctx
+			ctx := tc.ctx
 			if ctx == nil {
 				ctx = context.Background()
 			}
+
 			got, err := Expand(ctx, tc.rs...)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nExpand(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.rules, got); diff != "" {
+
+			if diff := cmp.Diff(tc.rules, got); diff != "" {
 				t.Errorf("\n%s\nExpand(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})

@@ -113,6 +113,7 @@ func RenderComposedResourceMetadata(cd, xr resource.Object, n ResourceName) erro
 	meta.AddLabels(cd, metaLabels)
 
 	or := meta.AsController(meta.TypedReferenceTo(xr, xr.GetObjectKind().GroupVersionKind()))
+
 	return errors.Wrap(meta.AddControllerReference(cd, or), errSetControllerRef)
 }
 

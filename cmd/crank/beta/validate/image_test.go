@@ -70,6 +70,7 @@ func TestFindImageTagForVersionConstraint(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tagsPath := fmt.Sprintf("/v2/%s/tags/list", repoName)
+
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
 				case "/v2/":
@@ -116,6 +117,7 @@ func TestIsErrBaseLayerNotFound(t *testing.T) {
 	type args struct {
 		err error
 	}
+
 	tests := map[string]struct {
 		reason string
 		args   args

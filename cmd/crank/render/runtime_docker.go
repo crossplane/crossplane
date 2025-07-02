@@ -181,9 +181,11 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 	if i := fn.GetAnnotations()[AnnotationKeyRuntimeDockerImage]; i != "" {
 		r.Image = i
 	}
+
 	if i := fn.GetAnnotations()[AnnotationKeyRuntimeNamedContainer]; i != "" {
 		r.Name = i
 	}
+
 	if i := fn.GetAnnotations()[AnnotationKeyRuntimeEnvironmentVariables]; i != "" {
 		pairs := strings.Split(i, ",")
 		for _, pair := range pairs {
@@ -191,6 +193,7 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 				r.log.Debug("ignoring invalid environment variable", "pair", pair)
 				continue
 			}
+
 			r.Env = append(r.Env, pair)
 		}
 	}
@@ -224,6 +227,7 @@ func (r *RuntimeDocker) findContainer(ctx context.Context, cli *client.Client) (
 		if c.State == "running" {
 			r.log.Debug("reusing Docker container", "name", c.Names, "ID", c.ID, "image", c.Image)
 			addr := fmt.Sprintf("%s:%d", c.Ports[0].IP, c.Ports[0].PublicPort)
+
 			return c.ID, addr
 		}
 	}
@@ -235,15 +239,20 @@ func (r *RuntimeDocker) findContainer(ctx context.Context, cli *client.Client) (
 			r.log.Debug("could not start container", "name", c.Names[0])
 			return "", ""
 		}
+
 		for _, bindings := range inspect.NetworkSettings.Ports {
 			if len(bindings) > 0 {
 				addr := fmt.Sprintf("%s:%s", bindings[0].HostIP, bindings[0].HostPort)
+
 				r.log.Debug("restarted Docker container", "name", c.Names, "ID", c.ID, "image", c.Image)
+
 				return c.ID, addr
 			}
 		}
 	}
+
 	r.log.Debug("Container was not started", "name", c.Names[0])
+
 	return "", ""
 }
 
@@ -256,10 +265,12 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 	if err != nil {
 		return "", "", errors.Wrap(err, "cannot get available TCP port")
 	}
+
 	containerAddr := lis.Addr().String()
 	_ = lis.Close()
 
 	spec := fmt.Sprintf("%s:9443/tcp", containerAddr)
+
 	expose, bind, err := nat.ParsePortSpecs([]string{spec})
 	if err != nil {
 		return "", "", errors.Wrapf(err, "cannot parse Docker port spec %q", spec)
@@ -284,6 +295,7 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 
 	if r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyAlways {
 		r.log.Debug("Pulling image with pullPolicy: Always", "image", r.Image)
+
 		err = PullImage(ctx, cli, r.Image, options)
 		if err != nil {
 			return "", "", errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
@@ -292,6 +304,7 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 
 	// TODO(negz): Set a container name? Presumably unique across runs.
 	r.log.Debug("Creating Docker container", "image", r.Image, "address", containerAddr, "name", r.Name)
+
 	rsp, err := cli.ContainerCreate(ctx, cfg, hcfg, nil, nil, r.Name)
 	if err != nil {
 		if !errdefs.IsNotFound(err) || r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyNever {
@@ -300,6 +313,7 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 
 		// The image was not found, but we're allowed to pull it.
 		r.log.Debug("Image not found, pulling", "image", r.Image)
+
 		err = PullImage(ctx, cli, r.Image, options)
 		if err != nil {
 			return "", "", errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
@@ -310,9 +324,11 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 			return "", "", errors.Wrap(err, "cannot create Docker container")
 		}
 	}
+
 	if err := cli.ContainerStart(ctx, rsp.ID, container.StartOptions{}); err != nil {
 		return "", "", errors.Wrap(err, "cannot start Docker container")
 	}
+
 	return rsp.ID, containerAddr, errors.Wrap(err, "cannot start Docker container")
 }
 
@@ -349,6 +365,7 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 	if err != nil {
 		return RuntimeContext{}, errors.Wrap(err, "cannot create Docker client using environment variables")
 	}
+
 	containerAddr := ""
 	containerID := ""
 
@@ -377,12 +394,15 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 			if err := cli.ContainerStop(ctx, containerID, container.StopOptions{}); err != nil {
 				return errors.Wrap(err, "cannot stop Docker container")
 			}
+
 			if err := cli.ContainerRemove(ctx, containerID, container.RemoveOptions{}); err != nil {
 				return errors.Wrap(err, "cannot remove Docker container")
 			}
 		}
+
 		return nil
 	}
+
 	return RuntimeContext{Target: containerAddr, Stop: stop}, nil
 }
 
@@ -404,5 +424,6 @@ func PullImage(ctx context.Context, p pullClient, image string, options typesima
 	// seems that consuming all of this output is the best way to block until
 	// the image is actually pulled before we try to run it.
 	_, err = io.Copy(io.Discard, out)
+
 	return err
 }

@@ -139,11 +139,13 @@ func TestConfigurationTypeSupport(t *testing.T) {
 		extensions []*unstructured.Unstructured
 		fetchMock  func(image string) (*conregv1.Layer, error)
 	}
+
 	type want struct {
 		err   error
 		confs int
 		deps  int
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -332,10 +334,11 @@ func TestConfigurationTypeSupport(t *testing.T) {
 		w := &bytes.Buffer{}
 
 		m := NewManager("", fs, w)
+
 		t.Run(name, func(t *testing.T) {
 			m.fetcher = &MockFetcher{tc.args.fetchMock, nil}
-			err := m.PrepExtensions(tc.args.extensions)
 
+			err := m.PrepExtensions(tc.args.extensions)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nPrepExtensions(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -348,6 +351,7 @@ func TestConfigurationTypeSupport(t *testing.T) {
 			if diff := cmp.Diff(tc.want.confs, len(m.confs)); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want confs, +got confs:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.deps, len(m.deps)); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want deps, +got deps:\n%s", tc.reason, diff)
 			}
@@ -393,11 +397,13 @@ func TestAddDependencies(t *testing.T) {
 		fetcher         ImageFetcher
 		crossplaneImage string
 	}
+
 	type want struct {
 		confs int
 		deps  int
 		err   error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -477,14 +483,16 @@ func TestAddDependencies(t *testing.T) {
 			_ = m.PrepExtensions(tc.args.extensions)
 
 			m.fetcher = tc.args.fetcher
-			err := m.addDependencies(m.confs)
 
+			err := m.addDependencies(m.confs)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.confs, len(m.confs)); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want confs, +got confs:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.deps, len(m.deps)); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want deps, +got deps:\n%s", tc.reason, diff)
 			}
@@ -505,5 +513,6 @@ func (m *MockFetcher) FetchImage(image string) ([]conregv1.Layer, error) {
 	if m.fetchImage != nil {
 		return m.fetchImage(image)
 	}
+
 	return nil, nil // or a sensible default/mock behavior
 }

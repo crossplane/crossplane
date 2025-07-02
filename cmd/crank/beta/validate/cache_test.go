@@ -19,6 +19,7 @@ func TestLocalCacheExists(t *testing.T) {
 	type args struct {
 		image string
 	}
+
 	type want struct {
 		path string
 		err  error
@@ -56,6 +57,7 @@ func TestLocalCacheExists(t *testing.T) {
 				fs:       fs,
 				cacheDir: "testdata/cache",
 			}
+
 			got, err := c.Exists(tc.args.image)
 			if diff := cmp.Diff(tc.want.path, got); diff != "" {
 				t.Errorf("%s\nExists(...): -want, +got:\n%s", tc.reason, diff)
@@ -98,6 +100,7 @@ func TestLocalCacheInit(t *testing.T) {
 		cacheDir string
 		fs       afero.Fs
 	}
+
 	cases := map[string]struct {
 		reason  string
 		args    args
@@ -151,10 +154,12 @@ func TestLocalCacheLoad(t *testing.T) {
 		cacheDir string
 		image    string
 	}
+
 	type want struct {
 		schemas []*unstructured.Unstructured
 		err     error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -201,6 +206,7 @@ func TestLocalCacheLoad(t *testing.T) {
 			if diff := cmp.Diff(tc.want.schemas, got); diff != "" {
 				t.Errorf("%s\nLoad(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nLoad(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -214,9 +220,11 @@ func TestLocalCacheStore(t *testing.T) {
 		path    string
 		fs      afero.Fs
 	}
+
 	type want struct {
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -249,6 +257,7 @@ func TestLocalCacheStore(t *testing.T) {
 
 			if tc.want.err == nil {
 				fPath := filepath.Join(tc.args.path, packageFileName)
+
 				info, err := fs.Stat(fPath)
 				if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 					t.Errorf("%s\nStore(...): -want error, +got error:\n%s", tc.reason, diff)

@@ -54,6 +54,7 @@ func NewLoader(input string) (Loader, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, fmt.Sprintf("cannot create loader for %q", source))
 		}
+
 		loaders = append(loaders, loader)
 	}
 
@@ -134,10 +135,12 @@ type FolderLoader struct {
 // Load reads the contents from all files in a folder.
 func (f *FolderLoader) Load() ([]*unstructured.Unstructured, error) {
 	var stream [][]byte
+
 	err := filepath.Walk(f.path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
+
 		if isYamlFile(info) {
 			s, err := readFile(path)
 			if err != nil {
@@ -146,6 +149,7 @@ func (f *FolderLoader) Load() ([]*unstructured.Unstructured, error) {
 
 			stream = append(stream, s...)
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -179,12 +183,15 @@ func load(r io.Reader) ([][]byte, error) {
 		if errors.Is(err, io.EOF) {
 			break
 		}
+
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot parse YAML stream")
 		}
+
 		if len(bytes) == 0 {
 			continue
 		}
+
 		stream = append(stream, bytes)
 	}
 
@@ -203,6 +210,7 @@ func streamToUnstructured(stream [][]byte) ([]*unstructured.Unstructured, error)
 		if u.GetObjectKind().GroupVersionKind() == v1.CompositionGroupVersionKind {
 			// Convert the unstructured resource to a Composition
 			var comp v1.Composition
+
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &comp)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to convert unstructured to Composition")
@@ -212,10 +220,12 @@ func streamToUnstructured(stream [][]byte) ([]*unstructured.Unstructured, error)
 				// Create a new resource based on the input (we can use it for validation)
 				if step.Input != nil && step.Input.Raw != nil {
 					var inputMap map[string]interface{}
+
 					err := json.Unmarshal(step.Input.Raw, &inputMap)
 					if err != nil {
 						return nil, errors.Wrap(err, "failed to unmarshal raw input")
 					}
+
 					newInputResource := &unstructured.Unstructured{
 						Object: inputMap,
 					}
@@ -224,6 +234,7 @@ func streamToUnstructured(stream [][]byte) ([]*unstructured.Unstructured, error)
 				}
 			}
 		}
+
 		manifests = append(manifests, u)
 	}
 

@@ -55,7 +55,7 @@ func NewCompositionRevision(c *v1.Composition, revision int64) *v1.CompositionRe
 	meta.AddOwnerReference(cr, meta.AsController(ref))
 
 	for k, v := range c.GetLabels() {
-		cr.ObjectMeta.Labels[k] = v
+		cr.Labels[k] = v
 	}
 
 	return cr
@@ -67,5 +67,6 @@ func NewCompositionRevisionSpec(cs v1.CompositionSpec, revision int64) v1.Compos
 	conv := v1.GeneratedRevisionSpecConverter{}
 	rs := conv.ToRevisionSpec(cs)
 	rs.Revision = revision
+
 	return rs
 }

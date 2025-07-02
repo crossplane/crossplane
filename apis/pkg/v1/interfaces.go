@@ -60,6 +60,7 @@ func RefNames(refs []corev1.LocalObjectReference) []string {
 	for i, ref := range refs {
 		stringRefs[i] = ref.Name
 	}
+
 	return stringRefs
 }
 
@@ -86,13 +87,16 @@ type PackageWithRuntime interface {
 func (s *PackageStatus) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	for _, ref := range refs {
 		exists := false
+
 		for i, existing := range s.AppliedImageConfigRefs {
 			if existing.Reason != ref.Reason {
 				continue
 			}
+
 			s.AppliedImageConfigRefs[i] = ref
 			exists = true
 		}
+
 		if !exists {
 			s.AppliedImageConfigRefs = append(s.AppliedImageConfigRefs, ref)
 		}
@@ -479,13 +483,16 @@ type PackageRevisionWithRuntime interface { //nolint:interfacebloat // TODO(negz
 func (s *PackageRevisionStatus) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	for _, ref := range refs {
 		exists := false
+
 		for i, existing := range s.AppliedImageConfigRefs {
 			if existing.Reason != ref.Reason {
 				continue
 			}
+
 			s.AppliedImageConfigRefs[i] = ref
 			exists = true
 		}
+
 		if !exists {
 			s.AppliedImageConfigRefs = append(s.AppliedImageConfigRefs, ref)
 		}
@@ -885,6 +892,7 @@ func (p *ProviderRevisionList) GetRevisions() []PackageRevision {
 	for i, r := range p.Items {
 		prs[i] = &r
 	}
+
 	return prs
 }
 
@@ -894,6 +902,7 @@ func (p *ConfigurationRevisionList) GetRevisions() []PackageRevision {
 	for i, r := range p.Items {
 		prs[i] = &r
 	}
+
 	return prs
 }
 
@@ -913,6 +922,7 @@ func GetSecretNameWithSuffix(name, suffix string) *string {
 	if len(name) > 253-len(suffix) {
 		name = name[0 : 253-len(suffix)]
 	}
+
 	s := name + suffix
 
 	return &s
@@ -1256,5 +1266,6 @@ func (p *FunctionRevisionList) GetRevisions() []PackageRevision {
 	for i, r := range p.Items {
 		prs[i] = &r
 	}
+
 	return prs
 }

@@ -156,6 +156,7 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 	if req.GetMeta().GetTag() == "" {
 		log.Debug("RunFunctionResponse cache miss", "reason", ReasonEmptyRequestTag)
 		r.metrics.Miss(name)
+
 		return r.wrapped.RunFunction(ctx, name, req)
 	}
 
@@ -166,12 +167,15 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 	if errors.Is(err, fs.ErrNotExist) {
 		log.Debug("RunFunctionResponse cache miss", "reason", ReasonNotCached)
 		r.metrics.Miss(name)
+
 		return r.CacheFunction(ctx, name, req)
 	}
+
 	if err != nil {
 		log.Info("RunFunctionResponse cache miss", "reason", ReasonError, "err", err)
 		r.metrics.Miss(name)
 		r.metrics.Error(name)
+
 		return r.CacheFunction(ctx, name, req)
 	}
 
@@ -180,6 +184,7 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 		log.Info("RunFunctionResponse cache miss", "reason", ReasonError, "err", err)
 		r.metrics.Miss(name)
 		r.metrics.Error(name)
+
 		return r.CacheFunction(ctx, name, req)
 	}
 
@@ -190,12 +195,14 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 	if time.Now().After(deadline) {
 		log.Debug("RunFunctionResponse cache miss", "reason", ReasonDeadlineExpired, "deadline", deadline)
 		r.metrics.Miss(name)
+
 		return r.CacheFunction(ctx, name, req)
 	}
 
 	log.Debug("RunFunctionResponse cache hit")
 	r.metrics.Hit(name)
 	r.metrics.ReadDuration(name, time.Since(start))
+
 	return crsp.GetResponse(), nil
 }
 
@@ -234,16 +241,19 @@ func (r *FileBackedRunner) CacheFunction(ctx context.Context, name string, req *
 	// time, we instead compute a deadline at write time and wrap the cached
 	// response.
 	deadline := time.Now().Add(ttl)
+
 	msg, err := proto.Marshal(&v1alpha1.CachedRunFunctionResponse{Deadline: timestamppb.New(deadline), Response: rsp})
 	if err != nil {
 		log.Info("RunFunctionResponse cache write error", "err", err)
 		r.metrics.Error(name)
+
 		return rsp, nil
 	}
 
 	if err := r.fs.MkdirAll(name, 0o700); err != nil {
 		log.Info("RunFunctionResponse cache write error", "err", err)
 		r.metrics.Error(name)
+
 		return rsp, nil
 	}
 
@@ -253,22 +263,30 @@ func (r *FileBackedRunner) CacheFunction(ctx context.Context, name string, req *
 	if err != nil {
 		log.Info("RunFunctionResponse cache write error", "err", err)
 		r.metrics.Error(name)
+
 		return rsp, nil
 	}
+
 	if _, err := tmp.Write(msg); err != nil {
 		_ = tmp.Close()
+
 		log.Info("RunFunctionResponse cache write error", "err", err)
 		r.metrics.Error(name)
+
 		return rsp, nil
 	}
+
 	if err := tmp.Close(); err != nil {
 		log.Info("RunFunctionResponse cache write error", "err", err)
 		r.metrics.Error(name)
+
 		return rsp, nil
 	}
+
 	if err := r.fs.Rename(tmp.Name(), key); err != nil {
 		log.Info("RunFunctionResponse cache write error", "err", err)
 		r.metrics.Error(name)
+
 		return rsp, nil
 	}
 
@@ -276,6 +294,7 @@ func (r *FileBackedRunner) CacheFunction(ctx context.Context, name string, req *
 	r.metrics.Write(name)
 	r.metrics.WriteDuration(name, time.Since(start))
 	r.metrics.WroteBytes(name, len(msg))
+
 	return rsp, nil
 }
 
@@ -336,6 +355,7 @@ func (r *FileBackedRunner) GarbageCollectFilesNow(ctx context.Context) (int, err
 			if err := r.fs.Remove(path); err != nil {
 				r.log.Info("RunFunctionResponse cache error", "path", path, "error", err)
 			}
+
 			return nil
 		}
 
@@ -348,6 +368,7 @@ func (r *FileBackedRunner) GarbageCollectFilesNow(ctx context.Context) (int, err
 		if err != nil {
 			log.Info("RunFunctionResponse cache error", "error", err)
 			r.metrics.Error(name)
+
 			return nil
 		}
 
@@ -355,6 +376,7 @@ func (r *FileBackedRunner) GarbageCollectFilesNow(ctx context.Context) (int, err
 		if err := proto.Unmarshal(b, crsp); err != nil {
 			log.Info("RunFunctionResponse cache error", "error", err)
 			r.metrics.Error(name)
+
 			return nil
 		}
 
@@ -381,13 +403,16 @@ func (r *FileBackedRunner) GarbageCollectFilesNow(ctx context.Context) (int, err
 		if err := r.fs.Remove(path); err != nil {
 			log.Info("RunFunctionResponse cache error", "error", err)
 			r.metrics.Error(name)
+
 			return nil
 		}
 
 		collected++
+
 		log.Debug("RunFunctionResponse cache delete", "deadline", deadline, "bytes", info.Size())
 		r.metrics.Delete(name)
 		r.metrics.DeletedBytes(name, int(info.Size()))
+
 		return nil
 	})
 

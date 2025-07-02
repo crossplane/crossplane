@@ -58,6 +58,7 @@ func TestReconcile(t *testing.T) {
 		mgr  manager.Manager
 		opts []ReconcilerOption
 	}
+
 	type want struct {
 		r   reconcile.Result
 		err error
@@ -263,11 +264,12 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.mgr, append(tc.args.opts, WithLogger(testLog))...)
-			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -434,6 +436,7 @@ func TestOrgDiffer(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			d := OrgDiffer{}
+
 			got := d.Differs(tc.a, tc.b)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("SameOrg(...): -want, +got\n:%s", diff)

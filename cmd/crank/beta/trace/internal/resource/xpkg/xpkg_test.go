@@ -33,6 +33,7 @@ func TestIsPackageType(t *testing.T) {
 	type want struct {
 		ok bool
 	}
+
 	tests := map[string]struct {
 		reason string
 		args   args
@@ -123,6 +124,7 @@ func TestIsPackageRevisionType(t *testing.T) {
 	type want struct {
 		ok bool
 	}
+
 	tests := map[string]struct {
 		reason string
 		args   args
@@ -209,9 +211,11 @@ func TestIsPackageRuntimeConfigType(t *testing.T) {
 	type args struct {
 		gk schema.GroupKind
 	}
+
 	type want struct {
 		ok bool
 	}
+
 	tests := map[string]struct {
 		reason string
 		args   args

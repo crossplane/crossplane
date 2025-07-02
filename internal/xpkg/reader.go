@@ -35,6 +35,7 @@ func GzipReadCloser(rc io.ReadCloser) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &gzipReadCloser{
 		rc:   rc,
 		gzip: r,
@@ -52,6 +53,7 @@ func (g *gzipReadCloser) Close() error {
 		_ = g.rc.Close()
 		return err
 	}
+
 	return g.rc.Close()
 }
 
@@ -84,6 +86,7 @@ func (t *teeReadCloser) Close() error {
 		_ = t.w.Close()
 		return err
 	}
+
 	return t.w.Close()
 }
 

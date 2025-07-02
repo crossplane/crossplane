@@ -34,19 +34,23 @@ func FuzzPackageRevision(f *testing.F) {
 		ff := fuzz.NewConsumer(data)
 		pkg := &v1.Provider{}
 		ff.GenerateStruct(pkg)
+
 		fetcher := &fake.MockFetcher{
 			MockHead: fake.NewMockHeadFn(nil, errors.New("boom")),
 		}
 		r := NewPackageRevisioner(fetcher)
 		_, _ = r.Revision(context.Background(), pkg, "")
+
 		n, err := ff.GetString()
 		if err != nil {
 			t.Skip()
 		}
+
 		h, err := ff.GetString()
 		if err != nil {
 			t.Skip()
 		}
+
 		_ = xpkg.FriendlyID(n, h)
 	})
 }

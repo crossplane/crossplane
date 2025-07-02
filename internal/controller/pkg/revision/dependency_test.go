@@ -611,18 +611,21 @@ func TestResolve(t *testing.T) {
 
 	for name, tc := range cases {
 		mockUpdateCallCount = 0
+
 		t.Run(name, func(t *testing.T) {
 			total, installed, invalid, err := tc.args.dep.Resolve(context.TODO(), tc.args.meta, tc.args.pr)
-
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\np.Resolve(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.total, total); diff != "" {
 				t.Errorf("\n%s\nTotal(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.installed, installed); diff != "" {
 				t.Errorf("\n%s\nInstalled(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.invalid, invalid); diff != "" {
 				t.Errorf("\n%s\nInvalid(...): -want, +got:\n%s", tc.reason, diff)
 			}

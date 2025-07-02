@@ -57,6 +57,7 @@ func (s *StoppableSource) Start(ctx context.Context, q workqueue.TypedRateLimiti
 	if err != nil {
 		return errors.Wrapf(err, "cannot add event handler")
 	}
+
 	s.reg = reg
 
 	return nil
@@ -74,6 +75,7 @@ func (s *StoppableSource) Stop(_ context.Context) error {
 	}
 
 	s.reg = nil
+
 	return nil
 }
 
@@ -124,6 +126,7 @@ func (e *EventHandler) OnAdd(obj any) {
 
 	ctx, cancel := context.WithCancel(e.ctx)
 	defer cancel()
+
 	e.handler.Create(ctx, c, e.queue)
 }
 
@@ -149,6 +152,7 @@ func (e *EventHandler) OnUpdate(oldObj, newObj any) {
 
 	ctx, cancel := context.WithCancel(e.ctx)
 	defer cancel()
+
 	e.handler.Update(ctx, u, e.queue)
 }
 
@@ -168,6 +172,7 @@ func (e *EventHandler) OnDelete(obj any) {
 		if !ok {
 			return
 		}
+
 		d = event.DeleteEvent{DeleteStateUnknown: true, Object: wrapped}
 
 	default:
@@ -182,5 +187,6 @@ func (e *EventHandler) OnDelete(obj any) {
 
 	ctx, cancel := context.WithCancel(e.ctx)
 	defer cancel()
+
 	e.handler.Delete(ctx, d, e.queue)
 }

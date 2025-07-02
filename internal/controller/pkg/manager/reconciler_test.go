@@ -71,6 +71,7 @@ func TestReconcile(t *testing.T) {
 		req reconcile.Request
 		rec *Reconciler
 	}
+
 	type want struct {
 		r   reconcile.Result
 		err error
@@ -1041,10 +1042,10 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got, err := tc.args.rec.Reconcile(context.Background(), reconcile.Request{})
-
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}

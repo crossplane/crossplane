@@ -84,6 +84,7 @@ func NewGarbageCollector(name string, of schema.GroupVersionKind, ce ControllerE
 	for _, fn := range o {
 		fn(gc)
 	}
+
 	return gc
 }
 
@@ -136,6 +137,7 @@ func (gc *GarbageCollector) GarbageCollectWatchesNow(ctx context.Context) error 
 	l := &kunstructured.UnstructuredList{}
 	l.SetAPIVersion(gc.gvk.GroupVersion().String())
 	l.SetKind(gc.gvk.Kind + "List")
+
 	if err := gc.engine.GetCached().List(ctx, l); err != nil {
 		return errors.Wrap(err, "cannot list composite resources")
 	}
@@ -150,11 +152,13 @@ func (gc *GarbageCollector) GarbageCollectWatchesNow(ctx context.Context) error 
 	}
 
 	stop := make([]engine.WatchID, 0)
+
 	for _, wid := range composed {
 		// Only stop watches for types no XR composes.
 		if used[wid.GVK] {
 			continue
 		}
+
 		stop = append(stop, wid)
 	}
 
@@ -179,12 +183,14 @@ func (gc *GarbageCollector) GarbageCollectWatchesNow(ctx context.Context) error 
 	l = &kunstructured.UnstructuredList{}
 	l.SetAPIVersion(gc.gvk.GroupVersion().String())
 	l.SetKind(gc.gvk.Kind + "List")
+
 	if err := gc.engine.GetUncached().List(ctx, l); err != nil {
 		return errors.Wrap(err, "cannot list composite resources")
 	}
 
 	// Build the set of GVKs they still reference.
 	used = make(map[schema.GroupVersionKind]bool)
+
 	for _, u := range l.Items {
 		xr := &composite.Unstructured{Unstructured: u}
 		for _, ref := range xr.GetResourceReferences() {
@@ -203,6 +209,7 @@ func (gc *GarbageCollector) GarbageCollectWatchesNow(ctx context.Context) error 
 		if used[wid.GVK] {
 			continue
 		}
+
 		stop = append(stop, wid)
 	}
 
@@ -225,5 +232,6 @@ func (gc *GarbageCollector) GarbageCollectWatchesNow(ctx context.Context) error 
 	// time though - at worst up to Crossplane's sync interval.
 	gc.log.Debug("Garbage collecting watches", "count", len(stop))
 	_, err = gc.engine.StopWatches(ctx, gc.controllerName, stop...)
+
 	return errors.Wrap(err, "cannot stop watches for composed resource types that are no longer referenced by any composite resource")
 }

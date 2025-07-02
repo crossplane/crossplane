@@ -99,6 +99,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 	if err := h.client.Apply(ctx, secClient); err != nil {
 		return errors.Wrap(err, errApplyProviderSecret)
 	}
+
 	if err := h.client.Apply(ctx, secServer); err != nil {
 		return errors.Wrap(err, errApplyProviderSecret)
 	}
@@ -126,6 +127,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 	if err != nil {
 		return errors.Wrap(err, errParseProviderImage)
 	}
+
 	d := build.Deployment(sa.Name, providerDeploymentOverrides(pr, image.Name())...)
 	// Create/Apply the SA only if the deployment references it.
 	// This is to avoid creating a SA that is not used by the deployment when
@@ -137,6 +139,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 			return errors.Wrap(err, errApplyProviderSA)
 		}
 	}
+
 	if err := h.client.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyProviderDeployment)
 	}
@@ -146,9 +149,11 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 			if c.Status == corev1.ConditionTrue {
 				return nil
 			}
+
 			return errors.Errorf(errFmtUnavailableProviderDeployment, c.Message)
 		}
 	}
+
 	return errors.New(errNoAvailableConditionProviderDeployment)
 }
 
@@ -256,5 +261,6 @@ func applySA(ctx context.Context, cl resource.ClientApplicator, sa *corev1.Servi
 			}
 		}
 	}
+
 	return cl.Apply(ctx, sa)
 }

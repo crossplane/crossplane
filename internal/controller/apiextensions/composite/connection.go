@@ -48,15 +48,18 @@ type ConnectionDetailsFetcherChain []ConnectionDetailsFetcher
 // FetchConnection details of the supplied composed resource, if any.
 func (fc ConnectionDetailsFetcherChain) FetchConnection(ctx context.Context, o ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 	all := make(managed.ConnectionDetails)
+
 	for _, p := range fc {
 		conn, err := p.FetchConnection(ctx, o)
 		if err != nil {
 			return nil, err
 		}
+
 		for k, v := range conn {
 			all[k] = v
 		}
 	}
+
 	return all, nil
 }
 
@@ -88,9 +91,11 @@ func (cdf *SecretConnectionDetailsFetcher) FetchConnection(ctx context.Context, 
 	}
 
 	s := &corev1.Secret{}
+
 	nn := types.NamespacedName{Namespace: ns, Name: sref.Name}
 	if err := cdf.client.Get(ctx, nn, s); client.IgnoreNotFound(err) != nil {
 		return nil, errors.Wrap(err, errGetSecret)
 	}
+
 	return s.Data, nil
 }

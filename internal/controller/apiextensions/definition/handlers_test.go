@@ -30,6 +30,7 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 		reader client.Reader
 		event  kevent.CreateEvent
 	}
+
 	type want struct {
 		added []any
 	}

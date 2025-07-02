@@ -55,6 +55,7 @@ func TestPublishConnection(t *testing.T) {
 		filter     []string
 		c          managed.ConnectionDetails
 	}
+
 	type want struct {
 		published bool
 		err       error
@@ -139,10 +140,12 @@ func TestPublishConnection(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			a := &APIFilteredSecretPublisher{tc.args.applicator, tc.args.filter}
+
 			got, err := a.PublishConnection(context.Background(), tc.args.o, tc.args.c)
 			if diff := cmp.Diff(tc.want.published, got); diff != "" {
 				t.Errorf("\n%s\nPublish(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nPublish(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -206,6 +209,7 @@ func TestFetchRevision(t *testing.T) {
 		ctx context.Context
 		cr  resource.Composite
 	}
+
 	type want struct {
 		rev *v1.CompositionRevision
 		err error
@@ -477,8 +481,8 @@ func TestFetchRevision(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			f := NewAPIRevisionFetcher(tc.client)
-			got, err := f.Fetch(tc.args.ctx, tc.args.cr)
 
+			got, err := f.Fetch(tc.args.ctx, tc.args.cr)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nf.Fetch(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -507,10 +511,12 @@ func TestConfigure(t *testing.T) {
 		cp   resource.Composite
 		rev  *v1.CompositionRevision
 	}
+
 	type want struct {
 		cp  resource.Composite
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args
@@ -585,11 +591,13 @@ func TestConfigure(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := &APIConfigurator{client: tc.args.kube}
-			err := c.Configure(context.Background(), tc.args.cp, tc.args.rev)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			c := &APIConfigurator{client: tc.kube}
+
+			err := c.Configure(context.Background(), tc.args.cp, tc.rev)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
 				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -617,6 +625,7 @@ func TestSelectorResolver(t *testing.T) {
 		kube client.Client
 		cp   resource.Composite
 	}
+
 	type want struct {
 		cp  resource.Composite
 		err error
@@ -704,11 +713,13 @@ func TestSelectorResolver(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPILabelSelectorResolver(tc.args.kube)
+			c := NewAPILabelSelectorResolver(tc.kube)
+
 			err := c.SelectComposition(context.Background(), tc.args.cp)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -728,11 +739,13 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 			CompositeTypeRef: tref,
 		},
 	}
+
 	type args struct {
 		kube   client.Client
 		defRef corev1.ObjectReference
 		cp     resource.Composite
 	}
+
 	type want struct {
 		cp  resource.Composite
 		err error
@@ -824,11 +837,13 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPIDefaultCompositionSelector(tc.args.kube, tc.args.defRef, event.NewNopRecorder())
+			c := NewAPIDefaultCompositionSelector(tc.kube, tc.defRef, event.NewNopRecorder())
+
 			err := c.SelectComposition(context.Background(), tc.args.cp)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -847,10 +862,12 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 			CompositeTypeRef: tref,
 		},
 	}
+
 	type args struct {
 		def v1.CompositeResourceDefinition
 		cp  resource.Composite
 	}
+
 	type want struct {
 		cp  resource.Composite
 		err error
@@ -920,11 +937,13 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewEnforcedCompositionSelector(tc.args.def, event.NewNopRecorder())
+			c := NewEnforcedCompositionSelector(tc.def, event.NewNopRecorder())
+
 			err := c.SelectComposition(context.Background(), tc.args.cp)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -937,6 +956,7 @@ func TestAPINamingConfigurator(t *testing.T) {
 		kube client.Client
 		cp   resource.Composite
 	}
+
 	type want struct {
 		cp  resource.Composite
 		err error
@@ -971,11 +991,13 @@ func TestAPINamingConfigurator(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPINamingConfigurator(tc.args.kube)
+			c := NewAPINamingConfigurator(tc.kube)
+
 			err := c.Configure(context.Background(), tc.args.cp, nil)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
 				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
 			}

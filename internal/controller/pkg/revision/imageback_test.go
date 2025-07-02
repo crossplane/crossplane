@@ -193,10 +193,12 @@ func TestImageBackend(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			b := NewImageBackend(tc.args.f)
+
 			rc, err := b.Init(context.TODO(), tc.args.opts...)
 			if err == nil && rc != nil {
 				_, err = io.ReadAll(rc)
 			}
+
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nb.Init(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

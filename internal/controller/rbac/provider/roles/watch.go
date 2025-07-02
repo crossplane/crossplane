@@ -65,6 +65,7 @@ func (e *EnqueueRequestForAllRevisionsInFamily) add(ctx context.Context, obj run
 	if !ok {
 		return
 	}
+
 	family := pr.GetLabels()[v1.LabelProviderFamily]
 	if family == "" {
 		// This revision is not part of a family.
@@ -83,6 +84,7 @@ func (e *EnqueueRequestForAllRevisionsInFamily) add(ctx context.Context, obj run
 			// triggered this enqueue.
 			continue
 		}
+
 		queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: member.GetName()}})
 	}
 }

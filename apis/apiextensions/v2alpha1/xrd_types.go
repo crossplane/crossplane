@@ -263,13 +263,15 @@ type CompositeResourceDefinition struct {
 type CompositeResourceDefinitionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []CompositeResourceDefinition `json:"items"`
+
+	Items []CompositeResourceDefinition `json:"items"`
 }
 
 // GetCompositeGroupVersionKind returns the schema.GroupVersionKind of the CRD for
 // the composite resource this CompositeResourceDefinition defines.
 func (c *CompositeResourceDefinition) GetCompositeGroupVersionKind() schema.GroupVersionKind {
 	v := ""
+
 	for _, vr := range c.Spec.Versions {
 		if vr.Referenceable {
 			v = vr.Name
@@ -295,6 +297,7 @@ func (c *CompositeResourceDefinition) GetClaimGroupVersionKind() schema.GroupVer
 	}
 
 	v := ""
+
 	for _, vr := range c.Spec.Versions {
 		if vr.Referenceable {
 			v = vr.Name

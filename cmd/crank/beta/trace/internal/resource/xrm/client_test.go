@@ -51,9 +51,11 @@ func buildXRC(namespace string, name string, opts ...xrcOpt) *unstructured.Unstr
 	c := claim.New()
 	c.SetName(name)
 	c.SetNamespace(namespace)
+
 	for _, f := range opts {
 		f(c)
 	}
+
 	return &c.Unstructured
 }
 
@@ -68,9 +70,11 @@ func withXRRefs(refs ...v1.ObjectReference) xrOpt {
 func buildXR(name string, opts ...xrOpt) *unstructured.Unstructured {
 	c := composite.New()
 	c.SetName(name)
+
 	for _, f := range opts {
 		f(c)
 	}
+
 	return &c.Unstructured
 }
 
@@ -79,9 +83,11 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 		resource   *resource2.Resource
 		witSecrets bool
 	}
+
 	type want struct {
 		refs []v1.ObjectReference
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args

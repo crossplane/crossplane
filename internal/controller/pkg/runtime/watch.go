@@ -30,11 +30,13 @@ func EnqueuePackageRevisionsForRuntimeConfig(kube client.Client, l v1.PackageRev
 		}
 
 		var matches []reconcile.Request
+
 		for _, rev := range rl.GetRevisions() {
 			rt, ok := rev.(v1.PackageRevisionWithRuntime)
 			if !ok {
 				continue
 			}
+
 			ref := rt.GetRuntimeConfigRef()
 			if ref != nil && ref.Name == rc.GetName() {
 				matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: rev.GetName()}})

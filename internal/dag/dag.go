@@ -76,6 +76,7 @@ func (d *MapDag) Init(nodes []Node) ([]Node, error) {
 			return nil, err
 		}
 	}
+
 	var implied []Node
 	for _, node := range nodes {
 		miss, err := d.AddEdges(map[string][]Node{
@@ -84,8 +85,10 @@ func (d *MapDag) Init(nodes []Node) ([]Node, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		implied = append(implied, miss...)
 	}
+
 	return implied, nil
 }
 
@@ -96,6 +99,7 @@ func (d *MapDag) AddNodes(nodes ...Node) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -104,7 +108,9 @@ func (d *MapDag) AddNode(node Node) error {
 	if _, ok := d.nodes[node.Identifier()]; ok {
 		return errors.Errorf("node %s already exists", node.Identifier())
 	}
+
 	d.nodes[node.Identifier()] = node
+
 	return nil
 }
 
@@ -127,6 +133,7 @@ func (d *MapDag) NodeNeighbors(identifier string) ([]Node, error) {
 	if _, ok := d.nodes[identifier]; !ok {
 		return nil, errors.Errorf("node %s does not exist", identifier)
 	}
+
 	return d.nodes[identifier].Neighbors(), nil
 }
 
@@ -137,6 +144,7 @@ func (d *MapDag) TraceNode(identifier string) (map[string]Node, error) {
 	if err := d.traceNode(identifier, tree); err != nil {
 		return nil, err
 	}
+
 	return tree, nil
 }
 
@@ -144,17 +152,20 @@ func (d *MapDag) traceNode(identifier string, tree map[string]Node) error {
 	if d.nodes[identifier] == nil {
 		return errors.New("missing node in tree")
 	}
+
 	for _, n := range d.nodes[identifier].Neighbors() {
 		// if we have already visited this neighbor, then we have already
 		// visited its neighbors, so we can skip.
 		if _, ok := tree[n.Identifier()]; ok {
 			continue
 		}
+
 		tree[n.Identifier()] = n
 		if err := d.traceNode(n.Identifier(), tree); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -163,23 +174,27 @@ func (d *MapDag) GetNode(identifier string) (Node, error) {
 	if _, ok := d.nodes[identifier]; !ok {
 		return nil, errors.Errorf("node %s does not exist", identifier)
 	}
+
 	return d.nodes[identifier], nil
 }
 
 // AddEdges adds edges to the graph.
 func (d *MapDag) AddEdges(edges map[string][]Node) ([]Node, error) {
 	var missing []Node
+
 	for f, ne := range edges {
 		for _, e := range ne {
 			implied, err := d.AddEdge(f, e)
 			if implied {
 				missing = append(missing, e)
 			}
+
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
+
 	return missing, nil
 }
 
@@ -188,6 +203,7 @@ func (d *MapDag) AddEdge(from string, to Node) (bool, error) {
 	if _, ok := d.nodes[from]; !ok {
 		return false, errors.Errorf("node %s does not exist", to)
 	}
+
 	implied := false
 	if _, ok := d.nodes[to.Identifier()]; !ok {
 		implied = true
@@ -195,12 +211,14 @@ func (d *MapDag) AddEdge(from string, to Node) (bool, error) {
 			return implied, err
 		}
 	}
+
 	return implied, d.nodes[from].AddNeighbors(to)
 }
 
 // Sort performs topological sort on the graph.
 func (d *MapDag) Sort() ([]string, error) {
 	visited := map[string]bool{}
+
 	results := make([]string, len(d.nodes))
 	for n, node := range d.nodes {
 		if !visited[n] {
@@ -210,17 +228,20 @@ func (d *MapDag) Sort() ([]string, error) {
 			}
 		}
 	}
+
 	return results, nil
 }
 
 func (d *MapDag) visit(name string, neighbors []Node, stack map[string]bool, visited map[string]bool, results []string) error {
 	visited[name] = true
+
 	stack[name] = true
 	for _, n := range neighbors {
 		if !visited[n.Identifier()] {
 			if _, ok := d.nodes[n.Identifier()]; !ok {
 				return errors.Errorf("node %q does not exist", n.Identifier())
 			}
+
 			if err := d.visit(n.Identifier(), d.nodes[n.Identifier()].Neighbors(), stack, visited, results); err != nil {
 				return err
 			}
@@ -228,12 +249,15 @@ func (d *MapDag) visit(name string, neighbors []Node, stack map[string]bool, vis
 			return errors.Errorf("detected cycle on: %s", n.Identifier())
 		}
 	}
+
 	for i, r := range results {
 		if r == "" {
 			results[i] = name
 			break
 		}
 	}
+
 	stack[name] = false
+
 	return nil
 }

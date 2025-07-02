@@ -85,10 +85,12 @@ func (a *APIFilteredSecretPublisher) PublishConnection(ctx context.Context, o Co
 	}
 
 	s := ConnectionSecretFor(o, o.GetObjectKind().GroupVersionKind())
+
 	m := map[string]bool{}
 	for _, key := range a.filter {
 		m[key] = true
 	}
+
 	for key, val := range c {
 		// If the filter does not have any keys, we allow all given keys to be
 		// published.
@@ -111,6 +113,7 @@ func (a *APIFilteredSecretPublisher) PublishConnection(ctx context.Context, o Co
 		// The update was not allowed because it was a no-op.
 		return false, nil
 	}
+
 	if err != nil {
 		return false, errors.Wrap(err, errApplySecret)
 	}
@@ -160,6 +163,7 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	if current != nil && pol != nil && *pol == xpv1.UpdateManual {
 		rev := &v1.CompositionRevision{}
 		err := f.client.Get(ctx, types.NamespacedName{Name: current.Name}, rev)
+
 		return rev, errors.Wrap(err, errGetCompositionRevision)
 	}
 
@@ -183,6 +187,7 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 
 	if current == nil || current.Name != latest.GetName() {
 		cr.SetCompositionRevisionReference(&corev1.LocalObjectReference{Name: latest.GetName()})
+
 		if err := f.client.Update(ctx, cr); err != nil {
 			return nil, errors.Wrap(err, errUpdate)
 		}
@@ -204,6 +209,7 @@ func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr 
 	if err := f.client.List(ctx, rl, ml); err != nil {
 		return nil, errors.Wrap(err, errListCompositionRevisions)
 	}
+
 	return rl, nil
 }
 
@@ -225,6 +231,7 @@ func (r *CompositionSelectorChain) SelectComposition(ctx context.Context, cp res
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -249,11 +256,14 @@ func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp res
 	if cp.GetCompositionReference() != nil {
 		return nil
 	}
+
 	labels := map[string]string{}
+
 	sel := cp.GetCompositionSelector()
 	if sel != nil {
 		labels = sel.MatchLabels
 	}
+
 	list := &v1.CompositionList{}
 	if err := r.client.List(ctx, list, client.MatchingLabels(labels)); err != nil {
 		return errors.Wrap(err, errListCompositions)
@@ -276,6 +286,7 @@ func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp res
 	random := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec // We don't need this to be cryptographically random.
 	selected := candidates[random.Intn(len(candidates))]
 	cp.SetCompositionReference(&corev1.ObjectReference{Name: selected})
+
 	return errors.Wrap(r.client.Update(ctx, cp), errUpdateComposite)
 }
 
@@ -299,15 +310,19 @@ func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 	if cp.GetCompositionReference() != nil || cp.GetCompositionSelector() != nil {
 		return nil
 	}
+
 	def := &v1.CompositeResourceDefinition{}
 	if err := s.client.Get(ctx, meta.NamespacedNameOf(&s.defRef), def); err != nil {
 		return errors.Wrap(err, errGetXRD)
 	}
+
 	if def.Spec.DefaultCompositionRef == nil {
 		return nil
 	}
+
 	cp.SetCompositionReference(&corev1.ObjectReference{Name: def.Spec.DefaultCompositionRef.Name})
 	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Default composition has been selected"))
+
 	return nil
 }
 
@@ -336,8 +351,10 @@ func (s *EnforcedCompositionSelector) SelectComposition(_ context.Context, cp re
 	if cp.GetCompositionReference() != nil && cp.GetCompositionReference().Name == s.def.Spec.EnforcedCompositionRef.Name {
 		return nil
 	}
+
 	cp.SetCompositionReference(&corev1.ObjectReference{Name: s.def.Spec.EnforcedCompositionRef.Name})
 	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Enforced composition has been selected"))
+
 	return nil
 }
 
@@ -358,6 +375,7 @@ func (cc *ConfiguratorChain) Configure(ctx context.Context, cp resource.Composit
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -416,6 +434,8 @@ func (c *APINamingConfigurator) Configure(ctx context.Context, cp resource.Compo
 	if cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] != "" {
 		return nil
 	}
+
 	meta.AddLabels(cp, map[string]string{xcrd.LabelKeyNamePrefixForComposed: cp.GetName()})
+
 	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
 }

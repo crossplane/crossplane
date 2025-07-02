@@ -64,6 +64,7 @@ func (m *MockHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntime, b
 	if m.MockPre != nil {
 		return m.MockPre(ctx, pr, b)
 	}
+
 	return nil
 }
 
@@ -72,6 +73,7 @@ func (m *MockHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRuntime, 
 	if m.MockPost != nil {
 		return m.MockPost(ctx, pr, b)
 	}
+
 	return nil
 }
 
@@ -80,6 +82,7 @@ func (m *MockHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWithRun
 	if m.MockDeactivate != nil {
 		return m.MockDeactivate(ctx, pr, b)
 	}
+
 	return nil
 }
 
@@ -91,6 +94,7 @@ func TestReconcile(t *testing.T) {
 		mgr manager.Manager
 		rec []ReconcilerOption
 	}
+
 	type want struct {
 		r   reconcile.Result
 		err error
@@ -884,8 +888,8 @@ func TestReconcile(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			tc := tc
 			r := NewReconciler(tc.args.mgr, tc.args.rec...)
-			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -903,5 +907,6 @@ func flagsWithFeatures(features ...feature.Flag) *feature.Flags {
 	for _, f := range features {
 		flags.Enable(f)
 	}
+
 	return flags
 }

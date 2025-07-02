@@ -32,17 +32,21 @@ import (
 
 // Read reads the input from the given file or stdin if no file is given.
 func Read(fs afero.Fs, inputFile string) ([]byte, error) {
-	var data []byte
-	var err error
+	var (
+		data []byte
+		err  error
+	)
 
 	if inputFile != "-" {
 		data, err = afero.ReadFile(fs, inputFile)
 	} else {
 		data, err = io.ReadAll(os.Stdin)
 	}
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to read inputFile")
 	}
+
 	return data, nil
 }
 
@@ -58,7 +62,9 @@ func WriteObjectYAML(fs afero.Fs, outputFile string, o runtime.Object) error {
 		if err != nil {
 			return errors.Wrap(err, "Unable to open output file")
 		}
+
 		defer func() { _ = f.Close() }()
+
 		output = f
 	} else {
 		output = os.Stdout
@@ -68,5 +74,6 @@ func WriteObjectYAML(fs afero.Fs, outputFile string, o runtime.Object) error {
 	if err != nil {
 		return errors.Wrap(err, "Unable to encode output")
 	}
+
 	return nil
 }

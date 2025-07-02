@@ -161,6 +161,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 			if !exists {
 				return fmt.Errorf("composition %q is missing required label %q", comp.GetName(), key)
 			}
+
 			if compValue != value {
 				return fmt.Errorf("composition %q has incorrect value for label %q: want %q, got %q",
 					comp.GetName(), key, value, compValue)
@@ -176,19 +177,23 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	if err != nil {
 		return errors.Wrapf(err, "cannot load functions from %q", c.Functions)
 	}
+
 	if c.XRD != "" {
 		xrd, err := LoadXRD(c.fs, c.XRD)
 		if err != nil {
 			return errors.Wrapf(err, "cannot load XRD from %q", c.XRD)
 		}
+
 		crd, err := xcrd.ForCompositeResource(xrd)
 		if err != nil {
 			return errors.Wrapf(err, "cannot derive composite CRD from XRD %q", xrd.GetName())
 		}
+
 		if err := DefaultValues(xr.UnstructuredContent(), xr.GetAPIVersion(), *crd); err != nil {
 			return errors.Wrapf(err, "cannot default values for XR %q", xr.GetName())
 		}
 	}
+
 	fcreds := []corev1.Secret{}
 	if c.FunctionCredentials != "" {
 		fcreds, err = LoadCredentials(c.fs, c.FunctionCredentials)
@@ -214,13 +219,16 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	}
 
 	fctx := map[string][]byte{}
+
 	for k, filename := range c.ContextFiles {
 		v, err := afero.ReadFile(c.fs, filename)
 		if err != nil {
 			return errors.Wrapf(err, "cannot read context value for key %q", k)
 		}
+
 		fctx[k] = v
 	}
+
 	for k, v := range c.ContextValues {
 		fctx[k] = []byte(v)
 	}

@@ -433,10 +433,10 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			refs, err := tc.args.est.Establish(context.TODO(), tc.args.objs, tc.args.parent, tc.args.control)
-
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors(), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			sort := cmpopts.SortSlices(func(x, y xpv1.TypedReference) bool {
 				return x.Name < y.Name
 			})
@@ -756,7 +756,6 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := tc.args.est.ReleaseObjects(context.TODO(), tc.args.parent)
-
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -768,10 +767,12 @@ func TestGetPackageOwnerReference(t *testing.T) {
 	type args struct {
 		revision resource.Object
 	}
+
 	type want struct {
 		ref metav1.OwnerReference
 		ok  bool
 	}
+
 	ref := metav1.OwnerReference{
 		APIVersion: "v1",
 		Kind:       "Provider",
@@ -820,6 +821,7 @@ func TestGetPackageOwnerReference(t *testing.T) {
 			if diff := cmp.Diff(tc.want.ref, result); diff != "" {
 				t.Errorf("\n%s\ne.GetPackageOwnerReference(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.ok, ok); diff != "" {
 				t.Errorf("\n%s\ne.GetPackageOwnerReference(...): -want, +got:\n%s", tc.reason, diff)
 			}

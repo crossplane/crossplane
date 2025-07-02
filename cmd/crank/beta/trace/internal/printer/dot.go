@@ -49,6 +49,7 @@ func (r *dotLabel) String() string {
 			"Error: "+r.error,
 		)
 	}
+
 	return strings.Join(out, "\n") + "\n"
 }
 
@@ -72,6 +73,7 @@ func (r *dotPackageLabel) String() string {
 		out = append(out,
 			"Installed: "+r.installed)
 	}
+
 	out = append(out,
 		"Healthy: "+r.healthy,
 	)
@@ -86,6 +88,7 @@ func (r *dotPackageLabel) String() string {
 			"Error: "+r.error,
 		)
 	}
+
 	return strings.Join(out, "\n") + "\n"
 }
 
@@ -99,6 +102,7 @@ func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 	}
 
 	queue := []*queueItem{{root, nil}}
+
 	var id int
 
 	for len(queue) > 0 {
@@ -112,11 +116,14 @@ func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 		if item.parent != nil {
 			g.Edge(*item.parent, node)
 		}
+
 		var label fmt.Stringer
+
 		gk := item.resource.Unstructured.GroupVersionKind().GroupKind()
 		switch {
 		case xpkg.IsPackageType(gk):
 			pkg, err := fieldpath.Pave(item.resource.Unstructured.Object).GetString("spec.package")
+
 			l := &dotPackageLabel{
 				apiVersion: item.resource.Unstructured.GroupVersionKind().GroupVersion().String(),
 				name:       item.resource.Unstructured.GetName(),
@@ -127,9 +134,11 @@ func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 			if err != nil {
 				l.error = err.Error()
 			}
+
 			label = l
 		case xpkg.IsPackageRevisionType(gk):
 			pkg, err := fieldpath.Pave(item.resource.Unstructured.Object).GetString("spec.image")
+
 			l := &dotPackageLabel{
 				apiVersion: item.resource.Unstructured.GroupVersionKind().GroupVersion().String(),
 				name:       item.resource.Unstructured.GetName(),
@@ -140,6 +149,7 @@ func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 			if err != nil {
 				l.error = err.Error()
 			}
+
 			label = l
 		default:
 			label = &dotLabel{
@@ -150,6 +160,7 @@ func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 				synced:     string(item.resource.GetCondition(xpv1.TypeSynced).Status),
 			}
 		}
+
 		node.Label(label.String())
 		node.Attr("penwidth", "2")
 
@@ -158,6 +169,7 @@ func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 			queue = append(queue, &queueItem{child, &node})
 		}
 	}
+
 	dotString := g.String()
 	if dotString == "" {
 		return errors.New("graph is empty")

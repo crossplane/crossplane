@@ -75,6 +75,7 @@ func OneMeta(pkg parser.Lintable) error {
 	if len(pkg.GetMeta()) != 1 {
 		return errors.New(errNotExactlyOneMeta)
 	}
+
 	return nil
 }
 
@@ -84,6 +85,7 @@ func IsProvider(o runtime.Object) error {
 	if _, ok := po.(*pkgmetav1.Provider); !ok {
 		return errors.New(errNotMetaProvider)
 	}
+
 	return nil
 }
 
@@ -93,6 +95,7 @@ func IsConfiguration(o runtime.Object) error {
 	if _, ok := po.(*pkgmetav1.Configuration); !ok {
 		return errors.New(errNotMetaConfiguration)
 	}
+
 	return nil
 }
 
@@ -102,6 +105,7 @@ func IsFunction(o runtime.Object) error {
 	if _, ok := po.(*pkgmetav1.Function); !ok {
 		return errors.New(errNotMetaFunction)
 	}
+
 	return nil
 }
 
@@ -117,13 +121,16 @@ func PackageCrossplaneCompatible(v version.Operations) parser.ObjectLinterFn {
 		if p.GetCrossplaneConstraints() == nil {
 			return nil
 		}
+
 		in, err := v.InConstraints(p.GetCrossplaneConstraints().Version)
 		if err != nil {
 			return errors.Wrapf(err, errFmtCrossplaneIncompatible, v.GetVersionString())
 		}
+
 		if !in {
 			return errors.Errorf(errFmtCrossplaneIncompatible, v.GetVersionString())
 		}
+
 		return nil
 	}
 }
@@ -138,9 +145,11 @@ func PackageValidSemver(o runtime.Object) error {
 	if p.GetCrossplaneConstraints() == nil {
 		return nil
 	}
+
 	if _, err := semver.NewConstraint(p.GetCrossplaneConstraints().Version); err != nil {
 		return errors.Wrap(err, errBadConstraints)
 	}
+
 	return nil
 }
 
@@ -159,6 +168,7 @@ func IsMutatingWebhookConfiguration(o runtime.Object) error {
 	if _, ok := o.(*admv1.MutatingWebhookConfiguration); !ok {
 		return errors.New(errNotMutatingWebhookConfiguration)
 	}
+
 	return nil
 }
 
@@ -167,6 +177,7 @@ func IsValidatingWebhookConfiguration(o runtime.Object) error {
 	if _, ok := o.(*admv1.ValidatingWebhookConfiguration); !ok {
 		return errors.New(errNotValidatingWebhookConfiguration)
 	}
+
 	return nil
 }
 
@@ -185,5 +196,6 @@ func IsComposition(o runtime.Object) error {
 	if _, ok := o.(*v1.Composition); !ok {
 		return errors.New(errNotComposition)
 	}
+
 	return nil
 }

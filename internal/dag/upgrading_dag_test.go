@@ -40,6 +40,7 @@ func TestUpgradingSort(t *testing.T) {
 	eight := "crossplane/eight"
 	nine := "crossplane/nine"
 	dag := NewUpgradingMapDag()
+
 	type want struct {
 		numImplied int
 		numDeps    int
@@ -47,6 +48,7 @@ func TestUpgradingSort(t *testing.T) {
 		initErr    bool
 		sortErr    bool
 	}
+
 	cases := map[string]struct {
 		reason string
 		nodes  []simpleNode
@@ -173,21 +175,27 @@ func TestUpgradingSort(t *testing.T) {
 				if err == nil {
 					t.Errorf("\n%s\nInit(...): expected error", tc.reason)
 				}
+
 				return
 			}
+
 			if diff := cmp.Diff(tc.want.numImplied, len(implied)); diff != "" {
 				t.Errorf("\n%s\nimplied(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			sorted, err := dag.Sort()
 			if tc.want.sortErr {
 				if err == nil {
 					t.Errorf("\n%s\nSort(...): expected error", tc.reason)
 				}
+
 				return
 			}
+
 			if err := tc.want.sortedFn(tc.nodes, sorted); err != nil {
 				t.Errorf("\n%s\nsorted(...): %s", tc.reason, err)
 			}
+
 			tree, _ := dag.TraceNode(tc.nodes[0].Identifier())
 			if diff := cmp.Diff(tc.want.numDeps, len(tree)); diff != "" {
 				t.Errorf("\n%s\\TraceNode(...): -want, +got:\n%s", tc.reason, diff)

@@ -186,14 +186,17 @@ func TestIsEstablished(t *testing.T) {
 
 func TestForCompositeResource(t *testing.T) {
 	defaultCompositionUpdatePolicy := xpv1.UpdatePolicy("Automatic")
+
 	type args struct {
 		xrd *v1.CompositeResourceDefinition
 		v   *v1.CompositeResourceValidation
 	}
+
 	type want struct {
 		c   *extv1.CustomResourceDefinition
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -2020,7 +2023,9 @@ func TestForCompositeResource(t *testing.T) {
 			} else {
 				xrd = d
 			}
+
 			xrd.Spec.Versions[0].Schema = tc.args.v
+
 			got, err := ForCompositeResource(xrd)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nForCompositeResource(...): -want err, +got err:\n%s", tc.reason, diff)
@@ -3000,6 +3005,7 @@ func TestSetCrdMetadata(t *testing.T) {
 		crd *extv1.CustomResourceDefinition
 		xrd *v1.CompositeResourceDefinition
 	}
+
 	tests := map[string]struct {
 		reason string
 		args   args

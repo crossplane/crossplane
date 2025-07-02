@@ -114,5 +114,6 @@ type CompositionRevision struct {
 type CompositionRevisionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []CompositionRevision `json:"items"`
+
+	Items []CompositionRevision `json:"items"`
 }

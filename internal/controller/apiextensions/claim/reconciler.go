@@ -143,14 +143,17 @@ type ConnectionPropagatorChain []ConnectionPropagator
 func (pc ConnectionPropagatorChain) PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) (propagated bool, err error) {
 	for _, p := range pc {
 		var pg bool
+
 		pg, err = p.PropagateConnection(ctx, to, from)
 		if pg {
 			propagated = true
 		}
+
 		if err != nil {
 			return propagated, err
 		}
 	}
+
 	return propagated, nil
 }
 
@@ -305,6 +308,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetClaim, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetClaim)
 	}
+
 	status := r.conditions.For(cm)
 
 	record := r.record.WithAnnotations("external-name", meta.GetExternalName(cm))
@@ -326,6 +330,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	xr := composite.New(composite.WithGroupVersionKind(r.gvkXR), composite.WithSchema(composite.SchemaLegacy))
+
 	if ref := cm.GetResourceReference(); ref != nil {
 		record = record.WithAnnotations("composite-name", cm.GetResourceReference().Name)
 		log = log.WithValues("composite-name", cm.GetResourceReference().Name)
@@ -334,6 +339,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			err = errors.Wrap(err, errGetComposite)
 			record.Event(cm, event.Warning(reasonBind, err))
 			status.MarkConditions(xpv1.ReconcileError(err))
+
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 		}
 	}
@@ -353,6 +359,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err := errors.Errorf(errFmtUnbound, xr.GetName(), ref.Name)
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
@@ -365,9 +372,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errUpgradeManagedFields)
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
@@ -375,25 +384,31 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log = log.WithValues("deletion-timestamp", cm.GetDeletionTimestamp())
 
 		status.MarkConditions(xpv1.Deleting())
+
 		if meta.WasCreated(xr) {
 			requiresForegroundDeletion := false
 			if cdp := cm.GetCompositeDeletePolicy(); cdp != nil && *cdp == xpv1.CompositeDeleteForeground {
 				requiresForegroundDeletion = true
 			}
+
 			if meta.WasDeleted(xr) && requiresForegroundDeletion {
 				log.Debug("Waiting for the XR to finish deleting (foreground deletion)")
 				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 			}
+
 			do := &client.DeleteOptions{}
 			if requiresForegroundDeletion {
 				client.PropagationPolicy(metav1.DeletePropagationForeground).ApplyToDelete(do)
 			}
+
 			if err := r.client.Delete(ctx, xr, do); resource.IgnoreNotFound(err) != nil {
 				err = errors.Wrap(err, errDeleteComposite)
 				record.Event(cm, event.Warning(reasonDelete, err))
 				status.MarkConditions(xpv1.ReconcileError(err))
+
 				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 			}
+
 			if requiresForegroundDeletion {
 				log.Debug("Waiting for the XR to finish deleting (foreground deletion)")
 				return reconcile.Result{Requeue: true}, nil
@@ -406,11 +421,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			err = errors.Wrap(err, errRemoveFinalizer)
 			record.Event(cm, event.Warning(reasonDelete, err))
 			status.MarkConditions(xpv1.ReconcileError(err))
+
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 		}
 
 		log.Debug("Successfully deleted claim")
 		status.MarkConditions(xpv1.ReconcileSuccess())
+
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
@@ -418,9 +435,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errAddFinalizer)
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
@@ -432,9 +451,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errSync)
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
@@ -457,6 +478,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// We should be watching the composite resource and will have a
 		// request queued if it changes, so no need to requeue.
 		status.MarkConditions(Waiting())
+
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
@@ -465,8 +487,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errPropagateCDs)
 		record.Event(cm, event.Warning(reasonPropagate, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
+
 	if propagated {
 		cm.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
 		record.Event(cm, event.Normal(reasonPropagate, "Successfully propagated connection details from composite resource"))
@@ -475,6 +499,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// We have a watch on both the claim and its composite, so there's no
 	// need to requeue here.
 	status.MarkConditions(xpv1.Available())
+
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 }
 

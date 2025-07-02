@@ -40,12 +40,15 @@ func IndexCompositeResourcesRefs(s composite.Schema) client.IndexerFunc {
 		if !ok {
 			return nil // should never happen
 		}
+
 		xr := composite.Unstructured{Unstructured: *u, Schema: s}
 		refs := xr.GetResourceReferences()
+
 		keys := make([]string, 0, len(refs))
 		for _, ref := range refs {
 			keys = append(keys, refKey(ref.Namespace, ref.Name, ref.Kind, ref.APIVersion))
 		}
+
 		return keys
 	}
 }

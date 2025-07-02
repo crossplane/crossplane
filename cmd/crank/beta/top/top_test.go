@@ -230,6 +230,7 @@ function     crossplane-system   function-123     200m         1024Mi
 			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nprintPodsTable(): -want, +got:\n%s", tt.reason, diff)
 			}
+
 			if diff := cmp.Diff(strings.TrimSpace(tt.want.results), strings.TrimSpace(b.String())); diff != "" {
 				t.Errorf("%s\nprintPodsTable(): -want, +got:\n%s", tt.reason, diff)
 			}
@@ -241,6 +242,7 @@ func TestPrintPodsSummary(t *testing.T) {
 	type want struct {
 		results string
 	}
+
 	tests := map[string]struct {
 		reason         string
 		crossplanePods []topMetrics
@@ -293,6 +295,7 @@ CPU(cores): 900000m
 		t.Run(name, func(t *testing.T) {
 			b := &bytes.Buffer{}
 			printPodsSummary(b, tt.crossplanePods)
+
 			if diff := cmp.Diff(strings.TrimSpace(tt.want.results), strings.TrimSpace(b.String())); diff != "" {
 				t.Errorf("%s\nprintPodsSummary(): -want, +got:\n%s", tt.reason, diff)
 			}

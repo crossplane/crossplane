@@ -81,11 +81,13 @@ func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 	if predicateType == "" {
 		return nil, "", errors.New("missing predicate type")
 	}
+
 	predicateURI, ok := PredicateTypeMap[predicateType]
 	if !ok {
 		// Not a custom one, use it as is.
 		predicateURI = predicateType
 	}
+
 	var payloadData map[string]interface{}
 
 	p, err := verifiedAttestation.Payload()
@@ -100,7 +102,7 @@ func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 
 	var decodedPayload []byte
 	if val, ok := payloadData["payload"]; ok {
-		decodedPayload, err = base64.StdEncoding.DecodeString(val.(string))
+		decodedPayload, err = base64.StdEncoding.DecodeString(val.(string)) //nolint:forcetypeassert // TODO(negz): Will this always be a string?
 		if err != nil {
 			return nil, "", fmt.Errorf("decoding payload: %w", err)
 		}
@@ -113,6 +115,7 @@ func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 	if err := json.Unmarshal(decodedPayload, &statement); err != nil {
 		return nil, "", fmt.Errorf("unmarshal in-toto statement: %w", err)
 	}
+
 	if statement.PredicateType != predicateURI {
 		// This is not the predicate we're looking for, so skip it.
 		return nil, statement.PredicateType, nil
@@ -122,6 +125,7 @@ func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 	// 'json.Marshal', but we check for errors here to decorate them
 	// with more meaningful error message.
 	var payload []byte
+
 	switch predicateType {
 	case predicateCustom:
 		payload, err = json.Marshal(statement)
@@ -133,6 +137,7 @@ func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 		if err := json.Unmarshal(decodedPayload, &linkStatement); err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("unmarshaling LinkStatement: %w", err)
 		}
+
 		payload, err = json.Marshal(linkStatement)
 		if err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("marshaling LinkStatement: %w", err)
@@ -142,6 +147,7 @@ func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 		if err := json.Unmarshal(decodedPayload, &slsaProvenanceStatement); err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("unmarshaling ProvenanceStatementSLSA02): %w", err)
 		}
+
 		payload, err = json.Marshal(slsaProvenanceStatement)
 		if err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("marshaling ProvenanceStatementSLSA02: %w", err)
@@ -151,6 +157,7 @@ func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 		if err := json.Unmarshal(decodedPayload, &spdxStatement); err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("unmarshaling SPDXStatement: %w", err)
 		}
+
 		payload, err = json.Marshal(spdxStatement)
 		if err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("marshaling SPDXStatement: %w", err)
@@ -160,6 +167,7 @@ func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 		if err := json.Unmarshal(decodedPayload, &cyclonedxStatement); err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("unmarshaling CycloneDXStatement: %w", err)
 		}
+
 		payload, err = json.Marshal(cyclonedxStatement)
 		if err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("marshaling CycloneDXStatement: %w", err)
@@ -169,6 +177,7 @@ func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 		if err := json.Unmarshal(decodedPayload, &vulnStatement); err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("unmarshaling CosignVulnStatement: %w", err)
 		}
+
 		payload, err = json.Marshal(vulnStatement)
 		if err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("marshaling CosignVulnStatement: %w", err)
@@ -180,5 +189,6 @@ func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 			return nil, statement.PredicateType, fmt.Errorf("generating Statement: %w", err)
 		}
 	}
+
 	return payload, statement.PredicateType, nil
 }

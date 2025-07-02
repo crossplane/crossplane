@@ -45,10 +45,12 @@ func TestFindUsageOf(t *testing.T) {
 		r  client.Reader
 		fi client.FieldIndexer
 	}
+
 	type args struct {
 		ctx context.Context
 		o   Object
 	}
+
 	type want struct {
 		u   []protection.Usage
 		err error
@@ -172,6 +174,7 @@ func TestFindUsageOf(t *testing.T) {
 			if diff := cmp.Diff(tc.want.u, u); diff != "" {
 				t.Errorf("%s\nf.FindUsageOf(...): -want u, +got u:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nf.FindUsageOf(...): -want err, +got err:\n%s", tc.reason, diff)
 			}

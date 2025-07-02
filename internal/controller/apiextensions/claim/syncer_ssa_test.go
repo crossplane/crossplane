@@ -46,11 +46,13 @@ func TestServerSideSync(t *testing.T) {
 		c  client.Client
 		ng names.NameGenerator
 	}
+
 	type args struct {
 		ctx context.Context
 		cm  *claim.Unstructured
 		xr  *composite.Unstructured
 	}
+
 	type want struct {
 		cm  *claim.Unstructured
 		xr  *composite.Unstructured
@@ -599,9 +601,11 @@ func TestServerSideSync(t *testing.T) {
 			if diff := cmp.Diff(tc.want.cm, tc.args.cm); diff != "" {
 				t.Errorf("\n%s\ns.Sync(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.xr, tc.args.xr); diff != "" {
 				t.Errorf("\n%s\ns.Sync(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ns.Sync(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

@@ -57,6 +57,7 @@ func (c *buildCmd) AfterApply() error {
 	if err != nil {
 		return err
 	}
+
 	c.root = root
 
 	ex, err := filepath.Abs(c.ExamplesRoot)
@@ -131,18 +132,22 @@ func (c *buildCmd) GetRuntimeBaseImageOpts() ([]xpkg.BuildOpt, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, errLoadRuntimeTarball)
 		}
+
 		return []xpkg.BuildOpt{xpkg.WithBase(img)}, nil
 	case c.EmbedRuntimeImage != "":
 		ref, err := name.ParseReference(c.EmbedRuntimeImage, name.StrictValidation)
 		if err != nil {
 			return nil, errors.Wrap(err, errParseRuntimeImageRef)
 		}
+
 		img, err := daemon.Image(ref, daemon.WithContext(context.Background()))
 		if err != nil {
 			return nil, errors.Wrap(err, errPullRuntimeImage)
 		}
+
 		return []xpkg.BuildOpt{xpkg.WithBase(img)}, nil
 	}
+
 	return nil, nil
 }
 
@@ -154,19 +159,23 @@ func (c *buildCmd) GetOutputFileName(meta runtime.Object, hash v1.Hash) (string,
 		if !ok {
 			return "", errors.New(errGetNameFromMeta)
 		}
+
 		pkgName := xpkg.FriendlyID(pkgMeta.GetName(), hash.Hex)
 		output = xpkg.BuildPath(c.root, pkgName, xpkg.XpkgExtension)
 	}
+
 	return output, nil
 }
 
 // Run executes the build command.
 func (c *buildCmd) Run(logger logging.Logger) error {
 	var buildOpts []xpkg.BuildOpt
+
 	rtBuildOpts, err := c.GetRuntimeBaseImageOpts()
 	if err != nil {
 		return errors.Wrap(err, errGetRuntimeBaseImageOpts)
 	}
+
 	buildOpts = append(buildOpts, rtBuildOpts...)
 
 	img, meta, err := c.builder.Build(context.Background(), buildOpts...)
@@ -190,10 +199,13 @@ func (c *buildCmd) Run(logger logging.Logger) error {
 	}
 
 	defer func() { _ = f.Close() }()
+
 	if err := tarball.Write(nil, img, f); err != nil {
 		return err
 	}
+
 	logger.Info("xpkg saved", "output", output)
+
 	return nil
 }
 
@@ -207,8 +219,10 @@ func buildFilters(root string, skips []string) []parser.FilterFn {
 	}
 	opts := make([]parser.FilterFn, len(skips)+len(defaultFns))
 	copy(opts, defaultFns)
+
 	for i, s := range skips {
 		opts[i+len(defaultFns)] = parser.SkipPath(filepath.Join(root, s))
 	}
+
 	return opts
 }

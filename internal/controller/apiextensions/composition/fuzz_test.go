@@ -29,6 +29,7 @@ func FuzzNewCompositionRevision(f *testing.F) {
 		f := fuzz.NewConsumer(data)
 		c := &v1.Composition{}
 		f.GenerateStruct(c)
+
 		revision, err := f.GetInt()
 		if err != nil {
 			return

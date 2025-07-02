@@ -88,13 +88,16 @@ func DeploymentWithOptionalPodScrapeAnnotations() DeploymentOverride {
 		if d.Spec.Template.Annotations == nil {
 			d.Spec.Template.Annotations = map[string]string{}
 		}
+
 		metricsPort := strconv.Itoa(MetricsPortNumber)
+
 		for _, port := range d.Spec.Template.Spec.Containers[0].Ports {
 			if port.Name == MetricsPortName {
 				metricsPort = strconv.Itoa(int(port.ContainerPort))
 				break
 			}
 		}
+
 		if _, ok := d.Spec.Template.Annotations["prometheus.io/scrape"]; !ok {
 			d.Spec.Template.Annotations["prometheus.io/scrape"] = "true"
 			d.Spec.Template.Annotations["prometheus.io/port"] = metricsPort
@@ -126,12 +129,14 @@ func DeploymentWithSelectors(selectors map[string]string) DeploymentOverride {
 		if d.Spec.Selector == nil {
 			d.Spec.Selector = &metav1.LabelSelector{}
 		}
+
 		d.Spec.Selector.MatchLabels = selectors
 		// Ensure that the pod template labels always contains the deployment
 		// selector.
 		if d.Spec.Template.Labels == nil {
 			d.Spec.Template.Labels = map[string]string{}
 		}
+
 		for k, v := range selectors {
 			d.Spec.Template.Labels[k] = v
 		}
@@ -226,10 +231,12 @@ func DeploymentRuntimeWithAdditionalPorts(ports []corev1.ContainerPort) Deployme
 		for _, p := range d.Spec.Template.Spec.Containers[0].Ports {
 			names[p.Name] = true
 		}
+
 		for _, p := range ports {
 			if _, ok := names[p.Name]; ok {
 				continue
 			}
+
 			d.Spec.Template.Spec.Containers[0].Ports = append(d.Spec.Template.Spec.Containers[0].Ports, p)
 		}
 	}
@@ -268,6 +275,7 @@ func DeploymentWithRuntimeContainer() DeploymentOverride {
 				// Move the runtime container to the first position
 				rc := d.Spec.Template.Spec.Containers[i]
 				d.Spec.Template.Spec.Containers = append([]corev1.Container{rc}, append(d.Spec.Template.Spec.Containers[:i], d.Spec.Template.Spec.Containers[i+1:]...)...)
+
 				return
 			}
 		}
@@ -328,10 +336,12 @@ func ServiceWithAdditionalPorts(ports []corev1.ServicePort) ServiceOverride {
 		for _, p := range s.Spec.Ports {
 			names[p.Name] = true
 		}
+
 		for _, p := range ports {
 			if _, ok := names[p.Name]; ok {
 				continue
 			}
+
 			s.Spec.Ports = append(s.Spec.Ports, p)
 		}
 	}

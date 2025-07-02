@@ -69,6 +69,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	if c.Registry != "" {
 		return errors.New("the --registry flag is no longer supported since support for a default registry value has been removed. Please ensure that all packages have fully qualified names that explicitly state their registry. This also applies to all of a packages dependencies")
 	}
+
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "cannot get config")

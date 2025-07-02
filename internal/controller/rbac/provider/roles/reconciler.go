@@ -173,6 +173,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	for _, f := range opts {
 		f(r)
 	}
+
 	return r
 }
 
@@ -244,8 +245,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errListPRs)
 			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
+
 			return reconcile.Result{}, err
 		}
 
@@ -274,9 +277,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	applied := make([]string, 0)
+
 	for _, cr := range r.rbac.RenderClusterRoles(pr, resources) {
 		log := log.WithValues("role-name", cr.GetName())
 		origRV := ""
+
 		err := r.client.Apply(ctx, &cr,
 			resource.MustBeControllableBy(pr.GetUID()),
 			resource.AllowUpdateIf(ClusterRolesDiffer),
@@ -286,16 +291,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug("Skipped no-op RBAC ClusterRole apply")
 			continue
 		}
+
 		if err != nil {
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errApplyRole)
 			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
+
 			return reconcile.Result{}, err
 		}
+
 		if cr.GetResourceVersion() != origRV {
 			log.Debug("Applied RBAC ClusterRole")
+
 			applied = append(applied, cr.GetName())
 		}
 	}
@@ -333,6 +343,7 @@ func DefinedResources(refs []xpv1.TypedReference) []Resource {
 
 		out = append(out, Resource{Group: g, Plural: p})
 	}
+
 	return out
 }
 
@@ -344,6 +355,7 @@ func ClusterRolesDiffer(current, desired runtime.Object) bool {
 	// happens, we probably do want to panic.
 	c := current.(*rbacv1.ClusterRole) //nolint:forcetypeassert // See above.
 	d := desired.(*rbacv1.ClusterRole) //nolint:forcetypeassert // See above.
+
 	return !cmp.Equal(c.GetLabels(), d.GetLabels()) || !cmp.Equal(c.Rules, d.Rules)
 }
 
@@ -364,6 +376,7 @@ func (d OrgDiffer) Differs(a, b string) bool {
 	if err != nil {
 		return true
 	}
+
 	rb, err := name.ParseReference(b, name.WithDefaultRegistry(""))
 	if err != nil {
 		return true

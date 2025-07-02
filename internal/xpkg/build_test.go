@@ -94,6 +94,7 @@ func TestBuild(t *testing.T) {
 		p  parser.Parser
 		e  *examples.Parser
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -126,7 +127,6 @@ func TestBuild(t *testing.T) {
 			builder := New(tc.args.be, tc.args.ex, tc.args.p, tc.args.e)
 
 			_, _, err := builder.Build(context.TODO())
-
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nBuild(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
@@ -150,6 +150,7 @@ func TestBuildExamples(t *testing.T) {
 		examplesDir string
 		fs          withFsFn
 	}
+
 	type want struct {
 		pkgExists bool
 		exExists  bool
@@ -256,7 +257,6 @@ func TestBuildExamples(t *testing.T) {
 			builder := New(pkgBe, pkgEx, pkgp, examples.New())
 
 			img, _, err := builder.Build(context.TODO())
-
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nBuildExamples(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
@@ -269,14 +269,17 @@ func TestBuildExamples(t *testing.T) {
 			if diff := cmp.Diff(tc.want.pkgExists, len(contents.pkgBytes) != 0); diff != "" {
 				t.Errorf("\n%s\nBuildExamples(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.exExists, len(contents.exBytes) != 0); diff != "" {
 				t.Errorf("\n%s\nBuildExamples(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.labels, contents.labels, cmpopts.SortSlices(func(i, j int) bool {
 				return contents.labels[i] < contents.labels[j]
 			})); diff != "" {
 				t.Errorf("\n%s\nBuildExamples(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(nil, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nBuildExamples(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
@@ -297,6 +300,7 @@ func readImg(i v1.Image) (xpkgContents, error) {
 
 	reader := mutate.Extract(i)
 	fs := tarfs.New(tar.NewReader(reader))
+
 	pkgYaml, err := fs.Open(StreamFile)
 	if err != nil {
 		return contents, err
@@ -306,6 +310,7 @@ func readImg(i v1.Image) (xpkgContents, error) {
 	if err != nil {
 		return contents, err
 	}
+
 	contents.pkgBytes = pkgBytes
 
 	exYaml, err := fs.Open(XpkgExamplesFile)
@@ -318,6 +323,7 @@ func readImg(i v1.Image) (xpkgContents, error) {
 		if err != nil {
 			return contents, err
 		}
+
 		contents.exBytes = exBytes
 	}
 
@@ -354,6 +360,7 @@ func yamlParser() (*parser.PackageParser, error) {
 	if err != nil {
 		panic(err)
 	}
+
 	objScheme, err := BuildObjectScheme()
 	if err != nil {
 		panic(err)

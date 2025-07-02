@@ -62,6 +62,7 @@ func buildRelatedObjectGraph(ctx context.Context, t *testing.T, discoveryClient 
 
 	// list all objects of each resource type and store their owners
 	g := make(map[coordinate][]coordinate)
+
 	for _, resourceList := range resourceLists {
 		for _, resource := range resourceList.APIResources {
 			group, version := parseAPIVersion(resourceList.GroupVersion)
@@ -98,6 +99,7 @@ func buildRelatedObjectGraph(ctx context.Context, t *testing.T, discoveryClient 
 
 				// maybe this is an XR with resource reference to the claim? Fake owner refs.
 				comp := composite.Unstructured{Unstructured: obj}
+
 				refs = append(refs, comp.GetResourceReferences()...)
 				if ref := comp.GetClaimReference(); ref != nil {
 					refs = append(refs, corev1.ObjectReference{
@@ -110,11 +112,13 @@ func buildRelatedObjectGraph(ctx context.Context, t *testing.T, discoveryClient 
 
 				for _, ref := range refs {
 					group, version := parseAPIVersion(ref.APIVersion)
+
 					rm, err := mapper.RESTMapping(schema.GroupKind{Group: group, Kind: ref.Kind}, version)
 					if err != nil {
 						t.Logf("cannot find REST mapping for %v: %v\n", ref, err)
 						continue
 					}
+
 					owner := coordinate{
 						GroupVersionResource: rm.Resource,
 						Namespace:            ref.Namespace,
@@ -137,6 +141,7 @@ func parseAPIVersion(apiVersion string) (group, version string) {
 		// Core API, group is empty
 		return "", parts[0]
 	}
+
 	return parts[0], parts[1]
 }
 
@@ -150,14 +155,17 @@ func RelatedObjects(ctx context.Context, t *testing.T, config *rest.Config, objs
 	if err != nil {
 		return nil, err
 	}
+
 	httpClient, err := rest.HTTPClientFor(config)
 	if err != nil {
 		return nil, err
 	}
+
 	mapper, err := apiutil.NewDynamicRESTMapper(config, httpClient)
 	if err != nil {
 		return nil, err
 	}
+
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return nil, err
@@ -170,8 +178,10 @@ func RelatedObjects(ctx context.Context, t *testing.T, config *rest.Config, objs
 
 	seen := make(map[coordinate]bool)
 	coords := []coordinate{}
+
 	for _, obj := range objs {
 		gvk := obj.GetObjectKind().GroupVersionKind()
+
 		rm, err := mapper.RESTMapping(schema.GroupKind{Group: gvk.Group, Kind: gvk.Kind}, gvk.Version)
 		if err != nil {
 			t.Logf("cannot find REST mapping for %s: %v\n", gvk, err)
@@ -198,8 +208,10 @@ func loadCoordinates(ctx context.Context, t *testing.T, dynClient dynamic.Interf
 			t.Logf("cannot get %v: %v\n", coord, err)
 			continue
 		}
+
 		ret = append(ret, other)
 	}
+
 	return ret
 }
 
@@ -207,10 +219,12 @@ func collectOwned(g map[coordinate][]coordinate, owner coordinate, seen map[coor
 	seen[owner] = true
 
 	ret := []coordinate{}
+
 	for _, obj := range g[owner] {
 		if seen[obj] {
 			continue
 		}
+
 		ret = append(ret, collectOwned(g, obj, seen)...)
 		ret = append(ret, obj)
 	}

@@ -42,10 +42,12 @@ func TestRenderFromJSON(t *testing.T) {
 		o    resource.Object
 		data []byte
 	}
+
 	type want struct {
 		o   resource.Object
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args
@@ -157,10 +159,11 @@ func TestRenderFromJSON(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := RenderFromJSON(tc.args.o, tc.args.data)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			err := RenderFromJSON(tc.args.o, tc.data)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRenderFromJSON(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.o, tc.args.o); diff != "" {
 				t.Errorf("\n%s\nRenderFromJSON(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -184,10 +187,12 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 		cd resource.Composed
 		rn ResourceName
 	}
+
 	type want struct {
 		cd  resource.Composed
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args
@@ -346,10 +351,11 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := RenderComposedResourceMetadata(tc.args.cd, tc.args.xr, tc.args.rn)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			err := RenderComposedResourceMetadata(tc.args.cd, tc.xr, tc.rn)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRenderComposedResourceMetadata(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.cd, tc.args.cd); diff != "" {
 				t.Errorf("\n%s\nRenderComposedResourceMetadata(...): -want, +got:\n%s", tc.reason, diff)
 			}

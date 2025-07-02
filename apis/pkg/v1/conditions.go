@@ -263,6 +263,7 @@ func PackageHealth(pr PackageRevision) xpv1.Condition {
 	runtimeHealth := pr.GetCondition(TypeRuntimeHealthy)
 
 	revisionHealthy := revisionHealth.Status == corev1.ConditionTrue
+
 	runtimeHealthy := runtimeHealth.Status == corev1.ConditionTrue
 	if _, hasRuntime := pr.(PackageRevisionWithRuntime); !hasRuntime {
 		// If the package revision does not have a runtime, we skip checking the runtime health.
@@ -278,6 +279,7 @@ func PackageHealth(pr PackageRevision) xpv1.Condition {
 		if revisionHealth.Message != "" {
 			m += " with message: " + revisionHealth.Message
 		}
+
 		return Unhealthy().WithMessage(m)
 	}
 
@@ -286,6 +288,7 @@ func PackageHealth(pr PackageRevision) xpv1.Condition {
 		if runtimeHealth.Message != "" {
 			m += " with message: " + runtimeHealth.Message
 		}
+
 		return Unhealthy().WithMessage(m)
 	}
 

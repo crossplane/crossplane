@@ -62,6 +62,7 @@ func (c *FsPackageCache) Has(id string) bool {
 	if fi, err := c.fs.Stat(BuildPath(c.dir, id, cacheContentExt)); err == nil && !fi.IsDir() {
 		return true
 	}
+
 	return false
 }
 
@@ -69,10 +70,12 @@ func (c *FsPackageCache) Has(id string) bool {
 func (c *FsPackageCache) Get(id string) (io.ReadCloser, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+
 	f, err := c.fs.Open(BuildPath(c.dir, id, cacheContentExt))
 	if err != nil {
 		return nil, err
 	}
+
 	return GzipReadCloser(f)
 }
 
@@ -80,15 +83,18 @@ func (c *FsPackageCache) Get(id string) (io.ReadCloser, error) {
 func (c *FsPackageCache) Store(id string, content io.ReadCloser) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	cf, err := c.fs.Create(BuildPath(c.dir, id, cacheContentExt))
 	if err != nil {
 		return err
 	}
 	defer cf.Close() //nolint:errcheck // Error is checked in the happy path.
+
 	w, err := gzip.NewWriterLevel(cf, gzip.BestSpeed)
 	if err != nil {
 		return err
 	}
+
 	_, err = io.Copy(w, content)
 	if err != nil {
 		return err
@@ -98,6 +104,7 @@ func (c *FsPackageCache) Store(id string, content io.ReadCloser) error {
 	if err := w.Close(); err != nil {
 		return err
 	}
+
 	return cf.Close()
 }
 
@@ -105,10 +112,12 @@ func (c *FsPackageCache) Store(id string, content io.ReadCloser) error {
 func (c *FsPackageCache) Delete(id string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	err := c.fs.Remove(BuildPath(c.dir, id, cacheContentExt))
 	if os.IsNotExist(err) {
 		return nil
 	}
+
 	return err
 }
 

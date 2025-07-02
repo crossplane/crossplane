@@ -113,6 +113,7 @@ func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.Reso
 	if rs == nil {
 		return nil, errors.New(errNilResourceSelector)
 	}
+
 	switch match := rs.GetMatch().(type) {
 	case *fnv1.ResourceSelector_MatchName:
 		// Fetch a single resource.
@@ -120,19 +121,23 @@ func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.Reso
 		r.SetAPIVersion(rs.GetApiVersion())
 		r.SetKind(rs.GetKind())
 		nn := types.NamespacedName{Namespace: rs.GetNamespace(), Name: rs.GetMatchName()}
+
 		err := e.client.Get(ctx, nn, r)
 		if kerrors.IsNotFound(err) {
 			// The resource doesn't exist. We'll return nil, which the Functions
 			// know means that the resource was not found.
 			return nil, nil
 		}
+
 		if err != nil {
 			return nil, errors.Wrap(err, errGetExtraResourceByName)
 		}
+
 		o, err := AsStruct(r)
 		if err != nil {
 			return nil, errors.Wrap(err, errExtraResourceAsStruct)
 		}
+
 		return &fnv1.Resources{Items: []*fnv1.Resource{{Resource: o}}}, nil
 	case *fnv1.ResourceSelector_MatchLabels:
 		// Fetch a list of resources.
@@ -150,10 +155,12 @@ func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.Reso
 			if err != nil {
 				return nil, errors.Wrap(err, errExtraResourceAsStruct)
 			}
+
 			resources[i] = &fnv1.Resource{Resource: o}
 		}
 
 		return &fnv1.Resources{Items: resources}, nil
 	}
+
 	return nil, errors.New(errUnknownResourceSelector)
 }

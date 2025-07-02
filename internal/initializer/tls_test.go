@@ -96,9 +96,11 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 		certificate CertificateGenerator
 		opts        []TLSCertificateGeneratorOption
 	}
+
 	type want struct {
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args

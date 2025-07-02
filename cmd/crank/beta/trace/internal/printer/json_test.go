@@ -282,7 +282,9 @@ func TestJSONPrinter(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			p := JSONPrinter{}
+
 			var buf bytes.Buffer
+
 			err := p.Print(&buf, tc.args.resource)
 			gotJSON := buf.String()
 
@@ -296,6 +298,7 @@ func TestJSONPrinter(t *testing.T) {
 			if err := json.Unmarshal([]byte(tc.want.output), &output); err != nil {
 				t.Errorf("JSONPrinter.Print() error unmarshalling expected output: %s", err)
 			}
+
 			if err := json.Unmarshal([]byte(gotJSON), &got); err != nil {
 				t.Errorf("JSONPrinter.Print() error unmarshalling actual output: %s", err)
 			}

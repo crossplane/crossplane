@@ -13,6 +13,7 @@ func TestPackageHealth(t *testing.T) {
 	type args struct {
 		pr PackageRevision
 	}
+
 	type want struct {
 		condition commonv1.Condition
 	}

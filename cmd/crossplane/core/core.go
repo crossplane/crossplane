@@ -142,10 +142,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		//nolint:revive // This is long and easier to read with punctuation.
 		return errors.New("Crossplane now uses CEL to validate Compositions. The --enable-composition-webhook-schema-validation flag will be removed in a future release.")
 	}
+
 	if c.EnableExternalSecretStores {
 		//nolint:revive // This is long and easier to read with punctuation.
 		return errors.New("Crossplane removed support for external secret stores. The --enable-external-secret-stores flag will be removed in a future release.")
 	}
+
 	if c.Registry != "" {
 		return errors.New("the --registry flag is no longer supported since support for a default registry value has been removed. Please ensure that all packages have fully qualified names that explicitly state their registry. This also applies to all of a packages dependencies")
 	}
@@ -166,6 +168,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	// The claim and XR controllers don't use the manager's cache or client.
 	// They use their own. They're setup later in this method.
 	eb := record.NewBroadcaster()
+
 	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, c.MaxReconcileRate), ctrl.Options{
 		Scheme: s,
 		Cache: cache.Options{
@@ -274,14 +277,17 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		o.Features.Enable(features.EnableBetaUsages)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaUsages)
 	}
+
 	if c.EnableRealtimeCompositions {
 		o.Features.Enable(features.EnableBetaRealtimeCompositions)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaRealtimeCompositions)
 	}
+
 	if c.EnableDeploymentRuntimeConfigs {
 		o.Features.Enable(features.EnableBetaDeploymentRuntimeConfigs)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaDeploymentRuntimeConfigs)
 	}
+
 	if c.EnableSSAClaims {
 		o.Features.Enable(features.EnableBetaClaimSSA)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaClaimSSA)
@@ -291,10 +297,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		o.Features.Enable(features.EnableAlphaDependencyVersionUpgrades)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaDependencyVersionUpgrades)
 	}
+
 	if c.EnableDependencyVersionDowngrades {
 		o.Features.Enable(features.EnableAlphaDependencyVersionDowngrades)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaDependencyVersionDowngrades)
 	}
+
 	if c.EnableSignatureVerification {
 		o.Features.Enable(features.EnableAlphaSignatureVerification)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaSignatureVerification)
@@ -443,6 +451,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		if err != nil {
 			return errors.Wrap(err, "cannot parse CA bundle")
 		}
+
 		po.FetcherOptions = append(po.FetcherOptions, xpkg.WithCustomCA(rootCAs))
 	}
 
@@ -457,6 +466,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		if err != nil {
 			return errors.Wrap(err, "cannot setup usage finder")
 		}
+
 		if err := protection.Setup(mgr, f, o); err != nil {
 			return errors.Wrap(err, "cannot add protection (usage) controllers to manager")
 		}
@@ -489,9 +499,11 @@ func (c *startCommand) SetupProbes(mgr ctrl.Manager) error {
 		if err := mgr.AddReadyzCheck("webhook", hookServer.StartedChecker()); err != nil {
 			return errors.Wrap(err, "cannot create webhook ready check")
 		}
+
 		if err := mgr.AddHealthzCheck("webhook", hookServer.StartedChecker()); err != nil {
 			return errors.Wrap(err, "cannot create webhook health check")
 		}
 	}
+
 	return nil
 }

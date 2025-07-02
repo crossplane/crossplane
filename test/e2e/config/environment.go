@@ -43,6 +43,8 @@ const testSuiteFlag = "test-suite"
 // Environment is these e2e test configuration, wraps the e2e-framework
 // environment.
 type Environment struct {
+	env.Environment
+
 	createKindCluster      *bool
 	destroyKindCluster     *bool
 	preinstallCrossplane   *bool
@@ -55,8 +57,6 @@ type Environment struct {
 
 	specificTestSelected *bool
 	suites               map[string]testSuite
-
-	env.Environment
 }
 
 // selectedTestSuite implements the flag.Value interface. To be able to
@@ -70,6 +70,7 @@ func (s *selectedTestSuite) String() string {
 	if !s.set {
 		return TestSuiteDefault
 	}
+
 	return s.name
 }
 
@@ -77,6 +78,7 @@ func (s *selectedTestSuite) Set(v string) error {
 	log.Log.Info("Setting test suite", "value", v)
 	s.name = v
 	s.set = true
+
 	return nil
 }
 
@@ -118,9 +120,11 @@ func NewEnvironmentFromFlags() Environment {
 		if f := flag.Lookup(testSuiteFlag); f != nil {
 			f.Usage = fmt.Sprintf("%s. Available options: %+v", f.Usage, c.getAvailableSuitesOptions())
 		}
+
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", os.Args[0])
 		flag.PrintDefaults()
 	}
+
 	return c
 }
 
@@ -128,7 +132,9 @@ func (e *Environment) getAvailableSuitesOptions() (opts []string) {
 	for s := range e.suites {
 		opts = append(opts, s)
 	}
+
 	sort.Strings(opts)
+
 	return
 }
 
@@ -138,10 +144,12 @@ func (e *Environment) GetKindClusterName() string {
 	if !e.IsKindCluster() {
 		return ""
 	}
+
 	if *e.kindClusterName == "" {
 		name := envconf.RandomName("crossplane-e2e", 32)
 		e.kindClusterName = &name
 	}
+
 	return *e.kindClusterName
 }
 
@@ -212,6 +220,7 @@ func (e *Environment) HelmUpgradePriorCrossplane(namespace, release string) env.
 	// current build since we don't have any overrides here.
 	// https://medium.com/@kcatstack/understand-helm-upgrade-flags-reset-values-reuse-values-6e58ac8f127e
 	opts := append(e.helmOptionsForPriorCrossplane(namespace, release), helm.WithArgs("--reset-values"))
+
 	return funcs.EnvFuncs(
 		funcs.HelmRepo(
 			helm.WithArgs("add"),
@@ -237,6 +246,7 @@ func (e *Environment) helmOptionsForPriorCrossplane(namespace, release string) [
 	if e.priorCrossplaneVersion != nil && *e.priorCrossplaneVersion != "" {
 		opts = append(opts, helm.WithArgs("--version", *e.priorCrossplaneVersion))
 	}
+
 	return opts
 }
 
@@ -247,10 +257,12 @@ func (e *Environment) getSuiteInstallOpts(suite string, extra ...helm.Option) []
 	if !ok {
 		panic(fmt.Sprintf("The selected suite %q does not exist", suite))
 	}
+
 	opts := p.helmInstallOpts
 	if !p.excludeBaseSuite {
 		opts = append(e.suites[TestSuiteDefault].helmInstallOpts, opts...)
 	}
+
 	return append(opts, extra...)
 }
 
@@ -270,6 +282,7 @@ func (e *Environment) AddTestSuite(name string, opts ...TestSuiteOpt) {
 	for _, opt := range opts {
 		opt(&o)
 	}
+
 	e.suites[name] = o
 }
 
@@ -344,6 +357,7 @@ func (e *Environment) getSelectedSuiteLabels() features.Labels {
 	if !e.selectedTestSuite.set {
 		return nil
 	}
+
 	return e.suites[e.selectedTestSuite.String()].labelsToSelect
 }
 
@@ -356,11 +370,13 @@ func (e *Environment) GetSelectedSuiteAdditionalEnvSetup() (out []env.Func) {
 			out = append(out, s.f...)
 		}
 	}
+
 	if selectedTestSuite == TestSuiteDefault {
 		for name, suite := range e.suites {
 			if name == TestSuiteDefault {
 				continue
 			}
+
 			for _, setupFunc := range suite.additionalSetupFuncs {
 				if setupFunc.condition() {
 					out = append(out, setupFunc.f...)
@@ -368,6 +384,7 @@ func (e *Environment) GetSelectedSuiteAdditionalEnvSetup() (out []env.Func) {
 			}
 		}
 	}
+
 	return out
 }
 
@@ -377,15 +394,19 @@ func (e *Environment) EnrichLabels(labels features.Labels) features.Labels {
 	if e.isSelectingTests() {
 		return labels
 	}
+
 	if labels == nil {
 		labels = make(features.Labels)
 	}
+
 	for k, v := range e.getSelectedSuiteLabels() {
 		if _, ok := labels[k]; ok {
 			continue
 		}
+
 		labels[k] = v
 	}
+
 	return labels
 }
 
@@ -394,5 +415,6 @@ func (e *Environment) isSelectingTests() bool {
 		f := flag.Lookup("test.run")
 		e.specificTestSelected = ptr.To(f != nil && f.Value.String() != "")
 	}
+
 	return *e.specificTestSelected
 }

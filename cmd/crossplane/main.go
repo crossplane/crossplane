@@ -71,12 +71,14 @@ func (d debugFlag) BeforeApply(ctx *kong.Context) error { //nolint:unparam // Be
 	// logger when we're running in debug mode.
 	ctrl.SetLogger(zl)
 	logging.SetFilteredKlogLogger(zl)
+
 	return nil
 }
 
 func (v versionFlag) BeforeApply(app *kong.Kong) error { //nolint:unparam // BeforeApply requires this signature.
 	_, _ = fmt.Fprintln(app.Stdout, version.New().GetVersionString())
 	app.Exit(0)
+
 	return nil
 }
 

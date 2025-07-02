@@ -65,6 +65,7 @@ func pullBasedRequeue(p *corev1.PullPolicy) reconcile.Result {
 	if p != nil && *p == corev1.PullAlways {
 		return reconcile.Result{RequeueAfter: pullWait}
 	}
+
 	return reconcile.Result{Requeue: false}
 }
 
@@ -173,6 +174,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 	if err != nil {
 		return errors.Wrap(err, errCreateK8sClient)
 	}
+
 	f, err := xpkg.NewK8sFetcher(cs, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
 	if err != nil {
 		return errors.Wrap(err, errBuildFetcher)
@@ -209,6 +211,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize clientset")
 	}
+
 	fetcher, err := xpkg.NewK8sFetcher(clientset, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
 	if err != nil {
 		return errors.Wrap(err, "cannot build fetcher")
@@ -245,6 +248,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 	if err != nil {
 		return errors.Wrap(err, errCreateK8sClient)
 	}
+
 	f, err := xpkg.NewK8sFetcher(cs, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
 	if err != nil {
 		return errors.Wrap(err, errBuildFetcher)
@@ -305,6 +309,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetPackage, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetPackage)
 	}
+
 	status := r.conditions.For(p)
 
 	// Check the pause annotation and return if it has the value "true"
@@ -316,6 +321,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// and if status update fails, we will reconcile again to retry to update the status
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
+
 	if c := p.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
 		p.CleanConditions()
 		// Persist the removal of conditions and return. We'll be requeued
@@ -328,6 +334,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := r.client.List(ctx, prs, client.MatchingLabels(map[string]string{v1.LabelParentPackage: p.GetName()})); resource.IgnoreNotFound(err) != nil {
 		err = errors.Wrap(err, errListRevisions)
 		r.record.Event(p, event.Warning(reasonList, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -335,6 +342,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// for pull secrets, since the rewritten path may use different secrets than
 	// the original.
 	imagePath := p.GetSource()
+
 	rewriteConfigName, newPath, err := r.config.RewritePath(ctx, imagePath)
 	if err != nil {
 		err = errors.Wrap(err, errRewriteImage)
@@ -345,8 +353,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		return reconcile.Result{}, err
 	}
+
 	if newPath != "" {
 		imagePath = newPath
+
 		p.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 			Name:   rewriteConfigName,
 			Reason: v1.ImageConfigReasonRewrite,
@@ -354,12 +364,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	} else {
 		p.ClearAppliedImageConfigRef(v1.ImageConfigReasonRewrite)
 	}
+
 	p.SetResolvedSource(imagePath)
 
 	pullSecretConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, p.GetResolvedSource())
 	if err != nil {
 		err = errors.Wrap(err, errGetPullConfig)
 		status.MarkConditions(v1.Unpacking().WithMessage(err.Error()))
+
 		_ = r.client.Status().Update(ctx, p)
 
 		r.record.Event(p, event.Warning(reasonImageConfig, err))
@@ -370,6 +382,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	var secrets []string
 	if pullSecretFromConfig != "" {
 		secrets = append(secrets, pullSecretFromConfig)
+
 		p.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 			Name:   pullSecretConfig,
 			Reason: v1.ImageConfigReasonSetPullSecret,
@@ -394,6 +407,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if revisionName == "" {
 		status.MarkConditions(v1.Unpacking().WithMessage("Waiting for unpack to complete"))
 		r.record.Event(p, event.Normal(reasonUnpack, "Waiting for unpack to complete"))
+
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
@@ -434,17 +448,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// all non-current revisions are inactive.
 			continue
 		}
+
 		if rev.GetDesiredState() == v1.PackageRevisionActive {
 			// If revision is not the current revision, set to
 			// inactive. This should always be done, regardless of
 			// the package's revision activation policy.
 			rev.SetDesiredState(v1.PackageRevisionInactive)
+
 			if err := r.client.Apply(ctx, rev, resource.MustBeControllableBy(p.GetUID())); err != nil {
 				if kerrors.IsConflict(err) {
 					return reconcile.Result{Requeue: true}, nil
 				}
+
 				err = errors.Wrap(err, errUpdateInactivePackageRevision)
 				r.record.Event(p, event.Warning(reasonTransitionRevision, err))
+
 				return reconcile.Result{}, err
 			}
 		}
@@ -464,6 +482,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.client.Delete(ctx, gcRev); err != nil {
 			err = errors.Wrap(err, errGCPackageRevision)
 			r.record.Event(p, event.Warning(reasonGarbageCollect, err))
+
 			return reconcile.Result{}, err
 		}
 	}
@@ -474,6 +493,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// package is already healthy.
 		r.record.Event(p, event.Normal(reasonInstall, "Successfully installed package revision"))
 	}
+
 	status.MarkConditions(health)
 
 	if pr.GetUID() == "" && pullSecretConfig != "" {
@@ -498,6 +518,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetCommonLabels(p.GetCommonLabels())
 
 	pwr, pwok := p.(v1.PackageWithRuntime)
+
 	prwr, prok := pr.(v1.PackageRevisionWithRuntime)
 	if pwok && prok {
 		prwr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
@@ -514,12 +535,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	controlRef := meta.AsController(meta.TypedReferenceTo(p, p.GetObjectKind().GroupVersionKind()))
 	controlRef.BlockOwnerDeletion = ptr.To(true)
 	meta.AddOwnerReference(pr, controlRef)
+
 	if err := r.client.Apply(ctx, pr, resource.MustBeControllableBy(p.GetUID())); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errApplyPackageRevision)
 		r.record.Event(p, event.Warning(reasonInstall, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -527,12 +551,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	same := reflect.DeepEqual(pr.GetCommonLabels(), p.GetCommonLabels())
 	if !same {
 		pr.SetCommonLabels(p.GetCommonLabels())
+
 		if err := r.client.Update(ctx, pr); err != nil {
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errApplyPackageRevision)
 			r.record.Event(p, event.Warning(reasonInstall, err))
+
 			return reconcile.Result{}, err
 		}
 	}
@@ -570,6 +597,7 @@ func enqueueProvidersForImageConfig(kube client.Client, log logging.Logger) hand
 		}
 
 		var matches []reconcile.Request
+
 		for _, p := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
 				if strings.HasPrefix(p.GetSource(), m.Prefix) || strings.HasPrefix(p.GetResolvedSource(), m.Prefix) {
@@ -578,6 +606,7 @@ func enqueueProvidersForImageConfig(kube client.Client, log logging.Logger) hand
 				}
 			}
 		}
+
 		return matches
 	})
 }
@@ -601,6 +630,7 @@ func enqueueConfigurationsForImageConfig(kube client.Client, log logging.Logger)
 		}
 
 		var matches []reconcile.Request
+
 		for _, c := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
 				if strings.HasPrefix(c.GetSource(), m.Prefix) || strings.HasPrefix(c.GetResolvedSource(), m.Prefix) {
@@ -609,6 +639,7 @@ func enqueueConfigurationsForImageConfig(kube client.Client, log logging.Logger)
 				}
 			}
 		}
+
 		return matches
 	})
 }
@@ -632,6 +663,7 @@ func enqueueFunctionsForImageConfig(kube client.Client, log logging.Logger) hand
 		}
 
 		var matches []reconcile.Request
+
 		for _, fn := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
 				if strings.HasPrefix(fn.GetSource(), m.Prefix) || strings.HasPrefix(fn.GetResolvedSource(), m.Prefix) {
@@ -640,6 +672,7 @@ func enqueueFunctionsForImageConfig(kube client.Client, log logging.Logger) hand
 				}
 			}
 		}
+
 		return matches
 	})
 }

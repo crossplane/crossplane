@@ -54,6 +54,7 @@ func NewPackageRevisioner(fetcher xpkg.Fetcher, opts ...PackageRevisionerOption)
 	for _, opt := range opts {
 		opt(r)
 	}
+
 	return r
 }
 
@@ -63,6 +64,7 @@ func (r *PackageRevisioner) Revision(ctx context.Context, p v1.Package, extraPul
 	if pullPolicy != nil && *pullPolicy == corev1.PullNever {
 		return xpkg.FriendlyID(p.GetName(), p.GetSource()), nil
 	}
+
 	if pullPolicy != nil && *pullPolicy == corev1.PullIfNotPresent {
 		if p.GetCurrentIdentifier() == p.GetSource() {
 			return p.GetCurrentRevision(), nil
@@ -79,10 +81,12 @@ func (r *PackageRevisioner) Revision(ctx context.Context, p v1.Package, extraPul
 	if len(extraPullSecrets) > 0 {
 		ps = append(ps, extraPullSecrets...)
 	}
+
 	d, err := r.fetcher.Head(ctx, ref, ps...)
 	if err != nil || d == nil {
 		return "", errors.Wrap(err, errFetchPackage)
 	}
+
 	return xpkg.FriendlyID(p.GetName(), d.Digest.Hex), nil
 }
 

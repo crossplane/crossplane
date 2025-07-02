@@ -97,6 +97,7 @@ func (m *PrometheusMetrics) CreateInterceptor(name, pkg string) grpc.UnaryClient
 		// no fatal results, has severity "Warning". A response with fatal
 		// results has severity "Fatal".
 		l["result_severity"] = "Normal"
+
 		if rsp, ok := reply.(*fnv1.RunFunctionResponse); ok {
 			for _, r := range rsp.GetResults() {
 				// Keep iterating if we see a warning result - we might still

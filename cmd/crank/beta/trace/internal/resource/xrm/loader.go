@@ -61,6 +61,7 @@ func newLoader(root *resource.Resource, rl resourceLoader, channelCapacity int) 
 		done: make(chan struct{}),
 		root: root,
 	}
+
 	return l
 }
 
@@ -79,12 +80,14 @@ func (l *loader) load(ctx context.Context, concurrency int) {
 	if concurrency < 1 {
 		concurrency = defaultConcurrency
 	}
+
 	var wg sync.WaitGroup
 	for range concurrency {
 		wg.Add(1)
 		// spin up a worker that processes items from the channel until the done channel is signaled.
 		go func() {
 			defer wg.Done()
+
 			for {
 				select {
 				case <-l.done:
@@ -95,6 +98,7 @@ func (l *loader) load(ctx context.Context, concurrency int) {
 			}
 		}()
 	}
+
 	wg.Wait()
 	// order of children loaded for resources is not deterministic because of concurrent processing.
 	// Sort children explicitly to make this so.
@@ -109,6 +113,7 @@ func sortRefs(root *resource.Resource) {
 	sort.Slice(root.Children, func(i, j int) bool {
 		l := root.Children[i].Unstructured
 		r := root.Children[j].Unstructured
+
 		return l.GetAPIVersion()+l.GetKind()+l.GetName() < r.GetAPIVersion()+r.GetKind()+r.GetName()
 	})
 }
@@ -136,6 +141,7 @@ func (l *loader) addRefs(parent *resource.Resource, refs []v1.ObjectReference) {
 // after adding child references.
 func (l *loader) processItem(ctx context.Context, item workItem) {
 	defer l.processing.Done()
+
 	res := l.rl.loadResource(ctx, &item.child)
 	refs := l.rl.getResourceChildrenRefs(res)
 	l.updateChild(item, res)
@@ -145,6 +151,8 @@ func (l *loader) processItem(ctx context.Context, item workItem) {
 // updateChild adds the supplied child resource to its parent.
 func (l *loader) updateChild(item workItem, res *resource.Resource) {
 	l.resourceLock.Lock()
+
 	item.parent.Children = append(item.parent.Children, res)
+
 	l.resourceLock.Unlock()
 }

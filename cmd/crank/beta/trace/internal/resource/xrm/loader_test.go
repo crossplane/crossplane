@@ -38,12 +38,14 @@ func (d *simpleGenerator) createResource(apiVersion, kind, name string) *resourc
 			"name": name,
 		},
 	}
+
 	return &resource.Resource{Unstructured: unstructured.Unstructured{Object: obj}}
 }
 
 func (d *simpleGenerator) trackResourceDepth(name string, depth int) {
 	d.l.Lock()
 	defer d.l.Unlock()
+
 	d.depthMap[name] = depth
 }
 
@@ -52,8 +54,10 @@ func (d *simpleGenerator) createRefAtDepth(depth int) v1.ObjectReference {
 	if depth == d.childDepth {
 		prefix = "managed-res"
 	}
+
 	name := fmt.Sprintf("%s-%d-%d", prefix, rand.Int(), depth)
 	d.trackResourceDepth(name, depth)
+
 	return v1.ObjectReference{
 		Kind:       fmt.Sprintf("Depth%d", depth),
 		Name:       name,
@@ -72,6 +76,7 @@ func (d *simpleGenerator) loadResource(_ context.Context, ref *v1.ObjectReferenc
 func (d *simpleGenerator) depthFromResource(res *resource.Resource) int {
 	d.l.Lock()
 	defer d.l.Unlock()
+
 	return d.depthMap[res.Unstructured.GetName()]
 }
 
@@ -80,10 +85,12 @@ func (d *simpleGenerator) getResourceChildrenRefs(r *resource.Resource) []v1.Obj
 	if depth == d.childDepth {
 		return nil
 	}
+
 	ret := make([]v1.ObjectReference, 0, d.numItems)
 	for range d.numItems {
 		ret = append(ret, d.createRefAtDepth(depth+1))
 	}
+
 	return ret
 }
 
@@ -94,6 +101,7 @@ func countItems(root *resource.Resource) int {
 	for _, child := range root.Children {
 		ret += countItems(child)
 	}
+
 	return ret
 }
 
@@ -101,12 +109,14 @@ func TestLoader(t *testing.T) {
 	type want struct {
 		expectedResources int
 	}
+
 	type args struct {
 		childDepth      int
 		numItems        int
 		channelCapacity int
 		concurrency     int
 	}
+
 	tests := map[string]struct {
 		reason string
 		args   args
@@ -163,15 +173,18 @@ func TestLoader(t *testing.T) {
 			if test.args.channelCapacity > 0 {
 				channelCapacity = test.args.channelCapacity
 			}
+
 			concurrency := defaultConcurrency
 			if test.args.concurrency != 0 {
 				concurrency = test.args.concurrency
 			}
+
 			sg := newSimpleGenerator(test.args.childDepth, test.args.numItems)
 			rootRef := sg.createRefAtDepth(0)
 			root := sg.createResourceFromRef(&rootRef)
 			l := newLoader(root, sg, channelCapacity)
 			l.load(context.Background(), concurrency)
+
 			n := countItems(root)
 			if test.want.expectedResources != n {
 				t.Errorf("resource count mismatch: want %d, got %d", test.want.expectedResources, n)

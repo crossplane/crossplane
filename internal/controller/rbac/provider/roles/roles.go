@@ -105,13 +105,15 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 		return rs[i].Plural+rs[i].Group < rs[j].Plural+rs[j].Group
 	})
 
-	groups := make([]string, 0)            // Allows deterministic iteration over groups.
+	groups := make([]string, 0) // Allows deterministic iteration over groups.
+
 	resources := make(map[string][]string) // Resources by group.
 	for _, r := range rs {
 		if _, ok := resources[r.Group]; !ok {
 			resources[r.Group] = make([]string, 0)
 			groups = append(groups, r.Group)
 		}
+
 		resources[r.Group] = append(resources[r.Group], r.Plural, r.Plural+suffixStatus)
 	}
 
@@ -179,6 +181,7 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 		ref := meta.AsController(meta.TypedReferenceTo(pr, v1.ProviderRevisionGroupVersionKind))
 		roles[i].SetOwnerReferences([]metav1.OwnerReference{ref})
 	}
+
 	return roles
 }
 
@@ -188,5 +191,6 @@ func withVerbs(r []rbacv1.PolicyRule, verbs []string) []rbacv1.PolicyRule {
 		verbal[i] = r[i]
 		verbal[i].Verbs = verbs
 	}
+
 	return verbal
 }

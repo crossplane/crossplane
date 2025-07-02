@@ -30,10 +30,12 @@ func TestGetDependencyRef(t *testing.T) {
 		d    v1beta1.Dependency
 		pkgs []v1beta1.LockPackage
 	}
+
 	type want struct {
 		ref *v1.ObjectReference
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 
@@ -176,10 +178,12 @@ func TestGetDependencyRef(t *testing.T) {
 			kc := &Client{
 				client: tc.client,
 			}
+
 			got, err := kc.getDependencyRef(context.Background(), tc.args.d, tc.args.pkgs)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("getDependencyRef(...) error = %v, wantErr %v", err, tc.want.err)
 			}
+
 			if diff := cmp.Diff(tc.want.ref, got); diff != "" {
 				t.Errorf("\n%s\ngetDependencyRef(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -196,10 +200,12 @@ func TestGetPackageDeps(t *testing.T) {
 		lock       *v1beta1.Lock
 		uniqueDeps map[string]struct{}
 	}
+
 	type want struct {
 		deps []v1.ObjectReference
 		err  error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -335,10 +341,12 @@ func TestGetPackageDeps(t *testing.T) {
 				client:           tc.args.client,
 				dependencyOutput: tc.args.dependencyOutput,
 			}
+
 			got, err := kc.getPackageDeps(context.Background(), tc.args.node, tc.args.lock, tc.args.uniqueDeps)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("getPackageDeps(...) error = %v, wantErr %v", err, tc.want.err)
 			}
+
 			if diff := cmp.Diff(tc.want.deps, got, cmpopts.SortSlices(func(r1, r2 v1.ObjectReference) bool {
 				return strings.Compare(r1.String(), r2.String()) < 0
 			}), cmpopts.EquateEmpty()); diff != "" {
@@ -353,9 +361,11 @@ type lockOpt func(c *v1beta1.Lock)
 func buildLock(name string, opts ...lockOpt) *v1beta1.Lock {
 	l := &v1beta1.Lock{}
 	l.SetName(name)
+
 	for _, f := range opts {
 		f(l)
 	}
+
 	return l
 }
 
@@ -369,10 +379,12 @@ type lockPkgOpt func(c *v1beta1.LockPackage)
 
 func buildLockPkg(name string, opts ...lockPkgOpt) *v1beta1.LockPackage {
 	p := &v1beta1.LockPackage{}
+
 	p.Name = name
 	for _, f := range opts {
 		f(p)
 	}
+
 	return p
 }
 
@@ -403,5 +415,6 @@ func newDependency(pkg string, opts ...dependencyOpts) v1beta1.Dependency {
 	for _, f := range opts {
 		f(&d)
 	}
+
 	return d
 }

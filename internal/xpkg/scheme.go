@@ -37,12 +37,15 @@ func BuildMetaScheme() (*runtime.Scheme, error) {
 	if err := pkgmetav1alpha1.SchemeBuilder.AddToScheme(metaScheme); err != nil {
 		return nil, err
 	}
+
 	if err := pkgmetav1beta1.SchemeBuilder.AddToScheme(metaScheme); err != nil {
 		return nil, err
 	}
+
 	if err := pkgmetav1.SchemeBuilder.AddToScheme(metaScheme); err != nil {
 		return nil, err
 	}
+
 	return metaScheme, nil
 }
 
@@ -53,18 +56,23 @@ func BuildObjectScheme() (*runtime.Scheme, error) {
 	if err := v1.AddToScheme(objScheme); err != nil {
 		return nil, err
 	}
+
 	if err := v2alpha1.AddToScheme(objScheme); err != nil {
 		return nil, err
 	}
+
 	if err := extv1beta1.AddToScheme(objScheme); err != nil {
 		return nil, err
 	}
+
 	if err := extv1.AddToScheme(objScheme); err != nil {
 		return nil, err
 	}
+
 	if err := admv1.AddToScheme(objScheme); err != nil {
 		return nil, err
 	}
+
 	return objScheme, nil
 }
 
@@ -93,5 +101,6 @@ func TryConvert(obj runtime.Object, candidates ...conversion.Hub) (runtime.Objec
 func TryConvertToPkg(obj runtime.Object, candidates ...conversion.Hub) (pkgmetav1.Pkg, bool) {
 	po, _ := TryConvert(obj, candidates...)
 	m, ok := po.(pkgmetav1.Pkg)
+
 	return m, ok
 }

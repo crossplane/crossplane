@@ -26,10 +26,12 @@ import (
 func FuzzFindXpkgInDir(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte) {
 		ff := fuzz.NewConsumer(data)
+
 		noOfFiles, err := ff.GetInt()
 		if err != nil {
 			t.Skip()
 		}
+
 		fs := afero.NewMemMapFs()
 		createdFiles := make([]string, 0)
 
@@ -38,11 +40,13 @@ func FuzzFindXpkgInDir(f *testing.F) {
 				fs.Remove(createdFile)
 			}
 		}()
+
 		for range noOfFiles % 500 {
 			fname, err := ff.GetString()
 			if err != nil {
 				t.Skip()
 			}
+
 			fcontents, err := ff.GetBytes()
 			if err != nil {
 				t.Skip()

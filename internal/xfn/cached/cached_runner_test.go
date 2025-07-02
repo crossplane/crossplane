@@ -46,18 +46,22 @@ var MockDir = []byte("DIR")
 
 func MockFs(files map[string][]byte) afero.Fs {
 	fs := afero.NewMemMapFs()
+
 	for path, data := range files {
 		// Special value for making a directory.
 		if bytes.Equal(data, MockDir) {
 			if err := fs.MkdirAll(path, 0o700); err != nil {
 				panic(err)
 			}
+
 			continue
 		}
+
 		if err := afero.WriteFile(fs, path, data, 0o600); err != nil {
 			panic(err)
 		}
 	}
+
 	return fs
 }
 
@@ -87,11 +91,13 @@ func TestRunFunction(t *testing.T) {
 		path string
 		o    []FileBackedRunnerOption
 	}
+
 	type args struct {
 		ctx  context.Context
 		name string
 		req  *fnv1.RunFunctionRequest
 	}
+
 	type want struct {
 		rsp *fnv1.RunFunctionResponse
 		err error

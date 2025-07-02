@@ -31,6 +31,7 @@ func TestIndexCompositeResourcesRefs(t *testing.T) {
 	type args struct {
 		object client.Object
 	}
+
 	tests := map[string]struct {
 		schema composite.Schema
 		args   args

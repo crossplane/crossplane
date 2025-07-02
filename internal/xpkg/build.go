@@ -75,6 +75,7 @@ func (t *teeReader) Read(p []byte) (n int, err error) {
 			return n, err
 		}
 	}
+
 	return
 }
 
@@ -87,6 +88,7 @@ func (t *teeReader) Annotate() any {
 	if !ok {
 		return nil
 	}
+
 	return anno.Annotate()
 }
 
@@ -139,6 +141,7 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 	if err != nil {
 		return nil, nil, errors.Wrap(err, errInitBackend)
 	}
+
 	defer func() { _ = pkgReader.Close() }()
 
 	// Get examples YAML stream.
@@ -146,6 +149,7 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 	if err != nil && !os.IsNotExist(err) {
 		return nil, nil, errors.Wrap(err, errInitBackend)
 	}
+
 	defer func() { _ = exReader.Close() }()
 	// examples/ doesn't exist
 	if os.IsNotExist(err) {
@@ -164,7 +168,9 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 
 	// TODO(hasheddan): make linter selection logic configurable.
 	meta := metas[0]
+
 	var linter parser.Linter
+
 	switch meta.GetObjectKind().GroupVersionKind().Kind {
 	case pkgmetav1.ConfigurationKind:
 		linter = NewConfigurationLinter()
@@ -173,11 +179,13 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 	case pkgmetav1.ProviderKind:
 		linter = NewProviderLinter()
 	}
+
 	if err := linter.Lint(pkg); err != nil {
 		return nil, nil, errors.Wrap(err, errLintPackage)
 	}
 
 	layers := make([]v1.Layer, 0)
+
 	cfgFile, err := bOpts.base.ConfigFile()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, errConfigFile)
@@ -197,6 +205,7 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 	if err != nil {
 		return nil, nil, err
 	}
+
 	layers = append(layers, pkgLayer)
 
 	// examples exist, create the layer
@@ -210,6 +219,7 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 		if err != nil {
 			return nil, nil, err
 		}
+
 		layers = append(layers, exLayer)
 	}
 
@@ -232,23 +242,30 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 // or quantity i.e. it should be linted first to ensure that it is valid.
 func encode(pkg parser.Lintable) (*bytes.Buffer, error) {
 	pkgBuf := new(bytes.Buffer)
+
 	objScheme, err := BuildObjectScheme()
 	if err != nil {
 		return nil, errors.New(errBuildObjectScheme)
 	}
 
 	do := json.NewSerializerWithOptions(json.DefaultMetaFactory, objScheme, objScheme, json.SerializerOptions{Yaml: true})
+
 	pkgBuf.WriteString("---\n")
+
 	if err = do.Encode(pkg.GetMeta()[0], pkgBuf); err != nil {
 		return nil, errors.Wrap(err, errBuildObjectScheme)
 	}
+
 	pkgBuf.WriteString("---\n")
+
 	for _, o := range pkg.GetObjects() {
 		if err = do.Encode(o, pkgBuf); err != nil {
 			return nil, errors.Wrap(err, errBuildObjectScheme)
 		}
+
 		pkgBuf.WriteString("---\n")
 	}
+
 	return pkgBuf, nil
 }
 

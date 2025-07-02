@@ -65,7 +65,8 @@ type ConfigurationStatus struct {
 type ConfigurationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Configuration `json:"items"`
+
+	Items []Configuration `json:"items"`
 }
 
 // +kubebuilder:object:root=true
@@ -101,5 +102,6 @@ type ConfigurationRevision struct {
 type ConfigurationRevisionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ConfigurationRevision `json:"items"`
+
+	Items []ConfigurationRevision `json:"items"`
 }

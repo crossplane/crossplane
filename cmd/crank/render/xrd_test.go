@@ -242,6 +242,7 @@ func TestDefaultValues(t *testing.T) {
 			if (err != nil) != tc.wantErr {
 				t.Errorf("DefaultValues() error = %v, wantErr %v", err, tc.wantErr)
 			}
+
 			if diff := cmp.Diff(tc.want, tc.args.xr); diff != "" {
 				t.Errorf("DefaultValues() mismatch (-want +got):\n%s", diff)
 			}

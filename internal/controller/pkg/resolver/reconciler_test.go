@@ -68,10 +68,12 @@ func TestReconcile(t *testing.T) {
 		req reconcile.Request
 		rec []ReconcilerOption
 	}
+
 	type want struct {
 		r   reconcile.Result
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -1090,11 +1092,12 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog))...)
-			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -1106,10 +1109,12 @@ func TestFindDigestToUpdate(t *testing.T) {
 	type args struct {
 		node dag.Node
 	}
+
 	type want struct {
 		digest string
 		err    error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -1178,10 +1183,10 @@ func TestFindDigestToUpdate(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got, err := findDigestToUpdate(tc.args.node)
-
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.digest, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -1196,10 +1201,12 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 		dep    dag.Node
 		rec    []ReconcilerOption
 	}
+
 	type want struct {
 		version string
 		err     error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -1376,11 +1383,12 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog))...)
 			ref, _ := pkgName.ParseReference(tc.args.dep.Identifier())
-			got, err := r.findDependencyVersionToUpdate(context.Background(), ref, tc.args.insVer, tc.args.dep, testLog)
 
+			got, err := r.findDependencyVersionToUpdate(context.Background(), ref, tc.args.insVer, tc.args.dep, testLog)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.findDependencyVersionToUpdate(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.version, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.findDependencyVersionToUpdate(...): -want, +got:\n%s", tc.reason, diff)
 			}

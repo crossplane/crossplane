@@ -90,7 +90,9 @@ func TestPrintDotGraph(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// Create a GraphPrinter
 			p := &DotPrinter{}
+
 			var buf bytes.Buffer
+
 			err := p.Print(&buf, tc.args.resource)
 			got := buf.String()
 

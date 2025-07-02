@@ -71,6 +71,7 @@ func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 			logger.Debug(errPkgIdentifier, "error", err)
 			return errors.Wrap(err, errPkgIdentifier)
 		}
+
 		pkgName = xpkg.ToDNSLabel(ref.Context().RepositoryStr())
 	}
 
@@ -81,6 +82,7 @@ func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 	)
 
 	var pkg v1.Package
+
 	switch c.Kind {
 	case "provider":
 		pkg = &v1.Provider{}
@@ -97,6 +99,7 @@ func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, errKubeConfig)
 	}
+
 	logger.Debug("Found kubeconfig")
 
 	s := runtime.NewScheme()
@@ -107,6 +110,7 @@ func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, errKubeClient)
 	}
+
 	logger.Debug("Created kubernetes client")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -126,5 +130,6 @@ func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 	}
 
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s updated\n", c.Kind, pkg.GetName())
+
 	return err
 }

@@ -41,6 +41,8 @@ func (p *JSONPrinter) Print(w io.Writer, root *resource.Resource) error {
 	if err != nil {
 		return errors.Wrap(err, errCannotMarshalJSON)
 	}
+
 	_, err = fmt.Fprintln(w, string(out))
+
 	return err
 }

@@ -238,6 +238,7 @@ func NewReconciler(ca resource.ClientApplicator, opts ...ReconcilerOption) *Reco
 	for _, f := range opts {
 		f(r)
 	}
+
 	return r
 }
 
@@ -279,6 +280,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetXRD, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetXRD)
 	}
+
 	status := r.conditions.For(d)
 
 	log = log.WithValues(
@@ -291,17 +293,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		err = errors.Wrap(err, errRenderCRD)
 		r.record.Event(d, event.Warning(reasonRenderCRD, err))
+
 		return reconcile.Result{}, err
 	}
 
 	if meta.WasDeleted(d) {
 		status.MarkConditions(v1.TerminatingClaim())
+
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errUpdateStatus)
 			r.record.Event(d, event.Warning(reasonRedactXRC, err))
+
 			return reconcile.Result{}, err
 		}
 
@@ -309,6 +315,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.client.Get(ctx, nn, crd); resource.IgnoreNotFound(err) != nil {
 			err = errors.Wrap(err, errGetCRD)
 			r.record.Event(d, event.Warning(reasonRedactXRC, err))
+
 			return reconcile.Result{}, err
 		}
 
@@ -326,16 +333,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if err := r.engine.Stop(ctx, claim.ControllerName(d.GetName())); err != nil {
 				err = errors.Wrap(err, errStopController)
 				r.record.Event(d, event.Warning(reasonRedactXRC, err))
+
 				return reconcile.Result{}, err
 			}
+
 			log.Debug("Stopped composite resource claim controller")
 
 			if err := r.claim.RemoveFinalizer(ctx, d); err != nil {
 				if kerrors.IsConflict(err) {
 					return reconcile.Result{Requeue: true}, nil
 				}
+
 				err = errors.Wrap(err, errRemoveFinalizer)
 				r.record.Event(d, event.Warning(reasonRedactXRC, err))
+
 				return reconcile.Result{}, err
 			}
 
@@ -347,9 +358,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		l := &kunstructured.UnstructuredList{}
 		l.SetGroupVersionKind(d.GetClaimGroupVersionKind())
+
 		if err := r.client.List(ctx, l); resource.Ignore(kmeta.IsNoMatchError, err) != nil {
 			err = errors.Wrap(err, errListCRs)
 			r.record.Event(d, event.Warning(reasonRedactXRC, err))
+
 			return reconcile.Result{}, err
 		}
 
@@ -366,6 +379,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				if err := r.client.Delete(ctx, &l.Items[i]); resource.IgnoreNotFound(err) != nil {
 					err = errors.Wrap(err, errDeleteCR)
 					r.record.Event(d, event.Warning(reasonRedactXRC, err))
+
 					return reconcile.Result{}, err
 				}
 			}
@@ -375,6 +389,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// because we won't be requeued implicitly when the CRs
 			// are deleted.
 			r.record.Event(d, event.Normal(reasonRedactXRC, waitCRDelete))
+
 			return reconcile.Result{Requeue: true}, nil
 		}
 
@@ -383,15 +398,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.engine.Stop(ctx, claim.ControllerName(d.GetName())); err != nil {
 			err = errors.Wrap(err, errStopController)
 			r.record.Event(d, event.Warning(reasonRedactXRC, err))
+
 			return reconcile.Result{}, err
 		}
+
 		log.Debug("Stopped composite resource claim controller")
 
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
 			err = errors.Wrap(err, errDeleteCRD)
 			r.record.Event(d, event.Warning(reasonRedactXRC, err))
+
 			return reconcile.Result{}, err
 		}
+
 		r.record.Event(d, event.Normal(reasonRedactXRC, fmt.Sprintf("Deleted composite resource claim CustomResourceDefinition: %s", crd.GetName())))
 
 		// We should be requeued implicitly because we're watching the
@@ -405,8 +424,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(d, event.Warning(reasonOfferXRC, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -415,10 +436,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errApplyCRD)
 		r.record.Event(d, event.Warning(reasonOfferXRC, err))
+
 		return reconcile.Result{}, err
 	}
+
 	if crd.GetResourceVersion() != origRV {
 		r.record.Event(d, event.Normal(reasonOfferXRC, fmt.Sprintf("Applied composite resource claim CustomResourceDefinition: %s", crd.GetName())))
 	}
@@ -426,6 +450,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if !xcrd.IsEstablished(crd.Status) {
 		log.Debug(waitCRDEstablish)
 		r.record.Event(d, event.Normal(reasonOfferXRC, waitCRDEstablish))
+
 		return reconcile.Result{Requeue: true}, nil
 	}
 
@@ -446,13 +471,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	observed := d.Status.Controllers.CompositeResourceClaimTypeRef
+
 	desired := v1.TypeReferenceTo(d.GetClaimGroupVersionKind())
 	if observed.APIVersion != "" && observed != desired {
 		if err := r.engine.Stop(ctx, claim.ControllerName(d.GetName())); err != nil {
 			err = errors.Wrap(err, errStopController)
 			r.record.Event(d, event.Warning(reasonOfferXRC, err))
+
 			return reconcile.Result{}, err
 		}
+
 		log.Debug("Referenceable version changed; stopped composite resource claim controller",
 			"observed-version", observed.APIVersion,
 			"desired-version", desired.APIVersion)
@@ -461,6 +489,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if r.engine.IsRunning(claim.ControllerName(d.GetName())) {
 		log.Debug("Composite resource claim controller is running")
 		status.MarkConditions(v1.WatchingClaim())
+
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
@@ -472,8 +501,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := r.engine.Start(claim.ControllerName(d.GetName()), engine.WithRuntimeOptions(ko)); err != nil {
 		err = errors.Wrap(err, errStartController)
 		r.record.Event(d, event.Warning(reasonOfferXRC, err))
+
 		return reconcile.Result{}, err
 	}
+
 	log.Debug("Started composite resource claim controller")
 
 	// These must be *unstructured.Unstructured, not e.g. *claim.Unstructured.
@@ -481,6 +512,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// runtime.Unstructured interface - only *unstructured.Unstructured.
 	cm := &kunstructured.Unstructured{}
 	cm.SetGroupVersionKind(d.GetClaimGroupVersionKind())
+
 	xr := &kunstructured.Unstructured{}
 	xr.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
 
@@ -490,10 +522,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	); err != nil {
 		err = errors.Wrap(err, errStartWatches)
 		r.record.Event(d, event.Warning(reasonOfferXRC, err))
+
 		return reconcile.Result{}, err
 	}
 
 	d.Status.Controllers.CompositeResourceClaimTypeRef = v1.TypeReferenceTo(d.GetClaimGroupVersionKind())
 	status.MarkConditions(v1.WatchingClaim())
+
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }

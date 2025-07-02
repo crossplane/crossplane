@@ -45,10 +45,12 @@ func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
 		rs *fnv1.ResourceSelector
 		c  client.Reader
 	}
+
 	type want struct {
 		res *fnv1.Resources
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -231,10 +233,12 @@ func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			g := NewExistingExtraResourcesFetcher(tc.args.c)
+
 			res, err := g.Fetch(context.Background(), tc.args.rs)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nGet(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.res, res, protocmp.Transform()); diff != "" {
 				t.Errorf("\n%s\nGet(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -258,11 +262,13 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		wrapped   FunctionRunner
 		resources ExtraResourcesFetcher
 	}
+
 	type args struct {
 		ctx  context.Context
 		name string
 		req  *fnv1.RunFunctionRequest
 	}
+
 	type want struct {
 		rsp *fnv1.RunFunctionResponse
 		err error
@@ -457,11 +463,12 @@ func TestFetchingFunctionRunner(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewFetchingFunctionRunner(tc.params.wrapped, tc.params.resources)
-			rsp, err := r.RunFunction(tc.args.ctx, tc.args.name, tc.args.req)
 
+			rsp, err := r.RunFunction(tc.args.ctx, tc.args.name, tc.args.req)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.RunFunction(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.rsp, rsp, protocmp.Transform()); diff != "" {
 				t.Errorf("\n%s\nr.RunFunction(...): -want, +got:\n%s", tc.reason, diff)
 			}

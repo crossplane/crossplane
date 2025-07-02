@@ -94,6 +94,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 			logger.Debug(errPkgIdentifier, "error", err)
 			return errors.Wrap(err, errPkgIdentifier)
 		}
+
 		pkgName = xpkg.ToDNSLabel(ref.Context().RepositoryStr())
 	}
 
@@ -107,6 +108,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	if c.ManualActivation {
 		rap = v1.ManualActivation
 	}
+
 	secrets := make([]corev1.LocalObjectReference, len(c.PackagePullSecrets))
 	for i, s := range c.PackagePullSecrets {
 		secrets[i] = corev1.LocalObjectReference{
@@ -122,6 +124,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	}
 
 	var pkg v1.Package
+
 	switch c.Kind {
 	case "provider":
 		pkg = &v1.Provider{
@@ -148,6 +151,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 		if !ok {
 			return errors.Errorf("package kind %T does not support runtime configuration", pkg)
 		}
+
 		rpkg.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: c.RuntimeConfig})
 	}
 
@@ -155,6 +159,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, errKubeConfig)
 	}
+
 	logger.Debug("Found kubeconfig")
 
 	s := runtime.NewScheme()
@@ -165,12 +170,14 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, errKubeClient)
 	}
+
 	logger.Debug("Created kubernetes client")
 
 	timeout := 10 * time.Second
 	if c.Wait > 0 {
 		timeout = c.Wait
 	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -181,6 +188,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	if c.Wait > 0 {
 		// Poll every 2 seconds to see whether the package is ready.
 		logger.Debug("Waiting for package to be ready", "timeout", timeout)
+
 		go wait.UntilWithContext(ctx, func(ctx context.Context) {
 			if err := kube.Get(ctx, client.ObjectKeyFromObject(pkg), pkg); err != nil {
 				logger.Debug("Cannot get package", "error", err)
@@ -191,6 +199,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 			if pkg.GetCondition(v1.TypeHealthy).Status == corev1.ConditionTrue {
 				logger.Debug("Package is ready")
 				cancel()
+
 				return
 			}
 
@@ -205,6 +214,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	}
 
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", c.Kind, pkg.GetName())
+
 	return err
 }
 
@@ -217,8 +227,10 @@ func warnIfNotFound(err error) error {
 	if !errors.As(err, &serr) {
 		return err
 	}
+
 	if serr.ErrStatus.Code != http.StatusNotFound {
 		return err
 	}
+
 	return errors.WithMessagef(err, "crossplane CLI (version %s) might be out of date", version.New().GetVersionString())
 }

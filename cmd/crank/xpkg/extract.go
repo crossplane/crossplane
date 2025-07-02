@@ -80,10 +80,12 @@ func xpkgFetch(path string) fetchFn {
 // that have Run() methods that receive it.
 func (c *extractCmd) AfterApply() error {
 	c.fs = afero.NewOsFs()
+
 	c.fetch = registryFetch
 	if c.FromDaemon {
 		c.fetch = daemonFetch
 	}
+
 	if c.FromXpkg {
 		// If package is not defined, attempt to find single package in current
 		// directory.
@@ -92,24 +94,31 @@ func (c *extractCmd) AfterApply() error {
 			if err != nil {
 				return errors.Wrap(err, errGetwd)
 			}
+
 			path, err := xpkg.FindXpkgInDir(c.fs, wd)
 			if err != nil {
 				return errors.Wrap(err, errFindPackageinWd)
 			}
+
 			c.Package = path
 		}
+
 		c.fetch = xpkgFetch(c.Package)
 	}
+
 	if !c.FromXpkg {
 		if c.Package == "" {
 			return errors.New(errMustProvideTag)
 		}
+
 		name, err := name.ParseReference(c.Package, name.StrictValidation)
 		if err != nil {
 			return errors.Wrap(err, errInvalidTag)
 		}
+
 		c.name = name
 	}
+
 	return nil
 }
 
@@ -145,19 +154,25 @@ func (c *extractCmd) Run(logger logging.Logger) error { //nolint:gocyclo // xpkg
 
 	// Determine if the image is using annotated layers.
 	var tarc io.ReadCloser
+
 	foundAnnotated := false
+
 	for _, l := range manifest.Layers {
 		if a, ok := l.Annotations[xpkg.AnnotationKey]; !ok || a != xpkg.PackageAnnotation {
 			continue
 		}
+
 		if foundAnnotated {
 			return errors.New(errMultipleAnnotatedLayers)
 		}
+
 		foundAnnotated = true
+
 		layer, err := img.LayerByDigest(l.Digest)
 		if err != nil {
 			return errors.Wrap(err, errFetchLayer)
 		}
+
 		tarc, err = layer.Uncompressed()
 		if err != nil {
 			return errors.Wrap(err, errGetUncompressed)
@@ -173,12 +188,15 @@ func (c *extractCmd) Run(logger logging.Logger) error { //nolint:gocyclo // xpkg
 	// layer contents or flattened filesystem content. Either way, we only want
 	// the package YAML stream.
 	t := tar.NewReader(tarc)
+
 	var size int64
+
 	for {
 		h, err := t.Next()
 		if err != nil {
 			return errors.Wrap(err, errOpenPackageStream)
 		}
+
 		if h.Name == xpkg.StreamFile {
 			size = h.Size
 			break
@@ -186,22 +204,27 @@ func (c *extractCmd) Run(logger logging.Logger) error { //nolint:gocyclo // xpkg
 	}
 
 	out := xpkg.ReplaceExt(filepath.Clean(c.Output), cacheContentExt)
+
 	cf, err := c.fs.Create(out)
 	if err != nil {
 		return errors.Wrap(err, errCreateOutputFile)
 	}
 	defer cf.Close() //nolint:errcheck // defer close
+
 	w, err := gzip.NewWriterLevel(cf, gzip.BestSpeed)
 	if err != nil {
 		return errors.Wrap(err, errCreateGzipWriter)
 	}
+
 	if _, err = io.CopyN(w, t, size); err != nil {
 		return errors.Wrap(err, errExtractPackageContents)
 	}
+
 	if err := w.Close(); err != nil {
 		return errors.Wrap(err, errExtractPackageContents)
 	}
 
 	logger.Debug("xpkg contents extracted to %s", out)
+
 	return nil
 }

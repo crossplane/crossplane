@@ -42,6 +42,7 @@ type (
 func (v verboseFlag) BeforeApply(ctx *kong.Context) error { //nolint:unparam // BeforeApply requires this signature.
 	logger := logging.NewLogrLogger(zap.New(zap.UseDevMode(true)))
 	ctx.BindTo(logger, (*logging.Logger)(nil))
+
 	return nil
 }
 

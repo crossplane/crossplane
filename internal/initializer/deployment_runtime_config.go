@@ -41,5 +41,6 @@ func DefaultDeploymentRuntimeConfig(ctx context.Context, kube client.Client) err
 			Name: "default",
 		},
 	}
+
 	return errors.Wrap(resource.Ignore(kerrors.IsAlreadyExists, kube.Create(ctx, rc)), errCreateDefaultRuntimeConfig)
 }

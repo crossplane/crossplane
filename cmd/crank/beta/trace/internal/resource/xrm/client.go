@@ -82,6 +82,7 @@ func NewClient(in client.Client, opts ...ResourceClientOption) (*Client, error) 
 func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) (*resource.Resource, error) {
 	q := newLoader(root, kc, defaultChannelCapacity)
 	q.load(ctx, kc.concurrency)
+
 	return root, nil
 }
 
@@ -122,6 +123,7 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 				Name:       ref.Name,
 			})
 		}
+
 		if getConnectionSecrets {
 			xrcSecretRef := xrc.GetWriteConnectionSecretToReference()
 			if xrcSecretRef != nil {
@@ -134,10 +136,12 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 				refs = append(refs, ref)
 			}
 		}
+
 		return refs
 	}
 	// This could be an XR or an MR
 	xr := composite.Unstructured{Unstructured: obj}
+
 	xrRefs := xr.GetResourceReferences()
 	if len(xrRefs) == 0 {
 		// This is an MR
@@ -151,6 +155,7 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 		// We don't need the connection secret, so we can stop here
 		return refs
 	}
+
 	xrSecretRef := xr.GetWriteConnectionSecretToReference()
 	if xrSecretRef != nil {
 		ref := v1.ObjectReference{

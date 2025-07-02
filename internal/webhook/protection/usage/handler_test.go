@@ -48,17 +48,21 @@ var errBoom = errors.New("boom")
 
 func TestHandle(t *testing.T) {
 	protected := "This resource is protected!"
+
 	type params struct {
 		client client.Client
 		f      Finder
 		opts   []HandlerOption
 	}
+
 	type args struct {
 		request admission.Request
 	}
+
 	type want struct {
 		resp admission.Response
 	}
+
 	cases := map[string]struct {
 		reason string
 		params params
@@ -360,6 +364,7 @@ func TestHandle(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			h := NewHandler(tc.params.client, tc.params.f, tc.params.opts...)
+
 			got := h.Handle(context.Background(), tc.args.request)
 			if diff := cmp.Diff(tc.want.resp, got); diff != "" {
 				t.Errorf("%s\nHandle(...): -want response, +got:\n%s", tc.reason, diff)

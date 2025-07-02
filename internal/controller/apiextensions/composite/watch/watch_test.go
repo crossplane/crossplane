@@ -69,9 +69,11 @@ func TestGarbageCollectWatchesNow(t *testing.T) {
 		ce   ControllerEngine
 		o    []GarbageCollectorOption
 	}
+
 	type args struct {
 		ctx context.Context
 	}
+
 	type want struct {
 		err error
 	}
@@ -300,8 +302,8 @@ func TestGarbageCollectWatchesNow(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			gc := NewGarbageCollector(tc.params.name, tc.params.of, tc.params.ce, tc.params.o...)
-			err := gc.GarbageCollectWatchesNow(tc.args.ctx)
 
+			err := gc.GarbageCollectWatchesNow(tc.args.ctx)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ngc.GarbageCollectWatchesNow(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
