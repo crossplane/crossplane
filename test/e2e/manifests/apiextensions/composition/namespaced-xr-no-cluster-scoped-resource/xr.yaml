@@ -1,0 +1,10 @@
+apiVersion: validation.example.org/v1alpha1
+kind: NamespacedTest
+metadata:
+  name: test-namespaced-xr
+  namespace: crossplane-system
+spec:
+  testField: "test-value"
+  crossplane:
+    compositionRef:
+      name: invalid-namespaced-xr-cluster-composition
