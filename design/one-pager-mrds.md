@@ -64,21 +64,21 @@ spec:
   connectionDetails:
   - name: password
     description: Definitely real password for this resource that does nothing
-  desiredState: Active
+  state: Active
 ```
 
 An MRD would be schematically identical to a CRD, but have two additional
 `spec` fields:
 
 * `spec.connectionDetails` - An array of connection detail keys and descriptions
-* `spec.desiredState` - Toggles whether the underlying CRD is created or not
+* `spec.state` - Toggles whether the underlying CRD is created or not
 
 I propose we update all providers to deliver MRDs - not CRDs - as their package
 payload.
 
-I propose all MRDs be inactive (`spec.desiredState: Inactive`) by default, and
-that we add another new type to automatically activate matching MRDs. This new
-type would be called a ManagedResourceActivationPolicy (MRAP).
+I propose all MRDs be inactive (`spec.state: Inactive`) by default, and that we
+add another new type to automatically activate matching MRDs. This new type
+would be called a ManagedResourceActivationPolicy (MRAP).
 
 Here's an example MRAP:
 
@@ -135,7 +135,7 @@ it. This is because stopping a controller requires stopping its informers, which
 is quite hard using controller-runtime. We'd need to migrate all providers to
 use something like the [controller engine][7] Crossplane uses to dynamically
 start and stop XR controllers. This would be a significant architectural change
-to providers. This implies an MRD's `spec.desiredState` will only be allowed to
+to providers. This implies an MRD's `spec.state` will only be allowed to
 transition from `Inactive -> Active`, not the other way.
 
 We could consider supporting deactivating an active MR (at significant
@@ -155,11 +155,11 @@ spec:
 ```
 
 If Crossplane sees a provider with the `late-mr-activation` capability it'll
-create its MRDs with `spec.desiredState: Inactive`. Its CRDs won't be created
-until an MRAP toggles its MRDs desired state to `Active`.
+create its MRDs with `spec.state: Inactive`. Its CRDs won't be created until an
+MRAP toggles its MRDs state to `Active`.
 
 If Crossplane sees a provider without the `late-mr-activation` capability it'll
-create its MRDs with `spec.desiredState: Active`. This'll cause Crossplane's MRD
+create its MRDs with `spec.state: Active`. This'll cause Crossplane's MRD
 controller to immediately create the necessary CRDs.
 
 ## Migration Plan
