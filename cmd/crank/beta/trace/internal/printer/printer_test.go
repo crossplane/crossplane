@@ -205,6 +205,41 @@ func GetComplexResource() *resource.Resource {
 	}
 }
 
+// GetSimpleResource returns a simple resource with children.
+func GetSimpleResource() *resource.Resource {
+	return &resource.Resource{
+		Unstructured: DummyNamespacedResource("SimpleResource", "simple-resource", "default", xpv1.Condition{
+			Type:   "Synced",
+			Status: "True",
+		}, xpv1.Condition{
+			Type:   "Ready",
+			Status: "True",
+		}),
+		Children: []*resource.Resource{
+			{
+				Unstructured: DummyClusterScopedResource("XSimpleResource", "simple-resource-hash", xpv1.Condition{
+					Type:   "Synced",
+					Status: "True",
+				}, xpv1.Condition{
+					Type:   "Ready",
+					Status: "True",
+				}),
+				Children: []*resource.Resource{
+					{
+						Unstructured: DummyComposedResource("Something", "simple-resource-something-hash", "something", xpv1.Condition{
+							Type:   "Synced",
+							Status: "True",
+						}, xpv1.Condition{
+							Type:   "Ready",
+							Status: "True",
+						}),
+					},
+				},
+			},
+		},
+	}
+}
+
 // GetComplexPackage returns a complex package with children.
 func GetComplexPackage() *resource.Resource {
 	return &resource.Resource{
