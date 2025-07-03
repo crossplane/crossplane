@@ -1,7 +1,7 @@
 # Managed Resource Definitions
 
 * Owner: Nic Cope (@negz)
-* Reviewer: ???
+* Reviewer: Philippe Scorsolini (@phisco)
 * Status: Draft
 
 ## Background
@@ -176,14 +176,13 @@ generate MRD YAML manifests from Go structs. This could be done 'directly' or by
 generating a CRD and post-processing it to create an MRD - e.g. changing the
 type and adding the connection details.
 
-Older versions of Crossplane w
-ouldn't understand MRDs, so a provider that
+Older versions of Crossplane wouldn't understand MRDs, so a provider that
 switches from CRDs to MRDs wouldn't work on older versions of Crossplane.
 
 To alleviate these migration issues I propose that Crossplane automatically
 translate MR CRDs to MRDs at package install time. Providers would be expected
-to package MRDs directly, but this could happen once all supported versions of
-Crossplane had GA support for MRDs.
+to eventually switch to packaging MRDs directly, but this would happen only
+after all supported versions of Crossplane had GA support for MRDs.
 
 ## Alternatives Considered
 
