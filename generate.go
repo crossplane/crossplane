@@ -64,7 +64,7 @@ limitations under the License.
 
 // Replicate identical gRPC APIs
 
-//go:generate ./hack/duplicate_proto_type.sh apis/apiextensions/fn/proto/v1/run_function.proto apis/apiextensions/fn/proto/v1beta1
+//go:generate ./hack/duplicate_proto_type.sh proto/fn/v1/run_function.proto proto/fn/v1beta1
 
 // Generate gRPC types and stubs.
 //

@@ -18,8 +18,8 @@ syntax = "proto3";
 
 package internal.xfn.cached.proto.v1alpha1;
 
-import "apis/apiextensions/fn/proto/v1/run_function.proto";
 import "google/protobuf/timestamp.proto";
+import "proto/fn/v1/run_function.proto";
 
 option go_package = "github.com/crossplane/crossplane/internal/xfn/cached/proto/v1alpha1";
 

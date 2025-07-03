@@ -26,7 +26,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
 )
 
 // MaxRequirementsIterations is the maximum number of times a Function should be

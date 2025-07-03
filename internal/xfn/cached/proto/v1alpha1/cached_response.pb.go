@@ -22,7 +22,7 @@
 package v1alpha1
 
 import (
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	v1 "github.com/crossplane/crossplane/proto/fn/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -98,7 +98,7 @@ var File_internal_xfn_cached_proto_v1alpha1_cached_response_proto protoreflect.F
 
 const file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_rawDesc = "" +
 	"\n" +
-	"8internal/xfn/cached/proto/v1alpha1/cached_response.proto\x12\"internal.xfn.cached.proto.v1alpha1\x1a1apis/apiextensions/fn/proto/v1/run_function.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9f\x01\n" +
+	"8internal/xfn/cached/proto/v1alpha1/cached_response.proto\x12\"internal.xfn.cached.proto.v1alpha1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1eproto/fn/v1/run_function.proto\"\x9f\x01\n" +
 	"\x19CachedRunFunctionResponse\x126\n" +
 	"\bdeadline\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bdeadline\x12J\n" +
 	"\bresponse\x18\x02 \x01(\v2..apiextensions.fn.proto.v1.RunFunctionResponseR\bresponseBEZCgithub.com/crossplane/crossplane/internal/xfn/cached/proto/v1alpha1b\x06proto3"

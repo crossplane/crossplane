@@ -33,9 +33,9 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
-	fnv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
+	fnv1beta1 "github.com/crossplane/crossplane/proto/fn/v1beta1"
 )
 
 // Error strings.
