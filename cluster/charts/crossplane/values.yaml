@@ -180,6 +180,9 @@ metrics:
   enabled: false
   # -- The port the metrics server listens on.
   port: ""
+  # -- Enable Prometheus-Operator PodMonitor
+  podMonitor:
+    enabled: false
 
 readiness:
   # -- The port the readyz server listens on.
