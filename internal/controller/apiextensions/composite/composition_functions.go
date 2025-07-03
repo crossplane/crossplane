@@ -589,15 +589,6 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				continue
 			}
 
-			// TODO: this is a bug, if we fail on the composed resource patch, then we don't update the xr
-			// 		 which means updstream updates to the xr fail because they are not interacting with the
-			//	 	 correct one.
-			// 		 This should not be fail on first, it should really try for all desired and collect errors.
-			//return CompositionResult{}, xerrors.ComposedResourceError{
-			//	Message:  fmt.Sprintf(errFmtApplyCD, name),
-			//	Composed: cd.Resource,
-			//	Err:      err,
-			//}
 			resourceErrs = append(resourceErrs, xerrors.ComposedResourceError{
 				Message:  fmt.Sprintf(errFmtApplyCD, name),
 				Composed: cd.Resource,
