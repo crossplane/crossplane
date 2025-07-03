@@ -23,7 +23,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 )
 
 func TestIsCompositeResourceCRD(t *testing.T) {
@@ -35,7 +35,7 @@ func TestIsCompositeResourceCRD(t *testing.T) {
 			want: false,
 		},
 		"XRD": {
-			obj:  &v1.CompositeResourceDefinition{},
+			obj:  &v2.CompositeResourceDefinition{},
 			want: false,
 		},
 		"ClaimCRD": {

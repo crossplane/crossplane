@@ -23,16 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-)
 
-// CompositeResourceScope specifies the scope of a composite resource.
-type CompositeResourceScope string
-
-// Composite resource scopes.
-const (
-	CompositeResourceScopeNamespaced    CompositeResourceScope = "Namespaced"
-	CompositeResourceScopeCluster       CompositeResourceScope = "Cluster"
-	CompositeResourceScopeLegacyCluster CompositeResourceScope = "LegacyCluster"
+	"github.com/crossplane/crossplane/apis/apiextensions/shared"
 )
 
 // CompositeResourceDefinitionSpec specifies the desired state of the definition.
@@ -61,7 +53,7 @@ type CompositeResourceDefinitionSpec struct {
 	// +kubebuilder:validation:Enum=LegacyCluster;Namespaced;Cluster
 	// +kubebuilder:default=LegacyCluster
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
-	Scope *CompositeResourceScope `json:"scope,omitempty"`
+	Scope *shared.CompositeResourceScope `json:"scope,omitempty"`
 
 	// ClaimNames specifies the names of an optional composite resource claim.
 	// When claim names are specified Crossplane will create a namespaced
@@ -252,6 +244,7 @@ type CompositeResourceDefinitionControllerStatus struct {
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=xrd;xrds
+// +kubebuilder:deprecatedversion:warning="CompositeResourceDefinition v1 is deprecated and will be removed in a future release; consider migrating to v2"
 type CompositeResourceDefinition struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

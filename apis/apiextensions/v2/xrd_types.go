@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Crossplane Authors.
+Copyright 2025 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v2alpha1
+package v2
 
 import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -23,20 +23,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-)
 
-// CompositeResourceScope specifies the scope of a composite resource.
-type CompositeResourceScope string
-
-// Composite resource scopes.
-const (
-	CompositeResourceScopeNamespaced CompositeResourceScope = "Namespaced"
-	CompositeResourceScopeCluster    CompositeResourceScope = "Cluster"
+	"github.com/crossplane/crossplane/apis/apiextensions/shared"
 )
 
 // CompositeResourceDefinitionSpec specifies the desired state of the definition.
-// +kubebuilder:validation:XValidation:rule="!has(self.claimNames)",message="Claims aren't supported in apiextensions.crossplane.io/v2"
-// +kubebuilder:validation:XValidation:rule="!has(self.connectionSecretKeys)",message="XR connection secrets aren't supported in apiextensions.crossplane.io/v2"
+// +kubebuilder:validation:XValidation:rule="!has(self.claimNames) || self.scope == 'LegacyCluster'",message="Claims aren't supported in apiextensions.crossplane.io/v2"
+// +kubebuilder:validation:XValidation:rule="!has(self.connectionSecretKeys) || self.scope == 'LegacyCluster'",message="XR connection secrets aren't supported in apiextensions.crossplane.io/v2"
 type CompositeResourceDefinitionSpec struct {
 	// Group specifies the API group of the defined composite resource.
 	// Composite resources are served under `/apis/<group>/...`. Must match the
@@ -57,7 +50,7 @@ type CompositeResourceDefinitionSpec struct {
 	// +kubebuilder:validation:Enum=Namespaced;Cluster
 	// +kubebuilder:default=Namespaced
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
-	Scope CompositeResourceScope `json:"scope,omitempty"`
+	Scope shared.CompositeResourceScope `json:"scope,omitempty"`
 
 	// DefaultCompositionRef refers to the Composition resource that will be used
 	// in case no composition selector is given.
@@ -257,6 +250,18 @@ type CompositeResourceDefinition struct {
 	Status CompositeResourceDefinitionStatus `json:"status,omitempty"`
 }
 
+// SetConditions delegates to Status.SetConditions.
+// Implements Conditioned.SetConditions.
+func (c *CompositeResourceDefinition) SetConditions(cs ...xpv1.Condition) {
+	c.Status.SetConditions(cs...)
+}
+
+// GetCondition delegates to Status.GetCondition.
+// Implements Conditioned.GetCondition.
+func (c *CompositeResourceDefinition) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return c.Status.GetCondition(ct)
+}
+
 // +kubebuilder:object:root=true
 
 // CompositeResourceDefinitionList contains a list of CompositeResourceDefinitions.
@@ -320,4 +325,9 @@ type TypeReference struct {
 
 	// Kind of the type.
 	Kind string `json:"kind"`
+}
+
+// TypeReferenceTo returns a reference to the supplied GroupVersionKind.
+func TypeReferenceTo(gvk schema.GroupVersionKind) TypeReference {
+	return TypeReference{APIVersion: gvk.GroupVersion().String(), Kind: gvk.Kind}
 }

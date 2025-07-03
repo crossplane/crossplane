@@ -38,6 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -311,7 +312,7 @@ func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 		return nil
 	}
 
-	def := &v1.CompositeResourceDefinition{}
+	def := &v2.CompositeResourceDefinition{}
 	if err := s.client.Get(ctx, meta.NamespacedNameOf(&s.defRef), def); err != nil {
 		return errors.Wrap(err, errGetXRD)
 	}
@@ -327,14 +328,14 @@ func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 }
 
 // NewEnforcedCompositionSelector returns a EnforcedCompositionSelector.
-func NewEnforcedCompositionSelector(def v1.CompositeResourceDefinition, r event.Recorder) *EnforcedCompositionSelector {
+func NewEnforcedCompositionSelector(def v2.CompositeResourceDefinition, r event.Recorder) *EnforcedCompositionSelector {
 	return &EnforcedCompositionSelector{def: def, recorder: r}
 }
 
 // EnforcedCompositionSelector , if it's given, selects the enforced composition
 // on the definition for all composite instances.
 type EnforcedCompositionSelector struct {
-	def      v1.CompositeResourceDefinition
+	def      v2.CompositeResourceDefinition
 	recorder event.Recorder
 }
 
