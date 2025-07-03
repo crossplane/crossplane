@@ -46,7 +46,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/common"
+	"github.com/crossplane/crossplane/apis/apiextensions/shared"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
@@ -325,7 +325,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if meta.WasDeleted(d) {
-		status.MarkConditions(common.TerminatingComposite())
+		status.MarkConditions(shared.TerminatingComposite())
 
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			log.Debug(errUpdateStatus, "error", err)
@@ -505,7 +505,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if r.engine.IsRunning(composite.ControllerName(d.GetName())) {
 		log.Debug("Composite resource controller is running")
-		status.MarkConditions(common.WatchingComposite())
+		status.MarkConditions(shared.WatchingComposite())
 
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
@@ -519,7 +519,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// All XRs have modern schema unless their XRD's scope is LegacyCluster.
 	schema := ucomposite.SchemaModern
-	if d.Spec.Scope == "" || d.Spec.Scope == common.CompositeResourceScopeLegacyCluster { //nolint:staticcheck // we are still supporting v1 XRD
+	if d.Spec.Scope == "" || d.Spec.Scope == shared.CompositeResourceScopeLegacyCluster { //nolint:staticcheck // we are still supporting v1 XRD
 		schema = ucomposite.SchemaLegacy
 	}
 
@@ -619,7 +619,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	log.Debug("Started composite resource controller")
 
 	d.Status.Controllers.CompositeResourceTypeRef = v2.TypeReferenceTo(d.GetCompositeGroupVersionKind())
-	status.MarkConditions(common.WatchingComposite())
+
+	status.MarkConditions(shared.WatchingComposite())
 
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }

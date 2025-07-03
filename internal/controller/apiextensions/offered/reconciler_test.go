@@ -21,7 +21,6 @@ import (
 	"io"
 	"testing"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/common"
 	"github.com/google/go-cmp/cmp"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -38,6 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
+	"github.com/crossplane/crossplane/apis/apiextensions/shared"
 	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/engine"
 )
@@ -510,7 +510,7 @@ func TestReconcile(t *testing.T) {
 							want := &v2.CompositeResourceDefinition{}
 							want.SetUID(owner)
 							want.SetDeletionTimestamp(&now)
-							want.Status.SetConditions(common.TerminatingClaim()) //nolint:staticcheck // we are still supporting v1 XRD
+							want.Status.SetConditions(shared.TerminatingClaim())
 
 							if diff := cmp.Diff(want, got); diff != "" {
 								t.Errorf("MockStatusUpdate: -want, +got:\n%s\n", diff)
@@ -752,7 +752,7 @@ func TestReconcile(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 							want := &v2.CompositeResourceDefinition{}
-							want.Status.SetConditions(common.WatchingClaim()) //nolint:staticcheck // we are still supporting v1 XRD
+							want.Status.SetConditions(shared.WatchingClaim())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -813,7 +813,7 @@ func TestReconcile(t *testing.T) {
 								{Name: "new", Referenceable: true},
 							}
 							want.Status.Controllers.CompositeResourceClaimTypeRef = v2.TypeReference{APIVersion: "new"}
-							want.Status.SetConditions(common.WatchingClaim()) //nolint:staticcheck // we are still supporting v1 XRD
+							want.Status.SetConditions(shared.WatchingClaim())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -859,7 +859,7 @@ func TestReconcile(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 							want := &v2.CompositeResourceDefinition{}
-							want.Status.SetConditions(common.WatchingClaim()) //nolint:staticcheck // we are still supporting v1 XRD
+							want.Status.SetConditions(shared.WatchingClaim())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
