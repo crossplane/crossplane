@@ -24,7 +24,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/common"
+	"github.com/crossplane/crossplane/apis/apiextensions/shared"
 )
 
 // CompositeResourceDefinitionSpec specifies the desired state of the definition.
@@ -53,7 +53,7 @@ type CompositeResourceDefinitionSpec struct {
 	// +kubebuilder:validation:Enum=LegacyCluster;Namespaced;Cluster
 	// +kubebuilder:default=LegacyCluster
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
-	Scope *common.CompositeResourceScope `json:"scope,omitempty"`
+	Scope *shared.CompositeResourceScope `json:"scope,omitempty"`
 
 	// ClaimNames specifies the names of an optional composite resource claim.
 	// When claim names are specified Crossplane will create a namespaced

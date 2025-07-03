@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/common"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
@@ -45,6 +44,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
+	"github.com/crossplane/crossplane/apis/apiextensions/shared"
 	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/claim"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
@@ -299,7 +299,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if meta.WasDeleted(d) {
-		status.MarkConditions(common.TerminatingClaim()) //nolint:staticcheck // we are still supporting v1 XRD
+		status.MarkConditions(shared.TerminatingClaim())
 
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			if kerrors.IsConflict(err) {
@@ -489,7 +489,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if r.engine.IsRunning(claim.ControllerName(d.GetName())) {
 		log.Debug("Composite resource claim controller is running")
-		status.MarkConditions(common.WatchingClaim()) //nolint:staticcheck // we are still supporting v1 XRD
+		status.MarkConditions(shared.WatchingClaim())
 
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
@@ -528,7 +528,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	d.Status.Controllers.CompositeResourceClaimTypeRef = v2.TypeReferenceTo(d.GetClaimGroupVersionKind())
-	status.MarkConditions(common.WatchingClaim()) //nolint:staticcheck // we are still supporting v1 XRD
+
+	status.MarkConditions(shared.WatchingClaim())
 
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }

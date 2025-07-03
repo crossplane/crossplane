@@ -39,7 +39,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/common"
+	"github.com/crossplane/crossplane/apis/apiextensions/shared"
 	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 )
 
@@ -214,7 +214,7 @@ func TestForCompositeResource(t *testing.T) {
 						UID:         types.UID("you-you-eye-dee"),
 					},
 					Spec: v2.CompositeResourceDefinitionSpec{
-						Scope: common.CompositeResourceScopeNamespaced,
+						Scope: shared.CompositeResourceScopeNamespaced,
 						Group: group,
 						Names: extv1.CustomResourceDefinitionNames{
 							Plural:   plural,

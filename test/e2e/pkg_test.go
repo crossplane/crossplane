@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	apiextensionscommon "github.com/crossplane/crossplane/apis/apiextensions/common"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sapiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -30,6 +29,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
+	apiextensionsshared "github.com/crossplane/crossplane/apis/apiextensions/shared"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/test/e2e/config"
@@ -170,7 +170,7 @@ func TestDeploymentRuntimeConfig(t *testing.T) {
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionscommon.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsshared.WatchingComposite()),
 				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
@@ -240,7 +240,7 @@ func TestExternallyManagedServiceAccount(t *testing.T) {
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionscommon.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsshared.WatchingComposite()),
 				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).

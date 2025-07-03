@@ -19,10 +19,11 @@ package definition
 import (
 	"testing"
 
-	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/google/go-cmp/cmp"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 )
 
 func TestIsCompositeResourceCRD(t *testing.T) {
