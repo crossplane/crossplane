@@ -111,10 +111,12 @@ func NewRuntimeFunctionRunner(ctx context.Context, log logging.Logger, fns []pkg
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot get runtime for Function %q", fn.GetName())
 		}
+
 		rctx, err := runtime.Start(ctx)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot start Function %q", fn.GetName())
 		}
+
 		contexts[fn.GetName()] = rctx
 
 		conn, err := grpc.NewClient(rctx.Target,
@@ -123,6 +125,7 @@ func NewRuntimeFunctionRunner(ctx context.Context, log logging.Logger, fns []pkg
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot dial Function %q at address %q", fn.GetName(), rctx.Target)
 		}
+
 		conns[fn.GetName()] = conn
 	}
 
@@ -149,12 +152,15 @@ func (r *RuntimeFunctionRunner) Stop(ctx context.Context) error {
 
 	for name, conn := range r.conns {
 		_ = conn.Close()
+
 		delete(r.conns, name)
 	}
+
 	for name, rctx := range r.contexts {
 		if err := rctx.Stop(ctx); err != nil {
 			return errors.Wrapf(err, "cannot stop function %q runtime (target %q)", name, rctx.Target)
 		}
+
 		delete(r.contexts, name)
 	}
 
@@ -168,6 +174,7 @@ func getSecret(name string, nameSpace string, secrets []corev1.Secret) (*corev1.
 			return &s, nil
 		}
 	}
+
 	return nil, errors.Errorf("secret %q not found", name)
 }
 
@@ -192,6 +199,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	runner := composite.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{extra: in.ExtraResources})
 
 	observed := composite.ComposedResourceStates{}
+
 	for i, cd := range in.ObservedResources {
 		name := cd.GetAnnotations()[AnnotationKeyCompositionResourceName]
 		observed[composite.ResourceName(name)] = composite.ComposedResourceState{
@@ -223,10 +231,12 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		if err := json.Unmarshal(data, &jv); err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot unmarshal JSON value for context key %q", k)
 		}
+
 		v, err := structpb.NewValue(jv)
 		if err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot store JSON value for context key %q", k)
 		}
+
 		fctx.Fields[k] = v
 	}
 
@@ -242,6 +252,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			if err := in.UnmarshalJSON(fn.Input.Raw); err != nil {
 				return Outputs{}, errors.Wrapf(err, "cannot unmarshal input for Composition pipeline step %q", fn.Step)
 			}
+
 			req.Input = in
 		}
 
@@ -256,6 +267,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			if err != nil {
 				return Outputs{}, errors.Wrapf(err, "cannot get credentials from secret %q", cs.SecretRef.Name)
 			}
+
 			req.Credentials[cs.Name] = &fnv1.Credentials{
 				Source: &fnv1.Credentials_CredentialData{
 					CredentialData: &fnv1.CredentialData{
@@ -279,6 +291,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 
 		for _, c := range rsp.GetConditions() {
 			var status corev1.ConditionStatus
+
 			switch c.GetStatus() {
 			case fnv1.Status_STATUS_CONDITION_TRUE:
 				status = corev1.ConditionTrue
@@ -315,7 +328,9 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	}
 
 	desired := make([]composed.Unstructured, 0, len(d.GetResources()))
+
 	var unready []string
+
 	for name, dr := range d.GetResources() {
 		if dr.GetReady() != fnv1.Ready_READY_TRUE {
 			unready = append(unready, name)
@@ -357,10 +372,12 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	xr.SetAPIVersion(in.CompositeResource.GetAPIVersion())
 	xr.SetKind(in.CompositeResource.GetKind())
 	xr.SetName(in.CompositeResource.GetName())
+
 	xrCond := xpv1.Available()
 	if len(unready) > 0 {
 		xrCond = xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unready)))
 	}
+
 	xrCond.LastTransitionTime = conditionTime()
 	xr.SetConditions(xrCond)
 
@@ -383,6 +400,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			"fields":     fctx.GetFields(),
 		}}
 	}
+
 	return out, nil
 }
 
@@ -397,6 +415,7 @@ func SetComposedResourceMetadata(cd resource.Object, xr resource.LegacyComposite
 	cd.SetGenerateName(xr.GetName() + "-")
 	meta.AddAnnotations(cd, map[string]string{AnnotationKeyCompositionResourceName: name})
 	meta.AddLabels(cd, map[string]string{AnnotationKeyCompositeName: xr.GetName()})
+
 	if ref := xr.GetClaimReference(); ref != nil {
 		meta.AddLabels(cd, map[string]string{
 			AnnotationKeyClaimNamespace: ref.Namespace,
@@ -405,6 +424,7 @@ func SetComposedResourceMetadata(cd resource.Object, xr resource.LegacyComposite
 	}
 
 	or := meta.AsController(meta.TypedReferenceTo(xr, xr.GetObjectKind().GroupVersionKind()))
+
 	return errors.Wrapf(meta.AddControllerReference(cd, or), "cannot set composite resource %q as controller ref of composed resource", xr.GetName())
 }
 
@@ -420,28 +440,36 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 	if len(f.extra) == 0 || rs == nil {
 		return nil, nil
 	}
+
 	out := &fnv1.Resources{}
+
 	for _, er := range f.extra {
 		if rs.GetApiVersion() != er.GetAPIVersion() {
 			continue
 		}
+
 		if rs.GetKind() != er.GetKind() {
 			continue
 		}
+
 		if rs.GetMatchName() == er.GetName() {
 			o, err := composite.AsStruct(&er)
 			if err != nil {
 				return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())
 			}
+
 			out.Items = []*fnv1.Resource{{Resource: o}}
+
 			return out, nil
 		}
+
 		if rs.GetMatchLabels() != nil {
 			if labels.SelectorFromSet(rs.GetMatchLabels().GetLabels()).Matches(labels.Set(er.GetLabels())) {
 				o, err := composite.AsStruct(&er)
 				if err != nil {
 					return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())
 				}
+
 				out.Items = append(out.GetItems(), &fnv1.Resource{Resource: o})
 			}
 		}

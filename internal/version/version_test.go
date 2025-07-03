@@ -30,10 +30,12 @@ func TestInRange(t *testing.T) {
 		version string
 		r       string
 	}
+
 	type want struct {
 		is  bool
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -83,6 +85,7 @@ func TestInRange(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			version = tc.args.version
+
 			is, err := New().InConstraints(tc.args.r)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nInRange(...): -want err, +got err:\n%s", tc.reason, diff)

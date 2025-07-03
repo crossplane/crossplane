@@ -46,5 +46,6 @@ func (r *Resource) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 			return c
 		}
 	}
+
 	return xpv1.Condition{}
 }

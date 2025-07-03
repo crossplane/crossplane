@@ -89,15 +89,19 @@ func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomRes
 		if err != nil {
 			return nil, errors.Wrapf(err, errFmtGenCrd, "Composite Resource", xrd.Name)
 		}
+
 		crdv.AdditionalPrinterColumns = append(crdv.AdditionalPrinterColumns, CompositeResourcePrinterColumns(scope)...)
+
 		props := CompositeResourceSpecProps(scope, xrd.Spec.DefaultCompositionUpdatePolicy)
 		for k, v := range props {
 			crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
+
 		props = CompositeResourceStatusProps(scope)
 		for k, v := range props {
 			crdv.Schema.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
+
 		crd.Spec.Versions[i] = *crdv
 	}
 
@@ -139,7 +143,9 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 		if err != nil {
 			return nil, errors.Wrapf(err, errFmtGenCrd, "Composite Resource Claim", xrd.Name)
 		}
+
 		crdv.AdditionalPrinterColumns = append(crdv.AdditionalPrinterColumns, CompositeResourceClaimPrinterColumns()...)
+
 		props := CompositeResourceClaimSpecProps(xrd.Spec.DefaultCompositeDeletePolicy)
 		for k, v := range props {
 			crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
@@ -150,6 +156,7 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 		for k, v := range props {
 			crdv.Schema.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
+
 		crd.Spec.Versions[i] = *crdv
 	}
 
@@ -171,6 +178,7 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64
 			Status: &extv1.CustomResourceSubresourceStatus{},
 		},
 	}
+
 	s, err := parseSchema(vr.Schema)
 	if err != nil {
 		return nil, errors.Wrapf(err, errParseValidation)
@@ -186,6 +194,7 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64
 	if old := s.Properties["metadata"].Properties["name"].MaxLength; old != nil && *old < maxLength {
 		maxLength = *old
 	}
+
 	xName := crdv.Schema.OpenAPIV3Schema.Properties["metadata"].Properties["name"]
 	xName.MaxLength = ptr.To(maxLength)
 	xName.Type = "string"
@@ -199,10 +208,12 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64
 	cSpec.XPreserveUnknownFields = xSpec.XPreserveUnknownFields
 	cSpec.XValidations = append(cSpec.XValidations, xSpec.XValidations...)
 	cSpec.OneOf = append(cSpec.OneOf, xSpec.OneOf...)
+
 	cSpec.Description = xSpec.Description
 	for k, v := range xSpec.Properties {
 		cSpec.Properties[k] = v
 	}
+
 	crdv.Schema.OpenAPIV3Schema.Properties["spec"] = cSpec
 
 	xStatus := s.Properties["status"]
@@ -210,11 +221,14 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64
 	cStatus.Required = xStatus.Required
 	cStatus.XValidations = xStatus.XValidations
 	cStatus.Description = xStatus.Description
+
 	cStatus.OneOf = xStatus.OneOf
 	for k, v := range xStatus.Properties {
 		cStatus.Properties[k] = v
 	}
+
 	crdv.Schema.OpenAPIV3Schema.Properties["status"] = cStatus
+
 	return &crdv, nil
 }
 
@@ -251,27 +265,33 @@ func parseSchema(v *v1.CompositeResourceValidation) (*extv1.JSONSchemaProps, err
 	if err := json.Unmarshal(v.OpenAPIV3Schema.Raw, s); err != nil {
 		return nil, errors.Wrap(err, errParseValidation)
 	}
+
 	return s, nil
 }
 
 // setCrdMetadata sets the labels and annotations on the CRD.
 func setCrdMetadata(crd *extv1.CustomResourceDefinition, xrd *v1.CompositeResourceDefinition) *extv1.CustomResourceDefinition {
 	crd.SetLabels(xrd.GetLabels())
+
 	if xrd.Spec.Metadata != nil {
 		if xrd.Spec.Metadata.Labels != nil {
 			inheritedLabels := crd.GetLabels()
 			if inheritedLabels == nil {
 				inheritedLabels = map[string]string{}
 			}
+
 			for k, v := range xrd.Spec.Metadata.Labels {
 				inheritedLabels[k] = v
 			}
+
 			crd.SetLabels(inheritedLabels)
 		}
+
 		if xrd.Spec.Metadata.Annotations != nil {
 			crd.SetAnnotations(xrd.Spec.Metadata.Annotations)
 		}
 	}
+
 	return crd
 }
 
@@ -283,5 +303,6 @@ func IsEstablished(s extv1.CustomResourceDefinitionStatus) bool {
 			return c.Status == extv1.ConditionTrue
 		}
 	}
+
 	return false
 }

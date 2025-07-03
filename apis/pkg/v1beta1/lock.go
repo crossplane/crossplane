@@ -78,6 +78,7 @@ func ToNodes(pkgs ...LockPackage) []dag.Node {
 	for i, r := range pkgs {
 		nodes[i] = &r
 	}
+
 	return nodes
 }
 
@@ -107,6 +108,7 @@ func (l *LockPackage) Neighbors() []dag.Node {
 	for i, r := range l.Dependencies {
 		nodes[i] = &r
 	}
+
 	return nodes
 }
 
@@ -121,6 +123,7 @@ func (l *LockPackage) AddNeighbors(nodes ...dag.Node) error {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -182,6 +185,7 @@ func (d *Dependency) AddNeighbors(nodes ...dag.Node) error {
 	for _, n := range nodes {
 		n.AddParentConstraints([]string{d.Constraints})
 	}
+
 	return nil
 }
 
@@ -210,7 +214,8 @@ type Lock struct {
 type LockList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Lock `json:"items"`
+
+	Items []Lock `json:"items"`
 }
 
 // LockStatus represents the status of the Lock.

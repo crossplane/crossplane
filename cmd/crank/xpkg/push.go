@@ -106,10 +106,12 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 		if err != nil {
 			return errors.Wrap(err, errGetwd)
 		}
+
 		path, err := xpkg.FindXpkgInDir(c.fs, wd)
 		if err != nil {
 			return errors.Wrap(err, errFindPackageinWd)
 		}
+
 		c.PackageFiles = []string{path}
 		logger.Debug("Found package in directory", "path", path)
 	}
@@ -131,14 +133,18 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 		if err != nil {
 			return errors.Wrapf(err, errFmtReadPackage, c.PackageFiles[0])
 		}
+
 		img, err = xpkg.AnnotateLayers(img)
 		if err != nil {
 			return errors.Wrapf(err, errAnnotateLayers)
 		}
+
 		if err := remote.Write(tag, img, options...); err != nil {
 			return errors.Wrapf(err, errFmtPushPackage, c.PackageFiles[0])
 		}
+
 		logger.Debug("Pushed package", "path", c.PackageFiles[0], "ref", tag.String())
+
 		return nil
 	}
 
@@ -146,6 +152,7 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 	// their digest, and create an index with the specified tag. This pattern is
 	// typically used to create a multi-platform image.
 	adds := make([]mutate.IndexAddendum, len(c.PackageFiles))
+
 	g, ctx := errgroup.WithContext(context.Background())
 	for i, file := range c.PackageFiles {
 		g.Go(func() error {
@@ -163,7 +170,9 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 			if err != nil {
 				return errors.Wrapf(err, errFmtGetDigest, file)
 			}
+
 			n := fmt.Sprintf("%s@%s", tag.Repository.Name(), d.String())
+
 			ref, err := name.NewDigest(n, name.StrictValidation)
 			if err != nil {
 				return errors.Wrapf(err, errFmtNewDigest, n, file)
@@ -193,7 +202,9 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 			if err := remote.Write(ref, img, append(options, remote.WithContext(ctx))...); err != nil {
 				return errors.Wrapf(err, errFmtPushPackage, file)
 			}
+
 			logger.Debug("Pushed package", "path", file, "ref", ref.String())
+
 			return nil
 		})
 	}
@@ -205,6 +216,8 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 	if err := remote.WriteIndex(tag, mutate.AppendManifests(empty.Index, adds...), options...); err != nil {
 		return errors.Wrapf(err, errFmtWriteIndex, len(adds))
 	}
+
 	logger.Debug("Wrote OCI index", "ref", tag.String(), "manifests", len(adds))
+
 	return nil
 }

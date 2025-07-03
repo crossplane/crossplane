@@ -94,24 +94,27 @@ func (m *DeletingDeploymentSelectorMigrator) MigrateDeploymentSelector(ctx conte
 
 	// Check if there's an existing deployment
 	existingDeploy := &appsv1.Deployment{}
+
 	err := m.client.Get(ctx, types.NamespacedName{
 		Name:      expectedDeploy.Name,
 		Namespace: expectedDeploy.Namespace,
 	}, existingDeploy)
-
 	if kerrors.IsNotFound(err) {
 		// No existing deployment, no migration needed
 		return nil
 	}
+
 	if err != nil {
 		return errors.Wrap(err, "cannot get existing deployment")
 	}
 
 	existing := providerRev.GetLabels()[v1.LabelParentPackage]
+
 	if existingDeploy.Spec.Selector == nil || existingDeploy.Spec.Selector.MatchLabels == nil {
 		// No selector or match labels, no migration needed
 		return nil
 	}
+
 	expected := existingDeploy.Spec.Selector.MatchLabels["pkg.crossplane.io/provider"]
 
 	// Check if the provider label needs migration

@@ -57,6 +57,8 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	if err := i.Init(context.TODO()); err != nil {
 		return errors.Wrap(err, "cannot initialize core")
 	}
+
 	log.Info("Initialization has been completed")
+
 	return nil
 }

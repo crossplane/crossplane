@@ -58,6 +58,7 @@ func TestReconcile(t *testing.T) {
 		of   schema.GroupVersionKind
 		opts []ReconcilerOption
 	}
+
 	type want struct {
 		r   reconcile.Result
 		err error
@@ -1199,11 +1200,12 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.c, tc.args.of, tc.args.opts...)
-			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -1224,6 +1226,7 @@ func NewComposite(m ...CompositeModifier) *composite.Unstructured {
 	for _, fn := range m {
 		fn(cr)
 	}
+
 	return cr
 }
 
@@ -1233,6 +1236,7 @@ func WithComposite(_ *testing.T, cr *composite.Unstructured) func(_ context.Cont
 		if o, ok := obj.(*composite.Unstructured); ok {
 			*o = *cr
 		}
+
 		return nil
 	}
 }
@@ -1240,6 +1244,7 @@ func WithComposite(_ *testing.T, cr *composite.Unstructured) func(_ context.Cont
 // A status update function that ensures the supplied object is the XR we want.
 func WantComposite(t *testing.T, want resource.Composite) func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 	t.Helper()
+
 	return func(_ context.Context, got client.Object, _ ...client.SubResourceUpdateOption) error {
 		t.Helper()
 		// Normally we use a custom Equal method on conditions to ignore the
@@ -1250,11 +1255,13 @@ func WantComposite(t *testing.T, want resource.Composite) func(_ context.Context
 			if err != nil {
 				return s
 			}
+
 			return ts
 		}), cmpopts.EquateApproxTime(3*time.Second))
 		if diff != "" {
 			t.Errorf("WantComposite(...): -want, +got: %s", diff)
 		}
+
 		return nil
 	}
 }
@@ -1278,12 +1285,14 @@ type eventArgs struct {
 
 func (r *testRecorder) Event(obj runtime.Object, e event.Event) {
 	var kind string
+
 	switch obj.(type) {
 	case *composite.Unstructured:
 		kind = compositeKind
 	case *claim.Unstructured:
 		kind = claimKind
 	}
+
 	r.Got = append(r.Got, eventArgs{Kind: kind, Event: e})
 }
 

@@ -147,6 +147,7 @@ func TestConvertToCRDs(t *testing.T) {
 		crd []*extv1.CustomResourceDefinition
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -1066,6 +1067,7 @@ func TestConvertToCRDs(t *testing.T) {
 			if diff := cmp.Diff(tc.want.crd, m.crds); diff != "" {
 				t.Errorf("%s\nconvertToCRDs(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nconvertToCRDs(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -1079,9 +1081,11 @@ func TestValidateResources(t *testing.T) {
 		crds                  []*extv1.CustomResourceDefinition
 		errorOnMissingSchemas bool
 	}
+
 	type want struct {
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -1256,8 +1260,8 @@ func TestValidateResources(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			w := &bytes.Buffer{}
-			got := SchemaValidation(tc.args.resources, tc.args.crds, tc.args.errorOnMissingSchemas, false, w)
 
+			got := SchemaValidation(tc.args.resources, tc.args.crds, tc.args.errorOnMissingSchemas, false, w)
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nvalidateResources(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -1270,9 +1274,11 @@ func TestValidateUnknownFields(t *testing.T) {
 		mr  map[string]interface{}
 		sch *schema.Structural
 	}
+
 	type want struct {
 		errs field.ErrorList
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -1357,10 +1363,12 @@ func TestApplyDefaults(t *testing.T) {
 		gvk      runtimeschema.GroupVersionKind
 		crds     []*extv1.CustomResourceDefinition
 	}
+
 	type want struct {
 		resource *unstructured.Unstructured
 		err      error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -1694,6 +1702,7 @@ func TestApplyDefaults(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\napplyDefaults(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.resource, tc.args.resource); diff != "" {
 				t.Errorf("%s\napplyDefaults(...): -want resource, +got resource:\n%s", tc.reason, diff)
 			}

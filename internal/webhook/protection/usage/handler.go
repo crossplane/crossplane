@@ -101,6 +101,7 @@ func (h *Handler) Handle(ctx context.Context, request admission.Request) admissi
 		if err := u.UnmarshalJSON(request.OldObject.Raw); err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
+
 		opts := &metav1.DeleteOptions{}
 		if err := yaml.Unmarshal(request.Options.Raw, opts); err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
@@ -162,13 +163,16 @@ func (h *Handler) Handle(ctx context.Context, request admission.Request) admissi
 func inUseMessage(u []protection.Usage) string {
 	first := u[0]
 	by := first.GetUsedBy()
+
 	id := fmt.Sprintf("%q", first.GetName())
 	if first.GetNamespace() != "" {
 		id = fmt.Sprintf("%q (in namespace %q)", first.GetName(), first.GetNamespace())
 	}
+
 	if by != nil {
 		return fmt.Sprintf("This resource is in-use by %d usage(s), including the %T %s by resource %s/%s.", len(u), first, id, by.Kind, by.ResourceRef.Name)
 	}
+
 	if r := ptr.Deref(first.GetReason(), ""); r != "" {
 		return fmt.Sprintf("This resource is in-use by %d usage(s), including the %T %s with reason: %q.", len(u), first, id, r)
 	}

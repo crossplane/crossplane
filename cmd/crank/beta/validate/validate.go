@@ -53,8 +53,10 @@ func newValidatorsAndStructurals(crds []*extv1.CustomResourceDefinition) (map[ru
 
 		// Top-level and per-version schemas are mutually exclusive.
 		for _, ver := range internal.Spec.Versions {
-			var sv validation.SchemaValidator
-			var err error
+			var (
+				sv  validation.SchemaValidator
+				err error
+			)
 
 			gvk := runtimeschema.GroupVersionKind{
 				Group:   internal.Spec.Group,
@@ -63,6 +65,7 @@ func newValidatorsAndStructurals(crds []*extv1.CustomResourceDefinition) (map[ru
 			}
 
 			var s *ext.JSONSchemaProps
+
 			switch {
 			case internal.Spec.Validation != nil:
 				s = internal.Spec.Validation.OpenAPIV3Schema
@@ -105,8 +108,10 @@ func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.Cust
 		gvk := r.GetObjectKind().GroupVersionKind()
 		sv, ok := schemaValidators[gvk]
 		s := structurals[gvk] // if we have a schema validator, we should also have a structural
+
 		if !ok {
 			missingSchemas++
+
 			if _, err := fmt.Fprintf(w, "[!] could not find CRD/XRD for: %s\n", r.GroupVersionKind().String()); err != nil {
 				return errors.Wrap(err, errWriteOutput)
 			}
@@ -121,21 +126,26 @@ func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.Cust
 		}
 
 		rf := 0
+
 		re := field.ErrorList{}
 		for _, v := range sv {
 			re = append(re, validation.ValidateCustomResource(nil, r, *v)...)
+
 			re = append(re, validateUnknownFields(r.UnstructuredContent(), s)...)
 			for _, e := range re {
 				rf++
+
 				if _, err := fmt.Fprintf(w, "[x] schema validation error %s, %s : %s\n", r.GroupVersionKind().String(), getResourceName(r), e.Error()); err != nil {
 					return errors.Wrap(err, errWriteOutput)
 				}
 			}
 
 			celValidator := cel.NewValidator(s, true, celconfig.PerCallLimit)
+
 			re, _ = celValidator.Validate(context.TODO(), nil, s, r.Object, nil, celconfig.PerCallLimit)
 			for _, e := range re {
 				rf++
+
 				if _, err := fmt.Fprintf(w, "[x] CEL validation error %s, %s : %s\n", r.GroupVersionKind().String(), getResourceName(r), e.Error()); err != nil {
 					return errors.Wrap(err, errWriteOutput)
 				}
@@ -178,6 +188,7 @@ func getResourceName(r *unstructured.Unstructured) string {
 // applyDefaults applies default values from the CRD schema to the unstructured resource.
 func applyDefaults(resource *unstructured.Unstructured, gvk runtimeschema.GroupVersionKind, crds []*extv1.CustomResourceDefinition) error {
 	var matchingCRD *extv1.CustomResourceDefinition
+
 	for _, crd := range crds {
 		if crd.Spec.Group == gvk.Group && crd.Spec.Names.Kind == gvk.Kind {
 			matchingCRD = crd
@@ -191,11 +202,13 @@ func applyDefaults(resource *unstructured.Unstructured, gvk runtimeschema.GroupV
 	}
 
 	var schemaProps *extv1.JSONSchemaProps
+
 	for _, v := range matchingCRD.Spec.Versions {
 		if v.Name == gvk.Version {
 			if v.Schema != nil && v.Schema.OpenAPIV3Schema != nil {
 				schemaProps = v.Schema.OpenAPIV3Schema
 			}
+
 			break
 		}
 	}
@@ -205,6 +218,7 @@ func applyDefaults(resource *unstructured.Unstructured, gvk runtimeschema.GroupV
 	}
 
 	var apiExtSchema ext.JSONSchemaProps
+
 	err := extv1.Convert_v1_JSONSchemaProps_To_apiextensions_JSONSchemaProps(schemaProps, &apiExtSchema, nil)
 	if err != nil {
 		return fmt.Errorf("failed to convert schema: %w", err)

@@ -44,8 +44,10 @@ func (u *Usage) GetUsedBy() *protection.Resource {
 	if u.Spec.By == nil {
 		return nil
 	}
+
 	conv := GeneratedResourceConverter{}
 	out := conv.ToInternal(*u.Spec.By)
+
 	return &out
 }
 
@@ -55,6 +57,7 @@ func (u *Usage) SetUsedBy(r *protection.Resource) {
 		u.Spec.By = nil
 		return
 	}
+
 	conv := GeneratedResourceConverter{}
 	out := conv.FromInternal(*r)
 	u.Spec.By = &out

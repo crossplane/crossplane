@@ -36,12 +36,14 @@ func TestHas(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	cf, _ := fs.Create("/cache/exists.gz")
 	_ = fs.Mkdir("/cache/some-dir.gz", os.ModeDir)
+
 	defer cf.Close()
 
 	type args struct {
 		cache PackageCache
 		id    string
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -90,6 +92,7 @@ func TestGet(t *testing.T) {
 	// NOTE(hasheddan): valid gzip header.
 	cf.Write([]byte{31, 139, 8, 0, 0, 0, 0, 0, 0, 0})
 	cf, _ = fs.Create("/cache/not-gzip.gz")
+
 	cf.WriteString("some content")
 	defer cf.Close()
 
@@ -97,6 +100,7 @@ func TestGet(t *testing.T) {
 		cache PackageCache
 		id    string
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -130,7 +134,6 @@ func TestGet(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			_, err := tc.args.cache.Get(tc.args.id)
-
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nGet(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
@@ -145,6 +148,7 @@ func TestStore(t *testing.T) {
 		cache PackageCache
 		id    string
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -170,7 +174,6 @@ func TestStore(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := tc.args.cache.Store(tc.args.id, io.NopCloser(new(bytes.Buffer)))
-
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nStore(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
@@ -186,6 +189,7 @@ func TestDelete(t *testing.T) {
 		cache PackageCache
 		id    string
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -218,7 +222,6 @@ func TestDelete(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := tc.args.cache.Delete(tc.args.id)
-
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nStore(...): -want err, +got err:\n%s", tc.reason, diff)
 			}

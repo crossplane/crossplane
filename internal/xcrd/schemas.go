@@ -392,6 +392,7 @@ func CompositeResourcePrinterColumns(s v1.CompositeResourceScope) []extv1.Custom
 			if cols[i].Name == "COMPOSITION" {
 				cols[i].JSONPath = ".spec.compositionRef.name"
 			}
+
 			if cols[i].Name == "COMPOSITIONREVISION" {
 				cols[i].JSONPath = ".spec.compositionRevisionRef.name"
 			}
@@ -431,10 +432,12 @@ func CompositeResourceClaimPrinterColumns() []extv1.CustomResourceColumnDefiniti
 // GetPropFields returns the fields from a map of schema properties.
 func GetPropFields(props map[string]extv1.JSONSchemaProps) []string {
 	propFields := make([]string, len(props))
+
 	i := 0
 	for k := range props {
 		propFields[i] = k
 		i++
 	}
+
 	return propFields
 }

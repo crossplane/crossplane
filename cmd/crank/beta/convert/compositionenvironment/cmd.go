@@ -93,6 +93,7 @@ func (c *Cmd) Run(k *kong.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "Error generating new Composition")
 	}
+
 	if out == nil {
 		_, err = fmt.Fprintf(k.Stderr, "No changes needed.\n")
 		return errors.Wrap(err, "unable to write to stderr")
@@ -104,12 +105,15 @@ func (c *Cmd) Run(k *kong.Context) error {
 	}
 
 	output := k.Stdout
+
 	if outputFileName := c.OutputFile; outputFileName != "" {
 		f, err := c.fs.OpenFile(outputFileName, os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
 			return errors.Wrap(err, "Unable to open output file")
 		}
+
 		defer func() { _ = f.Close() }()
+
 		output = f
 	}
 

@@ -48,15 +48,18 @@ func TestRunFunction(t *testing.T) {
 		c client.Client
 		o []PackagedFunctionRunnerOption
 	}
+
 	type args struct {
 		ctx  context.Context
 		name string
 		req  *fnv1.RunFunctionRequest
 	}
+
 	type want struct {
 		rsp *fnv1.RunFunctionResponse
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		params params
@@ -240,6 +243,7 @@ func TestRunFunction(t *testing.T) {
 			if diff := cmp.Diff(tc.want.rsp, rsp, protocmp.Transform()); diff != "" {
 				t.Errorf("\n%s\nr.RunFunction(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.RunFunction(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -286,6 +290,7 @@ func TestGetClientConn(t *testing.T) {
 		if diff := cmp.Diff(target, conn.Target()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want, +got:\n%s", diff)
 		}
+
 		if diff := cmp.Diff(nil, err, test.EquateErrors()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want error, +got error:\n%s", diff)
 		}
@@ -299,6 +304,7 @@ func TestGetClientConn(t *testing.T) {
 		if diff := cmp.Diff(target, conn.Target()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want, +got:\n%s", diff)
 		}
+
 		if diff := cmp.Diff(nil, err, test.EquateErrors()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want error, +got error:\n%s", diff)
 		}
@@ -321,6 +327,7 @@ func TestGetClientConn(t *testing.T) {
 		if diff := cmp.Diff(target, conn.Target()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want, +got:\n%s", diff)
 		}
+
 		if diff := cmp.Diff(nil, err, test.EquateErrors()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want error, +got error:\n%s", diff)
 		}
@@ -368,6 +375,7 @@ func TestGarbageCollectConnectionsNow(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "cool-fn"},
 				},
 			}
+
 			return nil
 		})
 
@@ -376,6 +384,7 @@ func TestGarbageCollectConnectionsNow(t *testing.T) {
 		if diff := cmp.Diff(0, i); diff != "" {
 			t.Errorf("\nr.GarbageCollectConnectionsNow(...): -want, +got:\n%s", diff)
 		}
+
 		if diff := cmp.Diff(nil, err, test.EquateErrors()); diff != "" {
 			t.Errorf("\nr.GarbageCollectConnectionsNow(...): -want error, +got error:\n%s", diff)
 		}
@@ -390,6 +399,7 @@ func TestGarbageCollectConnectionsNow(t *testing.T) {
 		if diff := cmp.Diff(1, i); diff != "" {
 			t.Errorf("\nr.GarbageCollectConnectionsNow(...): -want, +got:\n%s", diff)
 		}
+
 		if diff := cmp.Diff(nil, err, test.EquateErrors()); diff != "" {
 			t.Errorf("\nr.GarbageCollectConnectionsNow(...): -want error, +got error:\n%s", diff)
 		}
@@ -404,6 +414,7 @@ func NewListFn(target string) test.MockListFn {
 			// return none, to make sure we GC everything.
 			return nil
 		}
+
 		l.Items = []pkgv1.FunctionRevision{
 			{
 				ObjectMeta: metav1.ObjectMeta{
@@ -419,6 +430,7 @@ func NewListFn(target string) test.MockListFn {
 				},
 			},
 		}
+
 		return nil
 	})
 }
@@ -431,6 +443,7 @@ func NewGRPCServer(t *testing.T, ss fnv1.FunctionRunnerServiceServer) net.Listen
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	t.Logf("Listening for gRPC connections on %q", lis.Addr().String())
 
 	// TODO(negz): Is it worth using a WaitGroup for these?
@@ -452,6 +465,7 @@ func NewBetaGRPCServer(t *testing.T, ss fnv1beta1.FunctionRunnerServiceServer) n
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	t.Logf("Listening for gRPC connections on %q", lis.Addr().String())
 
 	// TODO(negz): Is it worth using a WaitGroup for these?

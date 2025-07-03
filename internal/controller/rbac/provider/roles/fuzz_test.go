@@ -29,8 +29,10 @@ func FuzzRenderClusterRoles(f *testing.F) {
 		ff := fuzz.NewConsumer(data)
 		pr := &v1.ProviderRevision{}
 		ff.GenerateStruct(pr)
+
 		rs := make([]Resource, 0)
 		ff.CreateSlice(&rs)
+
 		if len(rs) == 0 {
 			return
 		}

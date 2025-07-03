@@ -111,6 +111,7 @@ func (c *initCmd) Run(k *kong.Context, logger logging.Logger) error {
 		if err := os.MkdirAll(c.Directory, 0o750); err != nil {
 			return errors.Wrapf(err, "failed to create directory %s", c.Directory)
 		}
+
 		logger.Debug("Created directory", "path", c.Directory)
 	case err != nil:
 		return errors.Wrapf(err, "failed to stat directory %s", c.Directory)
@@ -128,6 +129,7 @@ func (c *initCmd) Run(k *kong.Context, logger logging.Logger) error {
 	}
 
 	fs := osfs.New(c.Directory, osfs.WithBoundOS())
+
 	r, err := git.Clone(memory.NewStorage(), fs, &git.CloneOptions{
 		URL:           repoURL,
 		Depth:         1,
@@ -162,6 +164,7 @@ func (c *initCmd) Run(k *kong.Context, logger logging.Logger) error {
 // repository, if it exists.
 func (c *initCmd) handleNotes(w io.Writer, logger logging.Logger) error {
 	notesFile := filepath.Join(c.Directory, notes)
+
 	f, err := os.Stat(notesFile)
 	switch {
 	case os.IsNotExist(err):
@@ -181,6 +184,7 @@ func (c *initCmd) handleNotes(w io.Writer, logger logging.Logger) error {
 // exists.
 func (c *initCmd) handleInitScript(k *kong.Context, logger logging.Logger) error {
 	scriptFile := filepath.Join(c.Directory, initScript)
+
 	f, err := os.Stat(scriptFile)
 	switch {
 	case os.IsNotExist(err):
@@ -217,8 +221,10 @@ func initPrompt(k *kong.Context, scriptFile, name, dir string) error {
 		if err := printFile(k.Stdout, scriptFile); err != nil {
 			return errors.Wrapf(err, "failed to print file %s", scriptFile)
 		}
+
 		return initPrompt(k, scriptFile, name, dir)
 	}
+
 	return nil
 }
 
@@ -229,13 +235,16 @@ func printFile(w io.Writer, path string) error {
 		return errors.Wrapf(err, "failed to open file %s", path)
 	}
 	defer f.Close() //nolint:errcheck // It's safe to ignore the error because it only do read operation.
+
 	content, err := io.ReadAll(f)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read file %s", path)
 	}
+
 	if _, err := fmt.Fprintf(w, "\n%s\n", content); err != nil {
 		return errors.Wrap(err, "failed to write to stdout")
 	}
+
 	return nil
 }
 
@@ -244,6 +253,7 @@ func runScript(k *kong.Context, scriptFile string, args ...string) error {
 	cmd.Stdout = k.Stdout
 	cmd.Stderr = k.Stderr
 	cmd.Stdin = os.Stdin
+
 	return cmd.Run()
 }
 
@@ -251,10 +261,12 @@ func prompt(k *kong.Context, question string) (string, error) {
 	if _, err := fmt.Fprintf(k.Stdout, "%s", question); err != nil {
 		return "", errors.Wrap(err, "failed to write to stdout")
 	}
+
 	var answer string
 	if _, err := fmt.Scanln(&answer); err != nil {
 		return "", errors.Wrap(err, "failed to read from stdin")
 	}
+
 	return answer, nil
 }
 
@@ -265,6 +277,7 @@ func getPrettyURL(logger logging.Logger, repoURL string, ref *plumbing.Reference
 		logger.Debug("Failed to create commit URL, will just use original url", "error", err)
 		return repoURL
 	}
+
 	return prettyURL
 }
 
@@ -273,7 +286,9 @@ func (c *initCmd) checkDirectoryContent() error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to read directory %s", c.Directory)
 	}
+
 	notAllowedEntries := make([]string, 0)
+
 	for _, entry := range entries {
 		// .git directory is allowed
 		if entry.Name() == ".git" && entry.IsDir() {
@@ -282,8 +297,10 @@ func (c *initCmd) checkDirectoryContent() error {
 		// add all other entries to the list of unauthorized entries
 		notAllowedEntries = append(notAllowedEntries, entry.Name())
 	}
+
 	if len(notAllowedEntries) > 0 {
 		return errors.Errorf("directory %s is not empty, contains existing files/directories: %s", c.Directory, strings.Join(notAllowedEntries, ", "))
 	}
+
 	return nil
 }

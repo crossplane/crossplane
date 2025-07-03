@@ -67,9 +67,11 @@ func TestInstaller(t *testing.T) {
 		f    []string
 		kube client.Client
 	}
+
 	type want struct {
 		err error
 	}
+
 	cases := map[string]struct {
 		args
 		want
@@ -456,9 +458,10 @@ func TestInstaller(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			i := NewPackageInstaller(tc.args.p, tc.args.c, tc.args.f)
-			err := i.Run(context.TODO(), tc.args.kube)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			i := NewPackageInstaller(tc.p, tc.c, tc.f)
+
+			err := i.Run(context.TODO(), tc.kube)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRun(...): -want err, +got err:\n%s", name, diff)
 			}
 		})

@@ -59,20 +59,27 @@ func (c *Initializer) Init(ctx context.Context) error {
 		if s == nil {
 			continue
 		}
+
 		if err := s.Run(ctx, c.kube); err != nil {
 			return err
 		}
+
 		t := reflect.TypeOf(s)
+
 		var name string
+
 		if t != nil {
 			if t.Kind() == reflect.Ptr {
 				t = t.Elem()
 			}
+
 			name = t.Name()
 		} else {
 			name = fmt.Sprintf("%T", s)
 		}
+
 		c.log.Info("Step has been completed", "Name", name)
 	}
+
 	return nil
 }

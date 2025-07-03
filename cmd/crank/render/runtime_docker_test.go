@@ -45,6 +45,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 	type args struct {
 		fn pkgv1.Function
 	}
+
 	type want struct {
 		rd  *RuntimeDocker
 		err error
@@ -207,6 +208,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 			if diff := cmp.Diff(tc.want.rd, rd, cmpopts.IgnoreUnexported(RuntimeDocker{}), cmpopts.IgnoreFields(RuntimeDocker{}, "Keychain")); diff != "" {
 				t.Errorf("\n%s\nGetRuntimeDocker(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nGetRuntimeDocker(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

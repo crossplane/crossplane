@@ -27,6 +27,7 @@ func Predictors() map[string]complete.Predictor {
 		complete.PredictFiles("*.yml"),
 		complete.PredictFiles("*.yaml"),
 	)
+
 	return map[string]complete.Predictor{
 		"file":                   complete.PredictFiles("*"),
 		"xpkg_file":              complete.PredictFiles("*.xpkg"),
@@ -67,6 +68,7 @@ func kubernetesResourcePredictor() complete.PredictFunc {
 		}
 
 		var predictions []string
+
 		for _, apiResources := range resources {
 			for _, res := range apiResources.APIResources {
 				var resourceName string
@@ -90,6 +92,7 @@ func kubernetesResourcePredictor() complete.PredictFunc {
 				}
 			}
 		}
+
 		return predictions
 	}
 }
@@ -114,6 +117,7 @@ func kubernetesResourceNamePredictor() complete.PredictFunc {
 		// If the previously completed argument (resource name) was used by its short form, we need to
 		// get the full resource name to be able to list the resources.
 		rmapper := restmapper.NewShortcutExpander(restmapper.NewDeferredDiscoveryRESTMapper(d), d, nil)
+
 		mapping, err := internal.MappingFor(rmapper, a.LastCompleted)
 		if err != nil {
 			return nil
@@ -136,6 +140,7 @@ func kubernetesResourceNamePredictor() complete.PredictFunc {
 				namespace = metav1.NamespaceDefault
 			}
 		}
+
 		err = client.List(context.Background(), u, controllerClient.InNamespace(namespace))
 		if err != nil {
 			return nil
@@ -143,11 +148,13 @@ func kubernetesResourceNamePredictor() complete.PredictFunc {
 
 		// Find predictions by filtering the resource names that start with the currently completed argument.
 		var predictions []string
+
 		for _, res := range u.Items {
 			if strings.HasPrefix(res.GetName(), a.Last) {
 				predictions = append(predictions, res.GetName())
 			}
 		}
+
 		return predictions
 	}
 }
@@ -166,11 +173,13 @@ func contextPredictor() complete.PredictFunc {
 		}
 
 		var predictions []string
+
 		for name := range kubeConfig.Contexts {
 			if strings.HasPrefix(name, a.Last) {
 				predictions = append(predictions, name)
 			}
 		}
+
 		return predictions
 	}
 }
@@ -191,11 +200,13 @@ func namespacePredictor() complete.PredictFunc {
 		}
 
 		var predictions []string
+
 		for _, ns := range namespaceList.Items {
 			if strings.HasPrefix(ns.GetName(), a.Last) {
 				predictions = append(predictions, ns.GetName())
 			}
 		}
+
 		return predictions
 	}
 }
@@ -238,12 +249,14 @@ func kubernetesClient(configOverrides *clientcmd.ConfigOverrides) (controllerCli
 // parseConfigOverride parses ConfigOverrides for the k8s client from the completed command line arguments.
 func parseConfigOverride(a complete.Args) *clientcmd.ConfigOverrides {
 	context := ""
+
 	for i, arg := range a.All {
 		if (arg == "--context" || arg == "-c") && i < len(a.All) {
 			context = a.All[i+1]
 			break
 		}
 	}
+
 	return &clientcmd.ConfigOverrides{
 		CurrentContext: context,
 	}
@@ -252,11 +265,13 @@ func parseConfigOverride(a complete.Args) *clientcmd.ConfigOverrides {
 // parseNamespaceOverride parses the namespace override from the completed command line arguments.
 func parseNamespaceOverride(a complete.Args) string {
 	namespace := ""
+
 	for i, arg := range a.All {
 		if (arg == "--namespace" || arg == "-n") && i < len(a.All) {
 			namespace = a.All[i+1]
 			break
 		}
 	}
+
 	return namespace
 }

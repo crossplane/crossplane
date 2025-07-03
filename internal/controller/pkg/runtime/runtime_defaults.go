@@ -51,6 +51,7 @@ func deploymentFromRuntimeConfig(tmpl *v1beta1.DeploymentTemplate) *appsv1.Deplo
 		if meta.Name != nil {
 			d.Name = *meta.Name
 		}
+
 		d.Annotations = meta.Annotations
 		d.Labels = meta.Labels
 	}

@@ -43,9 +43,11 @@ func TestWebhookConfigurations(t *testing.T) {
 		svc  admv1.ServiceReference
 		opts []WebhookConfigurationsOption
 	}
+
 	type want struct {
 		err error
 	}
+
 	fs := afero.NewMemMapFs()
 	f, _ := fs.Create("/webhooks/manifests.yaml")
 	_, _ = f.WriteString(webhookConfigs)
@@ -60,12 +62,15 @@ func TestWebhookConfigurations(t *testing.T) {
 	sch := runtime.NewScheme()
 	_ = admv1.AddToScheme(sch)
 	_ = extv1.AddToScheme(sch)
+
 	var p int32 = 1234
+
 	svc := admv1.ServiceReference{
 		Name:      "a",
 		Namespace: "b",
 		Port:      &p,
 	}
+
 	cases := map[string]struct {
 		reason string
 		args
@@ -187,7 +192,7 @@ func TestWebhookConfigurations(t *testing.T) {
 				types.NamespacedName{},
 				tc.args.svc,
 				tc.opts...).Run(context.TODO(), tc.kube)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%sch\nRun(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
 		})
@@ -259,13 +264,16 @@ func TestRemoveValidatingWebhooks(t *testing.T) {
 		configName   string
 		webhookNames []string
 	}
+
 	type args struct {
 		ctx  context.Context
 		kube client.Client
 	}
+
 	type want struct {
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		params params

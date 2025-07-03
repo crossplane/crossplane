@@ -116,6 +116,7 @@ func NewTLSCertificateGenerator(ns, caSecret string, opts ...TLSCertificateGener
 	for _, f := range opts {
 		f(e)
 	}
+
 	return e
 }
 
@@ -131,12 +132,14 @@ func (e *TLSCertificateGenerator) loadOrGenerateCA(ctx context.Context, kube cli
 	if err == nil {
 		create = false
 		kd := caSecret.Data[corev1.TLSPrivateKeyKey]
+
 		cd := caSecret.Data[corev1.TLSCertKey]
 		if len(kd) != 0 && len(cd) != 0 {
 			e.log.Info("TLS CA secret is complete.")
 			return parseCertificateSigner(kd, cd)
 		}
 	}
+
 	e.log.Info("TLS CA secret is empty or not complete, generating a new CA...")
 
 	a := &x509.Certificate{
@@ -158,6 +161,7 @@ func (e *TLSCertificateGenerator) loadOrGenerateCA(ctx context.Context, kube cli
 
 	caSecret.Name = nn.Name
 	caSecret.Namespace = nn.Namespace
+
 	caSecret.Data = map[string][]byte{
 		corev1.TLSCertKey:       caCrtByte,
 		corev1.TLSPrivateKeyKey: caKeyByte,
@@ -167,6 +171,7 @@ func (e *TLSCertificateGenerator) loadOrGenerateCA(ctx context.Context, kube cli
 	} else {
 		err = kube.Update(ctx, caSecret)
 	}
+
 	if err != nil {
 		return nil, errors.Wrapf(err, errFmtCannotCreateOrUpdate, nn.Name)
 	}
@@ -185,16 +190,20 @@ func (e *TLSCertificateGenerator) ensureClientCertificate(ctx context.Context, k
 	create := true
 	if err == nil {
 		create = false
+
 		if len(sec.Data[corev1.TLSPrivateKeyKey]) != 0 || len(sec.Data[corev1.TLSCertKey]) != 0 || len(sec.Data[SecretKeyCACert]) != 0 {
 			e.log.Info("TLS secret contains client certificate.", "secret", nn.Name)
 			return nil
 		}
 	}
+
 	dnsNames := e.tlsClientDNSNames
 	if len(dnsNames) == 0 {
 		return errors.New("client DNS names are empty, you must provide at least one DNS name")
 	}
+
 	e.log.Info("Client certificates are empty or not complete, generating a new pair...", "secret", nn.Name)
+
 	cert := &x509.Certificate{
 		SerialNumber:          big.NewInt(2022),
 		Subject:               pkixName,
@@ -213,13 +222,16 @@ func (e *TLSCertificateGenerator) ensureClientCertificate(ctx context.Context, k
 	}
 
 	sec.Name = nn.Name
+
 	sec.Namespace = nn.Namespace
 	if e.owner != nil {
 		sec.OwnerReferences = e.owner
 	}
+
 	if sec.Data == nil {
 		sec.Data = make(map[string][]byte)
 	}
+
 	sec.Data[corev1.TLSCertKey] = certData
 	sec.Data[corev1.TLSPrivateKeyKey] = keyData
 	sec.Data[SecretKeyCACert] = signer.certificatePEM
@@ -229,6 +241,7 @@ func (e *TLSCertificateGenerator) ensureClientCertificate(ctx context.Context, k
 	} else {
 		err = kube.Update(ctx, sec)
 	}
+
 	return errors.Wrapf(err, errFmtCannotCreateOrUpdate, nn.Name)
 }
 
@@ -243,12 +256,15 @@ func (e *TLSCertificateGenerator) ensureServerCertificate(ctx context.Context, k
 	create := true
 	if err == nil {
 		create = false
+
 		if len(sec.Data[corev1.TLSCertKey]) != 0 || len(sec.Data[corev1.TLSPrivateKeyKey]) != 0 || len(sec.Data[SecretKeyCACert]) != 0 {
 			e.log.Info("TLS secret contains server certificate.", "secret", nn.Name)
 			return nil
 		}
 	}
+
 	e.log.Info("Server certificates are empty or not complete, generating a new pair...", "secret", nn.Name)
+
 	dnsNames := e.tlsServerDNSNames
 	if len(dnsNames) == 0 {
 		return errors.New("server DNS names are empty, you must provide at least one DNS name")
@@ -272,13 +288,16 @@ func (e *TLSCertificateGenerator) ensureServerCertificate(ctx context.Context, k
 	}
 
 	sec.Name = nn.Name
+
 	sec.Namespace = nn.Namespace
 	if e.owner != nil {
 		sec.OwnerReferences = e.owner
 	}
+
 	if sec.Data == nil {
 		sec.Data = make(map[string][]byte)
 	}
+
 	sec.Data[corev1.TLSCertKey] = certData
 	sec.Data[corev1.TLSPrivateKeyKey] = keyData
 	sec.Data[SecretKeyCACert] = signer.certificatePEM
@@ -288,6 +307,7 @@ func (e *TLSCertificateGenerator) ensureServerCertificate(ctx context.Context, k
 	} else {
 		err = kube.Update(ctx, sec)
 	}
+
 	return errors.Wrapf(err, errFmtCannotCreateOrUpdate, nn.Name)
 }
 
@@ -297,6 +317,7 @@ func (e *TLSCertificateGenerator) Run(ctx context.Context, kube client.Client) e
 	if e.tlsServerSecretName == nil && e.tlsClientSecretName == nil {
 		return nil
 	}
+
 	signer, err := e.loadOrGenerateCA(ctx, kube, types.NamespacedName{
 		Name:      e.caSecretName,
 		Namespace: e.namespace,

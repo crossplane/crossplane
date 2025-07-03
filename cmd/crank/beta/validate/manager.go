@@ -63,6 +63,7 @@ func WithCrossplaneImage(image string) Option {
 		if image == "" {
 			return
 		}
+
 		m.deps[image] = true
 	}
 }
@@ -95,6 +96,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 		switch e.GroupVersionKind().GroupKind() {
 		case schema.GroupKind{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}:
 			crd := &extv1.CustomResourceDefinition{}
+
 			bytes, err := e.MarshalJSON()
 			if err != nil {
 				return errors.Wrap(err, "cannot marshal CRD to JSON")
@@ -108,6 +110,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 
 		case schema.GroupKind{Group: "apiextensions.crossplane.io", Kind: "CompositeResourceDefinition"}:
 			xrd := &v1.CompositeResourceDefinition{}
+
 			bytes, err := e.MarshalJSON()
 			if err != nil {
 				return errors.Wrap(err, "cannot marshal XRD to JSON")
@@ -121,6 +124,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 			if err != nil {
 				return errors.Wrapf(err, "cannot derive composite CRD from XRD %q", xrd.GetName())
 			}
+
 			m.crds = append(m.crds, crd)
 
 			if xrd.Spec.ClaimNames != nil {
@@ -134,6 +138,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 
 		case schema.GroupKind{Group: "pkg.crossplane.io", Kind: "Provider"}:
 			paved := fieldpath.Pave(e.Object)
+
 			image, err := paved.GetString("spec.package")
 			if err != nil {
 				return errors.Wrapf(err, "cannot get provider package image")
@@ -143,6 +148,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 
 		case schema.GroupKind{Group: "pkg.crossplane.io", Kind: "Function"}:
 			paved := fieldpath.Pave(e.Object)
+
 			image, err := paved.GetString("spec.package")
 			if err != nil {
 				return errors.Wrapf(err, "cannot get function package image")
@@ -152,6 +158,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 
 		case schema.GroupKind{Group: "pkg.crossplane.io", Kind: "Configuration"}:
 			paved := fieldpath.Pave(e.Object)
+
 			image, err := paved.GetString("spec.package")
 			if err != nil {
 				return errors.Wrapf(err, "cannot get package image")
@@ -214,6 +221,7 @@ func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error 
 	}
 
 	deepConfs := make(map[string]*metav1.Configuration)
+
 	for image := range confs {
 		cfg := m.confs[image]
 
@@ -229,15 +237,18 @@ func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error 
 			if err != nil {
 				return errors.Wrapf(err, "cannot extract package file and meta")
 			}
+
 			if err := yaml.Unmarshal(meta, &cfg); err != nil {
 				return errors.Wrapf(err, "cannot unmarshal configuration YAML")
 			}
+
 			m.confs[image] = cfg // update the configuration
 		}
 
 		deps := cfg.Spec.DependsOn
 		for _, dep := range deps {
 			image := ""
+
 			switch {
 			case dep.Package != nil:
 				image = *dep.Package
@@ -257,6 +268,7 @@ func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error 
 					// tag
 					image = fmt.Sprintf(imageFmt, image, dep.Version)
 				}
+
 				m.deps[image] = true
 
 				if _, ok := m.confs[image]; !ok && dep.Configuration != nil {
@@ -299,6 +311,7 @@ func (m *Manager) cacheDependencies() error {
 			if err != nil {
 				return errors.Wrapf(err, "cannot extract crds")
 			}
+
 			schemas, err = extractPackageCRDs(layers)
 			if err != nil {
 				return errors.Wrapf(err, "cannot find crds")
@@ -322,12 +335,15 @@ func (m *Manager) cacheDependencies() error {
 
 func (m *Manager) loadDependencies() ([]*unstructured.Unstructured, error) {
 	schemas := make([]*unstructured.Unstructured, 0)
+
 	for dep := range m.deps {
 		cachedSchema, err := m.cache.Load(dep)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot load cache for %s", dep)
 		}
+
 		schemas = append(schemas, cachedSchema...)
 	}
+
 	return schemas, nil
 }

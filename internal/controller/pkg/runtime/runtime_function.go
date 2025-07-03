@@ -126,6 +126,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 	if err != nil {
 		return errors.Wrap(err, errParseFunctionImage)
 	}
+
 	d := build.Deployment(sa.Name, functionDeploymentOverrides(image.Name())...)
 	// Create/Apply the SA only if the deployment references it.
 	// This is to avoid creating a SA that is NOT used by the deployment when
@@ -137,6 +138,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 			return errors.Wrap(err, errApplyFunctionSA)
 		}
 	}
+
 	if err := h.client.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyFunctionDeployment)
 	}
@@ -146,9 +148,11 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 			if c.Status == corev1.ConditionTrue {
 				return nil
 			}
+
 			return errors.Errorf(errFmtUnavailableFunctionDeployment, c.Message)
 		}
 	}
+
 	return errors.New(errNoAvailableConditionFunctionDeployment)
 }
 

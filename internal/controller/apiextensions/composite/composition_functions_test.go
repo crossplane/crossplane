@@ -63,11 +63,13 @@ func TestFunctionCompose(t *testing.T) {
 		r  FunctionRunner
 		o  []FunctionComposerOption
 	}
+
 	type args struct {
 		ctx context.Context
 		xr  *composite.Unstructured
 		req CompositionRequest
 	}
+
 	type want struct {
 		res CompositionResult
 		err error
@@ -959,8 +961,8 @@ func TestFunctionCompose(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewFunctionComposer(tc.params.c, tc.params.uc, tc.params.r, tc.params.o...)
-			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
 
+			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -979,12 +981,14 @@ func MustStruct(v map[string]any) *structpb.Struct {
 	if err != nil {
 		panic(err)
 	}
+
 	return s
 }
 
 func WithParentLabel() *composite.Unstructured {
 	xr := composite.New()
 	xr.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "parent-xr"})
+
 	return xr
 }
 
@@ -1280,8 +1284,8 @@ func TestGetComposedResources(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			g := NewExistingComposedResourceObserver(tc.params.c, tc.params.uc, tc.params.f)
-			ors, err := g.ObserveComposedResources(tc.args.ctx, tc.args.xr)
 
+			ors, err := g.ObserveComposedResources(tc.args.ctx, tc.args.xr)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nObserveComposedResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -1299,6 +1303,7 @@ func TestAsState(t *testing.T) {
 		xc managed.ConnectionDetails
 		rs ComposedResourceStates
 	}
+
 	type want struct {
 		d   *fnv1.State
 		err error
@@ -1356,7 +1361,6 @@ func TestAsState(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			d, err := AsState(tc.args.xr, tc.args.xc, tc.args.rs)
-
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nState(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -1572,8 +1576,8 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			d := NewDeletingComposedResourceGarbageCollector(tc.params.client)
-			err := d.GarbageCollectComposedResources(tc.args.ctx, tc.args.owner, tc.args.observed, tc.args.desired)
 
+			err := d.GarbageCollectComposedResources(tc.args.ctx, tc.args.owner, tc.args.observed, tc.args.desired)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nGarbageCollectComposedResources(...): -want, +got:\n%s", tc.reason, diff)
 			}

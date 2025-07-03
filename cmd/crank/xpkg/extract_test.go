@@ -77,6 +77,7 @@ func TestExtractRun(t *testing.T) {
 		return io.NopCloser(bytes.NewReader(tarBuf.Bytes())), nil
 	})
 	packImg, _ := mutate.AppendLayers(empty.Image, packLayer)
+
 	cases := map[string]struct {
 		reason string
 		fs     afero.Fs

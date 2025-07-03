@@ -66,7 +66,8 @@ type FunctionStatus struct {
 type FunctionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Function `json:"items"`
+
+	Items []Function `json:"items"`
 }
 
 // FunctionRevisionSpec specifies configuration for a FunctionRevision.
@@ -117,5 +118,6 @@ type FunctionRevisionStatus struct {
 type FunctionRevisionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []FunctionRevision `json:"items"`
+
+	Items []FunctionRevision `json:"items"`
 }

@@ -63,7 +63,9 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot create new kubernetes client")
 	}
+
 	var steps []initializer.Step
+
 	tlsGeneratorOpts := []initializer.TLSCertificateGeneratorOption{
 		initializer.TLSCertificateGeneratorWithClientSecretName(c.TLSClientSecretName, []string{fmt.Sprintf("%s.%s", c.ServiceAccount, c.Namespace)}),
 		initializer.TLSCertificateGeneratorWithLogger(log.WithValues("Step", "TLSCertificateGenerator")),
@@ -72,6 +74,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		tlsGeneratorOpts = append(tlsGeneratorOpts,
 			initializer.TLSCertificateGeneratorWithServerSecretName(c.TLSServerSecretName, initializer.DNSNamesForService(c.WebhookServiceName, c.WebhookServiceNamespace)))
 	}
+
 	steps = append(steps,
 		initializer.NewTLSCertificateGenerator(c.Namespace, c.TLSCASecretName, tlsGeneratorOpts...),
 		// Crossplane used to serve these webhooks, but now uses CEL validation.
@@ -125,6 +128,8 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	if err := initializer.New(cl, log, steps...).Init(context.TODO()); err != nil {
 		return errors.Wrap(err, "cannot initialize core")
 	}
+
 	log.Info("Initialization has been completed")
+
 	return nil
 }

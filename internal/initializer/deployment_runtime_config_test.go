@@ -33,9 +33,11 @@ func TestDeploymentRuntimeConfigObject(t *testing.T) {
 	type args struct {
 		kube client.Client
 	}
+
 	type want struct {
 		err error
 	}
+
 	cases := map[string]struct {
 		args
 		want
@@ -73,8 +75,8 @@ func TestDeploymentRuntimeConfigObject(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := DefaultDeploymentRuntimeConfig(context.TODO(), tc.args.kube)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			err := DefaultDeploymentRuntimeConfig(context.TODO(), tc.kube)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRun(...): -want err, +got err:\n%s", name, diff)
 			}
 		})

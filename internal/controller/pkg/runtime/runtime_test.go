@@ -98,9 +98,11 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 		overrides          []DeploymentOverride
 		serviceAccountName string
 	}
+
 	type want struct {
 		want *appsv1.Deployment
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -350,9 +352,11 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 		overrides          []ServiceOverride
 		serviceAccountName string
 	}
+
 	type want struct {
 		want *corev1.Service
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args

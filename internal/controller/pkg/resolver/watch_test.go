@@ -79,6 +79,7 @@ func TestForName(t *testing.T) {
 		name string
 		fns  []FilterFn
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args

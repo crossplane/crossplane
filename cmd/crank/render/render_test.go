@@ -57,6 +57,7 @@ func TestRender(t *testing.T) {
 		ctx context.Context
 		in  Inputs
 	}
+
 	type want struct {
 		out Outputs
 		err error
@@ -765,6 +766,7 @@ func TestRender(t *testing.T) {
 			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nRender(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -786,6 +788,7 @@ func NewFunction(t *testing.T, rsp *fnv1.RunFunctionResponse) net.Listener {
 
 	srv := grpc.NewServer(grpc.Creds(insecure.NewCredentials()))
 	fnv1.RegisterFunctionRunnerServiceServer(srv, &MockFunctionRunner{Response: rsp})
+
 	go srv.Serve(lis) // This will stop when lis is closed.
 
 	return lis
@@ -801,6 +804,7 @@ func NewFunctionWithRunFunc(t *testing.T, runFunc func(context.Context, *fnv1.Ru
 
 	srv := grpc.NewServer(grpc.Creds(insecure.NewCredentials()))
 	fnv1.RegisterFunctionRunnerServiceServer(srv, &MockFunctionRunner{RunFunc: runFunc})
+
 	go srv.Serve(lis) // This will stop when lis is closed.
 
 	return lis
@@ -818,6 +822,7 @@ func (r *MockFunctionRunner) RunFunction(ctx context.Context, req *fnv1.RunFunct
 	if r.Response != nil {
 		return r.Response, r.Error
 	}
+
 	return r.RunFunc(ctx, req)
 }
 
@@ -825,10 +830,12 @@ func TestFilterExtraResources(t *testing.T) {
 	type params struct {
 		ers []unstructured.Unstructured
 	}
+
 	type args struct {
 		ctx      context.Context
 		selector *fnv1.ResourceSelector
 	}
+
 	type want struct {
 		out *fnv1.Resources
 		err error
@@ -1053,10 +1060,12 @@ func TestFilterExtraResources(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			f := &FilteringFetcher{extra: tc.params.ers}
+
 			out, err := f.Fetch(tc.args.ctx, tc.args.selector)
 			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(fnv1.Resources{}, fnv1.Resource{}, structpb.Struct{}, structpb.Value{})); diff != "" {
 				t.Errorf("%s\nfilterExtraResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nfilterExtraResources(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -1121,5 +1130,6 @@ func MustStructJSON(j string) *structpb.Struct {
 	if err := protojson.Unmarshal([]byte(j), s); err != nil {
 		panic(err)
 	}
+
 	return s
 }

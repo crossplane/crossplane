@@ -31,6 +31,7 @@ func LatestRevision(c *Composition, revs []CompositionRevision) *CompositionRevi
 		if !metav1.IsControlledBy(&revs[i], c) {
 			continue
 		}
+
 		if latest.Spec.Revision < revs[i].Spec.Revision {
 			latest = revs[i]
 		}

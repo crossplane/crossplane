@@ -13,7 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package utils
+// Package certificate contains utilities for working with test certificates.
+package certificate
 
 import (
 	"bytes"
@@ -26,9 +27,9 @@ import (
 	"time"
 )
 
-// CreateCert create TLS certificate for given dns name
+// Create create TLS certificate for given dns name
 // and returns CA and key in PEM format, or an error.
-func CreateCert(dnsName string) (string, string, error) {
+func Create(dnsName string) (string, string, error) {
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
 		Subject: pkix.Name{
@@ -63,6 +64,7 @@ func CreateCert(dnsName string) (string, string, error) {
 
 	// pem encode
 	caPEM := new(bytes.Buffer)
+
 	err = pem.Encode(caPEM, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: caBytes,
@@ -72,6 +74,7 @@ func CreateCert(dnsName string) (string, string, error) {
 	}
 
 	keyPEM := new(bytes.Buffer)
+
 	err = pem.Encode(keyPEM, &pem.Block{
 		Type:  "PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(caPrivKey),

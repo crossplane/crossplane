@@ -35,6 +35,7 @@ func FuzzPropagateConnection(f *testing.F) {
 		f := fuzz.NewConsumer(data)
 		cp := &fake.Composite{}
 		cm := &fake.CompositeClaim{}
+
 		err := f.GenerateStruct(cp)
 		if err != nil {
 			return
@@ -46,6 +47,7 @@ func FuzzPropagateConnection(f *testing.F) {
 		}
 
 		mgcsdata := make(map[string][]byte)
+
 		err = f.FuzzMap(&mgcsdata)
 		if err != nil {
 			return

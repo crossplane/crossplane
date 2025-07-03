@@ -87,5 +87,6 @@ type Composition struct {
 type CompositionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Composition `json:"items"`
+
+	Items []Composition `json:"items"`
 }

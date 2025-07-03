@@ -68,6 +68,7 @@ func TestPropagateConnection(t *testing.T) {
 		to   resource.LocalConnectionSecretOwner
 		from resource.ConnectionSecretOwner
 	}
+
 	type want struct {
 		propagated bool
 		err        error
@@ -224,10 +225,12 @@ func TestPropagateConnection(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			api := &APIConnectionPropagator{client: tc.fields.client}
+
 			got, err := api.PropagateConnection(tc.args.ctx, tc.args.to, tc.args.from)
 			if diff := cmp.Diff(tc.want.propagated, got); diff != "" {
 				t.Errorf("\n%s\napi.PropagateConnection(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\napi.PropagateConnection(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

@@ -40,8 +40,9 @@ import (
 type ClusterUsage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              ClusterUsageSpec `json:"spec"`
-	Status            UsageStatus      `json:"status,omitempty"`
+
+	Spec   ClusterUsageSpec `json:"spec"`
+	Status UsageStatus      `json:"status,omitempty"`
 }
 
 // ClusterUsageSpec defines the desired state of a ClusterUsage.
@@ -71,5 +72,6 @@ type ClusterUsageSpec struct {
 type ClusterUsageList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ClusterUsage `json:"items"`
+
+	Items []ClusterUsage `json:"items"`
 }

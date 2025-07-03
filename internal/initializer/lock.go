@@ -47,5 +47,6 @@ func (lo *LockObject) Run(ctx context.Context, kube client.Client) error {
 			Name: "lock",
 		},
 	}
+
 	return errors.Wrap(resource.NewAPIPatchingApplicator(kube).Apply(ctx, l), errApplyLock)
 }

@@ -244,6 +244,7 @@ func (e *ControllerEngine) Start(name string, o ...ControllerOption) error {
 			// Make a best effort attempt to cleanup the controller so that
 			// IsRunning will return false.
 			_ = e.Stop(ctx, name)
+
 			return
 		}
 
@@ -312,7 +313,9 @@ func (e *ControllerEngine) Stop(ctx context.Context, name string) error {
 func (e *ControllerEngine) IsRunning(name string) bool {
 	e.mx.RLock()
 	defer e.mx.RUnlock()
+
 	_, running := e.controllers[name]
+
 	return running
 }
 
@@ -372,6 +375,7 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 		if err != nil {
 			return errors.Wrapf(err, "cannot determine group, version, and kind for %T", ws[i].kind)
 		}
+
 		gvks[i] = gvk
 	}
 
@@ -386,6 +390,7 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 	// controller calls StartWatches repeatedly (e.g. an XR controller) this
 	// will eventually self-correct.
 	a := e.infs.ActiveInformers()
+
 	activeInformer := make(map[schema.GroupVersionKind]bool, len(a))
 	for _, gvk := range a {
 		activeInformer[gvk] = true
@@ -397,7 +402,9 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 	// resource that no other XR it controls already composes. So, we try to
 	// avoid taking a write lock and blocking all reconciles unless we need to.
 	c.mx.RLock()
+
 	start := false
+
 	for i, w := range ws {
 		wid := WatchID{Type: w.wt, GVK: gvks[i]}
 		// We've already created this watch and the informer backing it is still
@@ -408,8 +415,10 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 		}
 		// There's at least one watch to start.
 		start = true
+
 		break
 	}
+
 	c.mx.RUnlock()
 
 	// Nothing to start.
@@ -426,6 +435,7 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 	// Refresh active informers in case they changed between when we lost
 	// the read lock and took the write lock.
 	a = e.infs.ActiveInformers()
+
 	activeInformer = make(map[schema.GroupVersionKind]bool, len(a))
 	for _, gvk := range a {
 		activeInformer[gvk] = true
@@ -455,6 +465,7 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 		if err != nil {
 			return errors.Wrapf(err, "cannot get informer for %q", wid.GVK)
 		}
+
 		src := NewStoppableSource(inf, w.handler, w.predicates...)
 		if err := c.ctrl.Watch(src); err != nil {
 			return errors.Wrapf(err, "cannot start %q watch for %q", wid.Type, wid.GVK)
@@ -487,6 +498,7 @@ func (e *ControllerEngine) GetWatches(name string) ([]WatchID, error) {
 	for wid := range c.sources {
 		out = append(out, wid)
 	}
+
 	return out, nil
 }
 
@@ -504,13 +516,16 @@ func (e *ControllerEngine) StopWatches(ctx context.Context, name string, ws ...W
 
 	// Don't take the write lock if we want to keep all watches.
 	c.mx.RLock()
+
 	stop := false
+
 	for _, wid := range ws {
 		if _, watchExists := c.sources[wid]; watchExists {
 			stop = true
 			break
 		}
 	}
+
 	c.mx.RUnlock()
 
 	if !stop {
@@ -524,17 +539,21 @@ func (e *ControllerEngine) StopWatches(ctx context.Context, name string, ws ...W
 	defer c.mx.Unlock()
 
 	stopped := 0
+
 	for _, wid := range ws {
 		w, watchExists := c.sources[wid]
 		if !watchExists {
 			continue
 		}
+
 		if err := w.Stop(ctx); err != nil {
 			return stopped, errors.Wrapf(err, "cannot stop %q watch for %q", wid.Type, wid.GVK)
 		}
+
 		delete(c.sources, wid)
 		e.log.Debug("Stopped watching GVK", "controller", name, "watch-type", wid.Type, "watched-gvk", wid.GVK)
 		e.metrics.WatchStopped(name, wid.Type)
+
 		stopped++
 	}
 
@@ -589,6 +608,7 @@ func (e *ControllerEngine) GarbageCollectCustomResourceInformers(ctx context.Con
 
 	go func() {
 		<-ctx.Done()
+
 		if err := i.RemoveEventHandler(h); err != nil {
 			e.log.Info("Cannot remove garbage collector event handler from CustomResourceDefinition informer")
 		}

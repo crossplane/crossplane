@@ -40,28 +40,28 @@ type Pkg interface {
 // GetCrossplaneConstraints gets the Configuration package's Crossplane version
 // constraints.
 func (c *Configuration) GetCrossplaneConstraints() *CrossplaneConstraints {
-	return c.Spec.MetaSpec.Crossplane
+	return c.Spec.Crossplane
 }
 
 // GetDependencies gets the Configuration package's dependencies.
 func (c *Configuration) GetDependencies() []Dependency {
-	return c.Spec.MetaSpec.DependsOn
+	return c.Spec.DependsOn
 }
 
 // GetCrossplaneConstraints gets the Provider package's Crossplane version
 // constraints.
 func (p *Provider) GetCrossplaneConstraints() *CrossplaneConstraints {
-	return p.Spec.MetaSpec.Crossplane
+	return p.Spec.Crossplane
 }
 
 // GetDependencies gets the Provider package's dependencies.
 func (p *Provider) GetDependencies() []Dependency {
-	return p.Spec.MetaSpec.DependsOn
+	return p.Spec.DependsOn
 }
 
 // GetCrossplaneConstraints gets the Function package's Crossplane version constraints.
 func (f *Function) GetCrossplaneConstraints() *CrossplaneConstraints {
-	return f.Spec.MetaSpec.Crossplane
+	return f.Spec.Crossplane
 }
 
 // GetDependencies gets the Function package's dependencies.

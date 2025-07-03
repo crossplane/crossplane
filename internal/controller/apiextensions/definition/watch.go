@@ -19,6 +19,7 @@ func IsCompositeResourceCRD() resource.PredicateFn {
 		if !ok {
 			return false
 		}
+
 		return slices.Contains(crd.Spec.Names.Categories, xcrd.CategoryComposite)
 	}
 }

@@ -48,6 +48,7 @@ func DummyManifest(kind, name string, opts ...DummyManifestOpt) unstructured.Uns
 	for _, opt := range opts {
 		opt(&m)
 	}
+
 	return m
 }
 

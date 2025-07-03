@@ -38,5 +38,6 @@ func validateUnknownFields(mr map[string]interface{}, sch *schema.Structural) fi
 		child := strPath[len(strPath)-1]
 		errs = append(errs, field.Invalid(field.NewPath(f), child, fmt.Sprintf("unknown field: \"%s\"", child)))
 	}
+
 	return errs
 }

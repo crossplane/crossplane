@@ -285,6 +285,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errFetchXRConnectionDetails)
 	}
+
 	o, err := AsState(xr, xrConns, observed)
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errBuildObserved)
@@ -315,6 +316,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			if err := in.UnmarshalJSON(fn.Input.Raw); err != nil {
 				return CompositionResult{}, errors.Wrapf(err, errFmtUnmarshalPipelineStepInput, fn.Step)
 			}
+
 			req.Input = in
 		}
 
@@ -329,6 +331,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			if err := c.client.Get(ctx, client.ObjectKey{Namespace: cs.SecretRef.Namespace, Name: cs.SecretRef.Name}, s); err != nil {
 				return CompositionResult{}, errors.Wrapf(err, errFmtGetCredentialsFromSecret, fn.Step, cs.Name)
 			}
+
 			req.Credentials[cs.Name] = &fnv1.Credentials{
 				Source: &fnv1.Credentials_CredentialData{
 					CredentialData: &fnv1.CredentialData{
@@ -361,6 +364,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 		for _, c := range rsp.GetConditions() {
 			var status corev1.ConditionStatus
+
 			switch c.GetStatus() {
 			case fnv1.Status_STATUS_CONDITION_TRUE:
 				status = corev1.ConditionTrue
@@ -410,12 +414,14 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				// about an exceptional, unexpected state.
 				e.Target = CompositionTargetComposite
 			}
+
 			events = append(events, e)
 		}
 	}
 
 	// Load our desired composed resources from the Function pipeline.
 	desired := ComposedResourceStates{}
+
 	for name, dr := range d.GetResources() {
 		cd := composed.New()
 		if err := FromStruct(cd, dr.GetResource()); err != nil {
@@ -504,7 +510,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// up having shared ownership of fields and field removals won't sync
 	// properly.
 	for _, cd := range observed {
-		if err := c.composite.ManagedFieldsUpgrader.Upgrade(ctx, cd.Resource); err != nil {
+		if err := c.composite.Upgrade(ctx, cd.Resource); err != nil {
 			return CompositionResult{}, errors.Wrap(err, "cannot upgrade composed resource's managed fields from client-side to server-side apply")
 		}
 	}
@@ -544,8 +550,10 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				// functions, while there we defaulted to also set ready false
 				// in case of apply errors.
 				resources = append(resources, ComposedResource{ResourceName: name, Ready: cd.Ready, Synced: false})
+
 				continue
 			}
+
 			return CompositionResult{}, errors.Wrapf(err, errFmtApplyCD, name)
 		}
 
@@ -562,10 +570,12 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	k := xr.GetKind()
 	ns := xr.GetNamespace()
 	n := xr.GetName()
+
 	u := xr.GetUID()
 	if err := FromStruct(xr, d.GetComposite().GetResource()); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
 	}
+
 	xr.SetAPIVersion(v)
 	xr.SetKind(k)
 	xr.SetNamespace(ns)
@@ -582,6 +592,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	}
 
 	var ready *bool
+
 	switch d.GetComposite().GetReady() {
 	case fnv1.Ready_READY_TRUE:
 		ready = ptr.To(true)
@@ -609,11 +620,14 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 // the Deterministic protobuf MarshalOption for more details.
 func Tag(req *fnv1.RunFunctionRequest) string {
 	m := proto.MarshalOptions{Deterministic: true}
+
 	b, err := m.Marshal(req)
 	if err != nil {
 		return ""
 	}
+
 	h := sha256.Sum256(b)
+
 	return hex.EncodeToString(h[:])
 }
 
@@ -637,6 +651,7 @@ func Tag(req *fnv1.RunFunctionRequest) string {
 func ComposedFieldOwnerName(xr *composite.Unstructured) string {
 	h := sha256.New()
 	_, _ = h.Write([]byte(xr.GetName() + xr.GroupVersionKind().GroupKind().String()))
+
 	return fmt.Sprintf("%s/%x", FieldOwnerComposedPrefix, h.Sum(nil))
 }
 
@@ -686,6 +701,7 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 		}
 
 		r := composed.New(composed.FromReference(ref))
+
 		err := g.cached.Get(ctx, nn, r)
 		if kerrors.IsNotFound(err) {
 			// We believe we created this resource, but it is not in the cache yet?  Try again without the cache.
@@ -695,6 +711,7 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 				continue
 			}
 		}
+
 		if err != nil {
 			return nil, errors.Wrap(err, errGetComposed)
 		}
@@ -767,6 +784,7 @@ func AsStruct(o runtime.Object) (*structpb.Struct, error) {
 	}
 
 	s := &structpb.Struct{}
+
 	return s, errors.Wrap(s.UnmarshalJSON(b), errUnmarshalJSON)
 }
 
@@ -810,6 +828,7 @@ func NewDeletingComposedResourceGarbageCollector(c client.Writer) *DeletingCompo
 // in the final desired state after running the pipeline) from the API server.
 func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResources(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error {
 	del := ComposedResourceStates{}
+
 	for name, cd := range observed {
 		if _, ok := desired[name]; !ok {
 			del[name] = cd
@@ -834,6 +853,7 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 		// Composition. This helps differentiate whether a resource was deleted
 		// due to garbage collection or because its owning composite was deleted.
 		meta.RemoveLabels(cd.Resource, xcrd.LabelKeyNamePrefixForComposed, xcrd.LabelKeyClaimName, xcrd.LabelKeyClaimNamespace)
+
 		if err := d.client.Update(ctx, cd.Resource); resource.IgnoreNotFound(err) != nil {
 			return errors.Wrapf(err, errFmtCleanupLabelsCD, name, cd.Resource.GetObjectKind().GroupVersionKind().Kind, cd.Resource.GetName())
 		}
@@ -850,6 +870,7 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 // composed resources that exist or are pending creation.
 func UpdateResourceRefs(xr resource.Composite, desired ComposedResourceStates) {
 	namespaced := xr.GetNamespace() != ""
+
 	refs := make([]corev1.ObjectReference, 0, len(desired))
 	for _, dr := range desired {
 		ref := meta.ReferenceTo(dr.Resource, dr.Resource.GetObjectKind().GroupVersionKind())
@@ -920,6 +941,7 @@ func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.
 		if strings.HasPrefix(e.Manager, FieldOwnerComposedPrefix) {
 			foundSSA = true
 		}
+
 		if e.Manager == "before-first-apply" {
 			foundBFA = true
 			idxBFA = i
@@ -939,6 +961,7 @@ func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.
 			{"op": "remove", "path": "/metadata/managedFields/%d"},
 			{"op": "replace", "path": "/metadata/resourceVersion", "value": "%s"}
 		]`, idxBFA, obj.GetResourceVersion()))
+
 		return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), "cannot remove before-first-apply from field managers")
 
 	// We didn't find our SSA field manager. This means we haven't started the
@@ -951,6 +974,7 @@ func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.
 			{"op": "replace", "path": "/metadata/managedFields", "value": [{}]},
 			{"op": "replace", "path": "/metadata/resourceVersion", "value": "%s"}
 		]`, obj.GetResourceVersion()))
+
 		return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), "cannot clear field managers")
 	}
 }
@@ -959,5 +983,6 @@ func convertTarget(t fnv1.Target) CompositionTarget {
 	if t == fnv1.Target_TARGET_COMPOSITE_AND_CLAIM {
 		return CompositionTargetCompositeAndClaim
 	}
+
 	return CompositionTargetComposite
 }

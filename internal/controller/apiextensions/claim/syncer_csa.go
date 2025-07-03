@@ -151,9 +151,11 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// then crashed before saving a reference to it. We'd create another XR on
 	// the next reconcile.
 	existing := cm.GetResourceReference()
+
 	proposed := xr.GetReference()
 	if !cmp.Equal(existing, proposed) {
 		cm.SetResourceReference(proposed)
+
 		if err := s.client.Update(ctx, cm); err != nil {
 			return errors.Wrap(err, errUpdateClaim)
 		}

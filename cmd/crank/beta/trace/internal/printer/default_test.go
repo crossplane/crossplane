@@ -141,7 +141,9 @@ Configuration/platform-ref-aws                                                  
 			p := DefaultPrinter{
 				wide: tc.args.wide,
 			}
+
 			var buf bytes.Buffer
+
 			err := p.Print(&buf, tc.args.resource)
 			got := buf.String()
 

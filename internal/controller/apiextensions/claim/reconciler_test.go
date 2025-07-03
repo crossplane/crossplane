@@ -50,6 +50,7 @@ func TestReconcile(t *testing.T) {
 		with   schema.GroupVersionKind
 		opts   []ReconcilerOption
 	}
+
 	type want struct {
 		r   reconcile.Result
 		err error
@@ -606,6 +607,7 @@ func TestReconcile(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -620,12 +622,14 @@ func NewClaim(m ...ClaimModifier) *claim.Unstructured {
 	for _, fn := range m {
 		fn(cm)
 	}
+
 	return cm
 }
 
 // A status update function that ensures the supplied object is the claim we want.
 func WantClaim(t *testing.T, want *claim.Unstructured) func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 	t.Helper()
+
 	return func(_ context.Context, got client.Object, _ ...client.SubResourceUpdateOption) error {
 		t.Helper()
 		// Normally we use a custom Equal method on conditions to ignore the
@@ -636,11 +640,13 @@ func WantClaim(t *testing.T, want *claim.Unstructured) func(_ context.Context, o
 			if err != nil {
 				return s
 			}
+
 			return ts
 		}), cmpopts.EquateApproxTime(3*time.Second))
 		if diff != "" {
 			t.Errorf("WantClaim(...): -want, +got: %s", diff)
 		}
+
 		return nil
 	}
 }

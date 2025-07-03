@@ -71,6 +71,7 @@ func WithCustomCA(rootCAs *x509.CertPool) FetcherOpt {
 		}
 
 		t.TLSClientConfig = &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}
+
 		return nil
 	}
 }
@@ -112,6 +113,7 @@ func NewK8sFetcher(client kubernetes.Interface, opts ...FetcherOpt) (*K8sFetcher
 	if !ok {
 		return nil, errors.Errorf("default transport was not a %T", &http.Transport{})
 	}
+
 	k := &K8sFetcher{
 		client:    client,
 		transport: dt.Clone(),
@@ -136,6 +138,7 @@ func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets ...s
 	if err != nil {
 		return nil, err
 	}
+
 	return remote.Image(ref,
 		remote.WithAuthFromKeychain(auth),
 		remote.WithTransport(i.transport),
@@ -154,6 +157,7 @@ func (i *K8sFetcher) Head(ctx context.Context, ref name.Reference, secrets ...st
 	if err != nil {
 		return nil, err
 	}
+
 	d, err := remote.Head(ref,
 		remote.WithAuthFromKeychain(auth),
 		remote.WithTransport(i.transport),
@@ -170,8 +174,10 @@ func (i *K8sFetcher) Head(ctx context.Context, ref name.Reference, secrets ...st
 		if gErr != nil {
 			return nil, errors.Wrapf(gErr, "failed to fetch package descriptor with a GET request after a previous HEAD request failure: %v", err)
 		}
+
 		return &rd.Descriptor, nil
 	}
+
 	return d, nil
 }
 
@@ -185,6 +191,7 @@ func (i *K8sFetcher) Tags(ctx context.Context, ref name.Reference, secrets ...st
 	if err != nil {
 		return nil, err
 	}
+
 	return remote.List(ref.Context(),
 		remote.WithAuthFromKeychain(auth),
 		remote.WithTransport(i.transport),

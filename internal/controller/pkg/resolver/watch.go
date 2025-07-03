@@ -52,6 +52,7 @@ func ForName(name string, fns ...FilterFn) handler.MapFunc {
 				return nil
 			}
 		}
+
 		return []reconcile.Request{{NamespacedName: client.ObjectKey{Name: name}}}
 	}
 }

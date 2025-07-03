@@ -35,11 +35,13 @@ func (s *simpleNode) Identifier() string {
 
 func (s *simpleNode) Neighbors() []Node {
 	nodes := make([]Node, len(s.neighbors))
+
 	i := 0
 	for _, r := range s.neighbors {
 		nodes[i] = &r
 		i++
 	}
+
 	return nodes
 }
 
@@ -49,8 +51,10 @@ func (s *simpleNode) AddNeighbors(nodes ...Node) error {
 		if !ok {
 			return errors.New("not a simple node")
 		}
+
 		s.neighbors[sn.Identifier()] = *sn
 	}
+
 	return nil
 }
 
@@ -69,6 +73,7 @@ func toNodes(n []simpleNode) []Node {
 	for i, r := range n {
 		nodes[i] = &r
 	}
+
 	return nodes
 }
 
@@ -92,6 +97,7 @@ func TestSort(t *testing.T) {
 	eight := "crossplane/eight"
 	nine := "crossplane/nine"
 	dag := NewMapDag()
+
 	type want struct {
 		numImplied int
 		numDeps    int
@@ -99,6 +105,7 @@ func TestSort(t *testing.T) {
 		initErr    bool
 		sortErr    bool
 	}
+
 	cases := map[string]struct {
 		reason string
 		nodes  []simpleNode
@@ -225,21 +232,27 @@ func TestSort(t *testing.T) {
 				if err == nil {
 					t.Errorf("\n%s\nInit(...): expected error", tc.reason)
 				}
+
 				return
 			}
+
 			if diff := cmp.Diff(tc.want.numImplied, len(implied)); diff != "" {
 				t.Errorf("\n%s\nimplied(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			sorted, err := dag.Sort()
 			if tc.want.sortErr {
 				if err == nil {
 					t.Errorf("\n%s\nSort(...): expected error", tc.reason)
 				}
+
 				return
 			}
+
 			if err := tc.want.sortedFn(tc.nodes, sorted); err != nil {
 				t.Errorf("\n%s\nsorted(...): %s", tc.reason, err)
 			}
+
 			tree, _ := dag.TraceNode(tc.nodes[0].Identifier())
 			if diff := cmp.Diff(tc.want.numDeps, len(tree)); diff != "" {
 				t.Errorf("\n%s\\TraceNode(...): -want, +got:\n%s", tc.reason, diff)

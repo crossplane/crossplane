@@ -306,6 +306,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetXRD, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetXRD)
 	}
+
 	status := r.conditions.For(d)
 
 	log = log.WithValues(
@@ -318,17 +319,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		err = errors.Wrap(err, errRenderCRD)
 		r.record.Event(d, event.Warning(reasonRenderCRD, err))
+
 		return reconcile.Result{}, err
 	}
 
 	if meta.WasDeleted(d) {
 		status.MarkConditions(v1.TerminatingComposite())
+
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			log.Debug(errUpdateStatus, "error", err)
+
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errUpdateStatus)
+
 			return reconcile.Result{}, err
 		}
 
@@ -336,6 +342,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.client.Get(ctx, nn, crd); resource.IgnoreNotFound(err) != nil {
 			err = errors.Wrap(err, errGetCRD)
 			r.record.Event(d, event.Warning(reasonTerminateXR, err))
+
 			return reconcile.Result{}, err
 		}
 
@@ -353,16 +360,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
 				err = errors.Wrap(err, errStopController)
 				r.record.Event(d, event.Warning(reasonTerminateXR, err))
+
 				return reconcile.Result{}, err
 			}
+
 			log.Debug("Stopped composite resource controller")
 
 			if err := r.composite.RemoveFinalizer(ctx, d); err != nil {
 				if kerrors.IsConflict(err) {
 					return reconcile.Result{Requeue: true}, nil
 				}
+
 				err = errors.Wrap(err, errRemoveFinalizer)
 				r.record.Event(d, event.Warning(reasonTerminateXR, err))
+
 				return reconcile.Result{}, err
 			}
 
@@ -380,18 +391,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// delete all defined custom resources manually here.
 		o := &kunstructured.Unstructured{}
 		o.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
+
 		if err := r.client.DeleteAllOf(ctx, o); err != nil && !kmeta.IsNoMatchError(err) && !kerrors.IsNotFound(err) {
 			err = errors.Wrap(err, errDeleteCRs)
 			r.record.Event(d, event.Warning(reasonTerminateXR, err))
+
 			return reconcile.Result{}, err
 		}
 
 		l := &kunstructured.UnstructuredList{}
 		l.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
+
 		if err := r.client.List(ctx, l); resource.Ignore(kmeta.IsNoMatchError, err) != nil {
 			log.Debug("cannot list composite resources to check whether the XRD can be deleted", "error", err, "gvk", d.GetCompositeGroupVersionKind().String())
 			err = errors.Wrap(err, errListCRs)
 			r.record.Event(d, event.Warning(reasonTerminateXR, err))
+
 			return reconcile.Result{}, err
 		}
 
@@ -401,6 +416,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if len(l.Items) > 0 {
 			log.Debug(waitCRDelete)
 			r.record.Event(d, event.Normal(reasonTerminateXR, waitCRDelete))
+
 			return reconcile.Result{Requeue: true}, nil
 		}
 
@@ -409,16 +425,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
 			err = errors.Wrap(err, errStopController)
 			r.record.Event(d, event.Warning(reasonTerminateXR, err))
+
 			return reconcile.Result{}, err
 		}
+
 		log.Debug("Stopped composite resource controller")
 
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
 			log.Debug(errDeleteCRD, "error", err)
 			err = errors.Wrap(err, errDeleteCRD)
 			r.record.Event(d, event.Warning(reasonTerminateXR, err))
+
 			return reconcile.Result{}, err
 		}
+
 		log.Debug("Deleted composite resource CustomResourceDefinition")
 		r.record.Event(d, event.Normal(reasonTerminateXR, fmt.Sprintf("Deleted composite resource CustomResourceDefinition: %s", crd.GetName())))
 
@@ -430,24 +450,31 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.composite.AddFinalizer(ctx, d); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
+
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
+
 		return reconcile.Result{}, err
 	}
 
 	origRV := ""
 	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID()), resource.StoreCurrentRV(&origRV)); err != nil {
 		log.Debug(errApplyCRD, "error", err)
+
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errApplyCRD)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
+
 		return reconcile.Result{}, err
 	}
+
 	if crd.GetResourceVersion() != origRV {
 		r.record.Event(d, event.Normal(reasonEstablishXR, fmt.Sprintf("Applied composite resource CustomResourceDefinition: %s", crd.GetName())))
 	}
@@ -455,17 +482,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if !xcrd.IsEstablished(crd.Status) {
 		log.Debug(waitCRDEstablish)
 		r.record.Event(d, event.Normal(reasonEstablishXR, waitCRDEstablish))
+
 		return reconcile.Result{Requeue: true}, nil
 	}
 
 	observed := d.Status.Controllers.CompositeResourceTypeRef
+
 	desired := v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	if observed.APIVersion != "" && observed != desired {
 		if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
 			err = errors.Wrap(err, errStopController)
 			r.record.Event(d, event.Warning(reasonEstablishXR, err))
+
 			return reconcile.Result{}, err
 		}
+
 		log.Debug("Referenceable version changed; stopped composite resource controller",
 			"observed-version", observed.APIVersion,
 			"desired-version", desired.APIVersion)
@@ -474,6 +505,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if r.engine.IsRunning(composite.ControllerName(d.GetName())) {
 		log.Debug("Composite resource controller is running")
 		status.MarkConditions(v1.WatchingComposite())
+
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
@@ -561,6 +593,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errStartController, "error", err)
 		err = errors.Wrap(err, errStartController)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -578,6 +611,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errStartWatches, "error", err)
 		err = errors.Wrap(err, errStartWatches)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -585,5 +619,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	status.MarkConditions(v1.WatchingComposite())
+
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }

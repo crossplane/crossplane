@@ -71,6 +71,7 @@ func (c *InformerTrackingCache) ActiveInformers() []schema.GroupVersionKind {
 	for gvk := range c.active {
 		out = append(out, gvk)
 	}
+
 	return out
 }
 
@@ -86,15 +87,19 @@ func (c *InformerTrackingCache) Get(ctx context.Context, key client.ObjectKey, o
 	}
 
 	c.mx.RLock()
+
 	if _, active := c.active[gvk]; active {
 		defer c.mx.RUnlock()
 		return c.Cache.Get(ctx, key, obj, opts...)
 	}
+
 	c.mx.RUnlock()
 
 	c.mx.Lock()
 	defer c.mx.Unlock()
+
 	c.active[gvk] = true
+
 	return c.Cache.Get(ctx, key, obj, opts...)
 }
 
@@ -108,18 +113,23 @@ func (c *InformerTrackingCache) List(ctx context.Context, list client.ObjectList
 	if err != nil {
 		return errors.Wrap(err, "cannot determine group, version, and kind of supplied object")
 	}
+
 	gvk.Kind = strings.TrimSuffix(gvk.Kind, "List")
 
 	c.mx.RLock()
+
 	if _, active := c.active[gvk]; active {
 		defer c.mx.RUnlock()
 		return c.Cache.List(ctx, list, opts...)
 	}
+
 	c.mx.RUnlock()
 
 	c.mx.Lock()
 	defer c.mx.Unlock()
+
 	c.active[gvk] = true
+
 	return c.Cache.List(ctx, list, opts...)
 }
 
@@ -134,15 +144,19 @@ func (c *InformerTrackingCache) GetInformer(ctx context.Context, obj client.Obje
 	}
 
 	c.mx.RLock()
+
 	if _, active := c.active[gvk]; active {
 		defer c.mx.RUnlock()
 		return c.Cache.GetInformer(ctx, obj, opts...)
 	}
+
 	c.mx.RUnlock()
 
 	c.mx.Lock()
 	defer c.mx.Unlock()
+
 	c.active[gvk] = true
+
 	return c.Cache.GetInformer(ctx, obj, opts...)
 }
 
@@ -152,15 +166,19 @@ func (c *InformerTrackingCache) GetInformer(ctx context.Context, obj client.Obje
 // Getting an informer marks the informer as active.
 func (c *InformerTrackingCache) GetInformerForKind(ctx context.Context, gvk schema.GroupVersionKind, opts ...cache.InformerGetOption) (cache.Informer, error) {
 	c.mx.RLock()
+
 	if _, active := c.active[gvk]; active {
 		defer c.mx.RUnlock()
 		return c.Cache.GetInformerForKind(ctx, gvk, opts...)
 	}
+
 	c.mx.RUnlock()
 
 	c.mx.Lock()
 	defer c.mx.Unlock()
+
 	c.active[gvk] = true
+
 	return c.Cache.GetInformerForKind(ctx, gvk, opts...)
 }
 
@@ -174,16 +192,20 @@ func (c *InformerTrackingCache) RemoveInformer(ctx context.Context, obj client.O
 	}
 
 	c.mx.RLock()
+
 	if _, active := c.active[gvk]; !active {
 		// This should only happen if RemoveInformer is called for an informer
 		// that was never started.
 		defer c.mx.RUnlock()
 		return c.Cache.RemoveInformer(ctx, obj)
 	}
+
 	c.mx.RUnlock()
 
 	c.mx.Lock()
 	defer c.mx.Unlock()
+
 	delete(c.active, gvk)
+
 	return c.Cache.RemoveInformer(ctx, obj)
 }

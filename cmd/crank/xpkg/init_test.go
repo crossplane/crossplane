@@ -22,10 +22,12 @@ func TestHandleNotes(t *testing.T) {
 	type args struct {
 		file string
 	}
+
 	type want struct {
 		result string
 		err    error
 	}
+
 	tests := map[string]struct {
 		reason string
 		args   args
@@ -55,6 +57,7 @@ func TestHandleNotes(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			logger := logging.NewNopLogger()
+
 			dir := t.TempDir()
 			if tc.args.file != "" {
 				if err := os.WriteFile(filepath.Join(dir, notes), []byte(tc.args.file), 0o644); err != nil {
@@ -67,10 +70,12 @@ func TestHandleNotes(t *testing.T) {
 			}
 
 			b := &bytes.Buffer{}
+
 			err := c.handleNotes(b, logger)
 			if diff := cmp.Diff(tc.want.result, b.String()); diff != "" {
 				t.Errorf("\n%s\nInitCmd.handleNotes(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nInitCmd.handleNotes(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

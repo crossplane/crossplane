@@ -111,6 +111,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, errKubeConfig)
 	}
+
 	logger.Debug("Found kubeconfig")
 
 	// Create the clientset for Kubernetes
@@ -118,6 +119,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, errCreateK8sClientset)
 	}
+
 	logger.Debug("Created clientset for Kubernetes")
 
 	// Create the clientset for Metrics
@@ -125,6 +127,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, errCreateMetricsClientset)
 	}
+
 	logger.Debug("Created clientset for Metrics")
 
 	ctx := context.Background()
@@ -147,10 +150,12 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		if err != nil {
 			return errors.Wrap(err, errAddingPodMetrics)
 		}
+
 		for _, container := range podMetrics.Containers {
 			if cpu := container.Usage.Cpu(); cpu != nil {
 				crossplanePods[i].CPUUsage.Add(*cpu)
 			}
+
 			if memory := container.Usage.Memory(); memory != nil {
 				crossplanePods[i].MemoryUsage.Add(*memory)
 			}
@@ -163,19 +168,23 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		if crossplanePods[i].PodType == crossplanePods[j].PodType {
 			return crossplanePods[i].PodName < crossplanePods[j].PodName
 		}
+
 		return crossplanePods[i].PodType < crossplanePods[j].PodType
 	})
 
 	if c.Summary {
 		printPodsSummary(k.Stdout, crossplanePods)
 		logger.Debug("Printed pods summary")
+
 		_, _ = fmt.Fprintln(k.Stdout)
 	}
 
 	if err := printPodsTable(k.Stdout, crossplanePods); err != nil {
 		return errors.Wrap(err, errPrintingPodsTable)
 	}
+
 	logger.Debug("Printed pods as table")
+
 	return nil
 }
 
@@ -189,6 +198,7 @@ func printPodsTable(w io.Writer, crossplanePods []topMetrics) error {
 		cpu:       "CPU(cores)",
 		memory:    "MEMORY",
 	}
+
 	_, err := fmt.Fprintln(tw, headers.String())
 	if err != nil {
 		return errors.Wrap(err, errWriteHeader)
@@ -204,6 +214,7 @@ func printPodsTable(w io.Writer, crossplanePods []topMetrics) error {
 			cpu:    fmt.Sprintf("%vm", pod.CPUUsage.MilliValue()),
 			memory: fmt.Sprintf("%vMi", pod.MemoryUsage.Value()/(1024*1024)),
 		}
+
 		_, err := fmt.Fprintln(tw, row.String())
 		if err != nil {
 			return errors.Wrap(err, errWriteRow)
@@ -215,6 +226,7 @@ func printPodsTable(w io.Writer, crossplanePods []topMetrics) error {
 
 func printPodsSummary(w io.Writer, pods []topMetrics) {
 	categoryCounts := make(map[string]int)
+
 	var totalMemoryUsage, totalCPUUsage resource.Quantity
 
 	for _, pod := range pods {
@@ -233,21 +245,27 @@ func printPodsSummary(w io.Writer, pods []topMetrics) {
 	for category := range categoryCounts {
 		categories = append(categories, category)
 	}
+
 	sort.Strings(categories)
+
 	for _, category := range categories {
 		_, _ = fmt.Fprintf(w, "%s: %d\n", capitalizeFirst(category), categoryCounts[category])
 	}
+
 	_, _ = fmt.Fprintf(w, "Memory: %s\n", fmt.Sprintf("%vMi", totalMemoryUsage.Value()/(1024*1024)))
 	_, _ = fmt.Fprintf(w, "CPU(cores): %s\n", fmt.Sprintf("%vm", totalCPUUsage.MilliValue()))
 }
 
 func getCrossplanePods(pods []v1.Pod) []topMetrics {
 	metricsList := make([]topMetrics, 0)
+
 	for _, pod := range pods {
 		labels := pod.GetLabels()
 
 		var podType string
+
 		isCrossplanePod := false
+
 		for labelKey, labelValue := range labels {
 			switch {
 			case strings.HasPrefix(labelKey, "pkg.crossplane.io/"):
@@ -259,6 +277,7 @@ func getCrossplanePods(pods []v1.Pod) []topMetrics {
 				podType = "crossplane"
 				isCrossplanePod = true
 			}
+
 			if isCrossplanePod {
 				break
 			}
@@ -272,6 +291,7 @@ func getCrossplanePods(pods []v1.Pod) []topMetrics {
 			})
 		}
 	}
+
 	return metricsList
 }
 
@@ -279,5 +299,6 @@ func capitalizeFirst(s string) string {
 	if s == "" {
 		return ""
 	}
+
 	return strings.ToUpper(s[:1]) + s[1:]
 }

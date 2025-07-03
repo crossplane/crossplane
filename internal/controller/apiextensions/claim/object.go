@@ -36,6 +36,7 @@ func withoutReservedK8sEntries(a map[string]string) map[string]string {
 			delete(a, k)
 		}
 	}
+
 	return a
 }
 
@@ -46,6 +47,7 @@ func withoutKeys(in map[string]any, keys ...string) map[string]any {
 	}
 
 	out := map[string]any{}
+
 	for k, v := range in {
 		if filter[k] {
 			continue
@@ -53,6 +55,7 @@ func withoutKeys(in map[string]any, keys ...string) map[string]any {
 
 		out[k] = v
 	}
+
 	return out
 }
 

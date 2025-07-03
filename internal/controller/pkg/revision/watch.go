@@ -54,6 +54,7 @@ func EnqueuePackageRevisionsForImageConfig(kube client.Client, l v1.PackageRevis
 		}
 
 		var matches []reconcile.Request
+
 		for _, rev := range rl.GetRevisions() {
 			for _, m := range ic.Spec.MatchImages {
 				if strings.HasPrefix(rev.GetSource(), m.Prefix) || strings.HasPrefix(rev.GetResolvedSource(), m.Prefix) {
@@ -65,6 +66,7 @@ func EnqueuePackageRevisionsForImageConfig(kube client.Client, l v1.PackageRevis
 				}
 			}
 		}
+
 		return matches
 	})
 }
@@ -88,6 +90,7 @@ func EnqueuePackageRevisionsForLock(kube client.Client, l v1.PackageRevisionList
 		for _, rev := range rl.GetRevisions() {
 			matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: rev.GetName()}})
 		}
+
 		return matches
 	})
 }

@@ -52,6 +52,7 @@ func (m *MockDeploymentSelectorMigrator) MigrateDeploymentSelector(ctx context.C
 	if m.MockMigrateDeploymentSelector != nil {
 		return m.MockMigrateDeploymentSelector(ctx, pr, b)
 	}
+
 	return nil
 }
 
@@ -64,6 +65,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 		pr      v1.PackageRevisionWithRuntime
 		builder ManifestBuilder
 	}
+
 	type want struct {
 		err error
 	}
@@ -358,8 +360,8 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			migrator := NewDeletingDeploymentSelectorMigrator(tc.args.client, testLog)
-			err := migrator.MigrateDeploymentSelector(context.Background(), tc.args.pr, tc.args.builder)
 
+			err := migrator.MigrateDeploymentSelector(context.Background(), tc.args.pr, tc.args.builder)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nMigrateDeploymentSelector(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

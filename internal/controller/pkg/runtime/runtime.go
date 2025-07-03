@@ -172,6 +172,7 @@ func (b *DeploymentRuntimeBuilder) ServiceAccount(overrides ...ServiceAccountOve
 	}
 
 	var allOverrides []ServiceAccountOverride
+
 	allOverrides = append(allOverrides,
 		// Optional defaults, will be used only if the runtime config does not
 		// specify them.
@@ -276,6 +277,7 @@ func (b *DeploymentRuntimeBuilder) Service(overrides ...ServiceOverride) *corev1
 	}
 
 	var allOverrides []ServiceOverride
+
 	allOverrides = append(allOverrides,
 		// Optional defaults, will be used only if the runtime config does not
 		// specify them.
@@ -342,5 +344,6 @@ func (b *DeploymentRuntimeBuilder) packageType() string {
 	if _, ok := b.revision.(*v1.FunctionRevision); ok {
 		return "function"
 	}
+
 	return "provider"
 }

@@ -61,12 +61,14 @@ func (fn FinderFn) FindUsageOf(ctx context.Context, o usage.Object) ([]protectio
 func TestReconcile(t *testing.T) {
 	now := metav1.Now()
 	reason := "protected"
+
 	type args struct {
 		mgr  manager.Manager
 		u    protection.Usage
 		f    Finder
 		opts []ReconcilerOption
 	}
+
 	type want struct {
 		r   reconcile.Result
 		err error
@@ -913,10 +915,12 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.mgr, tc.args.u, tc.args.f, tc.args.opts...)
+
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.r, got); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want result, +got:\n%s", tc.reason, diff)
 			}

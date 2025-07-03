@@ -149,7 +149,6 @@ func TestOneMeta(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := OneMeta(tc.pkg)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nOneMeta(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -181,7 +180,6 @@ func TestIsProvider(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := IsProvider(tc.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsProvider(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -213,7 +211,6 @@ func TestIsConfiguration(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := IsConfiguration(tc.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsConfiguration(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -247,7 +244,6 @@ func TestIsFunction(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := IsFunction(tc.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsFunction(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -263,6 +259,7 @@ func TestPackageCrossplaneCompatible(t *testing.T) {
 		obj runtime.Object
 		ver version.Operations
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -341,7 +338,6 @@ func TestPackageCrossplaneCompatible(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := PackageCrossplaneCompatible(tc.args.ver)(tc.args.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nPackageCrossplaneCompatible(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -356,6 +352,7 @@ func TestPackageValidSemver(t *testing.T) {
 	type args struct {
 		obj runtime.Object
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -395,7 +392,6 @@ func TestPackageValidSemver(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := PackageValidSemver(tc.args.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nPackageValidSemver(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -427,7 +423,6 @@ func TestIsCRD(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := IsCRD(tc.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsCRD(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -455,7 +450,6 @@ func TestIsXRD(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := IsXRD(tc.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsXRD(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -483,7 +477,6 @@ func TestIsComposition(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := IsComposition(tc.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsComposition(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

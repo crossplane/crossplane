@@ -57,7 +57,9 @@ func (r *apiSelectorResolver) ResolveSelectors(ctx context.Context, u protection
 		if err := r.resolveSelector(ctx, &of, u); err != nil {
 			return errors.Wrap(err, errResolveSelectorForUsedResource)
 		}
+
 		u.SetUserOf(of)
+
 		if err := r.client.Update(ctx, u); err != nil {
 			return errors.Wrap(err, errUpdateAfterResolveSelector)
 		}
@@ -71,7 +73,9 @@ func (r *apiSelectorResolver) ResolveSelectors(ctx context.Context, u protection
 		if err := r.resolveSelector(ctx, by, u); err != nil {
 			return errors.Wrap(err, errResolveSelectorForUsingResource)
 		}
+
 		u.SetUsedBy(by)
+
 		if err := r.client.Update(ctx, u); err != nil {
 			return errors.Wrap(err, errUpdateAfterResolveSelector)
 		}
@@ -106,6 +110,7 @@ func (r *apiSelectorResolver) resolveSelector(ctx context.Context, rs *protectio
 	// The namespace is passed to client.InNamespace below. InNamespace is a
 	// no-op if the namespace is the empty string.
 	ns := ptr.Deref(rs.ResourceSelector.Namespace, usage.GetNamespace())
+
 	l := composed.NewList(composed.FromReferenceToList(v1.ObjectReference{APIVersion: rs.APIVersion, Kind: rs.Kind}))
 	if err := r.client.List(ctx, l, client.MatchingLabels(rs.ResourceSelector.MatchLabels), client.InNamespace(ns)); err != nil {
 		return errors.Wrap(err, errListResourceMatchingLabels)
@@ -119,6 +124,7 @@ func (r *apiSelectorResolver) resolveSelector(ctx context.Context, rs *protectio
 		if controllersMustMatch(rs.ResourceSelector) && !meta.HaveSameController(&o, usage) {
 			continue
 		}
+
 		rs.ResourceRef = &protection.ResourceRef{Name: o.GetName()}
 
 		// Persist the namespace only if we selected a namespaced object that's
@@ -126,6 +132,7 @@ func (r *apiSelectorResolver) resolveSelector(ctx context.Context, rs *protectio
 		if o.GetNamespace() != usage.GetNamespace() {
 			rs.ResourceRef.Namespace = ptr.To(o.GetNamespace())
 		}
+
 		break
 	}
 

@@ -88,9 +88,11 @@ func writeLayer(tw *tar.Writer, hdr *tar.Header, buf io.Reader) error {
 	if _, err := io.Copy(tw, buf); err != nil {
 		return errors.Wrap(err, errTarFromStream)
 	}
+
 	if err := tw.Close(); err != nil {
 		return errors.Wrap(err, errTarFromStream)
 	}
+
 	return nil
 }
 
@@ -127,6 +129,7 @@ func AnnotateLayers(i v1.Image) (v1.Image, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, errDigest)
 		}
+
 		if annotation, ok := cfgFile.Config.Labels[Label(d.String())]; ok {
 			addendums = append(addendums, mutate.Addendum{
 				Layer: l,
@@ -134,8 +137,10 @@ func AnnotateLayers(i v1.Image) (v1.Image, error) {
 					AnnotationKey: annotation,
 				},
 			})
+
 			continue
 		}
+
 		addendums = append(addendums, mutate.Addendum{
 			Layer: l,
 		})

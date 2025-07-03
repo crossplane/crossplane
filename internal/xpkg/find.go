@@ -35,25 +35,33 @@ func FindXpkgInDir(fs afero.Fs, root string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	defer func() { _ = f.Close() }()
+
 	files, err := f.Readdir(-1)
 	if err != nil {
 		return "", err
 	}
+
 	path := ""
+
 	for _, file := range files {
 		// Match only returns an error if XpkgMatchPattern is malformed.
 		match, _ := filepath.Match(XpkgMatchPattern, file.Name())
 		if !match {
 			continue
 		}
+
 		if path != "" && match {
 			return "", errors.New(errMultiMatch)
 		}
+
 		path = file.Name()
 	}
+
 	if path == "" {
 		return "", errors.New(errNoMatch)
 	}
+
 	return path, nil
 }

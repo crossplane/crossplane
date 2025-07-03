@@ -222,11 +222,12 @@ func TestPackageRevisioner(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewPackageRevisioner(tc.args.f)
-			h, err := r.Revision(context.TODO(), tc.args.pkg, tc.args.pullSecretFromConfig)
 
+			h, err := r.Revision(context.TODO(), tc.args.pkg, tc.args.pullSecretFromConfig)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Name(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.digest, h, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Name(...): -want, +got:\n%s", tc.reason, diff)
 			}

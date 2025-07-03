@@ -76,6 +76,7 @@ func AsFeaturesFunc(fn env.Func) features.Func {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		return ctx
 	}
 }
@@ -119,6 +120,7 @@ func EnvFuncs(fns ...env.Func) env.Func {
 				return ctx, err
 			}
 		}
+
 		return ctx, nil
 	}
 }
@@ -134,11 +136,14 @@ func CreateKindClusterWithConfig(clusterName, configFilePath string) env.Func {
 			if err != nil {
 				return ctx, err
 			}
+
 			cfg := &v1alpha4.Cluster{}
+
 			err = yaml.Unmarshal(b, cfg)
 			if err != nil {
 				return ctx, err
 			}
+
 			return context.WithValue(ctx, kindConfigContextKey(clusterName), cfg), nil
 		},
 	)
@@ -150,40 +155,49 @@ func ServiceIngressEndPoint(ctx context.Context, cfg *envconf.Config, clusterNam
 	_, found := envfuncs.GetClusterFromContext(ctx, clusterName)
 	client := cfg.Client()
 	service := &corev1.Service{}
+
 	err := client.Resources().Get(ctx, serviceName, namespace, service)
 	if err != nil {
 		return "", errors.Errorf("cannot get service %s/%s at cluster %s: %w", namespace, serviceName, clusterName, err)
 	}
 
 	var nodePort int32
+
 	for _, p := range service.Spec.Ports {
 		if p.NodePort != 0 {
 			nodePort = p.NodePort
 			break
 		}
 	}
+
 	if nodePort == 0 {
 		return "", errors.Errorf("No nodePort found for service %s/%s at cluster %s", namespace, serviceName, clusterName)
 	}
+
 	if found {
 		kindCfg, err := kindConfig(ctx, clusterName)
 		if err != nil {
 			return "", errors.Errorf("cannot get kind config for cluster %s: %w", clusterName, err)
 		}
+
 		hostPort, err := findHostPort(kindCfg, nodePort)
 		if err != nil {
 			return "", errors.Errorf("cannot find hostPort for nodePort %d in kind config for cluster %s: %w", nodePort, clusterName, err)
 		}
+
 		return fmt.Sprintf("localhost:%v", hostPort), nil
 	}
+
 	nodes := &corev1.NodeList{}
 	if err := client.Resources().List(ctx, nodes); err != nil {
 		return "", errors.Errorf("cannot list nodes for cluster %s: %w", clusterName, err)
 	}
+
 	addr, err := findAnyNodeIPAddress(nodes)
 	if err != nil {
 		return "", errors.Errorf("cannot find any node IP address for cluster %s: %w", clusterName, err)
 	}
+
 	return fmt.Sprintf("%s:%v", addr, nodePort), nil
 }
 
@@ -192,10 +206,12 @@ func kindConfig(ctx context.Context, clusterName string) (*v1alpha4.Cluster, err
 	if v == nil {
 		return nil, errors.Errorf("No kind config found in context for cluster %s", clusterName)
 	}
+
 	kindCfg, ok := v.(*v1alpha4.Cluster)
 	if !ok {
 		return nil, errors.Errorf("kind config is not of type v1alpha4.Cluster for clustername %s", clusterName)
 	}
+
 	return kindCfg, nil
 }
 
@@ -203,11 +219,13 @@ func findAnyNodeIPAddress(nodes *corev1.NodeList) (string, error) {
 	if len(nodes.Items) == 0 {
 		return "", errors.New("no nodes in the cluster")
 	}
+
 	for _, a := range nodes.Items[0].Status.Addresses {
 		if a.Type == corev1.NodeInternalIP {
 			return a.Address, nil
 		}
 	}
+
 	return "", errors.Errorf("no ip address found for nodes: %v", nodes)
 }
 
@@ -221,5 +239,6 @@ func findHostPort(kindCfg *v1alpha4.Cluster, containerPort int32) (int32, error)
 			}
 		}
 	}
+
 	return 0, errors.Errorf("No host port found in kind config for container port: %v", containerPort)
 }

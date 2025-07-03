@@ -110,6 +110,7 @@ func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.
 		if e.Manager == ssaManager {
 			foundSSA = true
 		}
+
 		if e.Manager == "before-first-apply" {
 			foundBFA = true
 			idxBFA = i
@@ -129,6 +130,7 @@ func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.
 			{"op":"remove","path":"/metadata/managedFields/%d"},
 			{"op":"replace","path":"/metadata/resourceVersion","value":"%s"}
 		]`, idxBFA, obj.GetResourceVersion()))
+
 		return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), "cannot remove before-first-apply from field managers")
 
 	// We didn't find our SSA field manager or the before-first-apply field
@@ -142,6 +144,7 @@ func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.
 			{"op":"replace","path": "/metadata/managedFields","value": [{}]},
 			{"op":"replace","path":"/metadata/resourceVersion","value":"%s"}
 		]`, obj.GetResourceVersion()))
+
 		return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), "cannot clear field managers")
 	}
 }
@@ -182,6 +185,7 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// existing XR, probably hijacking it from another claim.
 	if xrPatch.GetName() == "" {
 		xrPatch.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
+
 		if err := s.names.GenerateName(ctx, xrPatch); err != nil {
 			return errors.Wrap(err, errGenerateName)
 		}
@@ -199,6 +203,7 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	if ann := withoutReservedK8sEntries(cm.GetAnnotations()); len(ann) > 0 {
 		meta.AddAnnotations(xrPatch, withoutReservedK8sEntries(cm.GetAnnotations()))
 	}
+
 	meta.AddLabels(xrPatch, withoutReservedK8sEntries(cm.GetLabels()))
 	meta.AddLabels(xrPatch, map[string]string{
 		xcrd.LabelKeyClaimName:      cm.GetName(),
@@ -325,6 +330,7 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	if cmcs.Conditions != nil {
 		cm.SetConditions(cmcs.Conditions...)
 	}
+
 	if pub != nil {
 		cm.SetConnectionDetailsLastPublishedTime(pub)
 	}

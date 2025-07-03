@@ -52,6 +52,7 @@ func GetRuntimeDevelopment(fn pkgv1.Function, log logging.Logger) *RuntimeDevelo
 	if t := fn.GetAnnotations()[AnnotationKeyRuntimeDevelopmentTarget]; t != "" {
 		r.Target = t
 	}
+
 	return r
 }
 

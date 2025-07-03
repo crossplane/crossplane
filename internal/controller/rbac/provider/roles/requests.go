@@ -56,6 +56,7 @@ func (n *node) Allow(p path) {
 	if _, ok := n.children[k]; !ok {
 		n.children[k] = newNode()
 	}
+
 	n.children[k].Allow(p[1:])
 }
 
@@ -73,11 +74,13 @@ func (n *node) Allowed(p path) bool {
 			if c.allowed {
 				return true
 			}
+
 			if c.Allowed(p[1:]) {
 				return true
 			}
 		}
 	}
+
 	return false
 }
 
@@ -105,6 +108,7 @@ func (r Rule) String() string {
 	if r.NonResourceURL != "" {
 		return fmt.Sprintf("{nonResourceURL: %q, verb: %q}", r.NonResourceURL, r.Verb)
 	}
+
 	return fmt.Sprintf("{apiGroup: %q, resource: %q, resourceName: %q, verb: %q}", r.APIGroup, r.Resource, r.ResourceName, r.Verb)
 }
 
@@ -113,6 +117,7 @@ func (r Rule) path() path {
 	if r.NonResourceURL != "" {
 		return path{pathPrefixURL, r.NonResourceURL, r.Verb}
 	}
+
 	return path{pathPrefixResource, r.APIGroup, r.Resource, r.ResourceName, r.Verb}
 }
 
@@ -128,6 +133,7 @@ func Expand(ctx context.Context, rs ...rbacv1.PolicyRule) ([]Rule, error) { //no
 					return nil, ctx.Err()
 				default:
 				}
+
 				out = append(out, Rule{NonResourceURL: u, Verb: v})
 			}
 		}
@@ -149,11 +155,13 @@ func Expand(ctx context.Context, rs ...rbacv1.PolicyRule) ([]Rule, error) { //no
 							return nil, ctx.Err()
 						default:
 						}
+
 						out = append(out, Rule{APIGroup: g, Resource: rsc, ResourceName: n, Verb: v})
 					}
 				}
 			}
 		}
 	}
+
 	return out, nil
 }

@@ -40,6 +40,7 @@ const (
 // does not have a leading 'v', it prepends it.
 func FetchCrossplaneVersion(ctx context.Context) (string, error) {
 	var version string
+
 	config, err := ctrl.GetConfig()
 	if err != nil {
 		return "", errors.Wrap(err, errKubeConfig)
@@ -63,11 +64,13 @@ func FetchCrossplaneVersion(ctx context.Context) (string, error) {
 			if !strings.HasPrefix(v, "v") {
 				version = "v" + v
 			}
+
 			return version, nil
 		}
 
 		if len(deployment.Spec.Template.Spec.Containers) > 0 {
 			imageRef := deployment.Spec.Template.Spec.Containers[0].Image
+
 			ref, err := name.ParseReference(imageRef)
 			if err != nil {
 				return "", errors.Wrap(err, "error parsing image reference")
@@ -78,6 +81,7 @@ func FetchCrossplaneVersion(ctx context.Context) (string, error) {
 				if !strings.HasPrefix(imageTag, "v") {
 					imageTag = "v" + imageTag
 				}
+
 				return imageTag, nil
 			}
 		}

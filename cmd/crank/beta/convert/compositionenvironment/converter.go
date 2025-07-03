@@ -51,6 +51,7 @@ func ConvertToFunctionEnvironmentConfigs(in *unstructured.Unstructured, function
 		if err := inputPaved.SetValue("spec.defaultData", dd); err != nil {
 			return nil, errors.Wrap(err, "failed to set defaultData")
 		}
+
 		modified = true
 	}
 
@@ -59,6 +60,7 @@ func ConvertToFunctionEnvironmentConfigs(in *unstructured.Unstructured, function
 		if err := inputPaved.SetValue("spec.environmentConfigs", ec); err != nil {
 			return nil, errors.Wrap(err, "failed to set environmentConfigs")
 		}
+
 		modified = true
 	}
 
@@ -67,6 +69,7 @@ func ConvertToFunctionEnvironmentConfigs(in *unstructured.Unstructured, function
 		if err := inputPaved.SetValue("spec.policy.resolution", resolutionPolicy); err != nil {
 			return nil, errors.Wrap(err, "failed to set policy.resolution")
 		}
+
 		modified = true
 	}
 

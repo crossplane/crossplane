@@ -145,15 +145,18 @@ type PublisherChain []ConnectionPublisher
 // encounters, if any.
 func (pc PublisherChain) PublishConnection(ctx context.Context, o ConnectionSecretOwner, c managed.ConnectionDetails) (bool, error) {
 	published := false
+
 	for _, p := range pc {
 		pb, err := p.PublishConnection(ctx, o, c)
 		if err != nil {
 			return published, err
 		}
+
 		if pb {
 			published = true
 		}
 	}
+
 	return published, nil
 }
 
@@ -225,6 +228,7 @@ const (
 // can target either the XR only, or both the XR and the claim.
 type TargetedEvent struct {
 	event.Event
+
 	Target CompositionTarget
 	// Detail about the event to be included in the composite resource event but
 	// not the claim.
@@ -241,7 +245,9 @@ func (e *TargetedEvent) AsDetailedEvent() event.Event {
 	if e.Detail == "" {
 		return e.AsEvent()
 	}
+
 	msg := fmt.Sprintf("%s: %s", e.Detail, e.Message)
+
 	return event.Event{Type: e.Type, Reason: e.Reason, Message: msg, Annotations: e.Annotations}
 }
 
@@ -249,6 +255,7 @@ func (e *TargetedEvent) AsDetailedEvent() event.Event {
 // process. It can target either the XR only, or both the XR and the claim.
 type TargetedCondition struct {
 	xpv1.Condition
+
 	Target CompositionTarget
 }
 
@@ -485,6 +492,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGet, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
 	}
+
 	status := r.conditions.For(xr)
 
 	log = log.WithValues(
@@ -512,14 +520,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errRemoveFinalizer)
 			r.record.Event(xr, event.Warning(reasonDelete, err))
 			status.MarkConditions(xpv1.ReconcileError(err))
+
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 		}
 
 		log.Debug("Successfully deleted composite resource")
 		status.MarkConditions(xpv1.ReconcileSuccess())
+
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
@@ -527,9 +538,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(xr, event.Warning(reasonInit, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
@@ -538,52 +551,64 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errSelectComp)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
+
 	if compRef := xr.GetCompositionReference(); compRef != nil && (orig == nil || *compRef != *orig) {
 		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Successfully selected composition: %s", compRef.Name)))
 	}
 
 	// Select (if there is a new one) and fetch the composition revision.
 	origRev := xr.GetCompositionRevisionReference()
+
 	rev, err := r.revision.Fetch(ctx, xr)
 	if err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		log.Debug(errFetchComp, "error", err)
 		err = errors.Wrap(err, errFetchComp)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
+
 	if rev := xr.GetCompositionRevisionReference(); rev != nil && (origRev == nil || *rev != *origRev) {
 		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Selected composition revision: %s", rev.Name)))
 	}
 
 	if err := r.composite.Configure(ctx, xr, rev); err != nil {
 		log.Debug(errConfigure, "error", err)
+
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errConfigure)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
 	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Revision: rev})
 	if err != nil {
 		log.Debug(errCompose, "error", err)
+
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
 
 		err = errors.Wrap(err, errCompose)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
+
 		if kerrors.IsInvalid(err) {
 			// API Server's invalid errors may be unstable due to pointers in
 			// the string representation of invalid structs (%v), among other
@@ -594,6 +619,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// point to the event.
 			err = errors.Wrap(errors.New(errInvalidResources), errCompose)
 		}
+
 		status.MarkConditions(xpv1.ReconcileError(err))
 
 		meta := r.handleCommonCompositionResult(ctx, res, xr)
@@ -603,6 +629,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if xpv1.IsSystemConditionType(c.Type) {
 				continue
 			}
+
 			if !meta.conditionTypesSeen[c.Type] {
 				c.Status = corev1.ConditionUnknown
 				c.Reason = reasonFatalError
@@ -627,20 +654,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errWatch)
 		r.record.Event(xr, event.Warning(reasonWatch, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
 	published, err := r.composite.PublishConnection(ctx, xr, res.ConnectionDetails)
 	if err != nil {
 		log.Debug(errPublish, "error", err)
+
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errPublish)
 		r.record.Event(xr, event.Warning(reasonPublish, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
+
 	if published {
 		xr.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
 		log.Debug("Successfully published connection details")
@@ -657,8 +689,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Successfully composed resources")
 	}
 
-	var unsynced []string
-	var unready []string
+	var (
+		unsynced []string
+		unready  []string
+	)
+
 	for i, cd := range res.Composed {
 		// Specifying a name for P&T templates is optional but encouraged.
 		// If there was no name, fall back to using the index.
@@ -739,8 +774,9 @@ func (r *Reconciler) handleCommonCompositionResult(ctx context.Context, res Comp
 	}
 
 	numWarningEvents := 0
+
 	for _, e := range res.Events {
-		if e.Event.Type == event.TypeWarning {
+		if e.Type == event.TypeWarning {
 			numWarningEvents++
 		}
 
@@ -755,15 +791,17 @@ func (r *Reconciler) handleCommonCompositionResult(ctx context.Context, res Comp
 
 	conditionTypesSeen := make(map[xpv1.ConditionType]bool)
 	for _, c := range res.Conditions {
-		if xpv1.IsSystemConditionType(c.Condition.Type) {
+		if xpv1.IsSystemConditionType(c.Type) {
 			// Do not let users update system conditions.
 			continue
 		}
-		conditionTypesSeen[c.Condition.Type] = true
+
+		conditionTypesSeen[c.Type] = true
 		xr.SetConditions(c.Condition)
+
 		if c.Target == CompositionTargetCompositeAndClaim {
 			// We can ignore the error as it only occurs if given a system condition.
-			_ = xr.SetClaimConditionTypes(c.Condition.Type)
+			_ = xr.SetClaimConditionTypes(c.Type)
 		}
 	}
 
@@ -785,10 +823,12 @@ func getClaimFromXR(ctx context.Context, c client.Client, xr *composite.Unstruct
 
 	claimGVK := gv.WithKind(xr.GetClaimReference().Kind)
 	cm := claim.New(claim.WithGroupVersionKind(claimGVK))
+
 	claimNN := types.NamespacedName{Namespace: xr.GetClaimReference().Namespace, Name: xr.GetClaimReference().Name}
 	if err := c.Get(ctx, claimNN, cm); err != nil {
 		return nil, errors.Wrap(err, errGetClaim)
 	}
+
 	return cm, nil
 }
 

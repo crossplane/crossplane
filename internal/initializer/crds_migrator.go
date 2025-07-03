@@ -36,6 +36,7 @@ func NewCoreCRDsMigrator(crdName, sourceVersion string) *CoreCRDsMigrator {
 		crdName:    crdName,
 		oldVersion: sourceVersion,
 	}
+
 	return c
 }
 
@@ -53,6 +54,7 @@ func (c *CoreCRDsMigrator) Run(ctx context.Context, kube client.Client) error {
 			// nothing to do
 			return nil
 		}
+
 		return errors.Wrapf(err, "cannot get %s crd", c.crdName)
 	}
 	// no old version in the crd, nothing to do
@@ -61,18 +63,21 @@ func (c *CoreCRDsMigrator) Run(ctx context.Context, kube client.Client) error {
 	}
 	// we need to patch all resources to the new storage version
 	var storageVersion string
+
 	for _, v := range crd.Spec.Versions {
 		if v.Storage {
 			storageVersion = v.Name
 			break
 		}
 	}
+
 	resources := unstructured.UnstructuredList{}
 	resources.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   crd.Spec.Group,
 		Version: storageVersion,
 		Kind:    crd.Spec.Names.ListKind,
 	})
+
 	var continueToken string
 	for {
 		if err := kube.List(ctx, &resources,
@@ -81,6 +86,7 @@ func (c *CoreCRDsMigrator) Run(ctx context.Context, kube client.Client) error {
 		); err != nil {
 			return errors.Wrapf(err, "cannot list %s", resources.GroupVersionKind().String())
 		}
+
 		for i := range resources.Items {
 			// apply empty patch for storage version upgrade
 			res := resources.Items[i]
@@ -88,6 +94,7 @@ func (c *CoreCRDsMigrator) Run(ctx context.Context, kube client.Client) error {
 				return errors.Wrapf(err, "cannot patch %s %q", crd.Spec.Names.Kind, res.GetName())
 			}
 		}
+
 		continueToken = resources.GetContinue()
 		if continueToken == "" {
 			break
@@ -95,6 +102,7 @@ func (c *CoreCRDsMigrator) Run(ctx context.Context, kube client.Client) error {
 	}
 
 	origCrd := crd.DeepCopy()
+
 	crd.Status.StoredVersions = []string{storageVersion}
 	if err := kube.Status().Patch(ctx, &crd, client.MergeFrom(origCrd)); err != nil {
 		return errors.Wrapf(err, "couldn't update %s crd", c.crdName)
@@ -104,6 +112,7 @@ func (c *CoreCRDsMigrator) Run(ctx context.Context, kube client.Client) error {
 	if err := kube.Get(ctx, client.ObjectKey{Name: c.crdName}, &crd); err != nil {
 		return errors.Wrapf(err, "cannot get %s crd to check", c.crdName)
 	}
+
 	if len(crd.Status.StoredVersions) != 1 || crd.Status.StoredVersions[0] != storageVersion {
 		return errors.Errorf("was expecting CRD %q to only have %s, got instead: %v", c.crdName, storageVersion, crd.Status.StoredVersions)
 	}

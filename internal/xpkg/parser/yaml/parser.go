@@ -36,6 +36,7 @@ func New() (*parser.PackageParser, error) {
 	if err != nil {
 		return nil, errors.New(errBuildMetaScheme)
 	}
+
 	objScheme, err := xpkg.BuildObjectScheme()
 	if err != nil {
 		return nil, errors.New(errBuildObjectScheme)

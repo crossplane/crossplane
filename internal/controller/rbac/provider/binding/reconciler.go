@@ -121,6 +121,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	for _, f := range opts {
 		f(r)
 	}
+
 	return r
 }
 
@@ -172,6 +173,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := r.client.List(ctx, l); err != nil {
 		err = errors.Wrap(err, errDeployments)
 		r.record.Event(pr, event.Warning(reasonBind, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -180,6 +182,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// and relatively harmless for us to handle there being many.
 	subjects := make([]rbacv1.Subject, 0)
 	subjectStrings := make([]string, 0)
+
 	for _, d := range l.Items {
 		for _, ref := range d.GetOwnerReferences() {
 			if ref.UID == pr.GetUID() {
@@ -222,12 +225,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Skipped no-op ClusterRoleBinding apply")
 		return reconcile.Result{}, nil
 	}
+
 	if err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errApplyBinding)
 		r.record.Event(pr, event.Warning(reasonBind, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -245,5 +251,6 @@ func ClusterRoleBindingsDiffer(current, desired runtime.Object) bool {
 	// error. If it happens, we probably do want to panic.
 	c := current.(*rbacv1.ClusterRoleBinding) //nolint:forcetypeassert // See above.
 	d := desired.(*rbacv1.ClusterRoleBinding) //nolint:forcetypeassert // See above.
+
 	return !cmp.Equal(c.Subjects, d.Subjects) || !cmp.Equal(c.RoleRef, d.RoleRef) || !cmp.Equal(c.GetOwnerReferences(), d.GetOwnerReferences())
 }

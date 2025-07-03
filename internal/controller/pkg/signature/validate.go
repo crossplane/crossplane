@@ -38,15 +38,19 @@ func NewCosignValidator(c client.Reader, k kubernetes.Interface, namespace, serv
 	defer cancel()
 
 	var err error
+
 	opts := cosign.CheckOpts{}
+
 	opts.RootCerts, err = fulcioroots.Get()
 	if err != nil {
 		return nil, errors.Errorf("cannot fetch Fulcio roots: %w", err)
 	}
+
 	opts.IntermediateCerts, err = fulcioroots.GetIntermediates()
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch Fulcio intermediates: %w", err)
 	}
+
 	opts.CTLogPubKeys, err = cosign.GetCTLogPubs(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch CTLog public keys: %w", err)
@@ -93,6 +97,7 @@ func (c *CosignValidator) Validate(ctx context.Context, ref name.Reference, conf
 	}
 
 	var errs []error
+
 	for _, a := range config.Cosign.Authorities {
 		co, err := c.buildCosignCheckOpts(ctx, a, ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(auth)))
 		if err != nil {
@@ -101,6 +106,7 @@ func (c *CosignValidator) Validate(ctx context.Context, ref name.Reference, conf
 		}
 
 		verify := cosign.VerifyImageSignatures
+
 		co.ClaimVerifier = cosign.SimpleClaimVerifier
 		if len(a.Attestations) > 0 {
 			verify = cosign.VerifyImageAttestations
@@ -134,6 +140,7 @@ func (c *CosignValidator) Validate(ctx context.Context, ref name.Reference, conf
 					errs = append(errs, errors.Errorf("authority %q: cannot convert attestation %q to payload JSON: %v", a.Name, att.Name, err))
 					continue
 				}
+
 				if len(b) == 0 {
 					errs = append(errs, errors.Errorf("authority %q: no attestation of type %q found for %q", a.Name, att.PredicateType, att.Name))
 					continue
@@ -156,6 +163,7 @@ func (c *CosignValidator) buildCosignCheckOpts(ctx context.Context, a v1beta1.Co
 	opts := c.baseCheckOpts
 
 	opts.RegistryClientOpts = remoteOpts
+
 	if kl := a.Keyless; kl != nil {
 		for _, id := range kl.Identities {
 			opts.Identities = append(opts.Identities, cosign.Identity{
@@ -165,6 +173,7 @@ func (c *CosignValidator) buildCosignCheckOpts(ctx context.Context, a v1beta1.Co
 				SubjectRegExp: id.SubjectRegExp,
 			})
 		}
+
 		if kl.InsecureIgnoreSCT != nil {
 			opts.IgnoreSCT = *kl.InsecureIgnoreSCT
 		}
@@ -175,10 +184,12 @@ func (c *CosignValidator) buildCosignCheckOpts(ctx context.Context, a v1beta1.Co
 		if err := c.client.Get(ctx, types.NamespacedName{Name: kr.SecretRef.Name, Namespace: c.namespace}, s); err != nil {
 			return nil, errors.Wrap(err, "cannot get secret")
 		}
+
 		v := s.Data[kr.SecretRef.Key]
 		if len(v) == 0 {
 			return nil, errors.Errorf("no data found for key %q in secret %q", kr.SecretRef.Key, kr.SecretRef.Name)
 		}
+
 		publicKey, err := cryptoutils.UnmarshalPEMToPublicKey(v)
 		if err != nil || publicKey == nil {
 			return nil, errors.Errorf("secret %q contains an invalid public key: %w", kr.SecretRef.Key, err)

@@ -154,6 +154,7 @@ func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, r
 	}
 
 	rsp, err := NewBetaFallBackFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
+
 	return rsp, errors.Wrapf(err, errFmtRunFunction, name)
 }
 
@@ -195,6 +196,7 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 			break
 		}
 	}
+
 	if active == nil {
 		return nil, errors.New(errNoActiveRevisions)
 	}
@@ -205,11 +207,13 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 
 	// If we have a connection for the up-to-date endpoint, return it.
 	r.connsMx.RLock()
+
 	conn, ok := r.conns[name]
 	if ok && conn.Target() == active.Status.Endpoint {
 		defer r.connsMx.RUnlock()
 		return conn, nil
 	}
+
 	r.connsMx.RUnlock()
 
 	// Either we didn't have a connection, or it wasn't up-to-date.
@@ -230,6 +234,7 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 		// already closed or in the process of closing.
 		log.Debug("Closing gRPC client connection with stale target", "old-target", conn.Target(), "new-target", active.Status.Endpoint)
 		_ = conn.Close()
+
 		delete(r.conns, name)
 	}
 
@@ -249,6 +254,7 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 	r.conns[name] = conn
 
 	log.Debug("Created new gRPC client connection", "target", active.Status.Endpoint)
+
 	return conn, nil
 }
 
@@ -283,10 +289,12 @@ func (r *PackagedFunctionRunner) GarbageCollectConnectionsNow(ctx context.Contex
 
 	// No need to take a write lock or list Functions if there's no work to do.
 	r.connsMx.RLock()
+
 	if len(r.conns) == 0 {
 		defer r.connsMx.RUnlock()
 		return 0, nil
 	}
+
 	r.connsMx.RUnlock()
 
 	r.connsMx.Lock()
@@ -304,6 +312,7 @@ func (r *PackagedFunctionRunner) GarbageCollectConnectionsNow(ctx context.Contex
 
 	// Garbage collect connections.
 	closed := 0
+
 	for name := range r.conns {
 		if functionExists[name] {
 			continue
@@ -313,7 +322,9 @@ func (r *PackagedFunctionRunner) GarbageCollectConnectionsNow(ctx context.Contex
 		// closed or in the process of closing.
 		_ = r.conns[name].Close()
 		delete(r.conns, name)
+
 		closed++
+
 		r.log.Debug("Closed gRPC client connection to Function that is no longer installed", "function", name)
 	}
 
@@ -356,31 +367,39 @@ func (c *BetaFallBackFunctionRunnerServiceClient) RunFunction(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
+
 	brsp, err := fnv1beta1.NewFunctionRunnerServiceClient(c.cc).RunFunction(ctx, breq, opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	rsp, err = fromBeta(brsp)
+
 	return rsp, err
 }
 
 func toBeta(req *fnv1.RunFunctionRequest) (*fnv1beta1.RunFunctionRequest, error) {
 	out := &fnv1beta1.RunFunctionRequest{}
+
 	b, err := proto.Marshal(req)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot marshal %T to protobuf bytes", req)
 	}
+
 	err = proto.Unmarshal(b, out)
+
 	return out, errors.Wrapf(err, "cannot unmarshal %T protobuf bytes into %T", req, out)
 }
 
 func fromBeta(rsp *fnv1beta1.RunFunctionResponse) (*fnv1.RunFunctionResponse, error) {
 	out := &fnv1.RunFunctionResponse{}
+
 	b, err := proto.Marshal(rsp)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot marshal %T to protobuf bytes", rsp)
 	}
+
 	err = proto.Unmarshal(b, out)
+
 	return out, errors.Wrapf(err, "cannot unmarshal %T protobuf bytes into %T", rsp, out)
 }

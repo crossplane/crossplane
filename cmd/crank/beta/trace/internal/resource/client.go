@@ -44,5 +44,6 @@ func GetResource(ctx context.Context, client client.Client, ref *v1.ObjectRefere
 		result.SetName(ref.Name)
 		result.SetNamespace(ref.Namespace)
 	}
+
 	return &Resource{Unstructured: result, Error: err}
 }

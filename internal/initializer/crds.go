@@ -67,6 +67,7 @@ func NewCoreCRDs(path string, s *runtime.Scheme, opts ...CoreCRDsOption) *CoreCR
 	for _, f := range opts {
 		f(c)
 	}
+
 	return c
 }
 
@@ -82,14 +83,17 @@ type CoreCRDs struct {
 // Run applies all CRDs in the given directory.
 func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error {
 	var caBundle []byte
+
 	if c.WebhookTLSSecretRef != nil {
 		s := &corev1.Secret{}
 		if err := kube.Get(ctx, *c.WebhookTLSSecretRef, s); err != nil {
 			return errors.Wrap(err, errGetWebhookSecret)
 		}
+
 		if len(s.Data["tls.crt"]) == 0 {
 			return errors.Errorf(errFmtNoTLSCrtInSecret, c.WebhookTLSSecretRef.String())
 		}
+
 		caBundle = s.Data["tls.crt"]
 	}
 
@@ -104,33 +108,44 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot init filesystem")
 	}
+
 	defer func() { _ = r.Close() }()
+
 	p := parser.New(runtime.NewScheme(), c.Scheme)
+
 	pkg, err := p.Parse(ctx, r)
 	if err != nil {
 		return errors.Wrap(err, "cannot parse files")
 	}
+
 	pa := resource.NewAPIPatchingApplicator(kube)
+
 	for _, obj := range pkg.GetObjects() {
 		crd, ok := obj.(*extv1.CustomResourceDefinition)
 		if !ok {
 			return errors.New("only crds can exist in initialization directory")
 		}
+
 		if crd.Spec.Conversion != nil && crd.Spec.Conversion.Strategy == extv1.WebhookConverter {
 			if len(caBundle) == 0 {
 				return errors.Errorf(errFmtCRDWithConversionWithoutTLS, crd.Name)
 			}
+
 			if crd.Spec.Conversion.Webhook == nil {
 				crd.Spec.Conversion.Webhook = &extv1.WebhookConversion{}
 			}
+
 			if crd.Spec.Conversion.Webhook.ClientConfig == nil {
 				crd.Spec.Conversion.Webhook.ClientConfig = &extv1.WebhookClientConfig{}
 			}
+
 			crd.Spec.Conversion.Webhook.ClientConfig.CABundle = caBundle
 		}
+
 		if err := pa.Apply(ctx, crd); err != nil {
 			return errors.Wrap(err, "cannot apply crd")
 		}
 	}
+
 	return nil
 }

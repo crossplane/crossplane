@@ -269,10 +269,12 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 	if err != nil {
 		return errors.New(errCannotBuildMetaSchema)
 	}
+
 	objScheme, err := xpkg.BuildObjectScheme()
 	if err != nil {
 		return errors.New(errCannotBuildObjectSchema)
 	}
+
 	fetcher, err := xpkg.NewK8sFetcher(clientset, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
 	if err != nil {
 		return errors.Wrap(err, errCannotBuildFetcher)
@@ -320,10 +322,12 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	if err != nil {
 		return errors.New(errCannotBuildMetaSchema)
 	}
+
 	objScheme, err := xpkg.BuildObjectScheme()
 	if err != nil {
 		return errors.New(errCannotBuildObjectSchema)
 	}
+
 	f, err := xpkg.NewK8sFetcher(cs, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
 	if err != nil {
 		return errors.Wrap(err, errCannotBuildFetcher)
@@ -369,10 +373,12 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 	if err != nil {
 		return errors.New(errCannotBuildMetaSchema)
 	}
+
 	objScheme, err := xpkg.BuildObjectScheme()
 	if err != nil {
 		return errors.New(errCannotBuildObjectSchema)
 	}
+
 	fetcher, err := xpkg.NewK8sFetcher(clientset, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
 	if err != nil {
 		return errors.Wrap(err, errCannotBuildFetcher)
@@ -443,6 +449,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetPackageRevision, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetPackageRevision)
 	}
+
 	status := r.conditions.For(pr)
 
 	log = log.WithValues(
@@ -470,6 +477,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.cache.Delete(pr.GetName()); err != nil {
 			err = errors.Wrap(err, errDeleteCache)
 			r.record.Event(pr, event.Warning(reasonSync, err))
+
 			return reconcile.Result{}, err
 		}
 		// NOTE(hasheddan): if we were previously marked as inactive, we
@@ -479,8 +487,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errRemoveLock)
 			r.record.Event(pr, event.Warning(reasonSync, err))
+
 			return reconcile.Result{}, err
 		}
 		// Note(turkenh): During the deletion of an active package revision,
@@ -493,10 +503,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errRemoveFinalizer)
 			r.record.Event(pr, event.Warning(reasonSync, err))
+
 			return reconcile.Result{}, err
 		}
+
 		return reconcile.Result{Requeue: false}, nil
 	}
 
@@ -511,18 +524,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// for pull secrets, since the rewritten path may use different secrets than
 	// the original.
 	imagePath := pr.GetSource()
+
 	rewriteConfigName, newPath, err := r.config.RewritePath(ctx, imagePath)
 	if err != nil {
 		err = errors.Wrap(err, errRewriteImage)
 		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
+
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonImageConfig, err))
 
 		return reconcile.Result{}, err
 	}
+
 	if newPath != "" {
 		imagePath = newPath
+
 		pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 			Name:   rewriteConfigName,
 			Reason: v1.ImageConfigReasonRewrite,
@@ -547,6 +564,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				status.MarkConditions(v1.AwaitingVerification())
 				return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update status with awaiting verification")
 			}
+
 			return reconcile.Result{}, nil
 		}
 	}
@@ -555,8 +573,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(pr, event.Warning(reasonSync, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -564,6 +584,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		err = errors.Wrap(err, errGetPullConfig)
 		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
+
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonImageConfig, err))
@@ -585,11 +606,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if !imageConfigRefsEqual(curr, psRef) {
 		// Update the applied image config refs and persist immediately
 		pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
+
 		if psRef != nil {
 			log.Debug("Selected pull secret from image config store", "image", pr.GetResolvedSource(), "imageConfig", pullSecretConfig, "pullSecret", pullSecretFromConfig, "rewriteConfig", rewriteConfigName)
 			r.record.Event(pr, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, pullSecretConfig)))
 			pr.SetAppliedImageConfigRefs(*psRef)
 		}
+
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
@@ -599,8 +622,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errDeactivateRevision)
 			r.record.Event(pr, event.Warning(reasonDeactivate, err))
+
 			return reconcile.Result{}, err
 		}
 
@@ -630,7 +655,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				// package revision is already healthy.
 				r.record.Event(pr, event.Normal(reasonSync, "Successfully reconciled package revision"))
 			}
+
 			status.MarkConditions(v1.RevisionHealthy())
+
 			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 		}
 	}
@@ -653,10 +680,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	var rc io.ReadCloser
+
 	cacheWrite := make(chan error)
 
 	if r.cache.Has(id) {
 		var err error
+
 		rc, err = r.cache.Get(id)
 		if err != nil {
 			// If package contents are in the cache, but we cannot access them,
@@ -664,6 +693,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			_ = r.cache.Delete(id)
 			err = errors.Wrap(err, errGetCache)
 			r.record.Event(pr, event.Warning(reasonParse, err))
+
 			return reconcile.Result{}, err
 		}
 		// If we got content from cache we don't need to wait for it to be
@@ -676,6 +706,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if rc == nil && pullPolicyNever {
 		err := errors.New(errPullPolicyNever)
 		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
+
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonParse, err))
@@ -695,6 +726,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err != nil {
 			err = errors.Wrap(err, errInitParserBackend)
 			status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
+
 			_ = r.client.Status().Update(ctx, pr)
 
 			r.record.Event(pr, event.Warning(reasonParse, err))
@@ -707,13 +739,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Package is not in cache, so we write it to the cache while parsing.
 		pipeR, pipeW := io.Pipe()
 		rc = xpkg.TeeReadCloser(imgrc, pipeW)
+
 		go func() {
 			defer pipeR.Close() //nolint:errcheck // Not much we can do if this fails.
+
 			if err := r.cache.Store(pr.GetName(), pipeR); err != nil {
 				_ = pipeR.CloseWithError(err)
 				cacheWrite <- err
+
 				return
 			}
+
 			close(cacheWrite)
 		}()
 	}
@@ -735,12 +771,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug(errDeleteCache, "error", err)
 		}
 	}
+
 	if err != nil {
 		err = errors.Wrap(err, errParsePackage)
 		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
+
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonParse, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -748,6 +787,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := r.linter.Lint(pkg); err != nil {
 		err = errors.Wrap(err, errLintPackage)
 		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
+
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonLint, err))
@@ -765,6 +805,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if len(pkg.GetMeta()) != 1 {
 		err = errors.New(errNotOneMeta)
 		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
+
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonLint, err))
@@ -776,6 +817,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	meta.AddLabels(pr, pkgMeta.GetLabels())
 	meta.AddAnnotations(pr, pkgMeta.GetAnnotations())
+
 	if err := r.client.Update(ctx, pr); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
@@ -783,6 +825,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		err = errors.Wrap(err, errUpdateMeta)
 		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
+
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonSync, err))
@@ -811,6 +854,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if pr.GetSkipDependencyResolution() != nil && !*pr.GetSkipDependencyResolution() {
 		found, installed, invalid, err := r.lock.Resolve(ctx, pkgMeta, pr)
 		pr.SetDependencyStatus(int64(found), int64(installed), int64(invalid))
+
 		if err != nil {
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
@@ -818,6 +862,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 			err = errors.Wrap(err, errResolveDeps)
 			status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
+
 			_ = r.client.Status().Update(ctx, pr)
 
 			r.record.Event(pr, event.Warning(reasonDependencies, err))
@@ -835,6 +880,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		err = errors.Wrap(err, errEstablishControl)
 		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
+
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonSync, err))
@@ -864,7 +910,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// package revision is already healthy.
 		r.record.Event(pr, event.Normal(reasonSync, "Successfully reconciled package revision"))
 	}
+
 	status.MarkConditions(v1.RevisionHealthy())
+
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 }
 
@@ -896,6 +944,7 @@ func getCurrentImageConfigRef(pr v1.PackageRevision, reason v1.ImageConfigRefRea
 			return &ref
 		}
 	}
+
 	return nil
 }
 
@@ -905,8 +954,10 @@ func imageConfigRefsEqual(a, b *v1.ImageConfigRef) bool {
 	if a == nil && b == nil {
 		return true
 	}
+
 	if a == nil || b == nil {
 		return false
 	}
+
 	return a.Name == b.Name && a.Reason == b.Reason
 }
