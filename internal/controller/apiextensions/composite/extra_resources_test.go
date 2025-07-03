@@ -33,7 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
 )
 
 var _ FunctionRunner = &FetchingFunctionRunner{}
