@@ -17,6 +17,7 @@ limitations under the License.
 package e2e
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -251,6 +252,35 @@ func TestCompositionValidation(t *testing.T) {
 				funcs.DeleteResources(manifests, "composition-valid.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "composition-valid.yaml"),
 			)).
+			Feature(),
+	)
+}
+
+func TestNamespacedXRClusterComposition(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/namespaced-xr-no-cluster-scoped-resource"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that namespaced XRs cannot compose cluster-scoped resources, ensuring proper validation and error handling when such invalid compositions are attempted.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateNamespacedXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRHasReconcileError",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.ReconcileError(errors.New(""))),
+			).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResources(manifests, "xr.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
 			Feature(),
 	)
 }

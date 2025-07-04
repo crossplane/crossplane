@@ -1,0 +1,7 @@
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-dummy-ext-basic
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-dummy:v0.2.1
