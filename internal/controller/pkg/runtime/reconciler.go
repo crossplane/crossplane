@@ -61,9 +61,10 @@ const (
 	errPreHook                = "pre establish runtime hook failed for package"
 	errPostHook               = "post establish runtime hook failed for package"
 
-	errNoRuntimeConfig   = "no deployment runtime config set"
-	errGetRuntimeConfig  = "cannot get referenced deployment runtime config"
-	errGetServiceAccount = "cannot get Crossplane service account"
+	errNoRuntimeConfig          = "no deployment runtime config set"
+	errGetRuntimeConfig         = "cannot get referenced deployment runtime config"
+	errUnknownKindRuntimeConfig = "runtime config is set but is an unknown apiVersion and kind"
+	errGetServiceAccount        = "cannot get Crossplane service account"
 )
 
 // Event reasons.
@@ -412,6 +413,10 @@ func (r *Reconciler) builderOptions(ctx context.Context, pwr v1.PackageRevisionW
 			return nil, errors.New(errNoRuntimeConfig)
 		}
 
+		if rcRef.Kind != nil && rcRef.APIVersion != nil &&
+			(*rcRef.Kind != v1beta1.DeploymentRuntimeConfigKind && *rcRef.APIVersion != v1beta1.SchemeGroupVersion.String()) {
+			return nil, errors.New(errUnknownKindRuntimeConfig)
+		}
 		rc := &v1beta1.DeploymentRuntimeConfig{}
 		if err := r.client.Get(ctx, types.NamespacedName{Name: rcRef.Name}, rc); err != nil {
 			return nil, errors.Wrap(err, errGetRuntimeConfig)

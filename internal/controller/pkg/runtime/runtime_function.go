@@ -67,6 +67,9 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 		return nil
 	}
 
+	pr.SetObservedTLSServerSecretName(pr.GetTLSServerSecretName())
+	pr.SetObservedTLSClientSecretName(pr.GetTLSClientSecretName())
+
 	// Ensure Prerequisites
 	// Note(turkenh): We need certificates have generated when we get to the
 	// establish step, i.e., we want to inject the CA to CRDs (webhook caBundle).

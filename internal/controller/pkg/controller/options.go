@@ -41,7 +41,7 @@ type Options struct {
 	FetcherOptions []xpkg.FetcherOpt
 
 	// PackageRuntime specifies the runtime to use for package runtime.
-	PackageRuntime PackageRuntime
+	PackageRuntime ActiveRuntime
 
 	// MaxConcurrentPackageEstablishers is the maximum number of goroutines to use
 	// for establishing Providers, Configurations and Functions.

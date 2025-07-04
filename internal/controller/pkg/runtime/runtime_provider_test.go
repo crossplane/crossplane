@@ -111,6 +111,12 @@ func TestProviderPreHook(t *testing.T) {
 							TLSServerSecretName: ptr.To("some-server-secret"),
 						},
 					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSClientSecretName: ptr.To("some-client-secret"),
+							TLSServerSecretName: ptr.To("some-server-secret"),
+						},
+					},
 				},
 			},
 		},
@@ -183,8 +189,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -212,8 +220,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyProviderSA),
@@ -230,8 +240,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -262,8 +274,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyProviderDeployment),
@@ -280,8 +294,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -309,8 +325,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				err: errors.New(errNoAvailableConditionProviderDeployment),
@@ -327,8 +345,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -364,8 +384,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				err: errors.Errorf(errFmtUnavailableProviderDeployment, errBoom.Error()),
@@ -382,8 +404,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -418,8 +442,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 			},
@@ -435,8 +461,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -474,8 +502,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 			},
@@ -491,8 +521,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -557,8 +589,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 			},

@@ -250,12 +250,12 @@ func (b *DeploymentRuntimeBuilder) Deployment(serviceAccount string, overrides .
 		allOverrides = append(allOverrides, DeploymentRuntimeWithImagePullPolicy(*b.revision.GetPackagePullPolicy()))
 	}
 
-	if b.revision.GetTLSClientSecretName() != nil {
-		allOverrides = append(allOverrides, DeploymentRuntimeWithTLSClientSecret(*b.revision.GetTLSClientSecretName()))
+	if b.revision.GetObservedTLSClientSecretName() != nil {
+		allOverrides = append(allOverrides, DeploymentRuntimeWithTLSClientSecret(*b.revision.GetObservedTLSClientSecretName()))
 	}
 
-	if b.revision.GetTLSServerSecretName() != nil {
-		allOverrides = append(allOverrides, DeploymentRuntimeWithTLSServerSecret(*b.revision.GetTLSServerSecretName()))
+	if b.revision.GetObservedTLSServerSecretName() != nil {
+		allOverrides = append(allOverrides, DeploymentRuntimeWithTLSServerSecret(*b.revision.GetObservedTLSServerSecretName()))
 	}
 
 	// We append the overrides passed to the function last so that they can
@@ -301,13 +301,13 @@ func (b *DeploymentRuntimeBuilder) Service(overrides ...ServiceOverride) *corev1
 
 // TLSClientSecret builds and returns the Secret manifest for the TLS client certificate.
 func (b *DeploymentRuntimeBuilder) TLSClientSecret() *corev1.Secret {
-	if b.revision.GetTLSClientSecretName() == nil {
+	if b.revision.GetObservedTLSClientSecretName() == nil {
 		return nil
 	}
 
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            *b.revision.GetTLSClientSecretName(),
+			Name:            *b.revision.GetObservedTLSClientSecretName(),
 			Namespace:       b.namespace,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))},
 		},
@@ -316,13 +316,13 @@ func (b *DeploymentRuntimeBuilder) TLSClientSecret() *corev1.Secret {
 
 // TLSServerSecret builds and returns the Secret manifest for the TLS server certificate.
 func (b *DeploymentRuntimeBuilder) TLSServerSecret() *corev1.Secret {
-	if b.revision.GetTLSServerSecretName() == nil {
+	if b.revision.GetObservedTLSServerSecretName() == nil {
 		return nil
 	}
 
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            *b.revision.GetTLSServerSecretName(),
+			Name:            *b.revision.GetObservedTLSServerSecretName(),
 			Namespace:       b.namespace,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))},
 		},
