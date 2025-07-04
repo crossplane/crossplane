@@ -25,7 +25,6 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 
@@ -282,21 +281,6 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	_, _ = fmt.Fprintln(k.Stdout, "---")
 	if err := s.Encode(out.CompositeResource, k.Stdout); err != nil {
 		return errors.Wrapf(err, "cannot marshal composite resource %q to YAML", xr.GetName())
-	}
-
-	if connectionSecretRef := xr.GetWriteConnectionSecretToReference(); connectionSecretRef != nil && connectionSecretRef.Name != "" {
-		xrConnectionDetails := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      connectionSecretRef.Name,
-				Namespace: connectionSecretRef.Namespace,
-			},
-			Data: out.ConnectionDetails,
-			Type: "connection.crossplane.io/v1alpha1",
-		}
-		_, _ = fmt.Fprintln(k.Stdout, "---")
-		if err := s.Encode(xrConnectionDetails, k.Stdout); err != nil {
-			return errors.Wrapf(err, "cannot marshal composite connection detail Secret %q to YAML", xrConnectionDetails.GetName())
-		}
 	}
 
 	for i := range out.ComposedResources {

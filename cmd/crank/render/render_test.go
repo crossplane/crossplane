@@ -35,7 +35,6 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
@@ -935,6 +934,7 @@ func TestRender(t *testing.T) {
 			},
 			want: want{
 				out: Outputs{
+					// TODO: expect connectionDetails in composite when support is added
 					CompositeResource: &ucomposite.Unstructured{
 						Unstructured: unstructured.Unstructured{
 							Object: MustLoadJSON(`{
@@ -954,10 +954,6 @@ func TestRender(t *testing.T) {
 								}
 							}`),
 						},
-					},
-					ConnectionDetails: managed.ConnectionDetails{
-						"foo": []byte("foo"),
-						"boo": []byte("buz"),
 					},
 				},
 			},
