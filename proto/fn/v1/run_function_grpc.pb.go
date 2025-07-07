@@ -19,7 +19,12 @@
 // - protoc             (unknown)
 // source: proto/fn/v1/run_function.proto
 
-//buf:lint:ignore PACKAGE_DIRECTORY_MATCH // Too late to fix this now.
+// This package defines the RPC for both composition and operation functions.
+// Only composition functions are part of the 'apiextensions' API group. In
+// retrospect this package should've been crossplane.proto.fn.v1, but it's too
+// late to change it now.
+
+//buf:lint:ignore PACKAGE_DIRECTORY_MATCH
 
 package v1
 
