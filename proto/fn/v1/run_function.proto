@@ -131,6 +131,11 @@ message RunFunctionResponse {
   // Status conditions to be applied to the composite resource. Conditions may also
   // optionally be applied to the composite resource's associated claim.
   repeated Condition conditions = 6;
+
+  // Optional output specific to this function invocation.
+  //
+  // Only Operations use function output. XRs will discard any function output.
+  optional google.protobuf.Struct output = 7;
 }
 
 // RequestMeta contains metadata pertaining to a RunFunctionRequest.

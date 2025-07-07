@@ -572,7 +572,11 @@ type RunFunctionResponse struct {
 	Requirements *Requirements `protobuf:"bytes,5,opt,name=requirements,proto3" json:"requirements,omitempty"`
 	// Status conditions to be applied to the composite resource. Conditions may also
 	// optionally be applied to the composite resource's associated claim.
-	Conditions    []*Condition `protobuf:"bytes,6,rep,name=conditions,proto3" json:"conditions,omitempty"`
+	Conditions []*Condition `protobuf:"bytes,6,rep,name=conditions,proto3" json:"conditions,omitempty"`
+	// Optional output specific to this function invocation.
+	//
+	// Only Operations use function output. XRs will discard any function output.
+	Output        *structpb.Struct `protobuf:"bytes,7,opt,name=output,proto3,oneof" json:"output,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -645,6 +649,13 @@ func (x *RunFunctionResponse) GetRequirements() *Requirements {
 func (x *RunFunctionResponse) GetConditions() []*Condition {
 	if x != nil {
 		return x.Conditions
+	}
+	return nil
+}
+
+func (x *RunFunctionResponse) GetOutput() *structpb.Struct {
+	if x != nil {
+		return x.Output
 	}
 	return nil
 }
@@ -1311,7 +1322,7 @@ const file_proto_fn_v1_run_function_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\fR\x05value:\x028\x01\"F\n" +
 	"\tResources\x129\n" +
-	"\x05items\x18\x01 \x03(\v2#.apiextensions.fn.proto.v1.ResourceR\x05items\"\xa2\x03\n" +
+	"\x05items\x18\x01 \x03(\v2#.apiextensions.fn.proto.v1.ResourceR\x05items\"\xe3\x03\n" +
 	"\x13RunFunctionResponse\x12;\n" +
 	"\x04meta\x18\x01 \x01(\v2'.apiextensions.fn.proto.v1.ResponseMetaR\x04meta\x12:\n" +
 	"\adesired\x18\x02 \x01(\v2 .apiextensions.fn.proto.v1.StateR\adesired\x12;\n" +
@@ -1320,9 +1331,11 @@ const file_proto_fn_v1_run_function_proto_rawDesc = "" +
 	"\frequirements\x18\x05 \x01(\v2'.apiextensions.fn.proto.v1.RequirementsR\frequirements\x12D\n" +
 	"\n" +
 	"conditions\x18\x06 \x03(\v2$.apiextensions.fn.proto.v1.ConditionR\n" +
-	"conditionsB\n" +
+	"conditions\x124\n" +
+	"\x06output\x18\a \x01(\v2\x17.google.protobuf.StructH\x01R\x06output\x88\x01\x01B\n" +
 	"\n" +
-	"\b_context\"\x1f\n" +
+	"\b_contextB\t\n" +
+	"\a_output\"\x1f\n" +
 	"\vRequestMeta\x12\x10\n" +
 	"\x03tag\x18\x01 \x01(\tR\x03tag\"\xe4\x01\n" +
 	"\fRequirements\x12d\n" +
@@ -1461,30 +1474,31 @@ var file_proto_fn_v1_run_function_proto_depIdxs = []int32{
 	25, // 13: apiextensions.fn.proto.v1.RunFunctionResponse.context:type_name -> google.protobuf.Struct
 	10, // 14: apiextensions.fn.proto.v1.RunFunctionResponse.requirements:type_name -> apiextensions.fn.proto.v1.Requirements
 	17, // 15: apiextensions.fn.proto.v1.RunFunctionResponse.conditions:type_name -> apiextensions.fn.proto.v1.Condition
-	21, // 16: apiextensions.fn.proto.v1.Requirements.extra_resources:type_name -> apiextensions.fn.proto.v1.Requirements.ExtraResourcesEntry
-	12, // 17: apiextensions.fn.proto.v1.ResourceSelector.match_labels:type_name -> apiextensions.fn.proto.v1.MatchLabels
-	22, // 18: apiextensions.fn.proto.v1.MatchLabels.labels:type_name -> apiextensions.fn.proto.v1.MatchLabels.LabelsEntry
-	26, // 19: apiextensions.fn.proto.v1.ResponseMeta.ttl:type_name -> google.protobuf.Duration
-	15, // 20: apiextensions.fn.proto.v1.State.composite:type_name -> apiextensions.fn.proto.v1.Resource
-	23, // 21: apiextensions.fn.proto.v1.State.resources:type_name -> apiextensions.fn.proto.v1.State.ResourcesEntry
-	25, // 22: apiextensions.fn.proto.v1.Resource.resource:type_name -> google.protobuf.Struct
-	24, // 23: apiextensions.fn.proto.v1.Resource.connection_details:type_name -> apiextensions.fn.proto.v1.Resource.ConnectionDetailsEntry
-	0,  // 24: apiextensions.fn.proto.v1.Resource.ready:type_name -> apiextensions.fn.proto.v1.Ready
-	1,  // 25: apiextensions.fn.proto.v1.Result.severity:type_name -> apiextensions.fn.proto.v1.Severity
-	2,  // 26: apiextensions.fn.proto.v1.Result.target:type_name -> apiextensions.fn.proto.v1.Target
-	3,  // 27: apiextensions.fn.proto.v1.Condition.status:type_name -> apiextensions.fn.proto.v1.Status
-	2,  // 28: apiextensions.fn.proto.v1.Condition.target:type_name -> apiextensions.fn.proto.v1.Target
-	7,  // 29: apiextensions.fn.proto.v1.RunFunctionRequest.ExtraResourcesEntry.value:type_name -> apiextensions.fn.proto.v1.Resources
-	5,  // 30: apiextensions.fn.proto.v1.RunFunctionRequest.CredentialsEntry.value:type_name -> apiextensions.fn.proto.v1.Credentials
-	11, // 31: apiextensions.fn.proto.v1.Requirements.ExtraResourcesEntry.value:type_name -> apiextensions.fn.proto.v1.ResourceSelector
-	15, // 32: apiextensions.fn.proto.v1.State.ResourcesEntry.value:type_name -> apiextensions.fn.proto.v1.Resource
-	4,  // 33: apiextensions.fn.proto.v1.FunctionRunnerService.RunFunction:input_type -> apiextensions.fn.proto.v1.RunFunctionRequest
-	8,  // 34: apiextensions.fn.proto.v1.FunctionRunnerService.RunFunction:output_type -> apiextensions.fn.proto.v1.RunFunctionResponse
-	34, // [34:35] is the sub-list for method output_type
-	33, // [33:34] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	25, // 16: apiextensions.fn.proto.v1.RunFunctionResponse.output:type_name -> google.protobuf.Struct
+	21, // 17: apiextensions.fn.proto.v1.Requirements.extra_resources:type_name -> apiextensions.fn.proto.v1.Requirements.ExtraResourcesEntry
+	12, // 18: apiextensions.fn.proto.v1.ResourceSelector.match_labels:type_name -> apiextensions.fn.proto.v1.MatchLabels
+	22, // 19: apiextensions.fn.proto.v1.MatchLabels.labels:type_name -> apiextensions.fn.proto.v1.MatchLabels.LabelsEntry
+	26, // 20: apiextensions.fn.proto.v1.ResponseMeta.ttl:type_name -> google.protobuf.Duration
+	15, // 21: apiextensions.fn.proto.v1.State.composite:type_name -> apiextensions.fn.proto.v1.Resource
+	23, // 22: apiextensions.fn.proto.v1.State.resources:type_name -> apiextensions.fn.proto.v1.State.ResourcesEntry
+	25, // 23: apiextensions.fn.proto.v1.Resource.resource:type_name -> google.protobuf.Struct
+	24, // 24: apiextensions.fn.proto.v1.Resource.connection_details:type_name -> apiextensions.fn.proto.v1.Resource.ConnectionDetailsEntry
+	0,  // 25: apiextensions.fn.proto.v1.Resource.ready:type_name -> apiextensions.fn.proto.v1.Ready
+	1,  // 26: apiextensions.fn.proto.v1.Result.severity:type_name -> apiextensions.fn.proto.v1.Severity
+	2,  // 27: apiextensions.fn.proto.v1.Result.target:type_name -> apiextensions.fn.proto.v1.Target
+	3,  // 28: apiextensions.fn.proto.v1.Condition.status:type_name -> apiextensions.fn.proto.v1.Status
+	2,  // 29: apiextensions.fn.proto.v1.Condition.target:type_name -> apiextensions.fn.proto.v1.Target
+	7,  // 30: apiextensions.fn.proto.v1.RunFunctionRequest.ExtraResourcesEntry.value:type_name -> apiextensions.fn.proto.v1.Resources
+	5,  // 31: apiextensions.fn.proto.v1.RunFunctionRequest.CredentialsEntry.value:type_name -> apiextensions.fn.proto.v1.Credentials
+	11, // 32: apiextensions.fn.proto.v1.Requirements.ExtraResourcesEntry.value:type_name -> apiextensions.fn.proto.v1.ResourceSelector
+	15, // 33: apiextensions.fn.proto.v1.State.ResourcesEntry.value:type_name -> apiextensions.fn.proto.v1.Resource
+	4,  // 34: apiextensions.fn.proto.v1.FunctionRunnerService.RunFunction:input_type -> apiextensions.fn.proto.v1.RunFunctionRequest
+	8,  // 35: apiextensions.fn.proto.v1.FunctionRunnerService.RunFunction:output_type -> apiextensions.fn.proto.v1.RunFunctionResponse
+	35, // [35:36] is the sub-list for method output_type
+	34, // [34:35] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_proto_fn_v1_run_function_proto_init() }
