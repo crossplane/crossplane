@@ -67,13 +67,13 @@ message RunFunctionRequest {
   // discards all context returned by the last Function in the pipeline.
   optional google.protobuf.Struct context = 5;
 
-  // Optional extra resources that the Function required.
-  // Note that extra resources is a map to Resources, plural.
-  // The map key corresponds to the key in a RunFunctionResponse's
-  // extra_resources field. If a Function requested extra resources that
-  // did not exist, Crossplane sets the map key to an empty Resources message to
-  // indicate that it attempted to satisfy the request.
-  map<string, Resources> extra_resources = 6;
+  // Optional resources that the Function specified in its requirements.
+  // Note that resources is a map to Resources, plural. The map key corresponds
+  // to the key in a RunFunctionResponse's requirements.resources field. If a
+  // Function requested required resources that did not exist, Crossplane sets
+  // the map key to an empty Resources message to indicate that it attempted to
+  // satisfy the request.
+  map<string, Resources> required_resources = 6;
 
   // Optional credentials that this Function may use to communicate with an
   // external system.
@@ -147,9 +147,9 @@ message RequestMeta {
 
 // Requirements that must be satisfied for a Function to run successfully.
 message Requirements {
-  // Extra resources that this Function requires.
+  // Resources that this Function requires.
   // The map key uniquely identifies the group of resources.
-  map<string, ResourceSelector> extra_resources = 1;
+  map<string, ResourceSelector> resources = 1;
 }
 
 // ResourceSelector selects a group of resources, either by name or by label.

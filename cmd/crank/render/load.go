@@ -132,8 +132,8 @@ func LoadCredentials(fs afero.Fs, file string) ([]corev1.Secret, error) {
 	return secrets, nil
 }
 
-// LoadExtraResources from a stream of YAML manifests.
-func LoadExtraResources(fs afero.Fs, file string) ([]unstructured.Unstructured, error) {
+// LoadRequiredResources from a stream of YAML manifests.
+func LoadRequiredResources(fs afero.Fs, file string) ([]unstructured.Unstructured, error) {
 	stream, err := LoadYAMLStream(fs, file)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot load YAML stream from file")

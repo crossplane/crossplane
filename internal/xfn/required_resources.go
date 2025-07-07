@@ -33,50 +33,38 @@ import (
 	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
 )
 
-// Error strings.
-const (
-	errNilResourceSelector     = "resource selector should not be nil"
-	errGetExtraResourceByName  = "cannot get extra resource by name"
-	errExtraResourceAsStruct   = "cannot encode extra resource to protocol buffer Struct well-known type"
-	errListExtraResources      = "cannot list extra resources"
-	errUnknownResourceSelector = "cannot get extra resource by name: unknown resource selector type"
-	errStructFromUnstructured  = "cannot create Struct"
-	errMarshalJSON             = "cannot marshal to JSON"
-	errUnmarshalJSON           = "cannot unmarshal from SON"
-)
-
 // MaxRequirementsIterations is the maximum number of times a Function should be
-// called, limiting the number of times it can request for extra resources,
+// called, limiting the number of times it can request for required resources,
 // capped for safety.
 const MaxRequirementsIterations = 5
 
-// An ExtraResourcesFetcher gets extra resources matching a selector.
-type ExtraResourcesFetcher interface {
+// An RequiredResourcesFetcher gets required resources matching a selector.
+type RequiredResourcesFetcher interface {
 	Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error)
 }
 
-// An ExtraResourcesFetcherFn gets extra resources matching the selector.
-type ExtraResourcesFetcherFn func(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error)
+// An RequiredResourcesFetcherFn gets required resources matching the selector.
+type RequiredResourcesFetcherFn func(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error)
 
-// Fetch gets extra resources matching the selector.
-func (fn ExtraResourcesFetcherFn) Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
+// Fetch gets required resources matching the selector.
+func (fn RequiredResourcesFetcherFn) Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
 	return fn(ctx, rs)
 }
 
 // A FetchingFunctionRunner wraps an underlyin FunctionRunner, adding support
-// for fetching any extra resources requested by the function it runs.
+// for fetching any required resources requested by the function it runs.
 type FetchingFunctionRunner struct {
 	wrapped   FunctionRunner
-	resources ExtraResourcesFetcher
+	resources RequiredResourcesFetcher
 }
 
 // NewFetchingFunctionRunner returns a FunctionRunner that supports fetching
-// extra resources.
-func NewFetchingFunctionRunner(r FunctionRunner, f ExtraResourcesFetcher) *FetchingFunctionRunner {
+// required resources.
+func NewFetchingFunctionRunner(r FunctionRunner, f RequiredResourcesFetcher) *FetchingFunctionRunner {
 	return &FetchingFunctionRunner{wrapped: r, resources: f}
 }
 
-// RunFunction runs a function, repeatedly fetching any extra resources it asks
+// RunFunction runs a function, repeatedly fetching any required resources it asks
 // for. The function may be run up to MaxRequirementsIterations times.
 func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 	// Used to store the requirements returned at the previous iteration.
@@ -105,18 +93,18 @@ func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, r
 		// Store the requirements for the next iteration.
 		requirements = newRequirements
 
-		// Clean up the extra resources from the previous iteration to store the new ones
-		req.ExtraResources = make(map[string]*fnv1.Resources)
+		// Clean up the required resources from the previous iteration to store the new ones
+		req.RequiredResources = make(map[string]*fnv1.Resources)
 
 		// Fetch the requested resources and add them to the desired state.
-		for name, selector := range newRequirements.GetExtraResources() {
+		for name, selector := range newRequirements.GetResources() {
 			resources, err := c.resources.Fetch(ctx, selector)
 			if err != nil {
 				return nil, errors.Wrapf(err, "fetching resources for %s", name)
 			}
 
 			// Resources would be nil in case of not found resources.
-			req.ExtraResources[name] = resources
+			req.RequiredResources[name] = resources
 		}
 
 		// Pass down the updated context across iterations.
@@ -126,21 +114,21 @@ func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, r
 	return nil, errors.Errorf("requirements didn't stabilize after the maximum number of iterations (%d)", MaxRequirementsIterations)
 }
 
-// ExistingExtraResourcesFetcher fetches extra resources requested by
+// ExistingRequiredResourcesFetcher fetches required resources requested by
 // functions using the provided client.Reader.
-type ExistingExtraResourcesFetcher struct {
+type ExistingRequiredResourcesFetcher struct {
 	client client.Reader
 }
 
-// NewExistingExtraResourcesFetcher returns a new ExistingExtraResourcesFetcher.
-func NewExistingExtraResourcesFetcher(c client.Reader) *ExistingExtraResourcesFetcher {
-	return &ExistingExtraResourcesFetcher{client: c}
+// NewExistingRequiredResourcesFetcher returns a new ExistingRequiredResourcesFetcher.
+func NewExistingRequiredResourcesFetcher(c client.Reader) *ExistingRequiredResourcesFetcher {
+	return &ExistingRequiredResourcesFetcher{client: c}
 }
 
 // Fetch fetches resources requested by functions using the provided client.Reader.
-func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
+func (e *ExistingRequiredResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
 	if rs == nil {
-		return nil, errors.New(errNilResourceSelector)
+		return nil, errors.New("you must specify a resource selector")
 	}
 
 	switch match := rs.GetMatch().(type) {
@@ -159,12 +147,12 @@ func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.Reso
 		}
 
 		if err != nil {
-			return nil, errors.Wrap(err, errGetExtraResourceByName)
+			return nil, errors.Wrap(err, "cannot get required resource by name")
 		}
 
 		o, err := AsStruct(r)
 		if err != nil {
-			return nil, errors.Wrap(err, errExtraResourceAsStruct)
+			return nil, errors.Wrap(err, "cannot encode required resource to protobuf Struct")
 		}
 
 		return &fnv1.Resources{Items: []*fnv1.Resource{{Resource: o}}}, nil
@@ -175,14 +163,14 @@ func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.Reso
 		list.SetKind(rs.GetKind())
 		// If namespace is empty client.InNamespace will have no effect.
 		if err := e.client.List(ctx, list, client.MatchingLabels(match.MatchLabels.GetLabels()), client.InNamespace(rs.GetNamespace())); err != nil {
-			return nil, errors.Wrap(err, errListExtraResources)
+			return nil, errors.Wrap(err, "cannot list required resources")
 		}
 
 		resources := make([]*fnv1.Resource, len(list.Items))
 		for i, r := range list.Items {
 			o, err := AsStruct(&r)
 			if err != nil {
-				return nil, errors.Wrap(err, errExtraResourceAsStruct)
+				return nil, errors.Wrap(err, "cannot encode required resource to protobuf Struct")
 			}
 
 			resources[i] = &fnv1.Resource{Resource: o}
@@ -191,7 +179,7 @@ func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.Reso
 		return &fnv1.Resources{Items: resources}, nil
 	}
 
-	return nil, errors.New(errUnknownResourceSelector)
+	return nil, errors.Errorf("unsupported required resource selector type %T", rs.GetMatch())
 }
 
 // AsStruct converts the supplied object to a protocol buffer Struct well-known
@@ -200,22 +188,22 @@ func AsStruct(o runtime.Object) (*structpb.Struct, error) {
 	// If the supplied object is *Unstructured we don't need to round-trip.
 	if u, ok := o.(*kunstructured.Unstructured); ok {
 		s, err := structpb.NewStruct(u.Object)
-		return s, errors.Wrap(err, errStructFromUnstructured)
+		return s, errors.Wrap(err, "cannot create protobuf Struct")
 	}
 
 	// If the supplied object wraps *Unstructured we don't need to round-trip.
 	if w, ok := o.(unstructured.Wrapper); ok {
 		s, err := structpb.NewStruct(w.GetUnstructured().Object)
-		return s, errors.Wrap(err, errStructFromUnstructured)
+		return s, errors.Wrap(err, "cannot create protobuf Struct")
 	}
 
 	// Fall back to a JSON round-trip.
 	b, err := json.Marshal(o)
 	if err != nil {
-		return nil, errors.Wrap(err, errMarshalJSON)
+		return nil, errors.Wrap(err, "cannot marshal object to JSON")
 	}
 
 	s := &structpb.Struct{}
 
-	return s, errors.Wrap(s.UnmarshalJSON(b), errUnmarshalJSON)
+	return s, errors.Wrap(s.UnmarshalJSON(b), "cannot unmarshal object from JSON")
 }

@@ -117,7 +117,6 @@ type xr struct {
 	ConnectionDetailsFetcher
 	ComposedResourceObserver
 	ComposedResourceGarbageCollector
-	ExtraResourcesFetcher
 	ManagedFieldsUpgrader
 }
 
@@ -158,11 +157,6 @@ type ComposedResourceObserverFn func(ctx context.Context, xr resource.Composite)
 // ObserveComposedResources observes existing composed resources.
 func (fn ComposedResourceObserverFn) ObserveComposedResources(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 	return fn(ctx, xr)
-}
-
-// An ExtraResourcesFetcher gets extra resources matching a selector.
-type ExtraResourcesFetcher interface {
-	Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error)
 }
 
 // A ComposedResourceGarbageCollector deletes observed composed resources that
