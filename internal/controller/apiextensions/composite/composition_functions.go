@@ -66,11 +66,6 @@ const (
 	errUnmarshalDesiredXRStatus = "cannot unmarshal desired composite resource status from RunFunctionResponse"
 	errXRAsStruct               = "cannot encode composite resource to protocol buffer Struct well-known type"
 	errStructFromUnstructured   = "cannot create Struct"
-	errGetExtraResourceByName   = "cannot get extra resource by name"
-	errNilResourceSelector      = "resource selector should not be nil"
-	errExtraResourceAsStruct    = "cannot encode extra resource to protocol buffer Struct well-known type"
-	errUnknownResourceSelector  = "cannot get extra resource by name: unknown resource selector type"
-	errListExtraResources       = "cannot list extra resources"
 	errGetComposed              = "cannot get composed resource"
 	errMarshalJSON              = "cannot marshal to JSON"
 
@@ -165,17 +160,9 @@ func (fn ComposedResourceObserverFn) ObserveComposedResources(ctx context.Contex
 	return fn(ctx, xr)
 }
 
-// A ExtraResourcesFetcher gets extra resources matching a selector.
+// An ExtraResourcesFetcher gets extra resources matching a selector.
 type ExtraResourcesFetcher interface {
 	Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error)
-}
-
-// An ExtraResourcesFetcherFn gets extra resources matching the selector.
-type ExtraResourcesFetcherFn func(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error)
-
-// Fetch gets extra resources matching the selector.
-func (fn ExtraResourcesFetcherFn) Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
-	return fn(ctx, rs)
 }
 
 // A ComposedResourceGarbageCollector deletes observed composed resources that

@@ -196,7 +196,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 	}()
 
-	runner := composite.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{extra: in.ExtraResources})
+	runner := xfn.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{extra: in.ExtraResources})
 
 	observed := composite.ComposedResourceStates{}
 
