@@ -1,0 +1,382 @@
+/*
+Copyright 2025 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// Package operation implements day two operations.
+package operation
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"slices"
+	"time"
+
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+	corev1 "k8s.io/api/core/v1"
+	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
+
+	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
+	"github.com/crossplane/crossplane/internal/xfn"
+	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
+)
+
+const timeout = 2 * time.Minute
+
+// Event reasons.
+const (
+	reasonRunPipelineStep    = "RunPipelineStep"
+	reasonMaxFailures        = "MaxFailures"
+	reasonFunctionInvocation = "FunctionInvocation"
+	reasonInvalidOutput      = "InvalidOutput"
+	reasonInvalidResource    = "InvalidResource"
+)
+
+// FieldOwnerPrefix is used to form the server-side apply field owner
+// that owns the fields this controller mutates on desired resources.
+const FieldOwnerPrefix = "ops.crossplane.io/operation/"
+
+// A Reconciler reconciles Operations.
+type Reconciler struct {
+	client client.Client
+
+	log        logging.Logger
+	record     event.Recorder
+	conditions conditions.Manager
+
+	pipeline xfn.FunctionRunner
+}
+
+// Reconcile an Operation by running its function pipeline.
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Reconcilers are typically complex.
+	log := r.log.WithValues("request", req)
+
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	op := &v1alpha1.Operation{}
+	if err := r.client.Get(ctx, req.NamespacedName, op); err != nil {
+		// In case object is not found, most likely the object was deleted and
+		// then disappeared while the event was in the processing queue. We
+		// don't need to take any action in that case.
+		log.Debug("cannot get Operation", "error", err)
+		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get Operation")
+	}
+
+	status := r.conditions.For(op)
+
+	log = log.WithValues(
+		"uid", op.GetUID(),
+		"version", op.GetResourceVersion(),
+		"name", op.GetName(),
+		"namespace", op.GetNamespace(),
+	)
+
+	// Don't reconcile the operation if it's being deleted.
+	if meta.WasDeleted(op) {
+		return reconcile.Result{Requeue: false}, nil
+	}
+
+	// We only want to run this Operation to completion once.
+	if op.IsComplete() {
+		log.Debug("Operation is already complete. Nothing to do.")
+		return reconcile.Result{Requeue: false}, nil
+	}
+
+	// Don't run if we're at the configured failure limit.
+	limit := ptr.Deref(op.Spec.RetryLimit, 5)
+	if op.Status.Failures >= limit {
+		log.Debug("Operation failure limit reached. Not running again.", "limit", limit)
+		status.MarkConditions(v1alpha1.Failed("failure limit of %d reached", limit))
+
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
+	}
+
+	// Updating this status condition ensures we're reconciling the latest
+	// version of the Operation. The update would be rejected if we were
+	// reconciling a stale version. This is important because it helps us
+	// make sure the Operation really isn't complete. That's why we do it
+	// every time, instead of only if the Operation isn't already running.
+	status.MarkConditions(v1alpha1.Running())
+	if err := r.client.Status().Update(ctx, op); err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "cannot update Operation status")
+	}
+
+	// The function pipeline starts with empty desired state.
+	d := &fnv1.State{}
+
+	// The function context starts empty.
+	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
+
+	// Run any operation functions in the pipeline. Each function may mutate
+	// the desired state returned by the last, and each function may produce
+	// results that will be emitted as events.
+	for _, fn := range op.Spec.Pipeline {
+		log = log.WithValues("step", fn.Step)
+
+		req := &fnv1.RunFunctionRequest{Desired: d, Context: fctx}
+
+		if fn.Input != nil {
+			in := &structpb.Struct{}
+			if err := in.UnmarshalJSON(fn.Input.Raw); err != nil {
+				log.Debug("Cannot unmarshal input for operation pipeline step", "error", err)
+
+				// An unmarshalable input requires human intervention to fix, so
+				// we immediately fail this operation without retrying.
+				status.MarkConditions(v1alpha1.Failed("cannot unmarshal input for operation pipeline step %q", fn.Step))
+				_ = r.client.Status().Update(ctx, op)
+
+				return reconcile.Result{}, errors.Wrapf(err, "cannot unmarshal input for operation pipeline step %q", fn.Step)
+			}
+
+			req.Input = in
+		}
+
+		req.Credentials = map[string]*fnv1.Credentials{}
+		for _, cs := range fn.Credentials {
+			// For now we only support loading credentials from secrets.
+			if cs.Source != v1alpha1.FunctionCredentialsSourceSecret || cs.SecretRef == nil {
+				continue
+			}
+
+			s := &corev1.Secret{}
+			if err := r.client.Get(ctx, client.ObjectKey{Namespace: cs.SecretRef.Namespace, Name: cs.SecretRef.Name}, s); err != nil {
+				op.Status.Failures++
+				_ = r.client.Status().Update(ctx, op)
+
+				log.Debug("Cannot get Operation pipeline step credential", "error", err, "failures", op.Status.Failures, "credential", cs.Name)
+
+				err = errors.Wrapf(err, "cannot get operation pipeline step %q credential %q from Secret", fn.Step, cs.Name)
+				r.record.Event(op, event.Warning(reasonFunctionInvocation, err))
+
+				return reconcile.Result{}, err
+			}
+
+			req.Credentials[cs.Name] = &fnv1.Credentials{
+				Source: &fnv1.Credentials_CredentialData{
+					CredentialData: &fnv1.CredentialData{
+						Data: s.Data,
+					},
+				},
+			}
+		}
+
+		req.Meta = &fnv1.RequestMeta{Tag: Tag(req)}
+
+		rsp, err := r.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
+		if err != nil {
+			op.Status.Failures++
+			_ = r.client.Status().Update(ctx, op)
+
+			log.Debug("Cannot run operation pipeline step", "error", err, "failures", op.Status.Failures)
+
+			err = errors.Wrapf(err, "failed to invoke pipeline step %q", fn.Step)
+			r.record.Event(op, event.Warning(reasonFunctionInvocation, err))
+
+			return reconcile.Result{}, err
+		}
+
+		// Pass down the updated context across iterations.
+		req.Context = rsp.GetContext()
+
+		// Pass the desired state returned by this Function to the next one.
+		d = rsp.GetDesired()
+
+		// Pass the Function context returned by this Function to the next one.
+		// We intentionally discard/ignore this after the last Function runs.
+		fctx = rsp.GetContext()
+
+		// Results of fatal severity stop the Operation. Other results are
+		// emitted as events.
+		for _, rs := range rsp.GetResults() {
+			switch rs.GetSeverity() {
+			case fnv1.Severity_SEVERITY_FATAL:
+				op.Status.Failures++
+				_ = r.client.Status().Update(ctx, op)
+
+				log.Debug("Pipeline step returned a fatal result", "error", rs.GetMessage(), "failures", op.Status.Failures)
+
+				err = errors.New(rs.GetMessage())
+				r.record.Event(op, event.Warning(reasonFunctionInvocation, err))
+
+				return reconcile.Result{}, err
+			case fnv1.Severity_SEVERITY_WARNING:
+				r.record.Event(op, event.Warning(reasonRunPipelineStep, errors.Errorf("Pipeline step %q: %s", fn.Step, rs.GetMessage())))
+			case fnv1.Severity_SEVERITY_NORMAL:
+				r.record.Event(op, event.Normal(reasonRunPipelineStep, fmt.Sprintf("Pipeline step %q: %s", fn.Step, rs.GetMessage())))
+			case fnv1.Severity_SEVERITY_UNSPECIFIED:
+				// We could hit this case if a Function was built against a newer
+				// protobuf than this build of Crossplane, and the new protobuf
+				// introduced a severity that we don't know about.
+				r.record.Event(op, event.Warning(reasonRunPipelineStep, errors.Errorf("Pipeline step %q returned a result of unknown severity (assuming warning): %s", fn.Step, rs.GetMessage())))
+			}
+		}
+
+		if o := rsp.GetOutput(); o != nil {
+			j, err := protojson.Marshal(o)
+			if err != nil {
+				op.Status.Failures++
+				_ = r.client.Status().Update(ctx, op)
+
+				log.Debug("Cannot marshal pipeline step output to JSON", "error", err, "failures", op.Status.Failures)
+
+				err = errors.Wrapf(err, "cannot marshal pipeline step %q output to JSON", fn.Step)
+				r.record.Event(op, event.Warning(reasonInvalidOutput, err))
+
+				return reconcile.Result{}, err
+			}
+
+			op.Status.Pipeline = append(op.Status.Pipeline, v1alpha1.PipelineStepStatus{
+				Step:   fn.Step,
+				Output: &runtime.RawExtension{Raw: j},
+			})
+		}
+	}
+
+	// Now that all functions have run, we want to apply any desired
+	// resources the pipeline produced.
+	for name, dr := range d.GetResources() {
+		u := &kunstructured.Unstructured{}
+		if err := FromStruct(u, dr.GetResource()); err != nil {
+			op.Status.Failures++
+			_ = r.client.Status().Update(ctx, op)
+
+			log.Debug("Cannot load desired resource from protobuf struct", "error", err, "failures", op.Status.Failures, "resource-name", name)
+
+			err = errors.Wrapf(err, "cannot load desired resource %q from protobuf struct", name)
+			r.record.Event(op, event.Warning(reasonInvalidResource, err))
+
+			return reconcile.Result{}, err
+		}
+
+		// TODO(negz): Do we really want to force ownership? We'll
+		// always be operating on a resource some other controller owns.
+		if err := r.client.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerPrefix+op.GetUID())); err != nil {
+			op.Status.Failures++
+			_ = r.client.Status().Update(ctx, op)
+
+			log.Debug("Cannot apply desired resource", "error", err, "failures", op.Status.Failures, "resource-name", name)
+
+			err = errors.Wrap(err, "cannot load desired resource")
+			r.record.Event(op, event.Warning(reasonInvalidResource, err))
+
+			return reconcile.Result{}, err
+		}
+
+		// TODO(negz): A pipeline could overflow this if it returned
+		// hundreds of desired resources. We could switch to a plain
+		// count, but it's pretty useful to know what resources an
+		// Operation applied...
+		op.Status.AppliedResourceRefs = AddResourceRef(op.Status.AppliedResourceRefs, u)
+	}
+
+	status.MarkConditions(v1alpha1.Complete())
+
+	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
+}
+
+// Tag uniquely identifies a request. Two identical requests created by the
+// same Crossplane binary will produce identical tags. Different builds of
+// Crossplane may produce different tags for the same inputs. See the docs for
+// the Deterministic protobuf MarshalOption for more details.
+func Tag(req *fnv1.RunFunctionRequest) string {
+	m := proto.MarshalOptions{Deterministic: true}
+
+	b, err := m.Marshal(req)
+	if err != nil {
+		return ""
+	}
+
+	h := sha256.Sum256(b)
+
+	return hex.EncodeToString(h[:])
+}
+
+// FromStruct populates the supplied object with content loaded from the Struct.
+func FromStruct(o client.Object, s *structpb.Struct) error {
+	// If the supplied object is *Unstructured we don't need to round-trip.
+	if u, ok := o.(*kunstructured.Unstructured); ok {
+		u.Object = s.AsMap()
+		return nil
+	}
+
+	// If the supplied object wraps *Unstructured we don't need to round-trip.
+	if w, ok := o.(unstructured.Wrapper); ok {
+		w.GetUnstructured().Object = s.AsMap()
+		return nil
+	}
+
+	// Fall back to a JSON round-trip.
+	b, err := protojson.Marshal(s)
+	if err != nil {
+		return errors.Wrap(err, "cannot marshal protobuf Struct to JSON")
+	}
+
+	return errors.Wrap(json.Unmarshal(b, o), "cannot unmarshal JSON to object")
+}
+
+// AddResourceRef adds a reference to the supplied resource to supplied
+// references. It only adds resources that aren't already referenced, and keeps
+// the references sorted.
+func AddResourceRef(refs []v1alpha1.AppliedResourceRef, u *kunstructured.Unstructured) []v1alpha1.AppliedResourceRef {
+	ref := v1alpha1.AppliedResourceRef{
+		APIVersion: u.GetAPIVersion(),
+		Kind:       u.GetKind(),
+		Name:       u.GetName(),
+	}
+	if u.GetNamespace() != "" {
+		ref.Namespace = ptr.To(u.GetNamespace())
+	}
+
+	// Don't add the new ref it it's already there.
+	if slices.Contains(refs, ref) {
+		return refs
+	}
+
+	refs = append(refs, ref)
+
+	slices.SortStableFunc(refs, func(a, b v1alpha1.AppliedResourceRef) int {
+		sa := a.APIVersion + a.Kind + ptr.Deref(a.Namespace, "") + a.Name
+		sb := b.APIVersion + b.Kind + ptr.Deref(b.Namespace, "") + b.Name
+
+		if sa == sb {
+			return 0
+		}
+
+		if sa > sb {
+			return 1
+		}
+
+		return -1
+	})
+
+	return refs
+}

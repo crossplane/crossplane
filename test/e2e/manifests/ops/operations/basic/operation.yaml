@@ -1,0 +1,37 @@
+apiVersion: ops.crossplane.io/v1alpha1
+kind: Operation
+metadata:
+  name: basic
+spec:
+  mode: Pipeline
+  pipeline:
+  - step: create-a-configmap
+    functionRef:
+      name: function-dummy-ops-basic
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      # This is a YAML-serialized RunFunctionResponse. function-dummy will
+      # overlay the desired state on any that was passed into it.
+      response:
+        desired:
+          resources:
+            configmap:
+              resource:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  namespace: default
+                  name: cool-map
+                data:
+                  coolData: "I'm cool!"
+        results:
+         - severity: SEVERITY_NORMAL
+           message: "I am doing an operate!"
+    credentials:
+    - name: important-secret
+      source: Secret
+      secretRef:
+        namespace: crossplane-system
+        name: super-secret
+    
