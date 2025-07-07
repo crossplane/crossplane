@@ -58,7 +58,6 @@ const (
 	errBuildObserved            = "cannot build observed state for RunFunctionRequest"
 	errGarbageCollectCDs        = "cannot garbage collect composed resources that are no longer desired"
 	errApplyXRRefs              = "cannot update composed resource references"
-	errUpdateAfterApplyXRRefs   = "cannot refresh composed resource after updating references"
 	errApplyXRStatus            = "cannot apply composite resource status"
 	errAnonymousCD              = "encountered composed resource without required \"" + xcrd.AnnotationKeyCompositionResourceName + "\" annotation"
 	errUnmarshalDesiredXRStatus = "cannot unmarshal desired composite resource status from RunFunctionResponse"
