@@ -39,7 +39,7 @@ import (
 
 var _ FunctionRunner = &FetchingFunctionRunner{}
 
-func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
+func TestExistingRequiredResourcesFetcherFetch(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	type args struct {
@@ -233,7 +233,7 @@ func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			g := NewExistingExtraResourcesFetcher(tc.args.c)
+			g := NewExistingRequiredResourcesFetcher(tc.args.c)
 
 			res, err := g.Fetch(context.Background(), tc.args.rs)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
@@ -261,7 +261,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 
 	type params struct {
 		wrapped   FunctionRunner
-		resources ExtraResourcesFetcher
+		resources RequiredResourcesFetcher
 	}
 
 	type args struct {
@@ -351,7 +351,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Requirements: &fnv1.Requirements{
-							ExtraResources: map[string]*fnv1.ResourceSelector{
+							Resources: map[string]*fnv1.ResourceSelector{
 								"gimme": {
 									ApiVersion: "test.crossplane.io/v1",
 									Kind:       "CoolResource",
@@ -361,7 +361,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 					}
 					return rsp, nil
 				}),
-				resources: ExtraResourcesFetcherFn(func(_ context.Context, _ *fnv1.ResourceSelector) (*fnv1.Resources, error) {
+				resources: RequiredResourcesFetcherFn(func(_ context.Context, _ *fnv1.ResourceSelector) (*fnv1.Resources, error) {
 					return nil, errors.New("boom")
 				}),
 			},
@@ -378,7 +378,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Requirements: &fnv1.Requirements{
-							ExtraResources: map[string]*fnv1.ResourceSelector{
+							Resources: map[string]*fnv1.ResourceSelector{
 								"gimme": {
 									ApiVersion: "test.crossplane.io/v1",
 
@@ -390,7 +390,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 					}
 					return rsp, nil
 				}),
-				resources: ExtraResourcesFetcherFn(func(_ context.Context, _ *fnv1.ResourceSelector) (*fnv1.Resources, error) {
+				resources: RequiredResourcesFetcherFn(func(_ context.Context, _ *fnv1.ResourceSelector) (*fnv1.Resources, error) {
 					return &fnv1.Resources{}, nil
 				}),
 			},
@@ -409,7 +409,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 					// we're called, in response to our requirements.
 					if called {
 						want := &fnv1.RunFunctionRequest{
-							ExtraResources: map[string]*fnv1.Resources{
+							RequiredResources: map[string]*fnv1.Resources{
 								"gimme": {
 									Items: []*fnv1.Resource{{Resource: coolResource}},
 								},
@@ -426,7 +426,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 
 					rsp := &fnv1.RunFunctionResponse{
 						Requirements: &fnv1.Requirements{
-							ExtraResources: map[string]*fnv1.ResourceSelector{
+							Resources: map[string]*fnv1.ResourceSelector{
 								"gimme": {
 									ApiVersion: "test.crossplane.io/v1",
 									Kind:       "CoolResource",
@@ -436,7 +436,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 					}
 					return rsp, nil
 				}),
-				resources: ExtraResourcesFetcherFn(func(_ context.Context, _ *fnv1.ResourceSelector) (*fnv1.Resources, error) {
+				resources: RequiredResourcesFetcherFn(func(_ context.Context, _ *fnv1.ResourceSelector) (*fnv1.Resources, error) {
 					r := &fnv1.Resources{
 						Items: []*fnv1.Resource{{Resource: coolResource}},
 					}
@@ -449,7 +449,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 			want: want{
 				rsp: &fnv1.RunFunctionResponse{
 					Requirements: &fnv1.Requirements{
-						ExtraResources: map[string]*fnv1.ResourceSelector{
+						Resources: map[string]*fnv1.ResourceSelector{
 							"gimme": {
 								ApiVersion: "test.crossplane.io/v1",
 								Kind:       "CoolResource",

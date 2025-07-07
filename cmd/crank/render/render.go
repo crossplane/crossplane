@@ -72,7 +72,7 @@ type Inputs struct {
 	Functions           []pkgv1.Function
 	FunctionCredentials []corev1.Secret
 	ObservedResources   []composed.Unstructured
-	ExtraResources      []unstructured.Unstructured
+	RequiredResources   []unstructured.Unstructured
 	Context             map[string][]byte
 
 	// TODO(negz): Allow supplying observed XR and composed resource connection
@@ -196,7 +196,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 	}()
 
-	runner := xfn.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{extra: in.ExtraResources})
+	runner := xfn.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{extra: in.RequiredResources})
 
 	observed := composite.ComposedResourceStates{}
 
@@ -428,8 +428,8 @@ func SetComposedResourceMetadata(cd resource.Object, xr resource.LegacyComposite
 	return errors.Wrapf(meta.AddControllerReference(cd, or), "cannot set composite resource %q as controller ref of composed resource", xr.GetName())
 }
 
-// FilteringFetcher is a composite.ExtraResourcesFetcher that "fetches" any
-// supplied resource that matches a resource selector.
+// FilteringFetcher is a RequiredResourcesFetcher that "fetches" any supplied
+// resource that matches a resource selector.
 type FilteringFetcher struct {
 	extra []unstructured.Unstructured
 }

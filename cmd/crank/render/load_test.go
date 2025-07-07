@@ -401,7 +401,7 @@ func TestLoadObservedResources(t *testing.T) {
 	}
 }
 
-func TestLoadExtraResources(t *testing.T) {
+func TestLoadRequiredResources(t *testing.T) {
 	fs := afero.FromIOFS{FS: testdatafs}
 
 	type args struct {
@@ -428,7 +428,7 @@ func TestLoadExtraResources(t *testing.T) {
 					{
 						Object: MustLoadJSON(`{
 							"apiVersion": "example.org/v1alpha1",
-							"kind": "ExtraResourceA",
+							"kind": "RequiredResourceA",
 							"metadata": {
 								"name": "test-extra-a",
 								"annotations": {
@@ -443,7 +443,7 @@ func TestLoadExtraResources(t *testing.T) {
 					{
 						Object: MustLoadJSON(`{
 							"apiVersion": "example.org/v1",
-							"kind": "ExtraResourceB",
+							"kind": "RequiredResourceB",
 							"metadata": {
 								"name": "test-extra-b",
 								"annotations": {
@@ -473,14 +473,14 @@ func TestLoadExtraResources(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			f, err := LoadExtraResources(tc.args.fs, tc.args.file)
+			f, err := LoadRequiredResources(tc.args.fs, tc.args.file)
 
 			if diff := cmp.Diff(tc.want.out, f, test.EquateConditions()); diff != "" {
-				t.Errorf("LoadExtraResources(..), -want, +got:\n%s", diff)
+				t.Errorf("LoadRequiredResources(..), -want, +got:\n%s", diff)
 			}
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
-				t.Errorf("LoadExtraResources(..), -want, +got:\n%s", diff)
+				t.Errorf("LoadRequiredResources(..), -want, +got:\n%s", diff)
 			}
 		})
 	}

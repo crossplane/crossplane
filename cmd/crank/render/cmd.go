@@ -45,14 +45,14 @@ type Cmd struct {
 	Functions         string `arg:"" help:"A YAML file or directory of YAML files specifying the Composition Functions to use to render the XR." predictor:"yaml_file_or_directory" type:"path"`
 
 	// Flags. Keep them in alphabetical order.
-	ContextFiles           map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be files containing JSON."                           mapsep:""          predictor:"file"`
+	ContextFiles           map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be files containing JSON."                           mapsep:""                                                                                                     predictor:"file"`
 	ContextValues          map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be JSON. Keys take precedence over --context-files." mapsep:""`
 	IncludeFunctionResults bool              `help:"Include informational and warning messages from Functions in the rendered output as resources of kind: Result."                            short:"r"`
 	IncludeFullXR          bool              `help:"Include a direct copy of the input XR's spec and metadata fields in the rendered output."                                                  short:"x"`
-	ObservedResources      string            `help:"A YAML file or directory of YAML files specifying the observed state of composed resources."                                               placeholder:"PATH" predictor:"yaml_file_or_directory" short:"o"   type:"path"`
-	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying extra resources to pass to the Function pipeline."                                       placeholder:"PATH" predictor:"yaml_file_or_directory" short:"e"   type:"path"`
+	ObservedResources      string            `help:"A YAML file or directory of YAML files specifying the observed state of composed resources."                                               placeholder:"PATH"                                                                                            predictor:"yaml_file_or_directory" short:"o"                          type:"path"`
+	RequiredResources      string            `aliases:"extra-resources"                                                                                                                        help:"A YAML file or directory of YAML files specifying required resources to pass to the Function pipeline." placeholder:"PATH"                 predictor:"yaml_file_or_directory" short:"e"   type:"path"`
 	IncludeContext         bool              `help:"Include the context in the rendered output as a resource of kind: Context."                                                                short:"c"`
-	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                      placeholder:"PATH" predictor:"yaml_file_or_directory" type:"path"`
+	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                      placeholder:"PATH"                                                                                            predictor:"yaml_file_or_directory" type:"path"`
 
 	Timeout time.Duration `default:"1m"                                                                                                     help:"How long to run before timing out."`
 	XRD     string        `help:"A YAML file specifying the CompositeResourceDefinition (XRD) that defines the XR's schema and properties." optional:""                               placeholder:"PATH" type:"existingfile"`
@@ -113,9 +113,9 @@ Examples:
   crossplane render xr.yaml composition.yaml functions.yaml \
     --context-values=apiextensions.crossplane.io/environment='{"key": "value"}'
 
-  # Pass extra resources Functions in the pipeline can request.
+  # Pass required resources Functions in the pipeline can request.
   crossplane render xr.yaml composition.yaml functions.yaml \
-	--extra-resources=extra-resources.yaml
+	--required-resources=required-resources.yaml
 
   # Pass credentials to Functions in the pipeline that need them.
   crossplane render xr.yaml composition.yaml functions.yaml \
@@ -211,10 +211,10 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	}
 
 	ers := []unstructured.Unstructured{}
-	if c.ExtraResources != "" {
-		ers, err = LoadExtraResources(c.fs, c.ExtraResources)
+	if c.RequiredResources != "" {
+		ers, err = LoadRequiredResources(c.fs, c.RequiredResources)
 		if err != nil {
-			return errors.Wrapf(err, "cannot load extra resources from %q", c.ExtraResources)
+			return errors.Wrapf(err, "cannot load required resources from %q", c.RequiredResources)
 		}
 	}
 
@@ -242,7 +242,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		Functions:           fns,
 		FunctionCredentials: fcreds,
 		ObservedResources:   ors,
-		ExtraResources:      ers,
+		RequiredResources:   ers,
 		Context:             fctx,
 	})
 	if err != nil {
