@@ -122,6 +122,9 @@ type OperationStatus struct {
 	// Pipeline represents the output of the pipeline steps that this operation
 	// ran.
 	Pipeline []PipelineStepStatus `json:"pipeline,omitempty"`
+
+	// AppliedResourceRefs references all resources the Operation applied.
+	AppliedResourceRefs []AppliedResourceRef `json:"appliedResourceRefs,omitempty"`
 }
 
 // PipelineStepStatus represents the status of an individual pipeline step.
@@ -132,6 +135,22 @@ type PipelineStepStatus struct {
 	// Output of this step.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Output *runtime.RawExtension `json:"output,omitempty"`
+}
+
+// An AppliedResourceRef is a reference to a resource an Operation applied.
+type AppliedResourceRef struct {
+	// APIVersion of the applied resource.
+	APIVersion string `json:"apiVersion"`
+
+	// Kind of the applied resource.
+	Kind string `json:"kind"`
+
+	// Namespace of the applied resource.
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+
+	// Name of the applied resource.
+	Name string `json:"name"`
 }
 
 // +kubebuilder:object:root=true
