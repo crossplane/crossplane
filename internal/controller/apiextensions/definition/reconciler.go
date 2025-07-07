@@ -54,7 +54,6 @@ import (
 	"github.com/crossplane/crossplane/internal/engine"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xfn"
 )
 
 const (
@@ -510,9 +509,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
-	runner := xfn.NewFetchingFunctionRunner(r.options.FunctionRunner, xfn.NewExistingRequiredResourcesFetcher(r.engine.GetCached()))
 	fetcher := composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached())
-	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), runner,
+	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), r.options.FunctionRunner,
 		composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.engine.GetCached(), r.engine.GetUncached(), fetcher)),
 		composite.WithCompositeConnectionDetailsFetcher(fetcher),
 	)

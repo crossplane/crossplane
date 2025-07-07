@@ -52,6 +52,8 @@ import (
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
+	"github.com/crossplane/crossplane/internal/controller/ops"
+	opscontroller "github.com/crossplane/crossplane/internal/controller/ops/controller"
 	"github.com/crossplane/crossplane/internal/controller/pkg"
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/controller/protection"
@@ -119,6 +121,7 @@ type startCommand struct {
 	EnableDependencyVersionDowngrades bool `group:"Alpha Features:" help:"Enable support for upgrading and downgrading dependency versions when a dependent package is updated."`
 	EnableSignatureVerification       bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
 	EnableFunctionResponseCache       bool `group:"Alpha Features:" help:"Enable support for caching composition function responses."`
+	EnableOperations                  bool `group:"Alpha Features:" help:"Enable support for Operations."`
 
 	XfnCacheDir    string        `default:"/cache/xfn" env:"XFN_CACHE_DIR"     group:"Alpha Features:" help:"Directory used for caching function responses. Requires --enable-function-response-cache."`
 	XfnCacheMaxTTL time.Duration `default:"24h"        env:"XFN_CACHE_MAX_TTL" group:"Alpha Features:" help:"Maximum TTL for cached function responses. Set to 0 to disable. Requires --enable-function-response-cache."`
@@ -309,6 +312,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaSignatureVerification)
 	}
 
+	if c.EnableOperations {
+		o.Features.Enable(features.EnableAlphaOperations)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaOperations)
+	}
+
 	// Claim and XR controllers are started and stopped dynamically by the
 	// ControllerEngine below. When realtime compositions are enabled, they also
 	// start and stop their watches (e.g. of composed resources) dynamically. To
@@ -404,6 +412,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot start garbage collector for custom resource informers")
 	}
 
+	// Automatically fetch required resources.
+	runner = xfn.NewFetchingFunctionRunner(runner, xfn.NewExistingRequiredResourcesFetcher(cached))
+
 	ao := apiextensionscontroller.Options{
 		Options:          o,
 		ControllerEngine: ce,
@@ -412,6 +423,16 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	if err := apiextensions.Setup(mgr, ao); err != nil {
 		return errors.Wrap(err, "cannot setup API extension controllers")
+	}
+
+	if o.Features.Enabled(features.EnableAlphaOperations) {
+		oo := opscontroller.Options{
+			Options:        o,
+			FunctionRunner: runner,
+		}
+		if err := ops.Setup(mgr, oo); err != nil {
+			return errors.Wrap(err, "cannot setup ops controllers")
+		}
 	}
 
 	var pr pkgcontroller.ActiveRuntime
