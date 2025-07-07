@@ -102,9 +102,9 @@ type Severity int32
 
 const (
 	Severity_SEVERITY_UNSPECIFIED Severity = 0
-	// Fatal results are fatal; subsequent Composition Functions may run, but
-	// the Composition Function pipeline run will be considered a failure and
-	// the first fatal result will be returned as an error.
+	// Fatal results are fatal; subsequent functions may run, but the function
+	// pipeline run will be considered a failure and the first fatal result will
+	// be returned as an error.
 	Severity_SEVERITY_FATAL Severity = 1
 	// Warning results are non-fatal; the entire Composition will run to
 	// completion but warning events and debug logs associated with the
@@ -265,7 +265,7 @@ func (Status) EnumDescriptor() ([]byte, []int) {
 	return file_proto_fn_v1_run_function_proto_rawDescGZIP(), []int{3}
 }
 
-// A RunFunctionRequest requests that the Composition Function be run.
+// A RunFunctionRequest requests that the function be run.
 type RunFunctionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Metadata pertaining to this request.
@@ -279,8 +279,8 @@ type RunFunctionRequest struct {
 	// pipeline.
 	//
 	// Note that the desired state must be a partial object with only the fields
-	// that this function (and its predecessors in the pipeline) wants to have
-	// set in the object. Copying a non-partial observed state to desired is most
+	// that this function (and its predecessors in the pipeline) wants to have set
+	// in the object. Copying a non-partial observed state to desired is most
 	// likely not what you want to do. Leaving out fields that had been returned
 	// as desired before will result in them being deleted from the objects in the
 	// cluster.
@@ -546,7 +546,7 @@ func (x *Resources) GetItems() []*Resource {
 	return nil
 }
 
-// A RunFunctionResponse contains the result of a Composition Function run.
+// A RunFunctionResponse contains the result of a function run.
 type RunFunctionResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Metadata pertaining to this response.
@@ -557,8 +557,8 @@ type RunFunctionResponse struct {
 	// that it is not concerned with.
 	//
 	// Note that the desired state must be a partial object with only the fields
-	// that this function (and its predecessors in the pipeline) wants to have
-	// set in the object. Copying a non-partial observed state to desired is most
+	// that this function (and its predecessors in the pipeline) wants to have set
+	// in the object. Copying a non-partial observed state to desired is most
 	// likely not what you want to do. Leaving out fields that had been returned
 	// as desired before will result in them being deleted from the objects in the
 	// cluster.

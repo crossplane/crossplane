@@ -50,7 +50,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FunctionRunnerServiceClient interface {
-	// RunFunction runs the Composition Function.
+	// RunFunction runs the function.
 	RunFunction(ctx context.Context, in *RunFunctionRequest, opts ...grpc.CallOption) (*RunFunctionResponse, error)
 }
 
@@ -75,7 +75,7 @@ func (c *functionRunnerServiceClient) RunFunction(ctx context.Context, in *RunFu
 // All implementations must embed UnimplementedFunctionRunnerServiceServer
 // for forward compatibility
 type FunctionRunnerServiceServer interface {
-	// RunFunction runs the Composition Function.
+	// RunFunction runs the function.
 	RunFunction(context.Context, *RunFunctionRequest) (*RunFunctionResponse, error)
 	mustEmbedUnimplementedFunctionRunnerServiceServer()
 }
