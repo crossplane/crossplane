@@ -431,6 +431,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 				pkgcontroller.PackageRuntimeExternal)
 		}
 	}
+
 	log.Info("Package Runtime for Provider: " + string(pr.For(pkgv1.ProviderKind)))
 	log.Info("Package Runtime for Function: " + string(pr.For(pkgv1.FunctionKind)))
 
