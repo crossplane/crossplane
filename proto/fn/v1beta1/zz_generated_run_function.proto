@@ -31,13 +31,13 @@ import "google/protobuf/struct.proto";
 
 option go_package = "github.com/crossplane/crossplane/proto/fn/v1beta1";
 
-// A FunctionRunnerService is a Composition Function.
+// A FunctionRunnerService is a function.
 service FunctionRunnerService {
-  // RunFunction runs the Composition Function.
+  // RunFunction runs the function.
   rpc RunFunction(RunFunctionRequest) returns (RunFunctionResponse) {}
 }
 
-// A RunFunctionRequest requests that the Composition Function be run.
+// A RunFunctionRequest requests that the function be run.
 message RunFunctionRequest {
   // Metadata pertaining to this request.
   RequestMeta meta = 1;
@@ -52,8 +52,8 @@ message RunFunctionRequest {
   // pipeline.
   //
   // Note that the desired state must be a partial object with only the fields
-  // that this function (and its predecessors in the pipeline) wants to have
-  // set in the object. Copying a non-partial observed state to desired is most
+  // that this function (and its predecessors in the pipeline) wants to have set
+  // in the object. Copying a non-partial observed state to desired is most
   // likely not what you want to do. Leaving out fields that had been returned
   // as desired before will result in them being deleted from the objects in the
   // cluster.
@@ -101,7 +101,7 @@ message Resources {
   repeated Resource items = 1;
 }
 
-// A RunFunctionResponse contains the result of a Composition Function run.
+// A RunFunctionResponse contains the result of a function run.
 message RunFunctionResponse {
   // Metadata pertaining to this response.
   ResponseMeta meta = 1;
@@ -113,8 +113,8 @@ message RunFunctionResponse {
   //
   //
   // Note that the desired state must be a partial object with only the fields
-  // that this function (and its predecessors in the pipeline) wants to have
-  // set in the object. Copying a non-partial observed state to desired is most
+  // that this function (and its predecessors in the pipeline) wants to have set
+  // in the object. Copying a non-partial observed state to desired is most
   // likely not what you want to do. Leaving out fields that had been returned
   // as desired before will result in them being deleted from the objects in the
   // cluster.
@@ -276,9 +276,9 @@ message Result {
 enum Severity {
   SEVERITY_UNSPECIFIED = 0;
 
-  // Fatal results are fatal; subsequent Composition Functions may run, but
-  // the Composition Function pipeline run will be considered a failure and
-  // the first fatal result will be returned as an error.
+  // Fatal results are fatal; subsequent functions may run, but the function
+  // pipeline run will be considered a failure and the first fatal result will
+  // be returned as an error.
   SEVERITY_FATAL = 1;
 
   // Warning results are non-fatal; the entire Composition will run to
