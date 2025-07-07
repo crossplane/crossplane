@@ -75,6 +75,12 @@ type ProviderRevisionSpec struct {
 	PackageRevisionRuntimeSpec `json:",inline"`
 }
 
+// ProviderRevisionStatus represents the observed state of a ProviderRevision.
+type ProviderRevisionStatus struct {
+	PackageRevisionStatus        `json:",inline"`
+	PackageRevisionRuntimeStatus `json:",inline"`
+}
+
 // +kubebuilder:object:root=true
 // +genclient
 // +genclient:nonNamespaced
@@ -99,8 +105,8 @@ type ProviderRevision struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ProviderRevisionSpec  `json:"spec,omitempty"`
-	Status PackageRevisionStatus `json:"status,omitempty"`
+	Spec   ProviderRevisionSpec   `json:"spec,omitempty"`
+	Status ProviderRevisionStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

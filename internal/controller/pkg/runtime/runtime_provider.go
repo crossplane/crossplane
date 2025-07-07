@@ -68,6 +68,9 @@ func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 		return nil
 	}
 
+	pr.SetObservedTLSServerSecretName(pr.GetTLSServerSecretName())
+	pr.SetObservedTLSClientSecretName(pr.GetTLSClientSecretName())
+
 	// Ensure Prerequisites
 	// Note(turkenh): We need certificates have generated when we get to the
 	// establish step, i.e., we want to inject the CA to CRDs (webhook caBundle).
@@ -212,7 +215,7 @@ func providerDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string)
 
 	do = append(do, DeploymentRuntimeWithOptionalImage(image))
 
-	if pr.GetTLSClientSecretName() != nil {
+	if pr.GetObservedTLSClientSecretName() != nil {
 		do = append(do, DeploymentRuntimeWithAdditionalEnvironments([]corev1.EnvVar{
 			// for backward compatibility with existing providers, we set the
 			// environment variable ESS_TLS_CERTS_DIR to the same value as
@@ -224,7 +227,7 @@ func providerDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string)
 		}))
 	}
 
-	if pr.GetTLSServerSecretName() != nil {
+	if pr.GetObservedTLSServerSecretName() != nil {
 		do = append(do, DeploymentRuntimeWithAdditionalPorts([]corev1.ContainerPort{
 			{
 				Name:          WebhookPortName,

@@ -474,8 +474,14 @@ type PackageRevisionWithRuntime interface { //nolint:interfacebloat // TODO(negz
 	GetTLSServerSecretName() *string
 	SetTLSServerSecretName(n *string)
 
+	GetObservedTLSServerSecretName() *string
+	SetObservedTLSServerSecretName(n *string)
+
 	GetTLSClientSecretName() *string
 	SetTLSClientSecretName(n *string)
+
+	GetObservedTLSClientSecretName() *string
+	SetObservedTLSClientSecretName(n *string)
 }
 
 // SetAppliedImageConfigRefs sets applied image config refs, replacing any
@@ -685,6 +691,16 @@ func (p *ProviderRevision) SetTLSServerSecretName(s *string) {
 	p.Spec.TLSServerSecretName = s
 }
 
+// GetObservedTLSServerSecretName of this ProviderRevision.
+func (p *ProviderRevision) GetObservedTLSServerSecretName() *string {
+	return p.Status.TLSServerSecretName
+}
+
+// SetObservedTLSServerSecretName of this ProviderRevision.
+func (p *ProviderRevision) SetObservedTLSServerSecretName(s *string) {
+	p.Status.TLSServerSecretName = s
+}
+
 // GetTLSClientSecretName of this ProviderRevision.
 func (p *ProviderRevision) GetTLSClientSecretName() *string {
 	return p.Spec.TLSClientSecretName
@@ -693,6 +709,16 @@ func (p *ProviderRevision) GetTLSClientSecretName() *string {
 // SetTLSClientSecretName of this ProviderRevision.
 func (p *ProviderRevision) SetTLSClientSecretName(s *string) {
 	p.Spec.TLSClientSecretName = s
+}
+
+// GetObservedTLSClientSecretName of this ProviderRevision.
+func (p *ProviderRevision) GetObservedTLSClientSecretName() *string {
+	return p.Status.TLSClientSecretName
+}
+
+// SetObservedTLSClientSecretName of this ProviderRevision.
+func (p *ProviderRevision) SetObservedTLSClientSecretName(s *string) {
+	p.Status.TLSClientSecretName = s
 }
 
 // GetCommonLabels of this ProviderRevision.
@@ -1215,9 +1241,29 @@ func (r *FunctionRevision) SetTLSServerSecretName(s *string) {
 	r.Spec.TLSServerSecretName = s
 }
 
+// GetObservedTLSServerSecretName of this FunctionRevision.
+func (r *FunctionRevision) GetObservedTLSServerSecretName() *string {
+	return r.Status.TLSServerSecretName
+}
+
+// SetObservedTLSServerSecretName of this FunctionRevision.
+func (r *FunctionRevision) SetObservedTLSServerSecretName(s *string) {
+	r.Status.TLSServerSecretName = s
+}
+
 // GetTLSClientSecretName of this FunctionRevision.
 func (r *FunctionRevision) GetTLSClientSecretName() *string {
 	return r.Spec.TLSClientSecretName
+}
+
+// SetObservedTLSClientSecretName of this FunctionRevision.
+func (r *FunctionRevision) SetObservedTLSClientSecretName(s *string) {
+	r.Status.TLSClientSecretName = s
+}
+
+// GetObservedTLSClientSecretName of this FunctionRevision.
+func (r *FunctionRevision) GetObservedTLSClientSecretName() *string {
+	return r.Status.TLSClientSecretName
 }
 
 // SetTLSClientSecretName of this FunctionRevision.

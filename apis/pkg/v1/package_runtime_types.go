@@ -44,6 +44,20 @@ type PackageRevisionRuntimeSpec struct {
 	TLSClientSecretName *string `json:"tlsClientSecretName,omitempty"`
 }
 
+// PackageRevisionRuntimeStatus represents the observed state of a package
+// revision with a runtime.
+type PackageRevisionRuntimeStatus struct {
+	// TLSServerSecretName is the name of the TLS Secret that stores server
+	// certificates of the Provider.
+	// +optional
+	TLSServerSecretName *string `json:"tlsServerSecretName,omitempty"`
+
+	// TLSClientSecretName is the name of the TLS Secret that stores client
+	// certificates of the Provider.
+	// +optional
+	TLSClientSecretName *string `json:"tlsClientSecretName,omitempty"`
+}
+
 // A RuntimeConfigReference to a runtime config resource that will be used
 // to configure the package runtime.
 type RuntimeConfigReference struct {

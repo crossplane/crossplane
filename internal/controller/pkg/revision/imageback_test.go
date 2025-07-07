@@ -91,8 +91,10 @@ func TestImageBackend(t *testing.T) {
 							Package: ":test",
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: ":test",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: ":test",
+						},
 					},
 				})},
 			},
@@ -110,8 +112,10 @@ func TestImageBackend(t *testing.T) {
 							Package: "xpkg.crossplane.io/test/test:latest",
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: "xpkg.crossplane.io/test/test:latest",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: "xpkg.crossplane.io/test/test:latest",
+						},
 					},
 				})},
 			},
@@ -129,8 +133,10 @@ func TestImageBackend(t *testing.T) {
 							Package: "xpkg.crossplane.io/test/test:latest",
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: "xpkg.crossplane.io/test/test:latest",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: "xpkg.crossplane.io/test/test:latest",
+						},
 					},
 				})},
 			},
@@ -148,8 +154,10 @@ func TestImageBackend(t *testing.T) {
 							Package: "xpkg.crossplane.io/test/test:latest",
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: "xpkg.crossplane.io/test/test:latest",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: "xpkg.crossplane.io/test/test:latest",
+						},
 					},
 				})},
 			},
@@ -167,8 +175,10 @@ func TestImageBackend(t *testing.T) {
 							Package: "xpkg.crossplane.io/test/test:latest",
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: "xpkg.crossplane.io/test/test:latest",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: "xpkg.crossplane.io/test/test:latest",
+						},
 					},
 				})},
 			},
@@ -183,7 +193,7 @@ func TestImageBackend(t *testing.T) {
 		// 		},
 		// 		opts: []parser.BackendOption{PackageRevision(&v1.ProviderRevision{
 		// 			Spec: v1.PackageRevisionSpec{
-		// 				Package: "test/test:latest",
+		// 				Package: "xpkg.crossplane.io/test/test:latest",
 		// 			},
 		// 		})},
 		// 	},

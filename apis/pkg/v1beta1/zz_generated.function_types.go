@@ -105,7 +105,8 @@ type FunctionRevision struct {
 
 // FunctionRevisionStatus represents the observed state of a FunctionRevision.
 type FunctionRevisionStatus struct {
-	PackageRevisionStatus `json:",inline"`
+	PackageRevisionStatus        `json:",inline"`
+	PackageRevisionRuntimeStatus `json:",inline"`
 
 	// Endpoint is the gRPC endpoint where Crossplane will send
 	// RunFunctionRequests.

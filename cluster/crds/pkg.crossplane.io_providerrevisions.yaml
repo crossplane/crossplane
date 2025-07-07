@@ -180,8 +180,8 @@ spec:
             - revision
             type: object
           status:
-            description: PackageRevisionStatus represents the observed state of a
-              PackageRevision.
+            description: ProviderRevisionStatus represents the observed state of a
+              ProviderRevision.
             properties:
               appliedImageConfigRefs:
                 description: |-
@@ -291,6 +291,16 @@ spec:
                   ResolvedPackage is the name of the package that was installed. It may be
                   different from spec.image if the package path was rewritten using an
                   image config.
+                type: string
+              tlsClientSecretName:
+                description: |-
+                  TLSClientSecretName is the name of the TLS Secret that stores client
+                  certificates of the Provider.
+                type: string
+              tlsServerSecretName:
+                description: |-
+                  TLSServerSecretName is the name of the TLS Secret that stores server
+                  certificates of the Provider.
                 type: string
             type: object
         type: object
