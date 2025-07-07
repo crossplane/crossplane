@@ -155,6 +155,7 @@ func WithManagingRevisionRuntimeSpec() ReconcilerOption {
 	return func(r *Reconciler) {
 		r.setPackageRuntimeManagedFields = func(p v1.Package, pr v1.PackageRevision) {
 			pwr, pwok := p.(v1.PackageWithRuntime)
+
 			prwr, prok := pr.(v1.PackageRevisionWithRuntime)
 			if pwok && prok {
 				prwr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())

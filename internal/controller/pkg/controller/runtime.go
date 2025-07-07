@@ -53,9 +53,11 @@ func NewActiveRuntime(o ...RuntimeOption) ActiveRuntime {
 	for _, o := range o {
 		o(&r)
 	}
+
 	if r.defaultRuntime == PackageRuntimeUnspecified {
 		r.defaultRuntime = PackageRuntimeDeployment
 	}
+
 	return r
 }
 
@@ -64,6 +66,7 @@ func (r ActiveRuntime) For(kind string) PackageRuntime {
 	if runtime, ok := r.runtimes[PackageKind(kind)]; ok {
 		return runtime
 	}
+
 	return r.defaultRuntime
 }
 
@@ -95,13 +98,16 @@ const (
 // Note, This input matches the kong cli parsing for a map type input.
 func ParsePackageRuntime(input string) (ActiveRuntime, error) {
 	var opts []RuntimeOption
+
 	for _, pkgRt := range strings.Split(input, ";") {
 		parts := strings.Split(pkgRt, "=")
 		if len(parts) != 2 {
 			return ActiveRuntime{}, errors.Errorf("invalid package runtime setting %q, expected: runtime=kind", pkgRt)
 		}
+
 		pkg := PackageKind(strings.TrimSpace(parts[0]))
 		rt := PackageRuntime(strings.TrimSpace(parts[1]))
+
 		switch pkg {
 		case ConfigurationPackageKind, ProviderPackageKind, FunctionPackageKind:
 			switch rt {
@@ -118,5 +124,6 @@ func ParsePackageRuntime(input string) (ActiveRuntime, error) {
 				strings.Join([]string{string(ConfigurationPackageKind), string(ProviderPackageKind), string(FunctionPackageKind)}, ", "))
 		}
 	}
+
 	return NewActiveRuntime(opts...), nil
 }

@@ -29,6 +29,7 @@ func TestParsePackageRuntime(t *testing.T) {
 	type args struct {
 		input string
 	}
+
 	type want struct {
 		runtime ActiveRuntime
 		err     error
@@ -195,10 +196,10 @@ func TestParsePackageRuntime(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got, err := ParsePackageRuntime(tc.args.input)
-
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nParsePackageRuntime(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.runtime, got, cmp.AllowUnexported(ActiveRuntime{})); diff != "" {
 				t.Errorf("\n%s\nParsePackageRuntime(...): -want, +got:\n%s", tc.reason, diff)
 			}

@@ -417,6 +417,7 @@ func (r *Reconciler) builderOptions(ctx context.Context, pwr v1.PackageRevisionW
 			(*rcRef.Kind != v1beta1.DeploymentRuntimeConfigKind && *rcRef.APIVersion != v1beta1.SchemeGroupVersion.String()) {
 			return nil, errors.New(errUnknownKindRuntimeConfig)
 		}
+
 		rc := &v1beta1.DeploymentRuntimeConfig{}
 		if err := r.client.Get(ctx, types.NamespacedName{Name: rcRef.Name}, rc); err != nil {
 			return nil, errors.Wrap(err, errGetRuntimeConfig)
