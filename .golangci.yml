@@ -24,6 +24,7 @@ linters:
     # This isn't a widely accepted Go best practice, and would be laborious to
     # apply to existing code.
     - wsl
+    - wsl_v5
     - nlreturn
 
     # Warns about uses of fmt.Sprintf that are less performant than alternatives
