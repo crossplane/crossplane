@@ -146,6 +146,31 @@ spec:
           status:
             description: OperationStatus represents the observed state of an operation.
             properties:
+              appliedResourceRefs:
+                description: AppliedResourceRefs references all resources the Operation
+                  applied.
+                items:
+                  description: An AppliedResourceRef is a reference to a resource
+                    an Operation applied.
+                  properties:
+                    apiVersion:
+                      description: APIVersion of the applied resource.
+                      type: string
+                    kind:
+                      description: Kind of the applied resource.
+                      type: string
+                    name:
+                      description: Name of the applied resource.
+                      type: string
+                    namespace:
+                      description: Namespace of the applied resource.
+                      type: string
+                  required:
+                  - apiVersion
+                  - kind
+                  - name
+                  type: object
+                type: array
               conditions:
                 description: Conditions of the resource.
                 items:
