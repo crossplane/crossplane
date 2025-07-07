@@ -13,20 +13,36 @@ CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 */
 
-package composite
+package xfn
 
 import (
 	"context"
+	"encoding/json"
 	"reflect"
 
+	"google.golang.org/protobuf/types/known/structpb"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
+)
+
+// Error strings.
+const (
+	errNilResourceSelector     = "resource selector should not be nil"
+	errGetExtraResourceByName  = "cannot get extra resource by name"
+	errExtraResourceAsStruct   = "cannot encode extra resource to protocol buffer Struct well-known type"
+	errListExtraResources      = "cannot list extra resources"
+	errUnknownResourceSelector = "cannot get extra resource by name: unknown resource selector type"
+	errStructFromUnstructured  = "cannot create Struct"
+	errMarshalJSON             = "cannot marshal to JSON"
+	errUnmarshalJSON           = "cannot unmarshal from SON"
 )
 
 // MaxRequirementsIterations is the maximum number of times a Function should be
@@ -34,7 +50,20 @@ import (
 // capped for safety.
 const MaxRequirementsIterations = 5
 
-// A FetchingFunctionRunner wraps an underlying FunctionRunner, adding support
+// An ExtraResourcesFetcher gets extra resources matching a selector.
+type ExtraResourcesFetcher interface {
+	Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error)
+}
+
+// An ExtraResourcesFetcherFn gets extra resources matching the selector.
+type ExtraResourcesFetcherFn func(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error)
+
+// Fetch gets extra resources matching the selector.
+func (fn ExtraResourcesFetcherFn) Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
+	return fn(ctx, rs)
+}
+
+// A FetchingFunctionRunner wraps an underlyin FunctionRunner, adding support
 // for fetching any extra resources requested by the function it runs.
 type FetchingFunctionRunner struct {
 	wrapped   FunctionRunner
@@ -76,7 +105,7 @@ func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, r
 		// Store the requirements for the next iteration.
 		requirements = newRequirements
 
-		// Cleanup the extra resources from the previous iteration to store the new ones
+		// Clean up the extra resources from the previous iteration to store the new ones
 		req.ExtraResources = make(map[string]*fnv1.Resources)
 
 		// Fetch the requested resources and add them to the desired state.
@@ -163,4 +192,30 @@ func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.Reso
 	}
 
 	return nil, errors.New(errUnknownResourceSelector)
+}
+
+// AsStruct converts the supplied object to a protocol buffer Struct well-known
+// type.
+func AsStruct(o runtime.Object) (*structpb.Struct, error) {
+	// If the supplied object is *Unstructured we don't need to round-trip.
+	if u, ok := o.(*kunstructured.Unstructured); ok {
+		s, err := structpb.NewStruct(u.Object)
+		return s, errors.Wrap(err, errStructFromUnstructured)
+	}
+
+	// If the supplied object wraps *Unstructured we don't need to round-trip.
+	if w, ok := o.(unstructured.Wrapper); ok {
+		s, err := structpb.NewStruct(w.GetUnstructured().Object)
+		return s, errors.Wrap(err, errStructFromUnstructured)
+	}
+
+	// Fall back to a JSON round-trip.
+	b, err := json.Marshal(o)
+	if err != nil {
+		return nil, errors.Wrap(err, errMarshalJSON)
+	}
+
+	s := &structpb.Struct{}
+
+	return s, errors.Wrap(s.UnmarshalJSON(b), errUnmarshalJSON)
 }
