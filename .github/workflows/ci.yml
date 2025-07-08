@@ -257,6 +257,10 @@ jobs:
          - test-area: pkg
            test-suite: package-signature-verification
 
+        # Operations feature flags
+         - test-area: ops
+           test-suite: ops 
+
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
