@@ -74,20 +74,22 @@ const (
 	errGetComposed              = "cannot get composed resource"
 	errMarshalJSON              = "cannot marshal to JSON"
 
-	errFmtApplyCD                    = "cannot apply composed resource %q"
-	errFmtFetchCDConnectionDetails   = "cannot fetch connection details for composed resource %q (a %s named %s)"
-	errFmtUnmarshalPipelineStepInput = "cannot unmarshal input for Composition pipeline step %q"
-	errFmtGetCredentialsFromSecret   = "cannot get Composition pipeline step %q credential %q from Secret"
-	errFmtRunPipelineStep            = "cannot run Composition pipeline step %q"
-	errFmtControllerMismatch         = "refusing to delete composed resource %q that is controlled by %s %q"
-	errFmtCleanupLabelsCD            = "cannot cleanup composed resource labels of resource %q (a %s named %s)"
-	errFmtDeleteCD                   = "cannot delete composed resource %q (a %s named %s)"
-	errFmtUnmarshalDesiredCD         = "cannot unmarshal desired composed resource %q from RunFunctionResponse"
-	errFmtRenderMetadata             = "cannot render metadata for composed resource %q"
-	errFmtGenerateName               = "cannot generate a name for composed resource %q"
-	errFmtCDAsStruct                 = "cannot encode composed resource %q to protocol buffer Struct well-known type"
-	errFmtFatalResult                = "pipeline step %q returned a fatal result: %s"
-	errFmtInvalidName                = "cannot apply composed resource %q because it has an invalid name %q. Must be a valid RFC 1123 subdomain name."
+	errFmtApplyCD                     = "cannot apply composed resource %q"
+	errFmtFetchCDConnectionDetails    = "cannot fetch connection details for composed resource %q (a %s named %s)"
+	errFmtUnmarshalPipelineStepInput  = "cannot unmarshal input for Composition pipeline step %q"
+	errFmtGetCredentialsFromSecret    = "cannot get Composition pipeline step %q credential %q from Secret"
+	errFmtRunPipelineStep             = "cannot run Composition pipeline step %q"
+	errFmtControllerMismatch          = "refusing to delete composed resource %q that is controlled by %s %q"
+	errFmtCleanupLabelsCD             = "cannot cleanup composed resource labels of resource %q (a %s named %s)"
+	errFmtDeleteCD                    = "cannot delete composed resource %q (a %s named %s)"
+	errFmtUnmarshalDesiredCD          = "cannot unmarshal desired composed resource %q from RunFunctionResponse"
+	errFmtRenderMetadata              = "cannot render metadata for composed resource %q"
+	errFmtGenerateName                = "cannot generate a name for composed resource %q"
+	errFmtCDAsStruct                  = "cannot encode composed resource %q to protocol buffer Struct well-known type"
+	errFmtFatalResult                 = "pipeline step %q returned a fatal result: %s"
+	errFmtInvalidName                 = "cannot apply composed resource %q because it has an invalid name %q. Must be a valid RFC 1123 subdomain name."
+	errFmtGetResourceMapping          = "cannot check if composed resource %q is namespaced (a %s named %s)"
+	errFmtNamespacedXRClusterResource = "cannot apply cluster scoped composed resource %q (a %s named %s) for a namespaced composite resource."
 )
 
 // Server-side-apply field owners. We need two of these because it's possible
@@ -434,6 +436,24 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		if ok {
 			cd.SetNamespace(or.Resource.GetNamespace())
 			cd.SetName(or.Resource.GetName())
+		}
+
+		// If the XR is namespaced then the composed resource must be too.
+		// NOTE(lsviben): We only check resources which do not have a namespace
+		// set, although the namespace for all resources composed by a
+		// namespaced XR is set in the RenderComposedResourceMetadata
+		// step. But as in the previous step we set the namespace of observed
+		// resources, we are effectively checking only once per resource,
+		// before we create it.
+		if xr.GetNamespace() != "" && cd.GetNamespace() == "" {
+			isNs, err := c.client.IsObjectNamespaced(cd)
+			if err != nil {
+				return CompositionResult{}, errors.Wrapf(err, errFmtGetResourceMapping, name, cd.GetKind(), cd.GetName())
+			}
+
+			if !isNs {
+				return CompositionResult{}, errors.Errorf(errFmtNamespacedXRClusterResource, name, cd.GetKind(), cd.GetName())
+			}
 		}
 
 		// Set standard composed resource metadata that is derived from the XR.
