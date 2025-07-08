@@ -44,6 +44,14 @@ const LabelAreaLifecycle = "lifecycle"
 
 const TestSuiteLifecycle = "lifecycle"
 
+func init() {
+	environment.AddTestSuite(TestSuiteLifecycle,
+		config.WithLabelsToSelect(features.Labels{
+			config.LabelTestSuite: []string{TestSuiteLifecycle},
+		}),
+	)
+}
+
 // Note: First time Installation is tested as part of the environment setup,
 // if not disabled explicitly.
 func TestCrossplaneLifecycle(t *testing.T) {
@@ -55,7 +63,6 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			WithLabel(LabelArea, LabelAreaLifecycle).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
-			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithLabel(config.LabelTestSuite, TestSuiteLifecycle).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),

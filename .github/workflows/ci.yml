@@ -230,6 +230,7 @@ jobs:
           - package-dependency-updates
           - package-signature-verification
           - function-response-cache
+          - lifecycle
 
     steps:
       - name: Checkout
