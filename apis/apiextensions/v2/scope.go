@@ -14,8 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package shared contains shared types and constants used across multiple versions of the apiextensions API.
-package shared
+package v2
 
 // CompositeResourceScope specifies the scope of a composite resource.
 type CompositeResourceScope string

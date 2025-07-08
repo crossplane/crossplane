@@ -34,7 +34,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	common "github.com/crossplane/crossplane/apis/apiextensions/shared"
 	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/engine"
 )
@@ -511,7 +510,7 @@ func TestReconcile(t *testing.T) {
 							want := &v2.CompositeResourceDefinition{}
 							want.SetUID(owner)
 							want.SetDeletionTimestamp(&now)
-							want.Status.SetConditions(common.TerminatingComposite())
+							want.Status.SetConditions(v2.TerminatingComposite())
 
 							if diff := cmp.Diff(want, got); diff != "" {
 								t.Errorf("MockStatusUpdate: -want, +got:\n%s\n", diff)
@@ -755,7 +754,7 @@ func TestReconcile(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 							want := &v2.CompositeResourceDefinition{}
-							want.Status.SetConditions(common.WatchingComposite())
+							want.Status.SetConditions(v2.WatchingComposite())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -814,7 +813,7 @@ func TestReconcile(t *testing.T) {
 								{Name: "new", Referenceable: true},
 							}
 							want.Status.Controllers.CompositeResourceTypeRef = v2.TypeReference{APIVersion: "new"}
-							want.Status.SetConditions(common.WatchingComposite())
+							want.Status.SetConditions(v2.WatchingComposite())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -861,7 +860,7 @@ func TestReconcile(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 							want := &v2.CompositeResourceDefinition{}
-							want.Status.SetConditions(common.WatchingComposite())
+							want.Status.SetConditions(v2.WatchingComposite())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)

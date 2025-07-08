@@ -32,7 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/shared"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/names"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
@@ -174,7 +174,7 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 		// XR status fields overwrite non-empty claim fields.
 		withMergeOptions(mergo.WithOverride),
 		// Don't sync XR machinery (i.e. status conditions, connection details).
-		withSrcFilter(xcrd.GetPropFields(xcrd.CompositeResourceStatusProps(shared.CompositeResourceScopeLegacyCluster))...)); err != nil { //nolint:staticcheck // we are still supporting v1 XRD
+		withSrcFilter(xcrd.GetPropFields(xcrd.CompositeResourceStatusProps(v2.CompositeResourceScopeLegacyCluster))...)); err != nil { //nolint:staticcheck // we are still supporting v1 XRD
 		return errors.Wrap(err, errMergeClaimStatus)
 	}
 
@@ -197,7 +197,7 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// 2. Deleting any well-known fields that we want to propagate.
 	// 3. Filtering OUT the remaining map keys from the XR's spec so that we end
 	//    up adding only the well-known fields to the claim's spec.
-	wellKnownXRFields := xcrd.CompositeResourceSpecProps(shared.CompositeResourceScopeLegacyCluster, nil) //nolint:staticcheck // we are still supporting v1 XRD
+	wellKnownXRFields := xcrd.CompositeResourceSpecProps(v2.CompositeResourceScopeLegacyCluster, nil) //nolint:staticcheck // we are still supporting v1 XRD
 	for _, field := range xcrd.PropagateSpecProps {
 		delete(wellKnownXRFields, field)
 	}

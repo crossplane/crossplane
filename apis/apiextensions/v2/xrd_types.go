@@ -23,8 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-
-	"github.com/crossplane/crossplane/apis/apiextensions/shared"
 )
 
 // CompositeResourceDefinitionSpec specifies the desired state of the definition.
@@ -50,7 +48,7 @@ type CompositeResourceDefinitionSpec struct {
 	// +kubebuilder:validation:Enum=Namespaced;Cluster
 	// +kubebuilder:default=Namespaced
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
-	Scope shared.CompositeResourceScope `json:"scope,omitempty"`
+	Scope CompositeResourceScope `json:"scope,omitempty"`
 
 	// DefaultCompositionRef refers to the Composition resource that will be used
 	// in case no composition selector is given.

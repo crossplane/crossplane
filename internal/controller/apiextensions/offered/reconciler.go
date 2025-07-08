@@ -44,7 +44,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/shared"
 	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/claim"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
@@ -299,7 +298,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if meta.WasDeleted(d) {
-		status.MarkConditions(shared.TerminatingClaim())
+		status.MarkConditions(v2.TerminatingClaim())
 
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			if kerrors.IsConflict(err) {
@@ -489,7 +488,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if r.engine.IsRunning(claim.ControllerName(d.GetName())) {
 		log.Debug("Composite resource claim controller is running")
-		status.MarkConditions(shared.WatchingClaim())
+		status.MarkConditions(v2.WatchingClaim())
 
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
@@ -529,7 +528,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	d.Status.Controllers.CompositeResourceClaimTypeRef = v2.TypeReferenceTo(d.GetClaimGroupVersionKind())
 
-	status.MarkConditions(shared.WatchingClaim())
+	status.MarkConditions(v2.WatchingClaim())
 
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }

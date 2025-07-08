@@ -32,7 +32,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/shared"
 	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 )
 
@@ -71,15 +70,15 @@ func ForCompositeResource(xrd *v2.CompositeResourceDefinition) (*extv1.CustomRes
 
 	scope := xrd.Spec.Scope
 	if scope == "" {
-		scope = shared.CompositeResourceScopeLegacyCluster //nolint:staticcheck // we are still supporting v1 XRD
+		scope = v2.CompositeResourceScopeLegacyCluster //nolint:staticcheck // we are still supporting v1 XRD
 	}
 
 	switch scope {
-	case shared.CompositeResourceScopeNamespaced:
+	case v2.CompositeResourceScopeNamespaced:
 		crd.Spec.Scope = extv1.NamespaceScoped
-	case shared.CompositeResourceScopeCluster:
+	case v2.CompositeResourceScopeCluster:
 		crd.Spec.Scope = extv1.ClusterScoped
-	case shared.CompositeResourceScopeLegacyCluster: //nolint:staticcheck // we are still supporting v1 XRD
+	case v2.CompositeResourceScopeLegacyCluster: //nolint:staticcheck // we are still supporting v1 XRD
 		crd.Spec.Scope = extv1.ClusterScoped
 	}
 
@@ -157,7 +156,7 @@ func ForCompositeResourceClaim(xrd *v2.CompositeResourceDefinition) (*extv1.Cust
 		}
 		// TODO(negz): This means claims will have status.claimConditionTypes.
 		// I think that's a bug - only XRs should have that field.
-		props = CompositeResourceStatusProps(shared.CompositeResourceScopeLegacyCluster) //nolint:staticcheck // we are still supporting v1 XRD
+		props = CompositeResourceStatusProps(v2.CompositeResourceScopeLegacyCluster) //nolint:staticcheck // we are still supporting v1 XRD
 		for k, v := range props {
 			crdv.Schema.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}

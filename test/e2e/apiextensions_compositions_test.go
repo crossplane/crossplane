@@ -27,7 +27,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
-	apiextensionsshared "github.com/crossplane/crossplane/apis/apiextensions/shared"
+	apiextensionsv2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
@@ -63,7 +63,7 @@ func TestCompositionRevisionSelection(t *testing.T) {
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsshared.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv2.WatchingComposite()),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			Assess("CreateClaim", funcs.AllOf(
@@ -104,7 +104,7 @@ func TestBasicCompositionNamespaced(t *testing.T) {
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsshared.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv2.WatchingComposite()),
 			)).
 			Assess("CreateXR", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
@@ -137,7 +137,7 @@ func TestBasicCompositionCluster(t *testing.T) {
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsshared.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv2.WatchingComposite()),
 			)).
 			Assess("CreateXR", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
@@ -172,7 +172,7 @@ func TestCompositionSelection(t *testing.T) {
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsshared.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv2.WatchingComposite()),
 			)).
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyClaim(FieldManager, manifests, "claim.yaml"),
@@ -272,7 +272,7 @@ func TestNamespacedXRClusterComposition(t *testing.T) {
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv2.WatchingComposite()),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			Assess("CreateNamespacedXR", funcs.AllOf(

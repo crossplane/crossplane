@@ -22,7 +22,7 @@ import (
 
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
-	apiextensionsshared "github.com/crossplane/crossplane/apis/apiextensions/shared"
+	apiextensionsv2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
@@ -38,7 +38,7 @@ func TestXRDValidation(t *testing.T) {
 			Assessment: funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "xrd-valid.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xrd-valid.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xrd-valid.yaml", apiextensionsshared.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xrd-valid.yaml", apiextensionsv2.WatchingComposite()),
 			),
 		},
 		{
@@ -48,7 +48,7 @@ func TestXRDValidation(t *testing.T) {
 			Assessment: funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "xrd-valid-updated.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xrd-valid-updated.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xrd-valid-updated.yaml", apiextensionsshared.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xrd-valid-updated.yaml", apiextensionsv2.WatchingComposite()),
 			),
 		},
 		{
