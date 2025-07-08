@@ -24,16 +24,12 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,13 +40,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/names"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
 )
 
@@ -407,7 +403,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 	for name, dr := range d.GetResources() {
 		cd := composed.New()
-		if err := FromStruct(cd, dr.GetResource()); err != nil {
+		if err := xfn.FromStruct(cd, dr.GetResource()); err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtUnmarshalDesiredCD, name)
 		}
 
@@ -573,7 +569,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	n := xr.GetName()
 
 	u := xr.GetUID()
-	if err := FromStruct(xr, d.GetComposite().GetResource()); err != nil {
+	if err := xfn.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
 	}
 
@@ -743,7 +739,7 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 // AsState builds state for a RunFunctionRequest from the XR and composed
 // resources.
 func AsState(xr resource.Composite, xc managed.ConnectionDetails, rs ComposedResourceStates) (*fnv1.State, error) {
-	r, err := AsStruct(xr)
+	r, err := xfn.AsStruct(xr)
 	if err != nil {
 		return nil, errors.Wrap(err, errXRAsStruct)
 	}
@@ -752,7 +748,7 @@ func AsState(xr resource.Composite, xc managed.ConnectionDetails, rs ComposedRes
 
 	ocds := make(map[string]*fnv1.Resource)
 	for name, or := range rs {
-		r, err := AsStruct(or.Resource)
+		r, err := xfn.AsStruct(or.Resource)
 		if err != nil {
 			return nil, errors.Wrapf(err, errFmtCDAsStruct, name)
 		}
@@ -761,55 +757,6 @@ func AsState(xr resource.Composite, xc managed.ConnectionDetails, rs ComposedRes
 	}
 
 	return &fnv1.State{Composite: oxr, Resources: ocds}, nil
-}
-
-// AsStruct converts the supplied object to a protocol buffer Struct well-known
-// type.
-func AsStruct(o runtime.Object) (*structpb.Struct, error) {
-	// If the supplied object is *Unstructured we don't need to round-trip.
-	if u, ok := o.(*kunstructured.Unstructured); ok {
-		s, err := structpb.NewStruct(u.Object)
-		return s, errors.Wrap(err, errStructFromUnstructured)
-	}
-
-	// If the supplied object wraps *Unstructured we don't need to round-trip.
-	if w, ok := o.(unstructured.Wrapper); ok {
-		s, err := structpb.NewStruct(w.GetUnstructured().Object)
-		return s, errors.Wrap(err, errStructFromUnstructured)
-	}
-
-	// Fall back to a JSON round-trip.
-	b, err := json.Marshal(o)
-	if err != nil {
-		return nil, errors.Wrap(err, errMarshalJSON)
-	}
-
-	s := &structpb.Struct{}
-
-	return s, errors.Wrap(s.UnmarshalJSON(b), errUnmarshalJSON)
-}
-
-// FromStruct populates the supplied object with content loaded from the Struct.
-func FromStruct(o client.Object, s *structpb.Struct) error {
-	// If the supplied object is *Unstructured we don't need to round-trip.
-	if u, ok := o.(*kunstructured.Unstructured); ok {
-		u.Object = s.AsMap()
-		return nil
-	}
-
-	// If the supplied object wraps *Unstructured we don't need to round-trip.
-	if w, ok := o.(unstructured.Wrapper); ok {
-		w.GetUnstructured().Object = s.AsMap()
-		return nil
-	}
-
-	// Fall back to a JSON round-trip.
-	b, err := protojson.Marshal(s)
-	if err != nil {
-		return errors.Wrap(err, errMarshalProtoStruct)
-	}
-
-	return errors.Wrap(json.Unmarshal(b, o), errUnmarshalJSON)
 }
 
 // An DeletingComposedResourceGarbageCollector deletes undesired composed resources from

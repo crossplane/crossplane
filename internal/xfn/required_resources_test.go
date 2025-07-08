@@ -24,7 +24,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
-	"google.golang.org/protobuf/types/known/structpb"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -475,13 +474,4 @@ func TestFetchingFunctionRunner(t *testing.T) {
 			}
 		})
 	}
-}
-
-func MustStruct(v map[string]any) *structpb.Struct {
-	s, err := structpb.NewStruct(v)
-	if err != nil {
-		panic(err)
-	}
-
-	return s
 }
