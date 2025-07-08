@@ -497,3 +497,34 @@ func TestBindToExistingXR(t *testing.T) {
 			Feature(),
 	)
 }
+
+func TestCompositionExtraResources(t *testing.T) {
+    manifests := "test/e2e/manifests/apiextensions/composition/extra-resources"
+    environment.Test(t,
+        features.NewWithDescription(t.Name(), "Tests that composition functions can request and receive extra resources during composition.").
+            WithLabel(LabelArea, LabelAreaAPIExtensions).
+            WithLabel(LabelSize, LabelSizeSmall).
+            WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/function.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateClaim", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+			)).
+			Assess("VerifyExtraResourcesReceived", funcs.AllOf(
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "status.extraResourcesReceived", true),
+			)).
+            WithTeardown("DeleteClaim", funcs.AllOf(
+                funcs.DeleteResources(manifests, "claim.yaml"),
+                funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+            )).
+            WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+            Feature(),
+    )
+}
+

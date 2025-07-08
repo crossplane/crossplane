@@ -1,0 +1,7 @@
+apiVersion: nop.example.org/v1alpha1
+kind: ExtraResource
+metadata:
+  name: test-extra-resources
+  namespace: default
+spec:
+  resourceName: "my-test-resource"

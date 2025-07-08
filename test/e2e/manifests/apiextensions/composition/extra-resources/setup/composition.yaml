@@ -1,0 +1,24 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xextraresources.nop.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: nop.example.org/v1alpha1
+    kind: XExtraResource
+  mode: Pipeline
+  pipeline:
+  - step: create-with-extra-resources
+    functionRef:
+      name: function-dummy
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Request
+      response:
+        meta:
+          tag: extra-resources-test
+        desired:
+          composite:
+            resource:
+              status:
+                extraResourcesReceived: true
