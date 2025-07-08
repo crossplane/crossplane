@@ -19,15 +19,11 @@ package operation
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"slices"
 	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -42,7 +38,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
 	"github.com/crossplane/crossplane/internal/xfn"
@@ -189,7 +184,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 		}
 
-		req.Meta = &fnv1.RequestMeta{Tag: Tag(req)}
+		req.Meta = &fnv1.RequestMeta{Tag: xfn.Tag(req)}
 
 		rsp, err := r.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
 		if err != nil {
@@ -265,7 +260,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// resources the pipeline produced.
 	for name, dr := range d.GetResources() {
 		u := &kunstructured.Unstructured{}
-		if err := FromStruct(u, dr.GetResource()); err != nil {
+		if err := xfn.FromStruct(u, dr.GetResource()); err != nil {
 			op.Status.Failures++
 			_ = r.client.Status().Update(ctx, op)
 
@@ -301,46 +296,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	status.MarkConditions(v1alpha1.Complete())
 
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
-}
-
-// Tag uniquely identifies a request. Two identical requests created by the
-// same Crossplane binary will produce identical tags. Different builds of
-// Crossplane may produce different tags for the same inputs. See the docs for
-// the Deterministic protobuf MarshalOption for more details.
-func Tag(req *fnv1.RunFunctionRequest) string {
-	m := proto.MarshalOptions{Deterministic: true}
-
-	b, err := m.Marshal(req)
-	if err != nil {
-		return ""
-	}
-
-	h := sha256.Sum256(b)
-
-	return hex.EncodeToString(h[:])
-}
-
-// FromStruct populates the supplied object with content loaded from the Struct.
-func FromStruct(o client.Object, s *structpb.Struct) error {
-	// If the supplied object is *Unstructured we don't need to round-trip.
-	if u, ok := o.(*kunstructured.Unstructured); ok {
-		u.Object = s.AsMap()
-		return nil
-	}
-
-	// If the supplied object wraps *Unstructured we don't need to round-trip.
-	if w, ok := o.(unstructured.Wrapper); ok {
-		w.GetUnstructured().Object = s.AsMap()
-		return nil
-	}
-
-	// Fall back to a JSON round-trip.
-	b, err := protojson.Marshal(s)
-	if err != nil {
-		return errors.Wrap(err, "cannot marshal protobuf Struct to JSON")
-	}
-
-	return errors.Wrap(json.Unmarshal(b, o), "cannot unmarshal JSON to object")
 }
 
 // AddResourceRef adds a reference to the supplied resource to supplied

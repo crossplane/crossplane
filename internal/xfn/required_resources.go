@@ -17,18 +17,14 @@ package xfn
 
 import (
 	"context"
-	"encoding/json"
 	"reflect"
 
-	"google.golang.org/protobuf/types/known/structpb"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
 )
@@ -180,30 +176,4 @@ func (e *ExistingRequiredResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.R
 	}
 
 	return nil, errors.Errorf("unsupported required resource selector type %T", rs.GetMatch())
-}
-
-// AsStruct converts the supplied object to a protocol buffer Struct well-known
-// type.
-func AsStruct(o runtime.Object) (*structpb.Struct, error) {
-	// If the supplied object is *Unstructured we don't need to round-trip.
-	if u, ok := o.(*kunstructured.Unstructured); ok {
-		s, err := structpb.NewStruct(u.Object)
-		return s, errors.Wrap(err, "cannot create protobuf Struct")
-	}
-
-	// If the supplied object wraps *Unstructured we don't need to round-trip.
-	if w, ok := o.(unstructured.Wrapper); ok {
-		s, err := structpb.NewStruct(w.GetUnstructured().Object)
-		return s, errors.Wrap(err, "cannot create protobuf Struct")
-	}
-
-	// Fall back to a JSON round-trip.
-	b, err := json.Marshal(o)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot marshal object to JSON")
-	}
-
-	s := &structpb.Struct{}
-
-	return s, errors.Wrap(s.UnmarshalJSON(b), "cannot unmarshal object from JSON")
 }
