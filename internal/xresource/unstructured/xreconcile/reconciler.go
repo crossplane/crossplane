@@ -103,7 +103,10 @@ func (r *objectReconcilerAdapter[object]) Reconcile(ctx context.Context, req rec
 		log.Debug(msg, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), msg)
 	}
-	original := o.DeepCopyObject().(object)
+	original, ok := o.DeepCopyObject().(object)
+	if !ok {
+		log.Debug("deep copy of constructed resource is not expected type", "type", fmt.Sprintf("%T", o))
+	}
 
 	log = log.WithValues(
 		"uid", o.GetUID(),
