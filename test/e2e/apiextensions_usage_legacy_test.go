@@ -5,6 +5,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
@@ -79,7 +80,10 @@ func TestLegacyUsageStandalone(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
 			Feature(),
 	)
 }
@@ -90,6 +94,11 @@ func TestLegacyUsageComposition(t *testing.T) {
 	usageList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
 		APIVersion: "apiextensions.crossplane.io/v1alpha1",
 		Kind:       "Usage",
+	}))
+
+	nopList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+		APIVersion: "nop.crossplane.io/v1alpha1",
+		Kind:       "NopResource",
 	}))
 
 	environment.Test(t,
@@ -163,7 +172,10 @@ func TestLegacyUsageComposition(t *testing.T) {
 				funcs.ListedResourcesDeletedWithin(2*time.Minute, nopList),
 				funcs.ListedResourcesDeletedWithin(2*time.Minute, usageList),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
 			Feature(),
 	)
 }
