@@ -25,6 +25,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	k8sapiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"sigs.k8s.io/e2e-framework/klient/decoder"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
@@ -199,6 +200,20 @@ func ServiceIngressEndPoint(ctx context.Context, cfg *envconf.Config, clusterNam
 	}
 
 	return fmt.Sprintf("%s:%v", addr, nodePort), nil
+}
+
+// InstallFluentd installs Fluentd in the cluster using manifests from
+// manifests/kind/fluentd directory.
+func InstallFluentd(manager string) env.Func {
+	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+		// Install the manifests for Fluentd in the `manifests/kind/fluentd` directory.
+		dfs := os.DirFS("manifests/kind")
+
+		if err := decoder.DecodeEachFile(ctx, dfs, "fluentd.yaml", ApplyHandler(c.Client().Resources(), manager)); err != nil {
+			return ctx, errors.Wrap(err, "cannot decode Fluentd manifests")
+		}
+		return ctx, nil
+	}
 }
 
 func kindConfig(ctx context.Context, clusterName string) (*v1alpha4.Cluster, error) {

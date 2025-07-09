@@ -1,0 +1,161 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fluentd
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fluentd
+  namespace: kube-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fluentd
+roleRef:
+  kind: ClusterRole
+  name: fluentd
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: fluentd
+  namespace: kube-system
+---
+apiVersion: v1
+data:
+  fluentd.conf: |+
+    <label @FLUENT_LOG>
+      <match fluent.**>
+        @type null
+      </match>
+    </label>
+    <source>
+      @type tail
+      path /var/log/containers/*.log
+      pos_file /var/log/fluentd-containers.log.pos
+      tag "kubernetes.*"
+      exclude_path "#{ENV['FLUENT_CONTAINER_TAIL_EXCLUDE_PATH'] || use_default}"
+      read_from_head true
+      <parse>
+        @type regexp
+        expression /^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<message>.*)$/
+        time_format %Y-%m-%dT%H:%M:%S.%L%z
+      </parse>
+      @label @CONCAT
+    </source>
+
+    <label @CONCAT>
+      <filter kubernetes.**>
+        @type concat
+        key message
+        use_partial_cri_logtag true
+        partial_cri_logtag_key logtag
+        partial_cri_stream_key stream
+      </filter>
+      <match kubernetes.**>
+        @type relabel
+        @label @OUTPUT
+      </match>
+    </label>
+
+    <source>
+      @type tail
+      @id in_tail_kube_apiserver_audit
+      multiline_flush_interval 5s
+      path /var/log/kubernetes/kube-apiserver-audit.log
+      pos_file /var/log/kube-apiserver-audit.log.pos
+      tag kube-apiserver-audit
+      <parse>
+        @type json
+        keep_time_key true
+        time_key timestamp
+        time_format %Y-%m-%dT%T.%L%Z
+      </parse>
+      @label @OUTPUT
+    </source>
+
+    <label @OUTPUT>
+      <match>
+        @type stdout
+      </match>
+    </label>
+
+kind: ConfigMap
+metadata:
+  name: fluentd-conf
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  namespace: kube-system
+  labels:
+    k8s-app: fluentd-logging
+    version: v1
+spec:
+  selector:
+    matchLabels:
+      k8s-app: fluentd-logging
+      version: v1
+  template:
+    metadata:
+      labels:
+        k8s-app: fluentd-logging
+        version: v1
+    spec:
+      serviceAccount: fluentd
+      serviceAccountName: fluentd
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: upbound-pull-secret
+      containers:
+      - name: fluentd
+        image: ctlptl-registry:5000/fluentd-kubernetes-daemonset:v1.16.5-debian-forward-1.0
+        env:
+          - name:  FLUENTD_CONF
+            value: "custom/fluentd.conf"
+          - name: FLUENT_CONTAINER_TAIL_EXCLUDE_PATH
+            value: "/var/log/containers/fluentd-*"
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+        - name: fluentd-conf
+          mountPath: /fluentd/etc/custom/
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+      - name: fluentd-conf
+        configMap:
+          name: fluentd-conf
