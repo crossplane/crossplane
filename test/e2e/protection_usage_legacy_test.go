@@ -20,6 +20,9 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
+// LabelAreaProtectionLegacy is applied to legacy (v1 style) features pertaining to protection.
+const LabelAreaProtectionLegacy = "protection-legacy"
+
 // TestLegacyUsageStandalone tests scenarios for Crossplane's legacy `Usage`
 // resource without a composition involved.
 func TestLegacyUsageStandalone(t *testing.T) {
@@ -72,7 +75,7 @@ func TestLegacyUsageStandalone(t *testing.T) {
 	environment.Test(t,
 		cases.Build(t.Name()).
 			WithLabel(LabelStage, LabelStageBeta).
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelArea, LabelAreaProtectionLegacy).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
@@ -104,7 +107,7 @@ func TestLegacyUsageComposition(t *testing.T) {
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests scenarios for Crossplane's `Usage` resource as part of a composition and decomposed properly.").
 			WithLabel(LabelStage, LabelStageBeta).
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelArea, LabelAreaProtectionLegacy).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(

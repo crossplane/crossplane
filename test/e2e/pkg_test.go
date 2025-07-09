@@ -164,7 +164,7 @@ func TestDeploymentRuntimeConfig(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/deployment-runtime-config"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests that custom configurations in the deployment runtime do not disrupt the functionality of the resources, ensuring that deployments, services, and service accounts are created and configured correctly according to the specified runtime settings.").
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
@@ -234,7 +234,7 @@ func TestExternallyManagedServiceAccount(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/externally-managed-service-account"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests that an externally managed service account is not owned by the deployment while verifying that the deployment correctly references the service account as specified in the runtime configuration.").
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("CreatePrerequisites", funcs.AllOf(

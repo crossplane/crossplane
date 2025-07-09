@@ -33,11 +33,15 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
+// LabelAreaAPIExtensions is applied to all features pertaining to legacy v1
+// style API extensions (i.e. Composition, XRDs, etc).
+const LabelAreaAPIExtensionsLegacy = "apiextensions-legacy"
+
 func TestLegacyComposition(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/legacy"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests the correct functioning of composition functions ensuring that the composed resources are created, conditions are met, fields are patched, and resources are properly cleaned up when deleted.").
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelArea, LabelAreaAPIExtensionsLegacy).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
@@ -75,7 +79,7 @@ func TestLegacyPropagateFieldsRemovalToXR(t *testing.T) {
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests that field removals in a claim are correctly propagated to the associated composite resource (XR), ensuring that updates and deletions are properly synchronized, and that the status from the XR is accurately reflected back to the claim.").
 			WithLabel(LabelStage, LabelStageBeta).
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelArea, LabelAreaAPIExtensionsLegacy).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -123,7 +127,7 @@ func TestLegacyPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests that field removals in a composite resource (XR) are correctly propagated after upgrading the field managers from CSA to SSA, verifying that the upgrade process does not interfere with the synchronization of fields between the claim and the XR.").
 			WithLabel(LabelStage, LabelStageBeta).
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelArea, LabelAreaAPIExtensionsLegacy).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -192,7 +196,7 @@ func TestLegacyBindToExistingXR(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/legacy-bind-existing-xr"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests that a new claim can successfully bind to an existing composite resource (XR), ensuring that the XR’s fields are updated according to the claim’s specifications and that the XR is correctly managed when the claim is deleted.").
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelArea, LabelAreaAPIExtensionsLegacy).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
