@@ -46,6 +46,7 @@ const (
 	errAssertClientObj              = "cannot assert object to client.Object"
 	errConversionWithNoWebhookCA    = "cannot deploy a CRD with webhook conversion strategy without having a TLS bundle"
 	errGetWebhookTLSSecret          = "cannot get webhook tls secret"
+	errWebhookSecretNotPresent      = "webhook TLS secret is not set yet, waiting for it to be set"
 	errWebhookSecretWithoutCABundle = "the value for the key tls.crt cannot be empty"
 	errFmtGetOwnedObject            = "cannot get owned object: %s/%s"
 	errFmtUpdateOwnedObject         = "cannot update owned object: %s/%s"
@@ -403,7 +404,7 @@ func (e *APIEstablisher) enrichControlledResource(res runtime.Object, webhookTLS
 func (e *APIEstablisher) getWebhookTLSCert(ctx context.Context, parentWithRuntime v1.PackageRevisionWithRuntime) (webhookTLSCert []byte, err error) {
 	tlsServerSecretName := parentWithRuntime.GetObservedTLSServerSecretName()
 	if tlsServerSecretName == nil {
-		return nil, nil
+		return nil, errors.New(errWebhookSecretNotPresent)
 	}
 
 	s := &corev1.Secret{}
