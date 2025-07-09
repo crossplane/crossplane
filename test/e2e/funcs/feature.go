@@ -1339,8 +1339,26 @@ func FilterByGK(gk schema.GroupKind) func(o k8s.Object) bool {
 
 func toYAML(objs ...client.Object) string {
 	docs := make([]string, 0, len(objs))
-	for _, o := range objs {
-		oy, _ := yaml.Marshal(o)
+	for _, obj := range objs {
+		// First round-trip the object through JSON to make it
+		// unstructured.
+		j, _ := json.Marshal(obj)
+		u := &unstructured.Unstructured{}
+		_ = json.Unmarshal(j, u)
+
+		// For most types we just want to dump the whole thing.
+		if u.GetKind() != "CustomResourceDefinition" && u.GetKind() != "CompositeResourceDefinition" {
+			y, _ := yaml.JSONToYAML(j)
+			docs = append(docs, string(y))
+			continue
+		}
+
+		// For CRDs and XRDs we want to filter out the spec, which is
+		// huge and floods the logs. Status is still useful.
+		p := fieldpath.Pave(u.Object)
+		_ = p.DeleteField("spec")
+
+		oy, _ := yaml.Marshal(u)
 		docs = append(docs, string(oy))
 	}
 
