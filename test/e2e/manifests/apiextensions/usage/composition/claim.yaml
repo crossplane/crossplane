@@ -5,3 +5,6 @@ metadata:
   name: test
 spec:
   coolField: "I'm cool!"
+  # This claim intentionally uses background deletion to delete its XR.
+  # Foreground deletion won't succeed because its composition adds a
+  # finalizer to one of its composed resources.

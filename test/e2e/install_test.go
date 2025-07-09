@@ -42,8 +42,6 @@ import (
 // Crossplane's lifecycle (installing, upgrading, etc).
 const LabelAreaLifecycle = "lifecycle"
 
-const TestSuiteLifecycle = "lifecycle"
-
 // Note: First time Installation is tested as part of the environment setup,
 // if not disabled explicitly.
 func TestCrossplaneLifecycle(t *testing.T) {
@@ -56,7 +54,6 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
-			WithLabel(config.LabelTestSuite, TestSuiteLifecycle).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
@@ -67,21 +64,15 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
-			WithSetup("ClaimIsAvailable", funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+			WithSetup("ClaimIsAvailable", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("DeleteClaim", funcs.AllOf(
-				funcs.DeleteResources(manifests, "claim.yaml"),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "claim.yaml"),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
-			Assess("DeletePrerequisites",
-				funcs.AllOf(
-					funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList),
-					// Wait for package revisions to be deleted before we
-					// uninstall Crossplane.
-					// TODO(negz): Use foreground deletion?
-					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.ProviderRevisionList{}),
-					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.FunctionRevisionList{}),
-				),
-			).
+			Assess("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
 			Assess("UninstallCrossplane", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUninstall(
 					helm.WithName(helmReleaseName),
@@ -159,18 +150,13 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			Assess("ProviderIsReady",
 				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			Assess("DeleteClaim", funcs.AllOf(
-				funcs.DeleteResources(manifests, "claim.yaml"),
-				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
-			WithTeardown("DeletePrerequisites",
-				funcs.AllOf(
-					funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList),
-					// Wait for package revisions to be deleted before we
-					// uninstall Crossplane.
-					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.ProviderRevisionList{}),
-					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.FunctionRevisionList{}),
-				),
-			).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
 			// Uninstalling the Crossplane Helm chart doesn't remove its CRDs. We
 			// want to make sure they can be deleted cleanly. If they can't, it's a
 			// sign something they define might have stuck around.
@@ -220,10 +206,13 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			Assess("CoreCRDsAreEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, crdsDir, "*.yaml", funcs.CRDInitialNamesAccepted())).
 			Assess("ClaimIsStillAvailable", funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("DeleteClaim", funcs.AllOf(
-				funcs.DeleteResources(manifests, "claim.yaml"),
-				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
 			Feature(),
 	)
 }

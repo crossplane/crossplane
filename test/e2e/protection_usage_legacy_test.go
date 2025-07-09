@@ -5,6 +5,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
@@ -18,6 +19,9 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
+
+// LabelAreaProtectionLegacy is applied to legacy (v1 style) features pertaining to protection.
+const LabelAreaProtectionLegacy = "protection-legacy"
 
 // TestLegacyUsageStandalone tests scenarios for Crossplane's legacy `Usage`
 // resource without a composition involved.
@@ -71,7 +75,7 @@ func TestLegacyUsageStandalone(t *testing.T) {
 	environment.Test(t,
 		cases.Build(t.Name()).
 			WithLabel(LabelStage, LabelStageBeta).
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelArea, LabelAreaProtectionLegacy).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
@@ -79,7 +83,10 @@ func TestLegacyUsageStandalone(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
 			Feature(),
 	)
 }
@@ -92,10 +99,15 @@ func TestLegacyUsageComposition(t *testing.T) {
 		Kind:       "Usage",
 	}))
 
+	nopList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+		APIVersion: "nop.crossplane.io/v1alpha1",
+		Kind:       "NopResource",
+	}))
+
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests scenarios for Crossplane's `Usage` resource as part of a composition and decomposed properly.").
 			WithLabel(LabelStage, LabelStageBeta).
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelArea, LabelAreaProtectionLegacy).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
@@ -108,7 +120,7 @@ func TestLegacyUsageComposition(t *testing.T) {
 			Assess("ClaimCreatedAndReady", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
-				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv1.Available()),
 			)).
 			Assess("UsedResourceHasInUseLabel", funcs.AllOf(
 				funcs.ComposedResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.labels[crossplane.io/in-use]", "true", func(object k8s.Object) bool {
@@ -163,7 +175,10 @@ func TestLegacyUsageComposition(t *testing.T) {
 				funcs.ListedResourcesDeletedWithin(2*time.Minute, nopList),
 				funcs.ListedResourcesDeletedWithin(2*time.Minute, usageList),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
 			Feature(),
 	)
 }

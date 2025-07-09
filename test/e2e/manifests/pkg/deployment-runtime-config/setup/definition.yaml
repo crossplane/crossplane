@@ -1,17 +1,13 @@
-apiVersion: apiextensions.crossplane.io/v1
+apiVersion: apiextensions.crossplane.io/v2alpha1
 kind: CompositeResourceDefinition
 metadata:
-  name: xnopresources.nop.example.org
+  name: tests.example.org
 spec:
-  group: nop.example.org
+  scope: Namespaced
+  group: example.org
   names:
-    kind: XNopResource
-    plural: xnopresources
-  claimNames:
-    kind: NopResource
-    plural: nopresources
-  connectionSecretKeys:
-  - test
+    kind: Test
+    plural: tests
   versions:
   - name: v1alpha1
     served: true

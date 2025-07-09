@@ -225,11 +225,37 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Test areas are components of Crossplane's functionality.
+        test-area:
+          - apiextensions
+          - apiextensions-legacy
+          - pkg
+          - protection
+          - lifecycle
+
+        # Test suites usually correspond to alpha features. We add a suite
+        # whenever we add an alpha feature flag, to test one or more areas of
+        # Crossplane with that flag enabled. The base suite runs Crossplane
+        # with no feature flags. We always want to test all areas with this
+        # suite.
         test-suite:
           - base
-          - package-dependency-updates
-          - package-signature-verification
-          - function-response-cache
+
+        # Most feature flags only affect a specific area of Crossplane. So here
+        # we add custom combinations of test suites (i.e. feature flags) and
+        # areas we want to test with those flags enabled.
+        include:
+         # API extensions feature flags
+         - test-area: apiextensions
+           test-suite: function-response-cache
+         - test-area: apiextensions-legacy
+           test-suite: function-response-cache
+
+         # Package manager feature flags
+         - test-area: pkg
+           test-suite: package-dependency-updates
+         - test-area: pkg
+           test-suite: package-signature-verification
 
     steps:
       - name: Checkout
@@ -287,8 +313,8 @@ jobs:
 
       - name: Run E2E Tests
         run: |
-          earthly --strict --allow-privileged --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }}-${{ matrix.test-suite}} \
-            +e2e --GOTESTSUM_FORMAT="testname" --FLAGS="-test.failfast -fail-fast -prior-crossplane-version=${CROSSPLANE_PRIOR_VERSION} --test-suite ${{ matrix.test-suite }}"
+          earthly --strict --allow-privileged --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }}-${{ matrix.test-area}}-${{ matrix.test-suite}} \
+            +e2e --GOTESTSUM_FORMAT="testname" --FLAGS="-test.failfast -fail-fast -prior-crossplane-version=${CROSSPLANE_PRIOR_VERSION} --test-suite ${{ matrix.test-suite }} -labels area=${{ matrix.test-area }}"
 
       - name: Publish E2E Test Flakes
         if: '!cancelled()'
@@ -304,7 +330,7 @@ jobs:
         if: '!cancelled()'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: e2e-tests-${{ matrix.test-suite }}
+          name: e2e-tests-${{ matrix.test-area }}-${{ matrix.test-suite }}
           path: _output/tests/**
 
   publish-artifacts:
