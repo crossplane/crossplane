@@ -1346,17 +1346,19 @@ func toYAML(objs ...client.Object) string {
 		u := &unstructured.Unstructured{}
 		_ = json.Unmarshal(j, u)
 
-		// For most types we just want to dump the whole thing.
-		if u.GetKind() != "CustomResourceDefinition" && u.GetKind() != "CompositeResourceDefinition" {
-			y, _ := yaml.JSONToYAML(j)
-			docs = append(docs, string(y))
-			continue
-		}
-
-		// For CRDs and XRDs we want to filter out the spec, which is
-		// huge and floods the logs. Status is still useful.
 		p := fieldpath.Pave(u.Object)
-		_ = p.DeleteField("spec")
+
+		// Remove managed fields. They're seldom useful when
+		// troubleshooting a broken test, and distract from the rest of
+		// the object.
+		_ = p.DeleteField("metadata.managedFields")
+
+		// For resources like XRDs and CRDs with huge specs, filter it
+		// out. Otherwise it usually overflows the backscroll when a
+		// test fails.
+		if u.GetKind() == "CustomResourceDefinition" || u.GetKind() == "CompositeResourceDefinition" {
+			_ = p.DeleteField("spec")
+		}
 
 		oy, _ := yaml.Marshal(u)
 		docs = append(docs, string(oy))
