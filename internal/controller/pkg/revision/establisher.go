@@ -401,7 +401,7 @@ func (e *APIEstablisher) enrichControlledResource(res runtime.Object, webhookTLS
 // getWebhookTLSCert returns the TLS certificate of the webhook server if the
 // revision has a TLS server secret name.
 func (e *APIEstablisher) getWebhookTLSCert(ctx context.Context, parentWithRuntime v1.PackageRevisionWithRuntime) (webhookTLSCert []byte, err error) {
-	tlsServerSecretName := parentWithRuntime.GetObservedTLSServerSecretName()
+	tlsServerSecretName := parentWithRuntime.GetTLSServerSecretName()
 	if tlsServerSecretName == nil {
 		return nil, nil
 	}

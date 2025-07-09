@@ -198,8 +198,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							v1.LabelParentPackage: "provider-name",
 						},
 					},
-					Status: v1.ProviderRevisionStatus{
-						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
 							TLSServerSecretName: &tlsServerSecretName,
 						},
 					},
@@ -301,8 +301,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					MockGet: test.NewMockGetFn(errBoom),
 				}),
 				parent: &v1.ProviderRevision{
-					Status: v1.ProviderRevisionStatus{
-						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
 							TLSServerSecretName: &tlsServerSecretName,
 						},
 					},
@@ -343,8 +343,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					},
 				}),
 				parent: &v1.ProviderRevision{
-					Status: v1.ProviderRevisionStatus{
-						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
 							TLSServerSecretName: &tlsServerSecretName,
 						},
 					},
