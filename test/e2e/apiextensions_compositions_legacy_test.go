@@ -55,9 +55,9 @@ func TestLegacyComposition(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
 			Assess("ClaimIsReady",
-				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("ClaimHasPatchedField",
-				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOLER!"),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOLER!"),
 			).
 			Assess("ConnectionSecretCreated",
 				funcs.ResourceHasFieldValueWithin(30*time.Second, &v1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "basic-secret"}}, "data[super]", "c2VjcmV0Cg=="),
@@ -91,7 +91,7 @@ func TestLegacyPropagateFieldsRemovalToXR(t *testing.T) {
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyClaim(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
-				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv1.Available()),
 			)).
 			Assess("UpdateClaim", funcs.ApplyClaim(FieldManager, manifests, "claim-update.yaml")).
 			Assess("FieldsRemovalPropagatedToXR", funcs.AllOf(
@@ -107,8 +107,8 @@ func TestLegacyPropagateFieldsRemovalToXR(t *testing.T) {
 				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.numbers[2]", funcs.NotFound),
 				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.parameters.tags[tag]", "v1"),
 				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.parameters.tags[newtag]", funcs.NotFound),
-				funcs.ClaimUnderTestMustNotChangeWithin(1*time.Minute),
-				funcs.CompositeUnderTestMustNotChangeWithin(1*time.Minute),
+				funcs.ClaimUnderTestMustNotChangeWithin(30*time.Second),
+				funcs.CompositeUnderTestMustNotChangeWithin(30*time.Second),
 			)).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
@@ -147,7 +147,7 @@ func TestLegacyPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyClaim(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
-				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv1.Available()),
 			)).
 			// Note that unlike TestPropagateFieldsRemovalToXR above, here we
 			// enable SSA _after_ creating the claim. Our goal is to test that
@@ -177,8 +177,8 @@ func TestLegacyPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
 				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.numbers[2]", funcs.NotFound),
 				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.parameters.tags[tag]", "v1"),
 				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.parameters.tags[newtag]", funcs.NotFound),
-				funcs.ClaimUnderTestMustNotChangeWithin(1*time.Minute),
-				funcs.CompositeUnderTestMustNotChangeWithin(1*time.Minute),
+				funcs.ClaimUnderTestMustNotChangeWithin(30*time.Second),
+				funcs.CompositeUnderTestMustNotChangeWithin(30*time.Second),
 			)).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
@@ -208,7 +208,7 @@ func TestLegacyBindToExistingXR(t *testing.T) {
 			Assess("CreateXR", funcs.AllOf(
 				funcs.ApplyClaim(FieldManager, manifests, "xr.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
-				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "xr.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available()),
 			)).
 			// Make sure our fields are set to the XR's values.
 			Assess("XRFieldHasOriginalValues", funcs.AllOf(
@@ -218,7 +218,7 @@ func TestLegacyBindToExistingXR(t *testing.T) {
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyClaim(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
-				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv1.Available()),
 			)).
 			Assess("XRIsBoundToClaim", funcs.AllOf(
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "spec.claimRef.name", "bind-existing-xr"),
