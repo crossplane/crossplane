@@ -73,8 +73,6 @@ e2e:
       # TODO(negz:) Set GITHUB_ACTIONS=true and use RUN --raw-output when
       # https://github.com/earthly/earthly/issues/4143 is fixed.
       RUN gotestsum \
-        --rerun-fails \
-        --rerun-fails-report e2e-rerun-fails.txt \
         --hide-summary output \ # See https://github.com/gotestyourself/gotestsum/issues/423
         --no-color=false \
         --format ${GOTESTSUM_FORMAT} \
@@ -83,7 +81,6 @@ e2e:
     END
   FINALLY
     SAVE ARTIFACT --if-exists e2e-tests.xml AS LOCAL _output/tests/e2e-tests.xml
-    SAVE ARTIFACT --if-exists e2e-rerun-fails.txt AS LOCAL _output/tests/e2e-rerun-fails.txt
   END
 
 # hack builds Crossplane, and deploys it to a kind cluster. It runs in your
