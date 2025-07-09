@@ -18,6 +18,7 @@ package claim
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -38,6 +39,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/xreconcile"
 )
 
 func TestReconcile(t *testing.T) {
@@ -81,7 +84,7 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				r:   reconcile.Result{},
-				err: errors.Wrap(errBoom, errGetClaim),
+				err: errors.Wrap(errBoom, fmt.Sprintf(xreconcile.ErrClientGet, "")),
 			},
 		},
 		"ReconciliationPaused": {
@@ -298,7 +301,8 @@ func TestReconcile(t *testing.T) {
 						}
 						return nil
 					}),
-					MockDelete: test.NewMockDeleteFn(nil),
+					MockDelete:       test.NewMockDeleteFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
 					WithClaimFinalizer(resource.FinalizerFns{
