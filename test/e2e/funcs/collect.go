@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 )
 
@@ -51,6 +52,8 @@ type coordinate struct {
 //
 // Note: this is a pretty expensive operation only suited for e2e tests with
 // small clusters.
+//
+//nolint:gocognit // Only a little over, mostly a loop.
 func buildRelatedObjectGraph(ctx context.Context, t *testing.T, discoveryClient discovery.DiscoveryInterface, client dynamic.Interface, mapper meta.RESTMapper) (map[coordinate][]coordinate, error) {
 	t.Helper()
 
@@ -86,27 +89,45 @@ func buildRelatedObjectGraph(ctx context.Context, t *testing.T, discoveryClient 
 					Name:                 obj.GetName(),
 				}
 
-				// collect owner refenerces
 				var refs []corev1.ObjectReference
+
+				// If this is a claim with a reference to an XR,
+				// the XR is probably the most important thing
+				// we care about. Include it.
+				cm := claim.Unstructured{Unstructured: obj}
+				if ref := cm.GetResourceReference(); ref != nil {
+					refs = append(refs, corev1.ObjectReference{
+						APIVersion: ref.APIVersion,
+						Kind:       ref.Kind,
+						Name:       ref.Name,
+					})
+				}
+
+				// If this is an XR, include its reference to a
+				// claim and any composed resources.
+				xr := composite.Unstructured{Schema: composite.SchemaLegacy, Unstructured: obj}
+				if ref := xr.GetClaimReference(); ref != nil {
+					refs = append(refs, corev1.ObjectReference{
+						APIVersion: ref.APIVersion,
+						Kind:       ref.Kind,
+						Name:       ref.Name,
+						Namespace:  ref.Namespace,
+					})
+				}
+				refs = append(refs, xr.GetResourceReferences()...)
+
+				// Handle modern v2 style XRs too, with
+				// spec.crossplane.resourceRefs.
+				xr = composite.Unstructured{Schema: composite.SchemaModern, Unstructured: obj}
+				refs = append(refs, xr.GetResourceReferences()...)
+
+				// Finally include any owners.
 				for _, ownerRef := range obj.GetOwnerReferences() {
 					refs = append(refs, corev1.ObjectReference{
 						APIVersion: ownerRef.APIVersion,
 						Kind:       ownerRef.Kind,
 						Namespace:  obj.GetNamespace(),
 						Name:       ownerRef.Name,
-					})
-				}
-
-				// maybe this is an XR with resource reference to the claim? Fake owner refs.
-				comp := composite.Unstructured{Unstructured: obj}
-
-				refs = append(refs, comp.GetResourceReferences()...)
-				if ref := comp.GetClaimReference(); ref != nil {
-					refs = append(refs, corev1.ObjectReference{
-						APIVersion: ref.APIVersion,
-						Kind:       ref.Kind,
-						Name:       ref.Name,
-						Namespace:  ref.Namespace,
 					})
 				}
 
