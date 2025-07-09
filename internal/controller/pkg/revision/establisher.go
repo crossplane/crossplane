@@ -46,7 +46,7 @@ const (
 	errAssertClientObj              = "cannot assert object to client.Object"
 	errConversionWithNoWebhookCA    = "cannot deploy a CRD with webhook conversion strategy without having a TLS bundle"
 	errGetWebhookTLSSecret          = "cannot get webhook tls secret"
-	errWebhookSecretNotPresent      = "webhook TLS secret is not set yet, waiting for it to be set"
+	errWebhookSecretNotPresent      = "waiting for package runtime controller to set revision's webhook TLS secret"
 	errWebhookSecretWithoutCABundle = "the value for the key tls.crt cannot be empty"
 	errFmtGetOwnedObject            = "cannot get owned object: %s/%s"
 	errFmtUpdateOwnedObject         = "cannot update owned object: %s/%s"
