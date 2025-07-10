@@ -65,22 +65,27 @@ e2e:
   COPY +gotestsum-setup/gotestsum /usr/local/bin/gotestsum
   COPY +go-build-e2e/e2e .
   COPY --dir cluster test .
-  TRY
-    # Using a static CROSSPLANE_VERSION allows Earthly to cache E2E runs as long
-    # as no code changed. If the version contains a git commit (the default) the
-    # build layer cache is invalidated on every commit.
-    WITH DOCKER --load crossplane-e2e/crossplane:latest=(+image --CROSSPLANE_VERSION=v0.0.0-e2e)
-      # TODO(negz:) Set GITHUB_ACTIONS=true and use RUN --raw-output when
-      # https://github.com/earthly/earthly/issues/4143 is fixed.
-      RUN gotestsum \
-        --hide-summary output \ # See https://github.com/gotestyourself/gotestsum/issues/423
-        --no-color=false \
-        --format ${GOTESTSUM_FORMAT} \
-        --junitfile e2e-tests.xml \
-        --raw-command go tool test2json -t -p E2E ./e2e -test.v ${FLAGS}
-    END
-  FINALLY
+  # Using a static CROSSPLANE_VERSION allows Earthly to cache E2E runs as long
+  # as no code changed. If the version contains a git commit (the default) the
+  # build layer cache is invalidated on every commit.
+  WITH DOCKER --load crossplane-e2e/crossplane:latest=(+image --CROSSPLANE_VERSION=v0.0.0-e2e)
+    # TODO(negz:) Set GITHUB_ACTIONS=true and use RUN --raw-output when
+    # https://github.com/earthly/earthly/issues/4143 is fixed.
+    RUN gotestsum \
+      --hide-summary output \ # See https://github.com/gotestyourself/gotestsum/issues/423
+      --no-color=false \
+      --format ${GOTESTSUM_FORMAT} \
+      --junitfile e2e-tests.xml \
+      --raw-command go tool test2json -t -p E2E ./e2e -test.v --kind-logs-location ./kind-logs ${FLAGS} || \
+      echo $? > fail
+  END
+  WAIT
     SAVE ARTIFACT --if-exists e2e-tests.xml AS LOCAL _output/tests/e2e-tests.xml
+    SAVE ARTIFACT --if-exists kind-logs AS LOCAL _output/
+  END
+  IF [ -f fail ]
+    # If the tests failed, we want to exit with the same code so that CI fails.
+    RUN exit $(cat fail)
   END
 
 # hack builds Crossplane, and deploys it to a kind cluster. It runs in your

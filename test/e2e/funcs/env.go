@@ -22,9 +22,14 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sapiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"sigs.k8s.io/e2e-framework/klient/decoder"
+	"sigs.k8s.io/e2e-framework/klient/wait"
+	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
@@ -199,6 +204,30 @@ func ServiceIngressEndPoint(ctx context.Context, cfg *envconf.Config, clusterNam
 	}
 
 	return fmt.Sprintf("%s:%v", addr, nodePort), nil
+}
+
+// InstallFluentd installs Fluentd in the cluster using manifests from
+// manifests/kind/fluentd directory.
+func InstallFluentd(manager string) env.Func {
+	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+		// Install the manifests for Fluentd in the `manifests/kind/fluentd` directory.
+		f, err := os.OpenFile("./test/e2e/manifests/kind/fluentd.yaml", os.O_RDONLY, 0o600)
+		if err != nil {
+			return ctx, errors.Wrap(err, "cannot open Fluentd manifests directory")
+		}
+
+		if err := decoder.DecodeEach(ctx, f, ApplyHandler(c.Client().Resources(), manager)); err != nil {
+			return ctx, errors.Wrap(err, "cannot decode Fluentd manifests")
+		}
+
+		ds := &appsv1.DaemonSet{}
+		ds.SetName("fluentd")
+		ds.SetNamespace("kube-system")
+		if err := wait.For(conditions.New(c.Client().Resources()).DaemonSetReady(ds), wait.WithImmediate(), wait.WithTimeout(time.Minute*2), wait.WithInterval(DefaultPollInterval)); err != nil {
+			return ctx, errors.Wrap(err, "Fluentd daemonset is not available")
+		}
+		return ctx, nil
+	}
 }
 
 func kindConfig(ctx context.Context, clusterName string) (*v1alpha4.Cluster, error) {

@@ -137,6 +137,7 @@ func TestMain(m *testing.M) {
 	setup = append(setup, funcs.AddCrossplaneTypesToScheme(), funcs.AddCRDsToScheme())
 
 	if environment.ShouldCollectKindLogsOnFailure() {
+		setup = append(setup, funcs.InstallFluentd("test-main"))
 		finish = append(finish, envfuncs.ExportClusterLogs(environment.GetKindClusterName(), environment.GetKindClusterLogsLocation()))
 	}
 
