@@ -2,7 +2,7 @@
 
 * Owner: Nic Cope (@negz)
 * Reviewer: Philippe Scorsolini (@phisco)
-* Status: Draft
+* Status: Accepted
 
 ## Background
 
