@@ -22,6 +22,7 @@ package xpkg
 // Cmd contains commands for interacting with xpkgs.
 type Cmd struct {
 	// Keep subcommands sorted alphabetically.
+	Batch   batchCmd   `cmd:"" help:"Batch build and push a family of provider packages."`
 	Build   buildCmd   `cmd:"" help:"Build a new package."`
 	Init    initCmd    `cmd:"" help:"Initialize a new package from a template."`
 	Install installCmd `cmd:"" help:"Install a package in a control plane."`
