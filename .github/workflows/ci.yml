@@ -310,11 +310,14 @@ jobs:
 
           echo "CROSSPLANE_PRIOR_VERSION=$MAJOR.$MINOR" >> $GITHUB_ENV
 
-
       - name: Run E2E Tests
-        run: |
-          earthly --strict --allow-privileged --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }}-${{ matrix.test-area}}-${{ matrix.test-suite}} \
-            +e2e --GOTESTSUM_FORMAT="testname" --FLAGS="-test.failfast -fail-fast -prior-crossplane-version=${CROSSPLANE_PRIOR_VERSION} --test-suite ${{ matrix.test-suite }} -labels area=${{ matrix.test-area }}"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 45  # Per attempt
+          max_attempts: 3
+          command: |
+            earthly --strict --allow-privileged --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }}-${{ matrix.test-area}}-${{ matrix.test-suite}} \
+              +e2e --GOTESTSUM_FORMAT="testname" --FLAGS="-test.failfast -fail-fast -prior-crossplane-version=${CROSSPLANE_PRIOR_VERSION} --test-suite ${{ matrix.test-suite }} -labels area=${{ matrix.test-area }}"
 
       - name: Publish E2E Test Flakes
         if: '!cancelled()'
