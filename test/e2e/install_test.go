@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
@@ -68,6 +69,16 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			Assess("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
+
+				// TODO(negz): We're seeing composed resources
+				// sticking around after the claim is deleted,
+				// even though the claim is deleting the XR (and
+				// thus its composed resources) with foreground
+				// deletion. How is that possible?
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+					APIVersion: "nop.crossplane.io/v1alpha1",
+					Kind:       "NopResource",
+				}))),
 			)).
 			Assess("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
@@ -161,6 +172,16 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			Assess("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
+
+				// TODO(negz): We're seeing composed resources
+				// sticking around after the claim is deleted,
+				// even though the claim is deleting the XR (and
+				// thus its composed resources) with foreground
+				// deletion. How is that possible?
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+					APIVersion: "nop.crossplane.io/v1alpha1",
+					Kind:       "NopResource",
+				}))),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
@@ -226,6 +247,16 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			Assess("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
+
+				// TODO(negz): We're seeing composed resources
+				// sticking around after the claim is deleted,
+				// even though the claim is deleting the XR (and
+				// thus its composed resources) with foreground
+				// deletion. How is that possible?
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+					APIVersion: "nop.crossplane.io/v1alpha1",
+					Kind:       "NopResource",
+				}))),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
