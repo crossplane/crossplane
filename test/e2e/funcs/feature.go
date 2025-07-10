@@ -1339,8 +1339,28 @@ func FilterByGK(gk schema.GroupKind) func(o k8s.Object) bool {
 
 func toYAML(objs ...client.Object) string {
 	docs := make([]string, 0, len(objs))
-	for _, o := range objs {
-		oy, _ := yaml.Marshal(o)
+	for _, obj := range objs {
+		// First round-trip the object through JSON to make it
+		// unstructured.
+		j, _ := json.Marshal(obj)
+		u := &unstructured.Unstructured{}
+		_ = json.Unmarshal(j, u)
+
+		p := fieldpath.Pave(u.Object)
+
+		// Remove managed fields. They're seldom useful when
+		// troubleshooting a broken test, and distract from the rest of
+		// the object.
+		_ = p.DeleteField("metadata.managedFields")
+
+		// For resources like XRDs and CRDs with huge specs, filter it
+		// out. Otherwise it usually overflows the backscroll when a
+		// test fails.
+		if u.GetKind() == "CustomResourceDefinition" || u.GetKind() == "CompositeResourceDefinition" {
+			_ = p.DeleteField("spec")
+		}
+
+		oy, _ := yaml.Marshal(u)
 		docs = append(docs, string(oy))
 	}
 

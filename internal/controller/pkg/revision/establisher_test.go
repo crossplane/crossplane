@@ -70,7 +70,17 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			reason: "Establishment should be successful if we can establish control for a parent of existing objects.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(nil),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{
+								Data: map[string][]byte{
+									"tls.crt": caBundle,
+								},
+							}).DeepCopyInto(s)
+							return nil
+						}
+						return nil
+					},
 					MockUpdate: test.NewMockUpdateFn(nil),
 				}),
 				objs: []runtime.Object{
@@ -92,6 +102,11 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							v1.LabelParentPackage: "provider-name",
 						},
 					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
 				},
 				control: true,
 			},
@@ -103,7 +118,17 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			reason: "Establishment should be successful if we can establish control for a parent of new objects.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{
+								Data: map[string][]byte{
+									"tls.crt": caBundle,
+								},
+							}).DeepCopyInto(s)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
 					MockCreate: test.NewMockCreateFn(nil),
 				}),
 				objs: []runtime.Object{
@@ -123,6 +148,11 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						},
 						Labels: map[string]string{
 							v1.LabelParentPackage: "provider-name",
+						},
+					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
 						},
 					},
 				},
@@ -256,11 +286,51 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				refs: []xpv1.TypedReference{{Name: "ref-me"}},
 			},
 		},
+		"FailedTLSSecretNotPresent": {
+			reason: "Establishment should fail if TLS server secret is not present when trying to establish control.",
+			args: args{
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockCreate: test.NewMockCreateFn(nil),
+				}),
+				objs: []runtime.Object{
+					&extv1.CustomResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "ref-me",
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Name: "provider-name",
+								UID:  "some-unique-uid-2312",
+							},
+						},
+						Labels: map[string]string{
+							v1.LabelParentPackage: "provider-name",
+						},
+					},
+				},
+				control: true,
+			},
+			want: want{
+				err: errors.New(errWebhookSecretNotPresent),
+			},
+		},
 		"FailedCreationWebhookDisabledConversionRequested": {
 			reason: "Establishment should fail if the CRD requires conversion webhook and Crossplane does not have the webhooks enabled.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							// Return empty secret (no CA bundle)
+							s.Data = map[string][]byte{}
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
 					MockCreate: test.NewMockCreateFn(nil),
 				}),
 				objs: []runtime.Object{
@@ -287,11 +357,16 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							v1.LabelParentPackage: "provider-name",
 						},
 					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
 				},
 				control: true,
 			},
 			want: want{
-				err: errors.New(errConversionWithNoWebhookCA),
+				err: errors.New(errWebhookSecretWithoutCABundle),
 			},
 		},
 		"FailedGettingWebhookTLSSecretControl": {
@@ -382,7 +457,17 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			reason: "Cannot establish control of object if we cannot create it.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{
+								Data: map[string][]byte{
+									"tls.crt": caBundle,
+								},
+							}).DeepCopyInto(s)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
 					MockCreate: test.NewMockCreateFn(errBoom),
 				}),
 				objs: []runtime.Object{
@@ -396,6 +481,11 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test",
 					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
 				},
 				control: true,
 			},
@@ -407,7 +497,17 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			reason: "Cannot establish control of object if we cannot update it.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(nil),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{
+								Data: map[string][]byte{
+									"tls.crt": caBundle,
+								},
+							}).DeepCopyInto(s)
+							return nil
+						}
+						return nil
+					},
 					MockUpdate: test.NewMockUpdateFn(errBoom),
 				}),
 				objs: []runtime.Object{
@@ -420,6 +520,11 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				parent: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test",
+					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
 					},
 				},
 				control: true,
