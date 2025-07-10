@@ -336,13 +336,6 @@ jobs:
           name: e2e-tests-${{ matrix.test-area }}-${{ matrix.test-suite }}
           path: _output/tests/**
 
-      - name: Upload E2E Test Logs to GitHub for Debugging
-        if: 'failure() && !cancelled()'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: e2e-tests-logs-${{ matrix.test-area }}-${{ matrix.test-suite }}
-          path: _output/kind-logs/**
-
   publish-artifacts:
     runs-on: ubuntu-22.04
 
