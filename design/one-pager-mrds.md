@@ -238,6 +238,32 @@ the set of APIs (MRs) that should be enabled.
 I believe MRD and MRAP provides a simpler way to filter what CRDs are installed
 while still supporting package dependencies.
 
+### Use a Man-in-the-Middle Proxy to 'Black Hole' Provider CRD Watches
+
+In this alternative we'd run a man-in-the-middle (MITM) proxy between providers
+and the API server. The proxy would be MRD or CRD aware. If a provider started a
+watch for a type that didn't really exist, the proxy would act as if the type
+did exist. It's serve a Kubernetes style list/watch REST endpoint that simply
+pretended the type existed but that there were no instances of it.
+
+This'd remove the need to update providers at all. The proxy would 'swap out'
+provider watches for a real one when an MRD was enabled. Another benefit of the
+proxy approach is that it could be enabled and disabled globally, e.g. to easily
+roll back the feature if needed.
+
+One downside of the proxy approach is that providers would still run potentially
+hundreds of controller goroutines and watches for types that didn't exist.
+This'd incur a non-zero compute and I/O penalty, though we haven't measured to
+know whether it'd be meaningful.
+
+Another downside is the risk of putting a proxy between a controller and the API
+server. The proxy would need to act exactly like the API server or it could
+introduce subtle bugs. If the proxy crashes or fails in any way, the provider
+would be unable to function.
+
+Ultimately we think this is a compelling idea, but more complex overall
+relative to updating providers to late-start their controllers.
+
 [1]: https://github.com/crossplane/crossplane/issues/1143
 [2]: https://github.com/crossplane/crossplane/issues/2869
 [3]: https://github.com/crossplane/crossplane/issues/4192
