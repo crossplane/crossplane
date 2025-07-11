@@ -82,5 +82,13 @@ func (f *Function) GetDependencies() []Dependency {
 
 // GetCapabilities gets the Function package's capabilities.
 func (f *Function) GetCapabilities() []string {
+	// If a function doesn't include any capabilities we assume it's a
+	// composition function. Composition functions predate the concept of
+	// function capabilities, so there are many composition functions that
+	// don't explicitly specify any capabilities.
+	if f.Spec.Capabilities == nil {
+		return []string{FunctionCapabilityComposition}
+	}
+
 	return f.Spec.Capabilities
 }
