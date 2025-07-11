@@ -33,6 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
@@ -91,6 +92,11 @@ kind: Composition
 metadata:
   name: test`)
 
+	v1alpha1OpBytes = []byte(`apiVersion: ops.crossplane.io/v1alpha1
+kind: Operation
+metadata:
+  name: test`)
+
 	v1beta1crd       = &apiextensions.CustomResourceDefinition{}
 	_                = yaml.Unmarshal(v1beta1CRDBytes, v1beta1crd)
 	v1crd            = &apiextensions.CustomResourceDefinition{}
@@ -111,6 +117,8 @@ metadata:
 	_                = yaml.Unmarshal(v1XRDBytes, v1XRD)
 	v1Comp           = &v1.Composition{}
 	_                = yaml.Unmarshal(v1CompBytes, v1Comp)
+	v1alpha1Op       = &v1alpha1.Operation{}
+	_                = yaml.Unmarshal(v1alpha1OpBytes, v1alpha1Op)
 
 	meta, _ = BuildMetaScheme()
 	obj, _  = BuildObjectScheme()
@@ -479,6 +487,33 @@ func TestIsComposition(t *testing.T) {
 			err := IsComposition(tc.obj)
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsComposition(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestIsOperation(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		obj    runtime.Object
+		err    error
+	}{
+		"v1": {
+			reason: "Should not return error if object is an operation.",
+			obj:    v1alpha1Op,
+		},
+		"ErrNotOperation": {
+			reason: "Should return error if object is not an operation.",
+			obj:    v1beta1crd,
+			err:    errors.New(errNotOperation),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := IsOperation(tc.obj)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nIsOperation(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
