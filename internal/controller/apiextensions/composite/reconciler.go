@@ -711,7 +711,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// resources is unsynced or unready. Requeue immediately
 		// (subject to backoff) while we wait for them.
 		result = reconcile.Result{Requeue: true}
-	case res.TTL > 0:
+	case r.features.Enabled(features.EnableBetaRealtimeCompositions) && res.TTL > 0:
 		// The composer (e.g. the function pipeline) explicitly returned
 		// a TTL for the composition result. Requeue after the TTL
 		// expires.
