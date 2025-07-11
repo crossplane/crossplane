@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
@@ -49,6 +50,8 @@ func init() {
 }
 
 func TestBasicOperation(t *testing.T) {
+	cm := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "cool-map"}}
+
 	manifests := "test/e2e/manifests/ops/operations/basic"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests the correct functioning of a basic Operation that creates a ConfigMap.").
@@ -63,10 +66,14 @@ func TestBasicOperation(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "operation.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "operation.yaml"),
 			)).
-			Assess("OperationIsComplete",
-				funcs.ResourcesHaveConditionWithin(30*time.Minute, manifests, "operation.yaml", v1alpha1.Complete())).
-			// TODO(negz): Test that the ConfigMap shows up in
-			// status.appliedResourceRefs.
+			Assess("OperationSucceeded", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "operation.yaml", v1alpha1.Complete()),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.appliedResourceRefs[0].name", "cool-map"),
+				funcs.ResourceHasFieldValueWithin(30*time.Second, cm, "data[coolData]", "I'm cool!"),
+				// TODO(negz): Test function output when we have
+				// a function-dummy release containing this PR.
+				// https://github.com/crossplane-contrib/function-dummy/pull/42
+			)).
 			WithTeardown("DeleteOperation", funcs.AllOf(
 				funcs.DeleteResources(manifests, "operation.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "operation.yaml"),
