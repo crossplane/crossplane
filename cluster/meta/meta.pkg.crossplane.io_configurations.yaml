@@ -40,6 +40,13 @@ spec:
           spec:
             description: ConfigurationSpec specifies the configuration of a Configuration.
             properties:
+              capabilities:
+                description: |-
+                  Capabilities of this package. Capabilities are opaque strings that
+                  may be meaningful to package consumers.
+                items:
+                  type: string
+                type: array
               crossplane:
                 description: Semantic version constraints of Crossplane that package
                   is compatible with.
@@ -132,6 +139,13 @@ spec:
           spec:
             description: ConfigurationSpec specifies the configuration of a Configuration.
             properties:
+              capabilities:
+                description: |-
+                  Capabilities of this package. Capabilities are opaque strings that
+                  may be meaningful to package consumers.
+                items:
+                  type: string
+                type: array
               crossplane:
                 description: Semantic version constraints of Crossplane that package
                   is compatible with.

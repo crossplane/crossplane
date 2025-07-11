@@ -562,6 +562,9 @@ type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we
 
 	GetResolvedSource() string
 	SetResolvedSource(s string)
+
+	GetCapabilities() []string
+	SetCapabilities(caps []string)
 }
 
 // GetCondition of this ProviderRevision.
@@ -756,6 +759,16 @@ func (p *ProviderRevision) SetResolvedSource(s string) {
 	p.Status.ResolvedPackage = s
 }
 
+// GetCapabilities of this ProviderRevision.
+func (p *ProviderRevision) GetCapabilities() []string {
+	return p.Status.Capabilities
+}
+
+// SetCapabilities of this ProviderRevision.
+func (p *ProviderRevision) SetCapabilities(caps []string) {
+	p.Status.Capabilities = caps
+}
+
 // GetCondition of this ConfigurationRevision.
 func (p *ConfigurationRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
@@ -896,6 +909,16 @@ func (p *ConfigurationRevision) GetResolvedSource() string {
 // SetResolvedSource of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetResolvedSource(s string) {
 	p.Status.ResolvedPackage = s
+}
+
+// GetCapabilities of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetCapabilities() []string {
+	return p.Status.Capabilities
+}
+
+// SetCapabilities of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetCapabilities(caps []string) {
+	p.Status.Capabilities = caps
 }
 
 // PackageRevisionList is the interface satisfied by package revision list
@@ -1304,6 +1327,16 @@ func (r *FunctionRevision) GetResolvedSource() string {
 // SetResolvedSource of this FunctionRevision.
 func (r *FunctionRevision) SetResolvedSource(s string) {
 	r.Status.ResolvedPackage = s
+}
+
+// GetCapabilities of this FunctionRevision.
+func (r *FunctionRevision) GetCapabilities() []string {
+	return r.Status.Capabilities
+}
+
+// SetCapabilities of this FunctionRevision.
+func (r *FunctionRevision) SetCapabilities(caps []string) {
+	r.Status.Capabilities = caps
 }
 
 // GetRevisions of this ConfigurationRevisionList.
