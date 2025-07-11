@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
@@ -110,7 +111,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	limit := ptr.Deref(op.Spec.RetryLimit, 5)
 	if op.Status.Failures >= limit {
 		log.Debug("Operation failure limit reached. Not running again.", "limit", limit)
-		status.MarkConditions(v1alpha1.Failed("failure limit of %d reached", limit))
+		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.Failed("failure limit of %d reached", limit))
 
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
 	}
@@ -146,7 +147,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 				// An unmarshalable input requires human intervention to fix, so
 				// we immediately fail this operation without retrying.
-				status.MarkConditions(v1alpha1.Failed("cannot unmarshal input for operation pipeline step %q", fn.Step))
+				status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.Failed("cannot unmarshal input for operation pipeline step %q", fn.Step))
 				_ = r.client.Status().Update(ctx, op)
 
 				return reconcile.Result{}, errors.Wrapf(err, "cannot unmarshal input for operation pipeline step %q", fn.Step)
@@ -165,12 +166,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			s := &corev1.Secret{}
 			if err := r.client.Get(ctx, client.ObjectKey{Namespace: cs.SecretRef.Namespace, Name: cs.SecretRef.Name}, s); err != nil {
 				op.Status.Failures++
-				_ = r.client.Status().Update(ctx, op)
 
 				log.Debug("Cannot get Operation pipeline step credential", "error", err, "failures", op.Status.Failures, "credential", cs.Name)
-
 				err = errors.Wrapf(err, "cannot get operation pipeline step %q credential %q from Secret", fn.Step, cs.Name)
 				r.record.Event(op, event.Warning(reasonFunctionInvocation, err))
+				status.MarkConditions(xpv1.ReconcileError(err))
+				_ = r.client.Status().Update(ctx, op)
 
 				return reconcile.Result{}, err
 			}
@@ -189,12 +190,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		rsp, err := r.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
 		if err != nil {
 			op.Status.Failures++
-			_ = r.client.Status().Update(ctx, op)
 
 			log.Debug("Cannot run operation pipeline step", "error", err, "failures", op.Status.Failures)
-
 			err = errors.Wrapf(err, "failed to invoke pipeline step %q", fn.Step)
 			r.record.Event(op, event.Warning(reasonFunctionInvocation, err))
+			status.MarkConditions(xpv1.ReconcileError(err))
+			_ = r.client.Status().Update(ctx, op)
 
 			return reconcile.Result{}, err
 		}
@@ -215,12 +216,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			switch rs.GetSeverity() {
 			case fnv1.Severity_SEVERITY_FATAL:
 				op.Status.Failures++
-				_ = r.client.Status().Update(ctx, op)
 
 				log.Debug("Pipeline step returned a fatal result", "error", rs.GetMessage(), "failures", op.Status.Failures)
-
 				err = errors.New(rs.GetMessage())
 				r.record.Event(op, event.Warning(reasonFunctionInvocation, err))
+				status.MarkConditions(xpv1.ReconcileError(err))
+				_ = r.client.Status().Update(ctx, op)
 
 				return reconcile.Result{}, err
 			case fnv1.Severity_SEVERITY_WARNING:
@@ -239,12 +240,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			j, err := protojson.Marshal(o)
 			if err != nil {
 				op.Status.Failures++
-				_ = r.client.Status().Update(ctx, op)
 
 				log.Debug("Cannot marshal pipeline step output to JSON", "error", err, "failures", op.Status.Failures)
-
 				err = errors.Wrapf(err, "cannot marshal pipeline step %q output to JSON", fn.Step)
 				r.record.Event(op, event.Warning(reasonInvalidOutput, err))
+				status.MarkConditions(xpv1.ReconcileError(err))
+				_ = r.client.Status().Update(ctx, op)
 
 				return reconcile.Result{}, err
 			}
@@ -262,12 +263,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		u := &kunstructured.Unstructured{}
 		if err := xfn.FromStruct(u, dr.GetResource()); err != nil {
 			op.Status.Failures++
-			_ = r.client.Status().Update(ctx, op)
 
 			log.Debug("Cannot load desired resource from protobuf struct", "error", err, "failures", op.Status.Failures, "resource-name", name)
-
 			err = errors.Wrapf(err, "cannot load desired resource %q from protobuf struct", name)
 			r.record.Event(op, event.Warning(reasonInvalidResource, err))
+			status.MarkConditions(xpv1.ReconcileError(err))
+			_ = r.client.Status().Update(ctx, op)
 
 			return reconcile.Result{}, err
 		}
@@ -276,12 +277,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// always be operating on a resource some other controller owns.
 		if err := r.client.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerPrefix+op.GetUID())); err != nil {
 			op.Status.Failures++
-			_ = r.client.Status().Update(ctx, op)
-
 			log.Debug("Cannot apply desired resource", "error", err, "failures", op.Status.Failures, "resource-name", name)
 
 			err = errors.Wrap(err, "cannot load desired resource")
 			r.record.Event(op, event.Warning(reasonInvalidResource, err))
+			status.MarkConditions(xpv1.ReconcileError(err))
+			_ = r.client.Status().Update(ctx, op)
 
 			return reconcile.Result{}, err
 		}
@@ -293,7 +294,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		op.Status.AppliedResourceRefs = AddResourceRef(op.Status.AppliedResourceRefs, u)
 	}
 
-	status.MarkConditions(v1alpha1.Complete())
+	status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.Complete())
 
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
 }
