@@ -73,6 +73,12 @@ func (c *GeneratedFromHubConverter) v1MetaSpecToV1beta1MetaSpec(source v1.MetaSp
 			v1beta1MetaSpec.DependsOn[i] = c.v1DependencyToV1beta1Dependency(source.DependsOn[i])
 		}
 	}
+	if source.Capabilities != nil {
+		v1beta1MetaSpec.Capabilities = make([]string, len(source.Capabilities))
+		for j := 0; j < len(source.Capabilities); j++ {
+			v1beta1MetaSpec.Capabilities[j] = source.Capabilities[j]
+		}
+	}
 	return v1beta1MetaSpec
 }
 func (c *GeneratedFromHubConverter) v1TypeMetaToV1TypeMeta(source v11.TypeMeta) v11.TypeMeta {
@@ -151,6 +157,12 @@ func (c *GeneratedToHubConverter) v1beta1MetaSpecToV1MetaSpec(source MetaSpec) v
 		v1MetaSpec.DependsOn = make([]v1.Dependency, len(source.DependsOn))
 		for i := 0; i < len(source.DependsOn); i++ {
 			v1MetaSpec.DependsOn[i] = c.v1beta1DependencyToV1Dependency(source.DependsOn[i])
+		}
+	}
+	if source.Capabilities != nil {
+		v1MetaSpec.Capabilities = make([]string, len(source.Capabilities))
+		for j := 0; j < len(source.Capabilities); j++ {
+			v1MetaSpec.Capabilities[j] = source.Capabilities[j]
 		}
 	}
 	return v1MetaSpec

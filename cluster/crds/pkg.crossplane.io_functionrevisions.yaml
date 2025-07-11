@@ -204,6 +204,13 @@ spec:
                   - reason
                   type: object
                 type: array
+              capabilities:
+                description: |-
+                  Capabilities of this package. Capabilities are opaque strings that
+                  may be meaningful to package consumers.
+                items:
+                  type: string
+                type: array
               conditions:
                 description: Conditions of the resource.
                 items:
@@ -499,6 +506,13 @@ spec:
                   - name
                   - reason
                   type: object
+                type: array
+              capabilities:
+                description: |-
+                  Capabilities of this package. Capabilities are opaque strings that
+                  may be meaningful to package consumers.
+                items:
+                  type: string
                 type: array
               conditions:
                 description: Conditions of the resource.
