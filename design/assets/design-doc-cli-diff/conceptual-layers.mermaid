@@ -1,0 +1,59 @@
+classDiagram
+    class CommandLayer {
+        <<layer>>
+        Responsibility: CLI entry point
+        - Command parsing
+        - Argument validation
+        - Help text generation
+        - Entry point coordination
+    }
+    
+    class ApplicationLayer {
+        <<layer>>
+        Responsibility: Application orchestration
+        - Context management
+        - Client initialization
+        - Process coordination
+        - Resource loading
+        - Result aggregation
+    }
+    
+    class DomainLayer {
+        <<layer>>
+        Responsibility: Business logic
+        - Diff calculation
+        - Resource rendering
+        - Resource management
+        - Schema validation
+        - Requirement processing
+        - Diff visualization
+    }
+    
+    class ClientLayer {
+        <<layer>>
+        Responsibility: Infrastructure access
+        - Kubernetes API interaction
+        - Crossplane resource access
+        - Resource conversion
+        - Type handling
+        - Server-side apply
+    }
+    
+    class ExternalSystems {
+        <<layer>>
+        Responsibility: External services
+        - Kubernetes API server
+        - Resources in cluster
+        - CRDs and schemas
+    }
+    
+    CommandLayer --> ApplicationLayer : uses
+    ApplicationLayer --> DomainLayer : coordinates
+    DomainLayer --> ClientLayer : depends on
+    ClientLayer --> ExternalSystems : interacts with
+    
+    note for CommandLayer "Key Components: Cmd, Help functions"
+    note for ApplicationLayer "Key Components: AppContext, DiffProcessor, Loader"
+    note for DomainLayer "Key Components: DiffCalculator, SchemaValidator, RequirementsProvider, ResourceManager, DiffRenderer, Render Function"
+    note for ClientLayer "Key Components: Kubernetes Clients (Apply, Resource, Schema, TypeConverter), Crossplane Clients (Composition, Definition, Function, etc.)"
+    note for ExternalSystems "Kubernetes API running in a live cluster with Crossplane installed"
