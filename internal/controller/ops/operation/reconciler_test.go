@@ -214,6 +214,11 @@ func TestReconcile(t *testing.T) {
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},
+				opts: []ReconcilerOption{
+					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error {
+						return nil
+					})),
+				},
 			},
 			want: want{
 				r:   reconcile.Result{},
@@ -250,6 +255,9 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				opts: []ReconcilerOption{
+					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error {
+						return nil
+					})),
 					WithFunctionRunner(xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 						return nil, errors.New("boom")
 					})),
@@ -290,6 +298,9 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				opts: []ReconcilerOption{
+					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error {
+						return nil
+					})),
 					WithFunctionRunner(xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 						rsp := &fnv1.RunFunctionResponse{
 							Results: []*fnv1.Result{
@@ -339,6 +350,9 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				opts: []ReconcilerOption{
+					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error {
+						return nil
+					})),
 					WithFunctionRunner(xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 						rsp := &fnv1.RunFunctionResponse{
 							Desired: &fnv1.State{
@@ -359,6 +373,42 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 						return rsp, nil
+					})),
+				},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
+			},
+		},
+		"CapabilityCheckError": {
+			reason: "We should return an error if a function doesn't have the required operation capability",
+			params: params{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							op := &v1alpha1.Operation{
+								Spec: v1alpha1.OperationSpec{
+									Pipeline: []v1alpha1.PipelineStep{
+										{
+											Step: "check-caps",
+											FunctionRef: v1alpha1.FunctionReference{
+												Name: "function-missing-caps",
+											},
+										},
+									},
+								},
+							}
+							op.DeepCopyInto(obj.(*v1alpha1.Operation))
+
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
+				opts: []ReconcilerOption{
+					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error {
+						return errors.New("boom")
 					})),
 				},
 			},
@@ -414,6 +464,9 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				opts: []ReconcilerOption{
+					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error {
+						return nil
+					})),
 					WithFunctionRunner(xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 						rsp := &fnv1.RunFunctionResponse{
 							Desired: &fnv1.State{

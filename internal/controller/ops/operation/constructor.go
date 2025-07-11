@@ -77,6 +77,13 @@ func WithFunctionRunner(fr xfn.FunctionRunner) ReconcilerOption {
 	}
 }
 
+// WithCapabilityChecker specifies how the Reconciler should check function capabilities.
+func WithCapabilityChecker(cc xfn.CapabilityChecker) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.functions = cc
+	}
+}
+
 // NewReconciler returns a Reconciler of Usages.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
@@ -84,6 +91,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		log:        logging.NewNopLogger(),
 		record:     event.NewNopRecorder(),
 		conditions: conditions.ObservedGenerationPropagationManager{},
+		functions:  xfn.NewRevisionCapabilityChecker(mgr.GetClient()),
 	}
 
 	for _, f := range opts {

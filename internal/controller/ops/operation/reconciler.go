@@ -41,6 +41,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	"github.com/crossplane/crossplane/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
 )
@@ -68,7 +69,8 @@ type Reconciler struct {
 	record     event.Recorder
 	conditions conditions.Manager
 
-	pipeline xfn.FunctionRunner
+	pipeline  xfn.FunctionRunner
+	functions xfn.CapabilityChecker
 }
 
 // Reconcile an Operation by running its function pipeline.
@@ -124,6 +126,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	status.MarkConditions(v1alpha1.Running())
 	if err := r.client.Status().Update(ctx, op); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "cannot update Operation status")
+	}
+
+	// Check that all functions in the pipeline have the operation capability
+	// before running any function.
+	names := make([]string, 0, len(op.Spec.Pipeline))
+	for _, fn := range op.Spec.Pipeline {
+		names = append(names, fn.FunctionRef.Name)
+	}
+
+	if err := r.functions.CheckCapabilities(ctx, []string{pkgmetav1.FunctionCapabilityOperation}, names...); err != nil {
+		log.Debug("Function capability check failed", "error", err)
+
+		// A function without the required capabilities requires human intervention
+		// to fix, so we immediately fail this operation without retrying.
+		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.Failed("%s", err))
+		_ = r.client.Status().Update(ctx, op)
+
+		return reconcile.Result{}, errors.Wrap(err, "function capability check failed")
 	}
 
 	// The function pipeline starts with empty desired state.
@@ -199,9 +219,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 			return reconcile.Result{}, err
 		}
-
-		// Pass down the updated context across iterations.
-		req.Context = rsp.GetContext()
 
 		// Pass the desired state returned by this Function to the next one.
 		d = rsp.GetDesired()
@@ -312,7 +329,7 @@ func AddResourceRef(refs []v1alpha1.AppliedResourceRef, u *kunstructured.Unstruc
 		ref.Namespace = ptr.To(u.GetNamespace())
 	}
 
-	// Don't add the new ref it it's already there.
+	// Don't add the new ref if it's already there.
 	if slices.Contains(refs, ref) {
 		return refs
 	}
