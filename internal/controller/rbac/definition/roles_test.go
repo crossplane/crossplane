@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 )
 
 func TestRenderClusterRoles(t *testing.T) {
@@ -37,8 +37,8 @@ func TestRenderClusterRoles(t *testing.T) {
 
 	ctrl := true
 	owner := metav1.OwnerReference{
-		APIVersion:         v1.CompositeResourceDefinitionGroupVersionKind.GroupVersion().String(),
-		Kind:               v1.CompositeResourceDefinitionKind,
+		APIVersion:         v2.CompositeResourceDefinitionGroupVersionKind.GroupVersion().String(),
+		Kind:               v2.CompositeResourceDefinitionKind,
 		Name:               name,
 		UID:                uid,
 		Controller:         &ctrl,
@@ -47,14 +47,14 @@ func TestRenderClusterRoles(t *testing.T) {
 
 	cases := map[string]struct {
 		reason string
-		d      *v1.CompositeResourceDefinition
+		d      *v2.CompositeResourceDefinition
 		want   []rbacv1.ClusterRole
 	}{
 		"DoesNotOfferClaim": {
 			reason: "An XRD that does not offer a claim should produce ClusterRoles that grant access to only the composite",
-			d: &v1.CompositeResourceDefinition{
+			d: &v2.CompositeResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{Name: name, UID: uid},
-				Spec: v1.CompositeResourceDefinitionSpec{
+				Spec: v2.CompositeResourceDefinitionSpec{
 					Group: group,
 					Names: extv1.CustomResourceDefinitionNames{Plural: pluralXR},
 				},
@@ -137,9 +137,9 @@ func TestRenderClusterRoles(t *testing.T) {
 		},
 		"OffersClaim": {
 			reason: "An XRD that offers a claim should produce ClusterRoles that grant access to that claim",
-			d: &v1.CompositeResourceDefinition{
+			d: &v2.CompositeResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{Name: name, UID: uid},
-				Spec: v1.CompositeResourceDefinitionSpec{
+				Spec: v2.CompositeResourceDefinitionSpec{
 					Group:      group,
 					Names:      extv1.CustomResourceDefinitionNames{Plural: pluralXR},
 					ClaimNames: &extv1.CustomResourceDefinitionNames{Plural: pluralXRC},

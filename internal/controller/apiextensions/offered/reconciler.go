@@ -44,7 +44,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/claim"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/engine"
@@ -125,16 +125,16 @@ func (e *NopEngine) GetFieldIndexer() client.FieldIndexer {
 // A CRDRenderer renders a CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
 type CRDRenderer interface {
-	Render(d *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
+	Render(d *v2.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
 }
 
 // A CRDRenderFn renders a CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
-type CRDRenderFn func(d *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
+type CRDRenderFn func(d *v2.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
 
 // Render the supplied CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
-func (fn CRDRenderFn) Render(d *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+func (fn CRDRenderFn) Render(d *v2.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 	return fn(d)
 }
 
@@ -142,7 +142,7 @@ func (fn CRDRenderFn) Render(d *v1.CompositeResourceDefinition) (*extv1.CustomRe
 // defining a composite resource claim and starting a controller to reconcile
 // it.
 func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
-	name := "offered/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
+	name := "offered/" + strings.ToLower(v2.CompositeResourceDefinitionGroupKind)
 
 	r := NewReconciler(NewClientApplicator(mgr.GetClient()),
 		WithLogger(o.Logger.WithValues("controller", name)),
@@ -152,7 +152,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1.CompositeResourceDefinition{}, builder.WithPredicates(resource.NewPredicates(OffersClaim()))).
+		For(&v2.CompositeResourceDefinition{}, builder.WithPredicates(resource.NewPredicates(OffersClaim()))).
 		Owns(&extv1.CustomResourceDefinition{}, builder.WithPredicates(resource.NewPredicates(IsClaimCRD()))).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
@@ -275,7 +275,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	d := &v1.CompositeResourceDefinition{}
+	d := &v2.CompositeResourceDefinition{}
 	if err := r.client.Get(ctx, req.NamespacedName, d); err != nil {
 		log.Debug(errGetXRD, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetXRD)
@@ -298,7 +298,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if meta.WasDeleted(d) {
-		status.MarkConditions(v1.TerminatingClaim())
+		status.MarkConditions(v2.TerminatingClaim())
 
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			if kerrors.IsConflict(err) {
@@ -472,7 +472,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	observed := d.Status.Controllers.CompositeResourceClaimTypeRef
 
-	desired := v1.TypeReferenceTo(d.GetClaimGroupVersionKind())
+	desired := v2.TypeReferenceTo(d.GetClaimGroupVersionKind())
 	if observed.APIVersion != "" && observed != desired {
 		if err := r.engine.Stop(ctx, claim.ControllerName(d.GetName())); err != nil {
 			err = errors.Wrap(err, errStopController)
@@ -488,7 +488,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if r.engine.IsRunning(claim.ControllerName(d.GetName())) {
 		log.Debug("Composite resource claim controller is running")
-		status.MarkConditions(v1.WatchingClaim())
+		status.MarkConditions(v2.WatchingClaim())
 
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
@@ -526,8 +526,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	d.Status.Controllers.CompositeResourceClaimTypeRef = v1.TypeReferenceTo(d.GetClaimGroupVersionKind())
-	status.MarkConditions(v1.WatchingClaim())
+	d.Status.Controllers.CompositeResourceClaimTypeRef = v2.TypeReferenceTo(d.GetClaimGroupVersionKind())
+
+	status.MarkConditions(v2.WatchingClaim())
 
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }

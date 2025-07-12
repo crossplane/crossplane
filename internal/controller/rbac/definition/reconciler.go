@@ -38,7 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/internal/controller/rbac/controller"
 )
 
@@ -57,14 +57,14 @@ const (
 // A ClusterRoleRenderer renders ClusterRoles for a given XRD.
 type ClusterRoleRenderer interface {
 	// RenderClusterRoles for the supplied XRD.
-	RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole
+	RenderClusterRoles(d *v2.CompositeResourceDefinition) []rbacv1.ClusterRole
 }
 
 // A ClusterRoleRenderFn renders ClusterRoles for the supplied XRD.
-type ClusterRoleRenderFn func(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole
+type ClusterRoleRenderFn func(d *v2.CompositeResourceDefinition) []rbacv1.ClusterRole
 
 // RenderClusterRoles renders ClusterRoles for the supplied XRD.
-func (fn ClusterRoleRenderFn) RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole {
+func (fn ClusterRoleRenderFn) RenderClusterRoles(d *v2.CompositeResourceDefinition) []rbacv1.ClusterRole {
 	return fn(d)
 }
 
@@ -72,7 +72,7 @@ func (fn ClusterRoleRenderFn) RenderClusterRoles(d *v1.CompositeResourceDefiniti
 // creating a series of opinionated ClusterRoles that may be bound to allow
 // access to the resources it defines.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := "rbac/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
+	name := "rbac/" + strings.ToLower(v2.CompositeResourceDefinitionGroupKind)
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
@@ -80,7 +80,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1.CompositeResourceDefinition{}).
+		For(&v2.CompositeResourceDefinition{}).
 		Owns(&rbacv1.ClusterRole{}).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
@@ -159,7 +159,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	d := &v1.CompositeResourceDefinition{}
+	d := &v2.CompositeResourceDefinition{}
 	if err := r.client.Get(ctx, req.NamespacedName, d); err != nil {
 		// In case object is not found, most likely the object was deleted and
 		// then disappeared while the event was in the processing queue. We
