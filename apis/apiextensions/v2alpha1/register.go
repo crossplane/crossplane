@@ -46,8 +46,16 @@ var (
 	CompositeResourceDefinitionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositeResourceDefinitionKind}.String()
 	CompositeResourceDefinitionKindAPIVersion   = CompositeResourceDefinitionKind + "." + SchemeGroupVersion.String()
 	CompositeResourceDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(CompositeResourceDefinitionKind)
+
+	ManagedResourceDefinitionKind             = reflect.TypeOf(ManagedResourceDefinition{}).Name()
+	ManagedResourceDefinitionGroupKind        = schema.GroupKind{Group: Group, Kind: ManagedResourceDefinitionKind}.String()
+	ManagedResourceDefinitionKindAPIVersion   = ManagedResourceDefinitionKind + "." + SchemeGroupVersion.String()
+	ManagedResourceDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(ManagedResourceDefinitionKind)
 )
 
 func init() {
-	SchemeBuilder.Register(&CompositeResourceDefinition{}, &CompositeResourceDefinitionList{})
+	SchemeBuilder.Register(
+		&CompositeResourceDefinition{}, &CompositeResourceDefinitionList{},
+		&ManagedResourceDefinition{}, &ManagedResourceDefinitionList{},
+	)
 }
