@@ -113,7 +113,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	limit := ptr.Deref(op.Spec.RetryLimit, 5)
 	if op.Status.Failures >= limit {
 		log.Debug("Operation failure limit reached. Not running again.", "limit", limit)
-		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.Failed("failure limit of %d reached", limit))
+		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.Failed(fmt.Sprintf("failure limit of %d reached", limit)))
 
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
 	}
@@ -140,11 +140,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		// A function without the required capabilities requires human intervention
 		// to fix, so we immediately fail this operation without retrying.
-		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.Failed("%s", err))
+		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.Failed(err.Error()), v1alpha1.MissingCapabilities(err.Error()))
 		_ = r.client.Status().Update(ctx, op)
 
 		return reconcile.Result{}, errors.Wrap(err, "function capability check failed")
 	}
+
+	// All functions have the required operation capability
+	status.MarkConditions(v1alpha1.ValidPipeline())
 
 	// The function pipeline starts with empty desired state.
 	d := &fnv1.State{}
@@ -167,7 +170,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 				// An unmarshalable input requires human intervention to fix, so
 				// we immediately fail this operation without retrying.
-				status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.Failed("cannot unmarshal input for operation pipeline step %q", fn.Step))
+				status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.Failed(fmt.Sprintf("cannot unmarshal input for operation pipeline step %q", fn.Step)))
 				_ = r.client.Status().Update(ctx, op)
 
 				return reconcile.Result{}, errors.Wrapf(err, "cannot unmarshal input for operation pipeline step %q", fn.Step)
