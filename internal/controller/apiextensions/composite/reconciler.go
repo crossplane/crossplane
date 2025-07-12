@@ -568,11 +568,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	rev, err := r.revision.Fetch(ctx, xr)
 	if err != nil {
+		log.Debug(errFetchComp, "error", err)
+
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
 
-		log.Debug(errFetchComp, "error", err)
 		err = errors.Wrap(err, errFetchComp)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
@@ -582,6 +583,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if rev := xr.GetCompositionRevisionReference(); rev != nil && (origRev == nil || *rev != *origRev) {
 		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Selected composition revision: %s", rev.Name)))
+	}
+
+	// Check if the CompositionRevision has a valid pipeline before proceeding.
+	// Only proceed if the pipeline is explicitly marked as valid.
+	if c := rev.GetCondition(v1.TypeValidPipeline); c.Status != corev1.ConditionTrue {
+		msg := "pipeline status unknown"
+		if c.Message != "" {
+			msg = c.Message
+		}
+
+		err := errors.Errorf("selected CompositionRevision %s does not have a valid function pipeline: %s", rev.GetName(), msg)
+
+		r.record.Event(xr, event.Warning(reasonCompose, err))
+		status.MarkConditions(xpv1.ReconcileError(err))
+
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
 	if err := r.composite.Configure(ctx, xr, rev); err != nil {
