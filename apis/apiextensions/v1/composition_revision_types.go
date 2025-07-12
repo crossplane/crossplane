@@ -108,6 +108,16 @@ type CompositionRevision struct {
 	Status CompositionRevisionStatus `json:"status,omitempty"`
 }
 
+// GetCondition of this CompositionRevision.
+func (in *CompositionRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return in.Status.GetCondition(ct)
+}
+
+// SetConditions of this CompositionRevision.
+func (in *CompositionRevision) SetConditions(c ...xpv1.Condition) {
+	in.Status.SetConditions(c...)
+}
+
 // +kubebuilder:object:root=true
 
 // CompositionRevisionList contains a list of CompositionRevisions.
