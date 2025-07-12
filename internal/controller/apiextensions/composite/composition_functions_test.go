@@ -47,9 +47,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
 )
 
 func TestFunctionCompose(t *testing.T) {

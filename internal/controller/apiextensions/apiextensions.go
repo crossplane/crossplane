@@ -24,11 +24,16 @@ import (
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/definition"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/offered"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/revision"
 )
 
 // Setup API extensions controllers.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	if err := composition.Setup(mgr, o); err != nil {
+		return err
+	}
+
+	if err := revision.Setup(mgr, o); err != nil {
 		return err
 	}
 

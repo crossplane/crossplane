@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 
-	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
 )
 
 // PrometheusMetrics are requests, errors, and duration (RED) metrics for composition

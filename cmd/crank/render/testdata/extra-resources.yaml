@@ -1,6 +1,6 @@
 ---
 apiVersion: example.org/v1alpha1
-kind: ExtraResourceA
+kind: RequiredResourceA
 metadata:
   name: test-extra-a
   annotations:
@@ -9,7 +9,7 @@ spec:
   coolField: "I'm cool!"
 ---
 apiVersion: example.org/v1
-kind: ExtraResourceB
+kind: RequiredResourceB
 metadata:
   name: test-extra-b
   annotations:

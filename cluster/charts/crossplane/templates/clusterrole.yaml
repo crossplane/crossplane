@@ -59,9 +59,9 @@ rules:
   - "*"
 - apiGroups:
   - apiextensions.crossplane.io
+  - ops.crossplane.io
   - pkg.crossplane.io
   - protection.crossplane.io
-  - secrets.crossplane.io
   resources:
   - "*"
   verbs:

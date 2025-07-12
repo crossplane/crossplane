@@ -25,6 +25,11 @@ type MetaSpec struct {
 
 	// Dependencies on other packages.
 	DependsOn []Dependency `json:"dependsOn,omitempty"`
+
+	// Capabilities of this package. Capabilities are opaque strings that
+	// may be meaningful to package consumers.
+	// +optional
+	Capabilities []string `json:"capabilities,omitempty"`
 }
 
 // CrossplaneConstraints specifies a packages compatibility with Crossplane versions.

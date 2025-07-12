@@ -16,21 +16,26 @@
 
 syntax = "proto3";
 
-//buf:lint:ignore PACKAGE_DIRECTORY_MATCH // Too late to fix this now.
+// This package defines the RPC for both composition and operation functions.
+// Only composition functions are part of the 'apiextensions' API group. In
+// retrospect this package should've been crossplane.proto.fn.v1, but it's too
+// late to change it now.
+
+//buf:lint:ignore PACKAGE_DIRECTORY_MATCH
 package apiextensions.fn.proto.v1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
 
-option go_package = "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1";
+option go_package = "github.com/crossplane/crossplane/proto/fn/v1";
 
-// A FunctionRunnerService is a Composition Function.
+// A FunctionRunnerService is a function.
 service FunctionRunnerService {
-  // RunFunction runs the Composition Function.
+  // RunFunction runs the function.
   rpc RunFunction(RunFunctionRequest) returns (RunFunctionResponse) {}
 }
 
-// A RunFunctionRequest requests that the Composition Function be run.
+// A RunFunctionRequest requests that the function be run.
 message RunFunctionRequest {
   // Metadata pertaining to this request.
   RequestMeta meta = 1;
@@ -45,8 +50,8 @@ message RunFunctionRequest {
   // pipeline.
   //
   // Note that the desired state must be a partial object with only the fields
-  // that this function (and its predecessors in the pipeline) wants to have
-  // set in the object. Copying a non-partial observed state to desired is most
+  // that this function (and its predecessors in the pipeline) wants to have set
+  // in the object. Copying a non-partial observed state to desired is most
   // likely not what you want to do. Leaving out fields that had been returned
   // as desired before will result in them being deleted from the objects in the
   // cluster.
@@ -62,13 +67,13 @@ message RunFunctionRequest {
   // discards all context returned by the last Function in the pipeline.
   optional google.protobuf.Struct context = 5;
 
-  // Optional extra resources that the Function required.
-  // Note that extra resources is a map to Resources, plural.
-  // The map key corresponds to the key in a RunFunctionResponse's
-  // extra_resources field. If a Function requested extra resources that
-  // did not exist, Crossplane sets the map key to an empty Resources message to
-  // indicate that it attempted to satisfy the request.
-  map<string, Resources> extra_resources = 6;
+  // Optional resources that the Function specified in its requirements.
+  // Note that resources is a map to Resources, plural. The map key corresponds
+  // to the key in a RunFunctionResponse's requirements.resources field. If a
+  // Function requested required resources that did not exist, Crossplane sets
+  // the map key to an empty Resources message to indicate that it attempted to
+  // satisfy the request.
+  map<string, Resources> required_resources = 6;
 
   // Optional credentials that this Function may use to communicate with an
   // external system.
@@ -94,7 +99,7 @@ message Resources {
   repeated Resource items = 1;
 }
 
-// A RunFunctionResponse contains the result of a Composition Function run.
+// A RunFunctionResponse contains the result of a function run.
 message RunFunctionResponse {
   // Metadata pertaining to this response.
   ResponseMeta meta = 1;
@@ -106,8 +111,8 @@ message RunFunctionResponse {
   //
   //
   // Note that the desired state must be a partial object with only the fields
-  // that this function (and its predecessors in the pipeline) wants to have
-  // set in the object. Copying a non-partial observed state to desired is most
+  // that this function (and its predecessors in the pipeline) wants to have set
+  // in the object. Copying a non-partial observed state to desired is most
   // likely not what you want to do. Leaving out fields that had been returned
   // as desired before will result in them being deleted from the objects in the
   // cluster.
@@ -126,6 +131,11 @@ message RunFunctionResponse {
   // Status conditions to be applied to the composite resource. Conditions may also
   // optionally be applied to the composite resource's associated claim.
   repeated Condition conditions = 6;
+
+  // Optional output specific to this function invocation.
+  //
+  // Only Operations use function output. XRs will discard any function output.
+  optional google.protobuf.Struct output = 7;
 }
 
 // RequestMeta contains metadata pertaining to a RunFunctionRequest.
@@ -137,9 +147,9 @@ message RequestMeta {
 
 // Requirements that must be satisfied for a Function to run successfully.
 message Requirements {
-  // Extra resources that this Function requires.
+  // Resources that this Function requires.
   // The map key uniquely identifies the group of resources.
-  map<string, ResourceSelector> extra_resources = 1;
+  map<string, ResourceSelector> resources = 1;
 }
 
 // ResourceSelector selects a group of resources, either by name or by label.
@@ -269,9 +279,9 @@ message Result {
 enum Severity {
   SEVERITY_UNSPECIFIED = 0;
 
-  // Fatal results are fatal; subsequent Composition Functions may run, but
-  // the Composition Function pipeline run will be considered a failure and
-  // the first fatal result will be returned as an error.
+  // Fatal results are fatal; subsequent functions may run, but the function
+  // pipeline run will be considered a failure and the first fatal result will
+  // be returned as an error.
   SEVERITY_FATAL = 1;
 
   // Warning results are non-fatal; the entire Composition will run to

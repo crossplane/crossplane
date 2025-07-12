@@ -38,15 +38,15 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
-	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/internal/xfn"
+	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
 )
 
 var (
-	_ composite.FunctionRunner        = &RuntimeFunctionRunner{}
-	_ composite.ExtraResourcesFetcher = &FilteringFetcher{}
+	_ xfn.FunctionRunner           = &RuntimeFunctionRunner{}
+	_ xfn.RequiredResourcesFetcher = &FilteringFetcher{}
 )
 
 func TestRender(t *testing.T) {
@@ -539,7 +539,7 @@ func TestRender(t *testing.T) {
 				},
 			},
 		},
-		"SuccessWithExtraResources": {
+		"SuccessWithResources": {
 			args: args{
 				ctx: context.Background(),
 				in: Inputs{
@@ -574,7 +574,7 @@ func TestRender(t *testing.T) {
 								case 0:
 									return &fnv1.RunFunctionResponse{
 										Requirements: &fnv1.Requirements{
-											ExtraResources: map[string]*fnv1.ResourceSelector{
+											Resources: map[string]*fnv1.ResourceSelector{
 												"extra-resource-by-name": {
 													ApiVersion: "test.crossplane.io/v1",
 													Kind:       "Foo",
@@ -586,17 +586,17 @@ func TestRender(t *testing.T) {
 										},
 									}, nil
 								case 1:
-									if len(request.GetExtraResources()) == 0 {
+									if len(request.GetRequiredResources()) == 0 {
 										t.Fatalf("expected extra resources to be passed to function on second call")
 									}
-									res := request.GetExtraResources()["extra-resource-by-name"]
+									res := request.GetRequiredResources()["extra-resource-by-name"]
 									if res == nil || len(res.GetItems()) == 0 {
 										t.Fatalf("expected extra resource to be passed to function on second call")
 									}
 									foo := (res.GetItems()[0].GetResource().AsMap()["spec"].(map[string]interface{}))["foo"].(string)
 									return &fnv1.RunFunctionResponse{
 										Requirements: &fnv1.Requirements{
-											ExtraResources: map[string]*fnv1.ResourceSelector{
+											Resources: map[string]*fnv1.ResourceSelector{
 												"extra-resource-by-name": {
 													ApiVersion: "test.crossplane.io/v1",
 													Kind:       "Foo",
@@ -654,7 +654,7 @@ func TestRender(t *testing.T) {
 							}
 						}(),
 					},
-					ExtraResources: []unstructured.Unstructured{
+					RequiredResources: []unstructured.Unstructured{
 						{
 							Object: MustLoadJSON(`{
 								"apiVersion": "test.crossplane.io/v1",
@@ -826,7 +826,7 @@ func (r *MockFunctionRunner) RunFunction(ctx context.Context, req *fnv1.RunFunct
 	return r.RunFunc(ctx, req)
 }
 
-func TestFilterExtraResources(t *testing.T) {
+func TestFilterResources(t *testing.T) {
 	type params struct {
 		ers []unstructured.Unstructured
 	}
@@ -1063,11 +1063,11 @@ func TestFilterExtraResources(t *testing.T) {
 
 			out, err := f.Fetch(tc.args.ctx, tc.args.selector)
 			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(fnv1.Resources{}, fnv1.Resource{}, structpb.Struct{}, structpb.Value{})); diff != "" {
-				t.Errorf("%s\nfilterExtraResources(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("%s\nfilterResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
-				t.Errorf("%s\nfilterExtraResources(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("%s\nfilterResources(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}

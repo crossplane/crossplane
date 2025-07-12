@@ -35,6 +35,7 @@ type Pkg interface {
 
 	GetCrossplaneConstraints() *CrossplaneConstraints
 	GetDependencies() []Dependency
+	GetCapabilities() []string
 }
 
 // GetCrossplaneConstraints gets the Configuration package's Crossplane version
@@ -48,6 +49,11 @@ func (c *Configuration) GetDependencies() []Dependency {
 	return c.Spec.DependsOn
 }
 
+// GetCapabilities gets the Configuration package's capabilities.
+func (c *Configuration) GetCapabilities() []string {
+	return c.Spec.Capabilities
+}
+
 // GetCrossplaneConstraints gets the Provider package's Crossplane version
 // constraints.
 func (p *Provider) GetCrossplaneConstraints() *CrossplaneConstraints {
@@ -59,6 +65,11 @@ func (p *Provider) GetDependencies() []Dependency {
 	return p.Spec.DependsOn
 }
 
+// GetCapabilities gets the Provider package's capabilities.
+func (p *Provider) GetCapabilities() []string {
+	return p.Spec.Capabilities
+}
+
 // GetCrossplaneConstraints gets the Function package's Crossplane version constraints.
 func (f *Function) GetCrossplaneConstraints() *CrossplaneConstraints {
 	return f.Spec.Crossplane
@@ -67,4 +78,17 @@ func (f *Function) GetCrossplaneConstraints() *CrossplaneConstraints {
 // GetDependencies gets the Function package's dependencies.
 func (f *Function) GetDependencies() []Dependency {
 	return f.Spec.DependsOn
+}
+
+// GetCapabilities gets the Function package's capabilities.
+func (f *Function) GetCapabilities() []string {
+	// If a function doesn't include any capabilities we assume it's a
+	// composition function. Composition functions predate the concept of
+	// function capabilities, so there are many composition functions that
+	// don't explicitly specify any capabilities.
+	if f.Spec.Capabilities == nil {
+		return []string{FunctionCapabilityComposition}
+	}
+
+	return f.Spec.Capabilities
 }

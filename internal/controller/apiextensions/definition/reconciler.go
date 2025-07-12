@@ -509,9 +509,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
-	runner := composite.NewFetchingFunctionRunner(r.options.FunctionRunner, composite.NewExistingExtraResourcesFetcher(r.engine.GetCached()))
 	fetcher := composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached())
-	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), runner,
+	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), r.options.FunctionRunner,
 		composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.engine.GetCached(), r.engine.GetUncached(), fetcher)),
 		composite.WithCompositeConnectionDetailsFetcher(fetcher),
 	)
