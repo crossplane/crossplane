@@ -14,8 +14,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -26,6 +24,9 @@ import (
 const (
 	// A TypeSucceeded condition indicates whether an operation has Succeeded.
 	TypeSucceeded xpv1.ConditionType = "Succeeded"
+
+	// A TypeValidPipeline Operation has a valid function pipeline.
+	TypeValidPipeline xpv1.ConditionType = "ValidPipeline"
 )
 
 // Reasons a package is or is not installed.
@@ -33,6 +34,9 @@ const (
 	ReasonPipelineRunning xpv1.ConditionReason = "PipelineRunning"
 	ReasonPipelineSuccess xpv1.ConditionReason = "PipelineSuccess"
 	ReasonPipelineError   xpv1.ConditionReason = "PipelineError"
+
+	ReasonValidPipeline       xpv1.ConditionReason = "ValidPipeline"
+	ReasonMissingCapabilities xpv1.ConditionReason = "MissingCapabilities"
 )
 
 // Running indicates that an operation is running.
@@ -56,12 +60,34 @@ func Complete() xpv1.Condition {
 }
 
 // Failed indicates that an operation has failed.
-func Failed(msgFormat string, a ...any) xpv1.Condition {
+func Failed(message string) xpv1.Condition {
 	return xpv1.Condition{
 		Type:               TypeSucceeded,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonPipelineError,
-		Message:            fmt.Sprintf(msgFormat, a...),
+		Message:            message,
+	}
+}
+
+// ValidPipeline indicates that an operation has a valid function pipeline.
+func ValidPipeline() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeValidPipeline,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonValidPipeline,
+	}
+}
+
+// MissingCapabilities indicates that an operation's functions are missing
+// required capabilities.
+func MissingCapabilities(message string) xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeValidPipeline,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonMissingCapabilities,
+		Message:            message,
 	}
 }
