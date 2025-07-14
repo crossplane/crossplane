@@ -33,13 +33,13 @@ import (
 
 	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	daytwocontroller "github.com/crossplane/crossplane/internal/controller/ops/controller"
+	opscontroller "github.com/crossplane/crossplane/internal/controller/ops/controller"
 	"github.com/crossplane/crossplane/internal/xfn"
 )
 
 // Setup adds a controller that reconciles Usages by
 // defining a composite resource and starting a controller to reconcile it.
-func Setup(mgr ctrl.Manager, o daytwocontroller.Options) error {
+func Setup(mgr ctrl.Manager, o opscontroller.Options) error {
 	name := "ops/" + strings.ToLower(v1alpha1.OperationGroupKind)
 
 	r := NewReconciler(mgr,
