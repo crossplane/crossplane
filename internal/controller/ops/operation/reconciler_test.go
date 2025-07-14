@@ -382,7 +382,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"CapabilityCheckError": {
-			reason: "We should return an error if a function doesn't have the required operation capability",
+			reason: "We should increment failures and return an error if a function doesn't have the required operation capability",
 			params: params{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{

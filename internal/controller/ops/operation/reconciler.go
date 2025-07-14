@@ -58,6 +58,7 @@ const (
 	reasonFunctionInvocation = "FunctionInvocation"
 	reasonInvalidOutput      = "InvalidOutput"
 	reasonInvalidResource    = "InvalidResource"
+	reasonInvalidPipeline    = "InvalidPipeline"
 )
 
 // FieldOwnerPrefix is used to form the server-side apply field owner
@@ -138,15 +139,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		names = append(names, fn.FunctionRef.Name)
 	}
 
+	// This'll usually be a case that needs human intervention to fix, but
+	// it could be that a newly created function hasn't written its
+	// capabilities to status yet, so we do retry.
 	if err := r.functions.CheckCapabilities(ctx, []string{pkgmetav1.FunctionCapabilityOperation}, names...); err != nil {
-		log.Debug("Function capability check failed", "error", err)
+		op.Status.Failures++
 
-		// A function without the required capabilities requires human intervention
-		// to fix, so we immediately fail this operation without retrying.
-		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.Failed(err.Error()), v1alpha1.MissingCapabilities(err.Error()))
+		log.Debug("Function capability check failed", "error", err, "failures", op.Status.Failures)
+		err = errors.Wrap(err, "function capability check failed")
+		r.record.Event(op, event.Warning(reasonInvalidPipeline, err))
+		status.MarkConditions(xpv1.ReconcileError(err), v1alpha1.MissingCapabilities(err.Error()))
 		_ = r.client.Status().Update(ctx, op)
 
-		return reconcile.Result{}, errors.Wrap(err, "function capability check failed")
+		return reconcile.Result{}, err
 	}
 
 	// All functions have the required operation capability
