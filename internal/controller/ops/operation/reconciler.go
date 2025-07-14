@@ -48,6 +48,9 @@ import (
 
 const timeout = 2 * time.Minute
 
+// DefaultRetryLimit before an Operation is marked failed.
+const DefaultRetryLimit = 5
+
 // Event reasons.
 const (
 	reasonRunPipelineStep    = "RunPipelineStep"
@@ -110,7 +113,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Don't run if we're at the configured failure limit.
-	limit := ptr.Deref(op.Spec.RetryLimit, 5)
+	limit := ptr.Deref(op.Spec.RetryLimit, DefaultRetryLimit)
 	if op.Status.Failures >= limit {
 		log.Debug("Operation failure limit reached. Not running again.", "limit", limit)
 		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.Failed(fmt.Sprintf("failure limit of %d reached", limit)))
