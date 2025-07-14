@@ -28,7 +28,7 @@ type ManagedResourceDefinitionSpec struct {
 	CustomResourceDefinitionSpec `json:",inline"`
 
 	// ConnectionDetails is an array of connection detail keys and descriptions.
-	ConnectionDetails []ConnectionDetails `json:"connectionDetails,omitempty"`
+	ConnectionDetails []ConnectionDetail `json:"connectionDetails,omitempty"`
 
 	// State toggles whether the underlying CRD is created or not.
 	State ManagedResourceDefinitionState `json:"state"`
@@ -45,11 +45,11 @@ const (
 	ManagedResourceDefinitionInactive ManagedResourceDefinitionState = "Inactive"
 )
 
-// ConnectionDetails holds keys and descriptions of connection secrets.
-type ConnectionDetails struct {
+// ConnectionDetail holds keys and descriptions of connection secrets.
+type ConnectionDetail struct {
 	// Name of the key.
 	Name string `json:"name"`
-	// Description of how to key is used.
+	// Description of how the key is used.
 	Description string `json:"description"`
 }
 

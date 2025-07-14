@@ -60,11 +60,11 @@ spec:
                 description: ConnectionDetails is an array of connection detail keys
                   and descriptions.
                 items:
-                  description: ConnectionDetails holds keys and descriptions of connection
+                  description: ConnectionDetail holds keys and descriptions of connection
                     secrets.
                   properties:
                     description:
-                      description: Description of how to key is used.
+                      description: Description of how the key is used.
                       type: string
                     name:
                       description: Name of the key.
