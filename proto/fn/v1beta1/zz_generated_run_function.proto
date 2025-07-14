@@ -42,13 +42,13 @@ message RunFunctionRequest {
   // Metadata pertaining to this request.
   RequestMeta meta = 1;
 
-  // The observed state prior to invocation of a Function pipeline. State passed
-  // to each Function is fresh as of the time the pipeline was invoked, not as
-  // of the time each Function was invoked.
+  // The observed state prior to invocation of a function pipeline. State passed
+  // to each function is fresh as of the time the pipeline was invoked, not as
+  // of the time each function was invoked.
   State observed = 2;
 
-  // Desired state according to a Function pipeline. The state passed to a
-  // particular Function may have been accumulated by previous Functions in the
+  // Desired state according to a function pipeline. The state passed to a
+  // particular function may have been accumulated by previous functions in the
   // pipeline.
   //
   // Note that the desired state must be a partial object with only the fields
@@ -59,30 +59,30 @@ message RunFunctionRequest {
   // cluster.
   State desired = 3;
 
-  // Optional input specific to this Function invocation. A JSON representation
-  // of the 'input' block of the relevant entry in a Composition's pipeline.
+  // Optional input specific to this function invocation. A JSON representation
+  // of the 'input' block of the relevant entry in a function pipeline.
   optional google.protobuf.Struct input = 4;
 
   // Optional context. Crossplane may pass arbitrary contextual information to a
-  // Function. A Function may also return context in its RunFunctionResponse,
-  // and that context will be passed to subsequent Functions. Crossplane
-  // discards all context returned by the last Function in the pipeline.
+  // function. A function may also return context in its RunFunctionResponse,
+  // and that context will be passed to subsequent functions. Crossplane
+  // discards all context returned by the last function in the pipeline.
   optional google.protobuf.Struct context = 5;
 
-  // Optional resources that the Function specified in its requirements.
-  // Note that resources is a map to Resources, plural. The map key corresponds
-  // to the key in a RunFunctionResponse's requirements.resources field. If a
-  // Function requested required resources that did not exist, Crossplane sets
+  // Optional resources that the function specified in its requirements. Note
+  // that resources is a map to Resources, plural. The map key corresponds to
+  // the key in a RunFunctionResponse's requirements.resources field. If a
+  // function requested required resources that did not exist, Crossplane sets
   // the map key to an empty Resources message to indicate that it attempted to
   // satisfy the request.
   map<string, Resources> required_resources = 6;
 
-  // Optional credentials that this Function may use to communicate with an
+  // Optional credentials that this function may use to communicate with an
   // external system.
   map<string, Credentials> credentials = 7;
 }
 
-// Credentials that a Function may use to communicate with an external system.
+// Credentials that a function may use to communicate with an external system.
 message Credentials {
   // Source of the credentials.
   oneof source {
@@ -106,11 +106,10 @@ message RunFunctionResponse {
   // Metadata pertaining to this response.
   ResponseMeta meta = 1;
 
-  // Desired state according to a Function pipeline. Functions may add desired
+  // Desired state according to a function pipeline. functions may add desired
   // state, and may mutate or delete any part of the desired state they are
-  // concerned with. A Function must pass through any part of the desired state
+  // concerned with. A function must pass through any part of the desired state
   // that it is not concerned with.
-  //
   //
   // Note that the desired state must be a partial object with only the fields
   // that this function (and its predecessors in the pipeline) wants to have set
@@ -120,18 +119,20 @@ message RunFunctionResponse {
   // cluster.
   State desired = 2;
 
-  // Results of the Function run. Results are used for observability purposes.
+  // Results of the function run. Results are used for observability purposes.
   repeated Result results = 3;
 
-  // Optional context to be passed to the next Function in the pipeline as part
+  // Optional context to be passed to the next function in the pipeline as part
   // of the RunFunctionRequest. Dropped on the last function in the pipeline.
   optional google.protobuf.Struct context = 4;
 
-  // Requirements that must be satisfied for this Function to run successfully.
+  // Requirements that must be satisfied for this function to run successfully.
   Requirements requirements = 5;
 
-  // Status conditions to be applied to the composite resource. Conditions may also
-  // optionally be applied to the composite resource's associated claim.
+  // Status conditions to be applied to the XR. Conditions may also optionally
+  // be applied to the XR's associated claim.
+  //
+  // Conditions are only used for composition. They're ignored by Operations.
   repeated Condition conditions = 6;
 
   // Optional output specific to this function invocation.
@@ -147,10 +148,10 @@ message RequestMeta {
   string tag = 1;
 }
 
-// Requirements that must be satisfied for a Function to run successfully.
+// Requirements that must be satisfied for a function to run successfully.
 message Requirements {
-  // Resources that this Function requires.
-  // The map key uniquely identifies the group of resources.
+  // Resources that this function requires. The map key uniquely identifies the
+  // group of resources.
   map<string, ResourceSelector> resources = 1;
 }
 
@@ -171,9 +172,9 @@ message ResourceSelector {
     MatchLabels match_labels = 4;
   }
 
-  // Match resources in this namespace.
-  // Omit namespace to match cluster scoped resources, or to match namespaced
-  // resources by labels across all namespaces.
+  // Match resources in this namespace. Omit namespace to match cluster scoped
+  // resources, or to match namespaced resources by labels across all
+  // namespaces.
   optional string namespace = 5;
 }
 
@@ -194,74 +195,80 @@ message ResponseMeta {
   optional google.protobuf.Duration ttl = 2;
 }
 
-// State of the composite resource (XR) and any composed resources.
+// State of the XR (XR) and any resources.
 message State {
-  // The state of the composite resource (XR).
+  // The state of the XR (XR).
   Resource composite = 1;
 
-  // The state of any composed resources.
+  // The state of any other resources. In composition functions these are the
+  // composed resources. In operation functions they're arbitrary resources that
+  // the operation wants to create or update.
   map<string, Resource> resources = 2;
 }
 
-// A Resource represents the state of a composite or composed resource.
+// A Resource represents the state of a Kubernetes resource.
 message Resource {
   // The JSON representation of the resource.
   //
   // * Crossplane will set this field in a RunFunctionRequest to the entire
-  //   observed state of a resource - including its metadata, spec, and status.
+  // observed state of a resource - including its metadata, spec, and status.
   //
-  // * A Function should set this field in a RunFunctionRequest to communicate
-  //   the desired state of a composite or composed resource.
+  // * A function should set this field in a RunFunctionRequest to communicate
+  // the desired state of the resource.
   //
-  // * A Function may only specify the desired status of a composite resource -
-  //   not its metadata or spec. A Function should not return desired metadata
-  //   or spec for a composite resource. This will be ignored.
+  // * A function may only specify the desired status of a XR - not its metadata
+  // or spec. A function should not return desired metadata or spec for a XR.
+  // This will be ignored.
   //
-  // * A Function may not specify the desired status of a composed resource -
-  //   only its metadata and spec. A Function should not return desired status
-  //   for a composed resource. This will be ignored.
+  // * A function may not specify the desired status of any other resource -
+  // e.g. composed resources. It may only specify their metadata and spec.
+  // Status will be ignored.
   google.protobuf.Struct resource = 1;
 
   // The resource's connection details.
   //
   // * Crossplane will set this field in a RunFunctionRequest to communicate the
-  //   the observed connection details of a composite or composed resource.
+  // the observed connection details of a composite or composed resource.
   //
-  // * A Function should set this field in a RunFunctionResponse to indicate the
-  //   desired connection details of the composite resource.
+  // * A function should set this field in a RunFunctionResponse to indicate the
+  // desired connection details of the XR.
   //
-  // * A Function should not set this field in a RunFunctionResponse to indicate
-  //   the desired connection details of a composed resource. This will be
-  //   ignored.
+  // * A function should not set this field in a RunFunctionResponse to indicate
+  // the desired connection details of a composed resource. This will be
+  // ignored.
+  //
+  // Connection details are only used for composition. They're ignored by
+  // Operations.
   map<string, bytes> connection_details = 2;
 
   // Ready indicates whether the resource should be considered ready.
   //
   // * Crossplane will never set this field in a RunFunctionRequest.
   //
-  // * A Function should set this field to READY_TRUE in a RunFunctionResponse
-  //   to indicate that a desired composed resource is ready.
+  // * A function should set this field to READY_TRUE in a RunFunctionResponse
+  // to indicate that a desired resource is ready.
   //
-  // * A Function should set this field to READY_TRUE in a RunFunctionResponse
-  //   to indicate that a desired composite resource is ready.
-  //   This overwrites the standard readiness detection that determines the
-  //   ready state of the composite by the ready state of the the
-  //   composed resources.
+  // * A function should set this field to READY_TRUE in a RunFunctionResponse
+  // to indicate that a desired XR is ready. This overwrites the standard
+  // readiness detection that determines the ready state of the composite by the
+  // ready state of the the composed resources.
+  //
+  // Ready is only used for composition. It's ignored by Operations.
   Ready ready = 3;
 }
 
-// Ready indicates whether a composed resource should be considered ready.
+// Ready indicates whether a resource should be considered ready.
 enum Ready {
   READY_UNSPECIFIED = 0;
 
-  // True means the composed resource has been observed to be ready.
+  // True means the resource has been observed to be ready.
   READY_TRUE = 1;
 
-  // False means the composed resource has not been observed to be ready.
+  // False means the resource has not been observed to be ready.
   READY_FALSE = 2;
 }
 
-// A Result of running a Function.
+// A Result of running a function.
 message Result {
   // Severity of this result.
   Severity severity = 1;
@@ -277,7 +284,7 @@ message Result {
   optional Target target = 4;
 }
 
-// Severity of Function results.
+// Severity of function results.
 enum Severity {
   SEVERITY_UNSPECIFIED = 0;
 
@@ -286,33 +293,33 @@ enum Severity {
   // be returned as an error.
   SEVERITY_FATAL = 1;
 
-  // Warning results are non-fatal; the entire Composition will run to
-  // completion but warning events and debug logs associated with the
-  // composite resource will be emitted.
+  // Warning results are non-fatal; the entire pipeline will run to completion
+  // but warning events and debug logs associated with the XR or Operation will
+  // be emitted.
   SEVERITY_WARNING = 2;
 
-  // Normal results are emitted as normal events and debug logs associated
-  // with the composite resource.
+  // Normal results are emitted as normal events and debug logs associated with
+  // the XR or operation.
   SEVERITY_NORMAL = 3;
 }
 
-// Target of Function results and conditions.
+// Target of function results and conditions.
 enum Target {
-  // If the target is unspecified, the result targets the composite resource.
+  // If the target is unspecified, the result targets the XR.
   TARGET_UNSPECIFIED = 0;
 
-  // Target the composite resource. Results that target the composite resource
-  // should include detailed, advanced information.
+  // Target the XR. Results that target the XR should include detailed, advanced
+  // information.
   TARGET_COMPOSITE = 1;
 
-  // Target the composite and the claim. Results that target the composite and
-  // the claim should include only end-user friendly information.
+  // Target the XR and the claim. Results that target the XR and the claim
+  // should include only end-user friendly information.
   TARGET_COMPOSITE_AND_CLAIM = 2;
 }
 
-// Status condition to be applied to the composite resource. Condition may also
-// optionally be applied to the composite resource's associated claim. For
-// detailed information on proper usage of status conditions, please see
+// Status condition to be applied to the XR. Condition may also optionally be
+// applied to the XR's associated claim. For detailed information on proper
+// usage of status conditions, please see
 // https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties.
 message Condition {
   // Type of condition in PascalCase.

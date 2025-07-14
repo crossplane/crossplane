@@ -45,14 +45,14 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Ready indicates whether a composed resource should be considered ready.
+// Ready indicates whether a resource should be considered ready.
 type Ready int32
 
 const (
 	Ready_READY_UNSPECIFIED Ready = 0
-	// True means the composed resource has been observed to be ready.
+	// True means the resource has been observed to be ready.
 	Ready_READY_TRUE Ready = 1
-	// False means the composed resource has not been observed to be ready.
+	// False means the resource has not been observed to be ready.
 	Ready_READY_FALSE Ready = 2
 )
 
@@ -97,7 +97,7 @@ func (Ready) EnumDescriptor() ([]byte, []int) {
 	return file_proto_fn_v1_run_function_proto_rawDescGZIP(), []int{0}
 }
 
-// Severity of Function results.
+// Severity of function results.
 type Severity int32
 
 const (
@@ -106,12 +106,12 @@ const (
 	// pipeline run will be considered a failure and the first fatal result will
 	// be returned as an error.
 	Severity_SEVERITY_FATAL Severity = 1
-	// Warning results are non-fatal; the entire Composition will run to
-	// completion but warning events and debug logs associated with the
-	// composite resource will be emitted.
+	// Warning results are non-fatal; the entire pipeline will run to completion
+	// but warning events and debug logs associated with the XR or Operation will
+	// be emitted.
 	Severity_SEVERITY_WARNING Severity = 2
-	// Normal results are emitted as normal events and debug logs associated
-	// with the composite resource.
+	// Normal results are emitted as normal events and debug logs associated with
+	// the XR or operation.
 	Severity_SEVERITY_NORMAL Severity = 3
 )
 
@@ -158,17 +158,17 @@ func (Severity) EnumDescriptor() ([]byte, []int) {
 	return file_proto_fn_v1_run_function_proto_rawDescGZIP(), []int{1}
 }
 
-// Target of Function results and conditions.
+// Target of function results and conditions.
 type Target int32
 
 const (
-	// If the target is unspecified, the result targets the composite resource.
+	// If the target is unspecified, the result targets the XR.
 	Target_TARGET_UNSPECIFIED Target = 0
-	// Target the composite resource. Results that target the composite resource
-	// should include detailed, advanced information.
+	// Target the XR. Results that target the XR should include detailed, advanced
+	// information.
 	Target_TARGET_COMPOSITE Target = 1
-	// Target the composite and the claim. Results that target the composite and
-	// the claim should include only end-user friendly information.
+	// Target the XR and the claim. Results that target the XR and the claim
+	// should include only end-user friendly information.
 	Target_TARGET_COMPOSITE_AND_CLAIM Target = 2
 )
 
@@ -270,12 +270,12 @@ type RunFunctionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Metadata pertaining to this request.
 	Meta *RequestMeta `protobuf:"bytes,1,opt,name=meta,proto3" json:"meta,omitempty"`
-	// The observed state prior to invocation of a Function pipeline. State passed
-	// to each Function is fresh as of the time the pipeline was invoked, not as
-	// of the time each Function was invoked.
+	// The observed state prior to invocation of a function pipeline. State passed
+	// to each function is fresh as of the time the pipeline was invoked, not as
+	// of the time each function was invoked.
 	Observed *State `protobuf:"bytes,2,opt,name=observed,proto3" json:"observed,omitempty"`
-	// Desired state according to a Function pipeline. The state passed to a
-	// particular Function may have been accumulated by previous Functions in the
+	// Desired state according to a function pipeline. The state passed to a
+	// particular function may have been accumulated by previous functions in the
 	// pipeline.
 	//
 	// Note that the desired state must be a partial object with only the fields
@@ -285,22 +285,22 @@ type RunFunctionRequest struct {
 	// as desired before will result in them being deleted from the objects in the
 	// cluster.
 	Desired *State `protobuf:"bytes,3,opt,name=desired,proto3" json:"desired,omitempty"`
-	// Optional input specific to this Function invocation. A JSON representation
-	// of the 'input' block of the relevant entry in a Composition's pipeline.
+	// Optional input specific to this function invocation. A JSON representation
+	// of the 'input' block of the relevant entry in a function pipeline.
 	Input *structpb.Struct `protobuf:"bytes,4,opt,name=input,proto3,oneof" json:"input,omitempty"`
 	// Optional context. Crossplane may pass arbitrary contextual information to a
-	// Function. A Function may also return context in its RunFunctionResponse,
-	// and that context will be passed to subsequent Functions. Crossplane
-	// discards all context returned by the last Function in the pipeline.
+	// function. A function may also return context in its RunFunctionResponse,
+	// and that context will be passed to subsequent functions. Crossplane
+	// discards all context returned by the last function in the pipeline.
 	Context *structpb.Struct `protobuf:"bytes,5,opt,name=context,proto3,oneof" json:"context,omitempty"`
-	// Optional resources that the Function specified in its requirements.
-	// Note that resources is a map to Resources, plural. The map key corresponds
-	// to the key in a RunFunctionResponse's requirements.resources field. If a
-	// Function requested required resources that did not exist, Crossplane sets
+	// Optional resources that the function specified in its requirements. Note
+	// that resources is a map to Resources, plural. The map key corresponds to
+	// the key in a RunFunctionResponse's requirements.resources field. If a
+	// function requested required resources that did not exist, Crossplane sets
 	// the map key to an empty Resources message to indicate that it attempted to
 	// satisfy the request.
 	RequiredResources map[string]*Resources `protobuf:"bytes,6,rep,name=required_resources,json=requiredResources,proto3" json:"required_resources,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Optional credentials that this Function may use to communicate with an
+	// Optional credentials that this function may use to communicate with an
 	// external system.
 	Credentials   map[string]*Credentials `protobuf:"bytes,7,rep,name=credentials,proto3" json:"credentials,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
@@ -386,7 +386,7 @@ func (x *RunFunctionRequest) GetCredentials() map[string]*Credentials {
 	return nil
 }
 
-// Credentials that a Function may use to communicate with an external system.
+// Credentials that a function may use to communicate with an external system.
 type Credentials struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Source of the credentials.
@@ -551,9 +551,9 @@ type RunFunctionResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Metadata pertaining to this response.
 	Meta *ResponseMeta `protobuf:"bytes,1,opt,name=meta,proto3" json:"meta,omitempty"`
-	// Desired state according to a Function pipeline. Functions may add desired
+	// Desired state according to a function pipeline. functions may add desired
 	// state, and may mutate or delete any part of the desired state they are
-	// concerned with. A Function must pass through any part of the desired state
+	// concerned with. A function must pass through any part of the desired state
 	// that it is not concerned with.
 	//
 	// Note that the desired state must be a partial object with only the fields
@@ -563,15 +563,17 @@ type RunFunctionResponse struct {
 	// as desired before will result in them being deleted from the objects in the
 	// cluster.
 	Desired *State `protobuf:"bytes,2,opt,name=desired,proto3" json:"desired,omitempty"`
-	// Results of the Function run. Results are used for observability purposes.
+	// Results of the function run. Results are used for observability purposes.
 	Results []*Result `protobuf:"bytes,3,rep,name=results,proto3" json:"results,omitempty"`
-	// Optional context to be passed to the next Function in the pipeline as part
+	// Optional context to be passed to the next function in the pipeline as part
 	// of the RunFunctionRequest. Dropped on the last function in the pipeline.
 	Context *structpb.Struct `protobuf:"bytes,4,opt,name=context,proto3,oneof" json:"context,omitempty"`
-	// Requirements that must be satisfied for this Function to run successfully.
+	// Requirements that must be satisfied for this function to run successfully.
 	Requirements *Requirements `protobuf:"bytes,5,opt,name=requirements,proto3" json:"requirements,omitempty"`
-	// Status conditions to be applied to the composite resource. Conditions may also
-	// optionally be applied to the composite resource's associated claim.
+	// Status conditions to be applied to the XR. Conditions may also optionally
+	// be applied to the XR's associated claim.
+	//
+	// Conditions are only used for composition. They're ignored by Operations.
 	Conditions []*Condition `protobuf:"bytes,6,rep,name=conditions,proto3" json:"conditions,omitempty"`
 	// Optional output specific to this function invocation.
 	//
@@ -707,11 +709,11 @@ func (x *RequestMeta) GetTag() string {
 	return ""
 }
 
-// Requirements that must be satisfied for a Function to run successfully.
+// Requirements that must be satisfied for a function to run successfully.
 type Requirements struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Resources that this Function requires.
-	// The map key uniquely identifies the group of resources.
+	// Resources that this function requires. The map key uniquely identifies the
+	// group of resources.
 	Resources     map[string]*ResourceSelector `protobuf:"bytes,1,rep,name=resources,proto3" json:"resources,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -768,9 +770,9 @@ type ResourceSelector struct {
 	//	*ResourceSelector_MatchName
 	//	*ResourceSelector_MatchLabels
 	Match isResourceSelector_Match `protobuf_oneof:"match"`
-	// Match resources in this namespace.
-	// Omit namespace to match cluster scoped resources, or to match namespaced
-	// resources by labels across all namespaces.
+	// Match resources in this namespace. Omit namespace to match cluster scoped
+	// resources, or to match namespaced resources by labels across all
+	// namespaces.
 	Namespace     *string `protobuf:"bytes,5,opt,name=namespace,proto3,oneof" json:"namespace,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -973,12 +975,14 @@ func (x *ResponseMeta) GetTtl() *durationpb.Duration {
 	return nil
 }
 
-// State of the composite resource (XR) and any composed resources.
+// State of the XR (XR) and any resources.
 type State struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The state of the composite resource (XR).
+	// The state of the XR (XR).
 	Composite *Resource `protobuf:"bytes,1,opt,name=composite,proto3" json:"composite,omitempty"`
-	// The state of any composed resources.
+	// The state of any other resources. In composition functions these are the
+	// composed resources. In operation functions they're arbitrary resources that
+	// the operation wants to create or update.
 	Resources     map[string]*Resource `protobuf:"bytes,2,rep,name=resources,proto3" json:"resources,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1028,49 +1032,53 @@ func (x *State) GetResources() map[string]*Resource {
 	return nil
 }
 
-// A Resource represents the state of a composite or composed resource.
+// A Resource represents the state of a Kubernetes resource.
 type Resource struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The JSON representation of the resource.
 	//
-	//   - Crossplane will set this field in a RunFunctionRequest to the entire
-	//     observed state of a resource - including its metadata, spec, and status.
+	// * Crossplane will set this field in a RunFunctionRequest to the entire
+	// observed state of a resource - including its metadata, spec, and status.
 	//
-	//   - A Function should set this field in a RunFunctionRequest to communicate
-	//     the desired state of a composite or composed resource.
+	// * A function should set this field in a RunFunctionRequest to communicate
+	// the desired state of the resource.
 	//
-	//   - A Function may only specify the desired status of a composite resource -
-	//     not its metadata or spec. A Function should not return desired metadata
-	//     or spec for a composite resource. This will be ignored.
+	// * A function may only specify the desired status of a XR - not its metadata
+	// or spec. A function should not return desired metadata or spec for a XR.
+	// This will be ignored.
 	//
-	//   - A Function may not specify the desired status of a composed resource -
-	//     only its metadata and spec. A Function should not return desired status
-	//     for a composed resource. This will be ignored.
+	// * A function may not specify the desired status of any other resource -
+	// e.g. composed resources. It may only specify their metadata and spec.
+	// Status will be ignored.
 	Resource *structpb.Struct `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
 	// The resource's connection details.
 	//
-	//   - Crossplane will set this field in a RunFunctionRequest to communicate the
-	//     the observed connection details of a composite or composed resource.
+	// * Crossplane will set this field in a RunFunctionRequest to communicate the
+	// the observed connection details of a composite or composed resource.
 	//
-	//   - A Function should set this field in a RunFunctionResponse to indicate the
-	//     desired connection details of the composite resource.
+	// * A function should set this field in a RunFunctionResponse to indicate the
+	// desired connection details of the XR.
 	//
-	//   - A Function should not set this field in a RunFunctionResponse to indicate
-	//     the desired connection details of a composed resource. This will be
-	//     ignored.
+	// * A function should not set this field in a RunFunctionResponse to indicate
+	// the desired connection details of a composed resource. This will be
+	// ignored.
+	//
+	// Connection details are only used for composition. They're ignored by
+	// Operations.
 	ConnectionDetails map[string][]byte `protobuf:"bytes,2,rep,name=connection_details,json=connectionDetails,proto3" json:"connection_details,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Ready indicates whether the resource should be considered ready.
 	//
 	// * Crossplane will never set this field in a RunFunctionRequest.
 	//
-	//   - A Function should set this field to READY_TRUE in a RunFunctionResponse
-	//     to indicate that a desired composed resource is ready.
+	// * A function should set this field to READY_TRUE in a RunFunctionResponse
+	// to indicate that a desired resource is ready.
 	//
-	//   - A Function should set this field to READY_TRUE in a RunFunctionResponse
-	//     to indicate that a desired composite resource is ready.
-	//     This overwrites the standard readiness detection that determines the
-	//     ready state of the composite by the ready state of the the
-	//     composed resources.
+	// * A function should set this field to READY_TRUE in a RunFunctionResponse
+	// to indicate that a desired XR is ready. This overwrites the standard
+	// readiness detection that determines the ready state of the composite by the
+	// ready state of the the composed resources.
+	//
+	// Ready is only used for composition. It's ignored by Operations.
 	Ready         Ready `protobuf:"varint,3,opt,name=ready,proto3,enum=apiextensions.fn.proto.v1.Ready" json:"ready,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1127,7 +1135,7 @@ func (x *Resource) GetReady() Ready {
 	return Ready_READY_UNSPECIFIED
 }
 
-// A Result of running a Function.
+// A Result of running a function.
 type Result struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Severity of this result.
@@ -1201,9 +1209,9 @@ func (x *Result) GetTarget() Target {
 	return Target_TARGET_UNSPECIFIED
 }
 
-// Status condition to be applied to the composite resource. Condition may also
-// optionally be applied to the composite resource's associated claim. For
-// detailed information on proper usage of status conditions, please see
+// Status condition to be applied to the XR. Condition may also optionally be
+// applied to the XR's associated claim. For detailed information on proper
+// usage of status conditions, please see
 // https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties.
 type Condition struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
