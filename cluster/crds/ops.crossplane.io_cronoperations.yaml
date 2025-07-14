@@ -1,0 +1,318 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+  name: cronoperations.ops.crossplane.io
+spec:
+  group: ops.crossplane.io
+  names:
+    categories:
+    - crossplane
+    kind: CronOperation
+    listKind: CronOperationList
+    plural: cronoperations
+    shortNames:
+    - cronops
+    singular: cronoperation
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.schedule
+      name: SCHEDULE
+      type: string
+    - jsonPath: .spec.suspend
+      name: SUSPEND
+      type: boolean
+    - jsonPath: .status.active
+      name: ACTIVE
+      type: integer
+    - jsonPath: .status.lastScheduleTime
+      name: LAST SCHEDULE
+      type: date
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: A CronOperation creates Operations on a cron schedule.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CronOperationSpec specifies the desired state of a CronOperation.
+            properties:
+              concurrencyPolicy:
+                default: Allow
+                description: |-
+                  ConcurrencyPolicy specifies how to treat concurrent executions of an
+                  operation.
+                enum:
+                - Allow
+                - Forbid
+                - Replace
+                type: string
+              failedHistoryLimit:
+                default: 1
+                description: FailedHistoryLimit is the number of failed Operations
+                  to retain.
+                format: int32
+                type: integer
+              operationTemplate:
+                description: OperationTemplate is the template for the Operation to
+                  be created.
+                properties:
+                  metadata:
+                    description: Standard object metadata.
+                    type: object
+                  spec:
+                    description: Spec is the specification of the Operation to be
+                      created.
+                    properties:
+                      mode:
+                        default: Pipeline
+                        description: |-
+                          Mode controls what type or "mode" of operation will be used.
+
+                          "Pipeline" indicates that an Operation specifies a pipeline of
+                          functions, each of which is responsible for implementing its logic.
+                        enum:
+                        - Pipeline
+                        type: string
+                      pipeline:
+                        description: |-
+                          Pipeline is a list of operation function steps that will be used when
+                          this operation runs.
+                        items:
+                          description: A PipelineStep in an operation function pipeline.
+                          properties:
+                            credentials:
+                              description: Credentials are optional credentials that
+                                the operation function needs.
+                              items:
+                                description: |-
+                                  FunctionCredentials are optional credentials that a Composition Function
+                                  needs to run.
+                                properties:
+                                  name:
+                                    description: Name of this set of credentials.
+                                    type: string
+                                  secretRef:
+                                    description: |-
+                                      A SecretRef is a reference to a secret containing credentials that should
+                                      be supplied to the function.
+                                    properties:
+                                      name:
+                                        description: Name of the secret.
+                                        type: string
+                                      namespace:
+                                        description: Namespace of the secret.
+                                        type: string
+                                    required:
+                                    - name
+                                    - namespace
+                                    type: object
+                                  source:
+                                    description: Source of the function credentials.
+                                    enum:
+                                    - None
+                                    - Secret
+                                    type: string
+                                required:
+                                - name
+                                - source
+                                type: object
+                              type: array
+                            functionRef:
+                              description: |-
+                                FunctionRef is a reference to the Composition Function this step should
+                                execute.
+                              properties:
+                                name:
+                                  description: Name of the referenced Function.
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            input:
+                              description: |-
+                                Input is an optional, arbitrary Kubernetes resource (i.e. a resource
+                                with an apiVersion and kind) that will be passed to the Composition
+                                Function as the 'input' of its RunFunctionRequest.
+                              type: object
+                              x-kubernetes-embedded-resource: true
+                              x-kubernetes-preserve-unknown-fields: true
+                            step:
+                              description: Step name. Must be unique within its Pipeline.
+                              type: string
+                          required:
+                          - functionRef
+                          - step
+                          type: object
+                        type: array
+                      retryLimit:
+                        description: |-
+                          RetryLimit configures how many times the operation may fail. When the
+                          failure limit is exceeded, the operation will not be retried.
+                        format: int64
+                        type: integer
+                    required:
+                    - mode
+                    - pipeline
+                    type: object
+                required:
+                - spec
+                type: object
+              schedule:
+                description: Schedule is the cron schedule for the operation.
+                type: string
+              startingDeadlineSeconds:
+                description: |-
+                  StartingDeadlineSeconds is the deadline in seconds for starting the
+                  operation if it misses its scheduled time for any reason.
+                format: int64
+                type: integer
+              successfulHistoryLimit:
+                default: 3
+                description: SuccessfulHistoryLimit is the number of successful Operations
+                  to retain.
+                format: int32
+                type: integer
+              suspend:
+                description: Suspend specifies whether the CronOperation should be
+                  suspended.
+                type: boolean
+            required:
+            - operationTemplate
+            - schedule
+            type: object
+          status:
+            description: CronOperationStatus represents the observed state of a CronOperation.
+            properties:
+              active:
+                description: Active is a list of currently running Operations.
+                items:
+                  description: ObjectReference contains enough information to let
+                    you inspect or modify the referred object.
+                  properties:
+                    apiVersion:
+                      description: API version of the referent.
+                      type: string
+                    fieldPath:
+                      description: |-
+                        If referring to a piece of an object instead of an entire object, this string
+                        should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].
+                        For example, if the object reference is to a container within a pod, this would take on a value like:
+                        "spec.containers{name}" (where "name" refers to the name of the container that triggered
+                        the event) or if no container name is specified "spec.containers[2]" (container with
+                        index 2 in this pod). This syntax is chosen only to have some well-defined way of
+                        referencing a part of an object.
+                      type: string
+                    kind:
+                      description: |-
+                        Kind of the referent.
+                        More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                      type: string
+                    name:
+                      description: |-
+                        Name of the referent.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      type: string
+                    namespace:
+                      description: |-
+                        Namespace of the referent.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+                      type: string
+                    resourceVersion:
+                      description: |-
+                        Specific resourceVersion to which this reference is made, if any.
+                        More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
+                      type: string
+                    uid:
+                      description: |-
+                        UID of the referent.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
+                      type: string
+                  type: object
+                  x-kubernetes-map-type: atomic
+                type: array
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        LastTransitionTime is the last time this condition transitioned from one
+                        status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        A Message containing details about this condition's last transition from
+                        one status to another, if any.
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: |-
+                        Type of this condition. At most one of each condition type may apply to
+                        a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              lastScheduleTime:
+                description: LastScheduleTime is the last time the CronOperation was
+                  scheduled.
+                format: date-time
+                type: string
+              lastSuccessfulTime:
+                description: |-
+                  LastSuccessfulTime is the last time the CronOperation was successfully
+                  completed.
+                format: date-time
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

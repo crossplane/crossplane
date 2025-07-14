@@ -45,6 +45,15 @@ var (
 	OperationGroupVersionKind = SchemeGroupVersion.WithKind(OperationKind)
 )
 
+// CronOperation type metadata.
+var (
+	CronOperationKind             = reflect.TypeOf(CronOperation{}).Name()
+	CronOperationGroupKind        = schema.GroupKind{Group: Group, Kind: CronOperationKind}.String()
+	CronOperationKindAPIVersion   = CronOperationKind + "." + SchemeGroupVersion.String()
+	CronOperationGroupVersionKind = SchemeGroupVersion.WithKind(CronOperationKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&Operation{}, &OperationList{})
+	SchemeBuilder.Register(&CronOperation{}, &CronOperationList{})
 }
