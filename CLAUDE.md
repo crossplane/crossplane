@@ -139,3 +139,13 @@ packages based on their requirements.
 - `generate.go` - Code generation entry point
 - `contributing/README.md` - Detailed contribution guidelines
 - `design/` - Architecture and design documents
+
+## Session Management
+
+- **Pre-Compaction Analysis**: Before compacting chat history, provide a
+  structured session summary including:
+  - Task overview and key accomplishments
+  - Important learnings about codebase patterns, architecture, or workflows
+  - Potential updates to CLAUDE.md based on discoveries or frequently needed
+    guidance
+  - Any recurring issues or misconceptions that came up
