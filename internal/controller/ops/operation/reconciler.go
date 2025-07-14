@@ -278,10 +278,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				return reconcile.Result{}, err
 			}
 
-			op.Status.Pipeline = append(op.Status.Pipeline, v1alpha1.PipelineStepStatus{
-				Step:   fn.Step,
-				Output: &runtime.RawExtension{Raw: j},
-			})
+			op.Status.Pipeline = AddPipelineStepOutput(op.Status.Pipeline, fn.Step, &runtime.RawExtension{Raw: j})
 		}
 	}
 
@@ -341,8 +338,10 @@ func AddResourceRef(refs []v1alpha1.AppliedResourceRef, u *kunstructured.Unstruc
 	}
 
 	// Don't add the new ref if it's already there.
-	if slices.Contains(refs, ref) {
-		return refs
+	for _, existing := range refs {
+		if existing.Equals(ref) {
+			return refs
+		}
 	}
 
 	refs = append(refs, ref)
@@ -363,4 +362,22 @@ func AddResourceRef(refs []v1alpha1.AppliedResourceRef, u *kunstructured.Unstruc
 	})
 
 	return refs
+}
+
+// AddPipelineStepOutput updates the output for a pipeline step in the
+// supplied pipeline status slice. If the step already exists, its output is
+// updated in place. If it doesn't exist, it's appended to the slice. The input
+// slice is assumed to be sorted by step name.
+func AddPipelineStepOutput(pipeline []v1alpha1.PipelineStepStatus, step string, output *runtime.RawExtension) []v1alpha1.PipelineStepStatus {
+	for i, ps := range pipeline {
+		if ps.Step == step {
+			pipeline[i].Output = output
+			return pipeline
+		}
+	}
+
+	return append(pipeline, v1alpha1.PipelineStepStatus{
+		Step:   step,
+		Output: output,
+	})
 }

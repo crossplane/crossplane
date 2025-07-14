@@ -17,6 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
@@ -151,6 +152,20 @@ type AppliedResourceRef struct {
 
 	// Name of the applied resource.
 	Name string `json:"name"`
+}
+
+// Equals returns true if this AppliedResourceRef is equal to the other.
+func (r *AppliedResourceRef) Equals(other AppliedResourceRef) bool {
+	if r.APIVersion != other.APIVersion {
+		return false
+	}
+	if r.Kind != other.Kind {
+		return false
+	}
+	if r.Name != other.Name {
+		return false
+	}
+	return ptr.Deref(r.Namespace, "") == ptr.Deref(other.Namespace, "")
 }
 
 // +kubebuilder:object:root=true

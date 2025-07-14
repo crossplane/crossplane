@@ -28,7 +28,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -520,10 +521,243 @@ func MustStructJSON(j string) *structpb.Struct {
 	return s
 }
 
-func MustUnstructJSON(j string) *unstructured.Unstructured {
-	u := &unstructured.Unstructured{}
+func MustUnstructJSON(j string) *kunstructured.Unstructured {
+	u := &kunstructured.Unstructured{}
 	if err := json.Unmarshal([]byte(j), u); err != nil {
 		panic(err)
 	}
 	return u
+}
+
+func TestAddPipelineStepOutput(t *testing.T) {
+	type args struct {
+		pipeline []v1alpha1.PipelineStepStatus
+		step     string
+		output   *runtime.RawExtension
+	}
+
+	type want struct {
+		pipeline []v1alpha1.PipelineStepStatus
+	}
+
+	output1 := &runtime.RawExtension{Raw: []byte(`{"key": "value1"}`)}
+	output2 := &runtime.RawExtension{Raw: []byte(`{"key": "value2"}`)}
+	outputUpdated := &runtime.RawExtension{Raw: []byte(`{"key": "updated"}`)}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"AddToEmptyPipeline": {
+			reason: "Should add step to empty pipeline",
+			args: args{
+				pipeline: []v1alpha1.PipelineStepStatus{},
+				step:     "step1",
+				output:   output1,
+			},
+			want: want{
+				pipeline: []v1alpha1.PipelineStepStatus{
+					{Step: "step1", Output: output1},
+				},
+			},
+		},
+		"AddNewStep": {
+			reason: "Should add new step to existing pipeline",
+			args: args{
+				pipeline: []v1alpha1.PipelineStepStatus{
+					{Step: "step1", Output: output1},
+				},
+				step:   "step2",
+				output: output2,
+			},
+			want: want{
+				pipeline: []v1alpha1.PipelineStepStatus{
+					{Step: "step1", Output: output1},
+					{Step: "step2", Output: output2},
+				},
+			},
+		},
+		"UpdateExistingStep": {
+			reason: "Should update existing step output in place",
+			args: args{
+				pipeline: []v1alpha1.PipelineStepStatus{
+					{Step: "step1", Output: output1},
+					{Step: "step2", Output: output2},
+				},
+				step:   "step1",
+				output: outputUpdated,
+			},
+			want: want{
+				pipeline: []v1alpha1.PipelineStepStatus{
+					{Step: "step1", Output: outputUpdated},
+					{Step: "step2", Output: output2},
+				},
+			},
+		},
+		"UpdateMiddleStep": {
+			reason: "Should update step in middle of pipeline",
+			args: args{
+				pipeline: []v1alpha1.PipelineStepStatus{
+					{Step: "step1", Output: output1},
+					{Step: "step2", Output: output2},
+					{Step: "step3", Output: output1},
+				},
+				step:   "step2",
+				output: outputUpdated,
+			},
+			want: want{
+				pipeline: []v1alpha1.PipelineStepStatus{
+					{Step: "step1", Output: output1},
+					{Step: "step2", Output: outputUpdated},
+					{Step: "step3", Output: output1},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := AddPipelineStepOutput(tc.args.pipeline, tc.args.step, tc.args.output)
+			if diff := cmp.Diff(tc.want.pipeline, got); diff != "" {
+				t.Errorf("\n%s\nAddPipelineStepOutput(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAddResourceRef(t *testing.T) {
+	type args struct {
+		refs []v1alpha1.AppliedResourceRef
+		u    *kunstructured.Unstructured
+	}
+
+	type want struct {
+		refs []v1alpha1.AppliedResourceRef
+	}
+
+	// Test resources
+	clusterResource := &kunstructured.Unstructured{}
+	clusterResource.SetAPIVersion("example.org/v1")
+	clusterResource.SetKind("ClusterResource")
+	clusterResource.SetName("cluster-resource")
+
+	namespacedResource := &kunstructured.Unstructured{}
+	namespacedResource.SetAPIVersion("example.org/v1")
+	namespacedResource.SetKind("NamespacedResource")
+	namespacedResource.SetName("namespaced-resource")
+	namespacedResource.SetNamespace("default")
+
+	anotherNamespacedResource := &kunstructured.Unstructured{}
+	anotherNamespacedResource.SetAPIVersion("example.org/v1")
+	anotherNamespacedResource.SetKind("NamespacedResource")
+	anotherNamespacedResource.SetName("another-resource")
+	anotherNamespacedResource.SetNamespace("other")
+
+	// Expected refs
+	clusterRef := v1alpha1.AppliedResourceRef{
+		APIVersion: "example.org/v1",
+		Kind:       "ClusterResource",
+		Name:       "cluster-resource",
+	}
+
+	namespacedRef := v1alpha1.AppliedResourceRef{
+		APIVersion: "example.org/v1",
+		Kind:       "NamespacedResource",
+		Name:       "namespaced-resource",
+		Namespace:  ptr.To("default"),
+	}
+
+	anotherNamespacedRef := v1alpha1.AppliedResourceRef{
+		APIVersion: "example.org/v1",
+		Kind:       "NamespacedResource",
+		Name:       "another-resource",
+		Namespace:  ptr.To("other"),
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"AddToEmptySlice": {
+			reason: "Should add resource to empty slice",
+			args: args{
+				refs: []v1alpha1.AppliedResourceRef{},
+				u:    clusterResource,
+			},
+			want: want{
+				refs: []v1alpha1.AppliedResourceRef{clusterRef},
+			},
+		},
+		"AddClusterScopedResource": {
+			reason: "Should add cluster-scoped resource without namespace",
+			args: args{
+				refs: []v1alpha1.AppliedResourceRef{},
+				u:    clusterResource,
+			},
+			want: want{
+				refs: []v1alpha1.AppliedResourceRef{clusterRef},
+			},
+		},
+		"AddNamespacedResource": {
+			reason: "Should add namespaced resource with namespace",
+			args: args{
+				refs: []v1alpha1.AppliedResourceRef{},
+				u:    namespacedResource,
+			},
+			want: want{
+				refs: []v1alpha1.AppliedResourceRef{namespacedRef},
+			},
+		},
+		"AddMultipleResourcesSorted": {
+			reason: "Should add multiple resources and keep them sorted",
+			args: args{
+				refs: []v1alpha1.AppliedResourceRef{namespacedRef},
+				u:    clusterResource,
+			},
+			want: want{
+				refs: []v1alpha1.AppliedResourceRef{clusterRef, namespacedRef},
+			},
+		},
+		"AddDuplicateResource": {
+			reason: "Should not add duplicate resource",
+			args: args{
+				refs: []v1alpha1.AppliedResourceRef{clusterRef},
+				u:    clusterResource,
+			},
+			want: want{
+				refs: []v1alpha1.AppliedResourceRef{clusterRef},
+			},
+		},
+		"AddResourceToSortedSlice": {
+			reason: "Should add resource to sorted slice and maintain order",
+			args: args{
+				refs: []v1alpha1.AppliedResourceRef{clusterRef, namespacedRef},
+				u:    anotherNamespacedResource,
+			},
+			want: want{
+				refs: []v1alpha1.AppliedResourceRef{clusterRef, namespacedRef, anotherNamespacedRef},
+			},
+		},
+		"AddDuplicateNamespacedResource": {
+			reason: "Should not add duplicate namespaced resource",
+			args: args{
+				refs: []v1alpha1.AppliedResourceRef{namespacedRef},
+				u:    namespacedResource,
+			},
+			want: want{
+				refs: []v1alpha1.AppliedResourceRef{namespacedRef},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := AddResourceRef(tc.args.refs, tc.args.u)
+			if diff := cmp.Diff(tc.want.refs, got); diff != "" {
+				t.Errorf("\n%s\nAddResourceRef(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
 }
