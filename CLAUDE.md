@@ -73,6 +73,9 @@ packages based on their requirements.
 ## Development Guidelines
 
 ### Code Style
+- Follow Go's upstream [Code Review Comments](https://go.dev/wiki/CodeReviewComments) for general Go style guidelines
+- Follow Go's upstream [TestReviewComments](https://go.dev/wiki/TestReviewComments) for testing guidelines
+- Crossplane's `contributing/README.md` takes precedence over upstream guides when there are conflicts
 - Follow Go project style guidelines and `earthly +lint` requirements
 - Use table-driven tests (see `contributing/README.md` for examples)
 - Keep error handling narrow in scope
@@ -80,7 +83,10 @@ packages based on their requirements.
 - Use descriptive but concise variable names
 - Wrap errors with context using `crossplane-runtime/pkg/errors`
 - **Error Constants**: Avoid `errFoo` style error constants in new files. This is an old pattern we're moving away from. Only use this pattern if it already appears in the file you're editing.
-- **Comment Formatting**: Wrap all comments at 80 columns for consistency and readability.
+- **Comment Formatting**: Wrap all comments at 80 columns for consistency and
+  readability.
+- **Markdown Formatting**: Wrap all markdown documents at 80 columns. Lines
+  can be longer if it makes links more readable.
 
 ### Testing Requirements
 - Unit tests are required for all code changes (~80% coverage target)
