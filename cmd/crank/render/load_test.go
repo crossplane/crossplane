@@ -274,7 +274,7 @@ func TestLoadFunctions(t *testing.T) {
 						},
 						Spec: pkgv1.FunctionSpec{
 							PackageSpec: pkgv1.PackageSpec{
-								Package: "xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.2.1",
+								Package: "xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.0",
 							},
 						},
 					},

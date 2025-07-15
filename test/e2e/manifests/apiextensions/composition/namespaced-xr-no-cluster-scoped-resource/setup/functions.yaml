@@ -4,4 +4,4 @@ kind: Function
 metadata:
   name: function-dummy-ext-basic
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/function-dummy:v0.2.1
+  package: xpkg.upbound.io/crossplane-contrib/function-dummy:v0.4.0
