@@ -195,7 +195,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-						switch obj.(type) {
+						switch o := obj.(type) {
 						case *v2alpha1.ManagedResourceDefinition:
 							return withMRD(t, newMRD(func(mrd *v2alpha1.ManagedResourceDefinition) {
 								mrd.Spec.State = v2alpha1.ManagedResourceDefinitionActive
@@ -219,7 +219,7 @@ func TestReconcile(t *testing.T) {
 										},
 									},
 								}
-							}))(ctx, key, obj)
+							}))(ctx, key, o)
 						case *extv1.CustomResourceDefinition:
 							return kerrors.NewNotFound(schema.GroupResource{}, "")
 						default:
@@ -265,7 +265,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-						switch obj.(type) {
+						switch o := obj.(type) {
 						case *v2alpha1.ManagedResourceDefinition:
 							return withMRD(t, newMRD(func(mrd *v2alpha1.ManagedResourceDefinition) {
 								mrd.Spec.State = v2alpha1.ManagedResourceDefinitionActive
@@ -289,7 +289,7 @@ func TestReconcile(t *testing.T) {
 										},
 									},
 								}
-							}))(ctx, key, obj)
+							}))(ctx, key, o)
 						case *extv1.CustomResourceDefinition:
 							return kerrors.NewNotFound(schema.GroupResource{}, "")
 						default:
@@ -335,7 +335,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-						switch obj.(type) {
+						switch o := obj.(type) {
 						case *v2alpha1.ManagedResourceDefinition:
 							return withMRD(t, newMRD(func(mrd *v2alpha1.ManagedResourceDefinition) {
 								mrd.Spec.State = v2alpha1.ManagedResourceDefinitionActive
@@ -359,11 +359,10 @@ func TestReconcile(t *testing.T) {
 										},
 									},
 								}
-							}))(ctx, key, obj)
+							}))(ctx, key, o)
 						case *extv1.CustomResourceDefinition:
-							crd := obj.(*extv1.CustomResourceDefinition)
-							crd.Name = key.Name
-							crd.Spec = extv1.CustomResourceDefinitionSpec{
+							o.Name = key.Name
+							o.Spec = extv1.CustomResourceDefinitionSpec{
 								Group: "oldexample.com", // Different from MRD to force update
 								Names: extv1.CustomResourceDefinitionNames{
 									Plural: "olddatabases",
@@ -422,7 +421,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-						switch obj.(type) {
+						switch o := obj.(type) {
 						case *v2alpha1.ManagedResourceDefinition:
 							return withMRD(t, newMRD(func(mrd *v2alpha1.ManagedResourceDefinition) {
 								mrd.Spec.State = v2alpha1.ManagedResourceDefinitionActive
@@ -446,11 +445,10 @@ func TestReconcile(t *testing.T) {
 										},
 									},
 								}
-							}))(ctx, key, obj)
+							}))(ctx, key, o)
 						case *extv1.CustomResourceDefinition:
-							crd := obj.(*extv1.CustomResourceDefinition)
-							crd.Name = key.Name
-							crd.Spec = extv1.CustomResourceDefinitionSpec{
+							o.Name = key.Name
+							o.Spec = extv1.CustomResourceDefinitionSpec{
 								Group: "oldexample.com", // Different from MRD to force update
 								Names: extv1.CustomResourceDefinitionNames{
 									Plural: "olddatabases",
@@ -509,7 +507,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-						switch obj.(type) {
+						switch o := obj.(type) {
 						case *v2alpha1.ManagedResourceDefinition:
 							return withMRD(t, newMRD(func(mrd *v2alpha1.ManagedResourceDefinition) {
 								mrd.Spec.State = v2alpha1.ManagedResourceDefinitionActive
@@ -533,11 +531,10 @@ func TestReconcile(t *testing.T) {
 										},
 									},
 								}
-							}))(ctx, key, obj)
+							}))(ctx, key, o)
 						case *extv1.CustomResourceDefinition:
-							crd := obj.(*extv1.CustomResourceDefinition)
-							crd.Name = key.Name
-							crd.Spec = extv1.CustomResourceDefinitionSpec{
+							o.Name = key.Name
+							o.Spec = extv1.CustomResourceDefinitionSpec{
 								Group: "example.com",
 								Names: extv1.CustomResourceDefinitionNames{
 									Plural: "databases",
@@ -563,7 +560,7 @@ func TestReconcile(t *testing.T) {
 								},
 							}
 							// Set established condition
-							crd.Status.Conditions = []extv1.CustomResourceDefinitionCondition{
+							o.Status.Conditions = []extv1.CustomResourceDefinitionCondition{
 								{
 									Type:   extv1.Established,
 									Status: extv1.ConditionTrue,
@@ -612,7 +609,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-						switch obj.(type) {
+						switch o := obj.(type) {
 						case *v2alpha1.ManagedResourceDefinition:
 							return withMRD(t, newMRD(func(mrd *v2alpha1.ManagedResourceDefinition) {
 								mrd.Spec.State = v2alpha1.ManagedResourceDefinitionActive
@@ -636,11 +633,10 @@ func TestReconcile(t *testing.T) {
 										},
 									},
 								}
-							}))(ctx, key, obj)
+							}))(ctx, key, o)
 						case *extv1.CustomResourceDefinition:
-							crd := obj.(*extv1.CustomResourceDefinition)
-							crd.Name = key.Name
-							crd.SetDeletionTimestamp(&now)
+							o.Name = key.Name
+							o.SetDeletionTimestamp(&now)
 							return nil
 						default:
 							return kerrors.NewNotFound(schema.GroupResource{}, "")
@@ -769,10 +765,10 @@ type testRecorder struct {
 	events []event.Event
 }
 
-func (r *testRecorder) Event(obj runtime.Object, e event.Event) {
+func (r *testRecorder) Event(_ runtime.Object, e event.Event) {
 	r.events = append(r.events, e)
 }
 
-func (r *testRecorder) WithAnnotations(annotations ...string) event.Recorder {
+func (r *testRecorder) WithAnnotations(_ ...string) event.Recorder {
 	return r
 }

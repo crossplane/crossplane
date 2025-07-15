@@ -19,10 +19,9 @@ package managed
 
 import (
 	"context"
-	"github.com/crossplane/crossplane/internal/xcrd"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"time"
 
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -39,6 +38,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/managed/resources"
+	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 const (
@@ -81,7 +81,7 @@ type Reconciler struct {
 
 // Reconcile a CompositeResourceDefinition by defining a new kind of composite
 // resource and starting a controller to reconcile it.
-func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Reconcilers are complex. Be wary of adding more.
+func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
@@ -149,8 +149,8 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 }
 
 const (
-	ActionCreate = iota
-	ActionUpdate
+	actionCreate = iota
+	actionUpdate
 )
 
 func (r *Reconciler) reconcileCustomResourceDefinition(ctx context.Context, log logging.Logger, mrd *v2alpha1.ManagedResourceDefinition) (*extv1.CustomResourceDefinition, error) {
@@ -159,12 +159,12 @@ func (r *Reconciler) reconcileCustomResourceDefinition(ctx context.Context, log 
 		Namespace: want.Namespace,
 		Name:      want.Name,
 	}
-	action := ActionUpdate
+	action := actionUpdate
 	if err := r.Get(ctx, nn, want); err != nil && !kerrors.IsNotFound(err) {
 		return nil, errors.Wrap(err, errGetCRD)
 	} else if err != nil && kerrors.IsNotFound(err) {
 		log.Debug("CustomResourceDefinition not found, will create", "crd", nn)
-		action = ActionCreate
+		action = actionCreate
 	}
 	existing := want.DeepCopy()
 
@@ -180,12 +180,12 @@ func (r *Reconciler) reconcileCustomResourceDefinition(ctx context.Context, log 
 
 	// Apply changes.
 	switch action {
-	case ActionCreate:
+	case actionCreate:
 		if err := r.Create(ctx, want); err != nil {
 			return nil, r.handleErrorWithEvent(mrd, err, errCreateCRD, reasonCreateCRD)
 		}
 		r.record.Event(mrd, event.Normal(reasonCreateCRD, "Successfully created CustomResourceDefinition"))
-	case ActionUpdate:
+	case actionUpdate:
 		if !equality.Semantic.DeepEqual(existing.Spec, want.Spec) {
 			if err := r.Update(ctx, want); err != nil {
 				return nil, r.handleErrorWithEvent(mrd, err, errUpdateCRD, reasonUpdateCRD)

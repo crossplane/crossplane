@@ -45,6 +45,7 @@ const (
 	ManagedResourceDefinitionInactive ManagedResourceDefinitionState = "Inactive"
 )
 
+// IsActive returns if this ManagedResourceDefinitionState is "Active".
 func (s ManagedResourceDefinitionState) IsActive() bool {
 	return s == ManagedResourceDefinitionActive
 }
