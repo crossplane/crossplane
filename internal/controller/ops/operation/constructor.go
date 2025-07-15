@@ -32,7 +32,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 
 	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	opscontroller "github.com/crossplane/crossplane/internal/controller/ops/controller"
 	"github.com/crossplane/crossplane/internal/xfn"
 )
@@ -50,7 +49,6 @@ func Setup(mgr ctrl.Manager, o opscontroller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.Operation{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Watches(&pkgv1.FunctionRevision{}, EnqueueOperationsForFunctionRevision(mgr.GetClient(), o.Logger)).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }

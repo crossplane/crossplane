@@ -139,9 +139,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		names = append(names, fn.FunctionRef.Name)
 	}
 
-	// This'll usually be a case that needs human intervention to fix, but
-	// it could be that a newly created function hasn't written its
-	// capabilities to status yet, so we do retry.
+	// This could need human intervention to fix. It could also be a new
+	// function that hasn't written its capabilities to its FunctionRevision
+	// status yet, so we retry.
+	//
+	// We don't watch FunctionRevisions because the watch would trigger
+	// instant reconciles whenever the FunctionRevisions change. We always
+	// want to retry Operations with a predictable exponential backoff, so
+	// we just return an error and let controller-runtime requeue us.
 	if err := r.functions.CheckCapabilities(ctx, []string{pkgmetav1.FunctionCapabilityOperation}, names...); err != nil {
 		op.Status.Failures++
 
