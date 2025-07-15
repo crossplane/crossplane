@@ -161,9 +161,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(rev, event.Warning(reasonCheckCapabilities, err))
 		status.MarkConditions(xpv1.ReconcileSuccess(), v1.MissingCapabilities(err.Error()))
 
-		// Update status but don't return an error - capability failures are informational
-		_ = r.client.Status().Update(ctx, rev)
-		return reconcile.Result{}, nil
+		// Update status but don't return the error - capability failures are informational
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, rev), "cannot update CompositionRevision status")
 	}
 
 	log.Debug("All functions have required composition capability")
