@@ -86,12 +86,6 @@ func main() {
 	zl := zap.New().WithName("crossplane")
 	logging.SetFilteredKlogLogger(zl)
 
-	// Setting the controller-runtime logger to a no-op logger by default,
-	// unless debug mode is enabled. This is because the controller-runtime
-	// logger is *very* verbose even at info level. This is not really needed,
-	// but otherwise we get a warning from the controller-runtime.
-	ctrl.SetLogger(zap.New(zap.WriteTo(io.Discard)))
-
 	// Note that the controller managers scheme must be a superset of the
 	// package manager's object scheme; it must contain all object types that
 	// may appear in a Crossplane package. This is because the package manager
@@ -99,13 +93,24 @@ func main() {
 	// objects.
 	s := runtime.NewScheme()
 
-	ctx := kong.Parse(&cli{},
+	c := &cli{}
+
+	ctx := kong.Parse(c,
 		kong.Name("crossplane"),
 		kong.Description("An open source multicloud control plane."),
 		kong.BindTo(logging.NewLogrLogger(zl), (*logging.Logger)(nil)),
 		kong.UsageOnError(),
 		core.KongVars,
 	)
+
+	if !c.Debug {
+		// Setting the controller-runtime logger to a no-op logger by default,
+		// unless debug mode is enabled. This is because the controller-runtime
+		// logger is *very* verbose even at info level. This is not really needed,
+		// but otherwise we get a warning from the controller-runtime.
+		ctrl.SetLogger(zap.New(zap.WriteTo(io.Discard)))
+	}
+
 	ctx.FatalIfErrorf(corev1.AddToScheme(s), "cannot add core v1 Kubernetes API types to scheme")
 	ctx.FatalIfErrorf(appsv1.AddToScheme(s), "cannot add apps v1 Kubernetes API types to scheme")
 	ctx.FatalIfErrorf(rbacv1.AddToScheme(s), "cannot add rbac v1 Kubernetes API types to scheme")
