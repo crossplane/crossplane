@@ -44,17 +44,16 @@ type CompositionRevisionSpec struct {
 	// Mode controls what type or "mode" of Composition will be used.
 	//
 	// "Pipeline" indicates that a Composition specifies a pipeline of
-	// Composition Functions, each of which is responsible for producing
-	// composed resources that Crossplane should create or update.
+	// functions, each of which is responsible for producing composed
+	// resources that Crossplane should create or update.
 	//
 	// +optional
 	// +kubebuilder:validation:Enum=Pipeline
 	// +kubebuilder:default=Pipeline
 	Mode CompositionMode `json:"mode,omitempty"`
 
-	// Pipeline is a list of composition function steps that will be used when a
-	// composite resource referring to this composition is created. One of
-	// resources and pipeline must be specified - you cannot specify both.
+	// Pipeline is a list of function steps that will be used when a
+	// composite resource referring to this composition is created.
 	//
 	// The Pipeline is only used by the "Pipeline" mode of Composition. It is
 	// ignored by other modes.
@@ -106,6 +105,16 @@ type CompositionRevision struct {
 
 	Spec   CompositionRevisionSpec   `json:"spec,omitempty"`
 	Status CompositionRevisionStatus `json:"status,omitempty"`
+}
+
+// GetCondition of this CompositionRevision.
+func (in *CompositionRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return in.Status.GetCondition(ct)
+}
+
+// SetConditions of this CompositionRevision.
+func (in *CompositionRevision) SetConditions(c ...xpv1.Condition) {
+	in.Status.SetConditions(c...)
 }
 
 // +kubebuilder:object:root=true

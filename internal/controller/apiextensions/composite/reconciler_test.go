@@ -207,6 +207,62 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: true},
 			},
 		},
+		"InvalidPipelineError": {
+			reason: "We should return an error if the CompositionRevision does not have a valid pipeline.",
+			args: args{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						cr.SetConditions(xpv1.ReconcileError(errors.New("selected CompositionRevision test-revision does not have a valid function pipeline: pipeline status unknown")))
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
+						rev := &v1.CompositionRevision{}
+						rev.SetName("test-revision")
+						// No ValidPipeline condition set, so it will be Unknown by default
+						return rev, nil
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+			},
+		},
+		"InvalidPipelineWithMessageError": {
+			reason: "We should return an error with the condition message if the CompositionRevision has an invalid pipeline with a detailed message.",
+			args: args{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						cr.SetConditions(xpv1.ReconcileError(errors.New("selected CompositionRevision test-revision does not have a valid function pipeline: function foo-function does not have the required composition capability")))
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
+						rev := &v1.CompositionRevision{}
+						rev.SetName("test-revision")
+						rev.SetConditions(v1.MissingCapabilities("function foo-function does not have the required composition capability"))
+						return rev, nil
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+			},
+		},
 		"ConfigureCompositeError": {
 			reason: "We should return any error encountered while configuring the composite resource.",
 			args: args{
@@ -224,7 +280,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						return &v1.CompositionRevision{}, nil
+						return NewCompositionRevision(), nil
 					})),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return errBoom
@@ -252,7 +308,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						return &v1.CompositionRevision{}, nil
+						return NewCompositionRevision(), nil
 					})),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
@@ -283,7 +339,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						return &v1.CompositionRevision{}, nil
+						return NewCompositionRevision(), nil
 					})),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
@@ -317,7 +373,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						return &v1.CompositionRevision{}, nil
+						return NewCompositionRevision(), nil
 					})),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
@@ -358,7 +414,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						return &v1.CompositionRevision{}, nil
+						return NewCompositionRevision(), nil
 					})),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
@@ -428,7 +484,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						return &v1.CompositionRevision{}, nil
+						return NewCompositionRevision(), nil
 					})),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
@@ -514,7 +570,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						return &v1.CompositionRevision{}, nil
+						return NewCompositionRevision(), nil
 					})),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
@@ -553,7 +609,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						return &v1.CompositionRevision{}, nil
+						return NewCompositionRevision(), nil
 					})),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
@@ -660,7 +716,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						return &v1.CompositionRevision{}, nil
+						return NewCompositionRevision(), nil
 					})),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
@@ -842,7 +898,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						return &v1.CompositionRevision{}, nil
+						return NewCompositionRevision(), nil
 					})),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
@@ -1007,7 +1063,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						return &v1.CompositionRevision{}, nil
+						return NewCompositionRevision(), nil
 					})),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
@@ -1094,7 +1150,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						return &v1.CompositionRevision{}, nil
+						return NewCompositionRevision(), nil
 					})),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
@@ -1166,7 +1222,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						return &v1.CompositionRevision{}, nil
+						return NewCompositionRevision(), nil
 					})),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return nil
@@ -1217,6 +1273,12 @@ func TestReconcile(t *testing.T) {
 			}
 		})
 	}
+}
+
+func NewCompositionRevision() *v1.CompositionRevision {
+	rev := &v1.CompositionRevision{}
+	rev.SetConditions(v1.ValidPipeline())
+	return rev
 }
 
 type CompositeModifier func(cr *composite.Unstructured)

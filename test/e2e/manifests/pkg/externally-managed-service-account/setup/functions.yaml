@@ -4,7 +4,5 @@ kind: Function
 metadata:
   name: function-dummy-pkg-external-sa
 spec:
-  # NOTE(negz): This is currently manually pushed. See README.md at
-  # https://github.com/crossplane-contrib/function-dummy.
-  package: xpkg.upbound.io/crossplane-contrib/function-dummy:v0.2.1
+  package: xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.0
 

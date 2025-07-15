@@ -10,7 +10,7 @@ lint:
     - PACKAGE_NO_IMPORT_CYCLE
 breaking:
   use:
-    - FILE
+    - WIRE
   except:
     - EXTENSION_NO_DELETE
     - FIELD_SAME_DEFAULT

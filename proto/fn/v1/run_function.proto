@@ -1,0 +1,352 @@
+/*
+   Copyright 2022 The Crossplane Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
+syntax = "proto3";
+
+// This package defines the RPC for both composition and operation functions.
+// Only composition functions are part of the 'apiextensions' API group. In
+// retrospect this package should've been crossplane.proto.fn.v1, but it's too
+// late to change it now.
+
+//buf:lint:ignore PACKAGE_DIRECTORY_MATCH
+package apiextensions.fn.proto.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/crossplane/crossplane/proto/fn/v1";
+
+// A FunctionRunnerService is a function.
+service FunctionRunnerService {
+  // RunFunction runs the function.
+  rpc RunFunction(RunFunctionRequest) returns (RunFunctionResponse) {}
+}
+
+// A RunFunctionRequest requests that the function be run.
+message RunFunctionRequest {
+  // Metadata pertaining to this request.
+  RequestMeta meta = 1;
+
+  // The observed state prior to invocation of a function pipeline. State passed
+  // to each function is fresh as of the time the pipeline was invoked, not as
+  // of the time each function was invoked.
+  State observed = 2;
+
+  // Desired state according to a function pipeline. The state passed to a
+  // particular function may have been accumulated by previous functions in the
+  // pipeline.
+  //
+  // Note that the desired state must be a partial object with only the fields
+  // that this function (and its predecessors in the pipeline) wants to have set
+  // in the object. Copying a non-partial observed state to desired is most
+  // likely not what you want to do. Leaving out fields that had been returned
+  // as desired before will result in them being deleted from the objects in the
+  // cluster.
+  State desired = 3;
+
+  // Optional input specific to this function invocation. A JSON representation
+  // of the 'input' block of the relevant entry in a function pipeline.
+  optional google.protobuf.Struct input = 4;
+
+  // Optional context. Crossplane may pass arbitrary contextual information to a
+  // function. A function may also return context in its RunFunctionResponse,
+  // and that context will be passed to subsequent functions. Crossplane
+  // discards all context returned by the last function in the pipeline.
+  optional google.protobuf.Struct context = 5;
+
+  // Optional resources that the function specified in its requirements. Note
+  // that resources is a map to Resources, plural. The map key corresponds to
+  // the key in a RunFunctionResponse's requirements.resources field. If a
+  // function requested required resources that did not exist, Crossplane sets
+  // the map key to an empty Resources message to indicate that it attempted to
+  // satisfy the request.
+  map<string, Resources> required_resources = 6;
+
+  // Optional credentials that this function may use to communicate with an
+  // external system.
+  map<string, Credentials> credentials = 7;
+}
+
+// Credentials that a function may use to communicate with an external system.
+message Credentials {
+  // Source of the credentials.
+  oneof source {
+    // Credential data loaded by Crossplane, for example from a Secret.
+    CredentialData credential_data = 1;
+  }
+}
+
+// CredentialData loaded by Crossplane, for example from a Secret.
+message CredentialData {
+  map<string, bytes> data = 1;
+}
+
+// Resources represents the state of several Crossplane resources.
+message Resources {
+  repeated Resource items = 1;
+}
+
+// A RunFunctionResponse contains the result of a function run.
+message RunFunctionResponse {
+  // Metadata pertaining to this response.
+  ResponseMeta meta = 1;
+
+  // Desired state according to a function pipeline. functions may add desired
+  // state, and may mutate or delete any part of the desired state they are
+  // concerned with. A function must pass through any part of the desired state
+  // that it is not concerned with.
+  //
+  // Note that the desired state must be a partial object with only the fields
+  // that this function (and its predecessors in the pipeline) wants to have set
+  // in the object. Copying a non-partial observed state to desired is most
+  // likely not what you want to do. Leaving out fields that had been returned
+  // as desired before will result in them being deleted from the objects in the
+  // cluster.
+  State desired = 2;
+
+  // Results of the function run. Results are used for observability purposes.
+  repeated Result results = 3;
+
+  // Optional context to be passed to the next function in the pipeline as part
+  // of the RunFunctionRequest. Dropped on the last function in the pipeline.
+  optional google.protobuf.Struct context = 4;
+
+  // Requirements that must be satisfied for this function to run successfully.
+  Requirements requirements = 5;
+
+  // Status conditions to be applied to the XR. Conditions may also optionally
+  // be applied to the XR's associated claim.
+  //
+  // Conditions are only used for composition. They're ignored by Operations.
+  repeated Condition conditions = 6;
+
+  // Optional output specific to this function invocation.
+  //
+  // Only Operations use function output. XRs will discard any function output.
+  optional google.protobuf.Struct output = 7;
+}
+
+// RequestMeta contains metadata pertaining to a RunFunctionRequest.
+message RequestMeta {
+  // An opaque string identifying a request. Requests with identical tags will
+  // be otherwise identical.
+  string tag = 1;
+}
+
+// Requirements that must be satisfied for a function to run successfully.
+message Requirements {
+  // Resources that this function requires. The map key uniquely identifies the
+  // group of resources.
+  map<string, ResourceSelector> resources = 1;
+}
+
+// ResourceSelector selects a group of resources, either by name or by label.
+message ResourceSelector {
+  // API version of resources to select.
+  string api_version = 1;
+
+  // Kind of resources to select.
+  string kind = 2;
+
+  // Resources to match.
+  oneof match {
+    // Match the resource with this name.
+    string match_name = 3;
+
+    // Match all resources with these labels.
+    MatchLabels match_labels = 4;
+  }
+
+  // Match resources in this namespace. Omit namespace to match cluster scoped
+  // resources, or to match namespaced resources by labels across all
+  // namespaces.
+  optional string namespace = 5;
+}
+
+// MatchLabels defines a set of labels to match resources against.
+message MatchLabels {
+  map<string, string> labels = 1;
+}
+
+// ResponseMeta contains metadata pertaining to a RunFunctionResponse.
+message ResponseMeta {
+  // An opaque string identifying the content of the request. Must match the
+  // meta.tag of the corresponding RunFunctionRequest.
+  string tag = 1;
+
+  // Time-to-live of this response. Crossplane will call the function again when
+  // the TTL expires. Crossplane may cache the response to avoid calling the
+  // function again until the TTL expires.
+  optional google.protobuf.Duration ttl = 2;
+}
+
+// State of the XR (XR) and any resources.
+message State {
+  // The state of the XR (XR).
+  Resource composite = 1;
+
+  // The state of any other resources. In composition functions these are the
+  // composed resources. In operation functions they're arbitrary resources that
+  // the operation wants to create or update.
+  map<string, Resource> resources = 2;
+}
+
+// A Resource represents the state of a Kubernetes resource.
+message Resource {
+  // The JSON representation of the resource.
+  //
+  // * Crossplane will set this field in a RunFunctionRequest to the entire
+  // observed state of a resource - including its metadata, spec, and status.
+  //
+  // * A function should set this field in a RunFunctionRequest to communicate
+  // the desired state of the resource.
+  //
+  // * A function may only specify the desired status of a XR - not its metadata
+  // or spec. A function should not return desired metadata or spec for a XR.
+  // This will be ignored.
+  //
+  // * A function may not specify the desired status of any other resource -
+  // e.g. composed resources. It may only specify their metadata and spec.
+  // Status will be ignored.
+  google.protobuf.Struct resource = 1;
+
+  // The resource's connection details.
+  //
+  // * Crossplane will set this field in a RunFunctionRequest to communicate the
+  // the observed connection details of a composite or composed resource.
+  //
+  // * A function should set this field in a RunFunctionResponse to indicate the
+  // desired connection details of the XR.
+  //
+  // * A function should not set this field in a RunFunctionResponse to indicate
+  // the desired connection details of a composed resource. This will be
+  // ignored.
+  //
+  // Connection details are only used for composition. They're ignored by
+  // Operations.
+  map<string, bytes> connection_details = 2;
+
+  // Ready indicates whether the resource should be considered ready.
+  //
+  // * Crossplane will never set this field in a RunFunctionRequest.
+  //
+  // * A function should set this field to READY_TRUE in a RunFunctionResponse
+  // to indicate that a desired resource is ready.
+  //
+  // * A function should set this field to READY_TRUE in a RunFunctionResponse
+  // to indicate that a desired XR is ready. This overwrites the standard
+  // readiness detection that determines the ready state of the composite by the
+  // ready state of the the composed resources.
+  //
+  // Ready is only used for composition. It's ignored by Operations.
+  Ready ready = 3;
+}
+
+// Ready indicates whether a resource should be considered ready.
+enum Ready {
+  READY_UNSPECIFIED = 0;
+
+  // True means the resource has been observed to be ready.
+  READY_TRUE = 1;
+
+  // False means the resource has not been observed to be ready.
+  READY_FALSE = 2;
+}
+
+// A Result of running a function.
+message Result {
+  // Severity of this result.
+  Severity severity = 1;
+
+  // Human-readable details about the result.
+  string message = 2;
+
+  // Optional PascalCase, machine-readable reason for this result. If omitted,
+  // the value will be ComposeResources.
+  optional string reason = 3;
+
+  // The resources this result targets.
+  optional Target target = 4;
+}
+
+// Severity of function results.
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+
+  // Fatal results are fatal; subsequent functions may run, but the function
+  // pipeline run will be considered a failure and the first fatal result will
+  // be returned as an error.
+  SEVERITY_FATAL = 1;
+
+  // Warning results are non-fatal; the entire pipeline will run to completion
+  // but warning events and debug logs associated with the XR or Operation will
+  // be emitted.
+  SEVERITY_WARNING = 2;
+
+  // Normal results are emitted as normal events and debug logs associated with
+  // the XR or operation.
+  SEVERITY_NORMAL = 3;
+}
+
+// Target of function results and conditions.
+enum Target {
+  // If the target is unspecified, the result targets the XR.
+  TARGET_UNSPECIFIED = 0;
+
+  // Target the XR. Results that target the XR should include detailed, advanced
+  // information.
+  TARGET_COMPOSITE = 1;
+
+  // Target the XR and the claim. Results that target the XR and the claim
+  // should include only end-user friendly information.
+  TARGET_COMPOSITE_AND_CLAIM = 2;
+}
+
+// Status condition to be applied to the XR. Condition may also optionally be
+// applied to the XR's associated claim. For detailed information on proper
+// usage of status conditions, please see
+// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties.
+message Condition {
+  // Type of condition in PascalCase.
+  string type = 1;
+
+  // Status of the condition.
+  Status status = 2;
+
+  // Reason contains a programmatic identifier indicating the reason for the
+  // condition's last transition. Producers of specific condition types may
+  // define expected values and meanings for this field, and whether the values
+  // are considered a guaranteed API. The value should be a PascalCase string.
+  // This field may not be empty.
+  string reason = 3;
+
+  // Message is a human readable message indicating details about the
+  // transition. This may be an empty string.
+  optional string message = 4;
+
+  // The resources this condition targets.
+  optional Target target = 5;
+}
+
+enum Status {
+  STATUS_CONDITION_UNSPECIFIED = 0;
+
+  STATUS_CONDITION_UNKNOWN = 1;
+
+  STATUS_CONDITION_TRUE = 2;
+
+  STATUS_CONDITION_FALSE = 3;
+}

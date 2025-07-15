@@ -38,6 +38,10 @@ const (
 	// EnableAlphaFunctionResponseCache enables alpha support for caching
 	// composition function responses.
 	EnableAlphaFunctionResponseCache feature.Flag = "EnableAlphaFunctionResponseCache"
+
+	// EnableAlphaOperations enables alpha support for Operations, including
+	// CronOperations and WatchOperations.
+	EnableAlphaOperations feature.Flag = "EnableAlphaOperations"
 )
 
 // Beta Feature Flags.

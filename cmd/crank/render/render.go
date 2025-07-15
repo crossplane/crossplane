@@ -40,11 +40,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
-	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/internal/xfn"
+	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
 )
 
 // Wait for the server to be ready before sending RPCs. Notably this gives
@@ -72,7 +72,7 @@ type Inputs struct {
 	Functions           []pkgv1.Function
 	FunctionCredentials []corev1.Secret
 	ObservedResources   []composed.Unstructured
-	ExtraResources      []unstructured.Unstructured
+	RequiredResources   []unstructured.Unstructured
 	Context             map[string][]byte
 
 	// TODO(negz): Allow supplying observed XR and composed resource connection
@@ -196,7 +196,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 	}()
 
-	runner := composite.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{extra: in.ExtraResources})
+	runner := xfn.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{extra: in.RequiredResources})
 
 	observed := composite.ComposedResourceStates{}
 
@@ -337,7 +337,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 
 		cd := composed.New()
-		if err := composite.FromStruct(cd, dr.GetResource()); err != nil {
+		if err := xfn.FromStruct(cd, dr.GetResource()); err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot unmarshal desired composed resource %q", name)
 		}
 
@@ -363,7 +363,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	})
 
 	xr := ucomposite.New()
-	if err := composite.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
+	if err := xfn.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
 		return Outputs{}, errors.Wrap(err, "cannot render desired composite resource")
 	}
 
@@ -428,8 +428,8 @@ func SetComposedResourceMetadata(cd resource.Object, xr resource.LegacyComposite
 	return errors.Wrapf(meta.AddControllerReference(cd, or), "cannot set composite resource %q as controller ref of composed resource", xr.GetName())
 }
 
-// FilteringFetcher is a composite.ExtraResourcesFetcher that "fetches" any
-// supplied resource that matches a resource selector.
+// FilteringFetcher is a RequiredResourcesFetcher that "fetches" any supplied
+// resource that matches a resource selector.
 type FilteringFetcher struct {
 	extra []unstructured.Unstructured
 }
@@ -453,7 +453,7 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 		}
 
 		if rs.GetMatchName() == er.GetName() {
-			o, err := composite.AsStruct(&er)
+			o, err := xfn.AsStruct(&er)
 			if err != nil {
 				return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())
 			}
@@ -465,7 +465,7 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 
 		if rs.GetMatchLabels() != nil {
 			if labels.SelectorFromSet(rs.GetMatchLabels().GetLabels()).Matches(labels.Set(er.GetLabels())) {
-				o, err := composite.AsStruct(&er)
+				o, err := xfn.AsStruct(&er)
 				if err != nil {
 					return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())
 				}

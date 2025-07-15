@@ -22,7 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -31,11 +30,12 @@ import (
 	"google.golang.org/protobuf/proto"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
-	fnv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
+	fnv1beta1 "github.com/crossplane/crossplane/proto/fn/v1beta1"
 )
 
 // Error strings.
@@ -77,6 +77,14 @@ const svcConfig = `
 type FunctionRunner interface {
 	// RunFunction runs the named composition function.
 	RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+}
+
+// A FunctionRunnerFn is a function that can run a Composition Function.
+type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+
+// RunFunction runs the named Composition Function with the supplied request.
+func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	return fn(ctx, name, req)
 }
 
 // A PackagedFunctionRunner runs a Function by making a gRPC call to a Function

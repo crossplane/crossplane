@@ -28,6 +28,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	"github.com/crossplane/crossplane/internal/version"
 )
@@ -43,6 +44,7 @@ const (
 	errNotMutatingWebhookConfiguration   = "object is not a MutatingWebhookConfiguration"
 	errNotValidatingWebhookConfiguration = "object is not an ValidatingWebhookConfiguration"
 	errNotComposition                    = "object is not a Composition"
+	errNotOperation                      = "object is not an Operation"
 	errBadConstraints                    = "package version constraints are poorly formatted"
 	errFmtCrossplaneIncompatible         = "package is not compatible with Crossplane version (%s)"
 )
@@ -50,7 +52,9 @@ const (
 // NewProviderLinter is a convenience function for creating a package linter for
 // providers.
 func NewProviderLinter() parser.Linter {
-	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsProvider, PackageValidSemver),
+	return parser.NewPackageLinter(
+		parser.PackageLinterFns(OneMeta),
+		parser.ObjectLinterFns(IsProvider, PackageValidSemver),
 		parser.ObjectLinterFns(parser.Or(
 			IsCRD,
 			IsValidatingWebhookConfiguration,
@@ -61,13 +65,19 @@ func NewProviderLinter() parser.Linter {
 // NewConfigurationLinter is a convenience function for creating a package linter for
 // configurations.
 func NewConfigurationLinter() parser.Linter {
-	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsConfiguration, PackageValidSemver), parser.ObjectLinterFns(parser.Or(IsXRD, IsComposition)))
+	return parser.NewPackageLinter(
+		parser.PackageLinterFns(OneMeta),
+		parser.ObjectLinterFns(IsConfiguration, PackageValidSemver),
+		parser.ObjectLinterFns(parser.Or(IsXRD, IsComposition, IsOperation)))
 }
 
 // NewFunctionLinter is a convenience function for creating a package linter for
 // functions.
 func NewFunctionLinter() parser.Linter {
-	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsFunction, PackageValidSemver), parser.ObjectLinterFns())
+	return parser.NewPackageLinter(
+		parser.PackageLinterFns(OneMeta),
+		parser.ObjectLinterFns(IsFunction, PackageValidSemver),
+		parser.ObjectLinterFns())
 }
 
 // OneMeta checks that there is only one meta object in the package.
@@ -195,6 +205,15 @@ func IsXRD(o runtime.Object) error {
 func IsComposition(o runtime.Object) error {
 	if _, ok := o.(*v1.Composition); !ok {
 		return errors.New(errNotComposition)
+	}
+
+	return nil
+}
+
+// IsOperation checks that an object is an Operation.
+func IsOperation(o runtime.Object) error {
+	if _, ok := o.(*v1alpha1.Operation); !ok {
+		return errors.New(errNotOperation)
 	}
 
 	return nil

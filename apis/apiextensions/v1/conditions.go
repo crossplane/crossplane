@@ -32,6 +32,10 @@ const (
 	// A TypeOffered XRD has created the CRD for its composite resource claim
 	// and started a controller to reconcile instances of said claim.
 	TypeOffered xpv1.ConditionType = "Offered"
+
+	// A TypeValidPipeline CompositionRevision has a valid function
+	// pipeline.
+	TypeValidPipeline xpv1.ConditionType = "ValidPipeline"
 )
 
 // Reasons a resource is or is not established or offered.
@@ -41,6 +45,9 @@ const (
 
 	ReasonTerminatingComposite xpv1.ConditionReason = "TerminatingCompositeResource"
 	ReasonTerminatingClaim     xpv1.ConditionReason = "TerminatingCompositeResourceClaim"
+
+	ReasonValidPipeline       xpv1.ConditionReason = "ValidPipeline"
+	ReasonMissingCapabilities xpv1.ConditionReason = "MissingCapabilities"
 )
 
 // WatchingComposite indicates that Crossplane has defined and is watching for a
@@ -84,5 +91,28 @@ func TerminatingClaim() xpv1.Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonTerminatingClaim,
+	}
+}
+
+// ValidPipeline indicates that all functions in the CompositionRevision's
+// pipeline are valid.
+func ValidPipeline() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeValidPipeline,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonValidPipeline,
+	}
+}
+
+// MissingCapabilities indicates that one or more functions in the CompositionRevision's
+// pipeline are missing required capabilities.
+func MissingCapabilities(message string) xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeValidPipeline,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonMissingCapabilities,
+		Message:            message,
 	}
 }
