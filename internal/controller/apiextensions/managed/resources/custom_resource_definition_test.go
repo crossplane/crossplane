@@ -38,7 +38,7 @@ func TestEmptyCustomResourceDefinition(t *testing.T) {
 	type want struct {
 		crd *extv1.CustomResourceDefinition
 	}
-	
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -114,7 +114,7 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 			Raw: []byte(`{"type": "object", "properties": {"spec": {"type": "object"}}}`),
 		},
 	}
-	
+
 	invalidSchema := &v2alpha1.CustomResourceValidation{
 		OpenAPIV3Schema: runtime.RawExtension{
 			Raw: []byte(`{invalid json`),
@@ -1082,4 +1082,3 @@ func TestToCustomResourceValidation(t *testing.T) {
 		})
 	}
 }
-
