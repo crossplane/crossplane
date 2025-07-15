@@ -39,7 +39,14 @@ const (
 	ReasonWatchingComposite xpv1.ConditionReason = "WatchingCompositeResource"
 	ReasonWatchingClaim     xpv1.ConditionReason = "WatchingCompositeResourceClaim"
 
+	EstablishedManagedResource xpv1.ConditionReason = "EstablishedManagedResource"
+
+	ReasonPendingManaged xpv1.ConditionReason = "PendingManagedResource"
+
+	ReasonInactiveManaged xpv1.ConditionReason = "InactiveManagedResource"
+
 	ReasonTerminatingComposite xpv1.ConditionReason = "TerminatingCompositeResource"
+	ReasonTerminatingManaged   xpv1.ConditionReason = "TerminatingManagedResource"
 	ReasonTerminatingClaim     xpv1.ConditionReason = "TerminatingCompositeResourceClaim"
 )
 
@@ -62,6 +69,59 @@ func TerminatingComposite() xpv1.Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonTerminatingComposite,
+	}
+}
+
+// EstablishedManaged indicates that Crossplane has defined new kind of managed resource.
+func EstablishedManaged() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeEstablished,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             EstablishedManagedResource,
+	}
+}
+
+// InactiveManaged indicates this managed resource is in the inactive state.
+func InactiveManaged() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeEstablished,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonInactiveManaged,
+	}
+}
+
+// PendingManaged indicates that Crossplane has defined and is waiting for a
+// new kind of managed resource to become accepted.
+func PendingManaged() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeEstablished,
+		Status:             corev1.ConditionUnknown,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonPendingManaged,
+	}
+}
+
+// BlockedManaged indicates that Crossplane has encountered an error attempting to
+// reconcile a managed resource definition.
+func BlockedManaged() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeEstablished,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonPendingManaged,
+	}
+}
+
+// TerminatingManaged indicates that Crossplane is terminating the controller
+// for and removing the definition of a managed resource.
+func TerminatingManaged() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeEstablished,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonTerminatingManaged,
 	}
 }
 

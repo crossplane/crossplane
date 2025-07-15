@@ -45,6 +45,10 @@ const (
 	ManagedResourceDefinitionInactive ManagedResourceDefinitionState = "Inactive"
 )
 
+func (s ManagedResourceDefinitionState) IsActive() bool {
+	return s == ManagedResourceDefinitionActive
+}
+
 // ConnectionDetail holds keys and descriptions of connection secrets.
 type ConnectionDetail struct {
 	// Name of the key.
@@ -75,6 +79,16 @@ type ManagedResourceDefinition struct {
 
 	Spec   ManagedResourceDefinitionSpec   `json:"spec,omitempty"`
 	Status ManagedResourceDefinitionStatus `json:"status,omitempty"`
+}
+
+// GetCondition of this ManagedResourceDefinition.
+func (p *ManagedResourceDefinition) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return p.Status.GetCondition(ct)
+}
+
+// SetConditions of this ManagedResourceDefinition.
+func (p *ManagedResourceDefinition) SetConditions(c ...xpv1.Condition) {
+	p.Status.SetConditions(c...)
 }
 
 // +kubebuilder:object:root=true
