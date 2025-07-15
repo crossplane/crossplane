@@ -4,7 +4,7 @@ kind: Function
 metadata:
   name: function-dummy-pkg-drc
 spec:
-  package: xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.0
+  package: xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.1
   runtimeConfigRef:
     name: function-dummy-rc
 

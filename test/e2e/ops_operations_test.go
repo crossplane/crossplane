@@ -67,7 +67,11 @@ func TestBasicOperation(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "operation.yaml"),
 			)).
 			Assess("OperationSucceeded", funcs.AllOf(
-				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "operation.yaml", v1alpha1.Complete()),
+				// This takes a little longer because it needs
+				// the FunctionRevision above to become ready,
+				// but it strictly retries with exponential
+				// backoff. It doesn't watch FunctionRevisions.
+				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "operation.yaml", v1alpha1.Complete()),
 				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.appliedResourceRefs[0].name", "cool-map"),
 				funcs.ResourceHasFieldValueWithin(30*time.Second, cm, "data[coolData]", "I'm cool!"),
 				// TODO(negz): Test function output when we have
