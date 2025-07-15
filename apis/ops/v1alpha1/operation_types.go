@@ -59,13 +59,13 @@ type PipelineStep struct {
 	// Step name. Must be unique within its Pipeline.
 	Step string `json:"step"`
 
-	// FunctionRef is a reference to the Composition Function this step should
+	// FunctionRef is a reference to the function this step should
 	// execute.
 	FunctionRef FunctionReference `json:"functionRef"`
 
 	// Input is an optional, arbitrary Kubernetes resource (i.e. a resource
-	// with an apiVersion and kind) that will be passed to the Composition
-	// Function as the 'input' of its RunFunctionRequest.
+	// with an apiVersion and kind) that will be passed to the unction as
+	// the 'input' of its RunFunctionRequest.
 	// +optional
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:EmbeddedResource
@@ -79,11 +79,11 @@ type PipelineStep struct {
 // A FunctionReference references an operation function that may be used in an
 // operation pipeline.
 type FunctionReference struct {
-	// Name of the referenced Function.
+	// Name of the referenced function.
 	Name string `json:"name"`
 }
 
-// FunctionCredentials are optional credentials that a Composition Function
+// FunctionCredentials are optional credentials that a function
 // needs to run.
 type FunctionCredentials struct {
 	// Name of this set of credentials.
@@ -99,7 +99,7 @@ type FunctionCredentials struct {
 	SecretRef *xpv1.SecretReference `json:"secretRef,omitempty"`
 }
 
-// A FunctionCredentialsSource is a source from which Composition Function
+// A FunctionCredentialsSource is a source from which function
 // credentials may be acquired.
 type FunctionCredentialsSource string
 

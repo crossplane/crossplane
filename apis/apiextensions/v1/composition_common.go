@@ -35,8 +35,8 @@ import (
 type CompositionMode string
 
 const (
-	// CompositionModePipeline indicates that a Composition specifies a pipeline
-	// of Composition Functions, each of which is responsible for producing
+	// CompositionModePipeline indicates that a Composition specifies a
+	// pipeline of functions, each of which is responsible for producing
 	// composed resources that Crossplane should create or update.
 	CompositionModePipeline CompositionMode = "Pipeline"
 )
@@ -55,38 +55,38 @@ func TypeReferenceTo(gvk schema.GroupVersionKind) TypeReference {
 	return TypeReference{APIVersion: gvk.GroupVersion().String(), Kind: gvk.Kind}
 }
 
-// A PipelineStep in a Composition Function pipeline.
+// A PipelineStep in a function pipeline.
 type PipelineStep struct {
 	// Step name. Must be unique within its Pipeline.
 	Step string `json:"step"`
 
-	// FunctionRef is a reference to the Composition Function this step should
+	// FunctionRef is a reference to the function this step should
 	// execute.
 	FunctionRef FunctionReference `json:"functionRef"`
 
 	// Input is an optional, arbitrary Kubernetes resource (i.e. a resource
-	// with an apiVersion and kind) that will be passed to the Composition
-	// Function as the 'input' of its RunFunctionRequest.
+	// with an apiVersion and kind) that will be passed to the function as
+	// the 'input' of its RunFunctionRequest.
 	// +optional
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:EmbeddedResource
 	Input *runtime.RawExtension `json:"input,omitempty"`
 
-	// Credentials are optional credentials that the Composition Function needs.
+	// Credentials are optional credentials that the function needs.
 	// +optional
 	// +listType=map
 	// +listMapKey=name
 	Credentials []FunctionCredentials `json:"credentials,omitempty"`
 }
 
-// A FunctionReference references a Composition Function that may be used in a
+// A FunctionReference references a function that may be used in a
 // Composition pipeline.
 type FunctionReference struct {
 	// Name of the referenced Function.
 	Name string `json:"name"`
 }
 
-// FunctionCredentials are optional credentials that a Composition Function
+// FunctionCredentials are optional credentials that a function
 // needs to run.
 //
 // +kubebuilder:validation:XValidation:rule="self.source == 'Secret' && has(self.secretRef)",message="the Secret source requires a secretRef"
@@ -104,7 +104,7 @@ type FunctionCredentials struct {
 	SecretRef *xpv1.SecretReference `json:"secretRef,omitempty"`
 }
 
-// A FunctionCredentialsSource is a source from which Composition Function
+// A FunctionCredentialsSource is a source from which function
 // credentials may be acquired.
 type FunctionCredentialsSource string
 

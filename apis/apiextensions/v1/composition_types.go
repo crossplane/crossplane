@@ -32,8 +32,8 @@ type CompositionSpec struct {
 	// Mode controls what type or "mode" of Composition will be used.
 	//
 	// "Pipeline" indicates that a Composition specifies a pipeline of
-	// Composition Functions, each of which is responsible for producing
-	// composed resources that Crossplane should create or update.
+	// functions, each of which is responsible for producing composed
+	// resources that Crossplane should create or update.
 	//
 	// +optional
 	// +kubebuilder:validation:Enum=Pipeline

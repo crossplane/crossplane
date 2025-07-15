@@ -74,7 +74,7 @@ spec:
                         function needs.
                       items:
                         description: |-
-                          FunctionCredentials are optional credentials that a Composition Function
+                          FunctionCredentials are optional credentials that a function
                           needs to run.
                         properties:
                           name:
@@ -108,11 +108,11 @@ spec:
                       type: array
                     functionRef:
                       description: |-
-                        FunctionRef is a reference to the Composition Function this step should
+                        FunctionRef is a reference to the function this step should
                         execute.
                       properties:
                         name:
-                          description: Name of the referenced Function.
+                          description: Name of the referenced function.
                           type: string
                       required:
                       - name
@@ -120,8 +120,8 @@ spec:
                     input:
                       description: |-
                         Input is an optional, arbitrary Kubernetes resource (i.e. a resource
-                        with an apiVersion and kind) that will be passed to the Composition
-                        Function as the 'input' of its RunFunctionRequest.
+                        with an apiVersion and kind) that will be passed to the unction as
+                        the 'input' of its RunFunctionRequest.
                       type: object
                       x-kubernetes-embedded-resource: true
                       x-kubernetes-preserve-unknown-fields: true
