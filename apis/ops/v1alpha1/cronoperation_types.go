@@ -17,11 +17,14 @@ limitations under the License.
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
+
+// LabelCronOperationName is the label Crossplane adds to Operations to
+// represent the CronOperation that created them.
+const LabelCronOperationName = "ops.crossplane.io/cronoperation"
 
 // ConcurrencyPolicy specifies how to treat concurrent executions of an
 // operation.
@@ -55,7 +58,7 @@ type CronOperationSpec struct {
 	// +optional
 	// +kubebuilder:default=Allow
 	// +kubebuilder:validation:Enum=Allow;Forbid;Replace
-	ConcurrencyPolicy ConcurrencyPolicy `json:"concurrencyPolicy,omitempty"`
+	ConcurrencyPolicy *ConcurrencyPolicy `json:"concurrencyPolicy,omitempty"`
 
 	// Suspend specifies whether the CronOperation should be suspended.
 	// +optional
@@ -89,9 +92,9 @@ type OperationTemplate struct {
 type CronOperationStatus struct {
 	xpv1.ConditionedStatus `json:",inline"`
 
-	// Active is a list of currently running Operations.
+	// RunningOperationRefs is a list of currently running Operations.
 	// +optional
-	Active []corev1.ObjectReference `json:"active,omitempty"`
+	RunningOperationRefs []RunningOperationRef `json:"runningOperationRefs,omitempty"`
 
 	// LastScheduleTime is the last time the CronOperation was scheduled.
 	// +optional
@@ -103,6 +106,12 @@ type CronOperationStatus struct {
 	LastSuccessfulTime *metav1.Time `json:"lastSuccessfulTime,omitempty"`
 }
 
+// A RunningOperationRef is a reference to a running operation.
+type RunningOperationRef struct {
+	// Name of the active operation.
+	Name string `json:"name"`
+}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +genclient
@@ -112,8 +121,8 @@ type CronOperationStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="SCHEDULE",type="string",JSONPath=".spec.schedule"
 // +kubebuilder:printcolumn:name="SUSPEND",type="boolean",JSONPath=".spec.suspend"
-// +kubebuilder:printcolumn:name="ACTIVE",type="integer",JSONPath=".status.active"
 // +kubebuilder:printcolumn:name="LAST SCHEDULE",type="date",JSONPath=".status.lastScheduleTime"
+// +kubebuilder:printcolumn:name="LAST SUCCESS",type="date",JSONPath=".status.lastSuccessfulTime"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=cronops
 type CronOperation struct {

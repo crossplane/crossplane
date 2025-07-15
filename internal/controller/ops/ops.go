@@ -21,10 +21,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplane/crossplane/internal/controller/ops/controller"
+	"github.com/crossplane/crossplane/internal/controller/ops/cronoperation"
 	"github.com/crossplane/crossplane/internal/controller/ops/operation"
 )
 
 // Setup API extensions controllers.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	return operation.Setup(mgr, o)
+	if err := operation.Setup(mgr, o); err != nil {
+		return err
+	}
+	return cronoperation.Setup(mgr, o)
 }

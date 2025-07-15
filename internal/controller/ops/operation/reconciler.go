@@ -311,7 +311,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			op.Status.Failures++
 			log.Debug("Cannot apply desired resource", "error", err, "failures", op.Status.Failures, "resource-name", name)
 
-			err = errors.Wrap(err, "cannot load desired resource")
+			err = errors.Wrap(err, "cannot apply desired resource")
 			r.record.Event(op, event.Warning(reasonInvalidResource, err))
 			status.MarkConditions(xpv1.ReconcileError(err))
 			_ = r.client.Status().Update(ctx, op)
