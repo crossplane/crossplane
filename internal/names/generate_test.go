@@ -18,11 +18,10 @@ package names
 
 import (
 	"context"
-	"github.com/aws/smithy-go/ptr"
-	"github.com/crossplane/crossplane/internal/xcrd"
 	"strconv"
 	"testing"
 
+	"github.com/aws/smithy-go/ptr"
 	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,6 +32,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 func TestGenerateName(t *testing.T) {

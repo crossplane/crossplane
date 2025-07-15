@@ -42,7 +42,7 @@ import (
 )
 
 // The longest name supported by the K8s is 63.
-// These constants
+// These constants.
 const (
 	longest = 63
 	md5Len  = 32

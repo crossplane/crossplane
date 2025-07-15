@@ -1144,7 +1144,7 @@ func TestFunctionCompose(t *testing.T) {
 			},
 		},
 		"ResourceReferencesWithoutObservedResources": {
-			reason: "When XR has resourceRefs but the actual resources don't exist, the function should use the existing names from resourceRefs.",
+			reason: "When XR has resourceRefs but the actual resources don't exist, the function should use a deterministic name (same as resourceRefs).",
 			params: params{
 				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "Deployment"}, "")), // all names are available
@@ -1166,7 +1166,7 @@ func TestFunctionCompose(t *testing.T) {
 				uc: &test.MockClient{
 					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "")),
 				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					// Function returns a desired resource with the same name as referenced
 					rsp := &fnv1.RunFunctionResponse{
 						Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(5 * time.Minute)},

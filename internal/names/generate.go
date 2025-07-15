@@ -20,7 +20,7 @@ package names
 import (
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane/internal/xcrd"
+
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/storage/names"
@@ -29,6 +29,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+
+	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 const (

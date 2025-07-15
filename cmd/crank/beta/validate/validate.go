@@ -19,7 +19,6 @@ package validate
 import (
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane/internal/xcrd"
 	"io"
 
 	ext "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
@@ -34,6 +33,8 @@ import (
 	celconfig "k8s.io/apiserver/pkg/apis/cel"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 const (
