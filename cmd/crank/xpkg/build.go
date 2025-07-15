@@ -135,7 +135,11 @@ func (c *buildCmd) GetRuntimeBaseImageOpts() ([]xpkg.BuildOpt, error) {
 
 		return []xpkg.BuildOpt{xpkg.WithBase(img)}, nil
 	case c.EmbedRuntimeImage != "":
-		ref, err := name.ParseReference(c.EmbedRuntimeImage, name.StrictValidation)
+		// We intentionally don't use strict validation here. Usually
+		// we'll tag the runtime image as something like
+		// 'runtime-amd64', and never actually push it to an OCI
+		// registry. That tag wouldn't pass strict validation.
+		ref, err := name.ParseReference(c.EmbedRuntimeImage)
 		if err != nil {
 			return nil, errors.Wrap(err, errParseRuntimeImageRef)
 		}
