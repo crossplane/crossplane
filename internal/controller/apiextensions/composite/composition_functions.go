@@ -58,7 +58,7 @@ const (
 	errGarbageCollectCDs        = "cannot garbage collect composed resources that are no longer desired"
 	errApplyXRRefs              = "cannot update composed resource references"
 	errApplyXRStatus            = "cannot apply composite resource status"
-	errAnonymousCD              = "encountered composed resource without required \"" + AnnotationKeyCompositionResourceName + "\" annotation"
+	errAnonymousCD              = "encountered composed resource without required \"" + xcrd.AnnotationKeyCompositionResourceName + "\" annotation"
 	errUnmarshalDesiredXRStatus = "cannot unmarshal desired composite resource status from RunFunctionResponse"
 	errXRAsStruct               = "cannot encode composite resource to protocol buffer Struct well-known type"
 	errStructFromUnstructured   = "cannot create Struct"
@@ -720,7 +720,7 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 			continue
 		}
 
-		name := GetCompositionResourceName(r)
+		name := ResourceName(xcrd.GetCompositionResourceName(r))
 		if name == "" {
 			return nil, errors.New(errAnonymousCD)
 		}

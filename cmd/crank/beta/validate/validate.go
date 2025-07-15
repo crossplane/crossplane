@@ -19,6 +19,7 @@ package validate
 import (
 	"context"
 	"fmt"
+	"github.com/crossplane/crossplane/internal/xcrd"
 	"io"
 
 	ext "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
@@ -33,8 +34,6 @@ import (
 	celconfig "k8s.io/apiserver/pkg/apis/cel"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 )
 
 const (
@@ -182,7 +181,7 @@ func getResourceName(r *unstructured.Unstructured) string {
 	}
 
 	// fallback to composition resource name
-	return r.GetAnnotations()[composite.AnnotationKeyCompositionResourceName]
+	return r.GetAnnotations()[xcrd.AnnotationKeyCompositionResourceName]
 }
 
 // applyDefaults applies default values from the CRD schema to the unstructured resource.

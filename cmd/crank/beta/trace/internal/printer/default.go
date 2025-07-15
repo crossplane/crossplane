@@ -18,6 +18,7 @@ package printer
 
 import (
 	"fmt"
+	"github.com/crossplane/crossplane/internal/xcrd"
 	"io"
 	"strings"
 
@@ -33,7 +34,6 @@ import (
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 )
 
 const (
@@ -269,7 +269,7 @@ func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringe
 	return &defaultPrinterRow{
 		wide:         wide,
 		name:         name,
-		resourceName: r.Unstructured.GetAnnotations()[composite.AnnotationKeyCompositionResourceName],
+		resourceName: r.Unstructured.GetAnnotations()[xcrd.AnnotationKeyCompositionResourceName],
 		ready:        mapEmptyStatusToDash(readyCond.Status),
 		synced:       mapEmptyStatusToDash(syncedCond.Status),
 		status:       status,

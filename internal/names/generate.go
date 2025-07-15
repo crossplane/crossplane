@@ -19,8 +19,10 @@ package names
 
 import (
 	"context"
-
+	"fmt"
+	"github.com/crossplane/crossplane/internal/xcrd"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/storage/names"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -62,6 +64,18 @@ func NewNameGenerator(c client.Client) NameGenerator {
 	return &nameGenerator{reader: c, namer: names.SimpleNameGenerator}
 }
 
+func (r *nameGenerator) isAvailable(ctx context.Context, cd resource.Object, name string) (bool, error) {
+	obj := composite.Unstructured{}
+	obj.SetGroupVersionKind(cd.GetObjectKind().GroupVersionKind())
+
+	err := r.reader.Get(ctx, client.ObjectKey{Name: name, Namespace: cd.GetNamespace()}, &obj)
+	if kerrors.IsNotFound(err) {
+		return true, nil
+	}
+
+	return false, err
+}
+
 // GenerateName generates a name using the same algorithm as the API server, and
 // verifies temporary name availability. It does not submit the resource
 // to the API server and hence it does not fall over validation errors.
@@ -70,6 +84,23 @@ func (r *nameGenerator) GenerateName(ctx context.Context, cd resource.Object) er
 	if cd.GetName() != "" || cd.GetGenerateName() == "" {
 		return nil
 	}
+
+	// If we find the right information on the resource, try once.
+	compositeName := xcrd.GetCompositionResourceName(cd)
+	if compositeName != "" {
+		owner := metav1.GetControllerOf(cd)
+		if owner != nil && owner.UID != "" {
+			name := ChildName(cd.GetGenerateName(), fmt.Sprintf("%s-%s", compositeName, owner.UID))
+			if available, err := r.isAvailable(ctx, cd, name); err != nil {
+				return err
+			} else if available {
+				// The name is available.
+				cd.SetName(name)
+				return nil
+			}
+		}
+	}
+	// Fallback to a random name.
 
 	// We guess a random name and verify that it is available. Names can become
 	// unavailable shortly after. We accept that very little risk of a name collision though:
@@ -86,18 +117,12 @@ func (r *nameGenerator) GenerateName(ctx context.Context, cd resource.Object) er
 	maxTries := 10
 	for range maxTries {
 		name := r.namer.GenerateName(cd.GetGenerateName())
-		obj := composite.Unstructured{}
-		obj.SetGroupVersionKind(cd.GetObjectKind().GroupVersionKind())
-
-		err := r.reader.Get(ctx, client.ObjectKey{Name: name}, &obj)
-		if kerrors.IsNotFound(err) {
+		if available, err := r.isAvailable(ctx, cd, name); err != nil {
+			return err
+		} else if available {
 			// The name is available.
 			cd.SetName(name)
 			return nil
-		}
-
-		if err != nil {
-			return err
 		}
 	}
 

@@ -1153,10 +1153,10 @@ func TestFunctionCompose(t *testing.T) {
 						if cd, ok := obj.(*composed.Unstructured); ok {
 							// This test demonstrates the bug: the composed resource should use "existing-deployment-name" from resourceRefs,
 							// but currently it generates a new name instead
-							if cd.GetName() != "existing-deployment-name" {
+							if cd.GetName() != "parent-xr-73edf0cb4924472922c78401ca75c166test-resource-with-a" {
 								// This is the current buggy behavior - it generates a new name instead of using the existing one
 								// Log this for debugging when we run the test
-								return errors.Errorf("BUG: Composed resource generated new name %s instead of using existing name from resourceRefs: existing-deployment-name", cd.GetName())
+								return errors.Errorf("BUG: Composed resource generated new name %s instead of using existing name from resourceRefs: parent-xr-73edf0cb4924472922c78401ca75c166test-resource-with-a", cd.GetName())
 							}
 						}
 						return nil
@@ -1172,7 +1172,7 @@ func TestFunctionCompose(t *testing.T) {
 						Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(5 * time.Minute)},
 						Desired: &fnv1.State{
 							Resources: map[string]*fnv1.Resource{
-								"test-resource": {
+								"test-resource-with-a-really-long-name-to-test-compaction": {
 									Resource: MustStruct(map[string]any{
 										"apiVersion": "apps/v1",
 										"kind":       "Deployment",
@@ -1210,12 +1210,13 @@ func TestFunctionCompose(t *testing.T) {
 					xr.SetLabels(map[string]string{
 						xcrd.LabelKeyNamePrefixForComposed: "parent-xr",
 					})
+					xr.SetUID("75e4a668-035f-4ce8-8c45-f4d3ac850155")
 					// Set resource references that exist from a previous reconciliation
 					xr.SetResourceReferences([]corev1.ObjectReference{
 						{
 							APIVersion: "apps/v1",
 							Kind:       "Deployment",
-							Name:       "existing-deployment-name",
+							Name:       "parent-xr-73edf0cb4924472922c78401ca75c166test-resource-with-a",
 						},
 					})
 					return xr
@@ -1236,7 +1237,7 @@ func TestFunctionCompose(t *testing.T) {
 			want: want{
 				res: CompositionResult{
 					Composed: []ComposedResource{
-						{ResourceName: "test-resource", Synced: true},
+						{ResourceName: "test-resource-with-a-really-long-name-to-test-compaction", Synced: true},
 					},
 					TTL: 5 * time.Minute,
 				},
@@ -1443,7 +1444,7 @@ func TestGetComposedResources(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						obj.SetName("cool-resource-42")
-						SetCompositionResourceName(obj, "cool-resource")
+						xcrd.SetCompositionResourceName(obj, "cool-resource")
 						return nil
 					}),
 				},
@@ -1481,7 +1482,7 @@ func TestGetComposedResources(t *testing.T) {
 				uc: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						obj.SetName("cool-resource-42")
-						SetCompositionResourceName(obj, "cool-resource")
+						xcrd.SetCompositionResourceName(obj, "cool-resource")
 						return nil
 					}),
 				},
@@ -1511,7 +1512,7 @@ func TestGetComposedResources(t *testing.T) {
 							cd.SetAPIVersion("example.org/v1")
 							cd.SetKind("Composed")
 							cd.SetName("cool-resource-42")
-							SetCompositionResourceName(cd, "cool-resource")
+							xcrd.SetCompositionResourceName(cd, "cool-resource")
 							return cd
 						}(),
 					},
@@ -1524,7 +1525,7 @@ func TestGetComposedResources(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						obj.SetName("cool-resource-42")
-						SetCompositionResourceName(obj, "cool-resource")
+						xcrd.SetCompositionResourceName(obj, "cool-resource")
 						return nil
 					}),
 				},
@@ -1559,7 +1560,7 @@ func TestGetComposedResources(t *testing.T) {
 							cd.SetAPIVersion("example.org/v1")
 							cd.SetKind("Composed")
 							cd.SetName("cool-resource-42")
-							SetCompositionResourceName(cd, "cool-resource")
+							xcrd.SetCompositionResourceName(cd, "cool-resource")
 							return cd
 						}(),
 					},

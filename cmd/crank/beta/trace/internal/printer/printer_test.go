@@ -17,6 +17,7 @@ limitations under the License.
 package printer
 
 import (
+	"github.com/crossplane/crossplane/internal/xcrd"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -26,7 +27,6 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 )
 
 // DummyManifestOpt can be passed to customize a dummy manifest.
@@ -75,7 +75,7 @@ func WithConditions(conds ...xpv1.Condition) DummyManifestOpt {
 
 func WithCompositionResourceName(n string) DummyManifestOpt {
 	return func(m *unstructured.Unstructured) {
-		meta.AddAnnotations(m, map[string]string{composite.AnnotationKeyCompositionResourceName: n})
+		meta.AddAnnotations(m, map[string]string{xcrd.AnnotationKeyCompositionResourceName: n})
 	}
 }
 

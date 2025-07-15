@@ -18,6 +18,8 @@ package names
 
 import (
 	"context"
+	"github.com/aws/smithy-go/ptr"
+	"github.com/crossplane/crossplane/internal/xcrd"
 	"strconv"
 	"testing"
 
@@ -110,6 +112,27 @@ func TestGenerateName(t *testing.T) {
 				}},
 			},
 		},
+		"SuccessMissingOwner": {
+			reason: "If no owner, use the random name generator",
+			client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "CoolResource"}, "cool-resource-42"))},
+			args: args{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-",
+					Annotations: map[string]string{
+						xcrd.AnnotationKeyCompositionResourceName: "pipeline-name-of-cool-resource",
+					},
+				}},
+			},
+			want: want{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-",
+					Name:         "cool-resource-42",
+					Annotations: map[string]string{
+						xcrd.AnnotationKeyCompositionResourceName: "pipeline-name-of-cool-resource",
+					},
+				}},
+			},
+		},
 		"SuccessAfterConflict": {
 			reason: "Name is found on second try",
 			client: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, _ client.Object) error {
@@ -143,6 +166,76 @@ func TestGenerateName(t *testing.T) {
 					GenerateName: "cool-resource-",
 				}},
 				err: errors.New(errGenerateName),
+			},
+		},
+		"SuccessCompositeTruncated": {
+			reason: "Is annotated and owned should use ChildName and not be random, but if all this is too long, it will be shortened",
+			client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "CoolResource"}, "cool-resource-42"))},
+			args: args{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-",
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: "Foo/v1",
+						Kind:       "Bar",
+						Name:       "parent",
+						UID:        "75e4a668-035f-4ce8-8c45-f4d3ac850155",
+						Controller: ptr.Bool(true),
+					}},
+					Annotations: map[string]string{
+						xcrd.AnnotationKeyCompositionResourceName: "pipeline-name-of-cool-resource",
+					},
+				}},
+			},
+			want: want{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-",
+					Name:         "cool-resource-59f97ca4a7eebb99beb694a77f42de28pipeline-name-of",
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: "Foo/v1",
+						Kind:       "Bar",
+						Name:       "parent",
+						UID:        "75e4a668-035f-4ce8-8c45-f4d3ac850155",
+						Controller: ptr.Bool(true),
+					}},
+					Annotations: map[string]string{
+						xcrd.AnnotationKeyCompositionResourceName: "pipeline-name-of-cool-resource",
+					},
+				}},
+			},
+		},
+		"SuccessComposite": {
+			reason: "Is annotated and owned should use ChildName and not be random",
+			client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "CoolResource"}, "cool-resource-42"))},
+			args: args{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-",
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: "Foo/v1",
+						Kind:       "Bar",
+						Name:       "parent",
+						UID:        "75e4a668-035f-4ce8-8c45-f4d3ac850155",
+						Controller: ptr.Bool(true),
+					}},
+					Annotations: map[string]string{
+						xcrd.AnnotationKeyCompositionResourceName: "kid1",
+					},
+				}},
+			},
+			want: want{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-",
+					Name:         "cool-resource-kid1-75e4a668-035f-4ce8-8c45-f4d3ac850155",
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: "Foo/v1",
+						Kind:       "Bar",
+						Name:       "parent",
+						UID:        "75e4a668-035f-4ce8-8c45-f4d3ac850155",
+						Controller: ptr.Bool(true),
+					}},
+					Annotations: map[string]string{
+						xcrd.AnnotationKeyCompositionResourceName: "kid1",
+					},
+				}},
 			},
 		},
 	}
