@@ -5,7 +5,7 @@ kind: Function
 metadata:
   name: function-dummy-apiextensions-usage
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/function-dummy:v0.4.0
+  package: xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.0
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Function
