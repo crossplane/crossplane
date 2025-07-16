@@ -1,7 +1,7 @@
 apiVersion: apiextensions.crossplane.io/v2alpha1
 kind: ManagedResourceDefinition
 metadata:
-  name: xnopresources.mrd.nop.example.org
+  name: xnopresources.nop.mrd.example.org
 spec:
   state: Active
   scope: Namespaced
