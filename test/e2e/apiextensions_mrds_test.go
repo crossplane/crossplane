@@ -36,9 +36,9 @@ func TestMRDValidation(t *testing.T) {
 			Name:        "ValidNewMRDIsAccepted",
 			Description: "A valid MRD should be created.",
 			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "MRD-valid.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "MRD-valid.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "MRD-valid.yaml", v2alpha1.InactiveManaged()),
+				funcs.ApplyResources(FieldManager, manifests, "mrd-valid.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "mrd-valid.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mrd-valid.yaml", v2alpha1.InactiveManaged()),
 			),
 		},
 		{
@@ -46,28 +46,28 @@ func TestMRDValidation(t *testing.T) {
 			Name:        "ValidUpdatedMRDIsAccepted",
 			Description: "A valid update to an MRD should be accepted.",
 			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "MRD-valid-updated.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "MRD-valid-updated.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "MRD-valid-updated.yaml", v2alpha1.EstablishedManaged()),
+				funcs.ApplyResources(FieldManager, manifests, "mrd-valid-updated.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "mrd-valid-updated.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mrd-valid-updated.yaml", v2alpha1.EstablishedManaged()),
 			),
 		},
 		{
 			// An update to an invalid MRD should be rejected.
 			Name:        "InvalidMRDUpdateIsRejected",
 			Description: "An invalid update to an MRD should be rejected.",
-			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "MRD-valid-updated-invalid.yaml"),
+			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "mrd-valid-updated-invalid.yaml"),
 		},
 		{
 			// An update to immutable MRD fields should be rejected.
 			Name:        "ImmutableMRDFieldUpdateIsRejected",
 			Description: "An update to immutable MRD field should be rejected.",
-			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "MRD-immutable-updated.yaml"),
+			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "mrd-immutable-updated.yaml"),
 		},
 		{
 			// An invalid MRD should be rejected.
 			Name:        "InvalidMRDIsRejected",
 			Description: "An invalid MRD should be rejected.",
-			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "MRD-invalid.yaml"),
+			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "mrd-invalid.yaml"),
 		},
 	}
 	environment.Test(t,
