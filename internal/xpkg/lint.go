@@ -46,6 +46,7 @@ const (
 	errNotComposition                    = "object is not a Composition"
 	errNotOperation                      = "object is not an Operation"
 	errNotCronOperation                  = "object is not a CronOperation"
+	errNotWatchOperation                 = "object is not a WatchOperation"
 	errBadConstraints                    = "package version constraints are poorly formatted"
 	errFmtCrossplaneIncompatible         = "package is not compatible with Crossplane version (%s)"
 )
@@ -69,7 +70,7 @@ func NewConfigurationLinter() parser.Linter {
 	return parser.NewPackageLinter(
 		parser.PackageLinterFns(OneMeta),
 		parser.ObjectLinterFns(IsConfiguration, PackageValidSemver),
-		parser.ObjectLinterFns(parser.Or(IsXRD, IsComposition, IsOperation, IsCronOperation)))
+		parser.ObjectLinterFns(parser.Or(IsXRD, IsComposition, IsOperation, IsCronOperation, IsWatchOperation)))
 }
 
 // NewFunctionLinter is a convenience function for creating a package linter for
@@ -224,6 +225,15 @@ func IsOperation(o runtime.Object) error {
 func IsCronOperation(o runtime.Object) error {
 	if _, ok := o.(*v1alpha1.CronOperation); !ok {
 		return errors.New(errNotCronOperation)
+	}
+
+	return nil
+}
+
+// IsWatchOperation checks that an object is a WatchOperation.
+func IsWatchOperation(o runtime.Object) error {
+	if _, ok := o.(*v1alpha1.WatchOperation); !ok {
+		return errors.New(errNotWatchOperation)
 	}
 
 	return nil

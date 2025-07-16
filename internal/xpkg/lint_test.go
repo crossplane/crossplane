@@ -102,6 +102,11 @@ kind: CronOperation
 metadata:
   name: test`)
 
+	v1alpha1WatchOpBytes = []byte(`apiVersion: ops.crossplane.io/v1alpha1
+kind: WatchOperation
+metadata:
+  name: test`)
+
 	v1beta1crd       = &apiextensions.CustomResourceDefinition{}
 	_                = yaml.Unmarshal(v1beta1CRDBytes, v1beta1crd)
 	v1crd            = &apiextensions.CustomResourceDefinition{}
@@ -126,6 +131,8 @@ metadata:
 	_                = yaml.Unmarshal(v1alpha1OpBytes, v1alpha1Op)
 	v1alpha1CronOp   = &v1alpha1.CronOperation{}
 	_                = yaml.Unmarshal(v1alpha1CronOpBytes, v1alpha1CronOp)
+	v1alpha1WatchOp  = &v1alpha1.WatchOperation{}
+	_                = yaml.Unmarshal(v1alpha1WatchOpBytes, v1alpha1WatchOp)
 
 	meta, _ = BuildMetaScheme()
 	obj, _  = BuildObjectScheme()
@@ -548,6 +555,33 @@ func TestIsCronOperation(t *testing.T) {
 			err := IsCronOperation(tc.obj)
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsCronOperation(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestIsWatchOperation(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		obj    runtime.Object
+		err    error
+	}{
+		"v1": {
+			reason: "Should not return error if object is a watch operation.",
+			obj:    v1alpha1WatchOp,
+		},
+		"ErrNotWatchOperation": {
+			reason: "Should return error if object is not a watch operation.",
+			obj:    v1beta1crd,
+			err:    errors.New(errNotWatchOperation),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := IsWatchOperation(tc.obj)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nIsWatchOperation(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
