@@ -22,19 +22,14 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
-// LabelCronOperationName is the label Crossplane adds to Operations to
-// represent the CronOperation that created them.
-const LabelCronOperationName = "ops.crossplane.io/cronoperation"
+// LabelWatchOperationName is the label Crossplane adds to Operations to
+// represent the WatchOperation that created them.
+const LabelWatchOperationName = "ops.crossplane.io/watchoperation"
 
-// CronOperationSpec specifies the desired state of a CronOperation.
-type CronOperationSpec struct {
-	// Schedule is the cron schedule for the operation.
-	Schedule string `json:"schedule"`
-
-	// StartingDeadlineSeconds is the deadline in seconds for starting the
-	// operation if it misses its scheduled time for any reason.
-	// +optional
-	StartingDeadlineSeconds *int64 `json:"startingDeadlineSeconds,omitempty"`
+// WatchOperationSpec specifies the desired state of a WatchOperation.
+type WatchOperationSpec struct {
+	// Watch specifies the resource to watch.
+	Watch WatchSpec `json:"watch"`
 
 	// ConcurrencyPolicy specifies how to treat concurrent executions of an
 	// operation.
@@ -43,7 +38,7 @@ type CronOperationSpec struct {
 	// +kubebuilder:validation:Enum=Allow;Forbid;Replace
 	ConcurrencyPolicy *ConcurrencyPolicy `json:"concurrencyPolicy,omitempty"`
 
-	// Suspend specifies whether the CronOperation should be suspended.
+	// Suspend specifies whether the WatchOperation should be suspended.
 	// +optional
 	Suspend *bool `json:"suspend,omitempty"`
 
@@ -61,20 +56,45 @@ type CronOperationSpec struct {
 	OperationTemplate OperationTemplate `json:"operationTemplate"`
 }
 
-// CronOperationStatus represents the observed state of a CronOperation.
-type CronOperationStatus struct {
+// WatchSpec specifies what resource to watch.
+type WatchSpec struct {
+	// APIVersion of the resource to watch.
+	APIVersion string `json:"apiVersion"`
+
+	// Kind of the resource to watch.
+	Kind string `json:"kind"`
+
+	// MatchLabels selects resources by label. If empty, all resources of the
+	// specified kind are watched.
+	// +optional
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+
+	// Namespace selects resources in a specific namespace. If empty, all
+	// namespaces are watched. Only applicable for namespaced resources.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+}
+
+// WatchOperationStatus represents the observed state of a WatchOperation.
+type WatchOperationStatus struct {
 	xpv1.ConditionedStatus `json:",inline"`
 
 	// RunningOperationRefs is a list of currently running Operations.
 	// +optional
 	RunningOperationRefs []RunningOperationRef `json:"runningOperationRefs,omitempty"`
 
-	// LastScheduleTime is the last time the CronOperation was scheduled.
+	// WatchingResources is the number of resources this WatchOperation is
+	// currently watching.
+	// +optional
+	WatchingResources int64 `json:"watchingResources,omitempty"`
+
+	// LastScheduleTime is the last time the WatchOperation created an
+	// Operation.
 	// +optional
 	LastScheduleTime *metav1.Time `json:"lastScheduleTime,omitempty"`
 
-	// LastSuccessfulTime is the last time the CronOperation was successfully
-	// completed.
+	// LastSuccessfulTime is the last time the WatchOperation successfully
+	// completed an Operation.
 	// +optional
 	LastSuccessfulTime *metav1.Time `json:"lastSuccessfulTime,omitempty"`
 }
@@ -83,41 +103,41 @@ type CronOperationStatus struct {
 // +kubebuilder:storageversion
 // +genclient
 
-// A CronOperation creates Operations on a cron schedule.
+// A WatchOperation creates Operations when watched resources change.
 //
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="SCHEDULE",type="string",JSONPath=".spec.schedule"
+// +kubebuilder:printcolumn:name="WATCHING",type="string",JSONPath=".spec.watch.kind"
 // +kubebuilder:printcolumn:name="SUSPEND",type="boolean",JSONPath=".spec.suspend"
 // +kubebuilder:printcolumn:name="LAST SCHEDULE",type="date",JSONPath=".status.lastScheduleTime"
 // +kubebuilder:printcolumn:name="LAST SUCCESS",type="date",JSONPath=".status.lastSuccessfulTime"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=cronops
-type CronOperation struct {
+// +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=watchops
+type WatchOperation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   CronOperationSpec   `json:"spec,omitempty"`
-	Status CronOperationStatus `json:"status,omitempty"`
+	Spec   WatchOperationSpec   `json:"spec,omitempty"`
+	Status WatchOperationStatus `json:"status,omitempty"`
 }
 
 // SetConditions delegates to Status.SetConditions.
 // Implements Conditioned.SetConditions.
-func (co *CronOperation) SetConditions(cs ...xpv1.Condition) {
-	co.Status.SetConditions(cs...)
+func (wo *WatchOperation) SetConditions(cs ...xpv1.Condition) {
+	wo.Status.SetConditions(cs...)
 }
 
 // GetCondition delegates to Status.GetCondition.
 // Implements Conditioned.GetCondition.
-func (co *CronOperation) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
-	return co.Status.GetCondition(ct)
+func (wo *WatchOperation) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return wo.Status.GetCondition(ct)
 }
 
 // +kubebuilder:object:root=true
 
-// CronOperationList contains a list of CronOperations.
-type CronOperationList struct {
+// WatchOperationList contains a list of WatchOperations.
+type WatchOperationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []CronOperation `json:"items"`
+	Items []WatchOperation `json:"items"`
 }
