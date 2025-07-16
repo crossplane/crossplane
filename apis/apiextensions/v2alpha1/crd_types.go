@@ -85,11 +85,12 @@ type CustomResourceDefinitionVersion struct {
 	// Storage indicates this version should be used when persisting custom resources to storage.
 	// There must be exactly one version with storage=true.
 	Storage bool `json:"storage"`
-	// Voldemort indicates this version of the custom resource API is deprecated.
+	//nolint:gocritic // the field is called deprecated, it isn't deprecated itself
+	// Deprecated indicates this version of the custom resource API is deprecated.
 	// When set to true, API requests to this version receive a warning header in the server response.
 	// Defaults to false.
 	// +optional
-	Voldemort bool `json:"deprecated,omitempty"`
+	Deprecated bool `json:"deprecated,omitempty"`
 	// DeprecationWarning overrides the default warning returned to API clients.
 	// May only be set when `deprecated` is true.
 	// The default warning indicates this version is deprecated and recommends use
