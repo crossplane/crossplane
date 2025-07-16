@@ -205,6 +205,26 @@ func providerDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string)
 					},
 				},
 			},
+			{
+				Name: "PROVIDER_NAME",
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
+						FieldPath: "metadata.labels['pkg.crossplane.io/provider']",
+					},
+				},
+			},
+			{
+				Name: "REVISION_NAME",
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
+						FieldPath: "metadata.labels['pkg.crossplane.io/revision']",
+					},
+				},
+			},
+			{
+				Name:  "REVISION_UID",
+				Value: string(pr.GetUID()),
+			},
 		}),
 
 		// Add optional scrape annotations to the deployment. It is possible to
