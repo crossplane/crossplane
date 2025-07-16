@@ -1,11 +1,11 @@
 apiVersion: apiextensions.crossplane.io/v2alpha1
 kind: ManagedResourceDefinition
 metadata:
-  name: xnopresources.nop.example.org
+  name: xnopresources.mrd.nop.example.org
 spec:
   state: Inactive
   scope: Namespaced
-  group: nope.example.org # <-- invalid, field is immutable
+  group: nope.mrd.example.org # <-- invalid, field is immutable
   names:
     kind: XNopResource
     plural: xnopresources

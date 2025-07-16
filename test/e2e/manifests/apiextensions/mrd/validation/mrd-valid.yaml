@@ -1,11 +1,11 @@
 apiVersion: apiextensions.crossplane.io/v2alpha1
 kind: ManagedResourceDefinition
 metadata:
-  name: xnopresources.nop.example.org
+  name: xnopresources.nop.mrd.example.org
 spec:
   state: Inactive
   scope: Namespaced
-  group: nop.example.org
+  group: nop.mrd.example.org
   names:
     kind: XNopResource
     plural: xnopresources
