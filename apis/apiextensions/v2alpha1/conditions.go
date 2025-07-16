@@ -32,10 +32,16 @@ const (
 	// A TypeOffered XRD has created the CRD for its composite resource claim
 	// and started a controller to reconcile instances of said claim.
 	TypeOffered xpv1.ConditionType = "Offered"
+
+	// A TypeHealthy indicates the resource is healthy and working.
+	TypeHealthy xpv1.ConditionType = "Healthy"
 )
 
-// Reasons a resource is or is not established or offered.
+// Reasons a resource is or is not healthy, established or offered.
 const (
+	ReasonHealthy   xpv1.ConditionReason = "Running"
+	ReasonUnhealthy xpv1.ConditionReason = "EncounteredErrors"
+
 	ReasonWatchingComposite xpv1.ConditionReason = "WatchingCompositeResource"
 	ReasonWatchingClaim     xpv1.ConditionReason = "WatchingCompositeResourceClaim"
 
@@ -45,9 +51,12 @@ const (
 
 	ReasonInactiveManaged xpv1.ConditionReason = "InactiveManagedResource"
 
-	ReasonTerminatingComposite xpv1.ConditionReason = "TerminatingCompositeResource"
-	ReasonTerminatingManaged   xpv1.ConditionReason = "TerminatingManagedResource"
-	ReasonTerminatingClaim     xpv1.ConditionReason = "TerminatingCompositeResourceClaim"
+	ReasonBlockedActivationPolicy xpv1.ConditionReason = "BlockedManagedResourceActivationPolicy"
+
+	ReasonTerminatingComposite        xpv1.ConditionReason = "TerminatingCompositeResource"
+	ReasonTerminatingManaged          xpv1.ConditionReason = "TerminatingManagedResource"
+	ReasonTerminatingActivationPolicy xpv1.ConditionReason = "TerminatingManagedResourceActivationPolicy"
+	ReasonTerminatingClaim            xpv1.ConditionReason = "TerminatingCompositeResourceClaim"
 )
 
 // WatchingComposite indicates that Crossplane has defined and is watching for a
@@ -122,6 +131,49 @@ func TerminatingManaged() xpv1.Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonTerminatingManaged,
+	}
+}
+
+// Healthy indicates that the controller is running as expected.
+func Healthy() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeHealthy,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonHealthy,
+	}
+}
+
+// Unhealthy indicates that the controller is running into issues.
+func Unhealthy() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeHealthy,
+		Status:             corev1.ConditionUnknown,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonUnhealthy,
+	}
+}
+
+// BlockedActivationPolicy indicates that Crossplane is blocked attempting to
+// reconcile of a managed resource activation policy.
+func BlockedActivationPolicy() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeEstablished,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonBlockedActivationPolicy,
+	}
+}
+
+// TerminatingActivationPolicy indicates that Crossplane is terminating the
+// controller for and removing the definition of a managed resource activation
+// policy.
+func TerminatingActivationPolicy() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeEstablished,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonTerminatingActivationPolicy,
 	}
 }
 
