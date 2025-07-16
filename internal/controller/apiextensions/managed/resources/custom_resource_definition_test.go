@@ -374,7 +374,7 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 									Name:               "v1",
 									Served:             true,
 									Storage:            true,
-									Voldemort:          true,
+									Deprecated:         true,
 									DeprecationWarning: ptr.To("This version is deprecated"),
 									Schema:             validSchema,
 								},
