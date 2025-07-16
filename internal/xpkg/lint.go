@@ -45,6 +45,7 @@ const (
 	errNotValidatingWebhookConfiguration = "object is not an ValidatingWebhookConfiguration"
 	errNotComposition                    = "object is not a Composition"
 	errNotOperation                      = "object is not an Operation"
+	errNotCronOperation                  = "object is not a CronOperation"
 	errBadConstraints                    = "package version constraints are poorly formatted"
 	errFmtCrossplaneIncompatible         = "package is not compatible with Crossplane version (%s)"
 )
@@ -68,7 +69,7 @@ func NewConfigurationLinter() parser.Linter {
 	return parser.NewPackageLinter(
 		parser.PackageLinterFns(OneMeta),
 		parser.ObjectLinterFns(IsConfiguration, PackageValidSemver),
-		parser.ObjectLinterFns(parser.Or(IsXRD, IsComposition, IsOperation)))
+		parser.ObjectLinterFns(parser.Or(IsXRD, IsComposition, IsOperation, IsCronOperation)))
 }
 
 // NewFunctionLinter is a convenience function for creating a package linter for
@@ -214,6 +215,15 @@ func IsComposition(o runtime.Object) error {
 func IsOperation(o runtime.Object) error {
 	if _, ok := o.(*v1alpha1.Operation); !ok {
 		return errors.New(errNotOperation)
+	}
+
+	return nil
+}
+
+// IsCronOperation checks that an object is a CronOperation.
+func IsCronOperation(o runtime.Object) error {
+	if _, ok := o.(*v1alpha1.CronOperation); !ok {
+		return errors.New(errNotCronOperation)
 	}
 
 	return nil
