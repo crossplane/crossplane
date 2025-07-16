@@ -39,7 +39,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
 )
 
@@ -92,7 +91,7 @@ func TestReconcile(t *testing.T) {
 					})),
 					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v2alpha1.ManagedResourceDefinition) {
 						mrd.SetDeletionTimestamp(&now)
-						mrd.SetConditions(v1.TerminatingComposite())
+						mrd.SetConditions(v2alpha1.TerminatingManaged())
 					})),
 				},
 			},

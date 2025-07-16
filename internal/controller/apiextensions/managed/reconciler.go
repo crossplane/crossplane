@@ -35,7 +35,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/managed/resources"
 	"github.com/crossplane/crossplane/internal/xcrd"
@@ -106,7 +105,7 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	)
 
 	if meta.WasDeleted(mrd) {
-		status.MarkConditions(v1.TerminatingComposite())
+		status.MarkConditions(v2alpha1.TerminatingManaged())
 		if err := r.Status().Update(ogctx, mrd); err != nil {
 			log.Debug(errUpdateStatus, "error", err)
 			if kerrors.IsConflict(err) {
