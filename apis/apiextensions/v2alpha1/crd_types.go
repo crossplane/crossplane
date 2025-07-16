@@ -38,11 +38,18 @@ type CustomResourceDefinitionSpec struct {
 	// Group is the API group of the defined custom resource.
 	// The custom resources are served under `/apis/<group>/...`.
 	// Must match the name of the CustomResourceDefinition (in the form `<names.plural>.<group>`).
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	Group string `json:"group"`
 	// Names specify the resource and kind names for the custom resource.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.plural == self.plural.lowerAscii()",message="Plural name must be lowercase"
+	// +kubebuilder:validation:XValidation:rule="!has(self.singular) || self.singular == self.singular.lowerAscii()",message="Singular name must be lowercase"
 	Names extv1.CustomResourceDefinitionNames `json:"names"`
 	// Scope indicates whether the defined custom resource is cluster- or namespace-scoped.
 	// Allowed values are `Cluster` and `Namespaced`.
+	// +kubebuilder:validation:Enum=Namespaced;Cluster
+	// +kubebuilder:default=Namespaced
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	Scope extv1.ResourceScope `json:"scope"`
 	// Versions is the list of all API versions of the defined custom resource.
 	// Version names are used to compute the order in which served versions are listed in API discovery.
