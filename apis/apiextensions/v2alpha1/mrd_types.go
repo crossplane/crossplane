@@ -31,6 +31,8 @@ type ManagedResourceDefinitionSpec struct {
 	ConnectionDetails []ConnectionDetail `json:"connectionDetails,omitempty"`
 
 	// State toggles whether the underlying CRD is created or not.
+	// +kubebuilder:validation:Enum=Active;Inactive
+	// +kubebuilder:default=Inactive
 	State ManagedResourceDefinitionState `json:"state"`
 }
 
