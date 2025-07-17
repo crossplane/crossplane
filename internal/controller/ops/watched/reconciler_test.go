@@ -563,8 +563,9 @@ func TestOperationName(t *testing.T) {
 
 func TestNewOperation(t *testing.T) {
 	type args struct {
-		wo   *v1alpha1.WatchOperation
-		name string
+		wo      *v1alpha1.WatchOperation
+		watched *unstructured.Unstructured
+		name    string
 	}
 	type want struct {
 		op *v1alpha1.Operation
@@ -575,8 +576,8 @@ func TestNewOperation(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"Success": {
-			reason: "Should create operation with correct metadata and owner reference",
+		"WatchedResourceInjected": {
+			reason: "Should inject watched resource into all pipeline steps",
 			args: args{
 				wo: &v1alpha1.WatchOperation{
 					ObjectMeta: metav1.ObjectMeta{
@@ -604,6 +605,16 @@ func TestNewOperation(t *testing.T) {
 						},
 					},
 				},
+				watched: &unstructured.Unstructured{
+					Object: map[string]any{
+						"apiVersion": "v1",
+						"kind":       "Pod",
+						"metadata": map[string]any{
+							"name":      "test-pod",
+							"namespace": "default",
+						},
+					},
+				},
 				name: "test-watch-abcdef1",
 			},
 			want: want{
@@ -613,6 +624,13 @@ func TestNewOperation(t *testing.T) {
 						Labels: map[string]string{
 							"template":                       "label",
 							v1alpha1.LabelWatchOperationName: "test-watch",
+						},
+						Annotations: map[string]string{
+							v1alpha1.AnnotationWatchedResourceAPIVersion:      "v1",
+							v1alpha1.AnnotationWatchedResourceKind:            "Pod",
+							v1alpha1.AnnotationWatchedResourceName:            "test-pod",
+							v1alpha1.AnnotationWatchedResourceNamespace:       "default",
+							v1alpha1.AnnotationWatchedResourceResourceVersion: "",
 						},
 						OwnerReferences: []metav1.OwnerReference{
 							{
@@ -633,6 +651,202 @@ func TestNewOperation(t *testing.T) {
 								FunctionRef: v1alpha1.FunctionReference{
 									Name: "test-function",
 								},
+								Requirements: &v1alpha1.FunctionRequirements{
+									RequiredResources: []v1alpha1.RequiredResourceSelector{
+										{
+											RequirementName: v1alpha1.RequirementNameWatchedResource,
+											APIVersion:      "v1",
+											Kind:            "Pod",
+											Namespace:       ptr.To("default"),
+											Name:            ptr.To("test-pod"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"ClusterScopedResource": {
+			reason: "Should inject cluster-scoped watched resource without namespace",
+			args: args{
+				wo: &v1alpha1.WatchOperation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-watch",
+						UID:  types.UID("test-uid"),
+					},
+					Spec: v1alpha1.WatchOperationSpec{
+						OperationTemplate: v1alpha1.OperationTemplate{
+							Spec: v1alpha1.OperationSpec{
+								Mode: v1alpha1.OperationModePipeline,
+								Pipeline: []v1alpha1.PipelineStep{
+									{
+										Step: "test-step",
+										FunctionRef: v1alpha1.FunctionReference{
+											Name: "test-function",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				watched: &unstructured.Unstructured{
+					Object: map[string]any{
+						"apiVersion": "v1",
+						"kind":       "Node",
+						"metadata": map[string]any{
+							"name": "test-node",
+						},
+					},
+				},
+				name: "test-watch-abcdef1",
+			},
+			want: want{
+				op: &v1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-watch-abcdef1",
+						Labels: map[string]string{
+							v1alpha1.LabelWatchOperationName: "test-watch",
+						},
+						Annotations: map[string]string{
+							v1alpha1.AnnotationWatchedResourceAPIVersion:      "v1",
+							v1alpha1.AnnotationWatchedResourceKind:            "Node",
+							v1alpha1.AnnotationWatchedResourceName:            "test-node",
+							v1alpha1.AnnotationWatchedResourceResourceVersion: "",
+						},
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								APIVersion:         "ops.crossplane.io/v1alpha1",
+								Kind:               "WatchOperation",
+								Name:               "test-watch",
+								UID:                types.UID("test-uid"),
+								Controller:         ptr.To(true),
+								BlockOwnerDeletion: ptr.To(true),
+							},
+						},
+					},
+					Spec: v1alpha1.OperationSpec{
+						Mode: v1alpha1.OperationModePipeline,
+						Pipeline: []v1alpha1.PipelineStep{
+							{
+								Step: "test-step",
+								FunctionRef: v1alpha1.FunctionReference{
+									Name: "test-function",
+								},
+								Requirements: &v1alpha1.FunctionRequirements{
+									RequiredResources: []v1alpha1.RequiredResourceSelector{
+										{
+											RequirementName: v1alpha1.RequirementNameWatchedResource,
+											APIVersion:      "v1",
+											Kind:            "Node",
+											Name:            ptr.To("test-node"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"PreservesExistingRequirements": {
+			reason: "Should preserve existing requirements while adding watched resource",
+			args: args{
+				wo: &v1alpha1.WatchOperation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-watch",
+						UID:  types.UID("test-uid"),
+					},
+					Spec: v1alpha1.WatchOperationSpec{
+						OperationTemplate: v1alpha1.OperationTemplate{
+							Spec: v1alpha1.OperationSpec{
+								Mode: v1alpha1.OperationModePipeline,
+								Pipeline: []v1alpha1.PipelineStep{
+									{
+										Step: "test-step",
+										FunctionRef: v1alpha1.FunctionReference{
+											Name: "test-function",
+										},
+										Requirements: &v1alpha1.FunctionRequirements{
+											RequiredResources: []v1alpha1.RequiredResourceSelector{
+												{
+													RequirementName: "existing-requirement",
+													APIVersion:      "v1",
+													Kind:            "Secret",
+													Name:            ptr.To("existing-secret"),
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				watched: &unstructured.Unstructured{
+					Object: map[string]any{
+						"apiVersion": "v1",
+						"kind":       "Pod",
+						"metadata": map[string]any{
+							"name":      "test-pod",
+							"namespace": "default",
+						},
+					},
+				},
+				name: "test-watch-abcdef1",
+			},
+			want: want{
+				op: &v1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-watch-abcdef1",
+						Labels: map[string]string{
+							v1alpha1.LabelWatchOperationName: "test-watch",
+						},
+						Annotations: map[string]string{
+							v1alpha1.AnnotationWatchedResourceAPIVersion:      "v1",
+							v1alpha1.AnnotationWatchedResourceKind:            "Pod",
+							v1alpha1.AnnotationWatchedResourceName:            "test-pod",
+							v1alpha1.AnnotationWatchedResourceNamespace:       "default",
+							v1alpha1.AnnotationWatchedResourceResourceVersion: "",
+						},
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								APIVersion:         "ops.crossplane.io/v1alpha1",
+								Kind:               "WatchOperation",
+								Name:               "test-watch",
+								UID:                types.UID("test-uid"),
+								Controller:         ptr.To(true),
+								BlockOwnerDeletion: ptr.To(true),
+							},
+						},
+					},
+					Spec: v1alpha1.OperationSpec{
+						Mode: v1alpha1.OperationModePipeline,
+						Pipeline: []v1alpha1.PipelineStep{
+							{
+								Step: "test-step",
+								FunctionRef: v1alpha1.FunctionReference{
+									Name: "test-function",
+								},
+								Requirements: &v1alpha1.FunctionRequirements{
+									RequiredResources: []v1alpha1.RequiredResourceSelector{
+										{
+											RequirementName: "existing-requirement",
+											APIVersion:      "v1",
+											Kind:            "Secret",
+											Name:            ptr.To("existing-secret"),
+										},
+										{
+											RequirementName: v1alpha1.RequirementNameWatchedResource,
+											APIVersion:      "v1",
+											Kind:            "Pod",
+											Namespace:       ptr.To("default"),
+											Name:            ptr.To("test-pod"),
+										},
+									},
+								},
 							},
 						},
 					},
@@ -643,7 +857,7 @@ func TestNewOperation(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := NewOperation(tc.args.wo, tc.args.name)
+			got := NewOperation(tc.args.wo, tc.args.watched, tc.args.name)
 			if diff := cmp.Diff(tc.want.op, got); diff != "" {
 				t.Errorf("\n%s\nNewOperation(...): -want, +got:\n%s", tc.reason, diff)
 			}

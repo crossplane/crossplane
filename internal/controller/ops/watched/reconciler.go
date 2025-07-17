@@ -158,7 +158,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Create the Operation.
-	op := NewOperation(wo, name)
+	op := NewOperation(wo, watched, name)
 	if err := r.client.Create(ctx, op); err != nil {
 		log.Debug("Cannot create Operation", "error", err, "operation", op.GetName())
 		err = errors.Wrapf(err, "cannot create Operation %q", op.GetName())
@@ -179,15 +179,57 @@ func OperationName(wo *v1alpha1.WatchOperation, watched *unstructured.Unstructur
 	return wo.GetName() + "-" + hex.EncodeToString(hash[:])[:7]
 }
 
-// NewOperation creates a new Operation using the WatchOperation's template.
-func NewOperation(wo *v1alpha1.WatchOperation, name string) *v1alpha1.Operation {
+// NewOperation creates a new Operation using the WatchOperation's template,
+// injecting the watched resource into all pipeline steps.
+func NewOperation(wo *v1alpha1.WatchOperation, watched *unstructured.Unstructured, name string) *v1alpha1.Operation {
+	// Deep copy the spec to avoid mutating the original template
+	spec := wo.Spec.OperationTemplate.Spec.DeepCopy()
+
+	sel := v1alpha1.RequiredResourceSelector{
+		RequirementName: v1alpha1.RequirementNameWatchedResource,
+		APIVersion:      watched.GetAPIVersion(),
+		Kind:            watched.GetKind(),
+		Name:            ptr.To(watched.GetName()),
+	}
+
+	// Add namespace if the resource is namespaced
+	if watched.GetNamespace() != "" {
+		sel.Namespace = ptr.To(watched.GetNamespace())
+	}
+
+	// Inject the watched resource into each pipeline step
+	for i := range spec.Pipeline {
+		step := &spec.Pipeline[i]
+
+		if step.Requirements == nil {
+			step.Requirements = &v1alpha1.FunctionRequirements{}
+		}
+
+		step.Requirements.RequiredResources = append(step.Requirements.RequiredResources, sel)
+	}
+
 	op := &v1alpha1.Operation{
 		ObjectMeta: wo.Spec.OperationTemplate.ObjectMeta,
-		Spec:       wo.Spec.OperationTemplate.Spec,
+		Spec:       *spec,
 	}
 
 	op.SetName(name)
 	meta.AddLabels(op, map[string]string{v1alpha1.LabelWatchOperationName: wo.GetName()})
+
+	// Add annotations with information about the watched resource
+	annotations := map[string]string{
+		v1alpha1.AnnotationWatchedResourceAPIVersion:      watched.GetAPIVersion(),
+		v1alpha1.AnnotationWatchedResourceKind:            watched.GetKind(),
+		v1alpha1.AnnotationWatchedResourceName:            watched.GetName(),
+		v1alpha1.AnnotationWatchedResourceResourceVersion: watched.GetResourceVersion(),
+	}
+
+	// Add namespace annotation if the resource is namespaced
+	if watched.GetNamespace() != "" {
+		annotations[v1alpha1.AnnotationWatchedResourceNamespace] = watched.GetNamespace()
+	}
+
+	meta.AddAnnotations(op, annotations)
 
 	av, k := v1alpha1.WatchOperationGroupVersionKind.ToAPIVersionAndKind()
 	meta.AddOwnerReference(op, meta.AsController(&xpv1.TypedReference{

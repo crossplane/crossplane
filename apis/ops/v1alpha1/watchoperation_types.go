@@ -26,6 +26,20 @@ import (
 // represent the WatchOperation that created them.
 const LabelWatchOperationName = "ops.crossplane.io/watchoperation"
 
+// Annotations that Crossplane adds to Operations to represent information
+// about the watched resource that triggered the Operation.
+const (
+	AnnotationWatchedResourceAPIVersion      = "ops.crossplane.io/watched-resource-apiversion"
+	AnnotationWatchedResourceKind            = "ops.crossplane.io/watched-resource-kind"
+	AnnotationWatchedResourceName            = "ops.crossplane.io/watched-resource-name"
+	AnnotationWatchedResourceNamespace       = "ops.crossplane.io/watched-resource-namespace"
+	AnnotationWatchedResourceResourceVersion = "ops.crossplane.io/watched-resource-resourceversion"
+)
+
+// RequirementNameWatchedResource is the requirement name used by WatchOperations
+// to inject the watched resource into Operations they create.
+const RequirementNameWatchedResource = "ops.crossplane.io/watched-resource"
+
 // WatchOperationSpec specifies the desired state of a WatchOperation.
 type WatchOperationSpec struct {
 	// Watch specifies the resource to watch.
