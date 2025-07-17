@@ -427,12 +427,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	if o.Features.Enabled(features.EnableAlphaOperations) {
 		oo := opscontroller.Options{
-			Options:        o,
-			FunctionRunner: runner,
-
-			// TODO(negz): Either use different metrics for ops or
-			// update the ControllerEngine metrics subsystem to not
-			// be 'composition'.
+			Options:          o,
+			FunctionRunner:   runner,
 			ControllerEngine: ce,
 		}
 		if err := ops.Setup(mgr, oo); err != nil {
