@@ -84,6 +84,13 @@ func WithCapabilityChecker(cc xfn.CapabilityChecker) ReconcilerOption {
 	}
 }
 
+// WithRequiredResourcesFetcher specifies how the Reconciler should fetch required resources.
+func WithRequiredResourcesFetcher(f xfn.RequiredResourcesFetcher) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.resources = f
+	}
+}
+
 // NewReconciler returns a Reconciler of Usages.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
@@ -92,6 +99,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		record:     event.NewNopRecorder(),
 		conditions: conditions.ObservedGenerationPropagationManager{},
 		functions:  xfn.NewRevisionCapabilityChecker(mgr.GetClient()),
+		resources:  xfn.NewExistingRequiredResourcesFetcher(mgr.GetClient()),
 	}
 
 	for _, f := range opts {

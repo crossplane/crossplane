@@ -106,6 +106,9 @@ spec:
                         - source
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     functionRef:
                       description: |-
                         FunctionRef is a reference to the function this step should
@@ -125,6 +128,64 @@ spec:
                       type: object
                       x-kubernetes-embedded-resource: true
                       x-kubernetes-preserve-unknown-fields: true
+                    requirements:
+                      description: |-
+                        Requirements are resource requirements that will be satisfied before
+                        this pipeline step is called for the first time. This allows
+                        pre-populating required resources without requiring a function to
+                        request them first.
+                      properties:
+                        requiredResources:
+                          description: |-
+                            RequiredResources that will be fetched before this pipeline step
+                            is called for the first time.
+                          items:
+                            description: |-
+                              RequiredResourceSelector selects resources that should be fetched before
+                              a pipeline step runs.
+                            properties:
+                              apiVersion:
+                                description: APIVersion of resources to select.
+                                type: string
+                              kind:
+                                description: Kind of resources to select.
+                                type: string
+                              matchLabels:
+                                additionalProperties:
+                                  type: string
+                                description: |-
+                                  MatchLabels matches resources by label selector. Only one of Name or
+                                  MatchLabels may be specified.
+                                type: object
+                              name:
+                                description: |-
+                                  Name matches a single resource by name. Only one of Name or
+                                  MatchLabels may be specified.
+                                type: string
+                              namespace:
+                                description: Namespace to search for resources. Optional
+                                  for cluster-scoped resources.
+                                type: string
+                              requirementName:
+                                description: |-
+                                  RequirementName uniquely identifies this group of resources.
+                                  This name will be used as the key in RunFunctionRequest.required_resources.
+                                type: string
+                            required:
+                            - apiVersion
+                            - kind
+                            - requirementName
+                            type: object
+                            x-kubernetes-validations:
+                            - message: Either name or matchLabels must be specified,
+                                but not both
+                              rule: (has(self.name) && !has(self.matchLabels)) ||
+                                (!has(self.name) && has(self.matchLabels))
+                          type: array
+                          x-kubernetes-list-map-keys:
+                          - requirementName
+                          x-kubernetes-list-type: map
+                      type: object
                     step:
                       description: Step name. Must be unique within its Pipeline.
                       type: string
@@ -132,7 +193,12 @@ spec:
                   - functionRef
                   - step
                   type: object
+                maxItems: 99
+                minItems: 1
                 type: array
+                x-kubernetes-list-map-keys:
+                - step
+                x-kubernetes-list-type: map
               retryLimit:
                 description: |-
                   RetryLimit configures how many times the operation may fail. When the
