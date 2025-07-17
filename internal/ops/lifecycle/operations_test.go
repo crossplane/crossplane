@@ -24,7 +24,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
@@ -380,8 +379,8 @@ func TestMarkGarbage(t *testing.T) {
 	latest := now.Add(time.Hour)
 
 	type args struct {
-		keepSucceeded *int32
-		keepFailed    *int32
+		keepSucceeded int32
+		keepFailed    int32
 		ops           []v1alpha1.Operation
 	}
 	type want struct {
@@ -393,25 +392,76 @@ func TestMarkGarbage(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"NilLimits": {
-			reason: "Should delete no operations when both limits are nil",
+		"ZeroLimits": {
+			reason: "Should delete all operations when both limits are zero",
 			args: args{
-				keepSucceeded: nil,
-				keepFailed:    nil,
+				keepSucceeded: 0,
+				keepFailed:    0,
 				ops: []v1alpha1.Operation{
-					{ObjectMeta: metav1.ObjectMeta{Name: "op1"}},
-					{ObjectMeta: metav1.ObjectMeta{Name: "op2"}},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "op1"},
+						Status: v1alpha1.OperationStatus{
+							ConditionedStatus: xpv1.ConditionedStatus{
+								Conditions: []xpv1.Condition{
+									{
+										Type:   v1alpha1.TypeSucceeded,
+										Status: corev1.ConditionTrue,
+									},
+								},
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "op2"},
+						Status: v1alpha1.OperationStatus{
+							ConditionedStatus: xpv1.ConditionedStatus{
+								Conditions: []xpv1.Condition{
+									{
+										Type:   v1alpha1.TypeSucceeded,
+										Status: corev1.ConditionFalse,
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 			want: want{
-				del: []v1alpha1.Operation{},
+				del: []v1alpha1.Operation{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "op1"},
+						Status: v1alpha1.OperationStatus{
+							ConditionedStatus: xpv1.ConditionedStatus{
+								Conditions: []xpv1.Condition{
+									{
+										Type:   v1alpha1.TypeSucceeded,
+										Status: corev1.ConditionTrue,
+									},
+								},
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "op2"},
+						Status: v1alpha1.OperationStatus{
+							ConditionedStatus: xpv1.ConditionedStatus{
+								Conditions: []xpv1.Condition{
+									{
+										Type:   v1alpha1.TypeSucceeded,
+										Status: corev1.ConditionFalse,
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 		"KeepSucceededOnly": {
 			reason: "Should delete excess succeeded operations beyond the specified limit",
 			args: args{
-				keepSucceeded: ptr.To(int32(1)),
-				keepFailed:    nil,
+				keepSucceeded: 1,
+				keepFailed:    0,
 				ops: []v1alpha1.Operation{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -481,14 +531,30 @@ func TestMarkGarbage(t *testing.T) {
 							},
 						},
 					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:              "op3",
+							CreationTimestamp: metav1.Time{Time: now},
+						},
+						Status: v1alpha1.OperationStatus{
+							ConditionedStatus: xpv1.ConditionedStatus{
+								Conditions: []xpv1.Condition{
+									{
+										Type:   v1alpha1.TypeSucceeded,
+										Status: corev1.ConditionFalse,
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		"KeepFailedOnly": {
 			reason: "Should delete excess failed operations beyond the specified limit",
 			args: args{
-				keepSucceeded: nil,
-				keepFailed:    ptr.To(int32(1)),
+				keepSucceeded: 0,
+				keepFailed:    1,
 				ops: []v1alpha1.Operation{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -548,8 +614,8 @@ func TestMarkGarbage(t *testing.T) {
 		"MixedScenario": {
 			reason: "Should delete excess succeeded operations beyond the specified limit",
 			args: args{
-				keepSucceeded: ptr.To(int32(2)),
-				keepFailed:    nil,
+				keepSucceeded: 2,
+				keepFailed:    0,
 				ops: []v1alpha1.Operation{
 					// 3 succeeded operations (latest first after sorting)
 					{
@@ -600,7 +666,7 @@ func TestMarkGarbage(t *testing.T) {
 							},
 						},
 					},
-					// 1 failed operation (should be kept - keepFailed=nil)
+					// 1 failed operation (should be deleted - keepFailed=0)
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:              "failed1",
@@ -650,6 +716,23 @@ func TestMarkGarbage(t *testing.T) {
 			},
 			want: want{
 				del: []v1alpha1.Operation{
+					// Failed operation (keepFailed=0 means delete all failed)
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:              "failed1",
+							CreationTimestamp: metav1.Time{Time: now.Add(-30 * time.Minute)},
+						},
+						Status: v1alpha1.OperationStatus{
+							ConditionedStatus: xpv1.ConditionedStatus{
+								Conditions: []xpv1.Condition{
+									{
+										Type:   v1alpha1.TypeSucceeded,
+										Status: corev1.ConditionFalse,
+									},
+								},
+							},
+						},
+					},
 					// Oldest succeeded operation (beyond the 2 we keep)
 					{
 						ObjectMeta: metav1.ObjectMeta{

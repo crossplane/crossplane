@@ -70,13 +70,9 @@ func WithReason(r xpv1.ConditionReason, ops ...v1alpha1.Operation) []v1alpha1.Op
 
 // MarkGarbage accepts a number of succeeded and failed Operations to keep. It
 // returns the slice of Operations that should be deleted. It keeps the Operations
-// with the most recent creation timestamps. If keepSucceeded is nil, all succeeded
-// Operations will be kept. If keepFailed is nil, all failed Operations will be kept.
-func MarkGarbage(keepSucceeded, keepFailed *int32, ops ...v1alpha1.Operation) []v1alpha1.Operation {
-	if keepSucceeded == nil && keepFailed == nil {
-		return []v1alpha1.Operation{}
-	}
-
+// with the most recent creation timestamps. If a limit is zero, no Operations
+// of that type will be kept.
+func MarkGarbage(keepSucceeded, keepFailed int32, ops ...v1alpha1.Operation) []v1alpha1.Operation {
 	del := make([]v1alpha1.Operation, 0)
 
 	// Sort latest first.
@@ -94,21 +90,21 @@ func MarkGarbage(keepSucceeded, keepFailed *int32, ops ...v1alpha1.Operation) []
 	var keptSucceeded, keptFailed int32 = 0, 0
 	for _, op := range ops {
 		s := op.GetCondition(v1alpha1.TypeSucceeded).Status
-		switch {
-		case s == corev1.ConditionTrue && keepSucceeded != nil:
-			if keptSucceeded < *keepSucceeded {
+		switch s {
+		case corev1.ConditionTrue:
+			if keptSucceeded < keepSucceeded {
 				keptSucceeded++
 				continue
 			}
 			del = append(del, op)
-		case s == corev1.ConditionFalse && keepFailed != nil:
-			if keptFailed < *keepFailed {
+		case corev1.ConditionFalse:
+			if keptFailed < keepFailed {
 				keptFailed++
 				continue
 			}
 			del = append(del, op)
 		default:
-			// Keep it.
+			// Keep it - operation is still running.
 		}
 	}
 

@@ -167,7 +167,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Garbage collect Operations older than the history limits.
-	for _, op := range lifecycle.MarkGarbage(wo.Spec.SuccessfulHistoryLimit, wo.Spec.FailedHistoryLimit, ol.Items...) {
+	for _, op := range lifecycle.MarkGarbage(ptr.Deref(wo.Spec.SuccessfulHistoryLimit, 3), ptr.Deref(wo.Spec.FailedHistoryLimit, 1), ol.Items...) {
 		if err := r.client.Delete(ctx, &op); resource.IgnoreNotFound(err) != nil {
 			log.Debug("Cannot garbage collect Operation", "error", err, "operation", op.GetName())
 			err = errors.Wrapf(err, "cannot garbage collect Operation %q", op.GetName())
