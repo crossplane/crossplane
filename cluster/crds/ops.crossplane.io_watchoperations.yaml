@@ -196,9 +196,15 @@ spec:
                   apiVersion:
                     description: APIVersion of the resource to watch.
                     type: string
+                    x-kubernetes-validations:
+                    - message: apiVersion is immutable
+                      rule: self == oldSelf
                   kind:
                     description: Kind of the resource to watch.
                     type: string
+                    x-kubernetes-validations:
+                    - message: kind is immutable
+                      rule: self == oldSelf
                   matchLabels:
                     additionalProperties:
                       type: string

@@ -20,6 +20,7 @@ package controller
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 
+	"github.com/crossplane/crossplane/internal/engine"
 	"github.com/crossplane/crossplane/internal/xfn"
 )
 
@@ -29,4 +30,7 @@ type Options struct {
 
 	// FunctionRunner used to run Composition Functions.
 	FunctionRunner xfn.FunctionRunner
+
+	// ControllerEngine used to dynamically manage watches.
+	ControllerEngine *engine.ControllerEngine
 }

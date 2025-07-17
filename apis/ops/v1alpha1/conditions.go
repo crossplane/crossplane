@@ -27,6 +27,10 @@ const (
 
 	// A TypeValidPipeline Operation has a valid function pipeline.
 	TypeValidPipeline xpv1.ConditionType = "ValidPipeline"
+
+	// A TypeWatching condition indicates whether a WatchOperation is
+	// actively watching resources.
+	TypeWatching xpv1.ConditionType = "Watching"
 )
 
 // Reasons a package is or is not installed.
@@ -37,6 +41,10 @@ const (
 
 	ReasonValidPipeline       xpv1.ConditionReason = "ValidPipeline"
 	ReasonMissingCapabilities xpv1.ConditionReason = "MissingCapabilities"
+
+	ReasonWatchActive    xpv1.ConditionReason = "WatchActive"
+	ReasonWatchFailed    xpv1.ConditionReason = "WatchFailed"
+	ReasonWatchSuspended xpv1.ConditionReason = "WatchSuspended"
 )
 
 // Running indicates that an operation is running.
@@ -89,5 +97,38 @@ func MissingCapabilities(message string) xpv1.Condition {
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonMissingCapabilities,
 		Message:            message,
+	}
+}
+
+// WatchActive indicates that a WatchOperation is actively watching resources.
+func WatchActive() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeWatching,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonWatchActive,
+	}
+}
+
+// WatchFailed indicates that a WatchOperation failed to establish or maintain
+// its watch.
+func WatchFailed(message string) xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeWatching,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonWatchFailed,
+		Message:            message,
+	}
+}
+
+// WatchSuspended indicates that a WatchOperation is suspended and not
+// actively watching resources.
+func WatchSuspended() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeWatching,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonWatchSuspended,
 	}
 }

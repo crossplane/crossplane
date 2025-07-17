@@ -1,0 +1,201 @@
+/*
+Copyright 2025 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// Package watched implements a controller for resources watched by WatchOperations.
+package watched
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"time"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
+	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
+	"github.com/crossplane/crossplane/internal/ops/lifecycle"
+)
+
+const (
+	timeout = 2 * time.Minute
+)
+
+// Event reasons.
+const (
+	reasonListOperations    event.Reason = "ListOperations"
+	reasonDeleteOperation   event.Reason = "DeleteOperation"
+	reasonCreateOperation   event.Reason = "CreateOperation"
+	reasonWatchOperationGet event.Reason = "GetWatchOperation"
+)
+
+// A Reconciler reconciles watched resources by creating Operations
+// when the watched resources change.
+type Reconciler struct {
+	client client.Client
+	log    logging.Logger
+	record event.Recorder
+
+	watchOpName string
+	watchedGVK  schema.GroupVersionKind
+}
+
+// Reconcile is triggered when a watched resource changes, and creates an
+// Operation using the WatchOperation's template.
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	log := r.log.WithValues("request", req)
+	log.Debug("Reconciling watched resource")
+
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	// Get the watched resource that triggered this reconcile.
+	watched := &unstructured.Unstructured{}
+	watched.SetGroupVersionKind(r.watchedGVK)
+	if err := r.client.Get(ctx, req.NamespacedName, watched); err != nil {
+		log.Debug("Cannot get watched resource", "error", err)
+		return reconcile.Result{}, errors.Wrapf(resource.IgnoreNotFound(err), "cannot get watched resource")
+	}
+
+	log = log.WithValues(
+		"uid", watched.GetUID(),
+		"version", watched.GetResourceVersion(),
+		"namespace", watched.GetNamespace(),
+		"name", watched.GetName(),
+	)
+
+	// Get the current WatchOperation to ensure it still exists and get latest spec.
+	wo := &v1alpha1.WatchOperation{}
+	if err := r.client.Get(ctx, client.ObjectKey{Name: r.watchOpName}, wo); err != nil {
+		log.Debug("Cannot get WatchOperation", "error", err)
+		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get WatchOperation")
+	}
+
+	// Don't reconcile if the WatchOperation is suspended.
+	if ptr.Deref(wo.Spec.Suspend, false) {
+		log.Debug("WatchOperation is suspended")
+		return reconcile.Result{Requeue: false}, nil
+	}
+
+	// Don't reconcile if the WatchOperation is being deleted.
+	if meta.WasDeleted(wo) {
+		log.Debug("WatchOperation is being deleted")
+		return reconcile.Result{Requeue: false}, nil
+	}
+
+	// List existing Operations for this WatchOperation.
+	ol := &v1alpha1.OperationList{}
+	if err := r.client.List(ctx, ol, client.MatchingLabels{v1alpha1.LabelWatchOperationName: wo.GetName()}); err != nil {
+		log.Debug("Cannot list Operations", "error", err)
+		err = errors.Wrap(err, "cannot list Operations")
+		r.record.Event(wo, event.Warning(reasonListOperations, err))
+		return reconcile.Result{}, err
+	}
+
+	// Record all running Operations.
+	running := make(map[string]bool)
+	for _, op := range lifecycle.WithReason(v1alpha1.ReasonPipelineRunning, ol.Items...) {
+		running[op.GetName()] = true
+	}
+
+	// Check concurrency policy before creating new Operations.
+	if len(running) > 0 {
+		switch p := ptr.Deref(wo.Spec.ConcurrencyPolicy, v1alpha1.ConcurrencyPolicyAllow); p {
+		case v1alpha1.ConcurrencyPolicyAllow:
+			log.Debug("Concurrency policy allows creating Operations while other Operations are running", "policy", p, "running", len(running))
+		case v1alpha1.ConcurrencyPolicyForbid:
+			log.Debug("Concurrency policy forbids creating Operations while other Operations are running", "policy", p, "running", len(running))
+			return reconcile.Result{Requeue: false}, nil
+		case v1alpha1.ConcurrencyPolicyReplace:
+			log.Debug("Concurrency policy requires deleting other running Operations", "policy", p, "running", len(running))
+			for _, op := range ol.Items {
+				if !running[op.GetName()] {
+					continue
+				}
+				if err := r.client.Delete(ctx, &op); resource.IgnoreNotFound(err) != nil {
+					log.Debug("Cannot delete running Operation", "error", err, "operation", op.GetName())
+					err = errors.Wrapf(err, "cannot delete running Operation %q", op.GetName())
+					r.record.Event(wo, event.Warning(reasonDeleteOperation, err))
+					return reconcile.Result{}, err
+				}
+				log.Debug("Deleted running operation due to concurrency policy", "policy", p, "operation", op.GetName())
+			}
+		}
+	}
+
+	// Generate a unique name for the Operation.
+	name := OperationName(wo, watched)
+
+	// Check if we've already created an Operation for this resource version.
+	for _, op := range ol.Items {
+		if op.GetName() == name {
+			log.Debug("Operation already exists for this resource version", "operation", name)
+			return reconcile.Result{}, nil
+		}
+	}
+
+	// Create the Operation.
+	op := NewOperation(wo, name)
+	if err := r.client.Create(ctx, op); err != nil {
+		log.Debug("Cannot create Operation", "error", err, "operation", op.GetName())
+		err = errors.Wrapf(err, "cannot create Operation %q", op.GetName())
+		r.record.Event(wo, event.Warning(reasonCreateOperation, err))
+		return reconcile.Result{}, err
+	}
+
+	log.Debug("Created Operation for watched resource", "operation", op.GetName(), "resource", watched.GetName())
+	return reconcile.Result{}, nil
+}
+
+// OperationName generates a unique name for an Operation based on the
+// WatchOperation name and a hash of the watched resource's UID and resource version.
+func OperationName(wo *v1alpha1.WatchOperation, watched *unstructured.Unstructured) string {
+	// Create hash from UID and resource version
+	hash := sha256.Sum256([]byte(string(watched.GetUID()) + "-" + watched.GetResourceVersion()))
+
+	return wo.GetName() + "-" + hex.EncodeToString(hash[:])[:7]
+}
+
+// NewOperation creates a new Operation using the WatchOperation's template.
+func NewOperation(wo *v1alpha1.WatchOperation, name string) *v1alpha1.Operation {
+	op := &v1alpha1.Operation{
+		ObjectMeta: wo.Spec.OperationTemplate.ObjectMeta,
+		Spec:       wo.Spec.OperationTemplate.Spec,
+	}
+
+	op.SetName(name)
+	meta.AddLabels(op, map[string]string{v1alpha1.LabelWatchOperationName: wo.GetName()})
+
+	av, k := v1alpha1.WatchOperationGroupVersionKind.ToAPIVersionAndKind()
+	meta.AddOwnerReference(op, meta.AsController(&xpv1.TypedReference{
+		APIVersion: av,
+		Kind:       k,
+		Name:       wo.GetName(),
+		UID:        wo.GetUID(),
+	}))
+
+	return op
+}

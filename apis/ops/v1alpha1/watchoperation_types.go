@@ -59,9 +59,11 @@ type WatchOperationSpec struct {
 // WatchSpec specifies what resource to watch.
 type WatchSpec struct {
 	// APIVersion of the resource to watch.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="apiVersion is immutable"
 	APIVersion string `json:"apiVersion"`
 
 	// Kind of the resource to watch.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="kind is immutable"
 	Kind string `json:"kind"`
 
 	// MatchLabels selects resources by label. If empty, all resources of the

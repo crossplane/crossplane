@@ -23,6 +23,7 @@ import (
 	"github.com/crossplane/crossplane/internal/controller/ops/controller"
 	"github.com/crossplane/crossplane/internal/controller/ops/cronoperation"
 	"github.com/crossplane/crossplane/internal/controller/ops/operation"
+	"github.com/crossplane/crossplane/internal/controller/ops/watchoperation"
 )
 
 // Setup API extensions controllers.
@@ -30,5 +31,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	if err := operation.Setup(mgr, o); err != nil {
 		return err
 	}
-	return cronoperation.Setup(mgr, o)
+	if err := cronoperation.Setup(mgr, o); err != nil {
+		return err
+	}
+	return watchoperation.Setup(mgr, o)
 }

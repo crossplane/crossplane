@@ -429,6 +429,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		oo := opscontroller.Options{
 			Options:        o,
 			FunctionRunner: runner,
+
+			// TODO(negz): Either use different metrics for ops or
+			// update the ControllerEngine metrics subsystem to not
+			// be 'composition'.
+			ControllerEngine: ce,
 		}
 		if err := ops.Setup(mgr, oo); err != nil {
 			return errors.Wrap(err, "cannot setup ops controllers")
