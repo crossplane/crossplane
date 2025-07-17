@@ -33,6 +33,7 @@ type ManagedResourceDefinitionSpec struct {
 	// State toggles whether the underlying CRD is created or not.
 	// +kubebuilder:validation:Enum=Active;Inactive
 	// +kubebuilder:default=Inactive
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf || oldSelf != 'Active'",message="state cannot be changed once it becomes Active"
 	State ManagedResourceDefinitionState `json:"state"`
 }
 

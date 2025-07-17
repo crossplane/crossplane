@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package managed manages the lifecycle of MRD controllers.
-package managed
+// Package activationpolicy manages the lifecycle of MRAP controllers.
+package activationpolicy
 
 import (
 	"context"

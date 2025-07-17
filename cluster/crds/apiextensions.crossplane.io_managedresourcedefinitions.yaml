@@ -267,6 +267,9 @@ spec:
                 - Active
                 - Inactive
                 type: string
+                x-kubernetes-validations:
+                - message: state cannot be changed once it becomes Active
+                  rule: self == oldSelf || oldSelf != 'Active'
               versions:
                 description: |-
                   Versions is the list of all API versions of the defined custom resource.

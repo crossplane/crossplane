@@ -1,0 +1,33 @@
+apiVersion: apiextensions.crossplane.io/v2alpha1
+kind: ManagedResourceDefinition
+metadata:
+  name: instances.wildcard.activation-e2e.crossplane.io
+spec:
+  group: wildcard.activation-e2e.crossplane.io
+  names:
+    kind: Instance
+    plural: instances
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              instanceType:
+                type: string
+              region:
+                type: string
+            required:
+            - instanceType
+            - region
+          status:
+            type: object
+            properties:
+              instanceId:
+                type: string
+  state: Inactive
