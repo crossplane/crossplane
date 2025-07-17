@@ -93,12 +93,7 @@ func (c *pushCmd) AfterApply() error {
 }
 
 // Run runs the push cmd.
-func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This feels easier to read as-is.
-	tag, err := name.NewTag(c.Package, name.StrictValidation)
-	if err != nil {
-		return errors.Wrapf(err, errFmtNewTag, c.Package)
-	}
-
+func (c *pushCmd) Run(logger logging.Logger) error {
 	// If package is not defined, attempt to find single package in current
 	// directory.
 	if len(c.PackageFiles) == 0 {
@@ -116,6 +111,19 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 		logger.Debug("Found package in directory", "path", path)
 	}
 
+	// load images from all the provided package files
+	images := make([]packageImage, 0, len(c.PackageFiles))
+	for _, p := range c.PackageFiles {
+		cleanPath := filepath.Clean(p)
+
+		img, err := tarball.ImageFromPath(cleanPath, nil)
+		if err != nil {
+			return err
+		}
+
+		images = append(images, packageImage{Image: img, Path: cleanPath})
+	}
+
 	t := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: c.InsecureSkipTLSVerify, //nolint:gosec // we need to support insecure connections if requested
@@ -127,23 +135,46 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 		remote.WithTransport(t),
 	}
 
-	// If there's only one package file, handle the simple path.
-	if len(c.PackageFiles) == 1 {
-		img, err := tarball.ImageFromPath(c.PackageFiles[0], nil)
-		if err != nil {
-			return errors.Wrapf(err, errFmtReadPackage, c.PackageFiles[0])
-		}
+	return pushImages(logger, images, c.Package, options...)
+}
 
-		img, err = xpkg.AnnotateLayers(img)
+// packageImage describes a package image that will be pushed.
+type packageImage struct {
+	// The OCI Image of the package to be pushed.
+	Image v1.Image
+
+	// optional path for the image (e.g. file path on disk) to help provide more
+	// information about its source
+	Path string
+}
+
+// pushImages pushes package images to the given URL using the provided options.
+func pushImages(logger logging.Logger, images []packageImage, url string, options ...remote.Option) error {
+	if len(options) == 0 {
+		options = []remote.Option{
+			remote.WithAuthFromKeychain(authn.DefaultKeychain),
+		}
+	}
+
+	tag, err := name.NewTag(url, name.StrictValidation)
+	if err != nil {
+		return errors.Wrapf(err, errFmtNewTag, url)
+	}
+
+	// If there's only one package file, handle the simple path.
+	if len(images) == 1 {
+		pi := images[0]
+
+		img, err := xpkg.AnnotateLayers(pi.Image)
 		if err != nil {
 			return errors.Wrapf(err, errAnnotateLayers)
 		}
 
 		if err := remote.Write(tag, img, options...); err != nil {
-			return errors.Wrapf(err, errFmtPushPackage, c.PackageFiles[0])
+			return errors.Wrapf(err, errFmtPushPackage, pi.Path)
 		}
 
-		logger.Debug("Pushed package", "path", c.PackageFiles[0], "ref", tag.String())
+		logger.Debug("Pushed package", "path", pi.Path, "ref", tag.String())
 
 		return nil
 	}
@@ -151,41 +182,36 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 	// If there's more than one package file we'll write (push) them all by
 	// their digest, and create an index with the specified tag. This pattern is
 	// typically used to create a multi-platform image.
-	adds := make([]mutate.IndexAddendum, len(c.PackageFiles))
+	adds := make([]mutate.IndexAddendum, len(images))
 
 	g, ctx := errgroup.WithContext(context.Background())
-	for i, file := range c.PackageFiles {
+	for i, pi := range images {
 		g.Go(func() error {
-			img, err := tarball.ImageFromPath(filepath.Clean(file), nil)
-			if err != nil {
-				return errors.Wrapf(err, errFmtReadPackage, file)
-			}
-
-			img, err = xpkg.AnnotateLayers(img)
+			img, err := xpkg.AnnotateLayers(pi.Image)
 			if err != nil {
 				return errors.Wrapf(err, errAnnotateLayers)
 			}
 
 			d, err := img.Digest()
 			if err != nil {
-				return errors.Wrapf(err, errFmtGetDigest, file)
+				return errors.Wrapf(err, errFmtGetDigest, pi.Path)
 			}
 
 			n := fmt.Sprintf("%s@%s", tag.Repository.Name(), d.String())
 
 			ref, err := name.NewDigest(n, name.StrictValidation)
 			if err != nil {
-				return errors.Wrapf(err, errFmtNewDigest, n, file)
+				return errors.Wrapf(err, errFmtNewDigest, n, pi.Path)
 			}
 
 			mt, err := img.MediaType()
 			if err != nil {
-				return errors.Wrapf(err, errFmtGetMediaType, file)
+				return errors.Wrapf(err, errFmtGetMediaType, pi.Path)
 			}
 
 			conf, err := img.ConfigFile()
 			if err != nil {
-				return errors.Wrapf(err, errFmtGetConfigFile, file)
+				return errors.Wrapf(err, errFmtGetConfigFile, pi.Path)
 			}
 
 			adds[i] = mutate.IndexAddendum{
@@ -200,10 +226,10 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 				},
 			}
 			if err := remote.Write(ref, img, append(options, remote.WithContext(ctx))...); err != nil {
-				return errors.Wrapf(err, errFmtPushPackage, file)
+				return errors.Wrapf(err, errFmtPushPackage, pi.Path)
 			}
 
-			logger.Debug("Pushed package", "path", file, "ref", ref.String())
+			logger.Debug("Pushed package", "path", pi.Path, "ref", ref.String())
 
 			return nil
 		})
