@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package managed
+package activationpolicy
 
 import (
 	"context"
@@ -51,7 +51,7 @@ func EnqueueActivationPolicyForManagedResourceDefinition(kube client.Client, log
 				log.Debug("Enqueuing for managed resource definition",
 					"mrd-name", mrd.GetName(),
 					"policy-name", policy.GetName())
-				matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: policy.GetName()}})
+				matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: policy.GetName()}})
 			}
 		}
 

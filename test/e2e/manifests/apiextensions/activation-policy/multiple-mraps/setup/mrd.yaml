@@ -1,0 +1,33 @@
+apiVersion: apiextensions.crossplane.io/v2alpha1
+kind: ManagedResourceDefinition
+metadata:
+  name: storages.multiple.activation-e2e.crossplane.io
+spec:
+  group: multiple.activation-e2e.crossplane.io
+  names:
+    kind: Storage
+    plural: storages
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              capacity:
+                type: string
+              tier:
+                type: string
+            required:
+            - capacity
+            - tier
+          status:
+            type: object
+            properties:
+              storageId:
+                type: string
+  state: Inactive
