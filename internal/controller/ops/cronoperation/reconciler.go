@@ -96,7 +96,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Don't reconcile if the CronOperation is suspended.
 	if ptr.Deref(co.Spec.Suspend, false) {
 		log.Debug("CronOperation is suspended")
-		return reconcile.Result{Requeue: false}, nil
+		status.MarkConditions(v1alpha1.ScheduleSuspended(), xpv1.ReconcileSuccess())
+		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, co), "cannot update CronOperation status")
 	}
 
 	ol := &v1alpha1.OperationList{}
@@ -148,12 +149,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.log.Info("Invalid cron schedule", "error", err, "schedule", co.Spec.Schedule)
 		err = errors.Wrapf(err, "cannot parse cron schedule %q", co.Spec.Schedule)
 		r.record.Event(co, event.Warning(reasonInvalidSchedule, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(v1alpha1.ScheduleInvalid(err.Error()), xpv1.ReconcileError(err))
 
 		// We don't return the underlying error here because it's
 		// terminal. There's no point requeuing until someone fixes it.
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, co), "cannot update CronOperation status")
 	}
+
+	// Mark the schedule as active once we know it's valid
+	status.MarkConditions(v1alpha1.ScheduleActive())
 
 	// If the next scheduled operation is in the future, requeue for then.
 	now := time.Now()

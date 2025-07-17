@@ -136,6 +136,7 @@ func TestReconcile(t *testing.T) {
 							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
 							return nil
 						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},
 			},

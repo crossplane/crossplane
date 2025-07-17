@@ -31,6 +31,10 @@ const (
 	// A TypeWatching condition indicates whether a WatchOperation is
 	// actively watching resources.
 	TypeWatching xpv1.ConditionType = "Watching"
+
+	// A TypeScheduling condition indicates whether a CronOperation is
+	// actively scheduling operations.
+	TypeScheduling xpv1.ConditionType = "Scheduling"
 )
 
 // Reasons a package is or is not installed.
@@ -45,6 +49,10 @@ const (
 	ReasonWatchActive    xpv1.ConditionReason = "WatchActive"
 	ReasonWatchFailed    xpv1.ConditionReason = "WatchFailed"
 	ReasonWatchSuspended xpv1.ConditionReason = "WatchSuspended"
+
+	ReasonScheduleActive    xpv1.ConditionReason = "ScheduleActive"
+	ReasonScheduleInvalid   xpv1.ConditionReason = "ScheduleInvalid"
+	ReasonScheduleSuspended xpv1.ConditionReason = "ScheduleSuspended"
 )
 
 // Running indicates that an operation is running.
@@ -130,5 +138,38 @@ func WatchSuspended() xpv1.Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonWatchSuspended,
+	}
+}
+
+// ScheduleActive indicates that a CronOperation is actively scheduling
+// operations.
+func ScheduleActive() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeScheduling,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonScheduleActive,
+	}
+}
+
+// ScheduleInvalid indicates that a CronOperation has an invalid cron schedule.
+func ScheduleInvalid(message string) xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeScheduling,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonScheduleInvalid,
+		Message:            message,
+	}
+}
+
+// ScheduleSuspended indicates that a CronOperation is suspended and not
+// actively scheduling operations.
+func ScheduleSuspended() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeScheduling,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonScheduleSuspended,
 	}
 }

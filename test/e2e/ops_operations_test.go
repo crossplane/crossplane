@@ -111,8 +111,8 @@ func TestBasicCronOperation(t *testing.T) {
 				// Wait for CronOperation to create its first Operation
 				// Since the schedule is every minute, this should happen quickly
 				funcs.ResourcesHaveFieldValueWithin(90*time.Second, manifests, "cronoperation.yaml", "status.lastScheduleTime", funcs.Any),
-				// Verify the CronOperation has the correct status
-				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "cronoperation.yaml", xpv1.ReconcileSuccess()),
+				// Verify the CronOperation has the correct status and schedule is active
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "cronoperation.yaml", xpv1.ReconcileSuccess(), v1alpha1.ScheduleActive()),
 			)).
 			Assess("OperationSucceeds", funcs.AllOf(
 				// Verify the CronOperation's lastSuccessfulTime gets updated
