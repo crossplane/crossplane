@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cronoperation
+package lifecycle
 
 import (
 	"testing"
@@ -24,7 +24,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -370,98 +369,6 @@ func TestWithReason(t *testing.T) {
 			got := WithReason(tc.args.reason, tc.args.ops...)
 			if diff := cmp.Diff(tc.want.filtered, got); diff != "" {
 				t.Errorf("\n%s\nWithReason(...): -want, +got:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestNewOperation(t *testing.T) {
-	scheduled := time.Unix(1609459200, 0) // 2021-01-01 00:00:00 UTC
-
-	type args struct {
-		co        *v1alpha1.CronOperation
-		scheduled time.Time
-	}
-	type want struct {
-		op *v1alpha1.Operation
-	}
-
-	cases := map[string]struct {
-		reason string
-		args   args
-		want   want
-	}{
-		"Success": {
-			reason: "Should create operation with correct metadata and owner reference",
-			args: args{
-				co: &v1alpha1.CronOperation{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test-cron",
-						UID:  types.UID("test-uid"),
-					},
-					Spec: v1alpha1.CronOperationSpec{
-						OperationTemplate: v1alpha1.OperationTemplate{
-							ObjectMeta: metav1.ObjectMeta{
-								Labels: map[string]string{
-									"template": "label",
-								},
-							},
-							Spec: v1alpha1.OperationSpec{
-								Mode: v1alpha1.OperationModePipeline,
-								Pipeline: []v1alpha1.PipelineStep{
-									{
-										Step: "test-step",
-										FunctionRef: v1alpha1.FunctionReference{
-											Name: "test-function",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-				scheduled: scheduled,
-			},
-			want: want{
-				op: &v1alpha1.Operation{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test-cron-1609459200",
-						Labels: map[string]string{
-							"template":                      "label",
-							v1alpha1.LabelCronOperationName: "test-cron",
-						},
-						OwnerReferences: []metav1.OwnerReference{
-							{
-								APIVersion:         "ops.crossplane.io/v1alpha1",
-								Kind:               "CronOperation",
-								Name:               "test-cron",
-								UID:                types.UID("test-uid"),
-								Controller:         ptr.To(true),
-								BlockOwnerDeletion: ptr.To(true),
-							},
-						},
-					},
-					Spec: v1alpha1.OperationSpec{
-						Mode: v1alpha1.OperationModePipeline,
-						Pipeline: []v1alpha1.PipelineStep{
-							{
-								Step: "test-step",
-								FunctionRef: v1alpha1.FunctionReference{
-									Name: "test-function",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := NewOperation(tc.args.co, tc.args.scheduled)
-			if diff := cmp.Diff(tc.want.op, got); diff != "" {
-				t.Errorf("\n%s\nNewOperation(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

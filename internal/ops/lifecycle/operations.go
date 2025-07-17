@@ -14,17 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cronoperation
+// Package lifecycle provides utilities for managing the lifecycle of Operations.
+package lifecycle
 
 import (
-	"fmt"
 	"slices"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
 )
@@ -67,27 +66,6 @@ func WithReason(r xpv1.ConditionReason, ops ...v1alpha1.Operation) []v1alpha1.Op
 		}
 	}
 	return out
-}
-
-// NewOperation creates a new operation given the CronOperation's template.
-func NewOperation(co *v1alpha1.CronOperation, scheduled time.Time) *v1alpha1.Operation {
-	op := &v1alpha1.Operation{
-		ObjectMeta: co.Spec.OperationTemplate.ObjectMeta,
-		Spec:       co.Spec.OperationTemplate.Spec,
-	}
-
-	op.SetName(fmt.Sprintf("%s-%d", co.GetName(), scheduled.Unix()))
-	meta.AddLabels(op, map[string]string{v1alpha1.LabelCronOperationName: co.GetName()})
-
-	av, k := v1alpha1.CronOperationGroupVersionKind.ToAPIVersionAndKind()
-	meta.AddOwnerReference(op, meta.AsController(&xpv1.TypedReference{
-		APIVersion: av,
-		Kind:       k,
-		Name:       co.GetName(),
-		UID:        co.GetUID(),
-	}))
-
-	return op
 }
 
 // MarkGarbage accepts a number of succeeded and failed Operations to keep. It

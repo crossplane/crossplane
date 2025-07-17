@@ -18,6 +18,7 @@ package cronoperation
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"slices"
 	"time"
@@ -36,6 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
+	"github.com/crossplane/crossplane/internal/ops/lifecycle"
 )
 
 // Event reasons.
@@ -109,7 +111,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Derive our last scheduled time from the last time we created an
 	// Operation.
-	if t := LatestCreateTime(ol.Items...); !t.IsZero() {
+	if t := lifecycle.LatestCreateTime(ol.Items...); !t.IsZero() {
 		co.Status.LastScheduleTime = &metav1.Time{Time: t}
 	}
 
@@ -118,19 +120,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	last := ptr.Deref(co.Status.LastScheduleTime, co.GetCreationTimestamp()).Time
 
 	// Record the last time an Operation succeeded, if any.
-	if t := LatestSucceededTransitionTime(WithReason(v1alpha1.ReasonPipelineSuccess, ol.Items...)...); !t.IsZero() {
+	if t := lifecycle.LatestSucceededTransitionTime(lifecycle.WithReason(v1alpha1.ReasonPipelineSuccess, ol.Items...)...); !t.IsZero() {
 		co.Status.LastSuccessfulTime = &metav1.Time{Time: t}
 	}
 
 	// Record all running Operations.
 	running := make(map[string]bool)
-	for _, op := range WithReason(v1alpha1.ReasonPipelineRunning, ol.Items...) {
+	for _, op := range lifecycle.WithReason(v1alpha1.ReasonPipelineRunning, ol.Items...) {
 		running[op.GetName()] = true
 	}
-	co.Status.RunningOperationRefs = RunningOperationRefs(slices.Sorted(maps.Keys(running)))
+	co.Status.RunningOperationRefs = lifecycle.RunningOperationRefs(slices.Sorted(maps.Keys(running)))
 
 	// Garbage collect Operations older than the history limits.
-	for _, op := range MarkGarbage(co.Spec.SuccessfulHistoryLimit, co.Spec.FailedHistoryLimit, ol.Items...) {
+	for _, op := range lifecycle.MarkGarbage(co.Spec.SuccessfulHistoryLimit, co.Spec.FailedHistoryLimit, ol.Items...) {
 		if err := r.client.Delete(ctx, &op); resource.IgnoreNotFound(err) != nil {
 			log.Debug("Cannot garbage collect Operation", "error", err, "operation", op.GetName())
 			err = errors.Wrapf(err, "cannot garbage collect Operation %q", op.GetName())
@@ -218,4 +220,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	status.MarkConditions(xpv1.ReconcileSuccess())
 	return reconcile.Result{RequeueAfter: future.Sub(now)}, errors.Wrap(r.client.Status().Update(ctx, co), "cannot update CronOperation status")
+}
+
+// NewOperation creates a new operation given the CronOperation's template.
+func NewOperation(co *v1alpha1.CronOperation, scheduled time.Time) *v1alpha1.Operation {
+	op := &v1alpha1.Operation{
+		ObjectMeta: co.Spec.OperationTemplate.ObjectMeta,
+		Spec:       co.Spec.OperationTemplate.Spec,
+	}
+
+	op.SetName(fmt.Sprintf("%s-%d", co.GetName(), scheduled.Unix()))
+	meta.AddLabels(op, map[string]string{v1alpha1.LabelCronOperationName: co.GetName()})
+
+	av, k := v1alpha1.CronOperationGroupVersionKind.ToAPIVersionAndKind()
+	meta.AddOwnerReference(op, meta.AsController(&xpv1.TypedReference{
+		APIVersion: av,
+		Kind:       k,
+		Name:       co.GetName(),
+		UID:        co.GetUID(),
+	}))
+
+	return op
 }
