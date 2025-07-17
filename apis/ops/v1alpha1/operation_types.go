@@ -228,8 +228,9 @@ func (r *AppliedResourceRef) Equals(other AppliedResourceRef) bool {
 // two operation.
 //
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
 // +kubebuilder:printcolumn:name="SUCCEEDED",type="string",JSONPath=".status.conditions[?(@.type=='Succeeded')].status"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=ops
 type Operation struct {
 	metav1.TypeMeta   `json:",inline"`

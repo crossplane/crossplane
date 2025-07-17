@@ -22,6 +22,12 @@ spec:
     - jsonPath: .spec.schedule
       name: SCHEDULE
       type: string
+    - jsonPath: .status.conditions[?(@.type=='Synced')].status
+      name: SYNCED
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Scheduling')].status
+      name: SCHEDULING
+      type: string
     - jsonPath: .status.lastScheduleTime
       name: LAST SCHEDULE
       type: date

@@ -83,6 +83,8 @@ type CronOperationStatus struct {
 //
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="SCHEDULE",type="string",JSONPath=".spec.schedule"
+// +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
+// +kubebuilder:printcolumn:name="SCHEDULING",type="string",JSONPath=".status.conditions[?(@.type=='Scheduling')].status"
 // +kubebuilder:printcolumn:name="LAST SCHEDULE",type="date",JSONPath=".status.lastScheduleTime"
 // +kubebuilder:printcolumn:name="LAST SUCCESS",type="date",JSONPath=".status.lastSuccessfulTime"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"

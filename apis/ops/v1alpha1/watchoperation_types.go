@@ -118,7 +118,10 @@ type WatchOperationStatus struct {
 // A WatchOperation creates Operations when watched resources change.
 //
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="WATCHING",type="string",JSONPath=".spec.watch.kind"
+// +kubebuilder:printcolumn:name="KIND",type="string",JSONPath=".spec.watch.kind"
+// +kubebuilder:printcolumn:name="COUNT",type="integer",JSONPath=".status.watchingResources"
+// +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
+// +kubebuilder:printcolumn:name="WATCHING",type="string",JSONPath=".status.conditions[?(@.type=='Watching')].status"
 // +kubebuilder:printcolumn:name="LAST SCHEDULE",type="date",JSONPath=".status.lastScheduleTime"
 // +kubebuilder:printcolumn:name="LAST SUCCESS",type="date",JSONPath=".status.lastSuccessfulTime"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"

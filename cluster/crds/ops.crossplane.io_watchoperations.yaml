@@ -20,6 +20,15 @@ spec:
   versions:
   - additionalPrinterColumns:
     - jsonPath: .spec.watch.kind
+      name: KIND
+      type: string
+    - jsonPath: .status.watchingResources
+      name: COUNT
+      type: integer
+    - jsonPath: .status.conditions[?(@.type=='Synced')].status
+      name: SYNCED
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Watching')].status
       name: WATCHING
       type: string
     - jsonPath: .status.lastScheduleTime
