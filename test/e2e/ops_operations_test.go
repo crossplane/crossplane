@@ -129,3 +129,53 @@ func TestBasicCronOperation(t *testing.T) {
 			Feature(),
 	)
 }
+
+func TestBasicWatchOperation(t *testing.T) {
+	manifests := "test/e2e/manifests/ops/watchoperations/basic"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests the correct functioning of a basic WatchOperation that creates Operations when watched resources change.").
+			WithLabel(LabelArea, LabelAreaOps).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteOps).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+			)).
+			Assess("CreateWatchOperation", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "watchoperation.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "watchoperation.yaml"),
+			)).
+			Assess("WatchOperationEstablishesWatching", funcs.AllOf(
+				// Wait for WatchOperation to become ready (controller started) and actively watching
+				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "watchoperation.yaml", xpv1.ReconcileSuccess(), v1alpha1.WatchActive()),
+			)).
+			Assess("CreateWatchedResource", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "test-configmap.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "test-configmap.yaml"),
+			)).
+			Assess("WatchOperationCreatesOperation", funcs.AllOf(
+				// Wait for WatchOperation to detect the ConfigMap and create an Operation
+				// This should happen quickly after the ConfigMap is created
+				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime", funcs.Any),
+				// Verify watching resources count is updated
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "watchoperation.yaml", "status.watchingResources", int64(1)),
+			)).
+			Assess("OperationSucceeds", funcs.AllOf(
+				// Verify the WatchOperation's lastSuccessfulTime gets updated when Operation completes
+				funcs.ResourcesHaveFieldValueWithin(90*time.Second, manifests, "watchoperation.yaml", "status.lastSuccessfulTime", funcs.Any),
+			)).
+			WithTeardown("DeleteWatchedResource", funcs.AllOf(
+				funcs.DeleteResources(manifests, "test-configmap.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "test-configmap.yaml"),
+			)).
+			WithTeardown("DeleteWatchOperation", funcs.AllOf(
+				funcs.DeleteResources(manifests, "watchoperation.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "watchoperation.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
