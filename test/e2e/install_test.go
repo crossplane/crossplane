@@ -184,7 +184,14 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				}))),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				// TODO(lsviben): We are deleting the XRD without foreground deletion as it
+				// messes up the deletion, when the XRD version downgrades from v2 to v1. For
+				// some reason, the XRD deletion gets stuck, as the garbage collector is still
+				// trying to delete the XRD with v2 version, which is not available anymore.
+				funcs.DeleteResources(manifests, "setup/definition.yaml"),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/composition.yaml", metav1.DeletePropagationForeground),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/functions.yaml", metav1.DeletePropagationForeground),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/provider.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 
 				// TODO(negz): We're seeing revisions sticking
