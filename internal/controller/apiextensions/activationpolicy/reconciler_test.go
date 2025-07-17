@@ -40,7 +40,7 @@ import (
 	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
 )
 
-// Helper functions for creating test objects
+// Helper functions for creating test objects.
 type MRAPModifier func(mrap *v2alpha1.ManagedResourceActivationPolicy)
 
 func NewMRAP(m ...MRAPModifier) *v2alpha1.ManagedResourceActivationPolicy {
@@ -109,7 +109,9 @@ func WithMRDState(state v2alpha1.ManagedResourceDefinitionState) MRDModifier {
 
 // A get function that supplies the input resource.
 func WithMRAP(t *testing.T, mrap *v2alpha1.ManagedResourceActivationPolicy) func(context.Context, client.ObjectKey, client.Object) error {
+	t.Helper()
 	return func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+		t.Helper()
 		if o, ok := obj.(*v2alpha1.ManagedResourceActivationPolicy); ok {
 			*o = *mrap
 		}
@@ -131,7 +133,9 @@ func WantMRAP(t *testing.T, want *v2alpha1.ManagedResourceActivationPolicy) func
 
 // A list function that supplies the input MRD list.
 func WithMRDList(t *testing.T, mrds ...*v2alpha1.ManagedResourceDefinition) func(context.Context, client.ObjectList, ...client.ListOption) error {
+	t.Helper()
 	return func(_ context.Context, obj client.ObjectList, _ ...client.ListOption) error {
+		t.Helper()
 		if o, ok := obj.(*v2alpha1.ManagedResourceDefinitionList); ok {
 			items := make([]v2alpha1.ManagedResourceDefinition, len(mrds))
 			for i, mrd := range mrds {
@@ -146,7 +150,7 @@ func WithMRDList(t *testing.T, mrds ...*v2alpha1.ManagedResourceDefinition) func
 // A patch function that validates the patch operation.
 func WantMRDPatch(t *testing.T, expectedPatches map[string]v2alpha1.ManagedResourceDefinitionState) func(context.Context, client.Object, client.Patch, ...client.PatchOption) error {
 	t.Helper()
-	return func(_ context.Context, obj client.Object, patch client.Patch, _ ...client.PatchOption) error {
+	return func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
 		t.Helper()
 		if mrd, ok := obj.(*v2alpha1.ManagedResourceDefinition); ok {
 			if expectedState, exists := expectedPatches[mrd.GetName()]; exists {
@@ -376,7 +380,7 @@ func TestReconcile(t *testing.T) {
 						NewMRD("bucket.aws.crossplane.io", WithMRDState(v2alpha1.ManagedResourceDefinitionInactive)),
 						NewMRD("instance.aws.crossplane.io", WithMRDState(v2alpha1.ManagedResourceDefinitionInactive)),
 					),
-					MockPatch: func(_ context.Context, obj client.Object, patch client.Patch, _ ...client.PatchOption) error {
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						if mrd, ok := obj.(*v2alpha1.ManagedResourceDefinition); ok {
 							if mrd.GetName() == "bucket.aws.crossplane.io" {
 								return errBoom
