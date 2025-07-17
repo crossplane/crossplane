@@ -94,9 +94,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get WatchOperation")
 	}
 
-	// Don't reconcile if the WatchOperation is suspended.
-	if ptr.Deref(wo.Spec.Suspend, false) {
-		log.Debug("WatchOperation is suspended")
+	// Don't reconcile if the WatchOperation is paused.
+	if meta.IsPaused(wo) {
+		log.Debug("WatchOperation is paused")
 		return reconcile.Result{Requeue: false}, nil
 	}
 

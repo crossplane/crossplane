@@ -52,10 +52,6 @@ type WatchOperationSpec struct {
 	// +kubebuilder:validation:Enum=Allow;Forbid;Replace
 	ConcurrencyPolicy *ConcurrencyPolicy `json:"concurrencyPolicy,omitempty"`
 
-	// Suspend specifies whether the WatchOperation should be suspended.
-	// +optional
-	Suspend *bool `json:"suspend,omitempty"`
-
 	// SuccessfulHistoryLimit is the number of successful Operations to retain.
 	// +optional
 	// +kubebuilder:default=3
@@ -123,7 +119,6 @@ type WatchOperationStatus struct {
 //
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="WATCHING",type="string",JSONPath=".spec.watch.kind"
-// +kubebuilder:printcolumn:name="SUSPEND",type="boolean",JSONPath=".spec.suspend"
 // +kubebuilder:printcolumn:name="LAST SCHEDULE",type="date",JSONPath=".status.lastScheduleTime"
 // +kubebuilder:printcolumn:name="LAST SUCCESS",type="date",JSONPath=".status.lastSuccessfulTime"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"

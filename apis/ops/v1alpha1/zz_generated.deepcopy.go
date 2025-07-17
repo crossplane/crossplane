@@ -117,11 +117,6 @@ func (in *CronOperationSpec) DeepCopyInto(out *CronOperationSpec) {
 		*out = new(ConcurrencyPolicy)
 		**out = **in
 	}
-	if in.Suspend != nil {
-		in, out := &in.Suspend, &out.Suspend
-		*out = new(bool)
-		**out = **in
-	}
 	if in.SuccessfulHistoryLimit != nil {
 		in, out := &in.SuccessfulHistoryLimit, &out.SuccessfulHistoryLimit
 		*out = new(int32)
@@ -530,11 +525,6 @@ func (in *WatchOperationSpec) DeepCopyInto(out *WatchOperationSpec) {
 	if in.ConcurrencyPolicy != nil {
 		in, out := &in.ConcurrencyPolicy, &out.ConcurrencyPolicy
 		*out = new(ConcurrencyPolicy)
-		**out = **in
-	}
-	if in.Suspend != nil {
-		in, out := &in.Suspend, &out.Suspend
-		*out = new(bool)
 		**out = **in
 	}
 	if in.SuccessfulHistoryLimit != nil {

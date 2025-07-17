@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -296,8 +295,8 @@ func TestReconcile(t *testing.T) {
 				err:    cmpopts.AnyError,
 			},
 		},
-		"Suspended": {
-			reason: "Should return early if WatchOperation is suspended",
+		"Paused": {
+			reason: "Should return early if WatchOperation is paused",
 			params: params{
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
@@ -305,7 +304,9 @@ func TestReconcile(t *testing.T) {
 						wo.SetName("test-watch")
 						wo.SetUID("test-uid")
 						wo.SetFinalizers([]string{finalizer})
-						wo.Spec.Suspend = ptr.To(true)
+						wo.SetAnnotations(map[string]string{
+							"crossplane.io/paused": "true",
+						})
 						wo.Spec.Watch = v1alpha1.WatchSpec{
 							APIVersion: "v1",
 							Kind:       "Pod",

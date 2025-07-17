@@ -46,13 +46,13 @@ const (
 	ReasonValidPipeline       xpv1.ConditionReason = "ValidPipeline"
 	ReasonMissingCapabilities xpv1.ConditionReason = "MissingCapabilities"
 
-	ReasonWatchActive    xpv1.ConditionReason = "WatchActive"
-	ReasonWatchFailed    xpv1.ConditionReason = "WatchFailed"
-	ReasonWatchSuspended xpv1.ConditionReason = "WatchSuspended"
+	ReasonWatchActive  xpv1.ConditionReason = "WatchActive"
+	ReasonWatchFailed  xpv1.ConditionReason = "WatchFailed"
+	ReasonWatchPaused  xpv1.ConditionReason = "WatchPaused"
 
-	ReasonScheduleActive    xpv1.ConditionReason = "ScheduleActive"
-	ReasonScheduleInvalid   xpv1.ConditionReason = "ScheduleInvalid"
-	ReasonScheduleSuspended xpv1.ConditionReason = "ScheduleSuspended"
+	ReasonScheduleActive  xpv1.ConditionReason = "ScheduleActive"
+	ReasonScheduleInvalid xpv1.ConditionReason = "ScheduleInvalid"
+	ReasonSchedulePaused  xpv1.ConditionReason = "SchedulePaused"
 )
 
 // Running indicates that an operation is running.
@@ -130,14 +130,14 @@ func WatchFailed(message string) xpv1.Condition {
 	}
 }
 
-// WatchSuspended indicates that a WatchOperation is suspended and not
+// WatchPaused indicates that a WatchOperation is paused and not
 // actively watching resources.
-func WatchSuspended() xpv1.Condition {
+func WatchPaused() xpv1.Condition {
 	return xpv1.Condition{
 		Type:               TypeWatching,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonWatchSuspended,
+		Reason:             ReasonWatchPaused,
 	}
 }
 
@@ -163,13 +163,13 @@ func ScheduleInvalid(message string) xpv1.Condition {
 	}
 }
 
-// ScheduleSuspended indicates that a CronOperation is suspended and not
+// SchedulePaused indicates that a CronOperation is paused and not
 // actively scheduling operations.
-func ScheduleSuspended() xpv1.Condition {
+func SchedulePaused() xpv1.Condition {
 	return xpv1.Condition{
 		Type:               TypeScheduling,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonScheduleSuspended,
+		Reason:             ReasonSchedulePaused,
 	}
 }

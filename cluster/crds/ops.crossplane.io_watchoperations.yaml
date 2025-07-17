@@ -22,9 +22,6 @@ spec:
     - jsonPath: .spec.watch.kind
       name: WATCHING
       type: string
-    - jsonPath: .spec.suspend
-      name: SUSPEND
-      type: boolean
     - jsonPath: .status.lastScheduleTime
       name: LAST SCHEDULE
       type: date
@@ -252,10 +249,6 @@ spec:
                   to retain.
                 format: int32
                 type: integer
-              suspend:
-                description: Suspend specifies whether the WatchOperation should be
-                  suspended.
-                type: boolean
               watch:
                 description: Watch specifies the resource to watch.
                 properties:

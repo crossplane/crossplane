@@ -22,9 +22,6 @@ spec:
     - jsonPath: .spec.schedule
       name: SCHEDULE
       type: string
-    - jsonPath: .spec.suspend
-      name: SUSPEND
-      type: boolean
     - jsonPath: .status.lastScheduleTime
       name: LAST SCHEDULE
       type: date
@@ -261,10 +258,6 @@ spec:
                   to retain.
                 format: int32
                 type: integer
-              suspend:
-                description: Suspend specifies whether the CronOperation should be
-                  suspended.
-                type: boolean
             required:
             - operationTemplate
             - schedule

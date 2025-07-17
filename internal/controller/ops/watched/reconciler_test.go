@@ -169,8 +169,8 @@ func TestReconcile(t *testing.T) {
 				err:    nil,
 			},
 		},
-		"Suspended": {
-			reason: "Should return early if WatchOperation is suspended",
+		"Paused": {
+			reason: "Should return early if WatchOperation is paused",
 			params: params{
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
@@ -181,10 +181,12 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}
 						if wo, ok := obj.(*v1alpha1.WatchOperation); ok {
-							// Return suspended WatchOperation
+							// Return paused WatchOperation
 							wo.SetName("test-watch")
 							wo.SetUID("test-uid")
-							wo.Spec.Suspend = ptr.To(true)
+							wo.SetAnnotations(map[string]string{
+								"crossplane.io/paused": "true",
+							})
 							return nil
 						}
 						return errBoom
@@ -194,9 +196,11 @@ func TestReconcile(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-watch",
 						UID:  types.UID("test-uid"),
+						Annotations: map[string]string{
+							"crossplane.io/paused": "true",
+						},
 					},
 					Spec: v1alpha1.WatchOperationSpec{
-						Suspend: ptr.To(true),
 						Watch: v1alpha1.WatchSpec{
 							APIVersion: "v1",
 							Kind:       "Pod",

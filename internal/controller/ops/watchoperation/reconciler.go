@@ -130,10 +130,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// Don't reconcile if the WatchOperation is suspended.
-	if ptr.Deref(wo.Spec.Suspend, false) {
-		log.Debug("WatchOperation is suspended")
-		status.MarkConditions(v1alpha1.WatchSuspended(), xpv1.ReconcileSuccess())
+	// Don't reconcile if the WatchOperation is paused.
+	if meta.IsPaused(wo) {
+		log.Debug("WatchOperation is paused")
+		status.MarkConditions(v1alpha1.WatchPaused(), xpv1.ReconcilePaused())
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, wo), "cannot update status of WatchOperation")
 	}
 

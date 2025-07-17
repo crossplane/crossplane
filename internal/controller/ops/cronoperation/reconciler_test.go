@@ -122,15 +122,17 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{},
 			},
 		},
-		"Suspended": {
-			reason: "We should return early if the CronOperation is suspended.",
+		"Paused": {
+			reason: "We should return early if the CronOperation is paused.",
 			params: params{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							co := &v1alpha1.CronOperation{
-								Spec: v1alpha1.CronOperationSpec{
-									Suspend: ptr.To(true),
+								ObjectMeta: metav1.ObjectMeta{
+									Annotations: map[string]string{
+										"crossplane.io/paused": "true",
+									},
 								},
 							}
 							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))

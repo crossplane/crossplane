@@ -93,10 +93,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	// Don't reconcile if the CronOperation is suspended.
-	if ptr.Deref(co.Spec.Suspend, false) {
-		log.Debug("CronOperation is suspended")
-		status.MarkConditions(v1alpha1.ScheduleSuspended(), xpv1.ReconcileSuccess())
+	// Don't reconcile if the CronOperation is paused.
+	if meta.IsPaused(co) {
+		log.Debug("CronOperation is paused")
+		status.MarkConditions(v1alpha1.SchedulePaused(), xpv1.ReconcilePaused())
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, co), "cannot update CronOperation status")
 	}
 
