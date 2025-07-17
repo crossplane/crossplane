@@ -49,6 +49,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
 )
 
@@ -56,6 +57,7 @@ func TestFunctionCompose(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	errProtoSyntax := protojson.Unmarshal([]byte("hi"), &structpb.Struct{})
+	errFmtFetchBootstrapRequirements := "cannot fetch bootstrap required resources for requirement %q"
 
 	type params struct {
 		c  client.Client
@@ -916,6 +918,49 @@ func TestFunctionCompose(t *testing.T) {
 				err: errors.Wrapf(errBoom, errFmtApplyCD, "uncool-resource"),
 			},
 		},
+		"BootstrapRequirementsError": {
+			reason: "We should return an error if we can't fetch bootstrap requirements",
+			params: params{
+				c: &test.MockClient{},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					return &fnv1.RunFunctionResponse{}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithRequiredResourcesFetcher(xfn.RequiredResourcesFetcherFn(func(_ context.Context, _ *fnv1.ResourceSelector) (*fnv1.Resources, error) {
+						return nil, errBoom
+					})),
+				},
+			},
+			args: args{
+				ctx: context.Background(),
+				xr:  WithParentLabel(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "cool-step",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									Requirements: &v1.FunctionRequirements{
+										RequiredResources: []v1.RequiredResourceSelector{
+											{
+												RequirementName: "test-requirement",
+												APIVersion:      "v1",
+												Kind:            "ConfigMap",
+												Name:            ptr.To("test-config"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errBoom, errFmtFetchBootstrapRequirements, "test-requirement"),
+			},
+		},
 		"Successful": {
 			reason: "We should return a valid CompositionResult when a 'pure Function' (i.e. patch-and-transform-less) reconcile succeeds",
 			params: params{
@@ -1170,6 +1215,111 @@ func MustStruct(v map[string]any) *structpb.Struct {
 	}
 
 	return s
+}
+
+func TestToProtobufResourceSelector(t *testing.T) {
+	type args struct {
+		r v1.RequiredResourceSelector
+	}
+	type want struct {
+		result *fnv1.ResourceSelector
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"BasicSelector": {
+			reason: "Should convert basic API selector to protobuf selector",
+			args: args{
+				r: v1.RequiredResourceSelector{
+					RequirementName: "test-req",
+					APIVersion:      "v1",
+					Kind:            "ConfigMap",
+				},
+			},
+			want: want{
+				result: &fnv1.ResourceSelector{
+					ApiVersion: "v1",
+					Kind:       "ConfigMap",
+				},
+			},
+		},
+		"NameSelector": {
+			reason: "Should convert name-based selector",
+			args: args{
+				r: v1.RequiredResourceSelector{
+					RequirementName: "test-req",
+					APIVersion:      "v1",
+					Kind:            "ConfigMap",
+					Name:            ptr.To("test-name"),
+				},
+			},
+			want: want{
+				result: &fnv1.ResourceSelector{
+					ApiVersion: "v1",
+					Kind:       "ConfigMap",
+					Match: &fnv1.ResourceSelector_MatchName{
+						MatchName: "test-name",
+					},
+				},
+			},
+		},
+		"LabelSelector": {
+			reason: "Should convert label-based selector",
+			args: args{
+				r: v1.RequiredResourceSelector{
+					RequirementName: "test-req",
+					APIVersion:      "v1",
+					Kind:            "ConfigMap",
+					MatchLabels:     map[string]string{"app": "test"},
+				},
+			},
+			want: want{
+				result: &fnv1.ResourceSelector{
+					ApiVersion: "v1",
+					Kind:       "ConfigMap",
+					Match: &fnv1.ResourceSelector_MatchLabels{
+						MatchLabels: &fnv1.MatchLabels{
+							Labels: map[string]string{"app": "test"},
+						},
+					},
+				},
+			},
+		},
+		"NamespacedSelector": {
+			reason: "Should convert namespaced selector",
+			args: args{
+				r: v1.RequiredResourceSelector{
+					RequirementName: "test-req",
+					APIVersion:      "v1",
+					Kind:            "ConfigMap",
+					Namespace:       ptr.To("test-namespace"),
+					Name:            ptr.To("test-name"),
+				},
+			},
+			want: want{
+				result: &fnv1.ResourceSelector{
+					ApiVersion: "v1",
+					Kind:       "ConfigMap",
+					Namespace:  ptr.To("test-namespace"),
+					Match: &fnv1.ResourceSelector_MatchName{
+						MatchName: "test-name",
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			result := ToProtobufResourceSelector(tc.args.r)
+			if diff := cmp.Diff(tc.want.result, result, protocmp.Transform()); diff != "" {
+				t.Errorf("\n%s\nToProtobufResourceSelector(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
 }
 
 func WithParentLabel() *composite.Unstructured {

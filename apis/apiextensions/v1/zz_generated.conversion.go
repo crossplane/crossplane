@@ -50,6 +50,20 @@ func (c *GeneratedRevisionSpecConverter) pRuntimeRawExtensionToPRuntimeRawExtens
 	}
 	return pRuntimeRawExtension
 }
+func (c *GeneratedRevisionSpecConverter) pV1FunctionRequirementsToPV1FunctionRequirements(source *FunctionRequirements) *FunctionRequirements {
+	var pV1FunctionRequirements *FunctionRequirements
+	if source != nil {
+		var v1FunctionRequirements FunctionRequirements
+		if (*source).RequiredResources != nil {
+			v1FunctionRequirements.RequiredResources = make([]RequiredResourceSelector, len((*source).RequiredResources))
+			for i := 0; i < len((*source).RequiredResources); i++ {
+				v1FunctionRequirements.RequiredResources[i] = c.v1RequiredResourceSelectorToV1RequiredResourceSelector((*source).RequiredResources[i])
+			}
+		}
+		pV1FunctionRequirements = &v1FunctionRequirements
+	}
+	return pV1FunctionRequirements
+}
 func (c *GeneratedRevisionSpecConverter) pV1SecretReferenceToPV1SecretReference(source *v1.SecretReference) *v1.SecretReference {
 	var pV1SecretReference *v1.SecretReference
 	if source != nil {
@@ -103,7 +117,29 @@ func (c *GeneratedRevisionSpecConverter) v1PipelineStepToV1PipelineStep(source P
 			v1PipelineStep.Credentials[i] = c.v1FunctionCredentialsToV1FunctionCredentials(source.Credentials[i])
 		}
 	}
+	v1PipelineStep.Requirements = c.pV1FunctionRequirementsToPV1FunctionRequirements(source.Requirements)
 	return v1PipelineStep
+}
+func (c *GeneratedRevisionSpecConverter) v1RequiredResourceSelectorToV1RequiredResourceSelector(source RequiredResourceSelector) RequiredResourceSelector {
+	var v1RequiredResourceSelector RequiredResourceSelector
+	v1RequiredResourceSelector.RequirementName = source.RequirementName
+	v1RequiredResourceSelector.APIVersion = source.APIVersion
+	v1RequiredResourceSelector.Kind = source.Kind
+	if source.Namespace != nil {
+		xstring := *source.Namespace
+		v1RequiredResourceSelector.Namespace = &xstring
+	}
+	if source.Name != nil {
+		xstring2 := *source.Name
+		v1RequiredResourceSelector.Name = &xstring2
+	}
+	if source.MatchLabels != nil {
+		v1RequiredResourceSelector.MatchLabels = make(map[string]string, len(source.MatchLabels))
+		for key, value := range source.MatchLabels {
+			v1RequiredResourceSelector.MatchLabels[key] = value
+		}
+	}
+	return v1RequiredResourceSelector
 }
 func (c *GeneratedRevisionSpecConverter) v1TypeReferenceToV1TypeReference(source TypeReference) TypeReference {
 	var v1TypeReference TypeReference
