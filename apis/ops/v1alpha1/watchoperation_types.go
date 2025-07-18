@@ -36,6 +36,10 @@ const (
 	AnnotationWatchedResourceResourceVersion = "ops.crossplane.io/watched-resource-resourceversion"
 )
 
+// SyntheticResourceVersionDeleted is used as the ResourceVersion for
+// synthetic watched resources when the actual resource has been deleted.
+const SyntheticResourceVersionDeleted = "ops.crossplane.io/synthetic-deleted"
+
 // RequirementNameWatchedResource is the requirement name used by WatchOperations
 // to inject the watched resource into Operations they create.
 const RequirementNameWatchedResource = "ops.crossplane.io/watched-resource"
