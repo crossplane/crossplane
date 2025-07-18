@@ -64,16 +64,14 @@ func TestBasicOperation(t *testing.T) {
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				// Wait for function to be ready with capabilities before creating Operation
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			Assess("CreateOperation", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "operation.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "operation.yaml"),
 			)).
 			Assess("OperationSucceeded", funcs.AllOf(
-				// This takes a little longer because it needs
-				// the FunctionRevision above to become ready,
-				// but it strictly retries with exponential
-				// backoff. It doesn't watch FunctionRevisions.
 				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "operation.yaml", v1alpha1.Complete()),
 				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.appliedResourceRefs[0].name", "cool-map"),
 				funcs.ResourceHasFieldValueWithin(30*time.Second, cm, "data[coolData]", "I'm cool!"),
@@ -100,6 +98,8 @@ func TestBasicCronOperation(t *testing.T) {
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				// Wait for function to be ready with capabilities before creating Operation
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/*.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			Assess("CreateCronOperation", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "cronoperation.yaml"),
@@ -138,6 +138,8 @@ func TestBasicWatchOperation(t *testing.T) {
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				// Wait for function to be ready with capabilities before creating Operation
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/*.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			Assess("CreateWatchOperation", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "watchoperation.yaml"),
@@ -268,4 +270,3 @@ func TestOperationMultiStepPipeline(t *testing.T) {
 			Feature(),
 	)
 }
-
