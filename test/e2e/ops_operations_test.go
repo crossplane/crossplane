@@ -28,6 +28,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
 	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
@@ -171,6 +172,44 @@ func TestBasicWatchOperation(t *testing.T) {
 			WithTeardown("DeleteWatchOperation", funcs.AllOf(
 				funcs.DeleteResources(manifests, "watchoperation.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "watchoperation.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestOperationRetryLogic(t *testing.T) {
+	manifests := "test/e2e/manifests/ops/operations/retry"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests the retry logic of Operations when function pipelines fail.").
+			WithLabel(LabelArea, LabelAreaOps).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteOps).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				// Wait for function to be ready with capabilities before creating Operation
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/*.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateOperation", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "operation.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "operation.yaml"),
+			)).
+			Assess("OperationRetriesAndEventuallyFails", funcs.AllOf(
+				// Wait for Operation to start retrying - it should start with 0 failures
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "operation.yaml", xpv1.ReconcileSuccess()),
+				// Wait for Operation to accumulate failures as it retries (exponential backoff means this takes time)
+				// retryLimit is 3, so it should eventually reach 3 failures and be marked as failed
+				funcs.ResourcesHaveFieldValueWithin(3*time.Minute, manifests, "operation.yaml", "status.failures", int64(3)),
+				// Operation should eventually be marked as failed after reaching retry limit
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "operation.yaml", v1alpha1.Failed("")),
+			)).
+			WithTeardown("DeleteOperation", funcs.AllOf(
+				funcs.DeleteResources(manifests, "operation.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "operation.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
