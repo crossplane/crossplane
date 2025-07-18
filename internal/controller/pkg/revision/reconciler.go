@@ -107,14 +107,14 @@ const (
 
 // Event reasons.
 const (
-	reasonImageConfig     event.Reason = "ImageConfigSelection"
-	reasonParse           event.Reason = "ParsePackage"
-	reasonLint            event.Reason = "LintPackage"
-	reasonDependencies    event.Reason = "ResolveDependencies"
-	reasonFetchActivation event.Reason = "FetchActivationPolicy"
-	reasonSync            event.Reason = "SyncPackage"
-	reasonDeactivate      event.Reason = "DeactivateRevision"
-	reasonPaused          event.Reason = "ReconciliationPaused"
+	reasonImageConfig  event.Reason = "ImageConfigSelection"
+	reasonParse        event.Reason = "ParsePackage"
+	reasonLint         event.Reason = "LintPackage"
+	reasonDependencies event.Reason = "ResolveDependencies"
+	reasonConvertCRD   event.Reason = "ConvertCRDToMRD"
+	reasonSync         event.Reason = "SyncPackage"
+	reasonDeactivate   event.Reason = "DeactivateRevision"
+	reasonPaused       event.Reason = "ReconciliationPaused"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -877,13 +877,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	// The SafeStart feature converts CRDs to MRDs from a package and
-	// auto-generates a policy that works to enable those MRDs if no
-	// policy is found.
-	objects := pkg.GetMeta()
-	if slices.Contains(pr.GetCapabilities(), "SafeStart") {
+	objects := pkg.GetObjects()
+	// The CustomToManagedResourceConversion feature converts CRDs to MRDs from
+	// a package.
+	if r.features.Enabled(features.EnableBetaCustomToManagedResourceConversion) {
 		// Convert CRDs to MRDs
-		objects = converter.CustomToManagedResourceDefinitions(objects...)
+		// If SafeStart is not in capabilities, we default mrd state to Active.
+		activationState := !slices.Contains(pr.GetCapabilities(), "SafeStart")
+		if mrdObjs, err := converter.CustomToManagedResourceDefinitions(activationState, objects...); err != nil {
+			r.record.Event(pr, event.Warning(reasonConvertCRD, err))
+		} else {
+			objects = mrdObjs
+		}
 	}
 
 	// Establish control or ownership of objects.
