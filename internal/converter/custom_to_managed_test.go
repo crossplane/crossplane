@@ -24,12 +24,49 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
 )
 
+// invalidJSONObject is a runtime.Object that fails to marshal to JSON.
+type invalidJSONObject struct {
+	metav1.TypeMeta
+	metav1.ObjectMeta
+	Channel chan struct{} `json:"channel"` // channels cannot be marshaled to JSON
+}
+
+func (i *invalidJSONObject) DeepCopyObject() runtime.Object {
+	return &invalidJSONObject{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: customResourceDefinitionKind.GroupVersion().String(),
+			Kind:       customResourceDefinitionKind.Kind,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "invalid-json-object",
+		},
+		Channel: make(chan struct{}),
+	}
+}
+
+func (i *invalidJSONObject) GetObjectKind() schema.ObjectKind {
+	return i
+}
+
+func (i *invalidJSONObject) GroupVersionKind() schema.GroupVersionKind {
+	return customResourceDefinitionKind
+}
+
+func (i *invalidJSONObject) SetGroupVersionKind(gvk schema.GroupVersionKind) {
+	i.APIVersion = gvk.GroupVersion().String()
+	i.Kind = gvk.Kind
+}
+
 func TestCustomToManagedResourceDefinitions(t *testing.T) {
-	// Test customResourceDefinition
+	// Test CustomResourceDefinition
 	testCRD := &extv1.CustomResourceDefinition{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: extv1.SchemeGroupVersion.String(),
@@ -97,8 +134,8 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 		},
 	}
 
-	// Expected MRD from structured CRD
-	expectedMRDFromCRD := &unstructured.Unstructured{
+	// Expected MRD from structured CRD (inactive)
+	expectedMRDFromCRDInactive := &unstructured.Unstructured{
 		Object: map[string]any{
 			"apiVersion": v2alpha1.SchemeGroupVersion.String(),
 			"kind":       v2alpha1.ManagedResourceDefinitionKind,
@@ -134,8 +171,46 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 		},
 	}
 
-	// Expected MRD from unstructured CRD
-	expectedMRDFromUnstructured := &unstructured.Unstructured{
+	// Expected MRD from structured CRD (active)
+	expectedMRDFromCRDActive := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": v2alpha1.SchemeGroupVersion.String(),
+			"kind":       v2alpha1.ManagedResourceDefinitionKind,
+			"metadata": map[string]any{
+				"creationTimestamp": nil,
+				"name":              "buckets.example.org",
+				"namespace":         "test-namespace",
+			},
+			"spec": map[string]any{
+				"group": "example.org",
+				"names": map[string]any{
+					"kind":     "Bucket",
+					"plural":   "buckets",
+					"singular": "bucket",
+				},
+				"scope": "Namespaced",
+				"state": string(v2alpha1.ManagedResourceDefinitionActive),
+				"versions": []any{
+					map[string]any{
+						"name":    "v1",
+						"served":  true,
+						"storage": true,
+					},
+				},
+			},
+			"status": map[string]any{
+				"acceptedNames": map[string]any{
+					"kind":   "",
+					"plural": "",
+				},
+				"conditions":     nil,
+				"storedVersions": nil,
+			},
+		},
+	}
+
+	// Expected MRD from unstructured CRD (inactive)
+	expectedMRDFromUnstructuredInactive := &unstructured.Unstructured{
 		Object: map[string]any{
 			"apiVersion": v2alpha1.SchemeGroupVersion.String(),
 			"kind":       v2alpha1.ManagedResourceDefinitionKind,
@@ -162,11 +237,42 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 		},
 	}
 
+	// Expected MRD from unstructured CRD (active)
+	expectedMRDFromUnstructuredActive := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": v2alpha1.SchemeGroupVersion.String(),
+			"kind":       v2alpha1.ManagedResourceDefinitionKind,
+			"metadata": map[string]any{
+				"name":      "instances.example.org",
+				"namespace": "test-namespace",
+			},
+			"spec": map[string]any{
+				"group": "example.org",
+				"names": map[string]any{
+					"kind":     "Instance",
+					"plural":   "instances",
+					"singular": "instance",
+				},
+				"scope": "Namespaced",
+				"state": string(v2alpha1.ManagedResourceDefinitionActive),
+				"versions": []any{
+					map[string]any{
+						"name":    "v1",
+						"served":  true,
+						"storage": true,
+					},
+				},
+			},
+		},
+	}
+
 	type args struct {
-		objects []runtime.Object
+		defaultActive bool
+		objects       []runtime.Object
 	}
 	type want struct {
 		objects []runtime.Object
+		err     error
 	}
 
 	cases := map[string]struct {
@@ -177,7 +283,8 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 		"EmptyInput": {
 			reason: "Should return empty slice for empty input",
 			args: args{
-				objects: []runtime.Object{},
+				defaultActive: false,
+				objects:       []runtime.Object{},
 			},
 			want: want{
 				objects: []runtime.Object{},
@@ -186,54 +293,121 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 		"NonCRDObject": {
 			reason: "Should leave non-CRD objects unchanged",
 			args: args{
-				objects: []runtime.Object{testNonCRD},
+				defaultActive: false,
+				objects:       []runtime.Object{testNonCRD},
 			},
 			want: want{
 				objects: []runtime.Object{testNonCRD},
 			},
 		},
-		"SingleStructuredCRD": {
-			reason: "Should convert single structured CRD to MRD",
+		"SingleStructuredCRDInactive": {
+			reason: "Should convert single structured CRD to MRD (inactive)",
 			args: args{
-				objects: []runtime.Object{testCRD},
+				defaultActive: false,
+				objects:       []runtime.Object{testCRD},
 			},
 			want: want{
-				objects: []runtime.Object{expectedMRDFromCRD},
+				objects: []runtime.Object{expectedMRDFromCRDInactive},
 			},
 		},
-		"SingleUnstructuredCRD": {
-			reason: "Should convert single unstructured CRD to MRD",
+		"SingleStructuredCRDActive": {
+			reason: "Should convert single structured CRD to MRD (active)",
 			args: args{
-				objects: []runtime.Object{testUnstructuredCRD},
+				defaultActive: true,
+				objects:       []runtime.Object{testCRD},
 			},
 			want: want{
-				objects: []runtime.Object{expectedMRDFromUnstructured},
+				objects: []runtime.Object{expectedMRDFromCRDActive},
 			},
 		},
-		"MixedObjects": {
-			reason: "Should convert only CRD objects, leaving others unchanged",
+		"SingleUnstructuredCRDInactive": {
+			reason: "Should convert single unstructured CRD to MRD (inactive)",
 			args: args{
-				objects: []runtime.Object{testCRD, testNonCRD, testUnstructuredCRD},
+				defaultActive: false,
+				objects:       []runtime.Object{testUnstructuredCRD},
 			},
 			want: want{
-				objects: []runtime.Object{expectedMRDFromCRD, testNonCRD, expectedMRDFromUnstructured},
+				objects: []runtime.Object{expectedMRDFromUnstructuredInactive},
 			},
 		},
-		"MultipleCRDs": {
-			reason: "Should convert multiple CRDs to MRDs",
+		"SingleUnstructuredCRDActive": {
+			reason: "Should convert single unstructured CRD to MRD (active)",
 			args: args{
-				objects: []runtime.Object{testCRD, testUnstructuredCRD},
+				defaultActive: true,
+				objects:       []runtime.Object{testUnstructuredCRD},
 			},
 			want: want{
-				objects: []runtime.Object{expectedMRDFromCRD, expectedMRDFromUnstructured},
+				objects: []runtime.Object{expectedMRDFromUnstructuredActive},
+			},
+		},
+		"MixedObjectsInactive": {
+			reason: "Should convert only CRD objects, leaving others unchanged (inactive)",
+			args: args{
+				defaultActive: false,
+				objects:       []runtime.Object{testCRD, testNonCRD, testUnstructuredCRD},
+			},
+			want: want{
+				objects: []runtime.Object{expectedMRDFromCRDInactive, testNonCRD, expectedMRDFromUnstructuredInactive},
+			},
+		},
+		"MixedObjectsActive": {
+			reason: "Should convert only CRD objects, leaving others unchanged (active)",
+			args: args{
+				defaultActive: true,
+				objects:       []runtime.Object{testCRD, testNonCRD, testUnstructuredCRD},
+			},
+			want: want{
+				objects: []runtime.Object{expectedMRDFromCRDActive, testNonCRD, expectedMRDFromUnstructuredActive},
+			},
+		},
+		"MultipleCRDsInactive": {
+			reason: "Should convert multiple CRDs to MRDs (inactive)",
+			args: args{
+				defaultActive: false,
+				objects:       []runtime.Object{testCRD, testUnstructuredCRD},
+			},
+			want: want{
+				objects: []runtime.Object{expectedMRDFromCRDInactive, expectedMRDFromUnstructuredInactive},
+			},
+		},
+		"MultipleCRDsActive": {
+			reason: "Should convert multiple CRDs to MRDs (active)",
+			args: args{
+				defaultActive: true,
+				objects:       []runtime.Object{testCRD, testUnstructuredCRD},
+			},
+			want: want{
+				objects: []runtime.Object{expectedMRDFromCRDActive, expectedMRDFromUnstructuredActive},
+			},
+		},
+		"InvalidJSON": {
+			reason: "Should return error when JSON marshaling fails",
+			args: args{
+				defaultActive: false,
+				objects:       []runtime.Object{&invalidJSONObject{}},
+			},
+			want: want{
+				objects: []runtime.Object{&invalidJSONObject{}},
+				// We expect an error but don't care about the exact type since it's wrapped
+				err: errors.New("some error"),
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			gotObjects := CustomToManagedResourceDefinitions(tc.args.objects...)
+			gotObjects, err := CustomToManagedResourceDefinitions(tc.args.defaultActive, tc.args.objects...)
 
+			if tc.want.err != nil {
+				// Just check that we got an error when we expected one
+				if err == nil {
+					t.Errorf("\n%s\nCustomToManagedResourceDefinitions(...): expected error but got none", tc.reason)
+				}
+			} else {
+				if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+					t.Errorf("\n%s\nCustomToManagedResourceDefinitions(...): -want error, +got error:\n%s", tc.reason, diff)
+				}
+			}
 			if diff := cmp.Diff(tc.want.objects, gotObjects); diff != "" {
 				t.Errorf("\n%s\nCustomToManagedResourceDefinitions(...): -want objects, +got objects:\n%s", tc.reason, diff)
 			}
@@ -243,10 +417,12 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 
 func TestConvertCRDToMRD(t *testing.T) {
 	type args struct {
-		in map[string]any
+		defaultActive bool
+		in            map[string]any
 	}
 	type want struct {
 		out map[string]any
+		err error
 	}
 
 	cases := map[string]struct {
@@ -254,9 +430,10 @@ func TestConvertCRDToMRD(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"BasicCRD": {
-			reason: "Should convert basic CRD to MRD format",
+		"BasicCRDInactive": {
+			reason: "Should convert basic CRD to MRD format (inactive)",
 			args: args{
+				defaultActive: false,
 				in: map[string]any{
 					"apiVersion": extv1.SchemeGroupVersion.String(),
 					"kind":       customResourceDefinition,
@@ -289,9 +466,47 @@ func TestConvertCRDToMRD(t *testing.T) {
 				},
 			},
 		},
-		"CRDWithComplexSpec": {
-			reason: "Should convert CRD with complex spec to MRD, preserving all fields",
+		"BasicCRDActive": {
+			reason: "Should convert basic CRD to MRD format (active)",
 			args: args{
+				defaultActive: true,
+				in: map[string]any{
+					"apiVersion": extv1.SchemeGroupVersion.String(),
+					"kind":       customResourceDefinition,
+					"metadata": map[string]any{
+						"name": "buckets.example.org",
+					},
+					"spec": map[string]any{
+						"group": "example.org",
+						"names": map[string]any{
+							"kind":   "Bucket",
+							"plural": "buckets",
+						},
+					},
+				},
+			},
+			want: want{
+				out: map[string]any{
+					"apiVersion": v2alpha1.SchemeGroupVersion.String(),
+					"kind":       v2alpha1.ManagedResourceDefinitionKind,
+					"metadata": map[string]any{
+						"name": "buckets.example.org",
+					},
+					"spec": map[string]any{
+						"group": "example.org",
+						"names": map[string]any{
+							"kind":   "Bucket",
+							"plural": "buckets",
+						},
+						"state": string(v2alpha1.ManagedResourceDefinitionActive),
+					},
+				},
+			},
+		},
+		"CRDWithComplexSpecActive": {
+			reason: "Should convert CRD with complex spec to MRD, preserving all fields (active)",
+			args: args{
+				defaultActive: true,
 				in: map[string]any{
 					"apiVersion": extv1.SchemeGroupVersion.String(),
 					"kind":       customResourceDefinition,
@@ -349,6 +564,7 @@ func TestConvertCRDToMRD(t *testing.T) {
 							"singular": "database",
 						},
 						"scope": "Namespaced",
+						"state": string(v2alpha1.ManagedResourceDefinitionActive),
 						"versions": []any{
 							map[string]any{
 								"name":    "v1",
@@ -370,9 +586,10 @@ func TestConvertCRDToMRD(t *testing.T) {
 				},
 			},
 		},
-		"MinimalCRD": {
-			reason: "Should convert minimal CRD to MRD",
+		"MinimalCRDInactive": {
+			reason: "Should convert minimal CRD to MRD (inactive)",
 			args: args{
+				defaultActive: false,
 				in: map[string]any{
 					"apiVersion": extv1.SchemeGroupVersion.String(),
 					"kind":       customResourceDefinition,
@@ -390,6 +607,70 @@ func TestConvertCRDToMRD(t *testing.T) {
 						"name": "minimal.example.org",
 					},
 					"spec": map[string]any{},
+				},
+			},
+		},
+		"MinimalCRDActive": {
+			reason: "Should convert minimal CRD to MRD (active)",
+			args: args{
+				defaultActive: true,
+				in: map[string]any{
+					"apiVersion": extv1.SchemeGroupVersion.String(),
+					"kind":       customResourceDefinition,
+					"metadata": map[string]any{
+						"name": "minimal.example.org",
+					},
+					"spec": map[string]any{},
+				},
+			},
+			want: want{
+				out: map[string]any{
+					"apiVersion": v2alpha1.SchemeGroupVersion.String(),
+					"kind":       v2alpha1.ManagedResourceDefinitionKind,
+					"metadata": map[string]any{
+						"name": "minimal.example.org",
+					},
+					"spec": map[string]any{
+						"state": string(v2alpha1.ManagedResourceDefinitionActive),
+					},
+				},
+			},
+		},
+		"InvalidInputStructure": {
+			reason: "Should handle invalid input structure gracefully",
+			args: args{
+				defaultActive: false,
+				in: map[string]any{
+					"apiVersion": 123, // invalid type
+					"kind":       customResourceDefinition,
+					"metadata": map[string]any{
+						"name": "test.example.org",
+					},
+				},
+			},
+			want: want{
+				out: map[string]any{
+					"apiVersion": v2alpha1.SchemeGroupVersion.String(),
+					"kind":       v2alpha1.ManagedResourceDefinitionKind,
+					"metadata": map[string]any{
+						"name": "test.example.org",
+					},
+				},
+			},
+		},
+		"EmptyInputActive": {
+			reason: "Should handle empty input gracefully (active)",
+			args: args{
+				defaultActive: true,
+				in:            map[string]any{},
+			},
+			want: want{
+				out: map[string]any{
+					"apiVersion": v2alpha1.SchemeGroupVersion.String(),
+					"kind":       v2alpha1.ManagedResourceDefinitionKind,
+					"spec": map[string]any{
+						"state": string(v2alpha1.ManagedResourceDefinitionActive),
+					},
 				},
 			},
 		},
@@ -397,8 +678,11 @@ func TestConvertCRDToMRD(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := convertCRDToMRD(tc.args.in)
+			got, err := convertCRDToMRD(tc.args.defaultActive, tc.args.in)
 
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nconvertCRDToMRD(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
 			if diff := cmp.Diff(tc.want.out, got); diff != "" {
 				t.Errorf("\n%s\nconvertCRDToMRD(...): -want, +got:\n%s", tc.reason, diff)
 			}

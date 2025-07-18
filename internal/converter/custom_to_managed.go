@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
@@ -40,7 +41,9 @@ var (
 
 // CustomToManagedResourceDefinitions in place converts and returns any
 // CustomResourceDefinition runtime object into a ManagedResourceDefinition.
-func CustomToManagedResourceDefinitions(objects ...runtime.Object) []runtime.Object {
+func CustomToManagedResourceDefinitions(defaultActive bool, objects ...runtime.Object) ([]runtime.Object, error) {
+	var errs []error
+
 	extv1.Kind(customResourceDefinition)
 	for i, obj := range objects {
 		if obj.GetObjectKind().GroupVersionKind() == customResourceDefinitionKind {
@@ -48,35 +51,53 @@ func CustomToManagedResourceDefinitions(objects ...runtime.Object) []runtime.Obj
 			obj := obj.DeepCopyObject()
 			// The object has to be either an unstructured.Unstructured object or a CustomResourceDefinition
 			switch o := obj.(type) {
-			// to covert, all we need to worry about is the metadata. The spec.state value will be defaulted.
+			// to covert, all we need to worry about is the metadata and spec.state.
 			case *unstructured.Unstructured:
-				o.Object = convertCRDToMRD(o.Object)
+				mrdObject, err := convertCRDToMRD(defaultActive, o.Object)
+				if err != nil {
+					errs = append(errs, err)
+					continue
+				}
+				o.Object = mrdObject
 				objects[i] = o
 			default:
 				b, err := json.Marshal(o)
 				if err != nil {
-					panic(err)
+					errs = append(errs, err)
+					continue
 				}
 				u := &unstructured.Unstructured{}
 				if err := json.Unmarshal(b, u); err != nil {
-					panic(err)
+					errs = append(errs, err)
+					continue
 				}
-				u.Object = convertCRDToMRD(u.Object)
+				mrdObject, err := convertCRDToMRD(defaultActive, u.Object)
+				if err != nil {
+					errs = append(errs, err)
+					continue
+				}
+				u.Object = mrdObject
 				objects[i] = u
 			}
 		}
 	}
-	return objects
+	return objects, errors.Join(errs...)
 }
 
-func convertCRDToMRD(in map[string]any) map[string]any {
+func convertCRDToMRD(defaultActive bool, in map[string]any) (map[string]any, error) {
 	paved := fieldpath.Pave(in)
 	if err := paved.SetValue("apiVersion", v2alpha1.SchemeGroupVersion.String()); err != nil {
-		panic(err)
+		return in, err
 	}
 	if err := paved.SetValue("kind", v2alpha1.ManagedResourceDefinitionKind); err != nil {
-		panic(err)
+		return in, err
 	}
-	// We don't have to set spec.state directly. We will use the default or existing resource to get this value.
-	return paved.UnstructuredContent()
+	// We don't have to set spec.state directly when Inactive.
+	// We will use the default or existing resource to get this value.
+	if defaultActive {
+		if err := paved.SetValue("spec.state", v2alpha1.ManagedResourceDefinitionActive); err != nil {
+			return in, err
+		}
+	}
+	return paved.UnstructuredContent(), nil
 }

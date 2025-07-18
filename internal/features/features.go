@@ -65,4 +65,9 @@ const (
 	// compositions, i.e. watching composed resources and reconciling
 	// compositions immediately when any composed resource is updated.
 	EnableBetaRealtimeCompositions feature.Flag = "EnableBetaRealtimeCompositions"
+
+	// EnableBetaCustomToManagedResourceConversion enables beta support for
+	// custom resource definition to managed resource definition conversion.
+	// Conversion happens at provider install time.
+	EnableBetaCustomToManagedResourceConversion feature.Flag = "EnableBetaCustomToManagedResourceConversion"
 )
