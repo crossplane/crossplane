@@ -181,6 +181,8 @@ func TestOperationMultiStepPipeline(t *testing.T) {
 }
 
 func TestCronOperationScheduling(t *testing.T) {
+	var firstScheduleTime, firstSuccessTime time.Time
+
 	manifests := "test/e2e/manifests/ops/cronoperations/scheduling"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests CronOperation scheduling behavior, validating that it creates multiple Operations on schedule over time.").
@@ -198,28 +200,64 @@ func TestCronOperationScheduling(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "cronoperation.yaml"),
 			)).
 			Assess("CronOperationCreatesFirstOperation", funcs.AllOf(
-				// Wait for CronOperation to create its first Operation
+				// Capture the first lastScheduleTime when CronOperation creates its first Operation
 				// Since the schedule is every minute, this should happen quickly
-				funcs.ResourcesHaveFieldValueWithin(90*time.Second, manifests, "cronoperation.yaml", "status.lastScheduleTime", funcs.Any),
+				funcs.ResourcesHaveFieldValueWithin(90*time.Second, manifests, "cronoperation.yaml", "status.lastScheduleTime",
+					funcs.FieldValueChecker(func(got any) bool {
+						if timeStr, ok := got.(string); ok {
+							if parsed, err := time.Parse(time.RFC3339, timeStr); err == nil {
+								firstScheduleTime = parsed
+								return true
+							}
+						}
+						return false
+					})),
 				// Verify the CronOperation has the correct status and schedule is active
 				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "cronoperation.yaml", xpv1.ReconcileSuccess(), v1alpha1.ScheduleActive()),
 			)).
 			Assess("FirstOperationSucceeds", funcs.AllOf(
-				// Verify the CronOperation's lastSuccessfulTime gets updated
-				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "cronoperation.yaml", "status.lastSuccessfulTime", funcs.Any),
-			)).
-			Assess("WaitForSecondCronTrigger", funcs.AllOf(
-				// Wait for at least 70 seconds to ensure the second cron schedule triggers
-				// The schedule is every minute, so we need to wait long enough for the second execution
-				funcs.SleepFor(70*time.Second),
+				// Capture the first lastSuccessfulTime when the first Operation completes
+				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "cronoperation.yaml", "status.lastSuccessfulTime",
+					funcs.FieldValueChecker(func(got any) bool {
+						if timeStr, ok := got.(string); ok {
+							if parsed, err := time.Parse(time.RFC3339, timeStr); err == nil {
+								firstSuccessTime = parsed
+								return true
+							}
+						}
+						return false
+					})),
 			)).
 			Assess("CronOperationCreatesSecondOperation", funcs.AllOf(
-				// After waiting, verify that the second Operation was created
-				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "cronoperation.yaml", "status.lastScheduleTime", funcs.Any),
+				// Wait for the second cron trigger to happen and create another Operation
+				// Verify the lastScheduleTime advances, proving a new Operation was created
+				// Since the schedule is every minute, we wait up to 2 minutes for the next trigger
+				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "cronoperation.yaml", "status.lastScheduleTime",
+					funcs.FieldValueChecker(func(got any) bool {
+						if timeStr, ok := got.(string); ok {
+							if parsed, err := time.Parse(time.RFC3339, timeStr); err == nil {
+								return parsed.After(firstScheduleTime)
+							}
+						}
+						return false
+					})),
+			)).
+			Assess("SecondOperationSucceeds", funcs.AllOf(
+				// Verify the second Operation also completes successfully
+				// Check that lastSuccessfulTime advances from the first success time
+				funcs.ResourcesHaveFieldValueWithin(90*time.Second, manifests, "cronoperation.yaml", "status.lastSuccessfulTime",
+					funcs.FieldValueChecker(func(got any) bool {
+						if timeStr, ok := got.(string); ok {
+							if parsed, err := time.Parse(time.RFC3339, timeStr); err == nil {
+								return parsed.After(firstSuccessTime)
+							}
+						}
+						return false
+					})),
 			)).
 			Assess("ValidateMultipleOperations", funcs.AllOf(
-				// Verify that we have created multiple Operations by checking that we have at least 2
-				// We use a custom validation function to count Operations with the correct label
+				// As a final validation, verify that we have the expected number of Operations
+				// We expect at least 2 Operations: one from each cron trigger
 				funcs.ListedResourcesValidatedWithin(30*time.Second,
 					&v1alpha1.OperationList{},
 					2, // At least 2 Operations should exist
