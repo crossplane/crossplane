@@ -504,6 +504,9 @@ func (av anyValue) String() string { return "Any" }
 // Any is a special 'want' value that indicates any value (except NotFound) should match.
 var Any = anyValue{} //nolint:gochecknoglobals // We treat this as a constant.
 
+// FieldValueChecker is a function that checks if a field value matches some criteria.
+type FieldValueChecker func(got any) bool
+
 // ResourcesHaveFieldValueWithin fails a test if the supplied resources do not
 // have the supplied value at the supplied field path within the supplied
 // duration. The supplied 'want' value must cmp.Equal the actual value.
@@ -544,6 +547,11 @@ func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, w
 
 			if err != nil {
 				return false
+			}
+
+			// If we have a custom checker function, use it
+			if checker, ok := want.(FieldValueChecker); ok {
+				return checker(got)
 			}
 
 			// If we want Any and we have a value (not NotFound), it matches
@@ -608,6 +616,11 @@ func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, wan
 
 			if err != nil {
 				return false
+			}
+
+			// If we have a custom checker function, use it
+			if checker, ok := want.(FieldValueChecker); ok {
+				return checker(got)
 			}
 
 			// If we want Any and we have a value (not NotFound), it matches
@@ -995,6 +1008,11 @@ func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path 
 				return false
 			}
 
+			// If we have a custom checker function, use it
+			if checker, ok := want.(FieldValueChecker); ok {
+				return checker(got)
+			}
+
 			// If we want Any and we have a value (not NotFound), it matches
 			if _, ok := want.(anyValue); ok {
 				return true
@@ -1105,6 +1123,11 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 
 			if err != nil {
 				return false
+			}
+
+			// If we have a custom checker function, use it
+			if checker, ok := want.(FieldValueChecker); ok {
+				return checker(got)
 			}
 
 			// If we want Any and we have a value (not NotFound), it matches
