@@ -241,6 +241,8 @@ func TestCronOperationScheduling(t *testing.T) {
 }
 
 func TestWatchOperationResourceChanges(t *testing.T) {
+	var firstScheduleTime, secondScheduleTime, thirdScheduleTime time.Time
+
 	manifests := "test/e2e/manifests/ops/watchoperations/resource-changes"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests WatchOperation resource change detection, validating that it creates Operations when watched resources are created, updated, deleted, or when multiple resources match the selector.").
@@ -265,10 +267,18 @@ func TestWatchOperationResourceChanges(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "test-configmap.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "test-configmap.yaml"),
 			)).
-			Assess("WatchOperationCreatesOperation", funcs.AllOf(
-				// Wait for WatchOperation to detect the ConfigMap and create an Operation
-				// This should happen quickly after the ConfigMap is created
-				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime", funcs.Any),
+			Assess("WatchOperationCreatesFirstOperation", funcs.AllOf(
+				// Capture the first lastScheduleTime when WatchOperation creates its first Operation
+				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime",
+					funcs.FieldValueChecker(func(got any) bool {
+						if timeStr, ok := got.(string); ok {
+							if parsed, err := time.Parse(time.RFC3339, timeStr); err == nil {
+								firstScheduleTime = parsed
+								return true
+							}
+						}
+						return false
+					})),
 				// Verify watching resources count is updated
 				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "watchoperation.yaml", "status.watchingResources", int64(1)),
 			)).
@@ -284,8 +294,19 @@ func TestWatchOperationResourceChanges(t *testing.T) {
 			)).
 			Assess("WatchOperationDetectsUpdate", funcs.AllOf(
 				// Wait for WatchOperation to detect the ConfigMap update and create another Operation
-				// The lastScheduleTime should be updated when a new Operation is created
-				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime", funcs.Any),
+				// Verify the lastScheduleTime advances, proving a new Operation was created
+				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime",
+					funcs.FieldValueChecker(func(got any) bool {
+						if timeStr, ok := got.(string); ok {
+							if parsed, err := time.Parse(time.RFC3339, timeStr); err == nil {
+								if parsed.After(firstScheduleTime) {
+									secondScheduleTime = parsed
+									return true
+								}
+							}
+						}
+						return false
+					})),
 			)).
 			Assess("CreateSecondWatchedResource", funcs.AllOf(
 				// Create a second ConfigMap that matches the label selector
@@ -294,7 +315,19 @@ func TestWatchOperationResourceChanges(t *testing.T) {
 			)).
 			Assess("WatchOperationDetectsSecondResource", funcs.AllOf(
 				// Wait for WatchOperation to detect the second ConfigMap and create another Operation
-				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime", funcs.Any),
+				// Verify the lastScheduleTime advances again, proving a third Operation was created
+				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime",
+					funcs.FieldValueChecker(func(got any) bool {
+						if timeStr, ok := got.(string); ok {
+							if parsed, err := time.Parse(time.RFC3339, timeStr); err == nil {
+								if parsed.After(secondScheduleTime) {
+									thirdScheduleTime = parsed
+									return true
+								}
+							}
+						}
+						return false
+					})),
 				// Verify watching resources count is updated to 2
 				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "watchoperation.yaml", "status.watchingResources", int64(2)),
 			)).
@@ -304,10 +337,18 @@ func TestWatchOperationResourceChanges(t *testing.T) {
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "test-configmap.yaml"),
 			)).
 			Assess("WatchOperationDetectsDeletion", funcs.AllOf(
-				// Wait for WatchOperation to detect the ConfigMap deletion and update lastScheduleTime
-				// Note: WatchOperations may not create Operations for deletion events since the resource is gone
-				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime", funcs.Any),
-				// Verify that we have the expected number of Operations
+				// Wait for WatchOperation to detect the ConfigMap deletion and create another Operation
+				// Verify the lastScheduleTime advances once more, proving a fourth Operation was created
+				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime",
+					funcs.FieldValueChecker(func(got any) bool {
+						if timeStr, ok := got.(string); ok {
+							if parsed, err := time.Parse(time.RFC3339, timeStr); err == nil {
+								return parsed.After(thirdScheduleTime)
+							}
+						}
+						return false
+					})),
+				// As a final validation, verify that we have the expected number of Operations
 				// We expect at least 4 Operations: create for first ConfigMap, update for first ConfigMap,
 				// create for second ConfigMap, and delete for first ConfigMap
 				funcs.ListedResourcesValidatedWithin(30*time.Second,
