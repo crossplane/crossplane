@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -48,6 +49,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/internal/converter"
 	"github.com/crossplane/crossplane/internal/dag"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/version"
@@ -105,13 +107,14 @@ const (
 
 // Event reasons.
 const (
-	reasonImageConfig  event.Reason = "ImageConfigSelection"
-	reasonParse        event.Reason = "ParsePackage"
-	reasonLint         event.Reason = "LintPackage"
-	reasonDependencies event.Reason = "ResolveDependencies"
-	reasonSync         event.Reason = "SyncPackage"
-	reasonDeactivate   event.Reason = "DeactivateRevision"
-	reasonPaused       event.Reason = "ReconciliationPaused"
+	reasonImageConfig     event.Reason = "ImageConfigSelection"
+	reasonParse           event.Reason = "ParsePackage"
+	reasonLint            event.Reason = "LintPackage"
+	reasonDependencies    event.Reason = "ResolveDependencies"
+	reasonFetchActivation event.Reason = "FetchActivationPolicy"
+	reasonSync            event.Reason = "SyncPackage"
+	reasonDeactivate      event.Reason = "DeactivateRevision"
+	reasonPaused          event.Reason = "ReconciliationPaused"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -874,8 +877,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
+	// The SafeStart feature converts CRDs to MRDs from a package and
+	// auto-generates a policy that works to enable those MRDs if no
+	// policy is found.
+	objects := pkg.GetMeta()
+	if slices.Contains(pr.GetCapabilities(), "SafeStart") {
+		// Convert CRDs to MRDs
+		objects = converter.CustomToManagedResourceDefinitions(objects...)
+	}
+
 	// Establish control or ownership of objects.
-	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1.PackageRevisionActive)
+	refs, err := r.objects.Establish(ctx, objects, pr, pr.GetDesiredState() == v1.PackageRevisionActive)
 	if err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
