@@ -53,12 +53,13 @@ const DefaultRetryLimit = 5
 
 // Event reasons.
 const (
-	reasonRunPipelineStep    = "RunPipelineStep"
-	reasonMaxFailures        = "MaxFailures"
-	reasonFunctionInvocation = "FunctionInvocation"
-	reasonInvalidOutput      = "InvalidOutput"
-	reasonInvalidResource    = "InvalidResource"
-	reasonInvalidPipeline    = "InvalidPipeline"
+	reasonRunPipelineStep       = "RunPipelineStep"
+	reasonMaxFailures           = "MaxFailures"
+	reasonFunctionInvocation    = "FunctionInvocation"
+	reasonInvalidOutput         = "InvalidOutput"
+	reasonInvalidResource       = "InvalidResource"
+	reasonInvalidPipeline       = "InvalidPipeline"
+	reasonBootstrapRequirements = "BootstrapRequirements"
 )
 
 // FieldOwnerPrefix is used to form the server-side apply field owner
@@ -75,6 +76,7 @@ type Reconciler struct {
 
 	pipeline  xfn.FunctionRunner
 	functions xfn.CapabilityChecker
+	resources xfn.RequiredResourcesFetcher
 }
 
 // Reconcile an Operation by running its function pipeline.
@@ -221,6 +223,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 		}
 
+		// Pre-populate bootstrap requirements
+		if fn.Requirements != nil {
+			req.RequiredResources = map[string]*fnv1.Resources{}
+			for _, sel := range fn.Requirements.RequiredResources {
+				resources, err := r.resources.Fetch(ctx, ToProtobufResourceSelector(sel))
+				if err != nil {
+					op.Status.Failures++
+
+					log.Debug("Cannot fetch bootstrap required resources", "error", err, "failures", op.Status.Failures, "requirement", sel.RequirementName)
+					err = errors.Wrapf(err, "cannot fetch bootstrap required resources for requirement %q", sel.RequirementName)
+					r.record.Event(op, event.Warning(reasonBootstrapRequirements, err))
+					status.MarkConditions(xpv1.ReconcileError(err))
+					_ = r.client.Status().Update(ctx, op)
+
+					return reconcile.Result{}, err
+				}
+
+				// Add to request (resources could be nil if not found)
+				req.RequiredResources[sel.RequirementName] = resources
+			}
+		}
+
 		req.Meta = &fnv1.RequestMeta{Tag: xfn.Tag(req)}
 
 		rsp, err := r.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
@@ -311,7 +335,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			op.Status.Failures++
 			log.Debug("Cannot apply desired resource", "error", err, "failures", op.Status.Failures, "resource-name", name)
 
-			err = errors.Wrap(err, "cannot load desired resource")
+			err = errors.Wrap(err, "cannot apply desired resource")
 			r.record.Event(op, event.Warning(reasonInvalidResource, err))
 			status.MarkConditions(xpv1.ReconcileError(err))
 			_ = r.client.Status().Update(ctx, op)
@@ -387,4 +411,31 @@ func AddPipelineStepOutput(pipeline []v1alpha1.PipelineStepStatus, step string, 
 		Step:   step,
 		Output: output,
 	})
+}
+
+// ToProtobufResourceSelector converts API RequiredResourceSelector to protobuf ResourceSelector.
+func ToProtobufResourceSelector(r v1alpha1.RequiredResourceSelector) *fnv1.ResourceSelector {
+	selector := &fnv1.ResourceSelector{
+		ApiVersion: r.APIVersion,
+		Kind:       r.Kind,
+		Namespace:  r.Namespace,
+	}
+
+	// You can only set one of name or matchLabels.
+	if r.Name != nil {
+		selector.Match = &fnv1.ResourceSelector_MatchName{
+			MatchName: *r.Name,
+		}
+		return selector
+	}
+
+	if len(r.MatchLabels) > 0 {
+		selector.Match = &fnv1.ResourceSelector_MatchLabels{
+			MatchLabels: &fnv1.MatchLabels{
+				Labels: r.MatchLabels,
+			},
+		}
+	}
+
+	return selector
 }

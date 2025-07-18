@@ -418,6 +418,55 @@ func TestReconcile(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
+		"BootstrapRequirementsFetchError": {
+			reason: "We should return an error if we can't fetch bootstrap requirements",
+			params: params{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							op := &v1alpha1.Operation{
+								Spec: v1alpha1.OperationSpec{
+									Pipeline: []v1alpha1.PipelineStep{
+										{
+											Step: "requires-resources",
+											FunctionRef: v1alpha1.FunctionReference{
+												Name: "function-cool",
+											},
+											Requirements: &v1alpha1.FunctionRequirements{
+												RequiredResources: []v1alpha1.RequiredResourceSelector{
+													{
+														RequirementName: "test-resources",
+														APIVersion:      "v1",
+														Kind:            "ConfigMap",
+														Name:            ptr.To("missing-configmap"),
+													},
+												},
+											},
+										},
+									},
+								},
+							}
+							op.DeepCopyInto(obj.(*v1alpha1.Operation))
+
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
+				opts: []ReconcilerOption{
+					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error {
+						return nil
+					})),
+					WithRequiredResourcesFetcher(xfn.RequiredResourcesFetcherFn(func(_ context.Context, _ *fnv1.ResourceSelector) (*fnv1.Resources, error) {
+						return nil, errors.New("boom")
+					})),
+				},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
+			},
+		},
 		"Success": {
 			reason: "We shouldn't return an error if we successfully run the Operation",
 			params: params{
@@ -621,6 +670,169 @@ func TestAddPipelineStepOutput(t *testing.T) {
 			got := AddPipelineStepOutput(tc.args.pipeline, tc.args.step, tc.args.output)
 			if diff := cmp.Diff(tc.want.pipeline, got); diff != "" {
 				t.Errorf("\n%s\nAddPipelineStepOutput(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestToProtobufResourceSelector(t *testing.T) {
+	type args struct {
+		selector v1alpha1.RequiredResourceSelector
+	}
+
+	type want struct {
+		selector *fnv1.ResourceSelector
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"BasicSelector": {
+			reason: "Should convert basic API version and kind",
+			args: args{
+				selector: v1alpha1.RequiredResourceSelector{
+					RequirementName: "test-req",
+					APIVersion:      "v1",
+					Kind:            "Pod",
+				},
+			},
+			want: want{
+				selector: &fnv1.ResourceSelector{
+					ApiVersion: "v1",
+					Kind:       "Pod",
+				},
+			},
+		},
+		"SelectorWithName": {
+			reason: "Should convert selector with specific name",
+			args: args{
+				selector: v1alpha1.RequiredResourceSelector{
+					RequirementName: "test-req",
+					APIVersion:      "v1",
+					Kind:            "Secret",
+					Name:            ptr.To("test-secret"),
+				},
+			},
+			want: want{
+				selector: &fnv1.ResourceSelector{
+					ApiVersion: "v1",
+					Kind:       "Secret",
+					Match: &fnv1.ResourceSelector_MatchName{
+						MatchName: "test-secret",
+					},
+				},
+			},
+		},
+		"SelectorWithLabels": {
+			reason: "Should convert selector with match labels",
+			args: args{
+				selector: v1alpha1.RequiredResourceSelector{
+					RequirementName: "test-req",
+					APIVersion:      "v1",
+					Kind:            "Pod",
+					MatchLabels: map[string]string{
+						"app": "test",
+						"env": "prod",
+					},
+				},
+			},
+			want: want{
+				selector: &fnv1.ResourceSelector{
+					ApiVersion: "v1",
+					Kind:       "Pod",
+					Match: &fnv1.ResourceSelector_MatchLabels{
+						MatchLabels: &fnv1.MatchLabels{
+							Labels: map[string]string{
+								"app": "test",
+								"env": "prod",
+							},
+						},
+					},
+				},
+			},
+		},
+		"SelectorWithNamespace": {
+			reason: "Should convert namespaced selector",
+			args: args{
+				selector: v1alpha1.RequiredResourceSelector{
+					RequirementName: "test-req",
+					APIVersion:      "v1",
+					Kind:            "ConfigMap",
+					Namespace:       ptr.To("default"),
+				},
+			},
+			want: want{
+				selector: &fnv1.ResourceSelector{
+					ApiVersion: "v1",
+					Kind:       "ConfigMap",
+					Namespace:  ptr.To("default"),
+				},
+			},
+		},
+		"SelectorWithNameAndNamespace": {
+			reason: "Should convert selector with both name and namespace",
+			args: args{
+				selector: v1alpha1.RequiredResourceSelector{
+					RequirementName: "test-req",
+					APIVersion:      "v1",
+					Kind:            "Secret",
+					Name:            ptr.To("my-secret"),
+					Namespace:       ptr.To("kube-system"),
+				},
+			},
+			want: want{
+				selector: &fnv1.ResourceSelector{
+					ApiVersion: "v1",
+					Kind:       "Secret",
+					Namespace:  ptr.To("kube-system"),
+					Match: &fnv1.ResourceSelector_MatchName{
+						MatchName: "my-secret",
+					},
+				},
+			},
+		},
+		"SelectorWithLabelsAndNamespace": {
+			reason: "Should convert selector with labels and namespace",
+			args: args{
+				selector: v1alpha1.RequiredResourceSelector{
+					RequirementName: "test-req",
+					APIVersion:      "apps/v1",
+					Kind:            "Deployment",
+					MatchLabels: map[string]string{
+						"tier": "frontend",
+					},
+					Namespace: ptr.To("production"),
+				},
+			},
+			want: want{
+				selector: &fnv1.ResourceSelector{
+					ApiVersion: "apps/v1",
+					Kind:       "Deployment",
+					Namespace:  ptr.To("production"),
+					Match: &fnv1.ResourceSelector_MatchLabels{
+						MatchLabels: &fnv1.MatchLabels{
+							Labels: map[string]string{
+								"tier": "frontend",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := ToProtobufResourceSelector(tc.args.selector)
+			if diff := cmp.Diff(tc.want.selector, got, cmpopts.IgnoreUnexported(
+				fnv1.ResourceSelector{},
+				fnv1.ResourceSelector_MatchName{},
+				fnv1.ResourceSelector_MatchLabels{},
+				fnv1.MatchLabels{},
+			)); diff != "" {
+				t.Errorf("\n%s\nToProtobufResourceSelector(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

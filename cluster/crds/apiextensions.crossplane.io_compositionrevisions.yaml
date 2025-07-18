@@ -164,6 +164,61 @@ spec:
                       type: object
                       x-kubernetes-embedded-resource: true
                       x-kubernetes-preserve-unknown-fields: true
+                    requirements:
+                      description: |-
+                        Requirements are resource requirements that will be satisfied before
+                        this pipeline step is called for the first time. This allows
+                        pre-populating required resources without requiring a function to
+                        request them first.
+                      properties:
+                        requiredResources:
+                          description: |-
+                            RequiredResources is a list of resources that must be fetched before
+                            this function is called.
+                          items:
+                            description: RequiredResourceSelector selects a required
+                              resource.
+                            properties:
+                              apiVersion:
+                                description: APIVersion of the required resource.
+                                type: string
+                              kind:
+                                description: Kind of the required resource.
+                                type: string
+                              matchLabels:
+                                additionalProperties:
+                                  type: string
+                                description: |-
+                                  MatchLabels specifies the set of labels to match for finding the
+                                  required resource. When specified, Name is ignored.
+                                type: object
+                              name:
+                                description: Name of the required resource.
+                                type: string
+                              namespace:
+                                description: Namespace of the required resource if
+                                  it is namespaced.
+                                type: string
+                              requirementName:
+                                description: |-
+                                  RequirementName is the unique name to identify this required resource
+                                  in the Required Resources map in the function request.
+                                type: string
+                            required:
+                            - apiVersion
+                            - kind
+                            - requirementName
+                            type: object
+                            x-kubernetes-validations:
+                            - message: Either name or matchLabels must be specified,
+                                but not both
+                              rule: (has(self.name) && !has(self.matchLabels)) ||
+                                (!has(self.name) && has(self.matchLabels))
+                          type: array
+                          x-kubernetes-list-map-keys:
+                          - requirementName
+                          x-kubernetes-list-type: map
+                      type: object
                     step:
                       description: Step name. Must be unique within its Pipeline.
                       type: string

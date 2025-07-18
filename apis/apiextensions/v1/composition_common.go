@@ -77,6 +77,13 @@ type PipelineStep struct {
 	// +listType=map
 	// +listMapKey=name
 	Credentials []FunctionCredentials `json:"credentials,omitempty"`
+
+	// Requirements are resource requirements that will be satisfied before
+	// this pipeline step is called for the first time. This allows
+	// pre-populating required resources without requiring a function to
+	// request them first.
+	// +optional
+	Requirements *FunctionRequirements `json:"requirements,omitempty"`
 }
 
 // A FunctionReference references a function that may be used in a
@@ -117,3 +124,42 @@ const (
 	// credentials from a secret.
 	FunctionCredentialsSourceSecret FunctionCredentialsSource = "Secret"
 )
+
+// FunctionRequirements define requirements that a function may need to
+// satisfy.
+type FunctionRequirements struct {
+	// RequiredResources is a list of resources that must be fetched before
+	// this function is called.
+	// +optional
+	// +listType=map
+	// +listMapKey=requirementName
+	RequiredResources []RequiredResourceSelector `json:"requiredResources,omitempty"`
+}
+
+// RequiredResourceSelector selects a required resource.
+//
+// +kubebuilder:validation:XValidation:rule="(has(self.name) && !has(self.matchLabels)) || (!has(self.name) && has(self.matchLabels))",message="Either name or matchLabels must be specified, but not both"
+type RequiredResourceSelector struct {
+	// RequirementName is the unique name to identify this required resource
+	// in the Required Resources map in the function request.
+	RequirementName string `json:"requirementName"`
+
+	// APIVersion of the required resource.
+	APIVersion string `json:"apiVersion"`
+
+	// Kind of the required resource.
+	Kind string `json:"kind"`
+
+	// Namespace of the required resource if it is namespaced.
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+
+	// Name of the required resource.
+	// +optional
+	Name *string `json:"name,omitempty"`
+
+	// MatchLabels specifies the set of labels to match for finding the
+	// required resource. When specified, Name is ignored.
+	// +optional
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+}

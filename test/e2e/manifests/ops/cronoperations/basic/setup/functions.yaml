@@ -1,0 +1,7 @@
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-dummy-cronops-basic
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.1

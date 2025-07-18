@@ -47,25 +47,25 @@ type PrometheusMetrics struct {
 func NewPrometheusMetrics() *PrometheusMetrics {
 	return &PrometheusMetrics{
 		controllersStarted: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: "engine",
 			Name:      "controllers_started_total",
 			Help:      "Total number of XR controllers started.",
 		}, []string{"controller"}),
 
 		controllersStopped: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: "engine",
 			Name:      "controllers_stopped_total",
 			Help:      "Total number of XR controllers stopped.",
 		}, []string{"controller"}),
 
 		watchesStarted: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: "engine",
 			Name:      "watches_started_total",
 			Help:      "Total number of watches started.",
 		}, []string{"controller", "type"}),
 
 		watchesStopped: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: "engine",
 			Name:      "watches_stopped_total",
 			Help:      "Total number of watches stopped.",
 		}, []string{"controller", "type"}),

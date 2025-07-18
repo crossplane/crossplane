@@ -13,7 +13,7 @@ on:
 
 env:
   # Common versions
-  EARTHLY_VERSION: '0.8.15'
+  EARTHLY_VERSION: '0.8.16'
 
   LOG_LEVEL: "info"
 

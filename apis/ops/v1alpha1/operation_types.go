@@ -45,6 +45,10 @@ type OperationSpec struct {
 
 	// Pipeline is a list of operation function steps that will be used when
 	// this operation runs.
+	// +listType=map
+	// +listMapKey=step
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=99
 	Pipeline []PipelineStep `json:"pipeline"`
 
 	// RetryLimit configures how many times the operation may fail. When the
@@ -73,7 +77,16 @@ type PipelineStep struct {
 
 	// Credentials are optional credentials that the operation function needs.
 	// +optional
+	// +listType=map
+	// +listMapKey=name
 	Credentials []FunctionCredentials `json:"credentials,omitempty"`
+
+	// Requirements are resource requirements that will be satisfied before
+	// this pipeline step is called for the first time. This allows
+	// pre-populating required resources without requiring a function to
+	// request them first.
+	// +optional
+	Requirements *FunctionRequirements `json:"requirements,omitempty"`
 }
 
 // A FunctionReference references an operation function that may be used in an
@@ -112,6 +125,45 @@ const (
 	// credentials from a secret.
 	FunctionCredentialsSourceSecret FunctionCredentialsSource = "Secret"
 )
+
+// FunctionRequirements specifies resource requirements for a pipeline step.
+type FunctionRequirements struct {
+	// RequiredResources that will be fetched before this pipeline step
+	// is called for the first time.
+	// +optional
+	// +listType=map
+	// +listMapKey=requirementName
+	RequiredResources []RequiredResourceSelector `json:"requiredResources,omitempty"`
+}
+
+// RequiredResourceSelector selects resources that should be fetched before
+// a pipeline step runs.
+// +kubebuilder:validation:XValidation:rule="(has(self.name) && !has(self.matchLabels)) || (!has(self.name) && has(self.matchLabels))",message="Either name or matchLabels must be specified, but not both"
+type RequiredResourceSelector struct {
+	// RequirementName uniquely identifies this group of resources.
+	// This name will be used as the key in RunFunctionRequest.required_resources.
+	RequirementName string `json:"requirementName"`
+
+	// APIVersion of resources to select.
+	APIVersion string `json:"apiVersion"`
+
+	// Kind of resources to select.
+	Kind string `json:"kind"`
+
+	// Name matches a single resource by name. Only one of Name or
+	// MatchLabels may be specified.
+	// +optional
+	Name *string `json:"name,omitempty"`
+
+	// MatchLabels matches resources by label selector. Only one of Name or
+	// MatchLabels may be specified.
+	// +optional
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+
+	// Namespace to search for resources. Optional for cluster-scoped resources.
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+}
 
 // OperationStatus represents the observed state of an operation.
 type OperationStatus struct {
@@ -176,8 +228,9 @@ func (r *AppliedResourceRef) Equals(other AppliedResourceRef) bool {
 // two operation.
 //
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
 // +kubebuilder:printcolumn:name="SUCCEEDED",type="string",JSONPath=".status.conditions[?(@.type=='Succeeded')].status"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=ops
 type Operation struct {
 	metav1.TypeMeta   `json:",inline"`

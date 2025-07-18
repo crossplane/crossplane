@@ -81,6 +81,7 @@ const (
 	errFmtInvalidName                 = "cannot apply composed resource %q because it has an invalid name %q. Must be a valid RFC 1123 subdomain name."
 	errFmtGetResourceMapping          = "cannot check if composed resource %q is namespaced (a %s named %s)"
 	errFmtNamespacedXRClusterResource = "cannot apply cluster scoped composed resource %q (a %s named %s) for a namespaced composite resource."
+	errFmtFetchBootstrapRequirements  = "cannot fetch bootstrap required resources for requirement %q"
 )
 
 // Server-side-apply field owners. We need two of these because it's possible
@@ -106,6 +107,7 @@ type FunctionComposer struct {
 	client    client.Client
 	composite xr
 	pipeline  FunctionRunner
+	resources xfn.RequiredResourcesFetcher
 }
 
 type xr struct {
@@ -215,6 +217,14 @@ func WithManagedFieldsUpgrader(u ManagedFieldsUpgrader) FunctionComposerOption {
 	}
 }
 
+// WithRequiredResourcesFetcher configures how the FunctionComposer should
+// fetch required resources for composition functions.
+func WithRequiredResourcesFetcher(f xfn.RequiredResourcesFetcher) FunctionComposerOption {
+	return func(p *FunctionComposer) {
+		p.resources = f
+	}
+}
+
 // NewFunctionComposer returns a new Composer that supports composing resources using
 // both Patch and Transform (P&T) logic and a pipeline of Composition Functions.
 func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...FunctionComposerOption) *FunctionComposer {
@@ -231,7 +241,8 @@ func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...
 			ManagedFieldsUpgrader:            NewPatchingManagedFieldsUpgrader(cached),
 		},
 
-		pipeline: r,
+		pipeline:  r,
+		resources: xfn.NewExistingRequiredResourcesFetcher(cached),
 	}
 
 	for _, fn := range o {
@@ -317,6 +328,18 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 						Data: s.Data,
 					},
 				},
+			}
+		}
+
+		// Pre-populate bootstrap requirements
+		if fn.Requirements != nil {
+			req.RequiredResources = map[string]*fnv1.Resources{}
+			for _, sel := range fn.Requirements.RequiredResources {
+				resources, err := c.resources.Fetch(ctx, ToProtobufResourceSelector(sel))
+				if err != nil {
+					return CompositionResult{}, errors.Wrapf(err, errFmtFetchBootstrapRequirements, sel.RequirementName)
+				}
+				req.RequiredResources[sel.RequirementName] = resources
 			}
 		}
 
@@ -609,6 +632,33 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	}
 
 	return result, nil
+}
+
+// ToProtobufResourceSelector converts API RequiredResourceSelector to protobuf ResourceSelector.
+func ToProtobufResourceSelector(r v1.RequiredResourceSelector) *fnv1.ResourceSelector {
+	selector := &fnv1.ResourceSelector{
+		ApiVersion: r.APIVersion,
+		Kind:       r.Kind,
+		Namespace:  r.Namespace,
+	}
+
+	// You can only set one of name or matchLabels.
+	if r.Name != nil {
+		selector.Match = &fnv1.ResourceSelector_MatchName{
+			MatchName: *r.Name,
+		}
+		return selector
+	}
+
+	if len(r.MatchLabels) > 0 {
+		selector.Match = &fnv1.ResourceSelector_MatchLabels{
+			MatchLabels: &fnv1.MatchLabels{
+				Labels: r.MatchLabels,
+			},
+		}
+	}
+
+	return selector
 }
 
 // Tag uniquely identifies a request. Two identical requests created by the

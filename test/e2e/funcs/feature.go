@@ -486,10 +486,17 @@ func (nf notFound) String() string { return "NotFound" }
 // not be found.
 var NotFound = notFound{} //nolint:gochecknoglobals // We treat this as a constant.
 
+type anyValue struct{}
+
+func (av anyValue) String() string { return "Any" }
+
+// Any is a special 'want' value that indicates any value (except NotFound) should match.
+var Any = anyValue{} //nolint:gochecknoglobals // We treat this as a constant.
+
 // ResourcesHaveFieldValueWithin fails a test if the supplied resources do not
 // have the supplied value at the supplied field path within the supplied
 // duration. The supplied 'want' value must cmp.Equal the actual value.
-func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, want any, options ...decoder.DecodeOption) features.Func {
+func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, want any, options ...decoder.DecodeOption) features.Func { //nolint:gocognit // Only a little over.
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
@@ -518,10 +525,19 @@ func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, w
 				if _, ok := want.(notFound); ok {
 					return true
 				}
+				// If we want Any but got NotFound, it doesn't match
+				if _, ok := want.(anyValue); ok {
+					return false
+				}
 			}
 
 			if err != nil {
 				return false
+			}
+
+			// If we want Any and we have a value (not NotFound), it matches
+			if _, ok := want.(anyValue); ok {
+				return true
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {
@@ -535,8 +551,12 @@ func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, w
 		start := time.Now()
 
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
-			y, _ := yaml.Marshal(list.Items)
-			t.Errorf("resources did not have desired value %q at field path %s: %v:\n\n%s\n\n", want, path, err, y)
+			objs := make([]client.Object, len(list.Items))
+			for i := range list.Items {
+				objs[i] = &list.Items[i]
+			}
+
+			t.Errorf("resources did not have desired value %q at field path %s: %v:\n\n%s\n\n", want, path, err, toYAML(objs...))
 
 			return ctx
 		}
@@ -569,10 +589,19 @@ func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, wan
 				if _, ok := want.(notFound); ok {
 					return true
 				}
+				// If we want Any but got NotFound, it doesn't match
+				if _, ok := want.(anyValue); ok {
+					return false
+				}
 			}
 
 			if err != nil {
 				return false
+			}
+
+			// If we want Any and we have a value (not NotFound), it matches
+			if _, ok := want.(anyValue); ok {
+				return true
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {
@@ -902,7 +931,7 @@ func CompositeResourceMustMatchWithin(d time.Duration, dir, claimFile string, ma
 // CompositeResourceHasFieldValueWithin asserts that the XR referred to by the
 // claim in the given file has the specified value at the specified path within
 // the specified time.
-func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path string, want any, options ...decoder.DecodeOption) features.Func {
+func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path string, want any, options ...decoder.DecodeOption) features.Func { //nolint:gocognit // Only a little over.
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
@@ -945,10 +974,19 @@ func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path 
 				if _, ok := want.(notFound); ok {
 					return true
 				}
+				// If we want Any but got NotFound, it doesn't match
+				if _, ok := want.(anyValue); ok {
+					return false
+				}
 			}
 
 			if err != nil {
 				return false
+			}
+
+			// If we want Any and we have a value (not NotFound), it matches
+			if _, ok := want.(anyValue); ok {
+				return true
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {
@@ -1048,10 +1086,19 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 				if _, ok := want.(notFound); ok {
 					return true
 				}
+				// If we want Any but got NotFound, it doesn't match
+				if _, ok := want.(anyValue); ok {
+					return false
+				}
 			}
 
 			if err != nil {
 				return false
+			}
+
+			// If we want Any and we have a value (not NotFound), it matches
+			if _, ok := want.(anyValue); ok {
+				return true
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {
