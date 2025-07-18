@@ -10,8 +10,8 @@ spec:
     matchLabels:
       test: basic-watchop
   concurrencyPolicy: Allow
-  successfulHistoryLimit: 2
-  failedHistoryLimit: 1
+  successfulHistoryLimit: 10
+  failedHistoryLimit: 5
   operationTemplate:
     spec:
       mode: Pipeline

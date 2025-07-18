@@ -22,6 +22,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
@@ -52,10 +53,10 @@ func init() {
 	)
 }
 
-func TestBasicOperation(t *testing.T) {
+func TestOperation(t *testing.T) {
 	cm := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "cool-map"}}
 
-	manifests := "test/e2e/manifests/ops/operations/basic"
+	manifests := "test/e2e/manifests/ops/operations/simple"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests the correct functioning of a basic Operation that creates a ConfigMap.").
 			WithLabel(LabelArea, LabelAreaOps).
@@ -79,98 +80,6 @@ func TestBasicOperation(t *testing.T) {
 			WithTeardown("DeleteOperation", funcs.AllOf(
 				funcs.DeleteResources(manifests, "operation.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "operation.yaml"),
-			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
-			)).
-			Feature(),
-	)
-}
-
-func TestBasicCronOperation(t *testing.T) {
-	manifests := "test/e2e/manifests/ops/cronoperations/basic"
-	environment.Test(t,
-		features.NewWithDescription(t.Name(), "Tests the correct functioning of a basic CronOperation that creates Operations on schedule.").
-			WithLabel(LabelArea, LabelAreaOps).
-			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(config.LabelTestSuite, SuiteOps).
-			WithSetup("CreatePrerequisites", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
-				// Wait for function to be ready with capabilities before creating Operation
-				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/*.yaml", pkgv1.Healthy(), pkgv1.Active()),
-			)).
-			Assess("CreateCronOperation", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "cronoperation.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "cronoperation.yaml"),
-			)).
-			Assess("CronOperationCreatesOperation", funcs.AllOf(
-				// Wait for CronOperation to create its first Operation
-				// Since the schedule is every minute, this should happen quickly
-				funcs.ResourcesHaveFieldValueWithin(90*time.Second, manifests, "cronoperation.yaml", "status.lastScheduleTime", funcs.Any),
-				// Verify the CronOperation has the correct status and schedule is active
-				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "cronoperation.yaml", xpv1.ReconcileSuccess(), v1alpha1.ScheduleActive()),
-			)).
-			Assess("OperationSucceeds", funcs.AllOf(
-				// Verify the CronOperation's lastSuccessfulTime gets updated
-				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "cronoperation.yaml", "status.lastSuccessfulTime", funcs.Any),
-			)).
-			WithTeardown("DeleteCronOperation", funcs.AllOf(
-				funcs.DeleteResources(manifests, "cronoperation.yaml"),
-				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "cronoperation.yaml"),
-			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
-			)).
-			Feature(),
-	)
-}
-
-func TestBasicWatchOperation(t *testing.T) {
-	manifests := "test/e2e/manifests/ops/watchoperations/basic"
-	environment.Test(t,
-		features.NewWithDescription(t.Name(), "Tests the correct functioning of a basic WatchOperation that creates Operations when watched resources change.").
-			WithLabel(LabelArea, LabelAreaOps).
-			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(config.LabelTestSuite, SuiteOps).
-			WithSetup("CreatePrerequisites", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
-				// Wait for function to be ready with capabilities before creating Operation
-				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/*.yaml", pkgv1.Healthy(), pkgv1.Active()),
-			)).
-			Assess("CreateWatchOperation", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "watchoperation.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "watchoperation.yaml"),
-			)).
-			Assess("WatchOperationEstablishesWatching", funcs.AllOf(
-				// Wait for WatchOperation to become ready (controller started) and actively watching
-				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "watchoperation.yaml", xpv1.ReconcileSuccess(), v1alpha1.WatchActive()),
-			)).
-			Assess("CreateWatchedResource", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "test-configmap.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "test-configmap.yaml"),
-			)).
-			Assess("WatchOperationCreatesOperation", funcs.AllOf(
-				// Wait for WatchOperation to detect the ConfigMap and create an Operation
-				// This should happen quickly after the ConfigMap is created
-				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime", funcs.Any),
-				// Verify watching resources count is updated
-				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "watchoperation.yaml", "status.watchingResources", int64(1)),
-			)).
-			Assess("OperationSucceeds", funcs.AllOf(
-				// Verify the WatchOperation's lastSuccessfulTime gets updated when Operation completes
-				funcs.ResourcesHaveFieldValueWithin(90*time.Second, manifests, "watchoperation.yaml", "status.lastSuccessfulTime", funcs.Any),
-			)).
-			WithTeardown("DeleteWatchedResource", funcs.AllOf(
-				funcs.DeleteResources(manifests, "test-configmap.yaml"),
-				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "test-configmap.yaml"),
-			)).
-			WithTeardown("DeleteWatchOperation", funcs.AllOf(
-				funcs.DeleteResources(manifests, "watchoperation.yaml"),
-				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "watchoperation.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
@@ -222,7 +131,7 @@ func TestOperationMultiStepPipeline(t *testing.T) {
 	cmA := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "multi-step-configmap-a"}}
 	cmB := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "multi-step-configmap-b"}}
 
-	manifests := "test/e2e/manifests/ops/operations/multi-step"
+	manifests := "test/e2e/manifests/ops/operations/pipeline"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests multi-step pipeline execution with function output capture.").
 			WithLabel(LabelArea, LabelAreaOps).
@@ -262,6 +171,160 @@ func TestOperationMultiStepPipeline(t *testing.T) {
 			WithTeardown("DeleteOperation", funcs.AllOf(
 				funcs.DeleteResources(manifests, "operation.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "operation.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestCronOperationScheduling(t *testing.T) {
+	manifests := "test/e2e/manifests/ops/cronoperations/scheduling"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests CronOperation scheduling behavior, validating that it creates multiple Operations on schedule over time.").
+			WithLabel(LabelArea, LabelAreaOps).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteOps).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				// Wait for function to be ready with capabilities before creating Operation
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/*.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateCronOperation", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "cronoperation.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "cronoperation.yaml"),
+			)).
+			Assess("CronOperationCreatesFirstOperation", funcs.AllOf(
+				// Wait for CronOperation to create its first Operation
+				// Since the schedule is every minute, this should happen quickly
+				funcs.ResourcesHaveFieldValueWithin(90*time.Second, manifests, "cronoperation.yaml", "status.lastScheduleTime", funcs.Any),
+				// Verify the CronOperation has the correct status and schedule is active
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "cronoperation.yaml", xpv1.ReconcileSuccess(), v1alpha1.ScheduleActive()),
+			)).
+			Assess("FirstOperationSucceeds", funcs.AllOf(
+				// Verify the CronOperation's lastSuccessfulTime gets updated
+				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "cronoperation.yaml", "status.lastSuccessfulTime", funcs.Any),
+			)).
+			Assess("WaitForSecondCronTrigger", funcs.AllOf(
+				// Wait for at least 70 seconds to ensure the second cron schedule triggers
+				// The schedule is every minute, so we need to wait long enough for the second execution
+				funcs.SleepFor(70*time.Second),
+			)).
+			Assess("CronOperationCreatesSecondOperation", funcs.AllOf(
+				// After waiting, verify that the second Operation was created
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "cronoperation.yaml", "status.lastScheduleTime", funcs.Any),
+			)).
+			Assess("ValidateMultipleOperations", funcs.AllOf(
+				// Verify that we have created multiple Operations by checking that we have at least 2
+				// We use a custom validation function to count Operations with the correct label
+				funcs.ListedResourcesValidatedWithin(30*time.Second,
+					&v1alpha1.OperationList{},
+					2, // At least 2 Operations should exist
+					func(o k8s.Object) bool {
+						// Check if this Operation was created by our CronOperation
+						return o.GetLabels()[v1alpha1.LabelCronOperationName] == "basic-cronop"
+					}),
+			)).
+			WithTeardown("DeleteCronOperation", funcs.AllOf(
+				funcs.DeleteResources(manifests, "cronoperation.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "cronoperation.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestWatchOperationResourceChanges(t *testing.T) {
+	manifests := "test/e2e/manifests/ops/watchoperations/resource-changes"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests WatchOperation resource change detection, validating that it creates Operations when watched resources are created, updated, deleted, or when multiple resources match the selector.").
+			WithLabel(LabelArea, LabelAreaOps).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteOps).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				// Wait for function to be ready with capabilities before creating Operation
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/*.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateWatchOperation", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "watchoperation.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "watchoperation.yaml"),
+			)).
+			Assess("WatchOperationEstablishesWatching", funcs.AllOf(
+				// Wait for WatchOperation to become ready (controller started) and actively watching
+				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "watchoperation.yaml", xpv1.ReconcileSuccess(), v1alpha1.WatchActive()),
+			)).
+			Assess("CreateWatchedResource", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "test-configmap.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "test-configmap.yaml"),
+			)).
+			Assess("WatchOperationCreatesOperation", funcs.AllOf(
+				// Wait for WatchOperation to detect the ConfigMap and create an Operation
+				// This should happen quickly after the ConfigMap is created
+				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime", funcs.Any),
+				// Verify watching resources count is updated
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "watchoperation.yaml", "status.watchingResources", int64(1)),
+			)).
+			Assess("FirstOperationSucceeds", funcs.AllOf(
+				// Verify the WatchOperation's lastSuccessfulTime gets updated when Operation completes
+				funcs.ResourcesHaveFieldValueWithin(90*time.Second, manifests, "watchoperation.yaml", "status.lastSuccessfulTime", funcs.Any),
+			)).
+			Assess("UpdateWatchedResource", funcs.AllOf(
+				// Update the ConfigMap to trigger another Operation
+				funcs.ApplyResources(FieldManager, manifests, "test-configmap-updated.yaml"),
+				// Wait for the update to be processed
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "test-configmap-updated.yaml", "data.testData", "I trigger WatchOperations again!"),
+			)).
+			Assess("WatchOperationDetectsUpdate", funcs.AllOf(
+				// Wait for WatchOperation to detect the ConfigMap update and create another Operation
+				// The lastScheduleTime should be updated when a new Operation is created
+				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime", funcs.Any),
+			)).
+			Assess("CreateSecondWatchedResource", funcs.AllOf(
+				// Create a second ConfigMap that matches the label selector
+				funcs.ApplyResources(FieldManager, manifests, "test-configmap-second.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "test-configmap-second.yaml"),
+			)).
+			Assess("WatchOperationDetectsSecondResource", funcs.AllOf(
+				// Wait for WatchOperation to detect the second ConfigMap and create another Operation
+				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime", funcs.Any),
+				// Verify watching resources count is updated to 2
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "watchoperation.yaml", "status.watchingResources", int64(2)),
+			)).
+			Assess("DeleteFirstWatchedResource", funcs.AllOf(
+				// Delete the first ConfigMap to trigger another Operation
+				funcs.DeleteResources(manifests, "test-configmap.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "test-configmap.yaml"),
+			)).
+			Assess("WatchOperationDetectsDeletion", funcs.AllOf(
+				// Wait for WatchOperation to detect the ConfigMap deletion and update lastScheduleTime
+				// Note: WatchOperations may not create Operations for deletion events since the resource is gone
+				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime", funcs.Any),
+				// Verify that we have the expected number of Operations
+				// We expect at least 4 Operations: create for first ConfigMap, update for first ConfigMap,
+				// create for second ConfigMap, and delete for first ConfigMap
+				funcs.ListedResourcesValidatedWithin(30*time.Second,
+					&v1alpha1.OperationList{},
+					4, // At least 4 Operations should exist
+					func(o k8s.Object) bool {
+						// Check if this Operation was created by our WatchOperation
+						return o.GetLabels()[v1alpha1.LabelWatchOperationName] == "basic-watchop"
+					}),
+			)).
+			WithTeardown("DeleteSecondWatchedResource", funcs.AllOf(
+				funcs.DeleteResources(manifests, "test-configmap-second.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "test-configmap-second.yaml"),
+			)).
+			WithTeardown("DeleteWatchOperation", funcs.AllOf(
+				funcs.DeleteResources(manifests, "watchoperation.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "watchoperation.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),

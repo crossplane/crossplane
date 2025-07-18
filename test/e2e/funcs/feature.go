@@ -334,6 +334,17 @@ func ResourcesDeletedWithin(d time.Duration, dir, pattern string, options ...dec
 	}
 }
 
+// SleepFor sleeps for the specified duration. This is useful for waiting
+// for time-based conditions to occur, such as cron schedules.
+func SleepFor(d time.Duration) features.Func {
+	return func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+		t.Helper()
+		t.Logf("Sleeping for %s...", d)
+		time.Sleep(d)
+		return ctx
+	}
+}
+
 // ResourceDeletedWithin fails a test if the supplied resource is not deleted
 // within the supplied duration.
 func ResourceDeletedWithin(d time.Duration, o k8s.Object) features.Func {
