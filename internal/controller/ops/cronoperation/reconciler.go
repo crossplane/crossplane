@@ -42,10 +42,11 @@ import (
 
 // Event reasons.
 const (
-	reasonInvalidSchedule = "InvalidSchedule"
-	reasonListOperations  = "ListOperations"
-	reasonDeleteOperation = "DeleteOperation"
-	reasonCreateOperation = "CreateOperation"
+	reasonInvalidSchedule          = "InvalidSchedule"
+	reasonListOperations           = "ListOperations"
+	reasonGarbageCollectOperations = "GarbageCollectOperations"
+	reasonReplaceRunningOperation  = "ReplaceRunningOperation"
+	reasonCreateOperation          = "CreateOperation"
 )
 
 // A Scheduler determines when the next Operation should run.
@@ -137,7 +138,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.client.Delete(ctx, &op); resource.IgnoreNotFound(err) != nil {
 			log.Debug("Cannot garbage collect Operation", "error", err, "operation", op.GetName())
 			err = errors.Wrapf(err, "cannot garbage collect Operation %q", op.GetName())
-			r.record.Event(co, event.Warning(reasonDeleteOperation, err))
+			r.record.Event(co, event.Warning(reasonGarbageCollectOperations, err))
 			status.MarkConditions(xpv1.ReconcileError(err))
 			_ = r.client.Status().Update(ctx, co)
 			return reconcile.Result{}, err
@@ -198,7 +199,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				if err := r.client.Delete(ctx, &op); resource.IgnoreNotFound(err) != nil {
 					log.Debug("Cannot delete running Operation", "error", err, "operation", op.GetName())
 					err = errors.Wrapf(err, "cannot delete running Operation %q", op.GetName())
-					r.record.Event(co, event.Warning(reasonDeleteOperation, err))
+					r.record.Event(co, event.Warning(reasonReplaceRunningOperation, err))
 					status.MarkConditions(xpv1.ReconcileError(err))
 					_ = r.client.Status().Update(ctx, co)
 					return reconcile.Result{}, err

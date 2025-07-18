@@ -46,10 +46,10 @@ const (
 
 // Event reasons.
 const (
-	reasonListOperations    event.Reason = "ListOperations"
-	reasonDeleteOperation   event.Reason = "DeleteOperation"
-	reasonCreateOperation   event.Reason = "CreateOperation"
-	reasonWatchOperationGet event.Reason = "GetWatchOperation"
+	reasonListOperations          event.Reason = "ListOperations"
+	reasonReplaceRunningOperation event.Reason = "ReplaceRunningOperation"
+	reasonCreateOperation         event.Reason = "CreateOperation"
+	reasonWatchOperationGet       event.Reason = "GetWatchOperation"
 )
 
 // A Reconciler reconciles watched resources by creating Operations
@@ -138,7 +138,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				if err := r.client.Delete(ctx, &op); resource.IgnoreNotFound(err) != nil {
 					log.Debug("Cannot delete running Operation", "error", err, "operation", op.GetName())
 					err = errors.Wrapf(err, "cannot delete running Operation %q", op.GetName())
-					r.record.Event(wo, event.Warning(reasonDeleteOperation, err))
+					r.record.Event(wo, event.Warning(reasonReplaceRunningOperation, err))
 					return reconcile.Result{}, err
 				}
 				log.Debug("Deleted running operation due to concurrency policy", "policy", p, "operation", op.GetName())
