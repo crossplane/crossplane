@@ -76,56 +76,56 @@ type PrometheusMetrics struct {
 func NewPrometheusMetrics() *PrometheusMetrics {
 	return &PrometheusMetrics{
 		hits: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: "function",
 			Name:      "run_function_response_cache_hits_total",
 			Help:      "Total number of RunFunctionResponse cache hits.",
 		}, []string{"function_name"}),
 
 		misses: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: "function",
 			Name:      "run_function_response_cache_misses_total",
 			Help:      "Total number of RunFunctionResponse cache misses.",
 		}, []string{"function_name"}),
 
 		errors: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: "function",
 			Name:      "run_function_response_cache_errors_total",
 			Help:      "Total number of RunFunctionResponse cache errors.",
 		}, []string{"function_name"}),
 
 		writes: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: "function",
 			Name:      "run_function_response_cache_writes_total",
 			Help:      "Total number of RunFunctionResponses cache writes.",
 		}, []string{"function_name"}),
 
 		deletes: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: "function",
 			Name:      "run_function_response_cache_deletes_total",
 			Help:      "Total number of RunFunctionResponses cache deletes.",
 		}, []string{"function_name"}),
 
 		bytesWritten: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: "function",
 			Name:      "run_function_response_cache_bytes_written_total",
 			Help:      "Total number of RunFunctionResponse bytes written.",
 		}, []string{"function_name"}),
 
 		bytesDeleted: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: "function",
 			Name:      "run_function_response_cache_bytes_deleted_total",
 			Help:      "Total number of RunFunctionResponse bytes deleted.",
 		}, []string{"function_name"}),
 
 		readDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Subsystem: "composition",
+			Subsystem: "function",
 			Name:      "run_function_response_cache_read_seconds",
 			Help:      "Histogram of RunFunctionResponse cache read time (seconds).",
 			Buckets:   prometheus.DefBuckets,
 		}, []string{"function_name"}),
 
 		writeDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Subsystem: "composition",
+			Subsystem: "function",
 			Name:      "run_function_response_cache_write_seconds",
 			Help:      "Histogram of RunFunctionResponse cache write time (seconds).",
 			Buckets:   prometheus.DefBuckets,

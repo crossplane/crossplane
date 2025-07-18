@@ -26,7 +26,7 @@ import (
 	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
 )
 
-// PrometheusMetrics are requests, errors, and duration (RED) metrics for composition
+// PrometheusMetrics are requests, errors, and duration (RED) metrics for
 // function runs.
 type PrometheusMetrics struct {
 	requests  *prometheus.CounterVec
@@ -34,23 +34,23 @@ type PrometheusMetrics struct {
 	duration  *prometheus.HistogramVec
 }
 
-// NewPrometheusMetrics creates metrics for composition function runs.
+// NewPrometheusMetrics creates metrics for function runs.
 func NewPrometheusMetrics() *PrometheusMetrics {
 	return &PrometheusMetrics{
 		requests: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: "function",
 			Name:      "run_function_request_total",
 			Help:      "Total number of RunFunctionRequests sent.",
 		}, []string{"function_name", "function_package", "grpc_target", "grpc_method"}),
 
 		responses: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: "function",
 			Name:      "run_function_response_total",
 			Help:      "Total number of RunFunctionResponses received.",
 		}, []string{"function_name", "function_package", "grpc_target", "grpc_method", "grpc_code", "result_severity"}),
 
 		duration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Subsystem: "composition",
+			Subsystem: "function",
 			Name:      "run_function_seconds",
 			Help:      "Histogram of RunFunctionResponse latency (seconds).",
 			Buckets:   prometheus.DefBuckets,
