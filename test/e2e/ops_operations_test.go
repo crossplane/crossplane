@@ -77,9 +77,6 @@ func TestBasicOperation(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "operation.yaml", v1alpha1.Complete()),
 				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.appliedResourceRefs[0].name", "cool-map"),
 				funcs.ResourceHasFieldValueWithin(30*time.Second, cm, "data[coolData]", "I'm cool!"),
-				// TODO(negz): Test function output when we have
-				// a function-dummy release containing this PR.
-				// https://github.com/crossplane-contrib/function-dummy/pull/42
 			)).
 			WithTeardown("DeleteOperation", funcs.AllOf(
 				funcs.DeleteResources(manifests, "operation.yaml"),
@@ -218,3 +215,57 @@ func TestOperationRetryLogic(t *testing.T) {
 			Feature(),
 	)
 }
+
+func TestOperationMultiStepPipeline(t *testing.T) {
+	cmA := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "multi-step-configmap-a"}}
+	cmB := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "multi-step-configmap-b"}}
+
+	manifests := "test/e2e/manifests/ops/operations/multi-step"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests multi-step pipeline execution with function output capture.").
+			WithLabel(LabelArea, LabelAreaOps).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteOps).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				// Wait for function to be ready with capabilities before creating Operation
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/*.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateOperation", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "operation.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "operation.yaml"),
+			)).
+			Assess("OperationExecutesPipelineSuccessfully", funcs.AllOf(
+				// Wait for Operation to become ready and succeed
+				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "operation.yaml", v1alpha1.Complete()),
+				// Verify both ConfigMaps were created by the pipeline
+				funcs.ResourceHasFieldValueWithin(30*time.Second, cmA, "data[step]", "1"),
+				funcs.ResourceHasFieldValueWithin(30*time.Second, cmA, "data[content]", "Created by step 1"),
+				funcs.ResourceHasFieldValueWithin(30*time.Second, cmB, "data[step]", "2"),
+				funcs.ResourceHasFieldValueWithin(30*time.Second, cmB, "data[content]", "Created by step 2"),
+				// Verify appliedResourceRefs contains both ConfigMaps
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.appliedResourceRefs[0].name", "multi-step-configmap-a"),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.appliedResourceRefs[1].name", "multi-step-configmap-b"),
+			)).
+			Assess("OperationCapturesFunctionOutputs", funcs.AllOf(
+				// Verify function outputs are captured in Operation status
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.pipeline[0].step", "create-configmap-a"),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.pipeline[0].output.stepName", "create-configmap-a"),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.pipeline[0].output.resourcesCreated", int64(1)),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.pipeline[1].step", "create-configmap-b"),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.pipeline[1].output.stepName", "create-configmap-b"),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.pipeline[1].output.totalPipelineResources", int64(2)),
+			)).
+			WithTeardown("DeleteOperation", funcs.AllOf(
+				funcs.DeleteResources(manifests, "operation.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "operation.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
