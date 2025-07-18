@@ -37,6 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	opsv1alpha1 "github.com/crossplane/crossplane/apis/ops/v1alpha1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
@@ -95,6 +96,7 @@ func HelmUninstall(o ...helm.Option) env.Func {
 func AddCrossplaneTypesToScheme() env.Func {
 	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
 		_ = apiextensionsv1.AddToScheme(c.Client().Resources().GetScheme())
+		_ = opsv1alpha1.AddToScheme(c.Client().Resources().GetScheme())
 		_ = pkgv1.AddToScheme(c.Client().Resources().GetScheme())
 
 		return ctx, nil

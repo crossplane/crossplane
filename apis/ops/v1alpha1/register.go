@@ -45,6 +45,24 @@ var (
 	OperationGroupVersionKind = SchemeGroupVersion.WithKind(OperationKind)
 )
 
+// CronOperation type metadata.
+var (
+	CronOperationKind             = reflect.TypeOf(CronOperation{}).Name()
+	CronOperationGroupKind        = schema.GroupKind{Group: Group, Kind: CronOperationKind}.String()
+	CronOperationKindAPIVersion   = CronOperationKind + "." + SchemeGroupVersion.String()
+	CronOperationGroupVersionKind = SchemeGroupVersion.WithKind(CronOperationKind)
+)
+
+// WatchOperation type metadata.
+var (
+	WatchOperationKind             = reflect.TypeOf(WatchOperation{}).Name()
+	WatchOperationGroupKind        = schema.GroupKind{Group: Group, Kind: WatchOperationKind}.String()
+	WatchOperationKindAPIVersion   = WatchOperationKind + "." + SchemeGroupVersion.String()
+	WatchOperationGroupVersionKind = SchemeGroupVersion.WithKind(WatchOperationKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&Operation{}, &OperationList{})
+	SchemeBuilder.Register(&CronOperation{}, &CronOperationList{})
+	SchemeBuilder.Register(&WatchOperation{}, &WatchOperationList{})
 }

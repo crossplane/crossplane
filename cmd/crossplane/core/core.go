@@ -427,8 +427,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	if o.Features.Enabled(features.EnableAlphaOperations) {
 		oo := opscontroller.Options{
-			Options:        o,
-			FunctionRunner: runner,
+			Options:          o,
+			FunctionRunner:   runner,
+			ControllerEngine: ce,
 		}
 		if err := ops.Setup(mgr, oo); err != nil {
 			return errors.Wrap(err, "cannot setup ops controllers")

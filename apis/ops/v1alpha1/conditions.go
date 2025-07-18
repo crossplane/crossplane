@@ -27,6 +27,14 @@ const (
 
 	// A TypeValidPipeline Operation has a valid function pipeline.
 	TypeValidPipeline xpv1.ConditionType = "ValidPipeline"
+
+	// A TypeWatching condition indicates whether a WatchOperation is
+	// actively watching resources.
+	TypeWatching xpv1.ConditionType = "Watching"
+
+	// A TypeScheduling condition indicates whether a CronOperation is
+	// actively scheduling operations.
+	TypeScheduling xpv1.ConditionType = "Scheduling"
 )
 
 // Reasons a package is or is not installed.
@@ -37,6 +45,14 @@ const (
 
 	ReasonValidPipeline       xpv1.ConditionReason = "ValidPipeline"
 	ReasonMissingCapabilities xpv1.ConditionReason = "MissingCapabilities"
+
+	ReasonWatchActive xpv1.ConditionReason = "WatchActive"
+	ReasonWatchFailed xpv1.ConditionReason = "WatchFailed"
+	ReasonWatchPaused xpv1.ConditionReason = "WatchPaused"
+
+	ReasonScheduleActive  xpv1.ConditionReason = "ScheduleActive"
+	ReasonScheduleInvalid xpv1.ConditionReason = "ScheduleInvalid"
+	ReasonSchedulePaused  xpv1.ConditionReason = "SchedulePaused"
 )
 
 // Running indicates that an operation is running.
@@ -89,5 +105,71 @@ func MissingCapabilities(message string) xpv1.Condition {
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonMissingCapabilities,
 		Message:            message,
+	}
+}
+
+// WatchActive indicates that a WatchOperation is actively watching resources.
+func WatchActive() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeWatching,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonWatchActive,
+	}
+}
+
+// WatchFailed indicates that a WatchOperation failed to establish or maintain
+// its watch.
+func WatchFailed(message string) xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeWatching,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonWatchFailed,
+		Message:            message,
+	}
+}
+
+// WatchPaused indicates that a WatchOperation is paused and not
+// actively watching resources.
+func WatchPaused() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeWatching,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonWatchPaused,
+	}
+}
+
+// ScheduleActive indicates that a CronOperation is actively scheduling
+// operations.
+func ScheduleActive() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeScheduling,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonScheduleActive,
+	}
+}
+
+// ScheduleInvalid indicates that a CronOperation has an invalid cron schedule.
+func ScheduleInvalid(message string) xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeScheduling,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonScheduleInvalid,
+		Message:            message,
+	}
+}
+
+// SchedulePaused indicates that a CronOperation is paused and not
+// actively scheduling operations.
+func SchedulePaused() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeScheduling,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonSchedulePaused,
 	}
 }

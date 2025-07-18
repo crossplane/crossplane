@@ -14,12 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package operation implements day two operations.
-package operation
+// Package cronoperation implements cron-based day two operations.
+package cronoperation
 
 import (
 	"strings"
+	"time"
 
+	"github.com/robfig/cron/v3"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -33,22 +35,21 @@ import (
 
 	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
 	opscontroller "github.com/crossplane/crossplane/internal/controller/ops/controller"
-	"github.com/crossplane/crossplane/internal/xfn"
 )
 
-// Setup adds a controller that reconciles Usages by
-// defining a composite resource and starting a controller to reconcile it.
+// Setup adds a controller that reconciles CronOperations by
+// creating Operations on a cron schedule.
 func Setup(mgr ctrl.Manager, o opscontroller.Options) error {
-	name := "ops/" + strings.ToLower(v1alpha1.OperationGroupKind)
+	name := "ops/" + strings.ToLower(v1alpha1.CronOperationGroupKind)
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		WithFunctionRunner(o.FunctionRunner))
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1alpha1.Operation{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&v1alpha1.CronOperation{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&v1alpha1.Operation{}).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
@@ -70,36 +71,28 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
-// WithFunctionRunner specifies how the Reconciler should run functions.
-func WithFunctionRunner(fr xfn.FunctionRunner) ReconcilerOption {
+// WithScheduler specifies how the Reconciler should schedule operations.
+func WithScheduler(s Scheduler) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.pipeline = fr
+		r.schedule = s
 	}
 }
 
-// WithCapabilityChecker specifies how the Reconciler should check function capabilities.
-func WithCapabilityChecker(cc xfn.CapabilityChecker) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.functions = cc
-	}
-}
-
-// WithRequiredResourcesFetcher specifies how the Reconciler should fetch required resources.
-func WithRequiredResourcesFetcher(f xfn.RequiredResourcesFetcher) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.resources = f
-	}
-}
-
-// NewReconciler returns a Reconciler of Usages.
+// NewReconciler returns a Reconciler of CronOperations.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
 		client:     mgr.GetClient(),
 		log:        logging.NewNopLogger(),
 		record:     event.NewNopRecorder(),
 		conditions: conditions.ObservedGenerationPropagationManager{},
-		functions:  xfn.NewRevisionCapabilityChecker(mgr.GetClient()),
-		resources:  xfn.NewExistingRequiredResourcesFetcher(mgr.GetClient()),
+		schedule: SchedulerFn(func(schedule string, last time.Time) (time.Time, error) {
+			cs, err := cron.ParseStandard(schedule)
+			if err != nil {
+				return time.Time{}, errors.Wrap(err, "cannot parse cron schedule")
+			}
+
+			return cs.Next(last), nil
+		}),
 	}
 
 	for _, f := range opts {

@@ -25,6 +25,8 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+
 	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
 	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
@@ -81,6 +83,94 @@ func TestBasicOperation(t *testing.T) {
 			WithTeardown("DeleteOperation", funcs.AllOf(
 				funcs.DeleteResources(manifests, "operation.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "operation.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestBasicCronOperation(t *testing.T) {
+	manifests := "test/e2e/manifests/ops/cronoperations/basic"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests the correct functioning of a basic CronOperation that creates Operations on schedule.").
+			WithLabel(LabelArea, LabelAreaOps).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteOps).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+			)).
+			Assess("CreateCronOperation", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "cronoperation.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "cronoperation.yaml"),
+			)).
+			Assess("CronOperationCreatesOperation", funcs.AllOf(
+				// Wait for CronOperation to create its first Operation
+				// Since the schedule is every minute, this should happen quickly
+				funcs.ResourcesHaveFieldValueWithin(90*time.Second, manifests, "cronoperation.yaml", "status.lastScheduleTime", funcs.Any),
+				// Verify the CronOperation has the correct status and schedule is active
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "cronoperation.yaml", xpv1.ReconcileSuccess(), v1alpha1.ScheduleActive()),
+			)).
+			Assess("OperationSucceeds", funcs.AllOf(
+				// Verify the CronOperation's lastSuccessfulTime gets updated
+				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "cronoperation.yaml", "status.lastSuccessfulTime", funcs.Any),
+			)).
+			WithTeardown("DeleteCronOperation", funcs.AllOf(
+				funcs.DeleteResources(manifests, "cronoperation.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "cronoperation.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestBasicWatchOperation(t *testing.T) {
+	manifests := "test/e2e/manifests/ops/watchoperations/basic"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests the correct functioning of a basic WatchOperation that creates Operations when watched resources change.").
+			WithLabel(LabelArea, LabelAreaOps).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteOps).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+			)).
+			Assess("CreateWatchOperation", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "watchoperation.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "watchoperation.yaml"),
+			)).
+			Assess("WatchOperationEstablishesWatching", funcs.AllOf(
+				// Wait for WatchOperation to become ready (controller started) and actively watching
+				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "watchoperation.yaml", xpv1.ReconcileSuccess(), v1alpha1.WatchActive()),
+			)).
+			Assess("CreateWatchedResource", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "test-configmap.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "test-configmap.yaml"),
+			)).
+			Assess("WatchOperationCreatesOperation", funcs.AllOf(
+				// Wait for WatchOperation to detect the ConfigMap and create an Operation
+				// This should happen quickly after the ConfigMap is created
+				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime", funcs.Any),
+				// Verify watching resources count is updated
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "watchoperation.yaml", "status.watchingResources", int64(1)),
+			)).
+			Assess("OperationSucceeds", funcs.AllOf(
+				// Verify the WatchOperation's lastSuccessfulTime gets updated when Operation completes
+				funcs.ResourcesHaveFieldValueWithin(90*time.Second, manifests, "watchoperation.yaml", "status.lastSuccessfulTime", funcs.Any),
+			)).
+			WithTeardown("DeleteWatchedResource", funcs.AllOf(
+				funcs.DeleteResources(manifests, "test-configmap.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "test-configmap.yaml"),
+			)).
+			WithTeardown("DeleteWatchOperation", funcs.AllOf(
+				funcs.DeleteResources(manifests, "watchoperation.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "watchoperation.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
