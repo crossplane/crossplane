@@ -103,7 +103,7 @@ func MarkGarbage(keepSucceeded, keepFailed int32, ops ...v1alpha1.Operation) []v
 				continue
 			}
 			del = append(del, op)
-		default:
+		case corev1.ConditionUnknown:
 			// Keep it - operation is still running.
 		}
 	}

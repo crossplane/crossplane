@@ -46,9 +46,9 @@ const (
 	ReasonValidPipeline       xpv1.ConditionReason = "ValidPipeline"
 	ReasonMissingCapabilities xpv1.ConditionReason = "MissingCapabilities"
 
-	ReasonWatchActive  xpv1.ConditionReason = "WatchActive"
-	ReasonWatchFailed  xpv1.ConditionReason = "WatchFailed"
-	ReasonWatchPaused  xpv1.ConditionReason = "WatchPaused"
+	ReasonWatchActive xpv1.ConditionReason = "WatchActive"
+	ReasonWatchFailed xpv1.ConditionReason = "WatchFailed"
+	ReasonWatchPaused xpv1.ConditionReason = "WatchPaused"
 
 	ReasonScheduleActive  xpv1.ConditionReason = "ScheduleActive"
 	ReasonScheduleInvalid xpv1.ConditionReason = "ScheduleInvalid"
