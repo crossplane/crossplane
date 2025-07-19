@@ -69,8 +69,9 @@ status of the XR. It doesn't talk to Crossplane. Instead it runs the Composition
 Function pipeline specified by the Composition locally, and uses that to render
 the XR. It only supports Compositions in Pipeline mode.
 
-Claims can be tested by adding the xrd flag so that the ClaimName.kind can be 
-associated.
+Claims can be tested by adding the xrd file via the --xrd flag. This allows the
+claim type to be associated to the composition. Otherwise it will result in 
+an error stating that the XR type doesn't match what's in the composition.
 
 Composition Functions are pulled and run using Docker by default. You can add
 the following annotations to each Function to change how they're run:
@@ -108,7 +109,8 @@ Examples:
   # Simulate creating a new XR.
   crossplane render xr.yaml composition.yaml functions.yaml
 
-  # Simuilate creating a new Claim
+  # Simuilate creating a new Claim. The xrd establishes the relationship of
+  the claim to the composition.
   crossplane render xr.yaml composition.yaml functions.yaml --xrd=xrd.yaml
 
   # Simulate updating an XR that already exists.
