@@ -24,7 +24,7 @@ documentation].
 
 | Release | Release Date  |   EOL    |
 |:-------:|:-------------:|:--------:|
-|  v1.18  | Nov 5, 2024   | Aug 2025 |
+|  v1.18  |  Nov 5, 2024  | Aug 2025 |
 |  v1.19  | Feb 11, 2025  | Nov 2025 |
 |  v1.20  | May 21, 2025  | Feb 2026 |
 |  v2.0   | Early Aug '25 | May 2026 |
@@ -67,7 +67,7 @@ against Crossplane] or the relevant provider. Refer to our [contributing guide]
 for more information on how you can help.
 
 * Discuss Crossplane on [Slack] or our [developer mailing list].
-* Follow us on [Bluesky], [Twitter], or [LinkedIn], or subscribe to our [newsletter].
+* Follow us on [Bluesky], [Twitter], or [LinkedIn].
 * Contact us via [Email].
 * Join our regular community meetings.
 * Provide feedback on our [roadmap and releases board].
@@ -80,7 +80,7 @@ Anyone who wants to discuss the direction of the project, design and
 implementation reviews, or raise general questions with the broader community is
 encouraged to join.
 
-* Meeting link: <https://zoom.us/j/425148449?pwd=NEk4N0tHWGpEazhuam1yR28yWHY5QT09>
+* Meeting link: <https://zoom-lfx.platform.linuxfoundation.org/meeting/98901510164?password=c60c41ae-1e1e-42d0-9a74-16de2fbb66f9>
 * [Current agenda and past meeting notes]
 * [Past meeting recordings]
 * [Community Calendar][community calendar]
@@ -124,8 +124,7 @@ Crossplane is under the Apache 2.0 license.
 [Bluesky]: https://bsky.app/profile/crossplane.io
 [Twitter]: https://twitter.com/crossplane_io
 [LinkedIn]: https://www.linkedin.com/company/crossplane/
-[newsletter]: https://eepurl.com/ivy4v-/
-[Email]: mailto:info@crossplane.io
+[Email]: crossplane-info@lists.cncf.io
 [issue against Crossplane]: https://github.com/crossplane/crossplane/issues
 [contributing guide]: contributing/README.md
 [community meeting time]: https://www.thetimezoneconverter.com/?t=10:00&tz=PT%20%28Pacific%20Time%29
@@ -134,7 +133,7 @@ Crossplane is under the Apache 2.0 license.
 [roadmap and releases board]: https://github.com/orgs/crossplane/projects/20/views/9?pane=info
 [cncf]: https://www.cncf.io/
 [Get Started Docs]: https://docs.crossplane.io/latest/getting-started/
-[community calendar]: https://calendar.google.com/calendar/embed?src=c_2cdn0hs9e2m05rrv1233cjoj1k%40group.calendar.google.com
+[community calendar]: https://zoom-lfx.platform.linuxfoundation.org/meetings/crossplane
 [releases]: https://github.com/crossplane/crossplane/releases
 [ADOPTERS.md]: ADOPTERS.md
 [regular community meetings]: https://github.com/crossplane/crossplane/blob/main/README.md#get-involved
