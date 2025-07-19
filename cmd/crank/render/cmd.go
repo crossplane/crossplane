@@ -69,6 +69,9 @@ status of the XR. It doesn't talk to Crossplane. Instead it runs the Composition
 Function pipeline specified by the Composition locally, and uses that to render
 the XR. It only supports Compositions in Pipeline mode.
 
+Claims can be tested by adding the xrd flag so that the ClaimName.kind can be 
+associated.
+
 Composition Functions are pulled and run using Docker by default. You can add
 the following annotations to each Function to change how they're run:
 
@@ -105,6 +108,9 @@ Examples:
   # Simulate creating a new XR.
   crossplane render xr.yaml composition.yaml functions.yaml
 
+  # Simuilate creating a new Claim
+  crossplane render xr.yaml composition.yaml functions.yaml --xrd=xrd.yaml
+
   # Simulate updating an XR that already exists.
   crossplane render xr.yaml composition.yaml functions.yaml \
     --observed-resources=existing-observed-resources.yaml
@@ -136,6 +142,17 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		return errors.Wrapf(err, "cannot load composite resource from %q", c.CompositeResource)
 	}
 
+	//XRD must be included if rendering legacy claims
+	var xrdClaimNameKind string
+	var xrd *v1.CompositeResourceDefinition
+	if c.XRD != "" {
+		xrd, err = LoadXRD(c.fs, c.XRD)
+		if err != nil {
+			return errors.Wrapf(err, "cannot load XRD from %q", c.XRD)
+		}
+		xrdClaimNameKind = xrd.Spec.ClaimNames.Kind
+	}
+
 	comp, err := LoadComposition(c.fs, c.Composition)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load Composition from %q", c.Composition)
@@ -145,12 +162,17 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	xrGVK := xr.GetObjectKind().GroupVersionKind()
 	compRef := comp.Spec.CompositeTypeRef
 
-	if compRef.Kind != xrGVK.Kind {
-		return errors.Errorf("composition's compositeTypeRef.kind (%s) does not match XR's kind (%s)", compRef.Kind, xrGVK.Kind)
+	//if xrd included check if xr kind matches claimNameKind
+	if xrGVK.Kind == xrdClaimNameKind {
+		if compRef.Kind != xrd.Spec.Names.Kind {
+			return errors.Errorf("Claim kind matches CustomerResourceDefinition.spec.claimNames.kind but CustomerResourceDefinition.spec.claimNames.kind (%s) does not match compositions's compositeTypeRef.kind (%s)", xrd.Spec.Names.Kind, compRef.Kind)
+		}
+	} else if compRef.Kind != xrGVK.Kind {
+		return errors.Errorf("Composition's compositeTypeRef.kind (%s) does not match XR's kind (%s)", compRef.Kind, xrGVK.Kind)
 	}
 
 	if compRef.APIVersion != xrGVK.GroupVersion().String() {
-		return errors.Errorf("composition's compositeTypeRef.apiVersion (%s) does not match XR's apiVersion (%s)", compRef.APIVersion, xrGVK.GroupVersion().String())
+		return errors.Errorf("Composition's compositeTypeRef.apiVersion (%s) does not match XR's apiVersion (%s)", compRef.APIVersion, xrGVK.GroupVersion().String())
 	}
 
 	// check if XR's matchLabels have corresponding label at composition
