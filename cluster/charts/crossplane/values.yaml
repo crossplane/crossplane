@@ -57,6 +57,8 @@ args: []
 provider:
   # -- A list of Provider packages to install.
   packages: []
+  # -- A default managed resource activation policy to install.
+  defaultActivations: ["*"]
 
 configuration:
   # -- A list of Configuration packages to install.
