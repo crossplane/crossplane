@@ -142,7 +142,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		return errors.Wrapf(err, "cannot load composite resource from %q", c.CompositeResource)
 	}
 
-	//XRD must be included if rendering legacy claims
+	// XRD must be included if rendering legacy claims
 	var xrdClaimNameKind string
 	var xrd *v1.CompositeResourceDefinition
 	if c.XRD != "" {
@@ -151,6 +151,15 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 			return errors.Wrapf(err, "cannot load XRD from %q", c.XRD)
 		}
 		xrdClaimNameKind = xrd.Spec.ClaimNames.Kind
+
+		crd, err := xcrd.ForCompositeResource(xrd)
+		if err != nil {
+			return errors.Wrapf(err, "cannot derive composite CRD from XRD %q", xrd.GetName())
+		}
+
+		if err := DefaultValues(xr.UnstructuredContent(), xr.GetAPIVersion(), *crd); err != nil {
+			return errors.Wrapf(err, "cannot default values for XR %q", xr.GetName())
+		}
 	}
 
 	comp, err := LoadComposition(c.fs, c.Composition)
@@ -162,7 +171,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	xrGVK := xr.GetObjectKind().GroupVersionKind()
 	compRef := comp.Spec.CompositeTypeRef
 
-	//if xrd included check if xr kind matches claimNameKind
+	// if xrd included check if xr kind matches claimNameKind
 	if xrGVK.Kind == xrdClaimNameKind {
 		if compRef.Kind != xrd.Spec.Names.Kind {
 			return errors.Errorf("Claim kind matches CustomerResourceDefinition.spec.claimNames.kind but CustomerResourceDefinition.spec.claimNames.kind (%s) does not match compositions's compositeTypeRef.kind (%s)", xrd.Spec.Names.Kind, compRef.Kind)
@@ -198,22 +207,6 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	fns, err := LoadFunctions(c.fs, c.Functions)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load functions from %q", c.Functions)
-	}
-
-	if c.XRD != "" {
-		xrd, err := LoadXRD(c.fs, c.XRD)
-		if err != nil {
-			return errors.Wrapf(err, "cannot load XRD from %q", c.XRD)
-		}
-
-		crd, err := xcrd.ForCompositeResource(xrd)
-		if err != nil {
-			return errors.Wrapf(err, "cannot derive composite CRD from XRD %q", xrd.GetName())
-		}
-
-		if err := DefaultValues(xr.UnstructuredContent(), xr.GetAPIVersion(), *crd); err != nil {
-			return errors.Wrapf(err, "cannot default values for XR %q", xr.GetName())
-		}
 	}
 
 	fcreds := []corev1.Secret{}
