@@ -1,0 +1,29 @@
+apiVersion: apiextensions.crossplane.io/v2alpha1
+kind: ManagedResourceDefinition
+metadata:
+  name: xnopresources.nop.mrd.example.org
+spec:
+  state: Inactive
+  scope: Namespaced
+  group: nop.mrd.example.org
+  names:
+    kind: XNopResource
+    plural: xnopresources
+    singular: xnopresource
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: { }
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                coolField:
+                  type: string
+              required:
+                - coolField
