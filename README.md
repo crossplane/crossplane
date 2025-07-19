@@ -133,7 +133,7 @@ Crossplane is under the Apache 2.0 license.
 [roadmap and releases board]: https://github.com/orgs/crossplane/projects/20/views/9?pane=info
 [cncf]: https://www.cncf.io/
 [Get Started Docs]: https://docs.crossplane.io/latest/getting-started/
-[community calendar]: https://zoom-lfx.platform.linuxfoundation.org/meetings/crossplane
+[community calendar]: https://zoom-lfx.platform.linuxfoundation.org/meetings/crossplane?view=month
 [releases]: https://github.com/crossplane/crossplane/releases
 [ADOPTERS.md]: ADOPTERS.md
 [regular community meetings]: https://github.com/crossplane/crossplane/blob/main/README.md#get-involved
