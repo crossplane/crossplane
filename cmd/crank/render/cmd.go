@@ -177,7 +177,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 			return errors.Errorf("Claim kind matches CustomerResourceDefinition.spec.claimNames.kind but CustomerResourceDefinition.spec.claimNames.kind (%s) does not match compositions's compositeTypeRef.kind (%s)", xrd.Spec.Names.Kind, compRef.Kind)
 		}
 	} else if compRef.Kind != xrGVK.Kind {
-		return errors.Errorf("Composition's compositeTypeRef.kind (%s) does not match XR's kind (%s)", compRef.Kind, xrGVK.Kind)
+		return errors.Errorf("Composition's compositeTypeRef.kind (%s) does not match XR's kind (%s). If this is a claim be sure to include the `xrd` path.", compRef.Kind, xrGVK.Kind)
 	}
 
 	if compRef.APIVersion != xrGVK.GroupVersion().String() {
