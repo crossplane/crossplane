@@ -17,8 +17,8 @@ package xfn
 
 import (
 	"context"
-	"reflect"
 
+	"google.golang.org/protobuf/proto"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -81,7 +81,7 @@ func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, r
 		}
 
 		newRequirements := rsp.GetRequirements()
-		if reflect.DeepEqual(newRequirements, requirements) {
+		if proto.Equal(newRequirements, requirements) {
 			// The requirements stabilized, the function is done.
 			return rsp, nil
 		}

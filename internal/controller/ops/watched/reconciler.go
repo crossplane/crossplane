@@ -23,6 +23,8 @@ import (
 	"encoding/hex"
 	"time"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
@@ -66,7 +68,10 @@ type Reconciler struct {
 // Reconcile is triggered when a watched resource changes, and creates an
 // Operation using the WatchOperation's template.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := r.log.WithValues("request", req)
+	log := r.log.WithValues(
+		"request", req,
+		"gvk", r.watchedGVK,
+	)
 	log.Debug("Reconciling watched resource")
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
@@ -76,8 +81,33 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	watched := &unstructured.Unstructured{}
 	watched.SetGroupVersionKind(r.watchedGVK)
 	if err := r.client.Get(ctx, req.NamespacedName, watched); err != nil {
-		log.Debug("Cannot get watched resource", "error", err)
-		return reconcile.Result{}, errors.Wrapf(resource.IgnoreNotFound(err), "cannot get watched resource")
+		if !kerrors.IsNotFound(err) {
+			log.Debug("Cannot get watched resource", "error", err)
+			return reconcile.Result{}, errors.Wrap(err, "cannot get watched resource")
+		}
+
+		// NOTE(negz): The underlying informer has the final snapshot of
+		// the object when it was deleted, but controller-runtime does
+		// not expose it to us (by design).
+		//
+		// In this case I'd rather have the final snapshot, but not so
+		// much that I want to fight controller-runtime about it. The
+		// only downside of using this synthetic resource is that if we
+		// see the same delete event multiple times we'll create
+		// multiple Operations (due to the different synthetic deletion
+		// timestamps). This should be unlikely as the work queue tries
+		// to dedupe
+		//
+		// We could also force access to the deleted event by adding a
+		// finalizer to all watched resources, but that's way too
+		// invasive for my taste.
+
+		log.Debug("Watched resource was deleted, using synthetic resource to process deletion event")
+
+		watched.SetName(req.Name)
+		watched.SetNamespace(req.Namespace)
+		watched.SetDeletionTimestamp(ptr.To(metav1.Now()))
+		watched.SetResourceVersion(v1alpha1.SyntheticResourceVersionDeleted)
 	}
 
 	log = log.WithValues(
@@ -170,12 +200,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{}, nil
 }
 
-// OperationName generates a unique name for an Operation based on the
-// WatchOperation name and a hash of the watched resource's UID and resource version.
+// OperationName generates a deterministic and unique name for an Operation
+// based on the WatchOperation name and a hash of the watched resource's GVK,
+// namespace, name, UID, resource version, and deletion timestamp.
 func OperationName(wo *v1alpha1.WatchOperation, watched *unstructured.Unstructured) string {
-	// Create hash from UID and resource version
-	hash := sha256.Sum256([]byte(string(watched.GetUID()) + "-" + watched.GetResourceVersion()))
+	in := watched.GroupVersionKind().String() + "/" +
+		watched.GetNamespace() + "/" +
+		watched.GetName() + "/" +
+		string(watched.GetUID()) + "/" +
+		watched.GetResourceVersion()
 
+	// For synthetic deletion events, a unique deletion timestamp is set to
+	// ensure different resource instances (even with the same
+	// name/namespace) create different Operation names.
+	if t := watched.GetDeletionTimestamp(); t != nil {
+		in = in + "/" + t.String()
+	}
+
+	hash := sha256.Sum256([]byte(in))
 	return wo.GetName() + "-" + hex.EncodeToString(hash[:])[:7]
 }
 

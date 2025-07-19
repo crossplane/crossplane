@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-configmap
+  namespace: default
+  labels:
+    test: basic-watchop
+data:
+  testData: "I trigger WatchOperations again!"
+  updateNumber: "1"
