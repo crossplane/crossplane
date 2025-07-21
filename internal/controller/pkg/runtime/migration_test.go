@@ -242,7 +242,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						deploy.Namespace = testNamespaceName
 						deploy.Spec.Selector = &metav1.LabelSelector{
 							MatchLabels: map[string]string{
-								"pkg.crossplane.io/provider": "crossplane-provider-nop",
+								v1.LabelProvider: "crossplane-provider-nop",
 							},
 						}
 						return nil
@@ -276,7 +276,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						deploy.Namespace = testNamespaceName
 						deploy.Spec.Selector = &metav1.LabelSelector{
 							MatchLabels: map[string]string{
-								"pkg.crossplane.io/provider": "provider-nop", // Old format
+								v1.LabelProvider: "provider-nop", // Old format
 							},
 						}
 						return nil
@@ -290,7 +290,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 							Spec: appsv1.DeploymentSpec{
 								Selector: &metav1.LabelSelector{
 									MatchLabels: map[string]string{
-										"pkg.crossplane.io/provider": "provider-nop",
+										v1.LabelProvider: "provider-nop",
 									},
 								},
 							},
@@ -330,7 +330,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						deploy.Namespace = testNamespaceName
 						deploy.Spec.Selector = &metav1.LabelSelector{
 							MatchLabels: map[string]string{
-								"pkg.crossplane.io/provider": "provider-nop", // Old format
+								v1.LabelProvider: "provider-nop", // Old format
 							},
 						}
 						return nil

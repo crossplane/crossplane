@@ -11,6 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
 func TestGetCrossplanePods(t *testing.T) {
@@ -40,7 +42,7 @@ func TestGetCrossplanePods(t *testing.T) {
 						Name:      "function-12345abcd-xyzwv",
 						Namespace: "crossplane-system",
 						Labels: map[string]string{
-							"pkg.crossplane.io/function": "function-go-templating",
+							v1.LabelFunction: "function-go-templating",
 						},
 					},
 				},
@@ -88,7 +90,7 @@ func TestGetCrossplanePods(t *testing.T) {
 						Name:      "function-go-templating-213wer",
 						Namespace: "crossplane-system",
 						Labels: map[string]string{
-							"pkg.crossplane.io/function": "function-go-templating",
+							v1.LabelFunction: "function-go-templating",
 						},
 					},
 				},
@@ -97,7 +99,7 @@ func TestGetCrossplanePods(t *testing.T) {
 						Name:      "provider-azure-storage",
 						Namespace: "crossplane-system",
 						Labels: map[string]string{
-							"pkg.crossplane.io/provider": "provider-azure-storage",
+							v1.LabelProvider: "provider-azure-storage",
 						},
 					},
 				},

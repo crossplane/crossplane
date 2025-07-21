@@ -130,7 +130,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 		return errors.Wrap(err, errParseFunctionImage)
 	}
 
-	d := build.Deployment(sa.Name, functionDeploymentOverrides(image.Name())...)
+	d := build.Deployment(sa.Name, functionDeploymentOverrides(pr, image.Name())...)
 	// Create/Apply the SA only if the deployment references it.
 	// This is to avoid creating a SA that is NOT used by the deployment when
 	// the SA is managed externally by the user and configured by setting
@@ -182,12 +182,34 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWith
 	return nil
 }
 
-func functionDeploymentOverrides(image string) []DeploymentOverride {
+func functionDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string) []DeploymentOverride {
 	do := []DeploymentOverride{
 		DeploymentRuntimeWithAdditionalPorts([]corev1.ContainerPort{
 			{
 				Name:          GRPCPortName,
 				ContainerPort: GRPCPort,
+			},
+		}),
+		DeploymentRuntimeWithAdditionalEnvironments([]corev1.EnvVar{
+			{
+				Name: "FUNCTION_NAME",
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
+						FieldPath: fmt.Sprintf("metadata.labels['%s']", v1.LabelFunction),
+					},
+				},
+			},
+			{
+				Name: "REVISION_NAME",
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
+						FieldPath: fmt.Sprintf("metadata.labels['%s']", v1.LabelRevision),
+					},
+				},
+			},
+			{
+				Name:  "REVISION_UID",
+				Value: string(pr.GetUID()),
 			},
 		}),
 	}

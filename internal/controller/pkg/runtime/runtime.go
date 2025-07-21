@@ -331,7 +331,7 @@ func (b *DeploymentRuntimeBuilder) TLSServerSecret() *corev1.Secret {
 
 func (b *DeploymentRuntimeBuilder) podSelectors() map[string]string {
 	return map[string]string{
-		"pkg.crossplane.io/revision":           b.revision.GetName(),
+		v1.LabelRevision:                       b.revision.GetName(),
 		"pkg.crossplane.io/" + b.packageType(): b.packageName(),
 	}
 }

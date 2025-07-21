@@ -43,6 +43,15 @@ const (
 	// revisions, and can be used to select all provider revisions that belong
 	// to a particular family. It is not added to providers, only revisions.
 	LabelProviderFamily = "pkg.crossplane.io/provider-family"
+
+	// LabelProvider is used as the key for the provider name label.
+	LabelProvider = "pkg.crossplane.io/provider"
+
+	// LabelFunction is used as the key for the function name label.
+	LabelFunction = "pkg.crossplane.io/function"
+
+	// LabelRevision is used as the key for the package revision name label.
+	LabelRevision = "pkg.crossplane.io/revision"
 )
 
 var (

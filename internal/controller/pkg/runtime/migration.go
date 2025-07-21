@@ -115,7 +115,7 @@ func (m *DeletingDeploymentSelectorMigrator) MigrateDeploymentSelector(ctx conte
 		return nil
 	}
 
-	expected := existingDeploy.Spec.Selector.MatchLabels["pkg.crossplane.io/provider"]
+	expected := existingDeploy.Spec.Selector.MatchLabels[v1.LabelProvider]
 
 	// Check if the provider label needs migration
 	if expected == existing {
