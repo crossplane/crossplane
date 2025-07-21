@@ -66,7 +66,7 @@ a bug, suggest an improvement, or request a new feature please open an [issue
 against Crossplane] or the relevant provider. Refer to our [contributing guide]
 for more information on how you can help.
 
-* Discuss Crossplane on [Slack] or our [developer mailing list].
+* Discuss Crossplane on [Slack].
 * Follow us on [Bluesky], [Twitter], or [LinkedIn].
 * Contact us via [Email].
 * Join our regular community meetings.
@@ -120,11 +120,10 @@ Crossplane is under the Apache 2.0 license.
 [release cycle documentation]: https://docs.crossplane.io/knowledge-base/guides/release-cycle
 [install]: https://crossplane.io/docs/latest
 [Slack]: https://slack.crossplane.io
-[developer mailing list]: https://groups.google.com/forum/#!forum/crossplane-dev
 [Bluesky]: https://bsky.app/profile/crossplane.io
 [Twitter]: https://twitter.com/crossplane_io
 [LinkedIn]: https://www.linkedin.com/company/crossplane/
-[Email]: crossplane-info@lists.cncf.io
+[Email]: mailto:crossplane-info@lists.cncf.io
 [issue against Crossplane]: https://github.com/crossplane/crossplane/issues
 [contributing guide]: contributing/README.md
 [community meeting time]: https://www.thetimezoneconverter.com/?t=10:00&tz=PT%20%28Pacific%20Time%29
