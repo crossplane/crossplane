@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v2alpha1 contains API types that extend the Crossplane API.
+// Package v2 contains API types that extend the Crossplane API.
 // +kubebuilder:object:generate=true
 // +groupName=apiextensions.crossplane.io
-// +versionName=v2alpha1
-package v2alpha1
+// +versionName=v2
+package v2
