@@ -42,20 +42,6 @@ import (
 
 const (
 	timeout = 2 * time.Minute
-
-	errGetMRD          = "cannot get ManagedResourceDefinition"
-	errUpdateStatus    = "cannot update status of ManagedResourceDefinition"
-	errGetCRD          = "cannot get CustomResourceDefinition"
-	errMergeCRD        = "cannot merge CustomResourceDefinition"
-	errReconcileCRD    = "cannot reconcile CustomResourceDefinition"
-	errCreateCRD       = "cannot create CustomResourceDefinition"
-	errUpdateCRD       = "cannot update CustomResourceDefinition"
-	errInvalidResource = "invalid resource configuration"
-)
-
-// Wait strings.
-const (
-	pendingCRDEstablish = "waiting for managed resource CustomResourceDefinition to be established"
 )
 
 // Event reasons.
@@ -64,9 +50,6 @@ const (
 	reasonPaused    event.Reason = "ReconciliationPaused"
 	reasonCreateCRD event.Reason = "CreateCustomResourceDefinition"
 	reasonUpdateCRD event.Reason = "UpdateCustomResourceDefinition"
-
-	// Messages.
-	reconcilePausedMsg = "Reconciliation is paused via the pause annotation"
 )
 
 // A Reconciler reconciles CompositeResourceDefinitions.
@@ -92,8 +75,8 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		// In case object is not found, most likely the object was deleted and
 		// then disappeared while the event was in the processing queue. We
 		// don't need to take any action in that case.
-		log.Debug(errGetMRD, "error", err)
-		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetMRD)
+		log.Debug("cannot get ManagedResourceDefinition", "error", err)
+		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get ManagedResourceDefinition")
 	}
 
 	status := r.conditions.For(mrd)
@@ -107,11 +90,11 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	if meta.WasDeleted(mrd) {
 		status.MarkConditions(v2alpha1.TerminatingManaged())
 		if err := r.Status().Update(ogctx, mrd); err != nil {
-			log.Debug(errUpdateStatus, "error", err)
+			log.Debug("cannot update status of ManagedResourceDefinition", "error", err)
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
-			err = errors.Wrap(err, errUpdateStatus)
+			err = errors.Wrap(err, "cannot update status of ManagedResourceDefinition")
 			return reconcile.Result{}, err
 		}
 
@@ -120,31 +103,35 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	// Check for pause annotation
 	if meta.IsPaused(mrd) {
 		log.Info("reconciliation is paused")
-		r.record.Event(mrd, event.Normal(reasonPaused, reconcilePausedMsg))
+		r.record.Event(mrd, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
 		return reconcile.Result{}, nil
 	}
 
-	if mrd.Spec.State.IsActive() {
-		// Check that the CRD exists and is up to date.
-		if crd, err := r.reconcileCustomResourceDefinition(ctx, log, mrd); err != nil {
-			log.Debug("failed to reconcile CustomResourceDefinition", "error", err)
-			r.record.Event(mrd, event.Warning(reasonReconcile, err))
-			status.MarkConditions(v2alpha1.BlockedManaged().WithMessage("unable to reconcile CustomResourceDefinition, see events"))
-			if err := r.Status().Update(ogctx, mrd); err != nil {
-				log.Info(errUpdateStatus, "error", err)
-			}
-			return reconcile.Result{}, errors.Wrap(err, errReconcileCRD)
-		} else if !xcrd.IsEstablished(crd.Status) {
-			log.Debug(pendingCRDEstablish)
-			status.MarkConditions(v2alpha1.PendingManaged())
-		} else {
-			status.MarkConditions(v2alpha1.EstablishedManaged())
-		}
-	} else {
+	if !mrd.Spec.State.IsActive() {
 		status.MarkConditions(v2alpha1.InactiveManaged())
+		return reconcile.Result{}, errors.Wrap(r.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
 	}
 
-	return reconcile.Result{}, errors.Wrap(r.Status().Update(ogctx, mrd), errUpdateStatus)
+	// Check that the CRD exists and is up to date.
+	crd, err := r.reconcileCustomResourceDefinition(ctx, log, mrd)
+	if err != nil {
+		log.Debug("failed to reconcile CustomResourceDefinition", "error", err)
+		r.record.Event(mrd, event.Warning(reasonReconcile, err))
+		status.MarkConditions(v2alpha1.BlockedManaged().WithMessage("unable to reconcile CustomResourceDefinition, see events"))
+		if err := r.Status().Update(ogctx, mrd); err != nil {
+			log.Info("cannot update status of ManagedResourceDefinition", "error", err)
+		}
+		return reconcile.Result{}, errors.Wrap(err, "cannot reconcile CustomResourceDefinition")
+	}
+
+	if xcrd.IsEstablished(crd.Status) {
+		status.MarkConditions(v2alpha1.EstablishedManaged())
+	} else {
+		log.Debug("waiting for managed resource CustomResourceDefinition to be established")
+		status.MarkConditions(v2alpha1.PendingManaged())
+	}
+
+	return reconcile.Result{}, errors.Wrap(r.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
 }
 
 const (
@@ -160,7 +147,7 @@ func (r *Reconciler) reconcileCustomResourceDefinition(ctx context.Context, log 
 	}
 	action := actionUpdate
 	if err := r.Get(ctx, nn, want); err != nil && !kerrors.IsNotFound(err) {
-		return nil, errors.Wrap(err, errGetCRD)
+		return nil, errors.Wrap(err, "cannot get CustomResourceDefinition")
 	} else if err != nil && kerrors.IsNotFound(err) {
 		log.Debug("CustomResourceDefinition not found, will create", "crd", nn)
 		action = actionCreate
@@ -174,20 +161,20 @@ func (r *Reconciler) reconcileCustomResourceDefinition(ctx context.Context, log 
 
 	// Stage changes.
 	if err := resources.MergeCustomResourceDefinitionInto(mrd, want); err != nil {
-		return nil, errors.Wrap(err, errMergeCRD)
+		return nil, errors.Wrap(err, "cannot merge CustomResourceDefinition")
 	}
 
 	// Apply changes.
 	switch action {
 	case actionCreate:
 		if err := r.Create(ctx, want); err != nil {
-			return nil, r.handleErrorWithEvent(mrd, err, errCreateCRD, reasonCreateCRD)
+			return nil, r.handleErrorWithEvent(log, mrd, err, "cannot create CustomResourceDefinition", reasonCreateCRD)
 		}
 		r.record.Event(mrd, event.Normal(reasonCreateCRD, "Successfully created CustomResourceDefinition"))
 	case actionUpdate:
 		if !equality.Semantic.DeepEqual(existing.Spec, want.Spec) {
 			if err := r.Update(ctx, want); err != nil {
-				return nil, r.handleErrorWithEvent(mrd, err, errUpdateCRD, reasonUpdateCRD)
+				return nil, r.handleErrorWithEvent(log, mrd, err, "cannot update CustomResourceDefinition", reasonUpdateCRD)
 			}
 			r.record.Event(mrd, event.Normal(reasonUpdateCRD, "Successfully updated CustomResourceDefinition"))
 		}
@@ -199,7 +186,7 @@ func (r *Reconciler) reconcileCustomResourceDefinition(ctx context.Context, log 
 }
 
 // handleErrorWithEvent provides centralized error handling with event recording.
-func (r *Reconciler) handleErrorWithEvent(obj client.Object, err error, errMsg string, reason event.Reason) error {
+func (r *Reconciler) handleErrorWithEvent(log logging.Logger, obj client.Object, err error, errMsg string, reason event.Reason) error {
 	// Handle conflicts with immediate requeue - no event needed as this is transient
 	if kerrors.IsConflict(err) {
 		return err // Controller runtime will requeue automatically
@@ -207,12 +194,13 @@ func (r *Reconciler) handleErrorWithEvent(obj client.Object, err error, errMsg s
 
 	// Record warning event for all other errors
 	r.record.Event(obj, event.Warning(reason, err))
+	log.Debug(errMsg, "reason", reason, "error", err)
 
 	// Handle validation errors to prevent endless reconciliation
 	if kerrors.IsInvalid(err) {
 		// API Server's invalid errors may be unstable due to pointers in
 		// the string representation, causing endless reconciliation
-		err = errors.New(errInvalidResource)
+		err = errors.New("invalid resource configuration")
 	}
 
 	return errors.Wrap(err, errMsg)

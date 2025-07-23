@@ -76,7 +76,7 @@ func TestMRDValidation(t *testing.T) {
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
-			WithTeardown("DeleteValidComposition", funcs.AllOf(
+			WithTeardown("DeleteValidMRD", funcs.AllOf(
 				funcs.DeleteResources(manifests, "*-valid.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "*-valid.yaml"),
 			)).

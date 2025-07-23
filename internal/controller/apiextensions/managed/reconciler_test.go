@@ -79,7 +79,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errGetMRD),
+				err: errors.Wrap(errBoom, "cannot get ManagedResourceDefinition"),
 			},
 		},
 		"MRDBeingDeleted": {
@@ -110,7 +110,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errUpdateStatus),
+				err: errors.Wrap(errBoom, "cannot update status of ManagedResourceDefinition"),
 			},
 		},
 		"MRDBeingDeletedStatusUpdateConflict": {
@@ -186,7 +186,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, errGetCRD), errReconcileCRD),
+				err: errors.Wrap(errors.Wrap(errBoom, "cannot get CustomResourceDefinition"), "cannot reconcile CustomResourceDefinition"),
 			},
 		},
 		"MRDActiveCRDCreateSuccess": {
@@ -326,7 +326,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, errCreateCRD), errReconcileCRD),
+				err: errors.Wrap(errors.Wrap(errBoom, "cannot create CustomResourceDefinition"), "cannot reconcile CustomResourceDefinition"),
 			},
 		},
 		"MRDActiveCRDUpdateSuccess": {
@@ -498,7 +498,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, errUpdateCRD), errReconcileCRD),
+				err: errors.Wrap(errors.Wrap(errBoom, "cannot update CustomResourceDefinition"), "cannot reconcile CustomResourceDefinition"),
 			},
 		},
 		"MRDActiveCRDEstablished": {
@@ -671,7 +671,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.New("crd was deleted"), errReconcileCRD),
+				err: errors.Wrap(errors.New("crd was deleted"), "cannot reconcile CustomResourceDefinition"),
 			},
 		},
 		"StatusUpdateError": {
@@ -685,7 +685,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errUpdateStatus),
+				err: errors.Wrap(errBoom, "cannot update status of ManagedResourceDefinition"),
 			},
 		},
 	}

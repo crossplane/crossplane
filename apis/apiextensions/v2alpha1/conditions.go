@@ -28,49 +28,15 @@ const (
 	// A TypeEstablished XRD has created the CRD for its composite resource and
 	// started a controller to reconcile instances of said resource.
 	TypeEstablished xpv1.ConditionType = "Established"
-
-	// A TypeOffered XRD has created the CRD for its composite resource claim
-	// and started a controller to reconcile instances of said claim.
-	TypeOffered xpv1.ConditionType = "Offered"
 )
 
 // Reasons a resource is or is not established or offered.
 const (
-	ReasonWatchingComposite xpv1.ConditionReason = "WatchingCompositeResource"
-	ReasonWatchingClaim     xpv1.ConditionReason = "WatchingCompositeResourceClaim"
-
 	EstablishedManagedResource xpv1.ConditionReason = "EstablishedManagedResource"
-
-	ReasonPendingManaged xpv1.ConditionReason = "PendingManagedResource"
-
-	ReasonInactiveManaged xpv1.ConditionReason = "InactiveManagedResource"
-
-	ReasonTerminatingComposite xpv1.ConditionReason = "TerminatingCompositeResource"
+	ReasonPendingManaged       xpv1.ConditionReason = "PendingManagedResource"
+	ReasonInactiveManaged      xpv1.ConditionReason = "InactiveManagedResource"
 	ReasonTerminatingManaged   xpv1.ConditionReason = "TerminatingManagedResource"
-	ReasonTerminatingClaim     xpv1.ConditionReason = "TerminatingCompositeResourceClaim"
 )
-
-// WatchingComposite indicates that Crossplane has defined and is watching for a
-// new kind of composite resource.
-func WatchingComposite() xpv1.Condition {
-	return xpv1.Condition{
-		Type:               TypeEstablished,
-		Status:             corev1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonWatchingComposite,
-	}
-}
-
-// TerminatingComposite indicates that Crossplane is terminating the controller
-// for and removing the definition of a composite resource.
-func TerminatingComposite() xpv1.Condition {
-	return xpv1.Condition{
-		Type:               TypeEstablished,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonTerminatingComposite,
-	}
-}
 
 // EstablishedManaged indicates that Crossplane has defined new kind of managed resource.
 func EstablishedManaged() xpv1.Condition {
@@ -122,27 +88,5 @@ func TerminatingManaged() xpv1.Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonTerminatingManaged,
-	}
-}
-
-// WatchingClaim indicates that Crossplane has defined and is watching for a
-// new kind of composite resource claim.
-func WatchingClaim() xpv1.Condition {
-	return xpv1.Condition{
-		Type:               TypeOffered,
-		Status:             corev1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonWatchingClaim,
-	}
-}
-
-// TerminatingClaim indicates that Crossplane is terminating the controller and
-// removing the definition of a composite resource claim.
-func TerminatingClaim() xpv1.Condition {
-	return xpv1.Condition{
-		Type:               TypeOffered,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonTerminatingClaim,
 	}
 }
