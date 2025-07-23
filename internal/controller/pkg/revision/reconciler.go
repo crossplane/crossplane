@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -883,8 +882,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if r.features.Enabled(features.EnableBetaCustomToManagedResourceConversion) {
 		// Convert CRDs to MRDs
 		// If SafeStart is not in capabilities, we default mrd state to Active.
-		activationState := !slices.Contains(pr.GetCapabilities(), "SafeStart")
+		activationState := !pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart)
 		if mrdObjs, err := converter.CustomToManagedResourceDefinitions(activationState, objects...); err != nil {
+			log.Debug("failed to convert CRDs to MRDs for provider, skipping conversion", "error", err)
 			r.record.Event(pr, event.Warning(reasonConvertCRD, err))
 		} else {
 			objects = mrdObjs

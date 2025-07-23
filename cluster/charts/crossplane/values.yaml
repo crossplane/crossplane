@@ -57,7 +57,7 @@ args: []
 provider:
   # -- A list of Provider packages to install.
   packages: []
-  # -- A default managed resource activation policy to install.
+  # -- Define entries for the default managed resource activation policy. If defined, a default MRAP will contain these activations.
   defaultActivations: ["*"]
 
 configuration:
