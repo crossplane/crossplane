@@ -24,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
@@ -153,6 +154,85 @@ func TestRenderClusterRoles(t *testing.T) {
 						},
 						{
 							APIGroups: []string{groupA, groupC},
+							Resources: []string{rbacv1.ResourceAll + suffixFinalizers},
+							Verbs:     verbsUpdate,
+						},
+					}, rulesSystemExtra...),
+				},
+			},
+		},
+		"SafeStart": {
+			reason: "A ProviderRevision with safe-start capability should add CRD permissions to view role.",
+			args: args{
+				pr: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: prName, UID: prUID},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Capabilities: []string{pkgmetav1.ProviderCapabilitySafeStart},
+						},
+					},
+				},
+				resources: []Resource{
+					{
+						Group:  groupA,
+						Plural: pluralA,
+					},
+				},
+			},
+			want: []rbacv1.ClusterRole{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            nameEdit,
+						OwnerReferences: []metav1.OwnerReference{crCtrlr},
+						Labels: map[string]string{
+							keyAggregateToCrossplane: valTrue,
+							keyAggregateToAdmin:      valTrue,
+							keyAggregateToEdit:       valTrue,
+						},
+					},
+					Rules: []rbacv1.PolicyRule{
+						{
+							APIGroups: []string{groupA},
+							Resources: []string{pluralA, pluralA + suffixStatus},
+							Verbs:     verbsEdit,
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            nameView,
+						OwnerReferences: []metav1.OwnerReference{crCtrlr},
+						Labels: map[string]string{
+							keyAggregateToView: valTrue,
+						},
+					},
+					Rules: []rbacv1.PolicyRule{
+						{
+							APIGroups: []string{groupA},
+							Resources: []string{pluralA, pluralA + suffixStatus},
+							Verbs:     verbsView,
+						},
+						{
+							APIGroups: []string{"apiextensions.k8s.io"},
+							Resources: []string{"customresourcedefinitions"},
+							Verbs:     verbsView,
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            nameSystem,
+						Labels:          map[string]string{keyProviderName: prName},
+						OwnerReferences: []metav1.OwnerReference{crCtrlr},
+					},
+					Rules: append([]rbacv1.PolicyRule{
+						{
+							APIGroups: []string{groupA},
+							Resources: []string{pluralA, pluralA + suffixStatus},
+							Verbs:     verbsSystem,
+						},
+						{
+							APIGroups: []string{groupA},
 							Resources: []string{rbacv1.ResourceAll + suffixFinalizers},
 							Verbs:     verbsUpdate,
 						},

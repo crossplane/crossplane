@@ -25,6 +25,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
+	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
@@ -154,6 +155,14 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 		Rules: withVerbs(rules, verbsEdit),
 	}
 
+	viewRules := rules
+	if pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
+		viewRules = append(viewRules, rbacv1.PolicyRule{
+			APIGroups: []string{"apiextensions.k8s.io"},
+			Resources: []string{"customresourcedefinitions"},
+		})
+	}
+
 	view := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namePrefix + pr.GetName() + nameSuffixView,
@@ -161,7 +170,7 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 				keyAggregateToView: valTrue,
 			},
 		},
-		Rules: withVerbs(rules, verbsView),
+		Rules: withVerbs(viewRules, verbsView),
 	}
 
 	// The 'system' RBAC role does not aggregate; it is intended to be bound

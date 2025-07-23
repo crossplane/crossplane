@@ -18,7 +18,6 @@ package initializer
 
 import (
 	"context"
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -28,6 +27,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
 )
 
 func TestDefaultManagedResourceActivationPolicy(t *testing.T) {
@@ -107,7 +108,7 @@ func TestDefaultManagedResourceActivationPolicy(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			fn := DefaultManagedResourceActivationPolicy(tc.activations...)
 			if fn == nil {
-				if !tc.want.nilFn {
+				if !tc.nilFn {
 					t.Errorf("\n%s\nUnexpected nil function", name)
 				}
 				return
