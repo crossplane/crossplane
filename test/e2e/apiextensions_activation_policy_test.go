@@ -17,6 +17,7 @@ limitations under the License.
 package e2e
 
 import (
+	"sigs.k8s.io/e2e-framework/third_party/helm"
 	"testing"
 	"time"
 
@@ -26,6 +27,14 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
+
+func init() {
+	environment.AddTestSuite(SuiteOps,
+		config.WithHelmInstallOpts(
+			helm.WithArgs("--set provider.defaultActivations=[]"),
+		),
+	)
+}
 
 func TestMRAPActivatesSingleMRD(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/activation-policy/single-activation"
