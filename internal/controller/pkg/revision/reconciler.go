@@ -878,8 +878,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	objects := pkg.GetObjects()
 	// The CustomToManagedResourceConversion feature converts CRDs to MRDs from
-	// a package.
-	if r.features.Enabled(features.EnableBetaCustomToManagedResourceConversion) {
+	// a provider package.
+	if _, ok := pkgMeta.(*pkgmetav1.Provider); ok && r.features.Enabled(features.EnableBetaCustomToManagedResourceConversion) {
 		// Convert CRDs to MRDs
 		// If SafeStart is not in capabilities, we default mrd state to Active.
 		activationState := !pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart)
