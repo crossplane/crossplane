@@ -155,12 +155,17 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 		Rules: withVerbs(rules, verbsEdit),
 	}
 
-	viewRules := rules
+	var viewRules []rbacv1.PolicyRule
 	if pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
-		viewRules = append(viewRules, rbacv1.PolicyRule{
+		viewRules = make([]rbacv1.PolicyRule, len(rules)+1)
+		copy(viewRules, rules)
+		viewRules[len(rules)] = rbacv1.PolicyRule{
 			APIGroups: []string{"apiextensions.k8s.io"},
 			Resources: []string{"customresourcedefinitions"},
-		})
+		}
+	} else {
+		// Default to the original rules.
+		viewRules = rules
 	}
 
 	view := &rbacv1.ClusterRole{
