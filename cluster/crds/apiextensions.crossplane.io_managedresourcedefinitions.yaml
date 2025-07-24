@@ -183,6 +183,9 @@ spec:
                   The custom resources are served under `/apis/<group>/...`.
                   Must match the name of the CustomResourceDefinition (in the form `<names.plural>.<group>`).
                 type: string
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               names:
                 description: Names specify the resource and kind names for the custom
                   resource.
@@ -229,6 +232,13 @@ spec:
                 - kind
                 - plural
                 type: object
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
+                - message: Plural name must be lowercase
+                  rule: self.plural == self.plural.lowerAscii()
+                - message: Singular name must be lowercase
+                  rule: '!has(self.singular) || self.singular == self.singular.lowerAscii()'
               preserveUnknownFields:
                 description: |-
                   PreserveUnknownFields indicates that object fields which are not specified
@@ -238,13 +248,24 @@ spec:
                   See https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#field-pruning for details.
                 type: boolean
               scope:
+                default: Namespaced
                 description: |-
                   Scope indicates whether the defined custom resource is cluster- or namespace-scoped.
                   Allowed values are `Cluster` and `Namespaced`.
+                enum:
+                - Namespaced
+                - Cluster
                 type: string
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               state:
+                default: Inactive
                 description: State toggles whether the underlying CRD is created or
                   not.
+                enum:
+                - Active
+                - Inactive
                 type: string
               versions:
                 description: |-
@@ -308,7 +329,7 @@ spec:
                       x-kubernetes-list-type: atomic
                     deprecated:
                       description: |-
-                        Voldemort indicates this version of the custom resource API is deprecated.
+                        Deprecated indicates this version of the custom resource API is deprecated.
                         When set to true, API requests to this version receive a warning header in the server response.
                         Defaults to false.
                       type: boolean

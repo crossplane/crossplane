@@ -31,6 +31,8 @@ type ManagedResourceDefinitionSpec struct {
 	ConnectionDetails []ConnectionDetail `json:"connectionDetails,omitempty"`
 
 	// State toggles whether the underlying CRD is created or not.
+	// +kubebuilder:validation:Enum=Active;Inactive
+	// +kubebuilder:default=Inactive
 	State ManagedResourceDefinitionState `json:"state"`
 }
 
@@ -44,6 +46,11 @@ const (
 	// ManagedResourceDefinitionInactive is an inactive resource definition.
 	ManagedResourceDefinitionInactive ManagedResourceDefinitionState = "Inactive"
 )
+
+// IsActive returns if this ManagedResourceDefinitionState is "Active".
+func (s ManagedResourceDefinitionState) IsActive() bool {
+	return s == ManagedResourceDefinitionActive
+}
 
 // ConnectionDetail holds keys and descriptions of connection secrets.
 type ConnectionDetail struct {
@@ -75,6 +82,16 @@ type ManagedResourceDefinition struct {
 
 	Spec   ManagedResourceDefinitionSpec   `json:"spec,omitempty"`
 	Status ManagedResourceDefinitionStatus `json:"status,omitempty"`
+}
+
+// GetCondition of this ManagedResourceDefinition.
+func (p *ManagedResourceDefinition) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return p.Status.GetCondition(ct)
+}
+
+// SetConditions of this ManagedResourceDefinition.
+func (p *ManagedResourceDefinition) SetConditions(c ...xpv1.Condition) {
+	p.Status.SetConditions(c...)
 }
 
 // +kubebuilder:object:root=true
