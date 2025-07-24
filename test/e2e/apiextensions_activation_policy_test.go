@@ -28,11 +28,20 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
+// LabelAreaMRAP is applied to all features pertaining to MRAP testing.
+const LabelAreaMRAP = "mrap"
+
+// Tests that should be part of the test suite for the MRAP feature.
+const SuiteMRAP = "mrap"
+
 func init() {
-	environment.AddTestSuite(SuiteOps,
+	environment.AddTestSuite(SuiteMRAP,
 		config.WithHelmInstallOpts(
 			helm.WithArgs("--set provider.defaultActivations=[]"),
 		),
+		config.WithLabelsToSelect(features.Labels{
+			config.LabelTestSuite: []string{SuiteMRAP, config.TestSuiteDefault},
+		}),
 	)
 }
 
@@ -42,8 +51,8 @@ func TestMRAPActivatesSingleMRD(t *testing.T) {
 	environment.Test(t,
 		features.NewWithDescription(t.Name(),
 			"Tests that ManagedResourceActivationPolicy can activate a single ManagedResourceDefinition.").
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
-			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelArea, LabelAreaMRAP).
+			WithLabel(LabelStage, LabelStageBeta).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 
@@ -106,8 +115,8 @@ func TestMRAPWildcardActivation(t *testing.T) {
 	environment.Test(t,
 		features.NewWithDescription(t.Name(),
 			"Tests that ManagedResourceActivationPolicy can activate multiple ManagedResourceDefinitions using wildcard patterns.").
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
-			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelArea, LabelAreaMRAP).
+			WithLabel(LabelStage, LabelStageBeta).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 
@@ -185,8 +194,8 @@ func TestMultipleMRAPsOneMRD(t *testing.T) {
 	environment.Test(t,
 		features.NewWithDescription(t.Name(),
 			"Tests that multiple ManagedResourceActivationPolicies can manage the same ManagedResourceDefinition.").
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
-			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelArea, LabelAreaMRAP).
+			WithLabel(LabelStage, LabelStageBeta).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 
