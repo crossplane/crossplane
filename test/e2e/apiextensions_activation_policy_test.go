@@ -37,7 +37,7 @@ const SuiteMRAP = "mrap"
 func init() {
 	environment.AddTestSuite(SuiteMRAP,
 		config.WithHelmInstallOpts(
-			helm.WithArgs("--set provider.defaultActivations=[]"),
+			helm.WithArgs("--set provider.defaultActivations=null"),
 		),
 		config.WithLabelsToSelect(features.Labels{
 			config.LabelTestSuite: []string{SuiteMRAP, config.TestSuiteDefault},
