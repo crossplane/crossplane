@@ -38,7 +38,7 @@ func (a ActivationPolicy) Match(name string) bool {
 type ManagedResourceActivationPolicySpec struct {
 	// Activations is an array of MRD names to activate. Supports wildcard
 	// prefixes (like `*.aws.crossplane.io`) but not full regular expressions.
-	// +required
+	// +kubebuilder:validation:MinItems=1
 	Activations []ActivationPolicy `json:"activate"`
 }
 
