@@ -49,13 +49,13 @@ func NewPrometheusMetrics() *PrometheusMetrics {
 		controllersStarted: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Subsystem: "engine",
 			Name:      "controllers_started_total",
-			Help:      "Total number of XR controllers started.",
+			Help:      "Total number of controllers started.",
 		}, []string{"controller"}),
 
 		controllersStopped: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Subsystem: "engine",
 			Name:      "controllers_stopped_total",
-			Help:      "Total number of XR controllers stopped.",
+			Help:      "Total number of controllers stopped.",
 		}, []string{"controller"}),
 
 		watchesStarted: prometheus.NewCounterVec(prometheus.CounterOpts{
