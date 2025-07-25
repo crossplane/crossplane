@@ -99,13 +99,8 @@ func (r *nameGenerator) GenerateName(ctx context.Context, cd resource.Object) er
 			uidParts := strings.Split(string(owner.UID), "-")
 			uidPart := uidParts[len(uidParts)-1]
 			name := ChildName(fmt.Sprintf("%s%s", cd.GetGenerateName(), uidPart), fmt.Sprintf("-%s", cName))
-			if available, err := r.isAvailable(ctx, cd, name); err != nil {
-				return err
-			} else if available {
-				// The name is available.
-				cd.SetName(name)
-				return nil
-			}
+			cd.SetName(name)
+			return nil
 		}
 	}
 	// Fallback to a random name.
