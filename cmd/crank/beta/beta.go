@@ -24,6 +24,7 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/top"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace"
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
+	"github.com/crossplane/crossplane/cmd/crank/beta/xpkg"
 )
 
 // Cmd contains beta commands.
@@ -34,6 +35,7 @@ type Cmd struct {
 	Top      top.Cmd      `cmd:"" help:"Display resource (CPU/memory) usage by Crossplane related pods."`
 	Trace    trace.Cmd    `cmd:"" help:"Trace a Crossplane resource to get a detailed output of its relationships, helpful for troubleshooting."`
 	Validate validate.Cmd `cmd:"" help:"Validate Crossplane resources."`
+	Xpkg     xpkg.Cmd     `cmd:"" help:"Manage Crossplane packages."`
 }
 
 // Help output for crossplane beta.
