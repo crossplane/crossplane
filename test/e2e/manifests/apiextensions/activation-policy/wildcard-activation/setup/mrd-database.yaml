@@ -3,6 +3,7 @@ kind: ManagedResourceDefinition
 metadata:
   name: databases.wildcard.activation-e2e.crossplane.io
 spec:
+  scope: Namespaced
   group: wildcard.activation-e2e.crossplane.io
   names:
     kind: Database

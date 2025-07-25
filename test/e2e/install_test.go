@@ -18,6 +18,7 @@ package e2e
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -156,14 +157,18 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			//  Tracking issue https://github.com/crossplane/crossplane/issues/6506
 			Assess("DeleteProviderNopDeployment", func(ctx context.Context, t *testing.T, e *envconf.Config) context.Context {
 				t.Helper()
-				err := e.Client().Resources("crossplane-system").Delete(ctx, &appsv1.Deployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "provider-nop-lifecycle-upgrade-37f3300ebfa7",
-						Namespace: "crossplane-system",
-					},
-				})
+				ds := &appsv1.DeploymentList{}
+				err := e.Client().Resources("crossplane-system").List(ctx, ds)
 				if client.IgnoreNotFound(err) != nil {
-					t.Errorf("Failed to delete provider-nop-lifecycle-upgrade-37f3300ebfa7 deployment: %v", err)
+					t.Errorf("Failed to list deployments: %v", err)
+				}
+				// Look for anything with the prefix "provider-nop-lifecycle-upgrade" and delete it.
+				for _, d := range ds.Items {
+					if strings.HasPrefix(d.Name, "provider-nop-lifecycle-upgrade") {
+						if err := e.Client().Resources("crossplane-system").Delete(ctx, &d); client.IgnoreNotFound(err) != nil {
+							t.Errorf("Failed to delete %s deployment: %v", d.Name, err)
+						}
+					}
 				}
 				return ctx
 			}).

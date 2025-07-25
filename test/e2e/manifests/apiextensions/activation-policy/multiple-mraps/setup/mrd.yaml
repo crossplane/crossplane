@@ -4,6 +4,7 @@ metadata:
   name: storages.multiple.activation-e2e.crossplane.io
 spec:
   group: multiple.activation-e2e.crossplane.io
+  scope: Namespaced
   names:
     kind: Storage
     plural: storages

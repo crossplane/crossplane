@@ -79,6 +79,10 @@ spec:
           - --function
           - "{{ $arg }}"
           {{- end }}
+          {{- range $arg := .Values.provider.defaultActivations }}
+          - --activation
+          - "{{ $arg }}"
+          {{- end }}
           resources:
             {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
           {{- with .Values.securityContextCrossplane }}

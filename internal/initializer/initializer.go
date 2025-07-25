@@ -42,6 +42,9 @@ type StepFunc func(ctx context.Context, kube client.Client) error
 
 // Run calls the step function.
 func (f StepFunc) Run(ctx context.Context, kube client.Client) error {
+	if f == nil {
+		return nil
+	}
 	return f(ctx, kube)
 }
 

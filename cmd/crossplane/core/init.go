@@ -29,18 +29,21 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
+	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
 	"github.com/crossplane/crossplane/internal/initializer"
 )
 
 // initCommand configuration for the initialization of core Crossplane controllers.
 type initCommand struct {
-	Providers                 []string `help:"Pre-install a Provider by giving its image URI. This argument can be repeated."      name:"provider"`
-	Configurations            []string `help:"Pre-install a Configuration by giving its image URI. This argument can be repeated." name:"configuration"`
-	Functions                 []string `help:"Pre-install a Function by giving its image URI. This argument can be repeated."      name:"function"`
-	Namespace                 string   `default:"crossplane-system"                                                                env:"POD_NAMESPACE"        help:"Namespace used to set as default scope in default secret store config." short:"n"`
-	ServiceAccount            string   `default:"crossplane"                                                                       env:"POD_SERVICE_ACCOUNT"  help:"Name of the Crossplane Service Account."`
-	CRDsPath                  string   `default:"/crds"                                                                            env:"CRDS_PATH"            help:"Path of Crossplane core Custom Resource Definitions."`
-	WebhookConfigurationsPath string   `default:"/webhookconfigurations"                                                           env:"WEBHOOK_CONFIGS_PATH" help:"Path of Crossplane core Webhook Configurations."`
+	Providers      []string                    `help:"Pre-install a Provider by giving its image URI. This argument can be repeated."                                            name:"provider"`
+	Configurations []string                    `help:"Pre-install a Configuration by giving its image URI. This argument can be repeated."                                       name:"configuration"`
+	Functions      []string                    `help:"Pre-install a Function by giving its image URI. This argument can be repeated."                                            name:"function"`
+	Activations    []v2alpha1.ActivationPolicy `help:"Pre-install a default managed resource activation policy by providing activations entries. This argument can be repeated." name:"activation"`
+
+	Namespace                 string `default:"crossplane-system"      env:"POD_NAMESPACE"        help:"Namespace used to set as default scope in default secret store config." short:"n"`
+	ServiceAccount            string `default:"crossplane"             env:"POD_SERVICE_ACCOUNT"  help:"Name of the Crossplane Service Account."`
+	CRDsPath                  string `default:"/crds"                  env:"CRDS_PATH"            help:"Path of Crossplane core Custom Resource Definitions."`
+	WebhookConfigurationsPath string `default:"/webhookconfigurations" env:"WEBHOOK_CONFIGS_PATH" help:"Path of Crossplane core Webhook Configurations."`
 
 	WebhookEnabled          bool   `default:"true"                   env:"WEBHOOK_ENABLED"                                                                         help:"Enable webhook configuration."`
 	WebhookServiceName      string `env:"WEBHOOK_SERVICE_NAME"       help:"The name of the Service object that the webhook service will be run."`
@@ -123,6 +126,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	steps = append(steps, initializer.NewLockObject(),
 		initializer.NewPackageInstaller(c.Providers, c.Configurations, c.Functions),
 		initializer.StepFunc(initializer.DefaultDeploymentRuntimeConfig),
+		initializer.DefaultManagedResourceActivationPolicy(c.Activations...),
 	)
 
 	if err := initializer.New(cl, log, steps...).Init(context.TODO()); err != nil {

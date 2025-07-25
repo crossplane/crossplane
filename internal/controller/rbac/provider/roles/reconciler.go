@@ -43,6 +43,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
+	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/controller/rbac/controller"
 )
@@ -330,8 +331,14 @@ func DefinedResources(refs []xpv1.TypedReference) []Resource {
 		// just skip this resource since it can't be a CRD.
 		gv, _ := schema.ParseGroupVersion(ref.APIVersion)
 
-		// We're only concerned with CRDs.
-		if gv.Group != apiextensions.GroupName || ref.Kind != "CustomResourceDefinition" {
+		// We're only concerned with CRDs or MRDs.
+		switch {
+		case gv.Group == apiextensions.GroupName && ref.Kind == "CustomResourceDefinition":
+		// Do the work!
+		case gv.Group == v2alpha1.Group && ref.Kind == v2alpha1.ManagedResourceDefinitionKind:
+		// Do the work!
+		default:
+			// Filter out the non CRD or MRD.
 			continue
 		}
 

@@ -4,9 +4,11 @@ metadata:
   name: buckets.single.activation-e2e.crossplane.io
 spec:
   group: single.activation-e2e.crossplane.io
+  scope: Namespaced
   names:
-    kind: Bucket
     plural: buckets
+    singular: bucket
+    kind: Bucket
   versions:
   - name: v1alpha1
     served: true

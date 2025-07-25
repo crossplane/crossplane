@@ -16,13 +16,42 @@ limitations under the License.
 
 package v1
 
+import (
+	"regexp"
+	"strings"
+)
+
 // Known function capabilities. This shouldn't be treated as an exhaustive list.
 // A package's capabilities array may contain arbitrary entries that aren't
 // meaningful to Crossplane but might be meaningful to some other consumer.
 const (
-	// A function that can be used in a composition.
+	// FunctionCapabilityComposition is a capability key for a function that
+	// can be used in a composition.
 	FunctionCapabilityComposition = "composition"
 
-	// A function that can be used in an operation.
+	// FunctionCapabilityOperation is a capability key for function that can be
+	// used in an operation.
 	FunctionCapabilityOperation = "operation"
+
+	// ProviderCapabilitySafeStart is a capability key for a provider that
+	// supports "safe" starting of its controller gated on the existence of
+	// dependent kinds in the cluster.
+	ProviderCapabilitySafeStart = "safe-start"
 )
+
+// CapabilitiesContainFuzzyMatch will look in the list of capabilities and fuzzy match it to the given key.
+// Fuzzy match is defined as stripping all non-alphanumeric characters and ignoring case.
+func CapabilitiesContainFuzzyMatch(capabilities []string, key string) bool {
+	// fuz will match only alphanumeric characters.
+	fuz := regexp.MustCompile("[^a-zA-Z0-9]+")
+	key = fuz.ReplaceAllString(key, "")
+	key = strings.ToLower(key)
+	for _, c := range capabilities {
+		c = fuz.ReplaceAllString(c, "")
+		c = strings.ToLower(c)
+		if c == key {
+			return true
+		}
+	}
+	return false
+}

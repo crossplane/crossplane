@@ -48,6 +48,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/internal/converter"
 	"github.com/crossplane/crossplane/internal/dag"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/version"
@@ -109,6 +110,7 @@ const (
 	reasonParse        event.Reason = "ParsePackage"
 	reasonLint         event.Reason = "LintPackage"
 	reasonDependencies event.Reason = "ResolveDependencies"
+	reasonConvertCRD   event.Reason = "ConvertCRDToMRD"
 	reasonSync         event.Reason = "SyncPackage"
 	reasonDeactivate   event.Reason = "DeactivateRevision"
 	reasonPaused       event.Reason = "ReconciliationPaused"
@@ -874,8 +876,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
+	objects := pkg.GetObjects()
+	// The CustomToManagedResourceConversion feature converts CRDs to MRDs from
+	// a provider package.
+	if _, ok := pkgMeta.(*pkgmetav1.Provider); ok && r.features.Enabled(features.EnableBetaCustomToManagedResourceConversion) {
+		// Convert CRDs to MRDs
+		// If SafeStart is not in capabilities, we default mrd state to Active.
+		activationState := !pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart)
+		if mrdObjs, err := converter.CustomToManagedResourceDefinitions(activationState, objects...); err != nil {
+			log.Debug("failed to convert CRDs to MRDs for provider, skipping conversion", "error", err)
+			r.record.Event(pr, event.Warning(reasonConvertCRD, err))
+		} else {
+			objects = mrdObjs
+		}
+	}
+
 	// Establish control or ownership of objects.
-	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1.PackageRevisionActive)
+	refs, err := r.objects.Establish(ctx, objects, pr, pr.GetDesiredState() == v1.PackageRevisionActive)
 	if err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil

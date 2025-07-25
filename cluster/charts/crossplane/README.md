@@ -99,6 +99,7 @@ and their default values.
 | `podSecurityContextCrossplane` | Add a custom `securityContext` to the Crossplane pod. | `{}` |
 | `podSecurityContextRBACManager` | Add a custom `securityContext` to the RBAC Manager pod. | `{}` |
 | `priorityClassName` | The PriorityClass name to apply to the Crossplane and RBAC Manager pods. | `""` |
+| `provider.defaultActivations` | Define entries for the default managed resource activation policy. If defined, a default MRAP will contain these activations. | `["*"]` |
 | `provider.packages` | A list of Provider packages to install. | `[]` |
 | `rbacManager.affinity` | Add `affinities` to the RBAC Manager pod deployment. | `{}` |
 | `rbacManager.args` | Add custom arguments to the RBAC Manager pod. | `[]` |

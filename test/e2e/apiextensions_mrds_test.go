@@ -78,8 +78,8 @@ func TestMRDValidation(t *testing.T) {
 	}
 	environment.Test(t,
 		cases.Build(t.Name()).
-			WithLabel(LabelStage, LabelStageAlpha).
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelArea, LabelAreaMRAP).
+			WithLabel(LabelStage, LabelStageBeta).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithTeardown("DeleteValidMRD", funcs.AllOf(
