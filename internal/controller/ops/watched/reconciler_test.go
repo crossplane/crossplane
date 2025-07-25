@@ -628,11 +628,7 @@ func TestOperationName(t *testing.T) {
 				},
 			},
 			want: want{
-<<<<<<< HEAD
-				name: "test-watch-ef68891", // Hash includes deletion timestamp for uniqueness
-=======
 				name: "test-watch-f01d6f3", // Hash includes deletion timestamp for uniqueness
->>>>>>> 09e664a69 (fast fail like before)
 			},
 		},
 	}
