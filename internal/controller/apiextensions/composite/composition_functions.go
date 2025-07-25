@@ -46,6 +46,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/names"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xerrors"
 	"github.com/crossplane/crossplane/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
 )
@@ -312,7 +313,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 		req.Credentials = map[string]*fnv1.Credentials{}
 		for _, cs := range fn.Credentials {
-			// For now we only support loading credentials from secrets.
+			// For now, we only support loading credentials from secrets.
 			if cs.Source != v1.FunctionCredentialsSourceSecret || cs.SecretRef == nil {
 				continue
 			}
@@ -470,7 +471,11 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// million names).
 		if cd.GetName() == "" {
 			if err := c.composite.GenerateName(ctx, cd); err != nil {
-				return CompositionResult{}, errors.Wrapf(err, errFmtGenerateName, name)
+				return CompositionResult{}, xerrors.ComposedResourceError{
+					Message:  fmt.Sprintf(errFmtGenerateName, name),
+					Composed: cd,
+					Err:      err,
+				}
 			}
 		}
 
@@ -574,9 +579,12 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				continue
 			}
 
-			return CompositionResult{}, errors.Wrapf(err, errFmtApplyCD, name)
+			return CompositionResult{}, xerrors.ComposedResourceError{
+				Message:  fmt.Sprintf(errFmtApplyCD, name),
+				Composed: cd.Resource,
+				Err:      err,
+			}
 		}
-
 		resources = append(resources, ComposedResource{ResourceName: name, Ready: cd.Ready, Synced: true})
 	}
 
@@ -622,16 +630,14 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// Remains nil.
 	}
 
-	result := CompositionResult{
+	return CompositionResult{
 		Composed:          resources,
 		ConnectionDetails: d.GetComposite().GetConnectionDetails(),
 		Ready:             ready,
 		Events:            events,
 		Conditions:        conditions,
 		TTL:               ttl,
-	}
-
-	return result, nil
+	}, nil
 }
 
 // ToProtobufResourceSelector converts API RequiredResourceSelector to protobuf ResourceSelector.

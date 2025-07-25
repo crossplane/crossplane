@@ -19,12 +19,15 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
+	authv1 "k8s.io/api/authorization/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery"
 	kcache "k8s.io/client-go/tools/cache"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -37,6 +40,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	"github.com/crossplane/crossplane/internal/xerrors"
 )
 
 // A ControllerEngine manages a set of controllers that can be dynamically
@@ -46,6 +51,12 @@ type ControllerEngine struct {
 	// The manager of this engine's controllers. Controllers managed by the
 	// engine use the engine's client and cache, not the manager's.
 	mgr manager.Manager
+
+	// namespace  is the core Crossplane Namespace name.
+	namespace string
+
+	// serviceAccount is the core Crossplane ServiceAccount name.
+	serviceAccount string
 
 	// The engine must have exclusive use of these informers. All controllers
 	// managed by the engine should use these informers.
@@ -93,13 +104,15 @@ type Metrics interface {
 // New creates a new controller engine.
 func New(mgr manager.Manager, infs TrackingInformers, c client.Client, nc client.Client, o ...ControllerEngineOption) *ControllerEngine {
 	e := &ControllerEngine{
-		mgr:         mgr,
-		infs:        infs,
-		cached:      c,
-		uncached:    nc,
-		controllers: make(map[string]*controller),
-		log:         logging.NewNopLogger(),
-		metrics:     &NopMetrics{},
+		mgr:            mgr,
+		infs:           infs,
+		cached:         c,
+		uncached:       nc,
+		controllers:    make(map[string]*controller),
+		log:            logging.NewNopLogger(),
+		metrics:        &NopMetrics{},
+		namespace:      "crossplane-system",
+		serviceAccount: "crossplane",
 	}
 
 	for _, fn := range o {
@@ -123,6 +136,20 @@ func WithLogger(l logging.Logger) ControllerEngineOption {
 func WithMetrics(m Metrics) ControllerEngineOption {
 	return func(e *ControllerEngine) {
 		e.metrics = m
+	}
+}
+
+// WithNamespace configures the system namespace.
+func WithNamespace(namespace string) ControllerEngineOption {
+	return func(e *ControllerEngine) {
+		e.namespace = namespace
+	}
+}
+
+// WithServiceAccount configures the system service account.
+func WithServiceAccount(serviceAccount string) ControllerEngineOption {
+	return func(e *ControllerEngine) {
+		e.serviceAccount = serviceAccount
 	}
 }
 
@@ -179,6 +206,73 @@ func WithNewControllerFn(fn NewControllerFn) ControllerOption {
 	return func(o *ControllerOptions) {
 		o.nc = fn
 	}
+}
+
+// IsAuthorizedFor validates if this controller engine is allowed to control a GVK in an optional namespace.
+func (e *ControllerEngine) IsAuthorizedFor(ctx context.Context, gvk schema.GroupVersionKind, namespace string) (bool, error) {
+	dc, err := discovery.NewDiscoveryClientForConfig(e.mgr.GetConfig())
+	if err != nil {
+		return false, err
+	}
+	rs, err := dc.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
+	if err != nil {
+		return false, err
+	}
+
+	resource := schema.GroupVersionResource{
+		Group:   gvk.Group,
+		Version: gvk.Version,
+	}
+	for _, r := range rs.APIResources {
+		if r.Kind == gvk.Kind {
+			resource.Resource = r.Name
+		}
+	}
+	if resource.Resource == "" {
+		return false, fmt.Errorf("no resource found for %q", gvk)
+	}
+
+	review := &authv1.SelfSubjectAccessReview{
+		Spec: authv1.SelfSubjectAccessReviewSpec{
+			ResourceAttributes: &authv1.ResourceAttributes{
+				Namespace: namespace,
+				// First try the Verb "*"
+				Verb:     "*",
+				Group:    resource.Group,
+				Version:  resource.Version,
+				Resource: resource.Resource,
+			},
+		},
+	}
+	if err := e.uncached.Create(ctx, review); err != nil {
+		return false, errors.Wrap(err, "cannot create self access review")
+	}
+
+	if review.Status.Allowed {
+		return true, nil
+	}
+
+	// We don't have *, but maybe we have all the needed rights?
+	var denied []string
+	for _, verb := range []string{"get", "list", "watch", "create", "update", "patch", "delete"} {
+		review.Spec.ResourceAttributes.Verb = verb
+		if err := e.uncached.Create(ctx, review); err != nil {
+			return false, errors.Wrap(err, "cannot create self access review")
+		}
+		if !review.Status.Allowed {
+			denied = append(denied, verb)
+		}
+	}
+	if len(denied) > 0 {
+		return false, xerrors.SubjectAccessReviewError{
+			User:        fmt.Sprintf("system:serviceaccount:%s:%s", e.namespace, e.serviceAccount),
+			Resource:    resource,
+			Namespace:   namespace,
+			DeniedVerbs: denied,
+		}
+	}
+
+	return true, nil
 }
 
 // GetCached gets a client backed by the controller engine's cache.

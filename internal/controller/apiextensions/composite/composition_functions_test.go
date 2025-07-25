@@ -18,6 +18,7 @@ package composite
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -49,6 +51,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xerrors"
 	"github.com/crossplane/crossplane/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
 )
@@ -367,6 +370,10 @@ func TestFunctionCompose(t *testing.T) {
 		"RenderComposedResourceMetadataError": {
 			reason: "We should return any error we encounter when rendering composed resource metadata",
 			params: params{
+				c: &test.MockClient{
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
@@ -413,7 +420,9 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return an error when a resource has an invalid name",
 			params: params{
 				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(errBoom),
+					MockGet:         test.NewMockGetFn(errBoom),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -467,7 +476,9 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when naming a composed resource",
 			params: params{
 				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(errBoom),
+					MockGet:         test.NewMockGetFn(errBoom),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -513,14 +524,29 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errFmtGenerateName, "cool-resource"),
+				err: xerrors.ComposedResourceError{
+					Message: fmt.Sprintf(errFmtGenerateName, "cool-resource"),
+					Composed: &composed.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "test.crossplane.io/v1",
+								"kind":       "CoolComposed",
+								"metadata": map[string]any{
+									"generateName": "parent-xr-",
+								},
+							},
+						},
+					},
+					Err: errBoom,
+				},
 			},
 		},
 		"GarbageCollectComposedResourcesError": {
 			reason: "We should return any error we encounter when garbage collecting composed resources",
 			params: params{
 				c: &test.MockClient{
-					MockPatch: test.NewMockPatchFn(nil),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -760,6 +786,7 @@ func TestFunctionCompose(t *testing.T) {
 						}
 						return nil
 					}),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -915,7 +942,18 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errFmtApplyCD, "uncool-resource"),
+				err: xerrors.ComposedResourceError{
+					Message: fmt.Sprintf(errFmtApplyCD, "uncool-resource"),
+					Composed: &composed.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "test.crossplane.io/v1",
+								"kind":       "UncoolComposed",
+							},
+						},
+					},
+					Err: errBoom,
+				},
 			},
 		},
 		"BootstrapRequirementsError": {
@@ -1185,7 +1223,6 @@ func TestFunctionCompose(t *testing.T) {
 					},
 					TTL: 5 * time.Minute,
 				},
-				err: nil,
 			},
 		},
 	}

@@ -376,6 +376,7 @@ func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv1.Condi
 		reasons := make([]string, len(cds))
 		for i := range cds {
 			reasons[i] = string(cds[i].Reason)
+			// TODO: it would be better to let message be a regular expression and match on expected vs observed.
 			if cds[i].Message != "" {
 				t.Errorf("message must not be set in ResourceHasConditionWithin: %s", cds[i].Message)
 			}

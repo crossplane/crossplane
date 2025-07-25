@@ -404,6 +404,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		unstructured.NewClient(uncached),
 		engine.WithLogger(log),
 		engine.WithMetrics(cem),
+		engine.WithNamespace(c.Namespace),
+		engine.WithServiceAccount(c.ServiceAccount),
 	)
 
 	// TODO(negz): Garbage collect informers for CRs that are still defined
