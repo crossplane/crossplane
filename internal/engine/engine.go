@@ -208,7 +208,7 @@ func WithNewControllerFn(fn NewControllerFn) ControllerOption {
 	}
 }
 
-// IsAuthorizedFor validates if this controller is allowed to control a GVK in an optional namespace.
+// IsAuthorizedFor validates if this controller engine is allowed to control a GVK in an optional namespace.
 func (e *ControllerEngine) IsAuthorizedFor(ctx context.Context, gvk schema.GroupVersionKind, namespace string) (bool, error) {
 	dc, err := discovery.NewDiscoveryClientForConfig(e.mgr.GetConfig())
 	if err != nil {

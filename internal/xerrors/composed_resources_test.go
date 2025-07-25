@@ -27,7 +27,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
-func TestComposedResourceError_Error(t *testing.T) {
+func TestComposedResourceErrorError(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	testComposed := &composed.Unstructured{

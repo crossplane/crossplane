@@ -26,7 +26,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
-func TestSubjectAccessReviewError_Error(t *testing.T) {
+func TestSubjectAccessReviewErrorError(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	testResource := schema.GroupVersionResource{
