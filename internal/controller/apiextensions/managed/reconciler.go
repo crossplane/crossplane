@@ -160,6 +160,7 @@ func (r *Reconciler) reconcileCustomResourceDefinition(ctx context.Context, log 
 	}
 
 	// Stage changes.
+	meta.AddOwnerReference(want, meta.AsController(meta.TypedReferenceTo(mrd, v2alpha1.ManagedResourceDefinitionGroupVersionKind)))
 	if err := resources.MergeCustomResourceDefinitionInto(mrd, want); err != nil {
 		return nil, errors.Wrap(err, "cannot merge CustomResourceDefinition")
 	}
