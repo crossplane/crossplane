@@ -20,6 +20,7 @@ package names
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -88,11 +89,16 @@ func (r *nameGenerator) GenerateName(ctx context.Context, cd resource.Object) er
 	}
 
 	// If we find the right information on the resource, try once.
-	compositeName := xcrd.GetCompositionResourceName(cd)
-	if compositeName != "" {
+	cName := xcrd.GetCompositionResourceName(cd)
+	if cName != "" {
 		owner := metav1.GetControllerOf(cd)
 		if owner != nil && owner.UID != "" {
-			name := ChildName(cd.GetGenerateName(), fmt.Sprintf("%s-%s", compositeName, owner.UID))
+			// We are going to roll the dice and hope no other XR child has a
+			// parent with the same uid ending in an effort to shorten the
+			// child name before the ChildName method has to trunc/add a hash.
+			uidParts := strings.Split(string(owner.UID), "-")
+			uidPart := uidParts[len(uidParts)-1]
+			name := ChildName(fmt.Sprintf("%s%s", cd.GetGenerateName(), uidPart), fmt.Sprintf("-%s", cName))
 			if available, err := r.isAvailable(ctx, cd, name); err != nil {
 				return err
 			} else if available {

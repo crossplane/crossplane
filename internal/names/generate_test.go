@@ -174,7 +174,7 @@ func TestGenerateName(t *testing.T) {
 			client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "CoolResource"}, "cool-resource-42"))},
 			args: args{
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "cool-resource-",
+					GenerateName: "cool-resource-with-a-really-long-name-that-can-not-fit-all-in-one-place-",
 					OwnerReferences: []metav1.OwnerReference{{
 						APIVersion: "Foo/v1",
 						Kind:       "Bar",
@@ -189,8 +189,8 @@ func TestGenerateName(t *testing.T) {
 			},
 			want: want{
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "cool-resource-",
-					Name:         "cool-resource-59f97ca4a7eebb99beb694a77f42de28pipeline-name-of",
+					GenerateName: "cool-resource-with-a-really-long-name-that-can-not-fit-all-in-one-place-",
+					Name:         "cool-resource-with-a-really-lonab455e7d35d099adea15e918d64db893",
 					OwnerReferences: []metav1.OwnerReference{{
 						APIVersion: "Foo/v1",
 						Kind:       "Bar",
@@ -225,7 +225,7 @@ func TestGenerateName(t *testing.T) {
 			want: want{
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "cool-resource-",
-					Name:         "cool-resource-kid1-75e4a668-035f-4ce8-8c45-f4d3ac850155",
+					Name:         "cool-resource-f4d3ac850155-kid1",
 					OwnerReferences: []metav1.OwnerReference{{
 						APIVersion: "Foo/v1",
 						Kind:       "Bar",
