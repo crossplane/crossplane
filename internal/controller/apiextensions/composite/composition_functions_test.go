@@ -76,8 +76,8 @@ func TestFunctionCompose(t *testing.T) {
 	}
 
 	type want struct {
-		res  CompositionResult
-		errs []error
+		res CompositionResult
+		err error
 	}
 
 	cases := map[string]struct {
@@ -103,7 +103,7 @@ func TestFunctionCompose(t *testing.T) {
 				req: CompositionRequest{Revision: &v1.CompositionRevision{}},
 			},
 			want: want{
-				errs: []error{errors.Wrap(errBoom, errFetchXRConnectionDetails)},
+				err: errors.Wrap(errBoom, errFetchXRConnectionDetails),
 			},
 		},
 		"GetComposedResourcesError": {
@@ -123,7 +123,7 @@ func TestFunctionCompose(t *testing.T) {
 				req: CompositionRequest{Revision: &v1.CompositionRevision{}},
 			},
 			want: want{
-				errs: []error{errors.Wrap(errBoom, errGetExistingCDs)},
+				err: errors.Wrap(errBoom, errGetExistingCDs),
 			},
 		},
 		"UnmarshalFunctionInputError": {
@@ -155,7 +155,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				errs: []error{errors.Wrapf(errProtoSyntax, errFmtUnmarshalPipelineStepInput, "run-cool-function")},
+				err: errors.Wrapf(errProtoSyntax, errFmtUnmarshalPipelineStepInput, "run-cool-function"),
 			},
 		},
 		"GetCredentialsSecretError": {
@@ -204,7 +204,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				errs: []error{errors.Wrapf(errBoom, errFmtGetCredentialsFromSecret, "run-cool-function", "cool-secret")},
+				err: errors.Wrapf(errBoom, errFmtGetCredentialsFromSecret, "run-cool-function", "cool-secret"),
 			},
 		},
 		"RunFunctionError": {
@@ -238,7 +238,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				errs: []error{errors.Wrapf(errBoom, errFmtRunPipelineStep, "run-cool-function")},
+				err: errors.Wrapf(errBoom, errFmtRunPipelineStep, "run-cool-function"),
 			},
 		},
 		"FatalFunctionResultError": {
@@ -319,7 +319,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				errs: []error{errors.Errorf(errFmtFatalResult, "run-cool-function", "oh no")},
+				err: errors.Errorf(errFmtFatalResult, "run-cool-function", "oh no"),
 				res: CompositionResult{
 					Events: []TargetedEvent{
 						// The event with minimum values.
@@ -413,7 +413,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				errs: []error{errors.Wrapf(RenderComposedResourceMetadata(nil, composite.New(), ""), errFmtRenderMetadata, "cool-resource")},
+				err: errors.Wrapf(RenderComposedResourceMetadata(nil, composite.New(), ""), errFmtRenderMetadata, "cool-resource"),
 			},
 		},
 		"InvalidNameCreateComposedResourceError": {
@@ -469,7 +469,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				errs: []error{errors.Errorf(errFmtInvalidName, "cool-resource", "%!(cool)-resource")},
+				err: errors.Errorf(errFmtInvalidName, "cool-resource", "%!(cool)-resource"),
 			},
 		},
 		"GenerateNameCreateComposedResourceError": {
@@ -524,7 +524,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				errs: []error{xerrors.ComposedResourceError{
+				err: xerrors.ComposedResourceError{
 					Message: fmt.Sprintf(errFmtGenerateName, "cool-resource"),
 					Composed: &composed.Unstructured{
 						Unstructured: unstructured.Unstructured{
@@ -538,7 +538,7 @@ func TestFunctionCompose(t *testing.T) {
 						},
 					},
 					Err: errBoom,
-				}},
+				},
 			},
 		},
 		"GarbageCollectComposedResourcesError": {
@@ -583,7 +583,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				errs: []error{errors.Wrap(errBoom, errGarbageCollectCDs)},
+				err: errors.Wrap(errBoom, errGarbageCollectCDs),
 			},
 		},
 		"NamespacedXRClusterCompositionError": {
@@ -823,7 +823,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				errs: []error{errors.Wrap(errBoom, errApplyXRRefs)},
+				err: errors.Wrap(errBoom, errApplyXRRefs),
 			},
 		},
 		"ApplyXRStatusError": {
@@ -877,7 +877,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				errs: []error{errors.Wrap(errBoom, errApplyXRStatus)},
+				err: errors.Wrap(errBoom, errApplyXRStatus),
 			},
 		},
 		"ApplyComposedResourceError": {
@@ -942,7 +942,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				errs: []error{xerrors.ComposedResourceError{
+				err: xerrors.ComposedResourceError{
 					Message: fmt.Sprintf(errFmtApplyCD, "uncool-resource"),
 					Composed: &composed.Unstructured{
 						Unstructured: unstructured.Unstructured{
@@ -953,7 +953,7 @@ func TestFunctionCompose(t *testing.T) {
 						},
 					},
 					Err: errBoom,
-				}},
+				},
 			},
 		},
 		"BootstrapRequirementsError": {
@@ -1332,14 +1332,10 @@ func TestFunctionCompose(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := NewFunctionComposer(tc.params.c, tc.params.uc, tc.params.r, tc.params.o...)
 
-			res := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
-
-			if diff := cmp.Diff(tc.want.errs, res.Errs, test.EquateErrors()); diff != "" {
+			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
 			}
-
-			// Ignore the errors from result, we already compared them.
-			res.Errs = nil
 
 			// We iterate over a map to produce ComposedResources, so they're
 			// returned in random order.
