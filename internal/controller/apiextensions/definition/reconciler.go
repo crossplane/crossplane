@@ -148,7 +148,7 @@ func (e *NopEngine) GetFieldIndexer() client.FieldIndexer {
 	return nil
 }
 
-// IsAuthorizedFor validates if this controller is allowed to control a GVK in an optional namespace.
+// IsAuthorizedFor validates if this controller engine is allowed to control a GVK in an optional namespace.
 func (e *NopEngine) IsAuthorizedFor(_ context.Context, _ schema.GroupVersionKind, _ string) (bool, error) {
 	return false, nil
 }
