@@ -54,7 +54,7 @@ type Dependency struct {
 
 	// Package OCI reference of the dependency. Only used when apiVersion and
 	// kind are set.
-	// Musth be a fully qualified image name, including the registry,
+	// Must be a fully qualified image name, including the registry,
 	// repository, and tag. For example, "registry.example.com/repo/package:tag".
 	// +optional
 	Package *string `json:"package,omitempty"`
