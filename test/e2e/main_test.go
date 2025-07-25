@@ -43,13 +43,6 @@ const namespace = "crossplane-system"
 // TODO(phisco): make it configurable.
 const crdsDir = "cluster/crds"
 
-// The caller (e.g. make e2e) must ensure these exist.
-// Run `make build e2e-tag-images` to produce them.
-const (
-	// TODO(phisco): make it configurable.
-	imgcore = "crossplane-e2e/crossplane:latest"
-)
-
 const (
 	// TODO(phisco): make it configurable.
 	helmChartDir = "cluster/charts/crossplane"
@@ -65,6 +58,12 @@ func TestMain(m *testing.M) {
 	// https://github.com/kubernetes-sigs/e2e-framework/issues/270
 	log.SetLogger(klog.NewKlogr())
 
+	// Parse flags to ensure we have the environment configured
+	cfg, err := envconf.NewFromFlags()
+	if err != nil {
+		panic(err)
+	}
+
 	// Set the default suite, to be used as base for all the other suites.
 	environment.AddDefaultTestSuite(
 		config.WithoutBaseDefaultTestSuite(),
@@ -78,8 +77,8 @@ func TestMain(m *testing.M) {
 			helm.WithArgs(
 				// Run with debug logging to ensure all log statements are run.
 				"--set args={--debug}",
-				"--set image.repository="+strings.Split(imgcore, ":")[0],
-				"--set image.tag="+strings.Split(imgcore, ":")[1],
+				"--set image.repository="+strings.Split(environment.GetCrossplaneImage(), ":")[0],
+				"--set image.tag="+strings.Split(environment.GetCrossplaneImage(), ":")[1],
 				"--set metrics.enabled=true",
 			),
 		),
@@ -87,11 +86,6 @@ func TestMain(m *testing.M) {
 			config.LabelTestSuite: []string{config.TestSuiteDefault},
 		}),
 	)
-
-	cfg, err := envconf.NewFromFlags()
-	if err != nil {
-		panic(err)
-	}
 
 	var (
 		setup  []env.Func
@@ -117,7 +111,7 @@ func TestMain(m *testing.M) {
 	if environment.ShouldLoadImages() {
 		clusterName := environment.GetKindClusterName()
 		setup = append(setup,
-			envfuncs.LoadDockerImageToCluster(clusterName, imgcore),
+			envfuncs.LoadDockerImageToCluster(clusterName, environment.GetCrossplaneImage()),
 		)
 	}
 
