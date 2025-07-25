@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/aws/smithy-go/ptr"
 	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +32,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 func TestGenerateName(t *testing.T) {
@@ -110,6 +113,27 @@ func TestGenerateName(t *testing.T) {
 				}},
 			},
 		},
+		"SuccessMissingOwner": {
+			reason: "If no owner, use the random name generator",
+			client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "CoolResource"}, "cool-resource-42"))},
+			args: args{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-",
+					Annotations: map[string]string{
+						xcrd.AnnotationKeyCompositionResourceName: "pipeline-name-of-cool-resource",
+					},
+				}},
+			},
+			want: want{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-",
+					Name:         "cool-resource-42",
+					Annotations: map[string]string{
+						xcrd.AnnotationKeyCompositionResourceName: "pipeline-name-of-cool-resource",
+					},
+				}},
+			},
+		},
 		"SuccessAfterConflict": {
 			reason: "Name is found on second try",
 			client: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, _ client.Object) error {
@@ -143,6 +167,76 @@ func TestGenerateName(t *testing.T) {
 					GenerateName: "cool-resource-",
 				}},
 				err: errors.New(errGenerateName),
+			},
+		},
+		"SuccessCompositeTruncated": {
+			reason: "Is annotated and owned should use ChildName and not be random, but if all this is too long, it will be shortened",
+			client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "CoolResource"}, "cool-resource-42"))},
+			args: args{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-with-a-really-long-name-that-can-not-fit-all-in-one-place-",
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: "Foo/v1",
+						Kind:       "Bar",
+						Name:       "parent",
+						UID:        "75e4a668-035f-4ce8-8c45-f4d3ac850155",
+						Controller: ptr.Bool(true),
+					}},
+					Annotations: map[string]string{
+						xcrd.AnnotationKeyCompositionResourceName: "pipeline-name-of-cool-resource",
+					},
+				}},
+			},
+			want: want{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-with-a-really-long-name-that-can-not-fit-all-in-one-place-",
+					Name:         "cool-resource-with-a-really-lonab455e7d35d099adea15e918d64db893",
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: "Foo/v1",
+						Kind:       "Bar",
+						Name:       "parent",
+						UID:        "75e4a668-035f-4ce8-8c45-f4d3ac850155",
+						Controller: ptr.Bool(true),
+					}},
+					Annotations: map[string]string{
+						xcrd.AnnotationKeyCompositionResourceName: "pipeline-name-of-cool-resource",
+					},
+				}},
+			},
+		},
+		"SuccessComposite": {
+			reason: "Is annotated and owned should use ChildName and not be random",
+			client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "CoolResource"}, "cool-resource-42"))},
+			args: args{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-",
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: "Foo/v1",
+						Kind:       "Bar",
+						Name:       "parent",
+						UID:        "75e4a668-035f-4ce8-8c45-f4d3ac850155",
+						Controller: ptr.Bool(true),
+					}},
+					Annotations: map[string]string{
+						xcrd.AnnotationKeyCompositionResourceName: "kid1",
+					},
+				}},
+			},
+			want: want{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-",
+					Name:         "cool-resource-f4d3ac850155-kid1",
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: "Foo/v1",
+						Kind:       "Bar",
+						Name:       "parent",
+						UID:        "75e4a668-035f-4ce8-8c45-f4d3ac850155",
+						Controller: ptr.Bool(true),
+					}},
+					Annotations: map[string]string{
+						xcrd.AnnotationKeyCompositionResourceName: "kid1",
+					},
+				}},
 			},
 		},
 	}

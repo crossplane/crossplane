@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package composite
+package xcrd
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,17 +24,18 @@ import (
 
 // Annotation keys.
 const (
+	// AnnotationKeyCompositionResourceName is the name of the composite resource as described from a composition.
 	AnnotationKeyCompositionResourceName = "crossplane.io/composition-resource-name"
 )
 
 // SetCompositionResourceName sets the name of the composition template used to
 // reconcile a composed resource as an annotation.
-func SetCompositionResourceName(o metav1.Object, n ResourceName) {
-	meta.AddAnnotations(o, map[string]string{AnnotationKeyCompositionResourceName: string(n)})
+func SetCompositionResourceName(o metav1.Object, n string) {
+	meta.AddAnnotations(o, map[string]string{AnnotationKeyCompositionResourceName: n})
 }
 
 // GetCompositionResourceName gets the name of the composition template used to
 // reconcile a composed resource from its annotations.
-func GetCompositionResourceName(o metav1.Object) ResourceName {
-	return ResourceName(o.GetAnnotations()[AnnotationKeyCompositionResourceName])
+func GetCompositionResourceName(o metav1.Object) string {
+	return o.GetAnnotations()[AnnotationKeyCompositionResourceName]
 }

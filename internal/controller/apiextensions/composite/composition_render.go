@@ -97,7 +97,7 @@ func RenderComposedResourceMetadata(cd, xr resource.Object, n ResourceName) erro
 	}
 
 	if n != "" {
-		SetCompositionResourceName(cd, n)
+		xcrd.SetCompositionResourceName(cd, string(n))
 	}
 
 	// TODO(negz): What happens if there is no claim? Will this set empty
