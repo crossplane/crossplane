@@ -172,7 +172,6 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				}
 				return ctx
 			}).
-			Assess("WaitForCRDGarbageCollect", funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "provider/definition-ref.yaml")).
 			Assess("ProviderIsReady",
 				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			Assess("DeleteClaim", funcs.AllOf(

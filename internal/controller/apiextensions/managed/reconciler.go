@@ -19,6 +19,7 @@ package managed
 
 import (
 	"context"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -159,8 +160,14 @@ func (r *Reconciler) reconcileCustomResourceDefinition(ctx context.Context, log 
 		return nil, errors.New("crd was deleted")
 	}
 
+	// Own the CRD.
+	meta.AddOwnerReference(want, meta.AsOwner(meta.TypedReferenceTo(mrd, v2alpha1.ManagedResourceDefinitionGroupVersionKind)))
+	// But also propagate our controller as the controller of the CRD.
+	if owner := metav1.GetControllerOf(mrd); owner != nil {
+		meta.AddOwnerReference(want, *owner)
+	}
+
 	// Stage changes.
-	meta.AddOwnerReference(want, meta.AsController(meta.TypedReferenceTo(mrd, v2alpha1.ManagedResourceDefinitionGroupVersionKind)))
 	if err := resources.MergeCustomResourceDefinitionInto(mrd, want); err != nil {
 		return nil, errors.Wrap(err, "cannot merge CustomResourceDefinition")
 	}
