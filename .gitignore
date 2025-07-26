@@ -33,3 +33,6 @@ gitlab/
 # go build output (from go build ./cmd/crank etc)
 /crank
 /crossplane
+
+# ignore AI tools settings/config
+/.claude
