@@ -17,11 +17,11 @@ limitations under the License.
 package e2e
 
 import (
-	"sigs.k8s.io/e2e-framework/third_party/helm"
 	"testing"
 	"time"
 
 	"sigs.k8s.io/e2e-framework/pkg/features"
+	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
 	"github.com/crossplane/crossplane/test/e2e/config"
