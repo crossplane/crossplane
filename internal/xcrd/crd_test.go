@@ -431,18 +431,6 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
-												"crossplane": {
-													Description: "Indicates how Crossplane is reconciling this composite resource",
-													Type:        "object",
-													Properties: map[string]extv1.JSONSchemaProps{
-														"connectionDetails": {
-															Type: "object",
-															Properties: map[string]extv1.JSONSchemaProps{
-																"lastPublishedTime": {Type: "string", Format: "date-time"},
-															},
-														},
-													},
-												},
 											},
 											XValidations: extv1.ValidationRules{
 												{
