@@ -320,19 +320,8 @@ func CompositeResourceStatusProps(s v1.CompositeResourceScope) map[string]extv1.
 
 	switch s {
 	case v1.CompositeResourceScopeNamespaced, v1.CompositeResourceScopeCluster:
-		// Modern XRs use status.crossplane, and don't support claims.
-		props["crossplane"] = extv1.JSONSchemaProps{
-			Type:        "object",
-			Description: "Indicates how Crossplane is reconciling this composite resource",
-			Properties: map[string]extv1.JSONSchemaProps{
-				"connectionDetails": {
-					Type: "object",
-					Properties: map[string]extv1.JSONSchemaProps{
-						"lastPublishedTime": {Type: "string", Format: "date-time"},
-					},
-				},
-			},
-		}
+		// Modern XRs don't have connection details or support claims, so
+		// there's nothing else to put in the status for them
 	case v1.CompositeResourceScopeLegacyCluster:
 		// Legacy XRs don't use status.crossplane, and support claims.
 		props["connectionDetails"] = extv1.JSONSchemaProps{
