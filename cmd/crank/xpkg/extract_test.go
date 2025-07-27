@@ -38,7 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/internal/xpkg"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 func TestExtractRun(t *testing.T) {

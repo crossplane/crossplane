@@ -21,7 +21,7 @@ package v1beta1
 import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
-	"github.com/crossplane/crossplane/internal/protection"
+	"github.com/crossplane/crossplane/v2/internal/protection"
 )
 
 // These methods are in a separate file so ../hack/duplicate_api_type.sh

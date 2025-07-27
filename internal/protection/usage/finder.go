@@ -29,9 +29,9 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	legacy "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
-	"github.com/crossplane/crossplane/apis/protection/v1beta1"
-	"github.com/crossplane/crossplane/internal/protection"
+	legacy "github.com/crossplane/crossplane/v2/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/v2/apis/protection/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/protection"
 )
 
 // indexKey is a controller-runtime cache index key. It's used to index usages

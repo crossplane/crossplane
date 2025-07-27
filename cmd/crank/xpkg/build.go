@@ -32,9 +32,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
-	"github.com/crossplane/crossplane/internal/xpkg"
-	"github.com/crossplane/crossplane/internal/xpkg/parser/examples"
-	"github.com/crossplane/crossplane/internal/xpkg/parser/yaml"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
+	"github.com/crossplane/crossplane/v2/internal/xpkg/parser/examples"
+	"github.com/crossplane/crossplane/v2/internal/xpkg/parser/yaml"
 )
 
 const (

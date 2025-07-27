@@ -44,12 +44,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/internal/features"
-	verfake "github.com/crossplane/crossplane/internal/version/fake"
-	"github.com/crossplane/crossplane/internal/xpkg"
-	xpkgfake "github.com/crossplane/crossplane/internal/xpkg/fake"
+	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/features"
+	verfake "github.com/crossplane/crossplane/v2/internal/version/fake"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
+	xpkgfake "github.com/crossplane/crossplane/v2/internal/xpkg/fake"
 )
 
 var _ parser.Backend = &ErrBackend{}

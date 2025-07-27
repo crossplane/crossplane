@@ -38,8 +38,8 @@ import (
 	xpmeta "github.com/crossplane/crossplane-runtime/pkg/meta"
 	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
-	"github.com/crossplane/crossplane/internal/protection"
-	"github.com/crossplane/crossplane/internal/protection/usage"
+	"github.com/crossplane/crossplane/v2/internal/protection"
+	"github.com/crossplane/crossplane/v2/internal/protection/usage"
 )
 
 // Error strings.

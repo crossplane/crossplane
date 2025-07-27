@@ -31,9 +31,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 
-	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
-	opscontroller "github.com/crossplane/crossplane/internal/controller/ops/controller"
-	"github.com/crossplane/crossplane/internal/xfn"
+	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	opscontroller "github.com/crossplane/crossplane/v2/internal/controller/ops/controller"
+	"github.com/crossplane/crossplane/v2/internal/xfn"
 )
 
 // Setup adds a controller that reconciles Usages by

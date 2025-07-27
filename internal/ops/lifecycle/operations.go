@@ -25,7 +25,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
-	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
+	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
 )
 
 // LatestCreateTime returns the latest creation timestamp of a set of

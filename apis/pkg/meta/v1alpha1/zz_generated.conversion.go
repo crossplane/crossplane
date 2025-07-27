@@ -4,7 +4,7 @@
 package v1alpha1
 
 import (
-	v1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
 	v11 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

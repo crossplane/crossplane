@@ -40,7 +40,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
-	"github.com/crossplane/crossplane/internal/names"
+	"github.com/crossplane/crossplane/v2/internal/names"
 )
 
 const (

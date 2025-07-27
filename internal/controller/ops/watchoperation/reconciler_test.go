@@ -33,8 +33,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
-	"github.com/crossplane/crossplane/internal/engine"
+	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	"github.com/crossplane/crossplane/v2/internal/engine"
 )
 
 var errBoom = errors.New("boom")

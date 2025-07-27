@@ -10,8 +10,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 )
 
 // EnqueuePackageRevisionsForRuntimeConfig enqueues a reconcile for all package

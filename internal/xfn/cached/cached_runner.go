@@ -29,8 +29,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplane/crossplane/internal/xfn/cached/proto/v1alpha1"
-	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
+	"github.com/crossplane/crossplane/v2/internal/xfn/cached/proto/v1alpha1"
+	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
 // A CacheMissReason indicates what caused a cache miss.

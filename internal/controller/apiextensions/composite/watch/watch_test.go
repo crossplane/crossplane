@@ -32,7 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/internal/engine"
+	"github.com/crossplane/crossplane/v2/internal/engine"
 )
 
 var _ ControllerEngine = &MockEngine{}

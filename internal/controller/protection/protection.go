@@ -22,7 +22,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 
-	"github.com/crossplane/crossplane/internal/controller/protection/usage"
+	"github.com/crossplane/crossplane/v2/internal/controller/protection/usage"
 )
 
 // Setup protection controllers.

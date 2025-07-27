@@ -21,7 +21,7 @@ package internal.xfn.cached.proto.v1alpha1;
 import "google/protobuf/timestamp.proto";
 import "proto/fn/v1/run_function.proto";
 
-option go_package = "github.com/crossplane/crossplane/internal/xfn/cached/proto/v1alpha1";
+option go_package = "github.com/crossplane/crossplane/v2/internal/xfn/cached/proto/v1alpha1";
 
 // A CachedRunFunctionResponse is Crossplane's on-disk cache format for a
 // RunFunctionResponse.

@@ -29,9 +29,9 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	legacy "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
-	"github.com/crossplane/crossplane/apis/protection/v1beta1"
-	"github.com/crossplane/crossplane/internal/protection"
+	legacy "github.com/crossplane/crossplane/v2/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/v2/apis/protection/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/protection"
 )
 
 type IndexFieldFn func(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error

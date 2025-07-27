@@ -30,7 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 
-	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
+	resource2 "github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/resource"
 )
 
 type xrcOpt func(c *claim.Unstructured)

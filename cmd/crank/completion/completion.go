@@ -18,7 +18,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	controllerClient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane/cmd/crank/internal"
+	"github.com/crossplane/crossplane/v2/cmd/crank/internal"
 )
 
 // Predictors returns all supported predictors.

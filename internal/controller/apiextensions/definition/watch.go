@@ -8,7 +8,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 // IsCompositeResourceCRD accepts any CustomResourceDefinition that represents a

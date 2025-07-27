@@ -21,7 +21,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
-	"github.com/crossplane/crossplane/internal/dag"
+	"github.com/crossplane/crossplane/v2/internal/dag"
 )
 
 var (

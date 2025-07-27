@@ -30,8 +30,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 
-	"github.com/crossplane/crossplane/internal/controller/rbac"
-	rbaccontroller "github.com/crossplane/crossplane/internal/controller/rbac/controller"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac"
+	rbaccontroller "github.com/crossplane/crossplane/v2/internal/controller/rbac/controller"
 )
 
 // Command runs the crossplane RBAC controllers.

@@ -36,10 +36,10 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplane/crossplane/apis"
-	"github.com/crossplane/crossplane/cmd/crossplane/core"
-	"github.com/crossplane/crossplane/cmd/crossplane/rbac"
-	"github.com/crossplane/crossplane/internal/version"
+	"github.com/crossplane/crossplane/v2/apis"
+	"github.com/crossplane/crossplane/v2/cmd/crossplane/core"
+	"github.com/crossplane/crossplane/v2/cmd/crossplane/rbac"
+	"github.com/crossplane/crossplane/v2/internal/version"
 )
 
 type (

@@ -26,11 +26,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"
-	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
-	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	"github.com/crossplane/crossplane/internal/version"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/v2/apis/apiextensions/v2"
+	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
+	"github.com/crossplane/crossplane/v2/internal/version"
 )
 
 const (

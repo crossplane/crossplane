@@ -30,7 +30,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	commonIO "github.com/crossplane/crossplane/cmd/crank/beta/convert/io"
+	commonIO "github.com/crossplane/crossplane/v2/cmd/crank/beta/convert/io"
 )
 
 // Cmd arguments and flags for converting a Composition to use function-environment-configs.

@@ -32,9 +32,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
-	opscontroller "github.com/crossplane/crossplane/internal/controller/ops/controller"
-	"github.com/crossplane/crossplane/internal/engine"
+	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	opscontroller "github.com/crossplane/crossplane/v2/internal/controller/ops/controller"
+	"github.com/crossplane/crossplane/v2/internal/engine"
 )
 
 // A ControllerEngine can start and stop Kubernetes controllers on demand.

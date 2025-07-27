@@ -38,8 +38,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
-	"github.com/crossplane/crossplane/internal/ops/lifecycle"
+	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	"github.com/crossplane/crossplane/v2/internal/ops/lifecycle"
 )
 
 const (
