@@ -38,6 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
+	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
@@ -372,6 +373,29 @@ func (e *APIEstablisher) enrichControlledResource(res runtime.Object, webhookTLS
 			conf.Webhooks[i].ClientConfig.Service.Port = ptr.To[int32](ServicePort)
 		}
 	case *extv1.CustomResourceDefinition:
+		if conf.Spec.Conversion != nil && conf.Spec.Conversion.Strategy == extv1.WebhookConverter {
+			if len(webhookTLSCert) == 0 {
+				return errors.New(errConversionWithNoWebhookCA)
+			}
+
+			if conf.Spec.Conversion.Webhook == nil {
+				conf.Spec.Conversion.Webhook = &extv1.WebhookConversion{}
+			}
+
+			if conf.Spec.Conversion.Webhook.ClientConfig == nil {
+				conf.Spec.Conversion.Webhook.ClientConfig = &extv1.WebhookClientConfig{}
+			}
+
+			if conf.Spec.Conversion.Webhook.ClientConfig.Service == nil {
+				conf.Spec.Conversion.Webhook.ClientConfig.Service = &extv1.ServiceReference{}
+			}
+
+			conf.Spec.Conversion.Webhook.ClientConfig.CABundle = webhookTLSCert
+			conf.Spec.Conversion.Webhook.ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
+			conf.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = e.namespace
+			conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = ptr.To[int32](ServicePort)
+		}
+	case *v2alpha1.ManagedResourceDefinition:
 		if conf.Spec.Conversion != nil && conf.Spec.Conversion.Strategy == extv1.WebhookConverter {
 			if len(webhookTLSCert) == 0 {
 				return errors.New(errConversionWithNoWebhookCA)
