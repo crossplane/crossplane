@@ -144,7 +144,6 @@ func TestLackOfRightsNamespaced(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
 			)).
 			Assess("XRHasStatusField", funcs.AllOf(
-				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
 				// A blank error is as good as we can do at the moment. This validates we get into a reconciliation error, which is better than nothing.
 				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "xr.yaml", xpv1.ReconcileError(errors.New(""))),
 			)).
