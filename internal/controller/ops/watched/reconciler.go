@@ -214,7 +214,7 @@ func OperationName(wo *v1alpha1.WatchOperation, watched *unstructured.Unstructur
 	// ensure different resource instances (even with the same
 	// name/namespace) create different Operation names.
 	if t := watched.GetDeletionTimestamp(); t != nil {
-		in = in + "/" + t.String()
+		in = in + "/" + t.UTC().Format(time.RFC3339)
 	}
 
 	hash := sha256.Sum256([]byte(in))
