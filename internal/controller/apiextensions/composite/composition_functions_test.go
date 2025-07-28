@@ -1327,6 +1327,18 @@ func TestFunctionCompose(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
 			}
+			// Check for our typed errors.
+			if tc.want.err != nil {
+				if wantErr := new(xerrors.ComposedResourceError); errors.As(tc.want.err, wantErr) {
+					if gotErr := new(xerrors.ComposedResourceError); errors.As(err, gotErr) {
+						if diff := cmp.Diff(wantErr, gotErr, test.EquateErrors()); diff != "" {
+							t.Errorf("\n%s\nComposedResourceError: -want, +got:\n%s", tc.reason, diff)
+						}
+					} else {
+						t.Errorf("\n%s\nComposedResourceError: not a typed error:\n%T", tc.reason, err)
+					}
+				}
+			}
 
 			// We iterate over a map to produce ComposedResources, so they're
 			// returned in random order.
