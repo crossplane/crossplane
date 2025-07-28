@@ -371,7 +371,6 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when rendering composed resource metadata",
 			params: params{
 				c: &test.MockClient{
-					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
@@ -419,11 +418,6 @@ func TestFunctionCompose(t *testing.T) {
 		"InvalidNameCreateComposedResourceError": {
 			reason: "We should return an error when a resource has an invalid name",
 			params: params{
-				c: &test.MockClient{
-					MockGet:         test.NewMockGetFn(errBoom),
-					MockPatch:       test.NewMockPatchFn(nil),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
-				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
@@ -476,9 +470,7 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when naming a composed resource",
 			params: params{
 				c: &test.MockClient{
-					MockGet:         test.NewMockGetFn(errBoom),
-					MockPatch:       test.NewMockPatchFn(nil),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+					MockGet: test.NewMockGetFn(errBoom),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -545,8 +537,7 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when garbage collecting composed resources",
 			params: params{
 				c: &test.MockClient{
-					MockPatch:       test.NewMockPatchFn(nil),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -786,7 +777,6 @@ func TestFunctionCompose(t *testing.T) {
 						}
 						return nil
 					}),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -1223,6 +1213,7 @@ func TestFunctionCompose(t *testing.T) {
 					},
 					TTL: 5 * time.Minute,
 				},
+				err: nil,
 			},
 		},
 		"ResourceReferencesWithoutObservedResources": {
