@@ -452,7 +452,6 @@ spec:
             - group
             - names
             - scope
-            - state
             - versions
             type: object
           status:

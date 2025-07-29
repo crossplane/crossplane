@@ -33,6 +33,16 @@ func TestMRDValidation(t *testing.T) {
 	cases := features.Table{
 		{
 			// A valid MRD should be created.
+			Name:        "ValidNewMRDIsDefaulted",
+			Description: "A valid MRD should be created with defaults.",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "mrd-defaulted.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "mrd-defaulted.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mrd-defaulted.yaml", v2alpha1.InactiveManaged()),
+			),
+		},
+		{
+			// A valid MRD should be created.
 			Name:        "ValidNewMRDIsAccepted",
 			Description: "A valid MRD should be created.",
 			Assessment: funcs.AllOf(
