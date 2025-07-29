@@ -1216,7 +1216,7 @@ func TestFunctionCompose(t *testing.T) {
 						{
 							APIVersion: "apps/v1",
 							Kind:       "Deployment",
-							Name:       "parent-xr-73edf0cb4924472922c78401ca75c166test-resource-with-a",
+							Name:       "parent-xr-f4d3ac8501550bf84c63a814cc31ecb3161cbb88370f-test-res",
 						},
 					})
 					return xr
