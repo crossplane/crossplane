@@ -1,0 +1,11 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResource
+metadata: 
+  name: xmydatabases.example.org
+spec:
+  group: example.org
+  names:
+    kind: XMyDatabase
+    plural: xmydatabases
+  versions:
+  - name: v1alpha1
