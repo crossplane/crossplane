@@ -26,14 +26,14 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 )
 
 // Setup adds a controller that reconciles CompositeResourceDefinitions by
 // defining a composite resource and starting a controller to reconcile it.
 func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
-	name := "mrap/" + strings.ToLower(v2alpha1.ManagedResourceActivationPolicyKind)
+	name := "mrap/" + strings.ToLower(v1alpha1.ManagedResourceActivationPolicyKind)
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
@@ -42,8 +42,8 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v2alpha1.ManagedResourceActivationPolicy{}).
-		Watches(&v2alpha1.ManagedResourceDefinition{},
+		For(&v1alpha1.ManagedResourceActivationPolicy{}).
+		Watches(&v1alpha1.ManagedResourceDefinition{},
 			EnqueueActivationPolicyForManagedResourceDefinition(mgr.GetClient(), r.log)).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(errors.WithSilentRequeueOnConflict(r))

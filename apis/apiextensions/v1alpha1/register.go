@@ -48,6 +48,21 @@ var (
 	UsageGroupVersionKind = SchemeGroupVersion.WithKind(UsageKind)
 )
 
+// CompositeResourceDefinition type metadata.
+var (
+	ManagedResourceDefinitionKind             = reflect.TypeOf(ManagedResourceDefinition{}).Name()
+	ManagedResourceDefinitionGroupKind        = schema.GroupKind{Group: Group, Kind: ManagedResourceDefinitionKind}.String()
+	ManagedResourceDefinitionKindAPIVersion   = ManagedResourceDefinitionKind + "." + SchemeGroupVersion.String()
+	ManagedResourceDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(ManagedResourceDefinitionKind)
+
+	ManagedResourceActivationPolicyKind             = reflect.TypeOf(ManagedResourceActivationPolicy{}).Name()
+	ManagedResourceActivationPolicyGroupKind        = schema.GroupKind{Group: Group, Kind: ManagedResourceActivationPolicyKind}.String()
+	ManagedResourceActivationPolicyKindAPIVersion   = ManagedResourceActivationPolicyKind + "." + SchemeGroupVersion.String()
+	ManagedResourceActivationPolicyGroupVersionKind = SchemeGroupVersion.WithKind(ManagedResourceActivationPolicyKind)
+)
+
 func init() {
-	SchemeBuilder.Register(&Usage{}, &UsageList{})
+	SchemeBuilder.Register(&Usage{}, &UsageList{},
+		&ManagedResourceDefinition{}, &ManagedResourceDefinitionList{},
+		&ManagedResourceActivationPolicy{}, &ManagedResourceActivationPolicyList{})
 }

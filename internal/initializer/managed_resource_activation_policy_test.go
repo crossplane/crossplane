@@ -28,12 +28,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 func TestDefaultManagedResourceActivationPolicy(t *testing.T) {
 	type args struct {
-		activations []v2alpha1.ActivationPolicy
+		activations []v1alpha1.ActivationPolicy
 		kube        client.Client
 	}
 
@@ -54,15 +54,15 @@ func TestDefaultManagedResourceActivationPolicy(t *testing.T) {
 		},
 		"FailedToCreate": {
 			args: args{
-				activations: []v2alpha1.ActivationPolicy{"*"},
+				activations: []v1alpha1.ActivationPolicy{"*"},
 				kube: &test.MockClient{
 					MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
-						mrap, ok := obj.(*v2alpha1.ManagedResourceActivationPolicy)
+						mrap, ok := obj.(*v1alpha1.ManagedResourceActivationPolicy)
 						if !ok {
 							t.Errorf("Expected ManagedResourceActivationPolicy, got %T", obj)
 							return nil
 						}
-						expectedActivations := []v2alpha1.ActivationPolicy{"*"}
+						expectedActivations := []v1alpha1.ActivationPolicy{"*"}
 						if diff := cmp.Diff(expectedActivations, mrap.Spec.Activations); diff != "" {
 							t.Errorf("Activations mismatch (-want +got):\n%s", diff)
 						}
@@ -76,15 +76,15 @@ func TestDefaultManagedResourceActivationPolicy(t *testing.T) {
 		},
 		"SuccessCreated": {
 			args: args{
-				activations: []v2alpha1.ActivationPolicy{"policy1", "policy2", "*.example.com"},
+				activations: []v1alpha1.ActivationPolicy{"policy1", "policy2", "*.example.com"},
 				kube: &test.MockClient{
 					MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
-						mrap, ok := obj.(*v2alpha1.ManagedResourceActivationPolicy)
+						mrap, ok := obj.(*v1alpha1.ManagedResourceActivationPolicy)
 						if !ok {
 							t.Errorf("Expected ManagedResourceActivationPolicy, got %T", obj)
 							return nil
 						}
-						expectedActivations := []v2alpha1.ActivationPolicy{"policy1", "policy2", "*.example.com"}
+						expectedActivations := []v1alpha1.ActivationPolicy{"policy1", "policy2", "*.example.com"}
 						if diff := cmp.Diff(expectedActivations, mrap.Spec.Activations); diff != "" {
 							t.Errorf("Activations mismatch (-want +got):\n%s", diff)
 						}
@@ -95,7 +95,7 @@ func TestDefaultManagedResourceActivationPolicy(t *testing.T) {
 		},
 		"SuccessAlreadyExists": {
 			args: args{
-				activations: []v2alpha1.ActivationPolicy{"*"},
+				activations: []v1alpha1.ActivationPolicy{"*"},
 				kube: &test.MockClient{
 					MockCreate: func(_ context.Context, _ client.Object, _ ...client.CreateOption) error {
 						return kerrors.NewAlreadyExists(schema.GroupResource{}, "default")

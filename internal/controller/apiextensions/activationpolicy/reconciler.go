@@ -33,7 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 const (
@@ -72,7 +72,7 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	ctx, cancel := context.WithTimeout(ogctx, timeout)
 	defer cancel()
 
-	mrap := &v2alpha1.ManagedResourceActivationPolicy{}
+	mrap := &v1alpha1.ManagedResourceActivationPolicy{}
 	if err := r.Get(ctx, req.NamespacedName, mrap); err != nil {
 		// In case object is not found, most likely the object was deleted and
 		// then disappeared while the event was in the processing queue. We
@@ -90,7 +90,7 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	)
 
 	if meta.WasDeleted(mrap) {
-		status.MarkConditions(v2alpha1.TerminatingActivationPolicy())
+		status.MarkConditions(v1alpha1.TerminatingActivationPolicy())
 		if err := r.Status().Update(ogctx, mrap); err != nil {
 			log.Debug(errUpdateStatus, "error", err)
 			if kerrors.IsConflict(err) {
@@ -110,11 +110,11 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	}
 
 	// List all MRDs
-	mrds := &v2alpha1.ManagedResourceDefinitionList{}
+	mrds := &v1alpha1.ManagedResourceDefinitionList{}
 	if err := r.List(ctx, mrds); err != nil {
 		log.Debug(errListMRD, "error", err)
 
-		status.MarkConditions(v2alpha1.BlockedActivationPolicy().WithMessage(errListMRD))
+		status.MarkConditions(v1alpha1.BlockedActivationPolicy().WithMessage(errListMRD))
 		if err := r.Status().Update(ogctx, mrap); err != nil {
 			log.Debug(errUpdateStatus, "error", err)
 			if kerrors.IsConflict(err) {
@@ -134,9 +134,9 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	var errs []error
 	for _, mrd := range mrds.Items {
 		if mrap.Activates(mrd.GetName()) {
-			if mrd.Spec.State != v2alpha1.ManagedResourceDefinitionActive {
+			if mrd.Spec.State != v1alpha1.ManagedResourceDefinitionActive {
 				orig := mrd.DeepCopy()
-				mrd.Spec.State = v2alpha1.ManagedResourceDefinitionActive
+				mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
 				// Patch to ignore any other updates. Just focused on the spec.state value.
 				if err := r.Patch(ctx, &mrd, client.MergeFrom(orig)); err != nil {
 					log.Debug("Error when patching the mrd to set state to active", "err", err)
@@ -150,10 +150,10 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		}
 	}
 	if errs != nil {
-		status.MarkConditions(v2alpha1.Unhealthy().WithMessage(
+		status.MarkConditions(v1alpha1.Unhealthy().WithMessage(
 			fmt.Sprintf(errFailedToActivateMRDs, len(errs), len(mrap.Status.Activated))))
 	} else {
-		status.MarkConditions(v2alpha1.Healthy())
+		status.MarkConditions(v1alpha1.Healthy())
 	}
 
 	// TODO: we should really do a diff of the status to see if we should update or not.

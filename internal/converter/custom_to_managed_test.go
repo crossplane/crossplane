@@ -29,7 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 // invalidJSONObject is a runtime.Object that fails to marshal to JSON.
@@ -135,17 +135,17 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 	}
 
 	// Expected MRD from structured CRD (inactive)
-	expectedMRDFromCRDInactive := &v2alpha1.ManagedResourceDefinition{
+	expectedMRDFromCRDInactive := &v1alpha1.ManagedResourceDefinition{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apiextensions.crossplane.io/v2alpha1",
+			APIVersion: "apiextensions.crossplane.io/v1alpha1",
 			Kind:       "ManagedResourceDefinition",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "buckets.example.org",
 			Namespace: "test-namespace",
 		},
-		Spec: v2alpha1.ManagedResourceDefinitionSpec{
-			CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+		Spec: v1alpha1.ManagedResourceDefinitionSpec{
+			CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 				Group: "example.org",
 				Names: extv1.CustomResourceDefinitionNames{
 					Kind:     "Bucket",
@@ -153,7 +153,7 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 					Singular: "bucket",
 				},
 				Scope: "Namespaced",
-				Versions: []v2alpha1.CustomResourceDefinitionVersion{
+				Versions: []v1alpha1.CustomResourceDefinitionVersion{
 					{
 						Name:    "v1",
 						Served:  true,
@@ -165,17 +165,17 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 	}
 
 	// Expected MRD from structured CRD (active)
-	expectedMRDFromCRDActive := &v2alpha1.ManagedResourceDefinition{
+	expectedMRDFromCRDActive := &v1alpha1.ManagedResourceDefinition{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apiextensions.crossplane.io/v2alpha1",
+			APIVersion: "apiextensions.crossplane.io/v1alpha1",
 			Kind:       "ManagedResourceDefinition",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "buckets.example.org",
 			Namespace: "test-namespace",
 		},
-		Spec: v2alpha1.ManagedResourceDefinitionSpec{
-			CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+		Spec: v1alpha1.ManagedResourceDefinitionSpec{
+			CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 				Group: "example.org",
 				Names: extv1.CustomResourceDefinitionNames{
 					Kind:     "Bucket",
@@ -183,7 +183,7 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 					Singular: "bucket",
 				},
 				Scope: "Namespaced",
-				Versions: []v2alpha1.CustomResourceDefinitionVersion{
+				Versions: []v1alpha1.CustomResourceDefinitionVersion{
 					{
 						Name:    "v1",
 						Served:  true,
@@ -191,22 +191,22 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 					},
 				},
 			},
-			State: v2alpha1.ManagedResourceDefinitionActive,
+			State: v1alpha1.ManagedResourceDefinitionActive,
 		},
 	}
 
 	// Expected MRD from unstructured CRD (inactive)
-	expectedMRDFromUnstructuredInactive := &v2alpha1.ManagedResourceDefinition{
+	expectedMRDFromUnstructuredInactive := &v1alpha1.ManagedResourceDefinition{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apiextensions.crossplane.io/v2alpha1",
+			APIVersion: "apiextensions.crossplane.io/v1alpha1",
 			Kind:       "ManagedResourceDefinition",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "instances.example.org",
 			Namespace: "test-namespace",
 		},
-		Spec: v2alpha1.ManagedResourceDefinitionSpec{
-			CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+		Spec: v1alpha1.ManagedResourceDefinitionSpec{
+			CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 				Group: "example.org",
 				Names: extv1.CustomResourceDefinitionNames{
 					Kind:     "Instance",
@@ -214,7 +214,7 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 					Singular: "instance",
 				},
 				Scope: "Namespaced",
-				Versions: []v2alpha1.CustomResourceDefinitionVersion{
+				Versions: []v1alpha1.CustomResourceDefinitionVersion{
 					{
 						Name:    "v1",
 						Served:  true,
@@ -226,17 +226,17 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 	}
 
 	// Expected MRD from unstructured CRD (active)
-	expectedMRDFromUnstructuredActive := &v2alpha1.ManagedResourceDefinition{
+	expectedMRDFromUnstructuredActive := &v1alpha1.ManagedResourceDefinition{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apiextensions.crossplane.io/v2alpha1",
+			APIVersion: "apiextensions.crossplane.io/v1alpha1",
 			Kind:       "ManagedResourceDefinition",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "instances.example.org",
 			Namespace: "test-namespace",
 		},
-		Spec: v2alpha1.ManagedResourceDefinitionSpec{
-			CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+		Spec: v1alpha1.ManagedResourceDefinitionSpec{
+			CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 				Group: "example.org",
 				Names: extv1.CustomResourceDefinitionNames{
 					Kind:     "Instance",
@@ -244,7 +244,7 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 					Singular: "instance",
 				},
 				Scope: "Namespaced",
-				Versions: []v2alpha1.CustomResourceDefinitionVersion{
+				Versions: []v1alpha1.CustomResourceDefinitionVersion{
 					{
 						Name:    "v1",
 						Served:  true,
@@ -252,7 +252,7 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 					},
 				},
 			},
-			State: v2alpha1.ManagedResourceDefinitionActive,
+			State: v1alpha1.ManagedResourceDefinitionActive,
 		},
 	}
 
@@ -411,7 +411,7 @@ func TestConvertCRDToMRD(t *testing.T) {
 		in            map[string]any
 	}
 	type want struct {
-		out *v2alpha1.ManagedResourceDefinition
+		out *v1alpha1.ManagedResourceDefinition
 		err error
 	}
 
@@ -440,16 +440,16 @@ func TestConvertCRDToMRD(t *testing.T) {
 				},
 			},
 			want: want{
-				out: &v2alpha1.ManagedResourceDefinition{
+				out: &v1alpha1.ManagedResourceDefinition{
 					TypeMeta: metav1.TypeMeta{
-						APIVersion: "apiextensions.crossplane.io/v2alpha1",
+						APIVersion: "apiextensions.crossplane.io/v1alpha1",
 						Kind:       "ManagedResourceDefinition",
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "buckets.example.org",
 					},
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.org",
 							Names: extv1.CustomResourceDefinitionNames{
 								Kind:   "Bucket",
@@ -480,23 +480,23 @@ func TestConvertCRDToMRD(t *testing.T) {
 				},
 			},
 			want: want{
-				out: &v2alpha1.ManagedResourceDefinition{
+				out: &v1alpha1.ManagedResourceDefinition{
 					TypeMeta: metav1.TypeMeta{
-						APIVersion: "apiextensions.crossplane.io/v2alpha1",
+						APIVersion: "apiextensions.crossplane.io/v1alpha1",
 						Kind:       "ManagedResourceDefinition",
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "buckets.example.org",
 					},
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.org",
 							Names: extv1.CustomResourceDefinitionNames{
 								Kind:   "Bucket",
 								Plural: "buckets",
 							},
 						},
-						State: v2alpha1.ManagedResourceDefinitionActive,
+						State: v1alpha1.ManagedResourceDefinitionActive,
 					},
 				},
 			},
@@ -544,9 +544,9 @@ func TestConvertCRDToMRD(t *testing.T) {
 				},
 			},
 			want: want{
-				out: &v2alpha1.ManagedResourceDefinition{
+				out: &v1alpha1.ManagedResourceDefinition{
 					TypeMeta: metav1.TypeMeta{
-						APIVersion: "apiextensions.crossplane.io/v2alpha1",
+						APIVersion: "apiextensions.crossplane.io/v1alpha1",
 						Kind:       "ManagedResourceDefinition",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -556,8 +556,8 @@ func TestConvertCRDToMRD(t *testing.T) {
 							"app": "test",
 						},
 					},
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.org",
 							Names: extv1.CustomResourceDefinitionNames{
 								Kind:     "Database",
@@ -565,12 +565,12 @@ func TestConvertCRDToMRD(t *testing.T) {
 								Singular: "database",
 							},
 							Scope: "Namespaced",
-							Versions: []v2alpha1.CustomResourceDefinitionVersion{
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
 								{
 									Name:    "v1",
 									Served:  true,
 									Storage: true,
-									Schema: &v2alpha1.CustomResourceValidation{
+									Schema: &v1alpha1.CustomResourceValidation{
 										OpenAPIV3Schema: runtime.RawExtension{
 											Raw: []byte(`{"properties":{"spec":{"type":"object"}},"type":"object"}`),
 										},
@@ -578,7 +578,7 @@ func TestConvertCRDToMRD(t *testing.T) {
 								},
 							},
 						},
-						State: v2alpha1.ManagedResourceDefinitionActive,
+						State: v1alpha1.ManagedResourceDefinitionActive,
 					},
 				},
 			},
@@ -597,9 +597,9 @@ func TestConvertCRDToMRD(t *testing.T) {
 				},
 			},
 			want: want{
-				out: &v2alpha1.ManagedResourceDefinition{
+				out: &v1alpha1.ManagedResourceDefinition{
 					TypeMeta: metav1.TypeMeta{
-						APIVersion: "apiextensions.crossplane.io/v2alpha1",
+						APIVersion: "apiextensions.crossplane.io/v1alpha1",
 						Kind:       "ManagedResourceDefinition",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -622,16 +622,16 @@ func TestConvertCRDToMRD(t *testing.T) {
 				},
 			},
 			want: want{
-				out: &v2alpha1.ManagedResourceDefinition{
+				out: &v1alpha1.ManagedResourceDefinition{
 					TypeMeta: metav1.TypeMeta{
-						APIVersion: "apiextensions.crossplane.io/v2alpha1",
+						APIVersion: "apiextensions.crossplane.io/v1alpha1",
 						Kind:       "ManagedResourceDefinition",
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "minimal.example.org",
 					},
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						State: v2alpha1.ManagedResourceDefinitionActive,
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						State: v1alpha1.ManagedResourceDefinitionActive,
 					},
 				},
 			},
@@ -643,13 +643,13 @@ func TestConvertCRDToMRD(t *testing.T) {
 				in:            map[string]any{},
 			},
 			want: want{
-				out: &v2alpha1.ManagedResourceDefinition{
+				out: &v1alpha1.ManagedResourceDefinition{
 					TypeMeta: metav1.TypeMeta{
-						APIVersion: "apiextensions.crossplane.io/v2alpha1",
+						APIVersion: "apiextensions.crossplane.io/v1alpha1",
 						Kind:       "ManagedResourceDefinition",
 					},
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						State: v2alpha1.ManagedResourceDefinitionActive,
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						State: v1alpha1.ManagedResourceDefinitionActive,
 					},
 				},
 			},

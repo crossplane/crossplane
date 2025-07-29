@@ -37,19 +37,19 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 // Helper functions for creating test objects.
-type MRAPModifier func(mrap *v2alpha1.ManagedResourceActivationPolicy)
+type MRAPModifier func(mrap *v1alpha1.ManagedResourceActivationPolicy)
 
-func NewMRAP(m ...MRAPModifier) *v2alpha1.ManagedResourceActivationPolicy {
-	mrap := &v2alpha1.ManagedResourceActivationPolicy{
+func NewMRAP(m ...MRAPModifier) *v1alpha1.ManagedResourceActivationPolicy {
+	mrap := &v1alpha1.ManagedResourceActivationPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-mrap",
 		},
-		Spec: v2alpha1.ManagedResourceActivationPolicySpec{
-			Activations: []v2alpha1.ActivationPolicy{
+		Spec: v1alpha1.ManagedResourceActivationPolicySpec{
+			Activations: []v1alpha1.ActivationPolicy{
 				"*.aws.crossplane.io",
 			},
 		},
@@ -61,13 +61,13 @@ func NewMRAP(m ...MRAPModifier) *v2alpha1.ManagedResourceActivationPolicy {
 }
 
 func WithMRAPDeletionTimestamp(t time.Time) MRAPModifier {
-	return func(mrap *v2alpha1.ManagedResourceActivationPolicy) {
+	return func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
 		mrap.SetDeletionTimestamp(&metav1.Time{Time: t})
 	}
 }
 
 func WithMRAPPaused() MRAPModifier {
-	return func(mrap *v2alpha1.ManagedResourceActivationPolicy) {
+	return func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
 		mrap.SetAnnotations(map[string]string{
 			meta.AnnotationKeyReconciliationPaused: "true",
 		})
@@ -75,24 +75,24 @@ func WithMRAPPaused() MRAPModifier {
 }
 
 func WithMRAPActivations(activations ...string) MRAPModifier {
-	return func(mrap *v2alpha1.ManagedResourceActivationPolicy) {
-		policies := make([]v2alpha1.ActivationPolicy, len(activations))
+	return func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
+		policies := make([]v1alpha1.ActivationPolicy, len(activations))
 		for i, a := range activations {
-			policies[i] = v2alpha1.ActivationPolicy(a)
+			policies[i] = v1alpha1.ActivationPolicy(a)
 		}
 		mrap.Spec.Activations = policies
 	}
 }
 
-type MRDModifier func(mrd *v2alpha1.ManagedResourceDefinition)
+type MRDModifier func(mrd *v1alpha1.ManagedResourceDefinition)
 
-func NewMRD(name string, m ...MRDModifier) *v2alpha1.ManagedResourceDefinition {
-	mrd := &v2alpha1.ManagedResourceDefinition{
+func NewMRD(name string, m ...MRDModifier) *v1alpha1.ManagedResourceDefinition {
+	mrd := &v1alpha1.ManagedResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: v2alpha1.ManagedResourceDefinitionSpec{
-			State: v2alpha1.ManagedResourceDefinitionInactive,
+		Spec: v1alpha1.ManagedResourceDefinitionSpec{
+			State: v1alpha1.ManagedResourceDefinitionInactive,
 		},
 	}
 	for _, fn := range m {
@@ -101,18 +101,18 @@ func NewMRD(name string, m ...MRDModifier) *v2alpha1.ManagedResourceDefinition {
 	return mrd
 }
 
-func WithMRDState(state v2alpha1.ManagedResourceDefinitionState) MRDModifier {
-	return func(mrd *v2alpha1.ManagedResourceDefinition) {
+func WithMRDState(state v1alpha1.ManagedResourceDefinitionState) MRDModifier {
+	return func(mrd *v1alpha1.ManagedResourceDefinition) {
 		mrd.Spec.State = state
 	}
 }
 
 // A get function that supplies the input resource.
-func WithMRAP(t *testing.T, mrap *v2alpha1.ManagedResourceActivationPolicy) func(context.Context, client.ObjectKey, client.Object) error {
+func WithMRAP(t *testing.T, mrap *v1alpha1.ManagedResourceActivationPolicy) func(context.Context, client.ObjectKey, client.Object) error {
 	t.Helper()
 	return func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
 		t.Helper()
-		if o, ok := obj.(*v2alpha1.ManagedResourceActivationPolicy); ok {
+		if o, ok := obj.(*v1alpha1.ManagedResourceActivationPolicy); ok {
 			*o = *mrap
 		}
 		return nil
@@ -120,7 +120,7 @@ func WithMRAP(t *testing.T, mrap *v2alpha1.ManagedResourceActivationPolicy) func
 }
 
 // A status update function that ensures the supplied object is the MRAP we want.
-func WantMRAP(t *testing.T, want *v2alpha1.ManagedResourceActivationPolicy) func(context.Context, client.Object, ...client.SubResourceUpdateOption) error {
+func WantMRAP(t *testing.T, want *v1alpha1.ManagedResourceActivationPolicy) func(context.Context, client.Object, ...client.SubResourceUpdateOption) error {
 	t.Helper()
 	return func(_ context.Context, got client.Object, _ ...client.SubResourceUpdateOption) error {
 		t.Helper()
@@ -132,12 +132,12 @@ func WantMRAP(t *testing.T, want *v2alpha1.ManagedResourceActivationPolicy) func
 }
 
 // A list function that supplies the input MRD list.
-func WithMRDList(t *testing.T, mrds ...*v2alpha1.ManagedResourceDefinition) func(context.Context, client.ObjectList, ...client.ListOption) error {
+func WithMRDList(t *testing.T, mrds ...*v1alpha1.ManagedResourceDefinition) func(context.Context, client.ObjectList, ...client.ListOption) error {
 	t.Helper()
 	return func(_ context.Context, obj client.ObjectList, _ ...client.ListOption) error {
 		t.Helper()
-		if o, ok := obj.(*v2alpha1.ManagedResourceDefinitionList); ok {
-			items := make([]v2alpha1.ManagedResourceDefinition, len(mrds))
+		if o, ok := obj.(*v1alpha1.ManagedResourceDefinitionList); ok {
+			items := make([]v1alpha1.ManagedResourceDefinition, len(mrds))
 			for i, mrd := range mrds {
 				items[i] = *mrd
 			}
@@ -148,11 +148,11 @@ func WithMRDList(t *testing.T, mrds ...*v2alpha1.ManagedResourceDefinition) func
 }
 
 // A patch function that validates the patch operation.
-func WantMRDPatch(t *testing.T, expectedPatches map[string]v2alpha1.ManagedResourceDefinitionState) func(context.Context, client.Object, client.Patch, ...client.PatchOption) error {
+func WantMRDPatch(t *testing.T, expectedPatches map[string]v1alpha1.ManagedResourceDefinitionState) func(context.Context, client.Object, client.Patch, ...client.PatchOption) error {
 	t.Helper()
 	return func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
 		t.Helper()
-		if mrd, ok := obj.(*v2alpha1.ManagedResourceDefinition); ok {
+		if mrd, ok := obj.(*v1alpha1.ManagedResourceDefinition); ok {
 			if expectedState, exists := expectedPatches[mrd.GetName()]; exists {
 				if mrd.Spec.State != expectedState {
 					t.Errorf("WantMRDPatch(...): expected state %s for MRD %s, got %s", expectedState, mrd.GetName(), mrd.Spec.State)
@@ -207,9 +207,9 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				c: &test.MockClient{
 					MockGet: WithMRAP(t, NewMRAP(WithMRAPDeletionTimestamp(now.Time))),
-					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v2alpha1.ManagedResourceActivationPolicy) {
+					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
 						mrap.SetDeletionTimestamp(&now)
-						mrap.SetConditions(v2alpha1.TerminatingActivationPolicy())
+						mrap.SetConditions(v1alpha1.TerminatingActivationPolicy())
 					})),
 				},
 			},
@@ -258,8 +258,8 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet:  WithMRAP(t, NewMRAP()),
 					MockList: test.NewMockListFn(errBoom),
-					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v2alpha1.ManagedResourceActivationPolicy) {
-						mrap.SetConditions(v2alpha1.BlockedActivationPolicy().WithMessage(errListMRD))
+					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
+						mrap.SetConditions(v1alpha1.BlockedActivationPolicy().WithMessage(errListMRD))
 					})),
 				},
 			},
@@ -289,10 +289,10 @@ func TestReconcile(t *testing.T) {
 						NewMRD("database.gcp.crossplane.io"),
 						NewMRD("storage.azure.crossplane.io"),
 					),
-					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v2alpha1.ManagedResourceActivationPolicy) {
-						mrap.Spec.Activations = []v2alpha1.ActivationPolicy{"*.aws.crossplane.io"}
+					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
+						mrap.Spec.Activations = []v1alpha1.ActivationPolicy{"*.aws.crossplane.io"}
 						mrap.Status.Activated = nil
-						mrap.SetConditions(v2alpha1.Healthy())
+						mrap.SetConditions(v1alpha1.Healthy())
 					})),
 				},
 			},
@@ -306,16 +306,16 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: WithMRAP(t, NewMRAP(WithMRAPActivations("*.aws.crossplane.io"))),
 					MockList: WithMRDList(t,
-						NewMRD("bucket.aws.crossplane.io", WithMRDState(v2alpha1.ManagedResourceDefinitionInactive)),
-						NewMRD("database.gcp.crossplane.io", WithMRDState(v2alpha1.ManagedResourceDefinitionInactive)),
+						NewMRD("bucket.aws.crossplane.io", WithMRDState(v1alpha1.ManagedResourceDefinitionInactive)),
+						NewMRD("database.gcp.crossplane.io", WithMRDState(v1alpha1.ManagedResourceDefinitionInactive)),
 					),
-					MockPatch: WantMRDPatch(t, map[string]v2alpha1.ManagedResourceDefinitionState{
-						"bucket.aws.crossplane.io": v2alpha1.ManagedResourceDefinitionActive,
+					MockPatch: WantMRDPatch(t, map[string]v1alpha1.ManagedResourceDefinitionState{
+						"bucket.aws.crossplane.io": v1alpha1.ManagedResourceDefinitionActive,
 					}),
-					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v2alpha1.ManagedResourceActivationPolicy) {
-						mrap.Spec.Activations = []v2alpha1.ActivationPolicy{"*.aws.crossplane.io"}
+					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
+						mrap.Spec.Activations = []v1alpha1.ActivationPolicy{"*.aws.crossplane.io"}
 						mrap.Status.Activated = []string{"bucket.aws.crossplane.io"}
-						mrap.SetConditions(v2alpha1.Healthy())
+						mrap.SetConditions(v1alpha1.Healthy())
 					})),
 				},
 			},
@@ -329,18 +329,18 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: WithMRAP(t, NewMRAP(WithMRAPActivations("*.aws.crossplane.io"))),
 					MockList: WithMRDList(t,
-						NewMRD("bucket.aws.crossplane.io", WithMRDState(v2alpha1.ManagedResourceDefinitionInactive)),
-						NewMRD("instance.aws.crossplane.io", WithMRDState(v2alpha1.ManagedResourceDefinitionInactive)),
-						NewMRD("database.gcp.crossplane.io", WithMRDState(v2alpha1.ManagedResourceDefinitionInactive)),
+						NewMRD("bucket.aws.crossplane.io", WithMRDState(v1alpha1.ManagedResourceDefinitionInactive)),
+						NewMRD("instance.aws.crossplane.io", WithMRDState(v1alpha1.ManagedResourceDefinitionInactive)),
+						NewMRD("database.gcp.crossplane.io", WithMRDState(v1alpha1.ManagedResourceDefinitionInactive)),
 					),
-					MockPatch: WantMRDPatch(t, map[string]v2alpha1.ManagedResourceDefinitionState{
-						"bucket.aws.crossplane.io":   v2alpha1.ManagedResourceDefinitionActive,
-						"instance.aws.crossplane.io": v2alpha1.ManagedResourceDefinitionActive,
+					MockPatch: WantMRDPatch(t, map[string]v1alpha1.ManagedResourceDefinitionState{
+						"bucket.aws.crossplane.io":   v1alpha1.ManagedResourceDefinitionActive,
+						"instance.aws.crossplane.io": v1alpha1.ManagedResourceDefinitionActive,
 					}),
-					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v2alpha1.ManagedResourceActivationPolicy) {
-						mrap.Spec.Activations = []v2alpha1.ActivationPolicy{"*.aws.crossplane.io"}
+					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
+						mrap.Spec.Activations = []v1alpha1.ActivationPolicy{"*.aws.crossplane.io"}
 						mrap.Status.Activated = []string{"bucket.aws.crossplane.io", "instance.aws.crossplane.io"}
-						mrap.SetConditions(v2alpha1.Healthy())
+						mrap.SetConditions(v1alpha1.Healthy())
 					})),
 				},
 			},
@@ -354,16 +354,16 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: WithMRAP(t, NewMRAP(WithMRAPActivations("*.aws.crossplane.io"))),
 					MockList: WithMRDList(t,
-						NewMRD("bucket.aws.crossplane.io", WithMRDState(v2alpha1.ManagedResourceDefinitionActive)),
-						NewMRD("instance.aws.crossplane.io", WithMRDState(v2alpha1.ManagedResourceDefinitionInactive)),
+						NewMRD("bucket.aws.crossplane.io", WithMRDState(v1alpha1.ManagedResourceDefinitionActive)),
+						NewMRD("instance.aws.crossplane.io", WithMRDState(v1alpha1.ManagedResourceDefinitionInactive)),
 					),
-					MockPatch: WantMRDPatch(t, map[string]v2alpha1.ManagedResourceDefinitionState{
-						"instance.aws.crossplane.io": v2alpha1.ManagedResourceDefinitionActive,
+					MockPatch: WantMRDPatch(t, map[string]v1alpha1.ManagedResourceDefinitionState{
+						"instance.aws.crossplane.io": v1alpha1.ManagedResourceDefinitionActive,
 					}),
-					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v2alpha1.ManagedResourceActivationPolicy) {
-						mrap.Spec.Activations = []v2alpha1.ActivationPolicy{"*.aws.crossplane.io"}
+					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
+						mrap.Spec.Activations = []v1alpha1.ActivationPolicy{"*.aws.crossplane.io"}
 						mrap.Status.Activated = []string{"bucket.aws.crossplane.io", "instance.aws.crossplane.io"}
-						mrap.SetConditions(v2alpha1.Healthy())
+						mrap.SetConditions(v1alpha1.Healthy())
 					})),
 				},
 			},
@@ -377,21 +377,21 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: WithMRAP(t, NewMRAP(WithMRAPActivations("*.aws.crossplane.io"))),
 					MockList: WithMRDList(t,
-						NewMRD("bucket.aws.crossplane.io", WithMRDState(v2alpha1.ManagedResourceDefinitionInactive)),
-						NewMRD("instance.aws.crossplane.io", WithMRDState(v2alpha1.ManagedResourceDefinitionInactive)),
+						NewMRD("bucket.aws.crossplane.io", WithMRDState(v1alpha1.ManagedResourceDefinitionInactive)),
+						NewMRD("instance.aws.crossplane.io", WithMRDState(v1alpha1.ManagedResourceDefinitionInactive)),
 					),
 					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
-						if mrd, ok := obj.(*v2alpha1.ManagedResourceDefinition); ok {
+						if mrd, ok := obj.(*v1alpha1.ManagedResourceDefinition); ok {
 							if mrd.GetName() == "bucket.aws.crossplane.io" {
 								return errBoom
 							}
 						}
 						return nil
 					},
-					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v2alpha1.ManagedResourceActivationPolicy) {
-						mrap.Spec.Activations = []v2alpha1.ActivationPolicy{"*.aws.crossplane.io"}
+					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
+						mrap.Spec.Activations = []v1alpha1.ActivationPolicy{"*.aws.crossplane.io"}
 						mrap.Status.Activated = []string{"instance.aws.crossplane.io"}
-						mrap.SetConditions(v2alpha1.Unhealthy().WithMessage("failed to activate 1 of 1 ManagedResourceDefinitions"))
+						mrap.SetConditions(v1alpha1.Unhealthy().WithMessage("failed to activate 1 of 1 ManagedResourceDefinitions"))
 					})),
 				},
 			},
@@ -405,18 +405,18 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: WithMRAP(t, NewMRAP(WithMRAPActivations("*.aws.crossplane.io", "*.gcp.crossplane.io"))),
 					MockList: WithMRDList(t,
-						NewMRD("bucket.aws.crossplane.io", WithMRDState(v2alpha1.ManagedResourceDefinitionInactive)),
-						NewMRD("storage.gcp.crossplane.io", WithMRDState(v2alpha1.ManagedResourceDefinitionInactive)),
-						NewMRD("database.azure.crossplane.io", WithMRDState(v2alpha1.ManagedResourceDefinitionInactive)),
+						NewMRD("bucket.aws.crossplane.io", WithMRDState(v1alpha1.ManagedResourceDefinitionInactive)),
+						NewMRD("storage.gcp.crossplane.io", WithMRDState(v1alpha1.ManagedResourceDefinitionInactive)),
+						NewMRD("database.azure.crossplane.io", WithMRDState(v1alpha1.ManagedResourceDefinitionInactive)),
 					),
-					MockPatch: WantMRDPatch(t, map[string]v2alpha1.ManagedResourceDefinitionState{
-						"bucket.aws.crossplane.io":  v2alpha1.ManagedResourceDefinitionActive,
-						"storage.gcp.crossplane.io": v2alpha1.ManagedResourceDefinitionActive,
+					MockPatch: WantMRDPatch(t, map[string]v1alpha1.ManagedResourceDefinitionState{
+						"bucket.aws.crossplane.io":  v1alpha1.ManagedResourceDefinitionActive,
+						"storage.gcp.crossplane.io": v1alpha1.ManagedResourceDefinitionActive,
 					}),
-					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v2alpha1.ManagedResourceActivationPolicy) {
-						mrap.Spec.Activations = []v2alpha1.ActivationPolicy{"*.aws.crossplane.io", "*.gcp.crossplane.io"}
+					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
+						mrap.Spec.Activations = []v1alpha1.ActivationPolicy{"*.aws.crossplane.io", "*.gcp.crossplane.io"}
 						mrap.Status.Activated = []string{"bucket.aws.crossplane.io", "storage.gcp.crossplane.io"}
-						mrap.SetConditions(v2alpha1.Healthy())
+						mrap.SetConditions(v1alpha1.Healthy())
 					})),
 				},
 			},
@@ -430,12 +430,12 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: WithMRAP(t, NewMRAP(WithMRAPActivations())),
 					MockList: WithMRDList(t,
-						NewMRD("bucket.aws.crossplane.io", WithMRDState(v2alpha1.ManagedResourceDefinitionInactive)),
+						NewMRD("bucket.aws.crossplane.io", WithMRDState(v1alpha1.ManagedResourceDefinitionInactive)),
 					),
-					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v2alpha1.ManagedResourceActivationPolicy) {
-						mrap.Spec.Activations = []v2alpha1.ActivationPolicy{}
+					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
+						mrap.Spec.Activations = []v1alpha1.ActivationPolicy{}
 						mrap.Status.Activated = nil
-						mrap.SetConditions(v2alpha1.Healthy())
+						mrap.SetConditions(v1alpha1.Healthy())
 					})),
 				},
 			},

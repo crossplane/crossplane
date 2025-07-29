@@ -29,7 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/internal/initializer"
 )
 
@@ -38,7 +38,7 @@ type initCommand struct {
 	Providers      []string                    `help:"Pre-install a Provider by giving its image URI. This argument can be repeated."                                            name:"provider"`
 	Configurations []string                    `help:"Pre-install a Configuration by giving its image URI. This argument can be repeated."                                       name:"configuration"`
 	Functions      []string                    `help:"Pre-install a Function by giving its image URI. This argument can be repeated."                                            name:"function"`
-	Activations    []v2alpha1.ActivationPolicy `help:"Pre-install a default managed resource activation policy by providing activations entries. This argument can be repeated." name:"activation"`
+	Activations    []v1alpha1.ActivationPolicy `help:"Pre-install a default managed resource activation policy by providing activations entries. This argument can be repeated." name:"activation"`
 
 	Namespace                 string `default:"crossplane-system"      env:"POD_NAMESPACE"        help:"Namespace used to set as default scope in default secret store config." short:"n"`
 	ServiceAccount            string `default:"crossplane"             env:"POD_SERVICE_ACCOUNT"  help:"Name of the Crossplane Service Account."`

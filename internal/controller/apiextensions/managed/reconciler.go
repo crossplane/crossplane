@@ -36,7 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/managed/resources"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
@@ -71,7 +71,7 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	ctx, cancel := context.WithTimeout(ogctx, timeout)
 	defer cancel()
 
-	mrd := &v2alpha1.ManagedResourceDefinition{}
+	mrd := &v1alpha1.ManagedResourceDefinition{}
 	if err := r.Get(ctx, req.NamespacedName, mrd); err != nil {
 		// In case object is not found, most likely the object was deleted and
 		// then disappeared while the event was in the processing queue. We
@@ -89,7 +89,7 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	)
 
 	if meta.WasDeleted(mrd) {
-		status.MarkConditions(v2alpha1.TerminatingManaged())
+		status.MarkConditions(v1alpha1.TerminatingManaged())
 		if err := r.Status().Update(ogctx, mrd); err != nil {
 			log.Debug("cannot update status of ManagedResourceDefinition", "error", err)
 			if kerrors.IsConflict(err) {
@@ -109,7 +109,7 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	}
 
 	if !mrd.Spec.State.IsActive() {
-		status.MarkConditions(v2alpha1.InactiveManaged())
+		status.MarkConditions(v1alpha1.InactiveManaged())
 		return reconcile.Result{}, errors.Wrap(r.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
 	}
 
@@ -118,7 +118,7 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	if err != nil {
 		log.Debug("failed to reconcile CustomResourceDefinition", "error", err)
 		r.record.Event(mrd, event.Warning(reasonReconcile, err))
-		status.MarkConditions(v2alpha1.BlockedManaged().WithMessage("unable to reconcile CustomResourceDefinition, see events"))
+		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to reconcile CustomResourceDefinition, see events"))
 		if err := r.Status().Update(ogctx, mrd); err != nil {
 			log.Info("cannot update status of ManagedResourceDefinition", "error", err)
 		}
@@ -126,10 +126,10 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	}
 
 	if xcrd.IsEstablished(crd.Status) {
-		status.MarkConditions(v2alpha1.EstablishedManaged())
+		status.MarkConditions(v1alpha1.EstablishedManaged())
 	} else {
 		log.Debug("waiting for managed resource CustomResourceDefinition to be established")
-		status.MarkConditions(v2alpha1.PendingManaged())
+		status.MarkConditions(v1alpha1.PendingManaged())
 	}
 
 	return reconcile.Result{}, errors.Wrap(r.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
@@ -140,7 +140,7 @@ const (
 	actionUpdate
 )
 
-func (r *Reconciler) reconcileCustomResourceDefinition(ctx context.Context, log logging.Logger, mrd *v2alpha1.ManagedResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+func (r *Reconciler) reconcileCustomResourceDefinition(ctx context.Context, log logging.Logger, mrd *v1alpha1.ManagedResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 	want := resources.EmptyCustomResourceDefinition(mrd)
 	nn := types.NamespacedName{
 		Namespace: want.Namespace,
@@ -161,7 +161,7 @@ func (r *Reconciler) reconcileCustomResourceDefinition(ctx context.Context, log 
 	}
 
 	// Own the CRD.
-	meta.AddOwnerReference(want, meta.AsOwner(meta.TypedReferenceTo(mrd, v2alpha1.ManagedResourceDefinitionGroupVersionKind)))
+	meta.AddOwnerReference(want, meta.AsOwner(meta.TypedReferenceTo(mrd, v1alpha1.ManagedResourceDefinitionGroupVersionKind)))
 	// But also propagate our controller as the controller of the CRD.
 	if owner := metav1.GetControllerOf(mrd); owner != nil {
 		meta.AddOwnerReference(want, *owner)

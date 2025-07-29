@@ -28,12 +28,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 func TestEmptyCustomResourceDefinition(t *testing.T) {
 	type args struct {
-		mrd *v2alpha1.ManagedResourceDefinition
+		mrd *v1alpha1.ManagedResourceDefinition
 	}
 	type want struct {
 		crd *extv1.CustomResourceDefinition
@@ -47,7 +47,7 @@ func TestEmptyCustomResourceDefinition(t *testing.T) {
 		"BasicMRD": {
 			reason: "Should create an empty CRD with the same name as the MRD",
 			args: args{
-				mrd: &v2alpha1.ManagedResourceDefinition{
+				mrd: &v1alpha1.ManagedResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-mrd",
 					},
@@ -64,7 +64,7 @@ func TestEmptyCustomResourceDefinition(t *testing.T) {
 		"MRDWithNamespace": {
 			reason: "Should create an empty CRD with the same name as the MRD, ignoring namespace",
 			args: args{
-				mrd: &v2alpha1.ManagedResourceDefinition{
+				mrd: &v1alpha1.ManagedResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "namespaced-mrd",
 						Namespace: "some-namespace",
@@ -82,7 +82,7 @@ func TestEmptyCustomResourceDefinition(t *testing.T) {
 		"MRDWithComplexName": {
 			reason: "Should handle complex names correctly",
 			args: args{
-				mrd: &v2alpha1.ManagedResourceDefinition{
+				mrd: &v1alpha1.ManagedResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "databases.example.com",
 					},
@@ -109,19 +109,19 @@ func TestEmptyCustomResourceDefinition(t *testing.T) {
 }
 
 func TestMergeCustomResourceDefinitionInto(t *testing.T) {
-	validSchema := &v2alpha1.CustomResourceValidation{
+	validSchema := &v1alpha1.CustomResourceValidation{
 		OpenAPIV3Schema: runtime.RawExtension{
 			Raw: []byte(`{"type": "object", "properties": {"spec": {"type": "object"}}}`),
 		},
 	}
-	invalidSchema := &v2alpha1.CustomResourceValidation{
+	invalidSchema := &v1alpha1.CustomResourceValidation{
 		OpenAPIV3Schema: runtime.RawExtension{
 			Raw: []byte(`{invalid json`),
 		},
 	}
 
 	type args struct {
-		mrd *v2alpha1.ManagedResourceDefinition
+		mrd *v1alpha1.ManagedResourceDefinition
 		crd *extv1.CustomResourceDefinition
 	}
 	type want struct {
@@ -137,9 +137,9 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 		"BasicMerge": {
 			reason: "Should merge basic CRD spec fields from MRD",
 			args: args{
-				mrd: &v2alpha1.ManagedResourceDefinition{
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+				mrd: &v1alpha1.ManagedResourceDefinition{
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.com",
 							Names: extv1.CustomResourceDefinitionNames{
 								Plural:   "databases",
@@ -147,7 +147,7 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 								Kind:     "Database",
 							},
 							Scope: extv1.ClusterScoped,
-							Versions: []v2alpha1.CustomResourceDefinitionVersion{
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
 								{
 									Name:    "v1",
 									Served:  true,
@@ -201,16 +201,16 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 		"MultipleVersions": {
 			reason: "Should handle multiple versions and sort them alphabetically",
 			args: args{
-				mrd: &v2alpha1.ManagedResourceDefinition{
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+				mrd: &v1alpha1.ManagedResourceDefinition{
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.com",
 							Names: extv1.CustomResourceDefinitionNames{
 								Plural: "databases",
 								Kind:   "Database",
 							},
 							Scope: extv1.NamespaceScoped,
-							Versions: []v2alpha1.CustomResourceDefinitionVersion{
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
 								{
 									Name:    "v2",
 									Served:  true,
@@ -298,9 +298,9 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 		"WithConversion": {
 			reason: "Should handle conversion settings",
 			args: args{
-				mrd: &v2alpha1.ManagedResourceDefinition{
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+				mrd: &v1alpha1.ManagedResourceDefinition{
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.com",
 							Names: extv1.CustomResourceDefinitionNames{
 								Plural: "databases",
@@ -310,7 +310,7 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 							Conversion: &extv1.CustomResourceConversion{
 								Strategy: extv1.WebhookConverter,
 							},
-							Versions: []v2alpha1.CustomResourceDefinitionVersion{
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
 								{
 									Name:    "v1",
 									Served:  true,
@@ -359,16 +359,16 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 		"WithDeprecation": {
 			reason: "Should handle deprecated versions with warning",
 			args: args{
-				mrd: &v2alpha1.ManagedResourceDefinition{
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+				mrd: &v1alpha1.ManagedResourceDefinition{
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.com",
 							Names: extv1.CustomResourceDefinitionNames{
 								Plural: "databases",
 								Kind:   "Database",
 							},
 							Scope: extv1.ClusterScoped,
-							Versions: []v2alpha1.CustomResourceDefinitionVersion{
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
 								{
 									Name:               "v1",
 									Served:             true,
@@ -418,16 +418,16 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 		"WithSubresources": {
 			reason: "Should handle subresources",
 			args: args{
-				mrd: &v2alpha1.ManagedResourceDefinition{
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+				mrd: &v1alpha1.ManagedResourceDefinition{
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.com",
 							Names: extv1.CustomResourceDefinitionNames{
 								Plural: "databases",
 								Kind:   "Database",
 							},
 							Scope: extv1.ClusterScoped,
-							Versions: []v2alpha1.CustomResourceDefinitionVersion{
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
 								{
 									Name:    "v1",
 									Served:  true,
@@ -479,16 +479,16 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 		"WithAdditionalPrinterColumns": {
 			reason: "Should handle additional printer columns",
 			args: args{
-				mrd: &v2alpha1.ManagedResourceDefinition{
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+				mrd: &v1alpha1.ManagedResourceDefinition{
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.com",
 							Names: extv1.CustomResourceDefinitionNames{
 								Plural: "databases",
 								Kind:   "Database",
 							},
 							Scope: extv1.ClusterScoped,
-							Versions: []v2alpha1.CustomResourceDefinitionVersion{
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
 								{
 									Name:    "v1",
 									Served:  true,
@@ -550,16 +550,16 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 		"WithSelectableFields": {
 			reason: "Should handle selectable fields",
 			args: args{
-				mrd: &v2alpha1.ManagedResourceDefinition{
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+				mrd: &v1alpha1.ManagedResourceDefinition{
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.com",
 							Names: extv1.CustomResourceDefinitionNames{
 								Plural: "databases",
 								Kind:   "Database",
 							},
 							Scope: extv1.ClusterScoped,
-							Versions: []v2alpha1.CustomResourceDefinitionVersion{
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
 								{
 									Name:    "v1",
 									Served:  true,
@@ -615,9 +615,9 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 		"WithPreserveUnknownFields": {
 			reason: "Should handle preserve unknown fields",
 			args: args{
-				mrd: &v2alpha1.ManagedResourceDefinition{
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+				mrd: &v1alpha1.ManagedResourceDefinition{
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.com",
 							Names: extv1.CustomResourceDefinitionNames{
 								Plural: "databases",
@@ -625,7 +625,7 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 							},
 							Scope:                 extv1.ClusterScoped,
 							PreserveUnknownFields: true,
-							Versions: []v2alpha1.CustomResourceDefinitionVersion{
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
 								{
 									Name:    "v1",
 									Served:  true,
@@ -672,16 +672,16 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 		"InvalidSchemaError": {
 			reason: "Should return an error if schema conversion fails",
 			args: args{
-				mrd: &v2alpha1.ManagedResourceDefinition{
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+				mrd: &v1alpha1.ManagedResourceDefinition{
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.com",
 							Names: extv1.CustomResourceDefinitionNames{
 								Plural: "databases",
 								Kind:   "Database",
 							},
 							Scope: extv1.ClusterScoped,
-							Versions: []v2alpha1.CustomResourceDefinitionVersion{
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
 								{
 									Name:    "v1",
 									Served:  true,
@@ -712,16 +712,16 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 		"EmptyVersions": {
 			reason: "Should handle empty versions list",
 			args: args{
-				mrd: &v2alpha1.ManagedResourceDefinition{
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+				mrd: &v1alpha1.ManagedResourceDefinition{
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.com",
 							Names: extv1.CustomResourceDefinitionNames{
 								Plural: "databases",
 								Kind:   "Database",
 							},
 							Scope:    extv1.ClusterScoped,
-							Versions: []v2alpha1.CustomResourceDefinitionVersion{},
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{},
 						},
 					},
 				},
@@ -744,9 +744,9 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 		"MergeIntoPreviousValues": {
 			reason: "Should merge into and replace existing CRD values",
 			args: args{
-				mrd: &v2alpha1.ManagedResourceDefinition{
-					Spec: v2alpha1.ManagedResourceDefinitionSpec{
-						CustomResourceDefinitionSpec: v2alpha1.CustomResourceDefinitionSpec{
+				mrd: &v1alpha1.ManagedResourceDefinition{
+					Spec: v1alpha1.ManagedResourceDefinitionSpec{
+						CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
 							Group: "newgroup.com",
 							Names: extv1.CustomResourceDefinitionNames{
 								Plural:   "newdatabases",
@@ -754,7 +754,7 @@ func TestMergeCustomResourceDefinitionInto(t *testing.T) {
 								Kind:     "NewDatabase",
 							},
 							Scope: extv1.NamespaceScoped,
-							Versions: []v2alpha1.CustomResourceDefinitionVersion{
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
 								{
 									Name:    "v2",
 									Served:  true,
@@ -846,7 +846,7 @@ func TestToCustomResourceValidation(t *testing.T) {
 	invalidJSON := `{invalid json`
 
 	type args struct {
-		given *v2alpha1.CustomResourceValidation
+		given *v1alpha1.CustomResourceValidation
 	}
 	type want struct {
 		validation *extv1.CustomResourceValidation
@@ -861,7 +861,7 @@ func TestToCustomResourceValidation(t *testing.T) {
 		"ValidSchema": {
 			reason: "Should successfully convert valid schema",
 			args: args{
-				given: &v2alpha1.CustomResourceValidation{
+				given: &v1alpha1.CustomResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{
 						Raw: []byte(validJSON),
 					},
@@ -883,7 +883,7 @@ func TestToCustomResourceValidation(t *testing.T) {
 		"ComplexSchema": {
 			reason: "Should handle complex schema with multiple properties",
 			args: args{
-				given: &v2alpha1.CustomResourceValidation{
+				given: &v1alpha1.CustomResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{
 						Raw: []byte(`{
 							"type": "object",
@@ -952,7 +952,7 @@ func TestToCustomResourceValidation(t *testing.T) {
 		"InvalidJSON": {
 			reason: "Should return an error for invalid JSON in schema",
 			args: args{
-				given: &v2alpha1.CustomResourceValidation{
+				given: &v1alpha1.CustomResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{
 						Raw: []byte(invalidJSON),
 					},
@@ -965,7 +965,7 @@ func TestToCustomResourceValidation(t *testing.T) {
 		"EmptySchema": {
 			reason: "Should handle empty schema",
 			args: args{
-				given: &v2alpha1.CustomResourceValidation{
+				given: &v1alpha1.CustomResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{
 						Raw: []byte(`{}`),
 					},
@@ -980,7 +980,7 @@ func TestToCustomResourceValidation(t *testing.T) {
 		"SchemaWithArrayType": {
 			reason: "Should handle schema with array types",
 			args: args{
-				given: &v2alpha1.CustomResourceValidation{
+				given: &v1alpha1.CustomResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{
 						Raw: []byte(`{
 							"type": "object",
@@ -1025,7 +1025,7 @@ func TestToCustomResourceValidation(t *testing.T) {
 		"SchemaWithEnum": {
 			reason: "Should handle schema with enum values",
 			args: args{
-				given: &v2alpha1.CustomResourceValidation{
+				given: &v1alpha1.CustomResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{
 						Raw: []byte(`{
 							"type": "object",
