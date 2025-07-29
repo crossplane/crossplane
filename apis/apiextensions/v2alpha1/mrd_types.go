@@ -34,7 +34,7 @@ type ManagedResourceDefinitionSpec struct {
 	// +kubebuilder:validation:Enum=Active;Inactive
 	// +kubebuilder:default=Inactive
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf || oldSelf != 'Active'",message="state cannot be changed once it becomes Active"
-	State ManagedResourceDefinitionState `json:"state"`
+	State ManagedResourceDefinitionState `json:"state,omitempty"`
 }
 
 // ManagedResourceDefinitionState is the state of the resource definition.

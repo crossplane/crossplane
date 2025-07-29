@@ -26,8 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-
 	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
 )
 
@@ -58,8 +56,7 @@ func CustomToManagedResourceDefinitions(defaultActive bool, objects ...runtime.O
 					errs = append(errs, err)
 					continue
 				}
-				o.Object = mrdObject
-				objects[i] = o
+				objects[i] = mrdObject
 			default:
 				b, err := json.Marshal(o)
 				if err != nil {
@@ -76,28 +73,24 @@ func CustomToManagedResourceDefinitions(defaultActive bool, objects ...runtime.O
 					errs = append(errs, err)
 					continue
 				}
-				u.Object = mrdObject
-				objects[i] = u
+				objects[i] = mrdObject
 			}
 		}
 	}
 	return objects, errors.Join(errs...)
 }
 
-func convertCRDToMRD(defaultActive bool, in map[string]any) (map[string]any, error) {
-	paved := fieldpath.Pave(in)
-	if err := paved.SetValue("apiVersion", v2alpha1.SchemeGroupVersion.String()); err != nil {
-		return in, err
+func convertCRDToMRD(defaultActive bool, in map[string]any) (*v2alpha1.ManagedResourceDefinition, error) {
+	in["apiVersion"] = v2alpha1.SchemeGroupVersion.String()
+	in["kind"] = v2alpha1.ManagedResourceDefinitionKind
+
+	var mrd v2alpha1.ManagedResourceDefinition
+
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(in, &mrd); err != nil {
+		return nil, errors.Wrap(err, "failed converting CRD to MRD")
 	}
-	if err := paved.SetValue("kind", v2alpha1.ManagedResourceDefinitionKind); err != nil {
-		return in, err
-	}
-	// We don't have to set spec.state directly when Inactive.
-	// We will use the default or existing resource to get this value.
 	if defaultActive {
-		if err := paved.SetValue("spec.state", v2alpha1.ManagedResourceDefinitionActive); err != nil {
-			return in, err
-		}
+		mrd.Spec.State = v2alpha1.ManagedResourceDefinitionActive
 	}
-	return paved.UnstructuredContent(), nil
+	return &mrd, nil
 }
