@@ -628,7 +628,7 @@ func TestOperationName(t *testing.T) {
 				},
 			},
 			want: want{
-				name: "test-watch-a95edb5", // Hash includes deletion timestamp for uniqueness
+				name: "test-watch-ef68891", // Hash includes deletion timestamp for uniqueness
 			},
 		},
 	}
