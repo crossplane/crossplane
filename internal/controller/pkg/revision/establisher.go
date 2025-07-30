@@ -38,7 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
@@ -395,7 +395,7 @@ func (e *APIEstablisher) enrichControlledResource(res runtime.Object, webhookTLS
 			conf.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = e.namespace
 			conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = ptr.To[int32](ServicePort)
 		}
-	case *v2alpha1.ManagedResourceDefinition:
+	case *v1alpha1.ManagedResourceDefinition:
 		if conf.Spec.Conversion != nil && conf.Spec.Conversion.Strategy == extv1.WebhookConverter {
 			if len(webhookTLSCert) == 0 {
 				return errors.New(errConversionWithNoWebhookCA)

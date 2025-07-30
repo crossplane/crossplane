@@ -26,7 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 // CustomResourceDefinition type metadata.
@@ -80,17 +81,17 @@ func CustomToManagedResourceDefinitions(defaultActive bool, objects ...runtime.O
 	return objects, errors.Join(errs...)
 }
 
-func convertCRDToMRD(defaultActive bool, in map[string]any) (*v2alpha1.ManagedResourceDefinition, error) {
-	in["apiVersion"] = v2alpha1.SchemeGroupVersion.String()
-	in["kind"] = v2alpha1.ManagedResourceDefinitionKind
+func convertCRDToMRD(defaultActive bool, in map[string]any) (*v1alpha1.ManagedResourceDefinition, error) {
+	in["apiVersion"] = v1alpha1.SchemeGroupVersion.String()
+	in["kind"] = v1alpha1.ManagedResourceDefinitionKind
 
-	var mrd v2alpha1.ManagedResourceDefinition
+	var mrd v1alpha1.ManagedResourceDefinition
 
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(in, &mrd); err != nil {
 		return nil, errors.Wrap(err, "failed converting CRD to MRD")
 	}
 	if defaultActive {
-		mrd.Spec.State = v2alpha1.ManagedResourceDefinitionActive
+		mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
 	}
 	return &mrd, nil
 }

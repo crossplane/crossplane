@@ -27,7 +27,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 const (
@@ -36,7 +36,7 @@ const (
 )
 
 // EmptyCustomResourceDefinition returns an empty CRD named in line with the MRD.
-func EmptyCustomResourceDefinition(mrd *v2alpha1.ManagedResourceDefinition) *extv1.CustomResourceDefinition {
+func EmptyCustomResourceDefinition(mrd *v1alpha1.ManagedResourceDefinition) *extv1.CustomResourceDefinition {
 	return &extv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: mrd.GetName(),
@@ -45,7 +45,7 @@ func EmptyCustomResourceDefinition(mrd *v2alpha1.ManagedResourceDefinition) *ext
 }
 
 // MergeCustomResourceDefinitionInto updates the given crd to match the given mrd.
-func MergeCustomResourceDefinitionInto(mrd *v2alpha1.ManagedResourceDefinition, crd *extv1.CustomResourceDefinition) error {
+func MergeCustomResourceDefinitionInto(mrd *v1alpha1.ManagedResourceDefinition, crd *extv1.CustomResourceDefinition) error {
 	want := mrd.Spec.CustomResourceDefinitionSpec
 
 	crd.Spec.Group = want.Group
@@ -81,7 +81,7 @@ func MergeCustomResourceDefinitionInto(mrd *v2alpha1.ManagedResourceDefinition, 
 	return nil
 }
 
-func toCustomResourceValidation(given *v2alpha1.CustomResourceValidation) (*extv1.CustomResourceValidation, error) {
+func toCustomResourceValidation(given *v1alpha1.CustomResourceValidation) (*extv1.CustomResourceValidation, error) {
 	if given == nil {
 		return nil, errors.New(errCustomResourceValidationNil)
 	}

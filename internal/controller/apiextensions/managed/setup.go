@@ -28,14 +28,14 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 )
 
 // Setup adds a controller that reconciles CompositeResourceDefinitions by
 // defining a composite resource and starting a controller to reconcile it.
 func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
-	name := "mrd/" + strings.ToLower(v2alpha1.ManagedResourceDefinitionKind)
+	name := "mrd/" + strings.ToLower(v1alpha1.ManagedResourceDefinitionKind)
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
@@ -44,7 +44,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v2alpha1.ManagedResourceDefinition{}).
+		For(&v1alpha1.ManagedResourceDefinition{}).
 		Owns(&extv1.CustomResourceDefinition{}).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(errors.WithSilentRequeueOnConflict(r))

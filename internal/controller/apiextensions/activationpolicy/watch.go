@@ -26,18 +26,18 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 // EnqueueActivationPolicyForManagedResourceDefinition enqueues a reconcile for policies that apply to a managed resource definition.
 func EnqueueActivationPolicyForManagedResourceDefinition(kube client.Client, log logging.Logger) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
-		mrd, ok := o.(*v2alpha1.ManagedResourceDefinition)
+		mrd, ok := o.(*v1alpha1.ManagedResourceDefinition)
 		if !ok {
 			return nil
 		}
 
-		policies := &v2alpha1.ManagedResourceActivationPolicyList{}
+		policies := &v1alpha1.ManagedResourceActivationPolicyList{}
 		if err := kube.List(ctx, policies); err != nil {
 			// Nothing we can do, except logging, if we can't list managed resource activation policies
 			log.Debug("Cannot list managed resource activation policies while attempting to enqueue requests", "error", err)

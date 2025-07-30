@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
@@ -61,30 +61,30 @@ func TestMRAPActivatesSingleMRD(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/mrd.yaml",
-					v2alpha1.InactiveManaged()),
+					v1alpha1.InactiveManaged()),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/mrap-disabled.yaml",
-					v2alpha1.Healthy()),
+					v1alpha1.Healthy()),
 			)).
 
 			// Verify MRD is inactive (no need to check CRD as it should never be created)
 			Assess("MRDIsInactive", funcs.AllOf(
 				funcs.ResourcesHaveFieldValueWithin(10*time.Second, manifests, "setup/mrd.yaml",
-					"spec.state", string(v2alpha1.ManagedResourceDefinitionInactive)),
+					"spec.state", string(v1alpha1.ManagedResourceDefinitionInactive)),
 			)).
 
 			// Update MRAP to activate the MRD
 			Assess("UpdateMRAPToActivateMRD", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "mrap.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mrap.yaml",
-					v2alpha1.Healthy()),
+					v1alpha1.Healthy()),
 			)).
 
 			// Verify MRD becomes active
 			Assess("MRDBecomesActive", funcs.AllOf(
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "setup/mrd.yaml",
-					"spec.state", string(v2alpha1.ManagedResourceDefinitionActive)),
+					"spec.state", string(v1alpha1.ManagedResourceDefinitionActive)),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/mrd.yaml",
-					v2alpha1.EstablishedManaged()),
+					v1alpha1.EstablishedManaged()),
 			)).
 
 			// Verify CRD is created
@@ -125,21 +125,21 @@ func TestMRAPWildcardActivation(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/mrd-bucket.yaml",
-					v2alpha1.InactiveManaged()),
+					v1alpha1.InactiveManaged()),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/mrd-instance.yaml",
-					v2alpha1.InactiveManaged()),
+					v1alpha1.InactiveManaged()),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/mrd-database.yaml",
-					v2alpha1.InactiveManaged()),
+					v1alpha1.InactiveManaged()),
 			)).
 
 			// Verify all MRDs are inactive
 			Assess("AllMRDsAreInactive", funcs.AllOf(
 				funcs.ResourcesHaveFieldValueWithin(10*time.Second, manifests, "setup/mrd-bucket.yaml",
-					"spec.state", string(v2alpha1.ManagedResourceDefinitionInactive)),
+					"spec.state", string(v1alpha1.ManagedResourceDefinitionInactive)),
 				funcs.ResourcesHaveFieldValueWithin(10*time.Second, manifests, "setup/mrd-instance.yaml",
-					"spec.state", string(v2alpha1.ManagedResourceDefinitionInactive)),
+					"spec.state", string(v1alpha1.ManagedResourceDefinitionInactive)),
 				funcs.ResourcesHaveFieldValueWithin(10*time.Second, manifests, "setup/mrd-database.yaml",
-					"spec.state", string(v2alpha1.ManagedResourceDefinitionInactive)),
+					"spec.state", string(v1alpha1.ManagedResourceDefinitionInactive)),
 			)).
 
 			// Create MRAP with wildcard pattern
@@ -147,17 +147,17 @@ func TestMRAPWildcardActivation(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "mrap-wildcard.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "mrap-wildcard.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mrap-wildcard.yaml",
-					v2alpha1.Healthy()),
+					v1alpha1.Healthy()),
 			)).
 
 			// Verify all matching MRDs become active
 			Assess("AllMatchingMRDsBecomeActive", funcs.AllOf(
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "setup/mrd-bucket.yaml",
-					"spec.state", string(v2alpha1.ManagedResourceDefinitionActive)),
+					"spec.state", string(v1alpha1.ManagedResourceDefinitionActive)),
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "setup/mrd-instance.yaml",
-					"spec.state", string(v2alpha1.ManagedResourceDefinitionActive)),
+					"spec.state", string(v1alpha1.ManagedResourceDefinitionActive)),
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "setup/mrd-database.yaml",
-					"spec.state", string(v2alpha1.ManagedResourceDefinitionActive)),
+					"spec.state", string(v1alpha1.ManagedResourceDefinitionActive)),
 			)).
 
 			// Verify all corresponding CRDs are created
@@ -204,7 +204,7 @@ func TestMultipleMRAPsOneMRD(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/mrd.yaml",
-					v2alpha1.InactiveManaged()),
+					v1alpha1.InactiveManaged()),
 			)).
 
 			// Create first MRAP with specific name
@@ -212,13 +212,13 @@ func TestMultipleMRAPsOneMRD(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "mrap-specific.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "mrap-specific.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mrap-specific.yaml",
-					v2alpha1.Healthy()),
+					v1alpha1.Healthy()),
 			)).
 
 			// Verify MRD becomes active
 			Assess("MRDActivatedBySpecificMRAP", funcs.AllOf(
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "setup/mrd.yaml",
-					"spec.state", string(v2alpha1.ManagedResourceDefinitionActive)),
+					"spec.state", string(v1alpha1.ManagedResourceDefinitionActive)),
 			)).
 
 			// Create second MRAP with wildcard pattern
@@ -226,7 +226,7 @@ func TestMultipleMRAPsOneMRD(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "mrap-wildcard.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "mrap-wildcard.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mrap-wildcard.yaml",
-					v2alpha1.Healthy()),
+					v1alpha1.Healthy()),
 			)).
 
 			// Verify both MRAPs show the MRD as activated
@@ -243,7 +243,7 @@ func TestMultipleMRAPsOneMRD(t *testing.T) {
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "mrap-specific.yaml"),
 				// MRD should still be active because wildcard MRAP still matches
 				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "setup/mrd.yaml",
-					"spec.state", string(v2alpha1.ManagedResourceDefinitionActive)),
+					"spec.state", string(v1alpha1.ManagedResourceDefinitionActive)),
 			)).
 
 			// Delete second MRAP, MRD should stay active.
@@ -252,7 +252,7 @@ func TestMultipleMRAPsOneMRD(t *testing.T) {
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "mrap-wildcard.yaml"),
 				// MRD should continue being active
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "setup/mrd.yaml",
-					"spec.state", string(v2alpha1.ManagedResourceDefinitionActive)),
+					"spec.state", string(v1alpha1.ManagedResourceDefinitionActive)),
 			)).
 
 			// Cleanup

@@ -26,21 +26,21 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 // DefaultManagedResourceActivationPolicy creates a "default" ManagedResourceActivationPolicy
 // object. It is a no-op if the object already exists.
-func DefaultManagedResourceActivationPolicy(activations ...v2alpha1.ActivationPolicy) StepFunc {
+func DefaultManagedResourceActivationPolicy(activations ...v1alpha1.ActivationPolicy) StepFunc {
 	if len(activations) == 0 {
 		return nil
 	}
 	return func(ctx context.Context, kube client.Client) error {
-		rc := &v2alpha1.ManagedResourceActivationPolicy{
+		rc := &v1alpha1.ManagedResourceActivationPolicy{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "default",
 			},
-			Spec: v2alpha1.ManagedResourceActivationPolicySpec{
+			Spec: v1alpha1.ManagedResourceActivationPolicySpec{
 				Activations: activations,
 			},
 		}

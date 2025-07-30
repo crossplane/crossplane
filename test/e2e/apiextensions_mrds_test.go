@@ -22,7 +22,7 @@ import (
 
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
@@ -38,7 +38,7 @@ func TestMRDValidation(t *testing.T) {
 			Assessment: funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "mrd-defaulted.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "mrd-defaulted.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mrd-defaulted.yaml", v2alpha1.InactiveManaged()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mrd-defaulted.yaml", v1alpha1.InactiveManaged()),
 			),
 		},
 		{
@@ -48,7 +48,7 @@ func TestMRDValidation(t *testing.T) {
 			Assessment: funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "mrd-valid.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "mrd-valid.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mrd-valid.yaml", v2alpha1.InactiveManaged()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mrd-valid.yaml", v1alpha1.InactiveManaged()),
 			),
 		},
 		{
@@ -58,7 +58,7 @@ func TestMRDValidation(t *testing.T) {
 			Assessment: funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "mrd-valid-updated.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "mrd-valid-updated.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mrd-valid-updated.yaml", v2alpha1.EstablishedManaged()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mrd-valid-updated.yaml", v1alpha1.EstablishedManaged()),
 			),
 		},
 		{
