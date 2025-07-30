@@ -1188,6 +1188,107 @@ func TestFunctionCompose(t *testing.T) {
 				err: nil,
 			},
 		},
+		"ResourceReferencesWithoutObservedResources": {
+			reason: "When XR has resourceRefs but the actual resources don't exist, the function should use a deterministic name (same as resourceRefs).",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "Deployment"}, "")), // all names are available
+					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+						// Check if the composed resource uses the expected name from resourceRefs
+						if cd, ok := obj.(*composed.Unstructured); ok {
+							// This test demonstrates the bug: the composed resource should use "existing-deployment-name" from resourceRefs,
+							// but currently it generates a new name instead
+							if cd.GetName() != "parent-xr-f4d3ac8501550bf84c63a814cc31ecb3161cbb88370f-test-res" {
+								// This is the current buggy behavior - it generates a new name instead of using the existing one
+								// Log this for debugging when we run the test
+								return errors.Errorf("BUG: Composed resource generated new name %s instead of using existing name from resourceRefs: parent-xr-f4d3ac8501550bf84c63a814cc31ecb3161cbb88370f-test-res", cd.GetName())
+							}
+						}
+						return nil
+					}),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "")),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// Function returns a desired resource with the same name as referenced
+					rsp := &fnv1.RunFunctionResponse{
+						Meta: &fnv1.ResponseMeta{Ttl: durationpb.New(5 * time.Minute)},
+						Desired: &fnv1.State{
+							Resources: map[string]*fnv1.Resource{
+								"test-resource-with-a-super-duper-really-long-name-to-test-compaction": {
+									Resource: MustStruct(map[string]any{
+										"apiVersion": "apps/v1",
+										"kind":       "Deployment",
+										"metadata":   map[string]any{},
+										"spec": map[string]any{
+											"replicas": 1,
+										},
+									}),
+								},
+							},
+						},
+					}
+					return rsp, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						// Return empty observed resources - simulating that the resources don't exist in cluster
+						return ComposedResourceStates{}, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: func() *composite.Unstructured {
+					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+						Group:   "test.crossplane.io",
+						Version: "v1",
+						Kind:    "CoolComposite",
+					}))
+					xr.SetLabels(map[string]string{
+						xcrd.LabelKeyNamePrefixForComposed: "parent-xr",
+					})
+					xr.SetUID("75e4a668-035f-4ce8-8c45-f4d3ac850155")
+					// Set resource references that exist from a previous reconciliation
+					xr.SetResourceReferences([]corev1.ObjectReference{
+						{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Name:       "parent-xr-f4d3ac8501550bf84c63a814cc31ecb3161cbb88370f-test-res",
+						},
+					})
+					return xr
+				}(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{
+						{ResourceName: "test-resource-with-a-super-duper-really-long-name-to-test-compaction", Synced: true},
+					},
+					TTL: 5 * time.Minute,
+				},
+				err: nil,
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -1493,7 +1594,7 @@ func TestGetComposedResources(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						obj.SetName("cool-resource-42")
-						SetCompositionResourceName(obj, "cool-resource")
+						xcrd.SetCompositionResourceName(obj, "cool-resource")
 						return nil
 					}),
 				},
@@ -1531,7 +1632,7 @@ func TestGetComposedResources(t *testing.T) {
 				uc: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						obj.SetName("cool-resource-42")
-						SetCompositionResourceName(obj, "cool-resource")
+						xcrd.SetCompositionResourceName(obj, "cool-resource")
 						return nil
 					}),
 				},
@@ -1561,7 +1662,7 @@ func TestGetComposedResources(t *testing.T) {
 							cd.SetAPIVersion("example.org/v1")
 							cd.SetKind("Composed")
 							cd.SetName("cool-resource-42")
-							SetCompositionResourceName(cd, "cool-resource")
+							xcrd.SetCompositionResourceName(cd, "cool-resource")
 							return cd
 						}(),
 					},
@@ -1574,7 +1675,7 @@ func TestGetComposedResources(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						obj.SetName("cool-resource-42")
-						SetCompositionResourceName(obj, "cool-resource")
+						xcrd.SetCompositionResourceName(obj, "cool-resource")
 						return nil
 					}),
 				},
@@ -1609,7 +1710,7 @@ func TestGetComposedResources(t *testing.T) {
 							cd.SetAPIVersion("example.org/v1")
 							cd.SetKind("Composed")
 							cd.SetName("cool-resource-42")
-							SetCompositionResourceName(cd, "cool-resource")
+							xcrd.SetCompositionResourceName(cd, "cool-resource")
 							return cd
 						}(),
 					},
