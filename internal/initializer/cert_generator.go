@@ -24,7 +24,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
 
 const (

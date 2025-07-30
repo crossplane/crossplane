@@ -22,8 +22,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
 // validatingRoundTripper is a round tripper that validates attributes of the

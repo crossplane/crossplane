@@ -317,7 +317,7 @@
         'schedule:monthly',
       ],
       matchPackageNames: [
-        '!github.com/crossplane/crossplane-runtime',
+        '!github.com/crossplane/crossplane-runtime/v2',
       ],
     },
     {

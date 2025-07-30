@@ -24,7 +24,7 @@ import (
 	"github.com/willabides/kongplete"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
 	"github.com/crossplane/crossplane/cmd/crank/beta"
 	"github.com/crossplane/crossplane/cmd/crank/completion"

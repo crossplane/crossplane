@@ -22,7 +22,7 @@ import (
 
 	fuzz "github.com/AdaLogics/go-fuzz-headers"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/xpkg"

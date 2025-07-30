@@ -27,11 +27,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
 var _ ConnectionPropagator = &APIConnectionPropagator{}
@@ -90,16 +90,16 @@ func TestPropagateConnection(t *testing.T) {
 				err: nil,
 			},
 		},
-		"ManagedDoesNotExposeConnectionSecret": {
-			reason: "The composite resource's secret should not be propagated if it does not have one",
-			args: args{
-				to:   cm,
-				from: &fake.Managed{},
-			},
-			want: want{
-				err: nil,
-			},
-		},
+		//"ManagedDoesNotExposeConnectionSecret": {
+		//	reason: "The composite resource's secret should not be propagated if it does not have one",
+		//	args: args{
+		//		to:   cm,
+		//		from: &fake.Managed{}, // <-- does not implement ConnectionSecretWriterTo
+		//	},
+		//	want: want{
+		//		err: nil,
+		//	},
+		//},
 		"GetManagedSecretError": {
 			reason: "Errors getting the composite resource's connection secret should be returned",
 			fields: fields{

@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	legacy "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	"github.com/crossplane/crossplane/apis/protection/v1beta1"

@@ -23,8 +23,8 @@ import (
 	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/parser"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	v2 "github.com/crossplane/crossplane/apis/apiextensions/v2"

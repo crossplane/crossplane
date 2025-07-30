@@ -20,7 +20,7 @@ package yaml
 import (
 	"errors"
 
-	"github.com/crossplane/crossplane-runtime/pkg/parser"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
