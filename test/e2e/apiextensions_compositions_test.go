@@ -127,6 +127,38 @@ func TestBasicCompositionNamespaced(t *testing.T) {
 	)
 }
 
+func TestLackOfRightsNamespaced(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/lack-of-rights-namespaced"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Test that when attempting to compose a resource the controller has insufficient rights to manage, we get correct messaging.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRHasStatusField", funcs.AllOf(
+				// A blank error is as good as we can do at the moment. This validates we get into a reconciliation error, which is better than nothing.
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "xr.yaml", xpv1.ReconcileError(errors.New(""))),
+			)).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResources(manifests, "xr.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
 func TestBasicCompositionCluster(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/basic-cluster"
 	environment.Test(t,

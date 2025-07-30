@@ -18,6 +18,7 @@ package composite
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -49,6 +51,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xerrors"
 	"github.com/crossplane/crossplane/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
 )
@@ -367,6 +370,9 @@ func TestFunctionCompose(t *testing.T) {
 		"RenderComposedResourceMetadataError": {
 			reason: "We should return any error we encounter when rendering composed resource metadata",
 			params: params{
+				c: &test.MockClient{
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
@@ -412,9 +418,6 @@ func TestFunctionCompose(t *testing.T) {
 		"InvalidNameCreateComposedResourceError": {
 			reason: "We should return an error when a resource has an invalid name",
 			params: params{
-				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(errBoom),
-				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
@@ -513,7 +516,21 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errFmtGenerateName, "cool-resource"),
+				err: xerrors.ComposedResourceError{
+					Message: fmt.Sprintf(errFmtGenerateName, "cool-resource"),
+					Composed: &composed.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "test.crossplane.io/v1",
+								"kind":       "CoolComposed",
+								"metadata": map[string]any{
+									"generateName": "parent-xr-",
+								},
+							},
+						},
+					},
+					Err: errBoom,
+				},
 			},
 		},
 		"GarbageCollectComposedResourcesError": {
@@ -915,7 +932,18 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errFmtApplyCD, "uncool-resource"),
+				err: xerrors.ComposedResourceError{
+					Message: fmt.Sprintf(errFmtApplyCD, "uncool-resource"),
+					Composed: &composed.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "test.crossplane.io/v1",
+								"kind":       "UncoolComposed",
+							},
+						},
+					},
+					Err: errBoom,
+				},
 			},
 		},
 		"BootstrapRequirementsError": {
@@ -1298,6 +1326,18 @@ func TestFunctionCompose(t *testing.T) {
 			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			// Check for our typed errors.
+			if tc.want.err != nil {
+				if wantErr := new(xerrors.ComposedResourceError); errors.As(tc.want.err, wantErr) {
+					if gotErr := new(xerrors.ComposedResourceError); errors.As(err, gotErr) {
+						if diff := cmp.Diff(wantErr, gotErr, test.EquateErrors()); diff != "" {
+							t.Errorf("\n%s\nComposedResourceError: -want, +got:\n%s", tc.reason, diff)
+						}
+					} else {
+						t.Errorf("\n%s\nComposedResourceError: not a typed error:\n%T", tc.reason, err)
+					}
+				}
 			}
 
 			// We iterate over a map to produce ComposedResources, so they're
