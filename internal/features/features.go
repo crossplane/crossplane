@@ -17,7 +17,7 @@ limitations under the License.
 // Package features defines Crossplane feature flags.
 package features
 
-import "github.com/crossplane/crossplane-runtime/pkg/feature"
+import "github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 
 // Alpha Feature flags.
 const (

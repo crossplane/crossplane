@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 
 	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
 	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"

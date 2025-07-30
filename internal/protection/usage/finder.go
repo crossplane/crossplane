@@ -27,7 +27,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
 	legacy "github.com/crossplane/crossplane/v2/apis/apiextensions/v1beta1"
 	"github.com/crossplane/crossplane/v2/apis/protection/v1beta1"

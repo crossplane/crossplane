@@ -31,8 +31,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/storage/memory"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 )
 
 const (
@@ -85,7 +85,7 @@ Examples:
 
   # Initialize a new Go Composition Function named function-example.
   crossplane xpkg init function-example function-template-go
-  
+
   # Initialize a new Provider named provider-example from a custom template.
   crossplane xpkg init provider-example https://github.com/crossplane/provider-template-custom
 

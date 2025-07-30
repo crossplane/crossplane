@@ -16,8 +16,8 @@ specific language governing permissions and limitations under the License.
 package composite
 
 import (
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 )
 
 // A ResourceName uniquely identifies the composed resource within a Composition

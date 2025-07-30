@@ -18,7 +18,7 @@ limitations under the License.
 package controller
 
 import (
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 )
 
 // The ManagementPolicy specifies which roles the RBAC manager should manage.
