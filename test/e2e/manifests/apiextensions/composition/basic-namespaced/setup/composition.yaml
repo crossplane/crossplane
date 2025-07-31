@@ -30,6 +30,11 @@ spec:
                 data:
                   coolData: "I'm cool!"
               ready: READY_TRUE
+            secret:
+              resource:
+                apiVersion: v1
+                kind: Secret
+              ready: READY_TRUE
         results:
          - severity: SEVERITY_NORMAL
            message: "I am doing a compose!"
