@@ -16,6 +16,6 @@ limitations under the License.
 
 package v1beta1
 
-import "github.com/crossplane/crossplane/internal/protection"
+import "github.com/crossplane/crossplane/v2/internal/protection"
 
 var _ protection.Usage = &Usage{}

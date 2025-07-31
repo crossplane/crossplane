@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
+	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
 )
 
 // NewWatchedResourceHandler returns a handler that enqueues reconcile requests

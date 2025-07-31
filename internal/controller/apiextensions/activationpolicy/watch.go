@@ -24,9 +24,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
 )
 
 // EnqueueActivationPolicyForManagedResourceDefinition enqueues a reconcile for policies that apply to a managed resource definition.

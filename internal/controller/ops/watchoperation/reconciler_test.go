@@ -30,11 +30,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
-	"github.com/crossplane/crossplane/internal/engine"
+	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	"github.com/crossplane/crossplane/v2/internal/engine"
 )
 
 var errBoom = errors.New("boom")

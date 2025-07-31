@@ -29,7 +29,7 @@ package apiextensions.fn.proto.v1beta1;
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
 
-option go_package = "github.com/crossplane/crossplane/proto/fn/v1beta1";
+option go_package = "github.com/crossplane/crossplane/v2/proto/fn/v1beta1";
 
 // A FunctionRunnerService is a function.
 service FunctionRunnerService {

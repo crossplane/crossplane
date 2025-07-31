@@ -27,14 +27,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/crossplane/crossplane-runtime/pkg/conditions"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 
-	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
-	opscontroller "github.com/crossplane/crossplane/internal/controller/ops/controller"
+	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	opscontroller "github.com/crossplane/crossplane/v2/internal/controller/ops/controller"
 )
 
 // Setup adds a controller that reconciles CronOperations by

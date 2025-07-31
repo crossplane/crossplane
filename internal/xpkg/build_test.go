@@ -32,11 +32,11 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/afero/tarfs"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/parser"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	"github.com/crossplane/crossplane/internal/xpkg/parser/examples"
+	"github.com/crossplane/crossplane/v2/internal/xpkg/parser/examples"
 )
 
 var (

@@ -20,10 +20,10 @@ package ops
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplane/crossplane/internal/controller/ops/controller"
-	"github.com/crossplane/crossplane/internal/controller/ops/cronoperation"
-	"github.com/crossplane/crossplane/internal/controller/ops/operation"
-	"github.com/crossplane/crossplane/internal/controller/ops/watchoperation"
+	"github.com/crossplane/crossplane/v2/internal/controller/ops/controller"
+	"github.com/crossplane/crossplane/v2/internal/controller/ops/cronoperation"
+	"github.com/crossplane/crossplane/v2/internal/controller/ops/operation"
+	"github.com/crossplane/crossplane/v2/internal/controller/ops/watchoperation"
 )
 
 // Setup API extensions controllers.

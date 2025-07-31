@@ -30,10 +30,10 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	fnv1 "github.com/crossplane/crossplane/proto/fn/v1"
+	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
 var _ FunctionRunner = &FetchingFunctionRunner{}

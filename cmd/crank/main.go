@@ -24,13 +24,13 @@ import (
 	"github.com/willabides/kongplete"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/cmd/crank/beta"
-	"github.com/crossplane/crossplane/cmd/crank/completion"
-	"github.com/crossplane/crossplane/cmd/crank/render"
-	"github.com/crossplane/crossplane/cmd/crank/version"
-	"github.com/crossplane/crossplane/cmd/crank/xpkg"
+	"github.com/crossplane/crossplane/v2/cmd/crank/beta"
+	"github.com/crossplane/crossplane/v2/cmd/crank/completion"
+	"github.com/crossplane/crossplane/v2/cmd/crank/render"
+	"github.com/crossplane/crossplane/v2/cmd/crank/version"
+	"github.com/crossplane/crossplane/v2/cmd/crank/xpkg"
 )
 
 var _ = kong.Must(&cli{})

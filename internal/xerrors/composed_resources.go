@@ -19,7 +19,7 @@ package xerrors
 import (
 	"fmt"
 
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 )
 
 // A ComposedResourceError allows the resource composer to return context around the composition error.

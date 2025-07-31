@@ -31,15 +31,15 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/apis/pkg"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/printer"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xrm"
-	"github.com/crossplane/crossplane/cmd/crank/internal"
+	"github.com/crossplane/crossplane/v2/apis/pkg"
+	"github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/printer"
+	"github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/resource/xpkg"
+	"github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/resource/xrm"
+	"github.com/crossplane/crossplane/v2/cmd/crank/internal"
 )
 
 const (
@@ -87,7 +87,7 @@ Examples:
   # Trace a MyKind resource (mykinds.example.org/v1alpha1) named 'my-res' in the namespace 'my-ns'
   crossplane beta trace mykind my-res -n my-ns
 
-  # Output wide format, showing full errors and condition messages, and other useful info 
+  # Output wide format, showing full errors and condition messages, and other useful info
   # depending on the target type, e.g. composed resources names for composite resources or image used for packages
   crossplane beta trace mykind my-res -n my-ns -o wide
 

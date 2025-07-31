@@ -1420,7 +1420,7 @@ const file_proto_fn_v1_run_function_proto_rawDesc = "" +
 	"\x15STATUS_CONDITION_TRUE\x10\x02\x12\x1a\n" +
 	"\x16STATUS_CONDITION_FALSE\x10\x032\x87\x01\n" +
 	"\x15FunctionRunnerService\x12n\n" +
-	"\vRunFunction\x12-.apiextensions.fn.proto.v1.RunFunctionRequest\x1a..apiextensions.fn.proto.v1.RunFunctionResponse\"\x00B.Z,github.com/crossplane/crossplane/proto/fn/v1b\x06proto3"
+	"\vRunFunction\x12-.apiextensions.fn.proto.v1.RunFunctionRequest\x1a..apiextensions.fn.proto.v1.RunFunctionResponse\"\x00B1Z/github.com/crossplane/crossplane/v2/proto/fn/v1b\x06proto3"
 
 var (
 	file_proto_fn_v1_run_function_proto_rawDescOnce sync.Once

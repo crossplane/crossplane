@@ -3,8 +3,8 @@ package fake
 import (
 	"context"
 
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	"github.com/crossplane/crossplane/internal/xpkg"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 var _ xpkg.ConfigStore = &MockConfigStore{}

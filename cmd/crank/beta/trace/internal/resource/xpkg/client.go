@@ -27,15 +27,15 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
-	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
+	xpresource "github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	xpunstructured "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
 
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
-	"github.com/crossplane/crossplane/internal/xpkg"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	pkgv1beta1 "github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 // Client to get a Package with all its dependencies.

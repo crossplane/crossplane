@@ -19,7 +19,7 @@ package controller
 import (
 	"strings"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
 
 // ActiveRuntime is the runtime to use for packages with runtime.

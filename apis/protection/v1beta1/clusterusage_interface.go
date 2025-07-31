@@ -19,9 +19,9 @@ limitations under the License.
 package v1beta1
 
 import (
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 
-	"github.com/crossplane/crossplane/internal/protection"
+	"github.com/crossplane/crossplane/v2/internal/protection"
 )
 
 // GetUserOf gets the resource this ClusterUsage indicates a use of.

@@ -20,14 +20,14 @@ package pkg
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
-	"github.com/crossplane/crossplane/internal/controller/pkg/manager"
-	"github.com/crossplane/crossplane/internal/controller/pkg/resolver"
-	"github.com/crossplane/crossplane/internal/controller/pkg/revision"
-	"github.com/crossplane/crossplane/internal/controller/pkg/runtime"
-	"github.com/crossplane/crossplane/internal/controller/pkg/signature"
-	"github.com/crossplane/crossplane/internal/features"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg/manager"
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg/resolver"
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg/runtime"
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg/signature"
+	"github.com/crossplane/crossplane/v2/internal/features"
 )
 
 // Setup package controllers.

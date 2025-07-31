@@ -21,7 +21,7 @@ import (
 
 	fuzz "github.com/AdaLogics/go-fuzz-headers"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
 
 func FuzzRenderClusterRoles(f *testing.F) {

@@ -20,10 +20,10 @@ package rbac
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplane/crossplane/internal/controller/rbac/controller"
-	"github.com/crossplane/crossplane/internal/controller/rbac/definition"
-	"github.com/crossplane/crossplane/internal/controller/rbac/provider/binding"
-	"github.com/crossplane/crossplane/internal/controller/rbac/provider/roles"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/controller"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/definition"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/provider/binding"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/provider/roles"
 )
 
 // Setup RBAC manager controllers.

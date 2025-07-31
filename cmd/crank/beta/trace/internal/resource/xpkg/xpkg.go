@@ -21,8 +21,8 @@ package xpkg
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	pkgv1beta1 "github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 )
 
 // DependencyOutput defines the output of the dependency tree.

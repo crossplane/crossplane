@@ -20,7 +20,7 @@ package ops
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplane/crossplane/apis/ops/v1alpha1"
+	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
 )
 
 func init() {

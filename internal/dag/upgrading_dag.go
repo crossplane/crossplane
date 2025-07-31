@@ -20,7 +20,7 @@ package dag
 import (
 	"github.com/Masterminds/semver"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
 
 // MapUpgradingDag is a directed acyclic graph implementation that uses a map for its

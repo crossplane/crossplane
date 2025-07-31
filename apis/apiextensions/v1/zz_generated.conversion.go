@@ -4,7 +4,7 @@
 package v1
 
 import (
-	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	common "github.com/crossplane/crossplane-runtime/v2/apis/common"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -42,6 +42,20 @@ func (c *GeneratedRevisionSpecConverter) ToRevisionSpec(source CompositionSpec) 
 	}
 	return v1CompositionRevisionSpec
 }
+func (c *GeneratedRevisionSpecConverter) commonSecretReferenceToCommonSecretReference(source common.SecretReference) common.SecretReference {
+	var commonSecretReference common.SecretReference
+	commonSecretReference.Name = source.Name
+	commonSecretReference.Namespace = source.Namespace
+	return commonSecretReference
+}
+func (c *GeneratedRevisionSpecConverter) pCommonSecretReferenceToPCommonSecretReference(source *common.SecretReference) *common.SecretReference {
+	var pCommonSecretReference *common.SecretReference
+	if source != nil {
+		commonSecretReference := c.commonSecretReferenceToCommonSecretReference((*source))
+		pCommonSecretReference = &commonSecretReference
+	}
+	return pCommonSecretReference
+}
 func (c *GeneratedRevisionSpecConverter) pRuntimeRawExtensionToPRuntimeRawExtension(source *runtime.RawExtension) *runtime.RawExtension {
 	var pRuntimeRawExtension *runtime.RawExtension
 	if source != nil {
@@ -63,16 +77,6 @@ func (c *GeneratedRevisionSpecConverter) pV1FunctionRequirementsToPV1FunctionReq
 		pV1FunctionRequirements = &v1FunctionRequirements
 	}
 	return pV1FunctionRequirements
-}
-func (c *GeneratedRevisionSpecConverter) pV1SecretReferenceToPV1SecretReference(source *v1.SecretReference) *v1.SecretReference {
-	var pV1SecretReference *v1.SecretReference
-	if source != nil {
-		var v1SecretReference v1.SecretReference
-		v1SecretReference.Name = (*source).Name
-		v1SecretReference.Namespace = (*source).Namespace
-		pV1SecretReference = &v1SecretReference
-	}
-	return pV1SecretReference
 }
 func (c *GeneratedRevisionSpecConverter) v1CompositionModeToV1CompositionMode(source CompositionMode) CompositionMode {
 	var v1CompositionMode CompositionMode
@@ -98,7 +102,7 @@ func (c *GeneratedRevisionSpecConverter) v1FunctionCredentialsToV1FunctionCreden
 	var v1FunctionCredentials FunctionCredentials
 	v1FunctionCredentials.Name = source.Name
 	v1FunctionCredentials.Source = c.v1FunctionCredentialsSourceToV1FunctionCredentialsSource(source.Source)
-	v1FunctionCredentials.SecretRef = c.pV1SecretReferenceToPV1SecretReference(source.SecretRef)
+	v1FunctionCredentials.SecretRef = c.pCommonSecretReferenceToPCommonSecretReference(source.SecretRef)
 	return v1FunctionCredentials
 }
 func (c *GeneratedRevisionSpecConverter) v1FunctionReferenceToV1FunctionReference(source FunctionReference) FunctionReference {
