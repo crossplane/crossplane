@@ -155,19 +155,6 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 		Rules: withVerbs(rules, verbsEdit),
 	}
 
-	var viewRules []rbacv1.PolicyRule
-	if pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
-		viewRules = make([]rbacv1.PolicyRule, len(rules)+1)
-		copy(viewRules, rules)
-		viewRules[len(rules)] = rbacv1.PolicyRule{
-			APIGroups: []string{"apiextensions.k8s.io"},
-			Resources: []string{"customresourcedefinitions"},
-		}
-	} else {
-		// Default to the original rules.
-		viewRules = rules
-	}
-
 	view := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namePrefix + pr.GetName() + nameSuffixView,
@@ -175,7 +162,7 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 				keyAggregateToView: valTrue,
 			},
 		},
-		Rules: withVerbs(viewRules, verbsView),
+		Rules: withVerbs(rules, verbsView),
 	}
 
 	// The 'system' RBAC role does not aggregate; it is intended to be bound
@@ -188,6 +175,14 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 			},
 		},
 		Rules: append(append(withVerbs(rules, verbsSystem), ruleFinalizers), rulesSystemExtra...),
+	}
+
+	if pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
+		// For SafeStart to work, the system role needs to be able to View CRDs.
+		system.Rules = append(system.Rules, withVerbs([]rbacv1.PolicyRule{{
+			APIGroups: []string{"apiextensions.k8s.io"},
+			Resources: []string{"customresourcedefinitions"},
+		}}, verbsView)...)
 	}
 
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}
