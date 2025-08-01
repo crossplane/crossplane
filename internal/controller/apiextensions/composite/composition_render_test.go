@@ -25,29 +25,29 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
-	"github.com/crossplane/crossplane/internal/xresource/xfake"
+	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 func TestRenderFromJSON(t *testing.T) {
-	errInvalidChar := json.Unmarshal([]byte("olala"), &fake.Composed{}) //nolint:musttag // Not an issue in this test.
+	errInvalidChar := json.Unmarshal([]byte("olala"), &fake.Composed{})
 
 	type args struct {
 		o    resource.Object
 		data []byte
 	}
+
 	type want struct {
 		o   resource.Object
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args
@@ -159,10 +159,11 @@ func TestRenderFromJSON(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := RenderFromJSON(tc.args.o, tc.args.data)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			err := RenderFromJSON(tc.args.o, tc.data)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRenderFromJSON(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.o, tc.args.o); diff != "" {
 				t.Errorf("\n%s\nRenderFromJSON(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -182,14 +183,16 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 	errRef := meta.AddControllerReference(controlled, metav1.OwnerReference{UID: "not-very-random"})
 
 	type args struct {
-		xr xresource.Composite
+		xr resource.Composite
 		cd resource.Composed
 		rn ResourceName
 	}
+
 	type want struct {
 		cd  resource.Composed
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args
@@ -198,7 +201,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 		"ConflictingControllerReference": {
 			reason: "We should return an error if the composed resource has an existing (and different) controller reference",
 			args: args{
-				xr: &xfake.Composite{
+				xr: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "somewhat-random",
 						Labels: map[string]string{
@@ -238,7 +241,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 		"CompatibleControllerReference": {
 			reason: "We should not return an error if the composed resource has an existing (and matching) controller reference",
 			args: args{
-				xr: &xfake.Composite{
+				xr: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "somewhat-random",
 						Labels: map[string]string{
@@ -278,7 +281,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 		"NoControllerReference": {
 			reason: "We should not return an error if the composed resource has no controller reference",
 			args: args{
-				xr: &xfake.Composite{
+				xr: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "ns",
 						Name:      "cool-xr",
@@ -315,7 +318,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 		"NoClaimLabels": {
 			reason: "MR should not have claim labels when XR doesn't have them",
 			args: args{
-				xr: &xfake.Composite{
+				xr: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "ns",
 						Name:      "cool-xr",
@@ -348,10 +351,11 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := RenderComposedResourceMetadata(tc.args.cd, tc.args.xr, tc.args.rn)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			err := RenderComposedResourceMetadata(tc.args.cd, tc.xr, tc.rn)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRenderComposedResourceMetadata(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.cd, tc.args.cd); diff != "" {
 				t.Errorf("\n%s\nRenderComposedResourceMetadata(...): -want, +got:\n%s", tc.reason, diff)
 			}

@@ -40,14 +40,6 @@ var (
 	AddToScheme = SchemeBuilder.AddToScheme
 )
 
-// EnvironmentConfig type metadata.
-var (
-	EnvironmentConfigKind             = reflect.TypeOf(EnvironmentConfig{}).Name()
-	EnvironmentConfigGroupKind        = schema.GroupKind{Group: Group, Kind: EnvironmentConfigKind}.String()
-	EnvironmentConfigKindAPIVersion   = EnvironmentConfigKind + "." + SchemeGroupVersion.String()
-	EnvironmentConfigGroupVersionKind = SchemeGroupVersion.WithKind(EnvironmentConfigKind)
-)
-
 // Usage type metadata.
 var (
 	UsageKind             = reflect.TypeOf(Usage{}).Name()
@@ -56,7 +48,21 @@ var (
 	UsageGroupVersionKind = SchemeGroupVersion.WithKind(UsageKind)
 )
 
+// CompositeResourceDefinition type metadata.
+var (
+	ManagedResourceDefinitionKind             = reflect.TypeOf(ManagedResourceDefinition{}).Name()
+	ManagedResourceDefinitionGroupKind        = schema.GroupKind{Group: Group, Kind: ManagedResourceDefinitionKind}.String()
+	ManagedResourceDefinitionKindAPIVersion   = ManagedResourceDefinitionKind + "." + SchemeGroupVersion.String()
+	ManagedResourceDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(ManagedResourceDefinitionKind)
+
+	ManagedResourceActivationPolicyKind             = reflect.TypeOf(ManagedResourceActivationPolicy{}).Name()
+	ManagedResourceActivationPolicyGroupKind        = schema.GroupKind{Group: Group, Kind: ManagedResourceActivationPolicyKind}.String()
+	ManagedResourceActivationPolicyKindAPIVersion   = ManagedResourceActivationPolicyKind + "." + SchemeGroupVersion.String()
+	ManagedResourceActivationPolicyGroupVersionKind = SchemeGroupVersion.WithKind(ManagedResourceActivationPolicyKind)
+)
+
 func init() {
-	SchemeBuilder.Register(&Usage{}, &UsageList{})
-	SchemeBuilder.Register(&EnvironmentConfig{}, &EnvironmentConfigList{})
+	SchemeBuilder.Register(&Usage{}, &UsageList{},
+		&ManagedResourceDefinition{}, &ManagedResourceDefinitionList{},
+		&ManagedResourceActivationPolicy{}, &ManagedResourceActivationPolicyList{})
 }

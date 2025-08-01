@@ -32,20 +32,19 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
+	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
-	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
-	"github.com/crossplane/crossplane/internal/xfn"
-	"github.com/crossplane/crossplane/internal/xresource"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
-	ucomposite "github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/v2/internal/xfn"
+	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
 // Wait for the server to be ready before sending RPCs. Notably this gives
@@ -73,7 +72,7 @@ type Inputs struct {
 	Functions           []pkgv1.Function
 	FunctionCredentials []corev1.Secret
 	ObservedResources   []composed.Unstructured
-	ExtraResources      []unstructured.Unstructured
+	RequiredResources   []unstructured.Unstructured
 	Context             map[string][]byte
 
 	// TODO(negz): Allow supplying observed XR and composed resource connection
@@ -112,10 +111,12 @@ func NewRuntimeFunctionRunner(ctx context.Context, log logging.Logger, fns []pkg
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot get runtime for Function %q", fn.GetName())
 		}
+
 		rctx, err := runtime.Start(ctx)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot start Function %q", fn.GetName())
 		}
+
 		contexts[fn.GetName()] = rctx
 
 		conn, err := grpc.NewClient(rctx.Target,
@@ -124,6 +125,7 @@ func NewRuntimeFunctionRunner(ctx context.Context, log logging.Logger, fns []pkg
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot dial Function %q at address %q", fn.GetName(), rctx.Target)
 		}
+
 		conns[fn.GetName()] = conn
 	}
 
@@ -150,12 +152,15 @@ func (r *RuntimeFunctionRunner) Stop(ctx context.Context) error {
 
 	for name, conn := range r.conns {
 		_ = conn.Close()
+
 		delete(r.conns, name)
 	}
+
 	for name, rctx := range r.contexts {
 		if err := rctx.Stop(ctx); err != nil {
 			return errors.Wrapf(err, "cannot stop function %q runtime (target %q)", name, rctx.Target)
 		}
+
 		delete(r.contexts, name)
 	}
 
@@ -169,6 +174,7 @@ func getSecret(name string, nameSpace string, secrets []corev1.Secret) (*corev1.
 			return &s, nil
 		}
 	}
+
 	return nil, errors.Errorf("secret %q not found", name)
 }
 
@@ -190,9 +196,10 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 	}()
 
-	runner := composite.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{extra: in.ExtraResources})
+	runner := xfn.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{extra: in.RequiredResources})
 
 	observed := composite.ComposedResourceStates{}
+
 	for i, cd := range in.ObservedResources {
 		name := cd.GetAnnotations()[AnnotationKeyCompositionResourceName]
 		observed[composite.ResourceName(name)] = composite.ComposedResourceState{
@@ -224,10 +231,12 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		if err := json.Unmarshal(data, &jv); err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot unmarshal JSON value for context key %q", k)
 		}
+
 		v, err := structpb.NewValue(jv)
 		if err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot store JSON value for context key %q", k)
 		}
+
 		fctx.Fields[k] = v
 	}
 
@@ -243,6 +252,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			if err := in.UnmarshalJSON(fn.Input.Raw); err != nil {
 				return Outputs{}, errors.Wrapf(err, "cannot unmarshal input for Composition pipeline step %q", fn.Step)
 			}
+
 			req.Input = in
 		}
 
@@ -257,6 +267,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			if err != nil {
 				return Outputs{}, errors.Wrapf(err, "cannot get credentials from secret %q", cs.SecretRef.Name)
 			}
+
 			req.Credentials[cs.Name] = &fnv1.Credentials{
 				Source: &fnv1.Credentials_CredentialData{
 					CredentialData: &fnv1.CredentialData{
@@ -280,6 +291,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 
 		for _, c := range rsp.GetConditions() {
 			var status corev1.ConditionStatus
+
 			switch c.GetStatus() {
 			case fnv1.Status_STATUS_CONDITION_TRUE:
 				status = corev1.ConditionTrue
@@ -316,14 +328,16 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	}
 
 	desired := make([]composed.Unstructured, 0, len(d.GetResources()))
+
 	var unready []string
+
 	for name, dr := range d.GetResources() {
 		if dr.GetReady() != fnv1.Ready_READY_TRUE {
 			unready = append(unready, name)
 		}
 
 		cd := composed.New()
-		if err := composite.FromStruct(cd, dr.GetResource()); err != nil {
+		if err := xfn.FromStruct(cd, dr.GetResource()); err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot unmarshal desired composed resource %q", name)
 		}
 
@@ -349,7 +363,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	})
 
 	xr := ucomposite.New()
-	if err := composite.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
+	if err := xfn.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
 		return Outputs{}, errors.Wrap(err, "cannot render desired composite resource")
 	}
 
@@ -358,10 +372,14 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	xr.SetAPIVersion(in.CompositeResource.GetAPIVersion())
 	xr.SetKind(in.CompositeResource.GetKind())
 	xr.SetName(in.CompositeResource.GetName())
+
 	xrCond := xpv1.Available()
-	if len(unready) > 0 {
+	if d.GetComposite().Ready == fnv1.Ready_READY_FALSE {
+		xrCond = xpv1.Creating()
+	} else if d.GetComposite().Ready == fnv1.Ready_READY_UNSPECIFIED && len(unready) > 0 {
 		xrCond = xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unready)))
 	}
+
 	xrCond.LastTransitionTime = conditionTime()
 	xr.SetConditions(xrCond)
 
@@ -384,6 +402,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			"fields":     fctx.GetFields(),
 		}}
 	}
+
 	return out, nil
 }
 
@@ -394,10 +413,11 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 // crossplane.io/claim-namespace, and crossplane.io/claim-name annotations.
 //
 // https://github.com/crossplane/crossplane/blob/0965f0/internal/controller/apiextensions/composite/composition_render.go#L117
-func SetComposedResourceMetadata(cd resource.Object, xr xresource.LegacyComposite, name string) error {
+func SetComposedResourceMetadata(cd resource.Object, xr resource.LegacyComposite, name string) error {
 	cd.SetGenerateName(xr.GetName() + "-")
 	meta.AddAnnotations(cd, map[string]string{AnnotationKeyCompositionResourceName: name})
 	meta.AddLabels(cd, map[string]string{AnnotationKeyCompositeName: xr.GetName()})
+
 	if ref := xr.GetClaimReference(); ref != nil {
 		meta.AddLabels(cd, map[string]string{
 			AnnotationKeyClaimNamespace: ref.Namespace,
@@ -406,11 +426,12 @@ func SetComposedResourceMetadata(cd resource.Object, xr xresource.LegacyComposit
 	}
 
 	or := meta.AsController(meta.TypedReferenceTo(xr, xr.GetObjectKind().GroupVersionKind()))
+
 	return errors.Wrapf(meta.AddControllerReference(cd, or), "cannot set composite resource %q as controller ref of composed resource", xr.GetName())
 }
 
-// FilteringFetcher is a composite.ExtraResourcesFetcher that "fetches" any
-// supplied resource that matches a resource selector.
+// FilteringFetcher is a RequiredResourcesFetcher that "fetches" any supplied
+// resource that matches a resource selector.
 type FilteringFetcher struct {
 	extra []unstructured.Unstructured
 }
@@ -421,28 +442,36 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 	if len(f.extra) == 0 || rs == nil {
 		return nil, nil
 	}
+
 	out := &fnv1.Resources{}
+
 	for _, er := range f.extra {
 		if rs.GetApiVersion() != er.GetAPIVersion() {
 			continue
 		}
+
 		if rs.GetKind() != er.GetKind() {
 			continue
 		}
+
 		if rs.GetMatchName() == er.GetName() {
-			o, err := composite.AsStruct(&er)
+			o, err := xfn.AsStruct(&er)
 			if err != nil {
 				return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())
 			}
+
 			out.Items = []*fnv1.Resource{{Resource: o}}
+
 			return out, nil
 		}
+
 		if rs.GetMatchLabels() != nil {
 			if labels.SelectorFromSet(rs.GetMatchLabels().GetLabels()).Matches(labels.Set(er.GetLabels())) {
-				o, err := composite.AsStruct(&er)
+				o, err := xfn.AsStruct(&er)
 				if err != nil {
 					return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())
 				}
+
 				out.Items = append(out.GetItems(), &fnv1.Resource{Resource: o})
 			}
 		}

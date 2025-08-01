@@ -1,0 +1,7 @@
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: activation-test-single-policy
+spec:
+  activate:
+  - nonexistent.disabled.activation-e2e.crossplane.io

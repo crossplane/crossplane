@@ -26,10 +26,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 )
 
 // EnqueuePackageRevisionsForImageConfig enqueues a reconcile for all package
@@ -54,6 +54,7 @@ func EnqueuePackageRevisionsForImageConfig(kube client.Client, l v1.PackageRevis
 		}
 
 		var matches []reconcile.Request
+
 		for _, rev := range rl.GetRevisions() {
 			for _, m := range ic.Spec.MatchImages {
 				if strings.HasPrefix(rev.GetSource(), m.Prefix) || strings.HasPrefix(rev.GetResolvedSource(), m.Prefix) {
@@ -65,6 +66,7 @@ func EnqueuePackageRevisionsForImageConfig(kube client.Client, l v1.PackageRevis
 				}
 			}
 		}
+
 		return matches
 	})
 }
@@ -88,6 +90,7 @@ func EnqueuePackageRevisionsForLock(kube client.Client, l v1.PackageRevisionList
 		for _, rev := range rl.GetRevisions() {
 			matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: rev.GetName()}})
 		}
+
 		return matches
 	})
 }

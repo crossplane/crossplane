@@ -9,10 +9,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 )
 
 var errBoom = errors.New("boom")
@@ -23,10 +23,12 @@ func TestImageConfigStoreBestMatch(t *testing.T) {
 		image   string
 		isValid isValidConfig
 	}
+
 	type want struct {
 		config *v1beta1.ImageConfig
 		err    error
 	}
+
 	cases := map[string]struct {
 		args args
 		want want
@@ -426,10 +428,12 @@ func TestImageConfigStoreBestMatch(t *testing.T) {
 			s := &ImageConfigStore{
 				client: tc.args.client,
 			}
+
 			got, err := s.bestMatch(context.Background(), tc.args.image, tc.args.isValid)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("bestMatch() error -want +got: %s", diff)
 			}
+
 			if diff := cmp.Diff(tc.want.config, got, cmp.AllowUnexported(v1beta1.ImageConfig{})); diff != "" {
 				t.Errorf("bestMatch() config -want +got: %s", diff)
 			}

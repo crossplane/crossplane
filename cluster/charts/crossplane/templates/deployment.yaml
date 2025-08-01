@@ -79,6 +79,10 @@ spec:
           - --function
           - "{{ $arg }}"
           {{- end }}
+          {{- range $arg := .Values.provider.defaultActivations }}
+          - --activation
+          - "{{ $arg }}"
+          {{- end }}
           resources:
             {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
           {{- with .Values.securityContextCrossplane }}
@@ -147,7 +151,6 @@ spec:
         - {{ $arg }}
         {{- end }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        name: {{ .Chart.Name }}
         resources:
           {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
         startupProbe:

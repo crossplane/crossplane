@@ -1,0 +1,65 @@
+apiVersion: ops.crossplane.io/v1alpha1
+kind: Operation
+metadata:
+  name: multi-step-test
+spec:
+  mode: Pipeline
+  retryLimit: 5
+  pipeline:
+  - step: create-configmap-a
+    functionRef:
+      name: function-dummy-ops-multi-step
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      response:
+        # First function creates ConfigMap A and outputs step info
+        desired:
+          resources:
+            configmap-a:
+              resource:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  namespace: default
+                  name: multi-step-configmap-a
+                data:
+                  step: "1"
+                  content: "Created by step 1"
+        # Output that should be captured in Operation status
+        output:
+          stepName: "create-configmap-a"
+          resourcesCreated: 1
+          configMapName: "multi-step-configmap-a"
+        results:
+        - severity: SEVERITY_NORMAL
+          message: "Step 1: Created ConfigMap A"
+  - step: create-configmap-b
+    functionRef:
+      name: function-dummy-ops-multi-step
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      response:
+        # Second function creates ConfigMap B (overlays on top of A)
+        desired:
+          resources:
+            configmap-b:
+              resource:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  namespace: default
+                  name: multi-step-configmap-b
+                data:
+                  step: "2"
+                  content: "Created by step 2"
+        # Output that should be captured in Operation status
+        output:
+          stepName: "create-configmap-b"
+          resourcesCreated: 1
+          configMapName: "multi-step-configmap-b"
+          totalPipelineResources: 2
+        results:
+        - severity: SEVERITY_NORMAL
+          message: "Step 2: Created ConfigMap B, pipeline complete"

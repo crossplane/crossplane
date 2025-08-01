@@ -34,12 +34,10 @@ import (
 	"github.com/spf13/afero"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/internal/xpkg"
-	"github.com/crossplane/crossplane/internal/xpkg/upbound"
-	"github.com/crossplane/crossplane/internal/xpkg/upbound/credhelper"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 const (
@@ -60,13 +58,11 @@ const (
 // pushCmd pushes a package.
 type pushCmd struct {
 	// Arguments.
-	Package string `arg:"" help:"Where to push the package."`
+	Package string `arg:"" help:"Where to push the package. Must be a fully qualified OCI tag, including the registry, repository, and tag." placeholder:"REGISTRY/REPOSITORY:TAG"`
 
 	// Flags. Keep sorted alphabetically.
-	PackageFiles []string `help:"A comma-separated list of xpkg files to push." placeholder:"PATH" predictor:"xpkg_file" short:"f" type:"existingfile"`
-
-	// Common Upbound API configuration.
-	upbound.Flags `embed:""`
+	InsecureSkipTLSVerify bool     `help:"[INSECURE] Skip verifying TLS certificates."`
+	PackageFiles          []string `help:"A comma-separated list of xpkg files to push." placeholder:"PATH" predictor:"xpkg_file" short:"f" type:"existingfile"`
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
 	fs afero.Fs
@@ -74,15 +70,16 @@ type pushCmd struct {
 
 func (c *pushCmd) Help() string {
 	return `
-Packages can be pushed to any OCI registry. Packages are pushed to the
-xpkg.upbound.io registry by default. A package's OCI tag must be a semantic
-version. Credentials for the registry are automatically retrieved from xpkg login 
+Packages can be pushed to any OCI registry. A package's OCI tag must be a semantic
+version. Credentials for the registry are automatically retrieved from xpkg login
 and dockers configuration as fallback.
+
+IMPORTANT: the package must be fully qualified, including the registry, repository, and tag.
 
 Examples:
 
   # Push a multi-platform package.
-  crossplane xpkg push -f function-amd64.xpkg,function-arm64.xpkg crossplane/function-example:v1.0.0
+  crossplane xpkg push -f function-amd64.xpkg,function-arm64.xpkg xpkg.crossplane.io/crossplane/function-example:v1.0.0
 
   # Push the xpkg file in the current directory to a different registry.
   crossplane xpkg push index.docker.io/crossplane/function-example:v1.0.0
@@ -96,17 +93,7 @@ func (c *pushCmd) AfterApply() error {
 }
 
 // Run runs the push cmd.
-func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This feels easier to read as-is.
-	upCtx, err := upbound.NewFromFlags(c.Flags, upbound.AllowMissingProfile())
-	if err != nil {
-		return err
-	}
-
-	tag, err := name.NewTag(c.Package, name.WithDefaultRegistry(xpkg.DefaultRegistry))
-	if err != nil {
-		return errors.Wrapf(err, errFmtNewTag, c.Package)
-	}
-
+func (c *pushCmd) Run(logger logging.Logger) error {
 	// If package is not defined, attempt to find single package in current
 	// directory.
 	if len(c.PackageFiles) == 0 {
@@ -114,86 +101,117 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 		if err != nil {
 			return errors.Wrap(err, errGetwd)
 		}
+
 		path, err := xpkg.FindXpkgInDir(c.fs, wd)
 		if err != nil {
 			return errors.Wrap(err, errFindPackageinWd)
 		}
+
 		c.PackageFiles = []string{path}
 		logger.Debug("Found package in directory", "path", path)
 	}
 
-	kc := authn.NewMultiKeychain(
-		authn.NewKeychainFromHelper(credhelper.New(
-			credhelper.WithLogger(logger),
-			credhelper.WithProfile(upCtx.ProfileName),
-			credhelper.WithDomain(upCtx.Domain.Hostname()),
-		)),
-		authn.DefaultKeychain,
-	)
+	// load images from all the provided package files
+	images := make([]packageImage, 0, len(c.PackageFiles))
+	for _, p := range c.PackageFiles {
+		cleanPath := filepath.Clean(p)
+
+		img, err := tarball.ImageFromPath(cleanPath, nil)
+		if err != nil {
+			return err
+		}
+
+		images = append(images, packageImage{Image: img, Path: cleanPath})
+	}
 
 	t := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: upCtx.InsecureSkipTLSVerify, //nolint:gosec // we need to support insecure connections if requested
+			InsecureSkipVerify: c.InsecureSkipTLSVerify, //nolint:gosec // we need to support insecure connections if requested
 		},
 	}
 
 	options := []remote.Option{
-		remote.WithAuthFromKeychain(kc),
+		remote.WithAuthFromKeychain(authn.DefaultKeychain),
 		remote.WithTransport(t),
 	}
 
-	// If there's only one package file, handle the simple path.
-	if len(c.PackageFiles) == 1 {
-		img, err := tarball.ImageFromPath(c.PackageFiles[0], nil)
-		if err != nil {
-			return errors.Wrapf(err, errFmtReadPackage, c.PackageFiles[0])
+	return pushImages(logger, images, c.Package, options...)
+}
+
+// packageImage describes a package image that will be pushed.
+type packageImage struct {
+	// The OCI Image of the package to be pushed.
+	Image v1.Image
+
+	// optional path for the image (e.g. file path on disk) to help provide more
+	// information about its source
+	Path string
+}
+
+// pushImages pushes package images to the given URL using the provided options.
+func pushImages(logger logging.Logger, images []packageImage, url string, options ...remote.Option) error {
+	if len(options) == 0 {
+		options = []remote.Option{
+			remote.WithAuthFromKeychain(authn.DefaultKeychain),
 		}
-		img, err = xpkg.AnnotateLayers(img)
+	}
+
+	tag, err := name.NewTag(url, name.StrictValidation)
+	if err != nil {
+		return errors.Wrapf(err, errFmtNewTag, url)
+	}
+
+	// If there's only one package file, handle the simple path.
+	if len(images) == 1 {
+		pi := images[0]
+
+		img, err := xpkg.AnnotateLayers(pi.Image)
 		if err != nil {
 			return errors.Wrapf(err, errAnnotateLayers)
 		}
+
 		if err := remote.Write(tag, img, options...); err != nil {
-			return errors.Wrapf(err, errFmtPushPackage, c.PackageFiles[0])
+			return errors.Wrapf(err, errFmtPushPackage, pi.Path)
 		}
-		logger.Debug("Pushed package", "path", c.PackageFiles[0], "ref", tag.String())
+
+		logger.Debug("Pushed package", "path", pi.Path, "ref", tag.String())
+
 		return nil
 	}
 
 	// If there's more than one package file we'll write (push) them all by
 	// their digest, and create an index with the specified tag. This pattern is
 	// typically used to create a multi-platform image.
-	adds := make([]mutate.IndexAddendum, len(c.PackageFiles))
-	g, ctx := errgroup.WithContext(context.Background())
-	for i, file := range c.PackageFiles {
-		g.Go(func() error {
-			img, err := tarball.ImageFromPath(filepath.Clean(file), nil)
-			if err != nil {
-				return errors.Wrapf(err, errFmtReadPackage, file)
-			}
+	adds := make([]mutate.IndexAddendum, len(images))
 
-			img, err = xpkg.AnnotateLayers(img)
+	g, ctx := errgroup.WithContext(context.Background())
+	for i, pi := range images {
+		g.Go(func() error {
+			img, err := xpkg.AnnotateLayers(pi.Image)
 			if err != nil {
 				return errors.Wrapf(err, errAnnotateLayers)
 			}
 
 			d, err := img.Digest()
 			if err != nil {
-				return errors.Wrapf(err, errFmtGetDigest, file)
+				return errors.Wrapf(err, errFmtGetDigest, pi.Path)
 			}
+
 			n := fmt.Sprintf("%s@%s", tag.Repository.Name(), d.String())
-			ref, err := name.NewDigest(n, name.WithDefaultRegistry(xpkg.DefaultRegistry))
+
+			ref, err := name.NewDigest(n, name.StrictValidation)
 			if err != nil {
-				return errors.Wrapf(err, errFmtNewDigest, n, file)
+				return errors.Wrapf(err, errFmtNewDigest, n, pi.Path)
 			}
 
 			mt, err := img.MediaType()
 			if err != nil {
-				return errors.Wrapf(err, errFmtGetMediaType, file)
+				return errors.Wrapf(err, errFmtGetMediaType, pi.Path)
 			}
 
 			conf, err := img.ConfigFile()
 			if err != nil {
-				return errors.Wrapf(err, errFmtGetConfigFile, file)
+				return errors.Wrapf(err, errFmtGetConfigFile, pi.Path)
 			}
 
 			adds[i] = mutate.IndexAddendum{
@@ -208,9 +226,11 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 				},
 			}
 			if err := remote.Write(ref, img, append(options, remote.WithContext(ctx))...); err != nil {
-				return errors.Wrapf(err, errFmtPushPackage, file)
+				return errors.Wrapf(err, errFmtPushPackage, pi.Path)
 			}
-			logger.Debug("Pushed package", "path", file, "ref", ref.String())
+
+			logger.Debug("Pushed package", "path", pi.Path, "ref", ref.String())
+
 			return nil
 		})
 	}
@@ -222,6 +242,8 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 	if err := remote.WriteIndex(tag, mutate.AppendManifests(empty.Index, adds...), options...); err != nil {
 		return errors.Wrapf(err, errFmtWriteIndex, len(adds))
 	}
+
 	logger.Debug("Wrote OCI index", "ref", tag.String(), "manifests", len(adds))
+
 	return nil
 }

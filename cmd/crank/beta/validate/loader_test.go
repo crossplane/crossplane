@@ -57,10 +57,12 @@ func TestNewLoader(t *testing.T) {
 	type args struct {
 		input string
 	}
+
 	type want struct {
 		loader Loader
 		err    error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -155,10 +157,12 @@ func TestMultiLoaderLoad(t *testing.T) {
 	type args struct {
 		loaders []Loader
 	}
+
 	type want struct {
 		resources []*unstructured.Unstructured
 		err       error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -213,6 +217,7 @@ func TestMultiLoaderLoad(t *testing.T) {
 			f := &MultiLoader{
 				loaders: tc.args.loaders,
 			}
+
 			got, err := f.Load()
 			if diff := cmp.Diff(tc.want.resources, got); diff != "" {
 				t.Errorf("%s\nLoad(...): -want, +got:\n%s", tc.reason, diff)
@@ -229,10 +234,12 @@ func TestFileLoaderLoad(t *testing.T) {
 	type args struct {
 		Path string
 	}
+
 	type want struct {
 		resources []*unstructured.Unstructured
 		err       error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -270,6 +277,7 @@ func TestFileLoaderLoad(t *testing.T) {
 			f := &FileLoader{
 				path: tc.args.Path,
 			}
+
 			got, err := f.Load()
 			if diff := cmp.Diff(tc.want.resources, got); diff != "" {
 				t.Errorf("%s\nLoad(...): -want, +got:\n%s", tc.reason, diff)
@@ -286,10 +294,12 @@ func TestFolderLoaderLoad(t *testing.T) {
 	type args struct {
 		Path string
 	}
+
 	type want struct {
 		resources []*unstructured.Unstructured
 		err       error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -327,6 +337,7 @@ func TestFolderLoaderLoad(t *testing.T) {
 			f := &FolderLoader{
 				path: tc.args.Path,
 			}
+
 			got, err := f.Load()
 			if diff := cmp.Diff(tc.want.resources, got); diff != "" {
 				t.Errorf("%s\nLoad(...): -want, +got:\n%s", tc.reason, diff)
@@ -343,10 +354,12 @@ func TestStreamToUnstructured(t *testing.T) {
 	type args struct {
 		stream [][]byte
 	}
+
 	type want struct {
 		resources []*unstructured.Unstructured
 		err       error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -408,7 +421,7 @@ spec:
         resources:
           - name: instanceNodeRole
             base:
-              apiVersion: iam.aws.upbound.io/v1beta1
+              apiVersion: iam.aws.crossplane.io/v1beta1
               kind: Role
               spec: {}
 `),
@@ -424,7 +437,7 @@ spec:
 								map[string]interface{}{
 									"name": "instanceNodeRole",
 									"base": map[string]interface{}{
-										"apiVersion": "iam.aws.upbound.io/v1beta1",
+										"apiVersion": "iam.aws.crossplane.io/v1beta1",
 										"kind":       "Role",
 										"spec":       map[string]interface{}{},
 									},
@@ -457,7 +470,7 @@ spec:
 												map[string]interface{}{
 													"name": "instanceNodeRole",
 													"base": map[string]interface{}{
-														"apiVersion": "iam.aws.upbound.io/v1beta1",
+														"apiVersion": "iam.aws.crossplane.io/v1beta1",
 														"kind":       "Role",
 														"spec":       map[string]interface{}{},
 													},

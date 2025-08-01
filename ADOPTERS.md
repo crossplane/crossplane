@@ -18,9 +18,9 @@ To add your organization to this list, you can choose any of the following optio
    [edit this file](https://github.com/crossplane/crossplane/edit/main/ADOPTERS.md) directly in
    Github
 1. Fill out the [adopters form](https://forms.gle/dBQhiyYkYSdzXovN6)
-1. Send an email to <steering@crossplane.io> with your information for the table below
+1. Send an email to <crossplane-steering@lists.cncf.io> with your information for the table below
 
-Feel free to reach out to <steering@crossplane.io> with any questions and/or assistance with
+Feel free to reach out to <crossplane-steering@lists.cncf.io> with any questions and/or assistance with
 updating this list.
 
 ## Crossplane Adopters
@@ -96,3 +96,4 @@ This list is sorted in the order that organizations were added to it.
 | [Alauda](https://www.alauda.io/) | [@tossmilestone](https://github.com/tossmilestone) | Our container platform product (ACP) uses Crossplane to simplify application deployment and infrastructure provisioning for our clients in production environments. |
 | [Neteera](https://www.neteera.com/) | [@heinanca](https://github.com/heinanca) | We utilize Crossplane to build our EU operations using official and in-house providers. |
 | [Nebinfra](https://www.nebinfra.com) | [@satishweb](https://github.com/satishweb) | Manage multi-cloud digital infrastructure and deliver a self-service framework that empowers engineers to provision application resources for our customers. |
+| [Frame.io](https://www.frame.io) | [@tenitski](https://github.com/tenitski) | Manage infrastructure resources for dynamically created sandboxes, allowing engineers to test changes to their branch in a "production-like" environment. |

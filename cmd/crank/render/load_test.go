@@ -30,12 +30,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
 
 //go:embed testdata
@@ -43,10 +43,12 @@ var testdatafs embed.FS
 
 func TestLoadCompositeResource(t *testing.T) {
 	fs := afero.FromIOFS{FS: testdatafs}
+
 	type want struct {
 		xr  *composite.Unstructured
 		err error
 	}
+
 	cases := map[string]struct {
 		file string
 		want want
@@ -95,10 +97,12 @@ func TestLoadCompositeResource(t *testing.T) {
 
 func TestLoadXRD(t *testing.T) {
 	fs := afero.FromIOFS{FS: testdatafs}
+
 	type want struct {
 		xrd *apiextensionsv1.CompositeResourceDefinition
 		err error
 	}
+
 	cases := map[string]struct {
 		file string
 		want want
@@ -165,6 +169,7 @@ func TestLoadComposition(t *testing.T) {
 		comp *apiextensionsv1.Composition
 		err  error
 	}
+
 	cases := map[string]struct {
 		file string
 		want want
@@ -228,6 +233,7 @@ func TestLoadFunctions(t *testing.T) {
 		fns []pkgv1.Function
 		err error
 	}
+
 	cases := map[string]struct {
 		file string
 		want want
@@ -250,7 +256,7 @@ func TestLoadFunctions(t *testing.T) {
 						},
 						Spec: pkgv1.FunctionSpec{
 							PackageSpec: pkgv1.PackageSpec{
-								Package: "xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.1.2",
+								Package: "xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.1.2",
 							},
 						},
 					},
@@ -268,7 +274,7 @@ func TestLoadFunctions(t *testing.T) {
 						},
 						Spec: pkgv1.FunctionSpec{
 							PackageSpec: pkgv1.PackageSpec{
-								Package: "xpkg.upbound.io/crossplane-contrib/function-dummy:v0.2.1",
+								Package: "xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.1",
 							},
 						},
 					},
@@ -287,7 +293,7 @@ func TestLoadFunctions(t *testing.T) {
 						},
 						Spec: pkgv1.FunctionSpec{
 							PackageSpec: pkgv1.PackageSpec{
-								Package: "xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.1.2",
+								Package: "xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.1.2",
 							},
 						},
 					},
@@ -330,6 +336,7 @@ func TestLoadObservedResources(t *testing.T) {
 		ors []composed.Unstructured
 		err error
 	}
+
 	cases := map[string]struct {
 		file string
 		want want
@@ -394,17 +401,19 @@ func TestLoadObservedResources(t *testing.T) {
 	}
 }
 
-func TestLoadExtraResources(t *testing.T) {
+func TestLoadRequiredResources(t *testing.T) {
 	fs := afero.FromIOFS{FS: testdatafs}
 
 	type args struct {
 		file string
 		fs   afero.Fs
 	}
+
 	type want struct {
 		out []unstructured.Unstructured
 		err error
 	}
+
 	cases := map[string]struct {
 		args args
 		want want
@@ -419,7 +428,7 @@ func TestLoadExtraResources(t *testing.T) {
 					{
 						Object: MustLoadJSON(`{
 							"apiVersion": "example.org/v1alpha1",
-							"kind": "ExtraResourceA",
+							"kind": "RequiredResourceA",
 							"metadata": {
 								"name": "test-extra-a",
 								"annotations": {
@@ -434,7 +443,7 @@ func TestLoadExtraResources(t *testing.T) {
 					{
 						Object: MustLoadJSON(`{
 							"apiVersion": "example.org/v1",
-							"kind": "ExtraResourceB",
+							"kind": "RequiredResourceB",
 							"metadata": {
 								"name": "test-extra-b",
 								"annotations": {
@@ -464,14 +473,14 @@ func TestLoadExtraResources(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			f, err := LoadExtraResources(tc.args.fs, tc.args.file)
+			f, err := LoadRequiredResources(tc.args.fs, tc.args.file)
 
 			if diff := cmp.Diff(tc.want.out, f, test.EquateConditions()); diff != "" {
-				t.Errorf("LoadExtraResources(..), -want, +got:\n%s", diff)
+				t.Errorf("LoadRequiredResources(..), -want, +got:\n%s", diff)
 			}
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
-				t.Errorf("LoadExtraResources(..), -want, +got:\n%s", diff)
+				t.Errorf("LoadRequiredResources(..), -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -482,10 +491,12 @@ func TestLoadYAMLStream(t *testing.T) {
 		file string
 		fs   afero.Fs
 	}
+
 	type want struct {
 		out [][]byte
 		err error
 	}
+
 	cases := map[string]struct {
 		args args
 		want want
@@ -574,5 +585,6 @@ func MustLoadJSON(j string) map[string]any {
 	if err := json.Unmarshal([]byte(j), &out); err != nil {
 		panic(err)
 	}
+
 	return out
 }

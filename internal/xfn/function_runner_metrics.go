@@ -23,10 +23,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 
-	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
-// PrometheusMetrics are requests, errors, and duration (RED) metrics for composition
+// PrometheusMetrics are requests, errors, and duration (RED) metrics for
 // function runs.
 type PrometheusMetrics struct {
 	requests  *prometheus.CounterVec
@@ -34,23 +34,23 @@ type PrometheusMetrics struct {
 	duration  *prometheus.HistogramVec
 }
 
-// NewPrometheusMetrics creates metrics for composition function runs.
+// NewPrometheusMetrics creates metrics for function runs.
 func NewPrometheusMetrics() *PrometheusMetrics {
 	return &PrometheusMetrics{
 		requests: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: "function",
 			Name:      "run_function_request_total",
 			Help:      "Total number of RunFunctionRequests sent.",
 		}, []string{"function_name", "function_package", "grpc_target", "grpc_method"}),
 
 		responses: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: "function",
 			Name:      "run_function_response_total",
 			Help:      "Total number of RunFunctionResponses received.",
 		}, []string{"function_name", "function_package", "grpc_target", "grpc_method", "grpc_code", "result_severity"}),
 
 		duration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Subsystem: "composition",
+			Subsystem: "function",
 			Name:      "run_function_seconds",
 			Help:      "Histogram of RunFunctionResponse latency (seconds).",
 			Buckets:   prometheus.DefBuckets,
@@ -97,6 +97,7 @@ func (m *PrometheusMetrics) CreateInterceptor(name, pkg string) grpc.UnaryClient
 		// no fatal results, has severity "Warning". A response with fatal
 		// results has severity "Fatal".
 		l["result_severity"] = "Normal"
+
 		if rsp, ok := reply.(*fnv1.RunFunctionResponse); ok {
 			for _, r := range rsp.GetResults() {
 				// Keep iterating if we see a warning result - we might still

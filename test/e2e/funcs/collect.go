@@ -31,9 +31,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/claim"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 )
 
 // coordinate represents a coordinate in the cluster, i.e. everything necessary
@@ -52,6 +52,8 @@ type coordinate struct {
 //
 // Note: this is a pretty expensive operation only suited for e2e tests with
 // small clusters.
+//
+//nolint:gocognit // Only a little over, mostly a loop.
 func buildRelatedObjectGraph(ctx context.Context, t *testing.T, discoveryClient discovery.DiscoveryInterface, client dynamic.Interface, mapper meta.RESTMapper) (map[coordinate][]coordinate, error) {
 	t.Helper()
 
@@ -63,6 +65,7 @@ func buildRelatedObjectGraph(ctx context.Context, t *testing.T, discoveryClient 
 
 	// list all objects of each resource type and store their owners
 	g := make(map[coordinate][]coordinate)
+
 	for _, resourceList := range resourceLists {
 		for _, resource := range resourceList.APIResources {
 			group, version := parseAPIVersion(resourceList.GroupVersion)
@@ -86,8 +89,39 @@ func buildRelatedObjectGraph(ctx context.Context, t *testing.T, discoveryClient 
 					Name:                 obj.GetName(),
 				}
 
-				// collect owner refenerces
 				var refs []corev1.ObjectReference
+
+				// If this is a claim with a reference to an XR,
+				// the XR is probably the most important thing
+				// we care about. Include it.
+				cm := claim.Unstructured{Unstructured: obj}
+				if ref := cm.GetResourceReference(); ref != nil {
+					refs = append(refs, corev1.ObjectReference{
+						APIVersion: ref.APIVersion,
+						Kind:       ref.Kind,
+						Name:       ref.Name,
+					})
+				}
+
+				// If this is an XR, include its reference to a
+				// claim and any composed resources.
+				xr := composite.Unstructured{Schema: composite.SchemaLegacy, Unstructured: obj}
+				if ref := xr.GetClaimReference(); ref != nil {
+					refs = append(refs, corev1.ObjectReference{
+						APIVersion: ref.APIVersion,
+						Kind:       ref.Kind,
+						Name:       ref.Name,
+						Namespace:  ref.Namespace,
+					})
+				}
+				refs = append(refs, xr.GetResourceReferences()...)
+
+				// Handle modern v2 style XRs too, with
+				// spec.crossplane.resourceRefs.
+				xr = composite.Unstructured{Schema: composite.SchemaModern, Unstructured: obj}
+				refs = append(refs, xr.GetResourceReferences()...)
+
+				// Finally include any owners.
 				for _, ownerRef := range obj.GetOwnerReferences() {
 					refs = append(refs, corev1.ObjectReference{
 						APIVersion: ownerRef.APIVersion,
@@ -97,25 +131,15 @@ func buildRelatedObjectGraph(ctx context.Context, t *testing.T, discoveryClient 
 					})
 				}
 
-				// maybe this is an XR with resource reference to the claim? Fake owner refs.
-				comp := composite.Unstructured{Unstructured: obj}
-				refs = append(refs, comp.GetResourceReferences()...)
-				if ref := comp.GetClaimReference(); ref != nil {
-					refs = append(refs, corev1.ObjectReference{
-						APIVersion: ref.APIVersion,
-						Kind:       ref.Kind,
-						Name:       ref.Name,
-						Namespace:  ref.Namespace,
-					})
-				}
-
 				for _, ref := range refs {
 					group, version := parseAPIVersion(ref.APIVersion)
+
 					rm, err := mapper.RESTMapping(schema.GroupKind{Group: group, Kind: ref.Kind}, version)
 					if err != nil {
 						t.Logf("cannot find REST mapping for %v: %v\n", ref, err)
 						continue
 					}
+
 					owner := coordinate{
 						GroupVersionResource: rm.Resource,
 						Namespace:            ref.Namespace,
@@ -138,6 +162,7 @@ func parseAPIVersion(apiVersion string) (group, version string) {
 		// Core API, group is empty
 		return "", parts[0]
 	}
+
 	return parts[0], parts[1]
 }
 
@@ -151,14 +176,17 @@ func RelatedObjects(ctx context.Context, t *testing.T, config *rest.Config, objs
 	if err != nil {
 		return nil, err
 	}
+
 	httpClient, err := rest.HTTPClientFor(config)
 	if err != nil {
 		return nil, err
 	}
+
 	mapper, err := apiutil.NewDynamicRESTMapper(config, httpClient)
 	if err != nil {
 		return nil, err
 	}
+
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return nil, err
@@ -171,8 +199,10 @@ func RelatedObjects(ctx context.Context, t *testing.T, config *rest.Config, objs
 
 	seen := make(map[coordinate]bool)
 	coords := []coordinate{}
+
 	for _, obj := range objs {
 		gvk := obj.GetObjectKind().GroupVersionKind()
+
 		rm, err := mapper.RESTMapping(schema.GroupKind{Group: gvk.Group, Kind: gvk.Kind}, gvk.Version)
 		if err != nil {
 			t.Logf("cannot find REST mapping for %s: %v\n", gvk, err)
@@ -199,8 +229,10 @@ func loadCoordinates(ctx context.Context, t *testing.T, dynClient dynamic.Interf
 			t.Logf("cannot get %v: %v\n", coord, err)
 			continue
 		}
+
 		ret = append(ret, other)
 	}
+
 	return ret
 }
 
@@ -208,10 +240,12 @@ func collectOwned(g map[coordinate][]coordinate, owner coordinate, seen map[coor
 	seen[owner] = true
 
 	ret := []coordinate{}
+
 	for _, obj := range g[owner] {
 		if seen[obj] {
 			continue
 		}
+
 		ret = append(ret, collectOwned(g, obj, seen)...)
 		ret = append(ret, obj)
 	}

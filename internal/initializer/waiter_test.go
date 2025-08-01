@@ -26,9 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
 func TestCRDWaiter(t *testing.T) {
@@ -38,9 +38,11 @@ func TestCRDWaiter(t *testing.T) {
 		period  time.Duration
 		kube    client.Client
 	}
+
 	type want struct {
 		err error
 	}
+
 	cases := map[string]struct {
 		args
 		want
@@ -90,9 +92,10 @@ func TestCRDWaiter(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			i := NewCRDWaiter(tc.args.names, tc.args.timeout, tc.args.period, logging.NewNopLogger())
-			err := i.Run(context.TODO(), tc.args.kube)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			i := NewCRDWaiter(tc.names, tc.timeout, tc.period, logging.NewNopLogger())
+
+			err := i.Run(context.TODO(), tc.kube)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRun(...): -want err, +got err:\n%s", name, diff)
 			}
 		})

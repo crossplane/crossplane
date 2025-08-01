@@ -26,21 +26,24 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/internal/initializer"
+	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/v2/internal/initializer"
 )
 
 // initCommand configuration for the initialization of core Crossplane controllers.
 type initCommand struct {
-	Providers                 []string `help:"Pre-install a Provider by giving its image URI. This argument can be repeated."      name:"provider"`
-	Configurations            []string `help:"Pre-install a Configuration by giving its image URI. This argument can be repeated." name:"configuration"`
-	Functions                 []string `help:"Pre-install a Function by giving its image URI. This argument can be repeated."      name:"function"`
-	Namespace                 string   `default:"crossplane-system"                                                                env:"POD_NAMESPACE"        help:"Namespace used to set as default scope in default secret store config." short:"n"`
-	ServiceAccount            string   `default:"crossplane"                                                                       env:"POD_SERVICE_ACCOUNT"  help:"Name of the Crossplane Service Account."`
-	CRDsPath                  string   `default:"/crds"                                                                            env:"CRDS_PATH"            help:"Path of Crossplane core Custom Resource Definitions."`
-	WebhookConfigurationsPath string   `default:"/webhookconfigurations"                                                           env:"WEBHOOK_CONFIGS_PATH" help:"Path of Crossplane core Webhook Configurations."`
+	Providers      []string                    `help:"Pre-install a Provider by giving its image URI. This argument can be repeated."                                            name:"provider"`
+	Configurations []string                    `help:"Pre-install a Configuration by giving its image URI. This argument can be repeated."                                       name:"configuration"`
+	Functions      []string                    `help:"Pre-install a Function by giving its image URI. This argument can be repeated."                                            name:"function"`
+	Activations    []v1alpha1.ActivationPolicy `help:"Pre-install a default managed resource activation policy by providing activations entries. This argument can be repeated." name:"activation"`
+
+	Namespace                 string `default:"crossplane-system"      env:"POD_NAMESPACE"        help:"Namespace used to set as default scope in default secret store config." short:"n"`
+	ServiceAccount            string `default:"crossplane"             env:"POD_SERVICE_ACCOUNT"  help:"Name of the Crossplane Service Account."`
+	CRDsPath                  string `default:"/crds"                  env:"CRDS_PATH"            help:"Path of Crossplane core Custom Resource Definitions."`
+	WebhookConfigurationsPath string `default:"/webhookconfigurations" env:"WEBHOOK_CONFIGS_PATH" help:"Path of Crossplane core Webhook Configurations."`
 
 	WebhookEnabled          bool   `default:"true"                   env:"WEBHOOK_ENABLED"                                                                         help:"Enable webhook configuration."`
 	WebhookServiceName      string `env:"WEBHOOK_SERVICE_NAME"       help:"The name of the Service object that the webhook service will be run."`
@@ -63,7 +66,9 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot create new kubernetes client")
 	}
+
 	var steps []initializer.Step
+
 	tlsGeneratorOpts := []initializer.TLSCertificateGeneratorOption{
 		initializer.TLSCertificateGeneratorWithClientSecretName(c.TLSClientSecretName, []string{fmt.Sprintf("%s.%s", c.ServiceAccount, c.Namespace)}),
 		initializer.TLSCertificateGeneratorWithLogger(log.WithValues("Step", "TLSCertificateGenerator")),
@@ -72,6 +77,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		tlsGeneratorOpts = append(tlsGeneratorOpts,
 			initializer.TLSCertificateGeneratorWithServerSecretName(c.TLSServerSecretName, initializer.DNSNamesForService(c.WebhookServiceName, c.WebhookServiceNamespace)))
 	}
+
 	steps = append(steps,
 		initializer.NewTLSCertificateGenerator(c.Namespace, c.TLSCASecretName, tlsGeneratorOpts...),
 		// Crossplane used to serve these webhooks, but now uses CEL validation.
@@ -120,11 +126,14 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	steps = append(steps, initializer.NewLockObject(),
 		initializer.NewPackageInstaller(c.Providers, c.Configurations, c.Functions),
 		initializer.StepFunc(initializer.DefaultDeploymentRuntimeConfig),
+		initializer.DefaultManagedResourceActivationPolicy(c.Activations...),
 	)
 
 	if err := initializer.New(cl, log, steps...).Init(context.TODO()); err != nil {
 		return errors.Wrap(err, "cannot initialize core")
 	}
+
 	log.Info("Initialization has been completed")
+
 	return nil
 }

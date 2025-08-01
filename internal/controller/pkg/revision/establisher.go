@@ -33,12 +33,13 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
 
 const (
@@ -46,6 +47,7 @@ const (
 	errAssertClientObj              = "cannot assert object to client.Object"
 	errConversionWithNoWebhookCA    = "cannot deploy a CRD with webhook conversion strategy without having a TLS bundle"
 	errGetWebhookTLSSecret          = "cannot get webhook tls secret"
+	errWebhookSecretNotPresent      = "waiting for package runtime controller to set revision's webhook TLS secret"
 	errWebhookSecretWithoutCABundle = "the value for the key tls.crt cannot be empty"
 	errFmtGetOwnedObject            = "cannot get owned object: %s/%s"
 	errFmtUpdateOwnedObject         = "cannot update owned object: %s/%s"
@@ -115,6 +117,7 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 	if err != nil {
 		return nil, err
 	}
+
 	allObjs, err := e.validate(ctx, objs, parent, control)
 	if err != nil {
 		return nil, err
@@ -124,6 +127,7 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 	if err != nil {
 		return nil, err
 	}
+
 	return resourceRefs, nil
 }
 
@@ -145,6 +149,7 @@ func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRe
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(e.MaxConcurrentPackageEstablishers)
+
 	for _, ref := range allObjs {
 		g.Go(func() error {
 			select {
@@ -163,18 +168,23 @@ func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRe
 					// This is not expected, but still not an error for releasing objects.
 					return nil
 				}
+
 				return errors.Wrapf(err, errFmtGetOwnedObject, u.GetKind(), u.GetName())
 			}
+
 			ors := u.GetOwnerReferences()
 			found := false
 			changed := false
+
 			for i := range ors {
 				if ors[i].UID == parent.GetUID() {
 					found = true
+
 					if ors[i].Controller != nil && *ors[i].Controller {
 						ors[i].Controller = ptr.To(false)
 						changed = true
 					}
+
 					break
 				}
 				// Note(turkenh): What if we cannot find our UID in the owner
@@ -184,17 +194,21 @@ func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRe
 				// happens active revision or the package itself will still take
 				// over the ownership of such resources.
 			}
+
 			if !found {
 				// Make sure the package revision exists as an owner.
 				ors = append(ors, meta.AsOwner(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind())))
 				changed = true
 			}
+
 			if changed {
 				u.SetOwnerReferences(ors)
+
 				if err := e.client.Update(ctx, &u); err != nil {
 					return errors.Wrapf(err, errFmtUpdateOwnedObject, u.GetKind(), u.GetName())
 				}
 			}
+
 			return nil
 		})
 	}
@@ -204,12 +218,14 @@ func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRe
 
 func (e *APIEstablisher) addLabels(objs []runtime.Object, parent v1.PackageRevision) error {
 	commonLabels := parent.GetCommonLabels()
+
 	for _, obj := range objs {
 		// convert to resource.Object to be able to access metadata
 		d, ok := obj.(resource.Object)
 		if !ok {
 			return errors.New(errConfResourceObject)
 		}
+
 		labels := d.GetLabels()
 		if labels != nil {
 			for key, value := range commonLabels {
@@ -219,6 +235,7 @@ func (e *APIEstablisher) addLabels(objs []runtime.Object, parent v1.PackageRevis
 			d.SetLabels(commonLabels)
 		}
 	}
+
 	return nil
 }
 
@@ -233,6 +250,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(e.MaxConcurrentPackageEstablishers)
+
 	out := make(chan currentDesired, len(objs))
 	for _, res := range objs {
 		g.Go(func() error {
@@ -252,10 +270,12 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 			// Make a copy of the desired object to be populated with existing
 			// object, if it exists.
 			resCopy := res.DeepCopyObject()
+
 			current, ok := resCopy.(client.Object)
 			if !ok {
 				return errors.New(errAssertClientObj)
 			}
+
 			err := e.client.Get(ctx, types.NamespacedName{Name: desired.GetName(), Namespace: desired.GetNamespace()}, current)
 			if resource.IgnoreNotFound(err) != nil {
 				return err
@@ -292,14 +312,17 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 			}
 		})
 	}
+
 	if err := g.Wait(); err != nil {
 		return nil, err
 	}
 
 	close(out)
+
 	for obj := range out {
 		allObjs = append(allObjs, obj)
 	}
+
 	return allObjs, nil
 }
 
@@ -315,14 +338,17 @@ func (e *APIEstablisher) enrichControlledResource(res runtime.Object, webhookTLS
 		if len(webhookTLSCert) == 0 {
 			return nil
 		}
+
 		if pkgRef, ok := GetPackageOwnerReference(parent); ok {
 			conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
 		}
+
 		for i := range conf.Webhooks {
 			conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
 			if conf.Webhooks[i].ClientConfig.Service == nil {
 				conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
 			}
+
 			conf.Webhooks[i].ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
 			conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
 			conf.Webhooks[i].ClientConfig.Service.Port = ptr.To[int32](ServicePort)
@@ -331,14 +357,17 @@ func (e *APIEstablisher) enrichControlledResource(res runtime.Object, webhookTLS
 		if len(webhookTLSCert) == 0 {
 			return nil
 		}
+
 		if pkgRef, ok := GetPackageOwnerReference(parent); ok {
 			conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
 		}
+
 		for i := range conf.Webhooks {
 			conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
 			if conf.Webhooks[i].ClientConfig.Service == nil {
 				conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
 			}
+
 			conf.Webhooks[i].ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
 			conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
 			conf.Webhooks[i].ClientConfig.Service.Port = ptr.To[int32](ServicePort)
@@ -348,33 +377,63 @@ func (e *APIEstablisher) enrichControlledResource(res runtime.Object, webhookTLS
 			if len(webhookTLSCert) == 0 {
 				return errors.New(errConversionWithNoWebhookCA)
 			}
+
 			if conf.Spec.Conversion.Webhook == nil {
 				conf.Spec.Conversion.Webhook = &extv1.WebhookConversion{}
 			}
+
 			if conf.Spec.Conversion.Webhook.ClientConfig == nil {
 				conf.Spec.Conversion.Webhook.ClientConfig = &extv1.WebhookClientConfig{}
 			}
+
 			if conf.Spec.Conversion.Webhook.ClientConfig.Service == nil {
 				conf.Spec.Conversion.Webhook.ClientConfig.Service = &extv1.ServiceReference{}
 			}
+
+			conf.Spec.Conversion.Webhook.ClientConfig.CABundle = webhookTLSCert
+			conf.Spec.Conversion.Webhook.ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
+			conf.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = e.namespace
+			conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = ptr.To[int32](ServicePort)
+		}
+	case *v1alpha1.ManagedResourceDefinition:
+		if conf.Spec.Conversion != nil && conf.Spec.Conversion.Strategy == extv1.WebhookConverter {
+			if len(webhookTLSCert) == 0 {
+				return errors.New(errConversionWithNoWebhookCA)
+			}
+
+			if conf.Spec.Conversion.Webhook == nil {
+				conf.Spec.Conversion.Webhook = &extv1.WebhookConversion{}
+			}
+
+			if conf.Spec.Conversion.Webhook.ClientConfig == nil {
+				conf.Spec.Conversion.Webhook.ClientConfig = &extv1.WebhookClientConfig{}
+			}
+
+			if conf.Spec.Conversion.Webhook.ClientConfig.Service == nil {
+				conf.Spec.Conversion.Webhook.ClientConfig.Service = &extv1.ServiceReference{}
+			}
+
 			conf.Spec.Conversion.Webhook.ClientConfig.CABundle = webhookTLSCert
 			conf.Spec.Conversion.Webhook.ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
 			conf.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = e.namespace
 			conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = ptr.To[int32](ServicePort)
 		}
 	}
+
 	return nil
 }
 
 // getWebhookTLSCert returns the TLS certificate of the webhook server if the
 // revision has a TLS server secret name.
 func (e *APIEstablisher) getWebhookTLSCert(ctx context.Context, parentWithRuntime v1.PackageRevisionWithRuntime) (webhookTLSCert []byte, err error) {
-	tlsServerSecretName := parentWithRuntime.GetTLSServerSecretName()
+	tlsServerSecretName := parentWithRuntime.GetObservedTLSServerSecretName()
 	if tlsServerSecretName == nil {
-		return nil, nil
+		return nil, errors.New(errWebhookSecretNotPresent)
 	}
+
 	s := &corev1.Secret{}
 	nn := types.NamespacedName{Name: *tlsServerSecretName, Namespace: e.namespace}
+
 	err = e.client.Get(ctx, nn, s)
 	if err != nil {
 		return nil, errors.Wrap(err, errGetWebhookTLSSecret)
@@ -383,13 +442,16 @@ func (e *APIEstablisher) getWebhookTLSCert(ctx context.Context, parentWithRuntim
 	if len(s.Data["tls.crt"]) == 0 {
 		return nil, errors.New(errWebhookSecretWithoutCABundle)
 	}
+
 	webhookTLSCert = s.Data["tls.crt"]
+
 	return webhookTLSCert, nil
 }
 
 func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired, parent client.Object, control bool) ([]xpv1.TypedReference, error) {
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(e.MaxConcurrentPackageEstablishers)
+
 	out := make(chan xpv1.TypedReference, len(allObjs))
 	for _, cd := range allObjs {
 		g.Go(func() error {
@@ -402,6 +464,7 @@ func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired
 						return err
 					}
 				}
+
 				select {
 				case out <- *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()):
 					return nil
@@ -413,6 +476,7 @@ func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired
 			if err := e.update(ctx, cd.Current, cd.Desired, parent, control); err != nil {
 				return err
 			}
+
 			select {
 			case out <- *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()):
 				return nil
@@ -421,14 +485,18 @@ func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired
 			}
 		})
 	}
+
 	if err := g.Wait(); err != nil {
 		return nil, err
 	}
+
 	close(out)
+
 	resourceRefs := []xpv1.TypedReference{}
 	for ref := range out {
 		resourceRefs = append(resourceRefs, ref)
 	}
+
 	return resourceRefs, nil
 }
 
@@ -445,6 +513,7 @@ func (e *APIEstablisher) create(ctx context.Context, obj resource.Object, parent
 	}
 	// Overwrite any owner references on the desired object.
 	obj.SetOwnerReferences(refs)
+
 	return e.client.Create(ctx, obj, opts...)
 }
 
@@ -467,10 +536,13 @@ func (e *APIEstablisher) update(ctx context.Context, current, desired resource.O
 	// a controller reference to the parent, and setting the desired resource
 	// version to that of the current.
 	desired.SetOwnerReferences(current.GetOwnerReferences())
+
 	if err := meta.AddControllerReference(desired, meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))); err != nil {
 		return err
 	}
+
 	desired.SetResourceVersion(current.GetResourceVersion())
+
 	return e.client.Update(ctx, desired, opts...)
 }
 
@@ -483,5 +555,6 @@ func GetPackageOwnerReference(rev resource.Object) (metav1.OwnerReference, bool)
 			return owner, true
 		}
 	}
+
 	return metav1.OwnerReference{}, false
 }

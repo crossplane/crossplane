@@ -34,22 +34,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/feature"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/parser"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/internal/features"
-	verfake "github.com/crossplane/crossplane/internal/version/fake"
-	"github.com/crossplane/crossplane/internal/xpkg"
-	xpkgfake "github.com/crossplane/crossplane/internal/xpkg/fake"
+	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/features"
+	verfake "github.com/crossplane/crossplane/v2/internal/version/fake"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
+	xpkgfake "github.com/crossplane/crossplane/v2/internal/xpkg/fake"
 )
 
 var _ parser.Backend = &ErrBackend{}
@@ -157,6 +157,7 @@ func TestReconcile(t *testing.T) {
 		mgr manager.Manager
 		rec []ReconcilerOption
 	}
+
 	type want struct {
 		r   reconcile.Result
 		err error
@@ -1379,12 +1380,14 @@ func TestReconcile(t *testing.T) {
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision {
 						return &v1.ProviderRevision{
-							Status: v1.PackageRevisionStatus{
-								ObjectRefs: []xpv1.TypedReference{
-									{
-										APIVersion: "apiextensions.k8s.io/v1",
-										Kind:       "CustomResourceDefinition",
-										Name:       "releases.helm.crossplane.io",
+							Status: v1.ProviderRevisionStatus{
+								PackageRevisionStatus: v1.PackageRevisionStatus{
+									ObjectRefs: []xpv1.TypedReference{
+										{
+											APIVersion: "apiextensions.k8s.io/v1",
+											Kind:       "CustomResourceDefinition",
+											Name:       "releases.helm.crossplane.io",
+										},
 									},
 								},
 							},
@@ -1403,12 +1406,14 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ProviderRevision{
-									Status: v1.PackageRevisionStatus{
-										ObjectRefs: []xpv1.TypedReference{
-											{
-												APIVersion: "apiextensions.k8s.io/v1",
-												Kind:       "CustomResourceDefinition",
-												Name:       "releases.helm.crossplane.io",
+									Status: v1.ProviderRevisionStatus{
+										PackageRevisionStatus: v1.PackageRevisionStatus{
+											ObjectRefs: []xpv1.TypedReference{
+												{
+													APIVersion: "apiextensions.k8s.io/v1",
+													Kind:       "CustomResourceDefinition",
+													Name:       "releases.helm.crossplane.io",
+												},
 											},
 										},
 									},
@@ -1517,12 +1522,14 @@ func TestReconcile(t *testing.T) {
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision {
 						return &v1.ProviderRevision{
-							Status: v1.PackageRevisionStatus{
-								ObjectRefs: []xpv1.TypedReference{
-									{
-										APIVersion: "apiextensions.k8s.io/v1",
-										Kind:       "CustomResourceDefinition",
-										Name:       "releases.helm.crossplane.io",
+							Status: v1.ProviderRevisionStatus{
+								PackageRevisionStatus: v1.PackageRevisionStatus{
+									ObjectRefs: []xpv1.TypedReference{
+										{
+											APIVersion: "apiextensions.k8s.io/v1",
+											Kind:       "CustomResourceDefinition",
+											Name:       "releases.helm.crossplane.io",
+										},
 									},
 								},
 							},
@@ -1541,12 +1548,14 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ProviderRevision{
-									Status: v1.PackageRevisionStatus{
-										ObjectRefs: []xpv1.TypedReference{
-											{
-												APIVersion: "apiextensions.k8s.io/v1",
-												Kind:       "CustomResourceDefinition",
-												Name:       "releases.helm.crossplane.io",
+									Status: v1.ProviderRevisionStatus{
+										PackageRevisionStatus: v1.PackageRevisionStatus{
+											ObjectRefs: []xpv1.TypedReference{
+												{
+													APIVersion: "apiextensions.k8s.io/v1",
+													Kind:       "CustomResourceDefinition",
+													Name:       "releases.helm.crossplane.io",
+												},
 											},
 										},
 									},
@@ -1906,11 +1915,12 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog))...)
-			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -1921,5 +1931,6 @@ func TestReconcile(t *testing.T) {
 func signatureVerificationEnabled() *feature.Flags {
 	f := &feature.Flags{}
 	f.Enable(features.EnableAlphaSignatureVerification)
+
 	return f
 }

@@ -26,11 +26,10 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/internal/version"
-	"github.com/crossplane/crossplane/internal/xpkg"
+	"github.com/crossplane/crossplane/v2/internal/version"
 )
 
 // Cmd arguments and flags for render subcommand.
@@ -99,7 +98,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	}
 
 	if len(c.CrossplaneImage) < 1 {
-		c.CrossplaneImage = fmt.Sprintf("%s/crossplane/crossplane:%s", xpkg.DefaultRegistry, version.New().GetVersionString())
+		c.CrossplaneImage = fmt.Sprintf("xpkg.crossplane.io/crossplane/crossplane:%s", version.New().GetVersionString())
 	}
 
 	// Load all extensions

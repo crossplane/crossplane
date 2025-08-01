@@ -10,7 +10,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
+
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
 
 func TestGetCrossplanePods(t *testing.T) {
@@ -40,7 +42,7 @@ func TestGetCrossplanePods(t *testing.T) {
 						Name:      "function-12345abcd-xyzwv",
 						Namespace: "crossplane-system",
 						Labels: map[string]string{
-							"pkg.crossplane.io/function": "function-go-templating",
+							v1.LabelFunction: "function-go-templating",
 						},
 					},
 				},
@@ -88,7 +90,7 @@ func TestGetCrossplanePods(t *testing.T) {
 						Name:      "function-go-templating-213wer",
 						Namespace: "crossplane-system",
 						Labels: map[string]string{
-							"pkg.crossplane.io/function": "function-go-templating",
+							v1.LabelFunction: "function-go-templating",
 						},
 					},
 				},
@@ -97,7 +99,7 @@ func TestGetCrossplanePods(t *testing.T) {
 						Name:      "provider-azure-storage",
 						Namespace: "crossplane-system",
 						Labels: map[string]string{
-							"pkg.crossplane.io/provider": "provider-azure-storage",
+							v1.LabelProvider: "provider-azure-storage",
 						},
 					},
 				},
@@ -230,6 +232,7 @@ function     crossplane-system   function-123     200m         1024Mi
 			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nprintPodsTable(): -want, +got:\n%s", tt.reason, diff)
 			}
+
 			if diff := cmp.Diff(strings.TrimSpace(tt.want.results), strings.TrimSpace(b.String())); diff != "" {
 				t.Errorf("%s\nprintPodsTable(): -want, +got:\n%s", tt.reason, diff)
 			}
@@ -241,6 +244,7 @@ func TestPrintPodsSummary(t *testing.T) {
 	type want struct {
 		results string
 	}
+
 	tests := map[string]struct {
 		reason         string
 		crossplanePods []topMetrics
@@ -293,6 +297,7 @@ CPU(cores): 900000m
 		t.Run(name, func(t *testing.T) {
 			b := &bytes.Buffer{}
 			printPodsSummary(b, tt.crossplanePods)
+
 			if diff := cmp.Diff(strings.TrimSpace(tt.want.results), strings.TrimSpace(b.String())); diff != "" {
 				t.Errorf("%s\nprintPodsSummary(): -want, +got:\n%s", tt.reason, diff)
 			}

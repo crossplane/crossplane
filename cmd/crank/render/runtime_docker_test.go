@@ -26,9 +26,9 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
 
 type mockPullClient struct {
@@ -45,6 +45,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 	type args struct {
 		fn pkgv1.Function
 	}
+
 	type want struct {
 		rd  *RuntimeDocker
 		err error
@@ -207,6 +208,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 			if diff := cmp.Diff(tc.want.rd, rd, cmpopts.IgnoreUnexported(RuntimeDocker{}), cmpopts.IgnoreFields(RuntimeDocker{}, "Keychain")); diff != "" {
 				t.Errorf("\n%s\nGetRuntimeDocker(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nGetRuntimeDocker(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

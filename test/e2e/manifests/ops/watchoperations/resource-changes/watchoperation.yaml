@@ -1,0 +1,30 @@
+apiVersion: ops.crossplane.io/v1alpha1
+kind: WatchOperation
+metadata:
+  name: basic-watchop
+spec:
+  watch:
+    apiVersion: v1
+    kind: ConfigMap
+    namespace: default
+    matchLabels:
+      test: basic-watchop
+  concurrencyPolicy: Allow
+  successfulHistoryLimit: 10
+  failedHistoryLimit: 5
+  operationTemplate:
+    spec:
+      mode: Pipeline
+      pipeline:
+      - step: nop
+        functionRef:
+          name: function-dummy-watchops-basic
+        input:
+          apiVersion: dummy.fn.crossplane.io/v1beta1
+          kind: Response
+          # This is a YAML-serialized RunFunctionResponse. function-dummy will
+          # overlay the desired state on any that was passed into it.
+          response:
+            results:
+             - severity: SEVERITY_NORMAL
+               message: "WatchOperation ran me!"

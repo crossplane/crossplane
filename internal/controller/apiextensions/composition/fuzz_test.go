@@ -21,7 +21,7 @@ import (
 
 	fuzz "github.com/AdaLogics/go-fuzz-headers"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 )
 
 func FuzzNewCompositionRevision(f *testing.F) {
@@ -29,6 +29,7 @@ func FuzzNewCompositionRevision(f *testing.F) {
 		f := fuzz.NewConsumer(data)
 		c := &v1.Composition{}
 		f.GenerateStruct(c)
+
 		revision, err := f.GetInt()
 		if err != nil {
 			return

@@ -21,8 +21,8 @@ package resource
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 )
 
 // Resource struct represents a kubernetes resource.
@@ -46,5 +46,6 @@ func (r *Resource) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 			return c
 		}
 	}
+
 	return xpv1.Condition{}
 }

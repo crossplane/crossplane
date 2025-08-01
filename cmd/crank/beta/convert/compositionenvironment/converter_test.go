@@ -19,6 +19,7 @@ func TestConvertToFunctionEnvironmentConfigs(t *testing.T) {
 		out *unstructured.Unstructured
 		err error
 	}
+
 	tests := map[string]struct {
 		reason string
 		args   args
@@ -64,7 +65,7 @@ spec:
       resources:
       - name: bucket
         base:
-          apiVersion: s3.aws.upbound.io/v1beta1
+          apiVersion: s3.aws.crossplane.io/v1beta1
           kind: Bucket
           spec:
             forProvider:
@@ -120,7 +121,7 @@ spec:
       resources:
       - name: bucket
         base:
-          apiVersion: s3.aws.upbound.io/v1beta1
+          apiVersion: s3.aws.crossplane.io/v1beta1
           kind: Bucket
           spec:
             forProvider:
@@ -163,7 +164,7 @@ spec:
       resources:
       - name: bucket
         base:
-          apiVersion: s3.aws.upbound.io/v1beta1
+          apiVersion: s3.aws.crossplane.io/v1beta1
           kind: Bucket
           spec:
             forProvider:
@@ -206,6 +207,7 @@ spec:
 			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("ConvertToFunctionEnvironmentConfigs() %s error -want, +got:\n%s", tt.reason, diff)
 			}
+
 			if diff := cmp.Diff(tt.want.out, got); diff != "" {
 				t.Errorf("ConvertToFunctionEnvironmentConfigs() %s -want, +got:\n%s", tt.reason, diff)
 			}
@@ -215,10 +217,13 @@ spec:
 
 func fromYAML(t *testing.T, in string) *unstructured.Unstructured {
 	t.Helper()
+
 	obj := make(map[string]interface{})
+
 	err := yaml.Unmarshal([]byte(in), &obj)
 	if err != nil {
 		t.Fatalf("fromYAML: %s", err)
 	}
+
 	return &unstructured.Unstructured{Object: obj}
 }

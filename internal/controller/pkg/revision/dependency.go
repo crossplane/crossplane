@@ -30,15 +30,15 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	"github.com/crossplane/crossplane/internal/dag"
-	"github.com/crossplane/crossplane/internal/xpkg"
+	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/dag"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 const (
@@ -88,6 +88,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 	sources := make([]v1beta1.Dependency, len(meta.GetDependencies()))
 	for i, dep := range meta.GetDependencies() {
 		pdep := v1beta1.Dependency{}
+
 		switch {
 		// If the GVK and package are specified explicitly they take precedence.
 		case dep.APIVersion != nil && dep.Kind != nil && dep.Package != nil:
@@ -106,6 +107,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 		default:
 			return 0, 0, 0, errors.Errorf("encountered an invalid dependency: package dependencies must specify either a valid type, or an explicit apiVersion, kind, and package")
 		}
+
 		pdep.Constraints = dep.Version
 		sources[i] = pdep
 	}
@@ -114,21 +116,24 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 
 	// Get the lock.
 	lock := &v1beta1.Lock{}
+
 	err = m.client.Get(ctx, types.NamespacedName{Name: lockName}, lock)
 	if kerrors.IsNotFound(err) {
 		lock.Name = lockName
 		err = m.client.Create(ctx, lock, &client.CreateOptions{})
 	}
+
 	if err != nil {
 		return found, installed, invalid, errors.Wrap(err, errGetOrCreateLock)
 	}
 
-	prRef, err := name.ParseReference(pr.GetSource(), name.WithDefaultRegistry(""))
+	prRef, err := name.ParseReference(pr.GetSource(), name.StrictValidation)
 	if err != nil {
 		return found, installed, invalid, err
 	}
 
 	d := m.newDag()
+
 	implied, err := d.Init(v1beta1.ToNodes(lock.Packages...))
 	if err != nil {
 		return found, installed, invalid, errors.Wrap(err, errInitDAG)
@@ -157,6 +162,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 				"old-source", lp.Identifier(),
 				"new-source", self.Source,
 			)
+
 			if err := m.RemoveSelf(ctx, pr); err != nil {
 				return found, installed, invalid, err
 			}
@@ -164,11 +170,13 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 			if err = m.client.Get(ctx, types.NamespacedName{Name: lockName}, lock); err != nil {
 				return found, installed, invalid, err
 			}
+
 			break
 		}
 	}
 
 	prExists := false
+
 	for _, lp := range lock.Packages {
 		if lp.Name == pr.GetName() {
 			prExists = true
@@ -189,13 +197,16 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 		// If any direct dependencies are missing we skip checking for
 		// transitive ones.
 		var missing []dag.Node
+
 		for _, dep := range self.Dependencies {
 			if d.NodeExists(dep.Identifier()) {
 				installed++
 				continue
 			}
+
 			missing = append(missing, &dep)
 		}
+
 		if installed != found {
 			return found, installed, invalid, errors.Errorf(errFmtMissingDependencies, NDependenciesAndSomeMore(3, missing))
 		}
@@ -205,16 +216,20 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 	if err != nil {
 		return found, installed, invalid, err
 	}
+
 	found = len(tree)
 	installed = found
 	// Check if any dependencies or transitive dependencies are missing (implied).
 	var missing []dag.Node
+
 	for _, imp := range implied {
 		if _, ok := tree[imp.Identifier()]; ok {
 			installed--
+
 			missing = append(missing, imp)
 		}
 	}
+
 	if len(missing) != 0 {
 		return found, installed, invalid, errors.Errorf(errFmtMissingDependencies, NDependenciesAndSomeMore(3, missing))
 	}
@@ -222,11 +237,13 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 	// All of our dependencies and transitive dependencies must exist. Check
 	// that neighbors have valid versions.
 	var invalidDeps []string
+
 	for _, dep := range self.Dependencies {
 		n, err := d.GetNode(dep.Package)
 		if err != nil {
 			return found, installed, invalid, errors.New(errDependencyNotInGraph)
 		}
+
 		lp, ok := n.(*v1beta1.LockPackage)
 		if !ok {
 			return found, installed, invalid, errors.New(errDependencyNotLockPackage)
@@ -237,6 +254,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 			if lp.Version != d.String() {
 				return found, installed, invalid, errors.Errorf("existing package %s@%s is incompatible with constraint %s", lp.Identifier(), lp.Version, strings.TrimSpace(dep.Constraints))
 			}
+
 			continue
 		}
 
@@ -244,22 +262,27 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 		if err != nil {
 			return found, installed, invalid, err
 		}
+
 		v, err := semver.NewVersion(lp.Version)
 		if err != nil {
 			return found, installed, invalid, err
 		}
+
 		if !c.Check(v) {
 			s := fmt.Sprintf("existing package %s@%s", lp.Identifier(), lp.Version)
 			if dep.Constraints != "" {
 				s = fmt.Sprintf("%s is incompatible with constraint %s", s, strings.TrimSpace(dep.Constraints))
 			}
+
 			invalidDeps = append(invalidDeps, s)
 		}
 	}
+
 	invalid = len(invalidDeps)
 	if invalid > 0 {
 		return found, installed, invalid, errors.Errorf(errFmtIncompatibleDependency, strings.Join(invalidDeps, "; "))
 	}
+
 	return found, installed, invalid, nil
 }
 
@@ -267,11 +290,13 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 func (m *PackageDependencyManager) RemoveSelf(ctx context.Context, pr v1.PackageRevision) error {
 	// Get the lock.
 	lock := &v1beta1.Lock{}
+
 	err := m.client.Get(ctx, types.NamespacedName{Name: lockName}, lock)
 	if kerrors.IsNotFound(err) {
 		// If lock does not exist then we don't need to remove self.
 		return nil
 	}
+
 	if err != nil {
 		return err
 	}
@@ -280,10 +305,13 @@ func (m *PackageDependencyManager) RemoveSelf(ctx context.Context, pr v1.Package
 	for i, lp := range lock.Packages {
 		if lp.Name == pr.GetName() {
 			m.log.Debug("Removing package revision from lock", "name", lp.Name)
+
 			lock.Packages = append(lock.Packages[:i], lock.Packages[i+1:]...)
+
 			return m.client.Update(ctx, lock)
 		}
 	}
+
 	return nil
 }
 
@@ -296,7 +324,9 @@ func NDependenciesAndSomeMore(n int, d []dag.Node) string {
 			out[i] = fmt.Sprintf("%q", d[i].Identifier())
 			continue
 		}
+
 		out[i] = fmt.Sprintf("%q (%s)", d[i].Identifier(), d[i].GetConstraints())
 	}
+
 	return resource.StableNAndSomeMore(n, out)
 }

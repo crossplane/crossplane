@@ -30,10 +30,10 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
-	"github.com/crossplane/crossplane/internal/xfn/cached/proto/v1alpha1"
+	"github.com/crossplane/crossplane/v2/internal/xfn/cached/proto/v1alpha1"
+	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
 type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
@@ -46,18 +46,22 @@ var MockDir = []byte("DIR")
 
 func MockFs(files map[string][]byte) afero.Fs {
 	fs := afero.NewMemMapFs()
+
 	for path, data := range files {
 		// Special value for making a directory.
 		if bytes.Equal(data, MockDir) {
 			if err := fs.MkdirAll(path, 0o700); err != nil {
 				panic(err)
 			}
+
 			continue
 		}
+
 		if err := afero.WriteFile(fs, path, data, 0o600); err != nil {
 			panic(err)
 		}
 	}
+
 	return fs
 }
 
@@ -87,11 +91,13 @@ func TestRunFunction(t *testing.T) {
 		path string
 		o    []FileBackedRunnerOption
 	}
+
 	type args struct {
 		ctx  context.Context
 		name string
 		req  *fnv1.RunFunctionRequest
 	}
+
 	type want struct {
 		rsp *fnv1.RunFunctionResponse
 		err error

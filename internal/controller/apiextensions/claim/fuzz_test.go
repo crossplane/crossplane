@@ -25,9 +25,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
 func FuzzPropagateConnection(f *testing.F) {
@@ -35,6 +35,7 @@ func FuzzPropagateConnection(f *testing.F) {
 		f := fuzz.NewConsumer(data)
 		cp := &fake.Composite{}
 		cm := &fake.CompositeClaim{}
+
 		err := f.GenerateStruct(cp)
 		if err != nil {
 			return
@@ -46,6 +47,7 @@ func FuzzPropagateConnection(f *testing.F) {
 		}
 
 		mgcsdata := make(map[string][]byte)
+
 		err = f.FuzzMap(&mgcsdata)
 		if err != nil {
 			return

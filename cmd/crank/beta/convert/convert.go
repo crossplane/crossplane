@@ -19,7 +19,7 @@ limitations under the License.
 package convert
 
 import (
-	"github.com/crossplane/crossplane/cmd/crank/beta/convert/compositionenvironment"
+	"github.com/crossplane/crossplane/v2/cmd/crank/beta/convert/compositionenvironment"
 )
 
 // Cmd converts a Crossplane resource to a newer version or a different kind.

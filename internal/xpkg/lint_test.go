@@ -28,16 +28,17 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/parser"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
-	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
-	"github.com/crossplane/crossplane/internal/version"
-	"github.com/crossplane/crossplane/internal/version/fake"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
+	pkgmetav1alpha1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1alpha1"
+	pkgmetav1beta1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/version"
+	"github.com/crossplane/crossplane/v2/internal/version/fake"
 )
 
 var (
@@ -91,6 +92,21 @@ kind: Composition
 metadata:
   name: test`)
 
+	v1alpha1OpBytes = []byte(`apiVersion: ops.crossplane.io/v1alpha1
+kind: Operation
+metadata:
+  name: test`)
+
+	v1alpha1CronOpBytes = []byte(`apiVersion: ops.crossplane.io/v1alpha1
+kind: CronOperation
+metadata:
+  name: test`)
+
+	v1alpha1WatchOpBytes = []byte(`apiVersion: ops.crossplane.io/v1alpha1
+kind: WatchOperation
+metadata:
+  name: test`)
+
 	v1beta1crd       = &apiextensions.CustomResourceDefinition{}
 	_                = yaml.Unmarshal(v1beta1CRDBytes, v1beta1crd)
 	v1crd            = &apiextensions.CustomResourceDefinition{}
@@ -111,6 +127,12 @@ metadata:
 	_                = yaml.Unmarshal(v1XRDBytes, v1XRD)
 	v1Comp           = &v1.Composition{}
 	_                = yaml.Unmarshal(v1CompBytes, v1Comp)
+	v1alpha1Op       = &v1alpha1.Operation{}
+	_                = yaml.Unmarshal(v1alpha1OpBytes, v1alpha1Op)
+	v1alpha1CronOp   = &v1alpha1.CronOperation{}
+	_                = yaml.Unmarshal(v1alpha1CronOpBytes, v1alpha1CronOp)
+	v1alpha1WatchOp  = &v1alpha1.WatchOperation{}
+	_                = yaml.Unmarshal(v1alpha1WatchOpBytes, v1alpha1WatchOp)
 
 	meta, _ = BuildMetaScheme()
 	obj, _  = BuildObjectScheme()
@@ -149,7 +171,6 @@ func TestOneMeta(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := OneMeta(tc.pkg)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nOneMeta(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -181,7 +202,6 @@ func TestIsProvider(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := IsProvider(tc.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsProvider(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -213,7 +233,6 @@ func TestIsConfiguration(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := IsConfiguration(tc.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsConfiguration(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -247,7 +266,6 @@ func TestIsFunction(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := IsFunction(tc.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsFunction(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -263,6 +281,7 @@ func TestPackageCrossplaneCompatible(t *testing.T) {
 		obj runtime.Object
 		ver version.Operations
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -341,7 +360,6 @@ func TestPackageCrossplaneCompatible(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := PackageCrossplaneCompatible(tc.args.ver)(tc.args.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nPackageCrossplaneCompatible(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -356,6 +374,7 @@ func TestPackageValidSemver(t *testing.T) {
 	type args struct {
 		obj runtime.Object
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -395,7 +414,6 @@ func TestPackageValidSemver(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := PackageValidSemver(tc.args.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nPackageValidSemver(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -427,7 +445,6 @@ func TestIsCRD(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := IsCRD(tc.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsCRD(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -455,7 +472,6 @@ func TestIsXRD(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := IsXRD(tc.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsXRD(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -483,9 +499,89 @@ func TestIsComposition(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := IsComposition(tc.obj)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsComposition(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestIsOperation(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		obj    runtime.Object
+		err    error
+	}{
+		"v1": {
+			reason: "Should not return error if object is an operation.",
+			obj:    v1alpha1Op,
+		},
+		"ErrNotOperation": {
+			reason: "Should return error if object is not an operation.",
+			obj:    v1beta1crd,
+			err:    errors.New(errNotOperation),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := IsOperation(tc.obj)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nIsOperation(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestIsCronOperation(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		obj    runtime.Object
+		err    error
+	}{
+		"v1": {
+			reason: "Should not return error if object is a cron operation.",
+			obj:    v1alpha1CronOp,
+		},
+		"ErrNotCronOperation": {
+			reason: "Should return error if object is not a cron operation.",
+			obj:    v1beta1crd,
+			err:    errors.New(errNotCronOperation),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := IsCronOperation(tc.obj)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nIsCronOperation(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestIsWatchOperation(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		obj    runtime.Object
+		err    error
+	}{
+		"v1": {
+			reason: "Should not return error if object is a watch operation.",
+			obj:    v1alpha1WatchOp,
+		},
+		"ErrNotWatchOperation": {
+			reason: "Should return error if object is not a watch operation.",
+			obj:    v1beta1crd,
+			err:    errors.New(errNotWatchOperation),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := IsWatchOperation(tc.obj)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nIsWatchOperation(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}

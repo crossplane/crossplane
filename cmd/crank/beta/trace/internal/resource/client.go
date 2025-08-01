@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpmeta "github.com/crossplane/crossplane-runtime/pkg/meta"
+	xpmeta "github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 )
 
 // TreeClient is the interface to get a Resource with all its children.
@@ -44,5 +44,6 @@ func GetResource(ctx context.Context, client client.Client, ref *v1.ObjectRefere
 		result.SetName(ref.Name)
 		result.SetNamespace(ref.Namespace)
 	}
+
 	return &Resource{Unstructured: result, Error: err}
 }

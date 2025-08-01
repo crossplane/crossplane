@@ -34,12 +34,12 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
 
 var _ Establisher = &APIEstablisher{}
@@ -70,7 +70,17 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			reason: "Establishment should be successful if we can establish control for a parent of existing objects.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(nil),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{
+								Data: map[string][]byte{
+									"tls.crt": caBundle,
+								},
+							}).DeepCopyInto(s)
+							return nil
+						}
+						return nil
+					},
 					MockUpdate: test.NewMockUpdateFn(nil),
 				}),
 				objs: []runtime.Object{
@@ -92,6 +102,11 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							v1.LabelParentPackage: "provider-name",
 						},
 					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
 				},
 				control: true,
 			},
@@ -103,7 +118,17 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			reason: "Establishment should be successful if we can establish control for a parent of new objects.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{
+								Data: map[string][]byte{
+									"tls.crt": caBundle,
+								},
+							}).DeepCopyInto(s)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
 					MockCreate: test.NewMockCreateFn(nil),
 				}),
 				objs: []runtime.Object{
@@ -123,6 +148,11 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						},
 						Labels: map[string]string{
 							v1.LabelParentPackage: "provider-name",
+						},
+					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
 						},
 					},
 				},
@@ -198,8 +228,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							v1.LabelParentPackage: "provider-name",
 						},
 					},
-					Spec: v1.ProviderRevisionSpec{
-						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
 							TLSServerSecretName: &tlsServerSecretName,
 						},
 					},
@@ -256,11 +286,51 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				refs: []xpv1.TypedReference{{Name: "ref-me"}},
 			},
 		},
+		"FailedTLSSecretNotPresent": {
+			reason: "Establishment should fail if TLS server secret is not present when trying to establish control.",
+			args: args{
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockCreate: test.NewMockCreateFn(nil),
+				}),
+				objs: []runtime.Object{
+					&extv1.CustomResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "ref-me",
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Name: "provider-name",
+								UID:  "some-unique-uid-2312",
+							},
+						},
+						Labels: map[string]string{
+							v1.LabelParentPackage: "provider-name",
+						},
+					},
+				},
+				control: true,
+			},
+			want: want{
+				err: errors.New(errWebhookSecretNotPresent),
+			},
+		},
 		"FailedCreationWebhookDisabledConversionRequested": {
 			reason: "Establishment should fail if the CRD requires conversion webhook and Crossplane does not have the webhooks enabled.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							// Return empty secret (no CA bundle)
+							s.Data = map[string][]byte{}
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
 					MockCreate: test.NewMockCreateFn(nil),
 				}),
 				objs: []runtime.Object{
@@ -287,11 +357,16 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							v1.LabelParentPackage: "provider-name",
 						},
 					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
 				},
 				control: true,
 			},
 			want: want{
-				err: errors.New(errConversionWithNoWebhookCA),
+				err: errors.New(errWebhookSecretWithoutCABundle),
 			},
 		},
 		"FailedGettingWebhookTLSSecretControl": {
@@ -301,8 +376,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					MockGet: test.NewMockGetFn(errBoom),
 				}),
 				parent: &v1.ProviderRevision{
-					Spec: v1.ProviderRevisionSpec{
-						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
 							TLSServerSecretName: &tlsServerSecretName,
 						},
 					},
@@ -343,8 +418,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					},
 				}),
 				parent: &v1.ProviderRevision{
-					Spec: v1.ProviderRevisionSpec{
-						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
 							TLSServerSecretName: &tlsServerSecretName,
 						},
 					},
@@ -382,7 +457,17 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			reason: "Cannot establish control of object if we cannot create it.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{
+								Data: map[string][]byte{
+									"tls.crt": caBundle,
+								},
+							}).DeepCopyInto(s)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
 					MockCreate: test.NewMockCreateFn(errBoom),
 				}),
 				objs: []runtime.Object{
@@ -396,6 +481,11 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test",
 					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
 				},
 				control: true,
 			},
@@ -407,7 +497,17 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			reason: "Cannot establish control of object if we cannot update it.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(nil),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{
+								Data: map[string][]byte{
+									"tls.crt": caBundle,
+								},
+							}).DeepCopyInto(s)
+							return nil
+						}
+						return nil
+					},
 					MockUpdate: test.NewMockUpdateFn(errBoom),
 				}),
 				objs: []runtime.Object{
@@ -421,6 +521,11 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test",
 					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
 				},
 				control: true,
 			},
@@ -433,10 +538,10 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			refs, err := tc.args.est.Establish(context.TODO(), tc.args.objs, tc.args.parent, tc.args.control)
-
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors(), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			sort := cmpopts.SortSlices(func(x, y xpv1.TypedReference) bool {
 				return x.Name < y.Name
 			})
@@ -478,12 +583,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -505,12 +612,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -552,12 +661,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -621,12 +732,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -680,12 +793,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -736,12 +851,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -756,7 +873,6 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := tc.args.est.ReleaseObjects(context.TODO(), tc.args.parent)
-
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -768,10 +884,12 @@ func TestGetPackageOwnerReference(t *testing.T) {
 	type args struct {
 		revision resource.Object
 	}
+
 	type want struct {
 		ref metav1.OwnerReference
 		ok  bool
 	}
+
 	ref := metav1.OwnerReference{
 		APIVersion: "v1",
 		Kind:       "Provider",
@@ -820,6 +938,7 @@ func TestGetPackageOwnerReference(t *testing.T) {
 			if diff := cmp.Diff(tc.want.ref, result); diff != "" {
 				t.Errorf("\n%s\ne.GetPackageOwnerReference(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.ok, ok); diff != "" {
 				t.Errorf("\n%s\ne.GetPackageOwnerReference(...): -want, +got:\n%s", tc.reason, diff)
 			}

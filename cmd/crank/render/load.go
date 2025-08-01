@@ -26,13 +26,13 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	pkgv1beta1 "github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 )
 
 // LoadCompositeResource from a YAML manifest.
@@ -41,7 +41,9 @@ func LoadCompositeResource(fs afero.Fs, file string) (*composite.Unstructured, e
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot read composite resource file")
 	}
+
 	xr := composite.New()
+
 	return xr, errors.Wrap(yaml.Unmarshal(y, xr), "cannot unmarshal composite resource YAML")
 }
 
@@ -55,10 +57,12 @@ func LoadComposition(fs afero.Fs, file string) (*apiextensionsv1.Composition, er
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot read composition file")
 	}
+
 	comp := &apiextensionsv1.Composition{}
 	if err := yaml.Unmarshal(y, comp); err != nil {
 		return nil, errors.Wrap(err, "cannot unmarshal composition resource YAML")
 	}
+
 	switch gvk := comp.GroupVersionKind(); gvk {
 	case apiextensionsv1.CompositionGroupVersionKind:
 		return comp, nil
@@ -73,7 +77,9 @@ func LoadXRD(fs afero.Fs, file string) (*apiextensionsv1.CompositeResourceDefini
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot read XRD file")
 	}
+
 	xrd := &apiextensionsv1.CompositeResourceDefinition{}
+
 	return xrd, errors.Wrap(yaml.Unmarshal(y, xrd), "cannot unmarshal XRD YAML")
 }
 
@@ -94,6 +100,7 @@ func LoadFunctions(filesys afero.Fs, file string) ([]pkgv1.Function, error) {
 		if err := yaml.Unmarshal(y, f); err != nil {
 			return nil, errors.Wrap(err, "cannot parse YAML Function manifest")
 		}
+
 		switch gvk := f.GroupVersionKind(); gvk {
 		case pkgv1.FunctionGroupVersionKind, pkgv1beta1.FunctionGroupVersionKind:
 			functions = append(functions, *f)
@@ -118,14 +125,15 @@ func LoadCredentials(fs afero.Fs, file string) ([]corev1.Secret, error) {
 		if err := yaml.Unmarshal(y, s); err != nil {
 			return nil, errors.Wrap(err, "cannot parse YAML secret manifest")
 		}
+
 		secrets = append(secrets, *s)
 	}
 
 	return secrets, nil
 }
 
-// LoadExtraResources from a stream of YAML manifests.
-func LoadExtraResources(fs afero.Fs, file string) ([]unstructured.Unstructured, error) {
+// LoadRequiredResources from a stream of YAML manifests.
+func LoadRequiredResources(fs afero.Fs, file string) ([]unstructured.Unstructured, error) {
 	stream, err := LoadYAMLStream(fs, file)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot load YAML stream from file")
@@ -137,6 +145,7 @@ func LoadExtraResources(fs afero.Fs, file string) ([]unstructured.Unstructured, 
 		if err := yaml.Unmarshal(y, r); err != nil {
 			return nil, errors.Wrap(err, "cannot parse YAML resource manifest")
 		}
+
 		resources = append(resources, *r)
 	}
 
@@ -156,6 +165,7 @@ func LoadObservedResources(fs afero.Fs, file string) ([]composed.Unstructured, e
 		if err := yaml.Unmarshal(y, cd); err != nil {
 			return nil, errors.Wrap(err, "cannot parse YAML composed resource manifest")
 		}
+
 		observed = append(observed, *cd)
 	}
 
@@ -166,14 +176,17 @@ func LoadObservedResources(fs afero.Fs, file string) ([]composed.Unstructured, e
 // arrays, where each byte array is expected to be a YAML manifest.
 func LoadYAMLStream(filesys afero.Fs, fileOrDir string) ([][]byte, error) {
 	var files []string
+
 	f, err := filesys.Open(fileOrDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot open file")
 	}
+
 	info, err := f.Stat()
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot stat file")
 	}
+
 	if !info.IsDir() {
 		files = append(files, fileOrDir)
 	} else {
@@ -181,6 +194,7 @@ func LoadYAMLStream(filesys afero.Fs, fileOrDir string) ([][]byte, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot get YAML files")
 		}
+
 		files = append(files, yamls...)
 		if len(files) == 0 {
 			return nil, errors.Errorf("no YAML files found in %q (.yaml or .yml)", fileOrDir)
@@ -188,11 +202,13 @@ func LoadYAMLStream(filesys afero.Fs, fileOrDir string) ([][]byte, error) {
 	}
 
 	out := make([][]byte, 0)
+
 	for i := range files {
 		o, err := LoadYAMLStreamFromFile(filesys, files[i])
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot load YAML stream from file")
 		}
+
 		out = append(out, o...)
 	}
 
@@ -213,16 +229,19 @@ func getYAMLFiles(fs afero.Fs, dir string) (files []string, err error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot read directory")
 	}
+
 	for _, entry := range entries {
 		if entry.IsDir() {
 			// We don't care about nested directories.
 			continue
 		}
+
 		switch filepath.Ext(entry.Name()) {
 		case ".yaml", ".yml":
 			files = append(files, filepath.Join(dir, entry.Name()))
 		}
 	}
+
 	return files, nil
 }
 
@@ -230,11 +249,13 @@ func getYAMLFiles(fs afero.Fs, dir string) (files []string, err error) {
 // arrays, where each byte array is expected to be a YAML manifest.
 func LoadYAMLStreamFromFile(fs afero.Fs, file string) ([][]byte, error) {
 	out := make([][]byte, 0)
+
 	f, err := fs.Open(file)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot open file")
 	}
 	defer f.Close() //nolint:errcheck // Only open for reading.
+
 	yr := yaml.NewYAMLReader(bufio.NewReader(f))
 
 	for {
@@ -242,13 +263,17 @@ func LoadYAMLStreamFromFile(fs afero.Fs, file string) ([][]byte, error) {
 		if errors.Is(err, io.EOF) {
 			break
 		}
+
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot parse YAML stream")
 		}
+
 		if len(bytes) == 0 {
 			continue
 		}
+
 		out = append(out, bytes)
 	}
+
 	return out, nil
 }

@@ -41,29 +41,32 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	"github.com/crossplane/crossplane-runtime/pkg/certificates"
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/feature"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/certificates"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
 
-	"github.com/crossplane/crossplane/internal/controller/apiextensions"
-	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
-	"github.com/crossplane/crossplane/internal/controller/pkg"
-	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
-	"github.com/crossplane/crossplane/internal/controller/protection"
-	"github.com/crossplane/crossplane/internal/engine"
-	"github.com/crossplane/crossplane/internal/features"
-	"github.com/crossplane/crossplane/internal/initializer"
-	"github.com/crossplane/crossplane/internal/metrics"
-	"github.com/crossplane/crossplane/internal/protection/usage"
-	"github.com/crossplane/crossplane/internal/transport"
-	usagehook "github.com/crossplane/crossplane/internal/webhook/protection/usage"
-	"github.com/crossplane/crossplane/internal/xfn"
-	"github.com/crossplane/crossplane/internal/xfn/cached"
-	"github.com/crossplane/crossplane/internal/xpkg"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions"
+	apiextensionscontroller "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
+	"github.com/crossplane/crossplane/v2/internal/controller/ops"
+	opscontroller "github.com/crossplane/crossplane/v2/internal/controller/ops/controller"
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg"
+	pkgcontroller "github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/v2/internal/controller/protection"
+	"github.com/crossplane/crossplane/v2/internal/engine"
+	"github.com/crossplane/crossplane/v2/internal/features"
+	"github.com/crossplane/crossplane/v2/internal/initializer"
+	"github.com/crossplane/crossplane/v2/internal/metrics"
+	"github.com/crossplane/crossplane/v2/internal/protection/usage"
+	"github.com/crossplane/crossplane/v2/internal/transport"
+	usagehook "github.com/crossplane/crossplane/v2/internal/webhook/protection/usage"
+	"github.com/crossplane/crossplane/v2/internal/xfn"
+	"github.com/crossplane/crossplane/v2/internal/xfn/cached"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 // Command runs the core crossplane controllers.
@@ -75,7 +78,6 @@ type Command struct {
 // KongVars represent the kong variables associated with the CLI parser
 // required for the Registry default variable interpolation.
 var KongVars = kong.Vars{ //nolint:gochecknoglobals // We treat these as constants.
-	"default_registry":   xpkg.DefaultRegistry,
 	"default_user_agent": transport.DefaultUserAgent(),
 }
 
@@ -89,16 +91,15 @@ func (c *Command) Run() error {
 type startCommand struct {
 	Profile string `help:"Serve runtime profiling data via HTTP at /debug/pprof." placeholder:"host:port"`
 
-	Namespace      string `default:"crossplane-system"     env:"POD_NAMESPACE"                                                      help:"Namespace used to unpack and run packages."                         short:"n"`
+	Namespace      string `default:"crossplane-system"     env:"POD_NAMESPACE"                                                      help:"Namespace used to unpack and run packages."                      short:"n"`
 	ServiceAccount string `default:"crossplane"            env:"POD_SERVICE_ACCOUNT"                                                help:"Name of the Crossplane Service Account."`
-	LeaderElection bool   `default:"false"                 env:"LEADER_ELECTION"                                                    help:"Use leader election for the controller manager."                    short:"l"`
-	Registry       string `default:"${default_registry}"   env:"REGISTRY"                                                           help:"Default registry used to fetch packages when not specified in tag." short:"r"`
+	LeaderElection bool   `default:"false"                 env:"LEADER_ELECTION"                                                    help:"Use leader election for the controller manager."                 short:"l"`
 	CABundlePath   string `env:"CA_BUNDLE_PATH"            help:"Additional CA bundle to use when fetching packages from registry."`
 	UserAgent      string `default:"${default_user_agent}" env:"USER_AGENT"                                                         help:"The User-Agent header that will be set on all package requests."`
 
 	XpkgCacheDir string `aliases:"cache-dir" default:"/cache/xpkg" env:"XPKG_CACHE_DIR,CACHE_DIR" help:"Directory used for caching package images." short:"c"`
 
-	PackageRuntime string `default:"Deployment" env:"PACKAGE_RUNTIME" help:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)"`
+	PackageRuntime string `default:"Deployment" env:"PACKAGE_RUNTIME" help:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)" placeholder:"runtime | runtime1=package1;runtime2=package2"`
 
 	SyncInterval                     time.Duration `default:"1h"  help:"How often all resources will be double-checked for drift from the desired state."                      short:"s"`
 	PollInterval                     time.Duration `default:"1m"  help:"How often individual resources will be checked for drift from the desired state."`
@@ -120,21 +121,24 @@ type startCommand struct {
 	EnableDependencyVersionDowngrades bool `group:"Alpha Features:" help:"Enable support for upgrading and downgrading dependency versions when a dependent package is updated."`
 	EnableSignatureVerification       bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
 	EnableFunctionResponseCache       bool `group:"Alpha Features:" help:"Enable support for caching composition function responses."`
+	EnableOperations                  bool `group:"Alpha Features:" help:"Enable support for Operations."`
 
 	XfnCacheDir    string        `default:"/cache/xfn" env:"XFN_CACHE_DIR"     group:"Alpha Features:" help:"Directory used for caching function responses. Requires --enable-function-response-cache."`
 	XfnCacheMaxTTL time.Duration `default:"24h"        env:"XFN_CACHE_MAX_TTL" group:"Alpha Features:" help:"Maximum TTL for cached function responses. Set to 0 to disable. Requires --enable-function-response-cache."`
 
-	EnableDeploymentRuntimeConfigs bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
-	EnableUsages                   bool `default:"true" group:"Beta Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
-	EnableSSAClaims                bool `default:"true" group:"Beta Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
-	EnableRealtimeCompositions     bool `default:"true" group:"Beta Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
+	EnableDeploymentRuntimeConfigs          bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
+	EnableUsages                            bool `default:"true" group:"Beta Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
+	EnableSSAClaims                         bool `default:"true" group:"Beta Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
+	EnableRealtimeCompositions              bool `default:"true" group:"Beta Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
+	EnableCustomToManagedResourceConversion bool `default:"true" group:"Beta Features:" help:"Enable support CRD to MRD conversion when installing a package."`
 
 	// These are features that we've removed support for. Crossplane returns an
 	// error when you enable them. This ensures you'll see an explicit and
 	// informative error on startup, instead of a potentially surprising one
 	// later.
-	EnableCompositionWebhookSchemaValidation bool `hidden:""`
-	EnableExternalSecretStores               bool `hidden:""`
+	EnableCompositionWebhookSchemaValidation bool   `hidden:""`
+	EnableExternalSecretStores               bool   `hidden:""`
+	Registry                                 string `hidden:""`
 }
 
 // Run core Crossplane controllers.
@@ -143,9 +147,14 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		//nolint:revive // This is long and easier to read with punctuation.
 		return errors.New("Crossplane now uses CEL to validate Compositions. The --enable-composition-webhook-schema-validation flag will be removed in a future release.")
 	}
+
 	if c.EnableExternalSecretStores {
 		//nolint:revive // This is long and easier to read with punctuation.
 		return errors.New("Crossplane removed support for external secret stores. The --enable-external-secret-stores flag will be removed in a future release.")
+	}
+
+	if c.Registry != "" {
+		return errors.New("the --registry flag is no longer supported since support for a default registry value has been removed. Please ensure that all packages have fully qualified names that explicitly state their registry. This also applies to all of a packages dependencies")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -164,6 +173,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	// The claim and XR controllers don't use the manager's cache or client.
 	// They use their own. They're setup later in this method.
 	eb := record.NewBroadcaster()
+
 	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, c.MaxReconcileRate), ctrl.Options{
 		Scheme: s,
 		Cache: cache.Options{
@@ -272,14 +282,22 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		o.Features.Enable(features.EnableBetaUsages)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaUsages)
 	}
+
 	if c.EnableRealtimeCompositions {
 		o.Features.Enable(features.EnableBetaRealtimeCompositions)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaRealtimeCompositions)
 	}
+
+	if c.EnableCustomToManagedResourceConversion {
+		o.Features.Enable(features.EnableBetaCustomToManagedResourceConversion)
+		log.Info("Beta feature enabled", "flag", features.EnableBetaCustomToManagedResourceConversion)
+	}
+
 	if c.EnableDeploymentRuntimeConfigs {
 		o.Features.Enable(features.EnableBetaDeploymentRuntimeConfigs)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaDeploymentRuntimeConfigs)
 	}
+
 	if c.EnableSSAClaims {
 		o.Features.Enable(features.EnableBetaClaimSSA)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaClaimSSA)
@@ -289,13 +307,20 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		o.Features.Enable(features.EnableAlphaDependencyVersionUpgrades)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaDependencyVersionUpgrades)
 	}
+
 	if c.EnableDependencyVersionDowngrades {
 		o.Features.Enable(features.EnableAlphaDependencyVersionDowngrades)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaDependencyVersionDowngrades)
 	}
+
 	if c.EnableSignatureVerification {
 		o.Features.Enable(features.EnableAlphaSignatureVerification)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaSignatureVerification)
+	}
+
+	if c.EnableOperations {
+		o.Features.Enable(features.EnableAlphaOperations)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaOperations)
 	}
 
 	// Claim and XR controllers are started and stopped dynamically by the
@@ -379,6 +404,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		unstructured.NewClient(uncached),
 		engine.WithLogger(log),
 		engine.WithMetrics(cem),
+		engine.WithNamespace(c.Namespace),
+		engine.WithServiceAccount(c.ServiceAccount),
 	)
 
 	// TODO(negz): Garbage collect informers for CRs that are still defined
@@ -393,6 +420,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot start garbage collector for custom resource informers")
 	}
 
+	// Automatically fetch required resources.
+	runner = xfn.NewFetchingFunctionRunner(runner, xfn.NewExistingRequiredResourcesFetcher(cached))
+
 	ao := apiextensionscontroller.Options{
 		Options:          o,
 		ControllerEngine: ce,
@@ -403,23 +433,43 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot setup API extension controllers")
 	}
 
-	var pr pkgcontroller.PackageRuntime
-	switch c.PackageRuntime {
-	case string(pkgcontroller.PackageRuntimeDeployment):
-		pr = pkgcontroller.PackageRuntimeDeployment
-	case string(pkgcontroller.PackageRuntimeExternal):
-		pr = pkgcontroller.PackageRuntimeExternal
-	default:
-		return errors.Errorf("unsupported package runtime %q, supported runtimes are %q and %q",
-			c.PackageRuntime, pkgcontroller.PackageRuntimeDeployment, pkgcontroller.PackageRuntimeExternal)
+	if o.Features.Enabled(features.EnableAlphaOperations) {
+		oo := opscontroller.Options{
+			Options:          o,
+			FunctionRunner:   runner,
+			ControllerEngine: ce,
+		}
+		if err := ops.Setup(mgr, oo); err != nil {
+			return errors.Wrap(err, "cannot setup ops controllers")
+		}
 	}
+
+	var pr pkgcontroller.ActiveRuntime
+	switch rt := pkgcontroller.PackageRuntime(c.PackageRuntime); rt {
+	case pkgcontroller.PackageRuntimeUnspecified:
+		rt = pkgcontroller.PackageRuntimeDeployment
+		fallthrough
+	case pkgcontroller.PackageRuntimeDeployment, pkgcontroller.PackageRuntimeExternal:
+		pr = pkgcontroller.NewActiveRuntime(
+			pkgcontroller.WithDefaultPackageRuntime(rt),
+		)
+	default:
+		pr, err = pkgcontroller.ParsePackageRuntime(string(rt))
+		if err != nil {
+			return errors.Errorf("unsupported package runtime %q, supported runtimes are [%q, %q]",
+				c.PackageRuntime, pkgcontroller.PackageRuntimeDeployment,
+				pkgcontroller.PackageRuntimeExternal)
+		}
+	}
+
+	log.Info("Package Runtime for Provider: " + string(pr.For(pkgv1.ProviderKind)))
+	log.Info("Package Runtime for Function: " + string(pr.For(pkgv1.FunctionKind)))
 
 	po := pkgcontroller.Options{
 		Options:                          o,
 		Cache:                            xpkg.NewFsPackageCache(c.XpkgCacheDir, afero.NewOsFs()),
 		Namespace:                        c.Namespace,
 		ServiceAccount:                   c.ServiceAccount,
-		DefaultRegistry:                  c.Registry,
 		FetcherOptions:                   []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
 		PackageRuntime:                   pr,
 		MaxConcurrentPackageEstablishers: c.MaxConcurrentPackageEstablishers,
@@ -442,6 +492,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		if err != nil {
 			return errors.Wrap(err, "cannot parse CA bundle")
 		}
+
 		po.FetcherOptions = append(po.FetcherOptions, xpkg.WithCustomCA(rootCAs))
 	}
 
@@ -456,6 +507,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		if err != nil {
 			return errors.Wrap(err, "cannot setup usage finder")
 		}
+
 		if err := protection.Setup(mgr, f, o); err != nil {
 			return errors.Wrap(err, "cannot add protection (usage) controllers to manager")
 		}
@@ -488,9 +540,11 @@ func (c *startCommand) SetupProbes(mgr ctrl.Manager) error {
 		if err := mgr.AddReadyzCheck("webhook", hookServer.StartedChecker()); err != nil {
 			return errors.Wrap(err, "cannot create webhook ready check")
 		}
+
 		if err := mgr.AddHealthzCheck("webhook", hookServer.StartedChecker()); err != nil {
 			return errors.Wrap(err, "cannot create webhook health check")
 		}
 	}
+
 	return nil
 }

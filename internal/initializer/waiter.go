@@ -25,8 +25,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 )
 
 const (
@@ -52,25 +52,33 @@ type CRDWaiter struct {
 // present in the cluster.
 func (cw *CRDWaiter) Run(ctx context.Context, kube client.Client) error {
 	timeout := time.After(cw.Timeout)
+
 	ticker := time.NewTicker(cw.Period)
 	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ticker.C:
 			cw.log.Info("Waiting for required CRDs to be present", "names", cw.Names, "poll-interval", cw.Period)
+
 			present := 0
+
 			for _, n := range cw.Names {
 				crd := &v1.CustomResourceDefinition{}
 				nn := types.NamespacedName{Name: n}
+
 				err := kube.Get(ctx, nn, crd)
 				if err != nil && !kerrors.IsNotFound(err) {
 					return errors.Wrap(err, errGetCRD)
 				}
+
 				if kerrors.IsNotFound(err) {
 					break
 				}
+
 				present++
 			}
+
 			if present == len(cw.Names) {
 				return nil
 			}

@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.5
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: providerrevisions.pkg.crossplane.io
 spec:
   group: pkg.crossplane.io
@@ -180,8 +180,8 @@ spec:
             - revision
             type: object
           status:
-            description: PackageRevisionStatus represents the observed state of a
-              PackageRevision.
+            description: ProviderRevisionStatus represents the observed state of a
+              ProviderRevision.
             properties:
               appliedImageConfigRefs:
                 description: |-
@@ -203,6 +203,13 @@ spec:
                   - name
                   - reason
                   type: object
+                type: array
+              capabilities:
+                description: |-
+                  Capabilities of this package. Capabilities are opaque strings that
+                  may be meaningful to package consumers.
+                items:
+                  type: string
                 type: array
               conditions:
                 description: Conditions of the resource.
@@ -291,6 +298,16 @@ spec:
                   ResolvedPackage is the name of the package that was installed. It may be
                   different from spec.image if the package path was rewritten using an
                   image config.
+                type: string
+              tlsClientSecretName:
+                description: |-
+                  TLSClientSecretName is the name of the TLS Secret that stores client
+                  certificates of the Provider.
+                type: string
+              tlsServerSecretName:
+                description: |-
+                  TLSServerSecretName is the name of the TLS Secret that stores server
+                  certificates of the Provider.
                 type: string
             type: object
         type: object

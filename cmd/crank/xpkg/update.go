@@ -29,12 +29,12 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	"github.com/crossplane/crossplane/internal/xpkg"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // Load all the auth plugins for the cloud providers.
 )
@@ -43,7 +43,7 @@ import (
 type updateCmd struct {
 	// Arguments.
 	Kind    string `arg:"" enum:"provider,configuration,function"                                                                                  help:"The kind of package to update. One of \"provider\", \"configuration\", or \"function\"."`
-	Package string `arg:"" help:"The package to update to."`
+	Package string `arg:"" help:"The package to update to. Must be fully qualified, including the registry, repository, and tag."                  placeholder:"REGISTRY/REPOSITORY:TAG"`
 	Name    string `arg:"" help:"The name of the package to update in the Crossplane API. Derived from the package repository and tag by default." optional:""`
 }
 
@@ -53,10 +53,12 @@ This command updates a package in a Crossplane control plane. It uses
 ~/.kube/config to connect to the control plane. You can override this using the
 KUBECONFIG environment variable.
 
+IMPORTANT: the package must be fully qualified, including the registry, repository, and tag.
+
 Examples:
 
   # Update the Function named function-eg
-  crossplane xpkg update function upbound/function-example:v0.1.5 function-eg
+  crossplane xpkg update function xpkg.crossplane.io/crossplane/function-example:v0.1.5 function-eg
 `
 }
 
@@ -64,11 +66,12 @@ Examples:
 func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 	pkgName := c.Name
 	if pkgName == "" {
-		ref, err := name.ParseReference(c.Package, name.WithDefaultRegistry(xpkg.DefaultRegistry))
+		ref, err := name.ParseReference(c.Package, name.StrictValidation)
 		if err != nil {
 			logger.Debug(errPkgIdentifier, "error", err)
 			return errors.Wrap(err, errPkgIdentifier)
 		}
+
 		pkgName = xpkg.ToDNSLabel(ref.Context().RepositoryStr())
 	}
 
@@ -79,6 +82,7 @@ func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 	)
 
 	var pkg v1.Package
+
 	switch c.Kind {
 	case "provider":
 		pkg = &v1.Provider{}
@@ -95,6 +99,7 @@ func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, errKubeConfig)
 	}
+
 	logger.Debug("Found kubeconfig")
 
 	s := runtime.NewScheme()
@@ -105,6 +110,7 @@ func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, errKubeClient)
 	}
+
 	logger.Debug("Created kubernetes client")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -124,5 +130,6 @@ func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 	}
 
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s updated\n", c.Kind, pkg.GetName())
+
 	return err
 }

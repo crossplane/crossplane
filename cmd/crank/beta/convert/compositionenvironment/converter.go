@@ -3,10 +3,10 @@ package compositionenvironment
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 )
 
 // ConvertToFunctionEnvironmentConfigs converts a Composition to use function-environment-configs.
@@ -51,6 +51,7 @@ func ConvertToFunctionEnvironmentConfigs(in *unstructured.Unstructured, function
 		if err := inputPaved.SetValue("spec.defaultData", dd); err != nil {
 			return nil, errors.Wrap(err, "failed to set defaultData")
 		}
+
 		modified = true
 	}
 
@@ -59,6 +60,7 @@ func ConvertToFunctionEnvironmentConfigs(in *unstructured.Unstructured, function
 		if err := inputPaved.SetValue("spec.environmentConfigs", ec); err != nil {
 			return nil, errors.Wrap(err, "failed to set environmentConfigs")
 		}
+
 		modified = true
 	}
 
@@ -67,6 +69,7 @@ func ConvertToFunctionEnvironmentConfigs(in *unstructured.Unstructured, function
 		if err := inputPaved.SetValue("spec.policy.resolution", resolutionPolicy); err != nil {
 			return nil, errors.Wrap(err, "failed to set policy.resolution")
 		}
+
 		modified = true
 	}
 

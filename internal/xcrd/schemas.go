@@ -22,9 +22,9 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/utils/ptr"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 )
 
 // Label keys.
@@ -320,19 +320,8 @@ func CompositeResourceStatusProps(s v1.CompositeResourceScope) map[string]extv1.
 
 	switch s {
 	case v1.CompositeResourceScopeNamespaced, v1.CompositeResourceScopeCluster:
-		// Modern XRs use status.crossplane, and don't support claims.
-		props["crossplane"] = extv1.JSONSchemaProps{
-			Type:        "object",
-			Description: "Indicates how Crossplane is reconciling this composite resource",
-			Properties: map[string]extv1.JSONSchemaProps{
-				"connectionDetails": {
-					Type: "object",
-					Properties: map[string]extv1.JSONSchemaProps{
-						"lastPublishedTime": {Type: "string", Format: "date-time"},
-					},
-				},
-			},
-		}
+		// Modern XRs don't have connection details or support claims, so
+		// there's nothing else to put in the status for them
 	case v1.CompositeResourceScopeLegacyCluster:
 		// Legacy XRs don't use status.crossplane, and support claims.
 		props["connectionDetails"] = extv1.JSONSchemaProps{
@@ -392,6 +381,7 @@ func CompositeResourcePrinterColumns(s v1.CompositeResourceScope) []extv1.Custom
 			if cols[i].Name == "COMPOSITION" {
 				cols[i].JSONPath = ".spec.compositionRef.name"
 			}
+
 			if cols[i].Name == "COMPOSITIONREVISION" {
 				cols[i].JSONPath = ".spec.compositionRevisionRef.name"
 			}
@@ -431,10 +421,12 @@ func CompositeResourceClaimPrinterColumns() []extv1.CustomResourceColumnDefiniti
 // GetPropFields returns the fields from a map of schema properties.
 func GetPropFields(props map[string]extv1.JSONSchemaProps) []string {
 	propFields := make([]string, len(props))
+
 	i := 0
 	for k := range props {
 		propFields[i] = k
 		i++
 	}
+
 	return propFields
 }

@@ -21,8 +21,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	pkgv1beta1 "github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 )
 
 func TestIsPackageType(t *testing.T) {
@@ -33,6 +33,7 @@ func TestIsPackageType(t *testing.T) {
 	type want struct {
 		ok bool
 	}
+
 	tests := map[string]struct {
 		reason string
 		args   args
@@ -123,6 +124,7 @@ func TestIsPackageRevisionType(t *testing.T) {
 	type want struct {
 		ok bool
 	}
+
 	tests := map[string]struct {
 		reason string
 		args   args
@@ -209,9 +211,11 @@ func TestIsPackageRuntimeConfigType(t *testing.T) {
 	type args struct {
 		gk schema.GroupKind
 	}
+
 	type want struct {
 		ok bool
 	}
+
 	tests := map[string]struct {
 		reason string
 		args   args

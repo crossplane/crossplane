@@ -1,0 +1,8 @@
+---
+# We intentionally use v1beta1 here, to make sure it still works.
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-dummy-ops-basic
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.1

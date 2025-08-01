@@ -2,7 +2,11 @@
 # configuration.yaml.
 #
 # This package is manually built/pushed to
-# xpkg.upbound.io/crossplane/e2e-nested-configuration
+# xpkg.upbound.io/crossplane/e2e-nested-configuration, with something like:
+# ❯ export CR_PAT=<token>
+# ❯ echo $CR_PAT | docker login xpkg.upbound.io -u <user> --password-stdin
+# ❯ crossplane xpkg build -o e2e-nested-configuration.xpkg
+# ❯ crossplane xpkg push -f e2e-nested-configuration.xpkg xpkg.upbound.io/crossplane/e2e-nested-configuration:v0.1.0-nv
 apiVersion: meta.pkg.crossplane.io/v1
 kind: Configuration
 metadata:
@@ -11,5 +15,5 @@ spec:
   dependsOn:
     - provider: xpkg.upbound.io/crossplane-contrib/provider-nop
       version: "v0.2.0"
-    - configuration: xpkg.upbound.io/crossplane/e2e-depends-on-provider-nop
+    - configuration: xpkg.crossplane.io/crossplane/e2e-depends-on-provider-nop
       version: "v0.2.1"

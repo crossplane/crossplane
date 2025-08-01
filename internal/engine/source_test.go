@@ -59,10 +59,12 @@ func TestStartSource(t *testing.T) {
 		h   handler.EventHandler
 		ps  []predicate.Predicate
 	}
+
 	type args struct {
 		ctx context.Context
 		q   workqueue.TypedRateLimitingInterface[reconcile.Request]
 	}
+
 	type want struct {
 		err error
 	}
@@ -133,10 +135,12 @@ func TestStopSource(t *testing.T) {
 		h   handler.EventHandler
 		ps  []predicate.Predicate
 	}
+
 	type args struct {
 		ctx context.Context
 		q   workqueue.TypedRateLimitingInterface[reconcile.Request]
 	}
+
 	type want struct {
 		err error
 	}

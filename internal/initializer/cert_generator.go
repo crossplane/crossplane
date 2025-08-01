@@ -24,7 +24,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
 
 const (
@@ -89,6 +89,7 @@ func (*CertGenerator) Generate(cert *x509.Certificate, signer *CertificateSigner
 	}); err != nil {
 		return nil, nil, errors.Wrap(err, "cannot encode cert into PEM")
 	}
+
 	certKeyPEM := new(bytes.Buffer)
 	if err := pem.Encode(certKeyPEM, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
@@ -96,5 +97,6 @@ func (*CertGenerator) Generate(cert *x509.Certificate, signer *CertificateSigner
 	}); err != nil {
 		return nil, nil, errors.Wrap(err, "cannot encode private key into PEM")
 	}
+
 	return certKeyPEM.Bytes(), certPEM.Bytes(), nil
 }

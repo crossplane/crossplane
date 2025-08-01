@@ -26,8 +26,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
 const (
@@ -96,9 +96,11 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 		certificate CertificateGenerator
 		opts        []TLSCertificateGeneratorOption
 	}
+
 	type want struct {
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args

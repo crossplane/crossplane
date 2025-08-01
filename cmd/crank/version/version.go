@@ -25,7 +25,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/pkg/errors"
 
-	"github.com/crossplane/crossplane/internal/version"
+	"github.com/crossplane/crossplane/v2/internal/version"
 )
 
 const (
@@ -40,6 +40,7 @@ type Cmd struct {
 // Run runs the version command.
 func (c *Cmd) Run(k *kong.Context) error {
 	_, _ = fmt.Fprintln(k.Stdout, "Client Version: "+version.New().GetVersionString())
+
 	if c.Client {
 		return nil
 	}
@@ -51,6 +52,7 @@ func (c *Cmd) Run(k *kong.Context) error {
 	if err != nil {
 		return errors.Wrap(err, errGetCrossplaneVersion)
 	}
+
 	if vxp != "" {
 		_, _ = fmt.Fprintln(k.Stdout, "Server Version: "+vxp)
 	}

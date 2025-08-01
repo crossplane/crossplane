@@ -28,13 +28,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/parser"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 
-	"github.com/crossplane/crossplane/internal/xpkg"
-	"github.com/crossplane/crossplane/internal/xpkg/parser/examples"
-	"github.com/crossplane/crossplane/internal/xpkg/parser/yaml"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
+	"github.com/crossplane/crossplane/v2/internal/xpkg/parser/examples"
+	"github.com/crossplane/crossplane/v2/internal/xpkg/parser/yaml"
 )
 
 const (
@@ -57,6 +57,7 @@ func (c *buildCmd) AfterApply() error {
 	if err != nil {
 		return err
 	}
+
 	c.root = root
 
 	ex, err := filepath.Abs(c.ExamplesRoot)
@@ -131,22 +132,26 @@ func (c *buildCmd) GetRuntimeBaseImageOpts() ([]xpkg.BuildOpt, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, errLoadRuntimeTarball)
 		}
+
 		return []xpkg.BuildOpt{xpkg.WithBase(img)}, nil
 	case c.EmbedRuntimeImage != "":
-		// We intentionally don't override the default registry here. Doing so
-		// leads to unintuitive behavior, in that you can't tag your runtime
-		// image as some/image:latest then pass that same tag to xpkg build.
-		// Instead you'd need to pass index.docker.io/some/image:latest.
+		// We intentionally don't use strict validation here. Usually
+		// we'll tag the runtime image as something like
+		// 'runtime-amd64', and never actually push it to an OCI
+		// registry. That tag wouldn't pass strict validation.
 		ref, err := name.ParseReference(c.EmbedRuntimeImage)
 		if err != nil {
 			return nil, errors.Wrap(err, errParseRuntimeImageRef)
 		}
+
 		img, err := daemon.Image(ref, daemon.WithContext(context.Background()))
 		if err != nil {
 			return nil, errors.Wrap(err, errPullRuntimeImage)
 		}
+
 		return []xpkg.BuildOpt{xpkg.WithBase(img)}, nil
 	}
+
 	return nil, nil
 }
 
@@ -158,19 +163,23 @@ func (c *buildCmd) GetOutputFileName(meta runtime.Object, hash v1.Hash) (string,
 		if !ok {
 			return "", errors.New(errGetNameFromMeta)
 		}
+
 		pkgName := xpkg.FriendlyID(pkgMeta.GetName(), hash.Hex)
 		output = xpkg.BuildPath(c.root, pkgName, xpkg.XpkgExtension)
 	}
+
 	return output, nil
 }
 
 // Run executes the build command.
 func (c *buildCmd) Run(logger logging.Logger) error {
 	var buildOpts []xpkg.BuildOpt
+
 	rtBuildOpts, err := c.GetRuntimeBaseImageOpts()
 	if err != nil {
 		return errors.Wrap(err, errGetRuntimeBaseImageOpts)
 	}
+
 	buildOpts = append(buildOpts, rtBuildOpts...)
 
 	img, meta, err := c.builder.Build(context.Background(), buildOpts...)
@@ -194,10 +203,13 @@ func (c *buildCmd) Run(logger logging.Logger) error {
 	}
 
 	defer func() { _ = f.Close() }()
+
 	if err := tarball.Write(nil, img, f); err != nil {
 		return err
 	}
+
 	logger.Info("xpkg saved", "output", output)
+
 	return nil
 }
 
@@ -211,8 +223,10 @@ func buildFilters(root string, skips []string) []parser.FilterFn {
 	}
 	opts := make([]parser.FilterFn, len(skips)+len(defaultFns))
 	copy(opts, defaultFns)
+
 	for i, s := range skips {
 		opts[i+len(defaultFns)] = parser.SkipPath(filepath.Join(root, s))
 	}
+
 	return opts
 }

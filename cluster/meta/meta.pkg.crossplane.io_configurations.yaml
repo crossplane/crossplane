@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.5
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: configurations.meta.pkg.crossplane.io
 spec:
   group: meta.pkg.crossplane.io
@@ -40,6 +40,13 @@ spec:
           spec:
             description: ConfigurationSpec specifies the configuration of a Configuration.
             properties:
+              capabilities:
+                description: |-
+                  Capabilities of this package. Capabilities are opaque strings that
+                  may be meaningful to package consumers.
+                items:
+                  type: string
+                type: array
               crossplane:
                 description: Semantic version constraints of Crossplane that package
                   is compatible with.
@@ -67,11 +74,13 @@ spec:
                     configuration:
                       description: |-
                         Configuration is the name of a Configuration package image.
+                        Must be a fully qualified image name, including the registry,
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     function:
                       description: |-
                         Function is the name of a Function package image.
+                        Must be a fully qualified image name, including the registry,
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     kind:
@@ -81,10 +90,13 @@ spec:
                       description: |-
                         Package OCI reference of the dependency. Only used when apiVersion and
                         kind are set.
+                        Must be a fully qualified image name, including the registry,
+                        repository, and tag. For example, "registry.example.com/repo/package:tag".
                       type: string
                     provider:
                       description: |-
                         Provider is the name of a Provider package image.
+                        Must be a fully qualified image name, including the registry,
                         Deprecated: Specify an apiVersion and kind instead.
                       type: string
                     version:
@@ -127,6 +139,13 @@ spec:
           spec:
             description: ConfigurationSpec specifies the configuration of a Configuration.
             properties:
+              capabilities:
+                description: |-
+                  Capabilities of this package. Capabilities are opaque strings that
+                  may be meaningful to package consumers.
+                items:
+                  type: string
+                type: array
               crossplane:
                 description: Semantic version constraints of Crossplane that package
                   is compatible with.
@@ -154,11 +173,13 @@ spec:
                     configuration:
                       description: |-
                         Configuration is the name of a Configuration package image.
+                        Must be a fully qualified image name, including the registry,
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     function:
                       description: |-
                         Function is the name of a Function package image.
+                        Must be a fully qualified image name, including the registry,
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     kind:
@@ -168,10 +189,13 @@ spec:
                       description: |-
                         Package OCI reference of the dependency. Only used when apiVersion and
                         kind are set.
+                        Must be a fully qualified image name, including the registry,
+                        repository, and tag. For example, "registry.example.com/repo/package:tag".
                       type: string
                     provider:
                       description: |-
                         Provider is the name of a Provider package image.
+                        Must be a fully qualified image name, including the registry,
                         Deprecated: Specify an apiVersion and kind instead.
                       type: string
                     version:

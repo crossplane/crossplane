@@ -49,5 +49,6 @@ type EnvironmentConfig struct {
 type EnvironmentConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []EnvironmentConfig `json:"items"`
+
+	Items []EnvironmentConfig `json:"items"`
 }

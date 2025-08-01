@@ -27,15 +27,15 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
+	xpresource "github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	xpunstructured "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
 
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
-	"github.com/crossplane/crossplane/internal/xpkg"
-	xpunstructured "github.com/crossplane/crossplane/internal/xresource/unstructured"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	pkgv1beta1 "github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 // Client to get a Package with all its dependencies.
@@ -90,6 +90,7 @@ func NewClient(in client.Client, opts ...ClientOption) (*Client, error) {
 // GetResourceTree returns the requested package Resource and all its children.
 func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) (*resource.Resource, error) {
 	var err error
+
 	if !IsPackageType(root.Unstructured.GroupVersionKind().GroupKind()) {
 		return nil, errors.Errorf("resource %s is not a package", root.Unstructured.GetName())
 	}
@@ -146,6 +147,7 @@ func (kc *Client) setPackageRuntimeConfigChild(ctx context.Context, res *resourc
 	if !kc.includePackageRuntimeConfig {
 		return
 	}
+
 	runtimeConfigRef := pkgv1.RuntimeConfigReference{}
 	if err := fieldpath.Pave(res.Unstructured.Object).GetValueInto("spec.runtimeConfigRef", &runtimeConfigRef); err == nil {
 		res.Children = append(res.Children, resource.GetResource(ctx, kc.client, &v1.ObjectReference{
@@ -161,6 +163,7 @@ func (kc *Client) setChildrenRevisions(ctx context.Context, res *resource.Resour
 	if kc.revisionOutput == RevisionOutputNone {
 		return nil
 	}
+
 	revisions, err := kc.getRevisions(ctx, res)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get revisions for package %s", res.Unstructured.GetName())
@@ -178,12 +181,14 @@ func (kc *Client) setChildrenRevisions(ctx context.Context, res *resource.Resour
 			}
 		}
 	}
+
 	return nil
 }
 
 // getRevisions gets the revisions for the given package.
 func (kc *Client) getRevisions(ctx context.Context, xpkg *resource.Resource) ([]*resource.Resource, error) {
 	revisions := &unstructured.UnstructuredList{}
+
 	switch gvk := xpkg.Unstructured.GroupVersionKind(); gvk.GroupKind() {
 	case pkgv1.ProviderGroupVersionKind.GroupKind():
 		revisions.SetGroupVersionKind(pkgv1.ProviderRevisionGroupVersionKind)
@@ -203,10 +208,12 @@ func (kc *Client) getRevisions(ctx context.Context, xpkg *resource.Resource) ([]
 	slices.SortFunc(revisions.Items, func(i, j unstructured.Unstructured) int {
 		return i.GetCreationTimestamp().Compare(j.GetCreationTimestamp().Time)
 	})
+
 	resources := make([]*resource.Resource, 0, len(revisions.Items))
 	for i := range revisions.Items {
 		resources = append(resources, &resource.Resource{Unstructured: revisions.Items[i]})
 	}
+
 	return resources, nil
 }
 
@@ -230,7 +237,9 @@ func (kc *Client) getDependencyRef(ctx context.Context, d pkgv1beta1.Dependency,
 	// - pkgrev C
 
 	rev := &unstructured.Unstructured{}
+
 	var pkgKind string
+
 	switch {
 	case d.APIVersion != nil && d.Kind != nil:
 		rev.SetAPIVersion(*d.APIVersion)
@@ -269,6 +278,7 @@ func (kc *Client) getDependencyRef(ctx context.Context, d pkgv1beta1.Dependency,
 				break
 			}
 		}
+
 		break
 	}
 
@@ -289,12 +299,14 @@ func (kc *Client) getPackageDeps(ctx context.Context, node *resource.Resource, l
 
 	// find the lock file entry for the current revision
 	var lp *pkgv1beta1.LockPackage
+
 	for i := range lock.Packages {
 		if lock.Packages[i].Name == cr {
 			lp = &lock.Packages[i]
 			break
 		}
 	}
+
 	if lp == nil {
 		// the current revision for this package isn't in the lock file yet,
 		// so just return empty deps
@@ -303,6 +315,7 @@ func (kc *Client) getPackageDeps(ctx context.Context, node *resource.Resource, l
 
 	// iterate over all dependencies of the package to get full references to them
 	depRefs := make([]v1.ObjectReference, 0)
+
 	for _, d := range lp.Dependencies {
 		if kc.dependencyOutput == DependencyOutputUnique {
 			if _, ok := uniqueDeps[d.Package]; ok {
@@ -315,10 +328,12 @@ func (kc *Client) getPackageDeps(ctx context.Context, node *resource.Resource, l
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get dependency ref %s", d.Package)
 		}
+
 		depRefs = append(depRefs, *dep)
 
 		// track this dependency in the unique dependency map
 		uniqueDeps[d.Package] = struct{}{}
 	}
+
 	return depRefs, nil
 }

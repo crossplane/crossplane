@@ -31,20 +31,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/conditions"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/feature"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
-	"github.com/crossplane/crossplane/internal/controller/pkg/revision"
-	"github.com/crossplane/crossplane/internal/features"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
+	"github.com/crossplane/crossplane/v2/internal/features"
 )
 
 const (
@@ -61,9 +61,10 @@ const (
 	errPreHook                = "pre establish runtime hook failed for package"
 	errPostHook               = "post establish runtime hook failed for package"
 
-	errNoRuntimeConfig   = "no deployment runtime config set"
-	errGetRuntimeConfig  = "cannot get referenced deployment runtime config"
-	errGetServiceAccount = "cannot get Crossplane service account"
+	errNoRuntimeConfig          = "no deployment runtime config set"
+	errGetRuntimeConfig         = "cannot get referenced deployment runtime config"
+	errUnknownKindRuntimeConfig = "runtime config is set but is an unknown apiVersion and kind"
+	errGetServiceAccount        = "cannot get Crossplane service account"
 )
 
 // Event reasons.
@@ -172,7 +173,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
-		WithRuntimeHooks(NewProviderHooks(mgr.GetClient(), o.DefaultRegistry)),
+		WithRuntimeHooks(NewProviderHooks(mgr.GetClient())),
 		WithFeatureFlags(o.Features),
 		WithDeploymentSelectorMigrator(NewDeletingDeploymentSelectorMigrator(mgr.GetClient(), log)),
 	}
@@ -206,7 +207,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
-		WithRuntimeHooks(NewFunctionHooks(mgr.GetClient(), o.DefaultRegistry)),
+		WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())),
 		WithFeatureFlags(o.Features),
 	}
 
@@ -250,6 +251,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetPackageRevision, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetPackageRevision)
 	}
+
 	status := r.conditions.For(pr)
 
 	log = log.WithValues(
@@ -281,6 +283,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				status.MarkConditions(v1.RuntimeUnhealthy().WithMessage("Waiting for signature verification to complete"))
 				return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update status with awaiting verification")
 			}
+
 			return reconcile.Result{}, nil
 		}
 	}
@@ -296,11 +299,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if err := r.client.Get(ctx, types.NamespacedName{Name: icr.Name}, ic); err != nil {
 				err = errors.Wrap(err, errGetPullConfig)
 				status.MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
+
 				_ = r.client.Status().Update(ctx, pr)
 				r.record.Event(pr, event.Warning(reasonImageConfig, err))
+
 				return reconcile.Result{}, err
 			}
+
 			pullSecretFromConfig = ic.Spec.Registry.Authentication.PullSecretRef.Name
+
 			break
 		}
 	}
@@ -311,13 +318,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errManifestBuilderOptions, "error", err)
 		err = errors.Wrap(err, errManifestBuilderOptions)
 		status.MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
+
 		_ = r.client.Status().Update(ctx, pr)
 		r.record.Event(pr, event.Warning(reasonSync, err))
+
 		return reconcile.Result{}, err
 	}
+
 	if pullSecretFromConfig != "" {
 		opts = append(opts, BuilderWithPullSecrets(pullSecretFromConfig))
 	}
+
 	builder := NewDeploymentRuntimeBuilder(pr, r.namespace, opts...)
 
 	// Deactivate revision if it is inactive.
@@ -325,8 +336,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.runtimeHook.Deactivate(ctx, pr, builder); err != nil {
 			err := errors.Wrap(err, "failed to run deactivation hook")
 			r.log.Info("Error", "error", err)
+
 			return reconcile.Result{}, err
 		}
+
 		return reconcile.Result{Requeue: false}, nil
 	}
 
@@ -334,8 +347,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := r.migrator.MigrateDeploymentSelector(ctx, pr, builder); err != nil {
 		err = errors.Wrap(err, "failed to run deployment selector migration")
 		status.MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
+
 		_ = r.client.Status().Update(ctx, pr)
 		r.record.Event(pr, event.Warning(reasonSync, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -344,10 +359,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errPreHook)
 		status.MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
+
 		_ = r.client.Status().Update(ctx, pr)
 		r.record.Event(pr, event.Warning(reasonSync, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -356,6 +374,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if pr.GetCondition(v1.TypeRevisionHealthy).Status != corev1.ConditionTrue {
 		log.Debug("Waiting for the package revision to be healthy before running post-establish hooks")
 		status.MarkConditions(v1.RuntimeUnhealthy().WithMessage("Package revision is not healthy yet"))
+
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
@@ -364,10 +383,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errPostHook)
 		status.MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
+
 		_ = r.client.Status().Update(ctx, pr)
 		r.record.Event(pr, event.Warning(reasonSync, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -378,6 +400,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	status.MarkConditions(v1.RuntimeHealthy())
+
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 }
 
@@ -390,10 +413,16 @@ func (r *Reconciler) builderOptions(ctx context.Context, pwr v1.PackageRevisionW
 			return nil, errors.New(errNoRuntimeConfig)
 		}
 
+		if rcRef.Kind != nil && rcRef.APIVersion != nil &&
+			(*rcRef.Kind != v1beta1.DeploymentRuntimeConfigKind && *rcRef.APIVersion != v1beta1.SchemeGroupVersion.String()) {
+			return nil, errors.New(errUnknownKindRuntimeConfig)
+		}
+
 		rc := &v1beta1.DeploymentRuntimeConfig{}
 		if err := r.client.Get(ctx, types.NamespacedName{Name: rcRef.Name}, rc); err != nil {
 			return nil, errors.Wrap(err, errGetRuntimeConfig)
 		}
+
 		opts = append(opts, BuilderWithRuntimeConfig(rc))
 	}
 
@@ -404,6 +433,7 @@ func (r *Reconciler) builderOptions(ctx context.Context, pwr v1.PackageRevisionW
 	if err := r.client.Get(ctx, types.NamespacedName{Namespace: r.namespace, Name: r.serviceAccount}, sa); err != nil {
 		return nil, errors.Wrap(err, errGetServiceAccount)
 	}
+
 	if len(sa.ImagePullSecrets) > 0 {
 		opts = append(opts, BuilderWithServiceAccountPullSecrets(sa.ImagePullSecrets))
 	}

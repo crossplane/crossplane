@@ -23,8 +23,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/spf13/afero"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
 func TestFindXpkgInDir(t *testing.T) {
@@ -105,7 +105,6 @@ func TestFindXpkgInDir(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			path, err := FindXpkgInDir(tc.args.fs, tc.args.root)
-
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nFindXpkgInDir(...): -want, +got:\n%s", tc.reason, diff)
 			}

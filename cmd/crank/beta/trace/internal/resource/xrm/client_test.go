@@ -25,12 +25,12 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/claim"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 
-	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
+	resource2 "github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/resource"
 )
 
 type xrcOpt func(c *claim.Unstructured)
@@ -51,9 +51,11 @@ func buildXRC(namespace string, name string, opts ...xrcOpt) *unstructured.Unstr
 	c := claim.New()
 	c.SetName(name)
 	c.SetNamespace(namespace)
+
 	for _, f := range opts {
 		f(c)
 	}
+
 	return &c.Unstructured
 }
 
@@ -68,9 +70,11 @@ func withXRRefs(refs ...v1.ObjectReference) xrOpt {
 func buildXR(name string, opts ...xrOpt) *unstructured.Unstructured {
 	c := composite.New()
 	c.SetName(name)
+
 	for _, f := range opts {
 		f(c)
 	}
+
 	return &c.Unstructured
 }
 
@@ -79,9 +83,11 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 		resource   *resource2.Resource
 		witSecrets bool
 	}
+
 	type want struct {
 		refs []v1.ObjectReference
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args

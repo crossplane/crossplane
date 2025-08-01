@@ -20,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 )
 
 /*
@@ -35,8 +35,8 @@ import (
 type CompositionMode string
 
 const (
-	// CompositionModePipeline indicates that a Composition specifies a pipeline
-	// of Composition Functions, each of which is responsible for producing
+	// CompositionModePipeline indicates that a Composition specifies a
+	// pipeline of functions, each of which is responsible for producing
 	// composed resources that Crossplane should create or update.
 	CompositionModePipeline CompositionMode = "Pipeline"
 )
@@ -55,38 +55,45 @@ func TypeReferenceTo(gvk schema.GroupVersionKind) TypeReference {
 	return TypeReference{APIVersion: gvk.GroupVersion().String(), Kind: gvk.Kind}
 }
 
-// A PipelineStep in a Composition Function pipeline.
+// A PipelineStep in a function pipeline.
 type PipelineStep struct {
 	// Step name. Must be unique within its Pipeline.
 	Step string `json:"step"`
 
-	// FunctionRef is a reference to the Composition Function this step should
+	// FunctionRef is a reference to the function this step should
 	// execute.
 	FunctionRef FunctionReference `json:"functionRef"`
 
 	// Input is an optional, arbitrary Kubernetes resource (i.e. a resource
-	// with an apiVersion and kind) that will be passed to the Composition
-	// Function as the 'input' of its RunFunctionRequest.
+	// with an apiVersion and kind) that will be passed to the function as
+	// the 'input' of its RunFunctionRequest.
 	// +optional
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:EmbeddedResource
 	Input *runtime.RawExtension `json:"input,omitempty"`
 
-	// Credentials are optional credentials that the Composition Function needs.
+	// Credentials are optional credentials that the function needs.
 	// +optional
 	// +listType=map
 	// +listMapKey=name
 	Credentials []FunctionCredentials `json:"credentials,omitempty"`
+
+	// Requirements are resource requirements that will be satisfied before
+	// this pipeline step is called for the first time. This allows
+	// pre-populating required resources without requiring a function to
+	// request them first.
+	// +optional
+	Requirements *FunctionRequirements `json:"requirements,omitempty"`
 }
 
-// A FunctionReference references a Composition Function that may be used in a
+// A FunctionReference references a function that may be used in a
 // Composition pipeline.
 type FunctionReference struct {
 	// Name of the referenced Function.
 	Name string `json:"name"`
 }
 
-// FunctionCredentials are optional credentials that a Composition Function
+// FunctionCredentials are optional credentials that a function
 // needs to run.
 //
 // +kubebuilder:validation:XValidation:rule="self.source == 'Secret' && has(self.secretRef)",message="the Secret source requires a secretRef"
@@ -104,7 +111,7 @@ type FunctionCredentials struct {
 	SecretRef *xpv1.SecretReference `json:"secretRef,omitempty"`
 }
 
-// A FunctionCredentialsSource is a source from which Composition Function
+// A FunctionCredentialsSource is a source from which function
 // credentials may be acquired.
 type FunctionCredentialsSource string
 
@@ -117,3 +124,42 @@ const (
 	// credentials from a secret.
 	FunctionCredentialsSourceSecret FunctionCredentialsSource = "Secret"
 )
+
+// FunctionRequirements define requirements that a function may need to
+// satisfy.
+type FunctionRequirements struct {
+	// RequiredResources is a list of resources that must be fetched before
+	// this function is called.
+	// +optional
+	// +listType=map
+	// +listMapKey=requirementName
+	RequiredResources []RequiredResourceSelector `json:"requiredResources,omitempty"`
+}
+
+// RequiredResourceSelector selects a required resource.
+//
+// +kubebuilder:validation:XValidation:rule="(has(self.name) && !has(self.matchLabels)) || (!has(self.name) && has(self.matchLabels))",message="Either name or matchLabels must be specified, but not both"
+type RequiredResourceSelector struct {
+	// RequirementName is the unique name to identify this required resource
+	// in the Required Resources map in the function request.
+	RequirementName string `json:"requirementName"`
+
+	// APIVersion of the required resource.
+	APIVersion string `json:"apiVersion"`
+
+	// Kind of the required resource.
+	Kind string `json:"kind"`
+
+	// Namespace of the required resource if it is namespaced.
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+
+	// Name of the required resource.
+	// +optional
+	Name *string `json:"name,omitempty"`
+
+	// MatchLabels specifies the set of labels to match for finding the
+	// required resource. When specified, Name is ignored.
+	// +optional
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+}

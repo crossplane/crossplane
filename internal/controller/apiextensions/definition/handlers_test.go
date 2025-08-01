@@ -15,12 +15,12 @@ import (
 	kevent "sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 )
 
 func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
@@ -30,6 +30,7 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 		reader client.Reader
 		event  kevent.CreateEvent
 	}
+
 	type want struct {
 		added []any
 	}
