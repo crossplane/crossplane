@@ -163,7 +163,7 @@ func TestRenderClusterRoles(t *testing.T) {
 			},
 		},
 		"SafeStart": {
-			reason: "A ProviderRevision with safe-start capability should add CRD permissions to view role.",
+			reason: "A ProviderRevision with safe-start capability should add CRD view permissions to system role.",
 			args: args{
 				pr: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{Name: prName, UID: prUID},
