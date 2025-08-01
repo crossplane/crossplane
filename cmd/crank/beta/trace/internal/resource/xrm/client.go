@@ -23,6 +23,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpunstructured "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
@@ -112,83 +113,66 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 		return nil
 	}
 
-	if xrcNamespace := obj.GetNamespace(); xrcNamespace != "" {
-		// This is an XRC, get the XR ref, we leave the connection secret
-		// handling to the XR
-		xrc := claim.Unstructured{Unstructured: obj}
-		if ref := xrc.GetResourceReference(); ref != nil {
-			refs = append(refs, v1.ObjectReference{
-				APIVersion: ref.APIVersion,
-				Kind:       ref.Kind,
-				Name:       ref.Name,
-			})
-		}
+	// treat it like a claim and look for a XR ref
+	cm := claim.Unstructured{Unstructured: obj}
+	if ref := cm.GetResourceReference(); ref != nil {
+		// it is in fact a claim, grab the ref to its XR
+		refs = append(refs, v1.ObjectReference{
+			APIVersion: ref.APIVersion,
+			Kind:       ref.Kind,
+			Name:       ref.Name,
+			Namespace:  ptr.Deref(ref.Namespace, ""),
+		})
 
 		if getConnectionSecrets {
-			xrcSecretRef := xrc.GetWriteConnectionSecretToReference()
-			if xrcSecretRef != nil {
+			// grab any connection secret from the claim if it has one
+			if cmSecretRef := cm.GetWriteConnectionSecretToReference(); cmSecretRef != nil {
 				ref := v1.ObjectReference{
 					APIVersion: "v1",
 					Kind:       "Secret",
-					Name:       xrcSecretRef.Name,
-					Namespace:  xrcNamespace,
+					Name:       cmSecretRef.Name,
+					Namespace:  cm.GetNamespace(),
 				}
 				refs = append(refs, ref)
 			}
-			if getConnectionSecrets {
-				xrcSecretRef := xrc.GetWriteConnectionSecretToReference()
-				if xrcSecretRef != nil {
-					ref := v1.ObjectReference{
-						APIVersion: "v1",
-						Kind:       "Secret",
-						Name:       xrcSecretRef.Name,
-						Namespace:  xrcNamespace,
-					}
-					refs = append(refs, ref)
-				}
-			}
-			return refs
 		}
 
+		// we're done, the only ref a claim would have is to its XR
 		return refs
 	}
-	// This could be an XR or an MR
-	xr := composite.Unstructured{Unstructured: obj}
 
-	xrRefs := xr.GetResourceReferences()
+	// treat it like a modern XR then grab all the references (this will no-op
+	// if it's not a modern XR). We don't try to get connection secrets here
+	// because modern XRs don't support them.
+	xr := composite.Unstructured{Schema: composite.SchemaModern, Unstructured: obj}
+	refs = append(refs, xr.GetResourceReferences()...)
 
+	// set namespace for xr that don't have one, only for modern XRs
 	if xr.Schema != composite.SchemaLegacy {
-		// Set namespace for references that don't have one
 		namespace := obj.GetNamespace()
-		for i := range xrRefs {
-			if xrRefs[i].Namespace == "" {
-				xrRefs[i].Namespace = namespace
+		for i := range refs {
+			if refs[i].Namespace == "" {
+				refs[i].Namespace = namespace
 			}
 		}
 	}
-	if len(xrRefs) == 0 {
-		// This is an MR
-		return refs
-	}
-	// This is an XR, get the Composed resources refs and the
-	// connection secret if required
-	refs = append(refs, xrRefs...)
 
-	if !getConnectionSecrets {
-		// We don't need the connection secret, so we can stop here
-		return refs
-	}
+	// treat it like a legacy XR then grab all the references (this will no-op
+	// if it's not a legacy XR), and any potential connection secret (only
+	// legacy XRs have connection secrets).
+	xr = composite.Unstructured{Schema: composite.SchemaLegacy, Unstructured: obj}
+	refs = append(refs, xr.GetResourceReferences()...)
 
-	xrSecretRef := xr.GetWriteConnectionSecretToReference()
-	if xrSecretRef != nil {
-		ref := v1.ObjectReference{
-			APIVersion: "v1",
-			Kind:       "Secret",
-			Name:       xrSecretRef.Name,
-			Namespace:  xrSecretRef.Namespace,
+	if getConnectionSecrets {
+		if xrSecretRef := xr.GetWriteConnectionSecretToReference(); xrSecretRef != nil {
+			ref := v1.ObjectReference{
+				APIVersion: "v1",
+				Kind:       "Secret",
+				Name:       xrSecretRef.Name,
+				Namespace:  xrSecretRef.Namespace,
+			}
+			refs = append(refs, ref)
 		}
-		refs = append(refs, ref)
 	}
-
 	return refs
 }
