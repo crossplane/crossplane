@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	coordinationv1 "k8s.io/api/coordination/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -162,7 +163,7 @@ func TestRenderClusterRoles(t *testing.T) {
 			},
 		},
 		"SafeStart": {
-			reason: "A ProviderRevision with safe-start capability should add CRD permissions to view role.",
+			reason: "A ProviderRevision with safe-start capability should add CRD view permissions to system role.",
 			args: args{
 				pr: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{Name: prName, UID: prUID},
@@ -212,11 +213,6 @@ func TestRenderClusterRoles(t *testing.T) {
 							Resources: []string{pluralA, pluralA + suffixStatus},
 							Verbs:     verbsView,
 						},
-						{
-							APIGroups: []string{"apiextensions.k8s.io"},
-							Resources: []string{"customresourcedefinitions"},
-							Verbs:     verbsView,
-						},
 					},
 				},
 				{
@@ -225,7 +221,7 @@ func TestRenderClusterRoles(t *testing.T) {
 						Labels:          map[string]string{keyProviderName: prName},
 						OwnerReferences: []metav1.OwnerReference{crCtrlr},
 					},
-					Rules: append([]rbacv1.PolicyRule{
+					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{groupA},
 							Resources: []string{pluralA, pluralA + suffixStatus},
@@ -236,7 +232,17 @@ func TestRenderClusterRoles(t *testing.T) {
 							Resources: []string{rbacv1.ResourceAll + suffixFinalizers},
 							Verbs:     verbsUpdate,
 						},
-					}, rulesSystemExtra...),
+						{
+							APIGroups: []string{"", coordinationv1.GroupName},
+							Resources: []string{pluralSecrets, pluralConfigmaps, pluralEvents, pluralLeases},
+							Verbs:     verbsEdit,
+						},
+						{
+							Verbs:     verbsView,
+							APIGroups: []string{"apiextensions.k8s.io"},
+							Resources: []string{"customresourcedefinitions"},
+						},
+					},
 				},
 			},
 		},
