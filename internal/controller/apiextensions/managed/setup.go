@@ -22,6 +22,7 @@ import (
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -45,7 +46,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.ManagedResourceDefinition{}).
-		Owns(&extv1.CustomResourceDefinition{}).
+		Owns(&extv1.CustomResourceDefinition{}, builder.MatchEveryOwner).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(errors.WithSilentRequeueOnConflict(r))
 }
