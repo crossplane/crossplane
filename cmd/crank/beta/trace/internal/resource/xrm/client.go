@@ -102,8 +102,6 @@ func (kc *Client) getResourceChildrenRefs(r *resource.Resource) []v1.ObjectRefer
 // Resource, assuming it's a Crossplane resource, XR or XRC.
 func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []v1.ObjectReference {
 	obj := r.Unstructured
-	// collect object references for the
-	var refs []v1.ObjectReference
 
 	switch obj.GroupVersionKind().GroupKind() {
 	case schema.GroupKind{Group: "", Kind: "Secret"},
@@ -112,6 +110,9 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 		// nothing to do here, it's a resource we know not to have any reference
 		return nil
 	}
+
+	// collect object references for the
+	var refs []v1.ObjectReference
 
 	// treat it like a claim and look for a XR ref
 	cm := claim.Unstructured{Unstructured: obj}
@@ -147,16 +148,6 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 	xr := composite.Unstructured{Schema: composite.SchemaModern, Unstructured: obj}
 	refs = append(refs, xr.GetResourceReferences()...)
 
-	// set namespace for xr that don't have one, only for modern XRs
-	if xr.Schema != composite.SchemaLegacy {
-		namespace := obj.GetNamespace()
-		for i := range refs {
-			if refs[i].Namespace == "" {
-				refs[i].Namespace = namespace
-			}
-		}
-	}
-
 	// treat it like a legacy XR then grab all the references (this will no-op
 	// if it's not a legacy XR), and any potential connection secret (only
 	// legacy XRs have connection secrets).
@@ -174,5 +165,17 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 			refs = append(refs, ref)
 		}
 	}
+
+	if ns := obj.GetNamespace(); ns != "" {
+		// the XR is namespaced, so it's references will not explicitly declare
+		// their namespaces (they are implicit). We need to infer it from the XR so
+		// we have a complete reference to return to the caller.
+		for i := range refs {
+			if refs[i].Namespace == "" {
+				refs[i].Namespace = ns
+			}
+		}
+	}
+
 	return refs
 }
