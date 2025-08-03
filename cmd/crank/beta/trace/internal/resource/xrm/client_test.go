@@ -30,7 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 
-	resource2 "github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/resource"
 )
 
 type xrcOpt func(c *claim.Unstructured)
@@ -67,8 +67,14 @@ func withXRRefs(refs ...v1.ObjectReference) xrOpt {
 	}
 }
 
-func buildXR(name string, opts ...xrOpt) *unstructured.Unstructured {
-	c := composite.New()
+func withNamespace(namespace string) xrOpt {
+	return func(c *composite.Unstructured) {
+		c.SetNamespace(namespace)
+	}
+}
+
+func buildXR(name string, schema composite.Schema, opts ...xrOpt) *unstructured.Unstructured {
+	c := composite.New(composite.WithSchema(schema))
 	c.SetName(name)
 
 	for _, f := range opts {
@@ -80,7 +86,7 @@ func buildXR(name string, opts ...xrOpt) *unstructured.Unstructured {
 
 func TestGetResourceChildrenRefs(t *testing.T) {
 	type args struct {
-		resource   *resource2.Resource
+		resource   *resource.Resource
 		witSecrets bool
 	}
 
@@ -93,10 +99,97 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"XRCWithChildrenXR": {
+		"XRWithChildrenNamespaced": {
+			reason: "Should return the list of children refs (with namespaces added) for a namespaced XR.",
+			args: args{
+				resource: &resource.Resource{
+					Unstructured: *buildXR("root-xr", composite.SchemaModern, withNamespace("cool-ns"), withXRRefs(v1.ObjectReference{
+						APIVersion: "v1",
+						Kind:       "Deployment",
+						Name:       "cool-deployment",
+					}, v1.ObjectReference{
+						APIVersion: "v1",
+						Kind:       "Secret",
+						Name:       "cool-secret",
+					}, v1.ObjectReference{
+						APIVersion: "example.com/v1",
+						Kind:       "CoolComposite",
+						Name:       "cool-xr",
+					},
+					)),
+				},
+			},
+			want: want{
+				refs: []v1.ObjectReference{
+					{
+						APIVersion: "v1",
+						Kind:       "Deployment",
+						Name:       "cool-deployment",
+						Namespace:  "cool-ns",
+					},
+					{
+						APIVersion: "v1",
+						Kind:       "Secret",
+						Name:       "cool-secret",
+						Namespace:  "cool-ns",
+					},
+					{
+						APIVersion: "example.com/v1",
+						Kind:       "CoolComposite",
+						Name:       "cool-xr",
+						Namespace:  "cool-ns",
+					},
+				},
+			},
+		},
+		"XRWithChildrenCluster": {
+			reason: "Should return the list of children refs for a cluster scoped XR, with namespaces where needed.",
+			args: args{
+				resource: &resource.Resource{
+					Unstructured: *buildXR("root-xr", composite.SchemaModern, withXRRefs(v1.ObjectReference{
+						APIVersion: "v1",
+						Kind:       "Deployment",
+						Name:       "cool-deployment",
+						Namespace:  "cool-ns",
+					}, v1.ObjectReference{
+						APIVersion: "v1",
+						Kind:       "Secret",
+						Name:       "cool-secret",
+						Namespace:  "cool-ns",
+					}, v1.ObjectReference{
+						APIVersion: "example.com/v1",
+						Kind:       "ClusterCoolComposite",
+						Name:       "cool-xr",
+					},
+					)),
+				},
+			},
+			want: want{
+				refs: []v1.ObjectReference{
+					{
+						APIVersion: "v1",
+						Kind:       "Deployment",
+						Name:       "cool-deployment",
+						Namespace:  "cool-ns",
+					},
+					{
+						APIVersion: "v1",
+						Kind:       "Secret",
+						Name:       "cool-secret",
+						Namespace:  "cool-ns",
+					},
+					{
+						APIVersion: "example.com/v1",
+						Kind:       "ClusterCoolComposite",
+						Name:       "cool-xr",
+					},
+				},
+			},
+		},
+		"LegacyXRCWithChildrenXR": {
 			reason: "Should return the XR child for an XRC.",
 			args: args{
-				resource: &resource2.Resource{
+				resource: &resource.Resource{
 					Unstructured: *buildXRC("ns-1", "xrc", withXRCRef(&reference.Composite{
 						APIVersion: "example.com/v1",
 						Kind:       "XR",
@@ -114,11 +207,11 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 				},
 			},
 		},
-		"XRWithChildren": {
+		"LegacyXRWithChildren": {
 			reason: "Should return the list of children refs for an XR.",
 			args: args{
-				resource: &resource2.Resource{
-					Unstructured: *buildXR("root-xr", withXRRefs(v1.ObjectReference{
+				resource: &resource.Resource{
+					Unstructured: *buildXR("root-xr", composite.SchemaLegacy, withXRRefs(v1.ObjectReference{
 						APIVersion: "example.com/v1",
 						Kind:       "MR",
 						Name:       "mr-1",
@@ -165,11 +258,11 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 				},
 			},
 		},
-		"XRCWithChildrenXRandConnectionSecretEnabled": {
+		"LegacyXRCWithChildrenXRandConnectionSecretEnabled": {
 			reason: "Should return the XR child, but no writeConnectionSecret ref for an XRC.",
 			args: args{
 				witSecrets: true,
-				resource: &resource2.Resource{
+				resource: &resource.Resource{
 					Unstructured: *buildXRC("ns-1", "xrc", withXRCSecretRef(&xpv1.LocalSecretReference{
 						Name: "secret-1",
 					}), withXRCRef(&reference.Composite{
@@ -195,11 +288,11 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 				},
 			},
 		},
-		"XRCWithChildrenXRandConnectionSecretDisabled": {
+		"LegacyXRCWithChildrenXRandConnectionSecretDisabled": {
 			reason: "Should return the XR child, but no writeConnectionSecret, ref for an XRC.",
 			args: args{
 				witSecrets: false,
-				resource: &resource2.Resource{
+				resource: &resource.Resource{
 					Unstructured: *buildXRC("ns-1", "xrc", withXRCSecretRef(&xpv1.LocalSecretReference{
 						Name: "secret-1",
 					}), withXRCRef(&reference.Composite{

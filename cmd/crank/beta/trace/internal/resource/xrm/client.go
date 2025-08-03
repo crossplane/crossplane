@@ -23,6 +23,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpunstructured "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
@@ -101,8 +102,6 @@ func (kc *Client) getResourceChildrenRefs(r *resource.Resource) []v1.ObjectRefer
 // Resource, assuming it's a Crossplane resource, XR or XRC.
 func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []v1.ObjectReference {
 	obj := r.Unstructured
-	// collect object references for the
-	var refs []v1.ObjectReference
 
 	switch obj.GroupVersionKind().GroupKind() {
 	case schema.GroupKind{Group: "", Kind: "Secret"},
@@ -112,59 +111,70 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 		return nil
 	}
 
-	if xrcNamespace := obj.GetNamespace(); xrcNamespace != "" {
-		// This is an XRC, get the XR ref, we leave the connection secret
-		// handling to the XR
-		xrc := claim.Unstructured{Unstructured: obj}
-		if ref := xrc.GetResourceReference(); ref != nil {
-			refs = append(refs, v1.ObjectReference{
-				APIVersion: ref.APIVersion,
-				Kind:       ref.Kind,
-				Name:       ref.Name,
-			})
-		}
+	// collect object references for the
+	var refs []v1.ObjectReference
+
+	// treat it like a claim and look for a XR ref
+	cm := claim.Unstructured{Unstructured: obj}
+	if ref := cm.GetResourceReference(); ref != nil {
+		// it is in fact a claim, grab the ref to its XR
+		refs = append(refs, v1.ObjectReference{
+			APIVersion: ref.APIVersion,
+			Kind:       ref.Kind,
+			Name:       ref.Name,
+			Namespace:  ptr.Deref(ref.Namespace, ""),
+		})
 
 		if getConnectionSecrets {
-			xrcSecretRef := xrc.GetWriteConnectionSecretToReference()
-			if xrcSecretRef != nil {
+			// grab any connection secret from the claim if it has one
+			if cmSecretRef := cm.GetWriteConnectionSecretToReference(); cmSecretRef != nil {
 				ref := v1.ObjectReference{
 					APIVersion: "v1",
 					Kind:       "Secret",
-					Name:       xrcSecretRef.Name,
-					Namespace:  xrcNamespace,
+					Name:       cmSecretRef.Name,
+					Namespace:  cm.GetNamespace(),
 				}
 				refs = append(refs, ref)
 			}
 		}
 
-		return refs
-	}
-	// This could be an XR or an MR
-	xr := composite.Unstructured{Unstructured: obj}
-
-	xrRefs := xr.GetResourceReferences()
-	if len(xrRefs) == 0 {
-		// This is an MR
-		return refs
-	}
-	// This is an XR, get the Composed resources refs and the
-	// connection secret if required
-	refs = append(refs, xrRefs...)
-
-	if !getConnectionSecrets {
-		// We don't need the connection secret, so we can stop here
+		// we're done, the only ref a claim would have is to its XR
 		return refs
 	}
 
-	xrSecretRef := xr.GetWriteConnectionSecretToReference()
-	if xrSecretRef != nil {
-		ref := v1.ObjectReference{
-			APIVersion: "v1",
-			Kind:       "Secret",
-			Name:       xrSecretRef.Name,
-			Namespace:  xrSecretRef.Namespace,
+	// treat it like a modern XR then grab all the references (this will no-op
+	// if it's not a modern XR). We don't try to get connection secrets here
+	// because modern XRs don't support them.
+	xr := composite.Unstructured{Schema: composite.SchemaModern, Unstructured: obj}
+	refs = append(refs, xr.GetResourceReferences()...)
+
+	// treat it like a legacy XR then grab all the references (this will no-op
+	// if it's not a legacy XR), and any potential connection secret (only
+	// legacy XRs have connection secrets).
+	xr = composite.Unstructured{Schema: composite.SchemaLegacy, Unstructured: obj}
+	refs = append(refs, xr.GetResourceReferences()...)
+
+	if getConnectionSecrets {
+		if xrSecretRef := xr.GetWriteConnectionSecretToReference(); xrSecretRef != nil {
+			ref := v1.ObjectReference{
+				APIVersion: "v1",
+				Kind:       "Secret",
+				Name:       xrSecretRef.Name,
+				Namespace:  xrSecretRef.Namespace,
+			}
+			refs = append(refs, ref)
 		}
-		refs = append(refs, ref)
+	}
+
+	if ns := obj.GetNamespace(); ns != "" {
+		// the XR is namespaced, so it's references will not explicitly declare
+		// their namespaces (they are implicit). We need to infer it from the XR so
+		// we have a complete reference to return to the caller.
+		for i := range refs {
+			if refs[i].Namespace == "" {
+				refs[i].Namespace = ns
+			}
+		}
 	}
 
 	return refs
