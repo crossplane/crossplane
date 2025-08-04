@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
@@ -542,7 +543,7 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 	o := []composite.ReconcilerOption{
 		composite.WithConnectionPublishers(composite.NewAPIFilteredSecretPublisher(r.engine.GetCached(), d.GetConnectionSecretKeys())),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
-			composite.NewEnforcedCompositionSelector(*d, r.record),
+			composite.NewEnforcedCompositionSelector(r.client, corev1.ObjectReference{Name: d.Name}, r.record),
 			composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record),
 			composite.NewAPILabelSelectorResolver(r.engine.GetCached()),
 		)),
