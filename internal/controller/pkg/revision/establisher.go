@@ -543,7 +543,28 @@ func (e *APIEstablisher) update(ctx context.Context, current, desired resource.O
 
 	desired.SetResourceVersion(current.GetResourceVersion())
 
+	// We need to attempt a merge here for known types.
+	if err := e.merge(ctx, current, desired); err != nil {
+		return err
+	}
+
+	// This should be a server side apply?
 	return e.client.Update(ctx, desired, opts...)
+}
+
+func (e *APIEstablisher) merge(_ context.Context, c, d resource.Object) error {
+	if current, ok := c.(*v1alpha1.ManagedResourceDefinition); ok {
+		desired, ok := d.(*v1alpha1.ManagedResourceDefinition)
+		if !ok {
+			return errors.Errorf("expected desired object to be *v1alpha1.ManagedResourceDefinition, got %T", d)
+		}
+		// Managed Resource Definitions' spec.state is controlled outside the APIEstablisher.
+		if !desired.Spec.State.IsActive() {
+			desired.Spec.State = current.Spec.State
+		}
+	}
+
+	return nil
 }
 
 // GetPackageOwnerReference returns the owner reference that points to the owner
