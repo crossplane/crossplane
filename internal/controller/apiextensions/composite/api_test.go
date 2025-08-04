@@ -864,8 +864,9 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 	}
 
 	type args struct {
-		def v1.CompositeResourceDefinition
-		cp  resource.Composite
+		kube client.Client
+		def  v1.CompositeResourceDefinition
+		cp   resource.Composite
 	}
 
 	type want struct {
@@ -881,6 +882,13 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		"NoEnforced": {
 			reason: "Should be no-op if no enforced composition ref is given in definition",
 			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						def := &v1.CompositeResourceDefinition{}
+						def.DeepCopyInto(obj.(*v1.CompositeResourceDefinition))
+						return nil
+					}),
+				},
 				def: v1.CompositeResourceDefinition{},
 				cp:  &fake.Composite{},
 			},
@@ -891,6 +899,15 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		"EnforcedAlreadySet": {
 			reason: "Should be no-op if enforced composition reference is already set",
 			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						def := &v1.CompositeResourceDefinition{
+							Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
+						}
+						def.DeepCopyInto(obj.(*v1.CompositeResourceDefinition))
+						return nil
+					}),
+				},
 				def: v1.CompositeResourceDefinition{
 					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
 				},
@@ -907,6 +924,15 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		"Success": {
 			reason: "Successfully set the default composition reference",
 			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						def := &v1.CompositeResourceDefinition{
+							Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
+						}
+						def.DeepCopyInto(obj.(*v1.CompositeResourceDefinition))
+						return nil
+					}),
+				},
 				def: v1.CompositeResourceDefinition{
 					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
 				},
@@ -921,6 +947,15 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		"SuccessOverride": {
 			reason: "Successfully set the default composition reference even if another one was set",
 			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						def := &v1.CompositeResourceDefinition{
+							Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
+						}
+						def.DeepCopyInto(obj.(*v1.CompositeResourceDefinition))
+						return nil
+					}),
+				},
 				def: v1.CompositeResourceDefinition{
 					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
 				},
@@ -937,8 +972,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewEnforcedCompositionSelector(tc.def, event.NewNopRecorder())
-
+			c := NewEnforcedCompositionSelector(tc.kube, corev1.ObjectReference{}, event.NewNopRecorder())
 			err := c.SelectComposition(context.Background(), tc.args.cp)
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
