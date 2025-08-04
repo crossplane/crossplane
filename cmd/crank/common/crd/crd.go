@@ -1,5 +1,5 @@
-// Package foundation is for functions and helpers shared between components that can be exported to things like crossplane-contrib.
-package foundation
+// Package crd provides functions and helpers shared between CLI utilities, available for import by external tools interacting with Crossplane.
+package crd
 
 import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -7,12 +7,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 	// xcrd is the reason this has to live in util and not downstream in contrib; the internal reference here.
 	// TODO:  can we expose it?  should we?
-	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 // ConvertToCRDs Helper function to convert XRDs/CRDs to CRDs.

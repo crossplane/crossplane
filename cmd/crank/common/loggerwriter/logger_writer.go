@@ -4,7 +4,7 @@ package loggerwriter
 import (
 	"strings"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 )
 
 // LoggerWriter is an io.Writer implementation that writes to a logger.

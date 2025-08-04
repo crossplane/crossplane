@@ -387,9 +387,9 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	xr.SetName(in.CompositeResource.GetName())
 
 	xrCond := xpv1.Available()
-	if d.GetComposite().Ready == fnv1.Ready_READY_FALSE {
+	if d.GetComposite().GetReady() == fnv1.Ready_READY_FALSE {
 		xrCond = xpv1.Creating()
-	} else if d.GetComposite().Ready == fnv1.Ready_READY_UNSPECIFIED && len(unready) > 0 {
+	} else if d.GetComposite().GetReady() == fnv1.Ready_READY_UNSPECIFIED && len(unready) > 0 {
 		xrCond = xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unready)))
 	}
 

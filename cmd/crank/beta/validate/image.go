@@ -34,7 +34,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
-	"github.com/crossplane/crossplane/v2/cmd/crank/foundation/load"
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/load"
 )
 
 const maxDecompressedSize = 200 * 1024 * 1024 // 200 MB

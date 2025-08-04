@@ -26,7 +26,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
-	"github.com/crossplane/crossplane/v2/cmd/crank/foundation/load"
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/load"
 )
 
 // Cache defines an interface for caching schemas.
