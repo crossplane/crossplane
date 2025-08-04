@@ -225,7 +225,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		// Pre-populate bootstrap requirements
 		if fn.Requirements != nil {
-			req.RequiredResources = map[string]*fnv1.Resources{}
+			req.ExtraResources = map[string]*fnv1.Resources{}
 			for _, sel := range fn.Requirements.RequiredResources {
 				resources, err := r.resources.Fetch(ctx, ToProtobufResourceSelector(sel))
 				if err != nil {
@@ -241,7 +241,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				}
 
 				// Add to request (resources could be nil if not found)
-				req.RequiredResources[sel.RequirementName] = resources
+				req.ExtraResources[sel.RequirementName] = resources
 			}
 		}
 

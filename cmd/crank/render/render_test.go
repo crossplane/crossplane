@@ -695,7 +695,7 @@ func TestRender(t *testing.T) {
 								case 0:
 									return &fnv1.RunFunctionResponse{
 										Requirements: &fnv1.Requirements{
-											Resources: map[string]*fnv1.ResourceSelector{
+											ExtraResources: map[string]*fnv1.ResourceSelector{
 												"extra-resource-by-name": {
 													ApiVersion: "test.crossplane.io/v1",
 													Kind:       "Foo",
@@ -707,17 +707,17 @@ func TestRender(t *testing.T) {
 										},
 									}, nil
 								case 1:
-									if len(request.GetRequiredResources()) == 0 {
+									if len(request.GetExtraResources()) == 0 {
 										t.Fatalf("expected extra resources to be passed to function on second call")
 									}
-									res := request.GetRequiredResources()["extra-resource-by-name"]
+									res := request.GetExtraResources()["extra-resource-by-name"]
 									if res == nil || len(res.GetItems()) == 0 {
 										t.Fatalf("expected extra resource to be passed to function on second call")
 									}
 									foo := (res.GetItems()[0].GetResource().AsMap()["spec"].(map[string]interface{}))["foo"].(string)
 									return &fnv1.RunFunctionResponse{
 										Requirements: &fnv1.Requirements{
-											Resources: map[string]*fnv1.ResourceSelector{
+											ExtraResources: map[string]*fnv1.ResourceSelector{
 												"extra-resource-by-name": {
 													ApiVersion: "test.crossplane.io/v1",
 													Kind:       "Foo",
