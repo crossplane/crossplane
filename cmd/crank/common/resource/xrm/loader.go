@@ -23,7 +23,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
 )
 
 // defaultChannelCapacity is the buffer size of the processing channel, should be a high value

@@ -33,6 +33,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/load"
 )
 
 const maxDecompressedSize = 200 * 1024 * 1024 // 200 MB
@@ -208,7 +210,7 @@ func extractPackageContent(layer conregv1.Layer) ([][]byte, []byte, error) {
 		return nil, nil, errors.Wrapf(err, "cannot get uncompressed layer")
 	}
 
-	objs, err := load(rc)
+	objs, err := load.YamlStream(rc)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "cannot read from layer")
 	}

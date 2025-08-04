@@ -1047,10 +1047,10 @@ func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path 
 	}
 }
 
-// ComposedResourcesHaveFieldValueWithin fails a test if the composed
+// ClaimComposedResourcesHaveFieldValueWithin fails a test if the composed
 // resources created by the claim does not have the supplied value at the
 // supplied path within the supplied duration.
-func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path string, want any, filter func(object k8s.Object) bool, options ...decoder.DecodeOption) features.Func { //nolint:gocognit // Not too much over.
+func ClaimComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path string, want any, filter func(object k8s.Object) bool, options ...decoder.DecodeOption) features.Func { //nolint:gocognit // Not too much over.
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
@@ -1158,6 +1158,82 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 
 		t.Logf("matching resources had desired value %q at field path %s", want, path)
 
+		return ctx
+	}
+}
+
+// ComposedResourcesHaveFieldValueWithin fails a test if the composed
+// resource created by the composition do not have the supplied value at the
+// supplied path within the supplied duration.
+func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path string, want any, filter func(object k8s.Object) bool, options ...decoder.DecodeOption) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		// Wait for the XR to be available.
+		ResourcesHaveConditionWithin(d, dir, file, xpv1.Available(), xpv1.ReconcileSuccess())(ctx, t, c)
+
+		uxr := &composite.Unstructured{} // modern schema
+		if err := decoder.DecodeFile(os.DirFS(dir), file, uxr, options...); err != nil {
+			t.Error(err)
+			return ctx
+		}
+
+		if err := c.Client().Resources().Get(ctx, uxr.GetName(), uxr.GetNamespace(), uxr); err != nil {
+			t.Errorf("cannot get composite %s: %v", uxr.GetName(), err)
+			return ctx
+		}
+
+		mrRefs := uxr.GetResourceReferences()
+
+		list := &unstructured.UnstructuredList{}
+		for _, ref := range mrRefs {
+			mr := &unstructured.Unstructured{}
+			mr.SetName(ref.Name)
+			mr.SetNamespace(ref.Namespace)
+			mr.SetGroupVersionKind(ref.GroupVersionKind())
+			list.Items = append(list.Items, *mr)
+		}
+
+		count := atomic.Int32{}
+		match := func(o k8s.Object) bool {
+			// filter function should return true if the object needs to be checked. e.g., if you want to check the field
+			// path of a VPC object, filter function should return true for VPC objects only.
+			if filter != nil && !filter(o) {
+				t.Logf("skipping resource %s/%s/%s due to filtering", o.GetNamespace(), o.GetName(), o.GetObjectKind().GroupVersionKind().String())
+				return true
+			}
+			count.Add(1)
+			u := asUnstructured(o)
+			got, err := fieldpath.Pave(u.Object).GetValue(path)
+			if fieldpath.IsNotFound(err) {
+				if _, ok := want.(notFound); ok {
+					return true
+				}
+			}
+			if err != nil {
+				return false
+			}
+
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Logf("%s doesn't yet have desired value at field path %s: %s", identifier(u), path, diff)
+				return false
+			}
+			return true
+		}
+
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+			y, _ := yaml.Marshal(list.Items)
+			t.Errorf("resources did not have desired value %q at field path %q before timeout (%s): %s\n\n%s\n\n", want, path, d.String(), err, y)
+
+			return ctx
+		}
+
+		if count.Load() == 0 {
+			t.Errorf("there were no unfiltered referred managed resources to check")
+			return ctx
+		}
+
+		t.Logf("matching resources had desired value %q at field path %s", want, path)
 		return ctx
 	}
 }

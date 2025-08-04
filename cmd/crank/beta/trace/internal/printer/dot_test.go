@@ -8,7 +8,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	"github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
 )
 
 // Define a test for PrintDotGraph.

@@ -181,6 +181,79 @@ func TestRender(t *testing.T) {
 				},
 			},
 			want: want{
+				out: Outputs{
+					Requirements: map[string]fnv1.Requirements{},
+				},
+				err: cmpopts.AnyError,
+			},
+		},
+		"FatalResultWithRequirements": {
+			args: args{
+				ctx: context.Background(),
+				in: Inputs{
+					CompositeResource: ucomposite.New(),
+					Composition: &apiextensionsv1.Composition{
+						Spec: apiextensionsv1.CompositionSpec{
+							Mode: apiextensionsv1.CompositionModePipeline,
+							Pipeline: []apiextensionsv1.PipelineStep{
+								{
+									Step:        "test",
+									FunctionRef: apiextensionsv1.FunctionReference{Name: "function-test"},
+								},
+							},
+						},
+					},
+					Functions: []pkgv1.Function{
+						func() pkgv1.Function {
+							lis := NewFunction(t, &fnv1.RunFunctionResponse{
+								Results: []*fnv1.Result{
+									{
+										Severity: fnv1.Severity_SEVERITY_FATAL,
+									},
+								},
+								Requirements: &fnv1.Requirements{
+									Resources: map[string]*fnv1.ResourceSelector{
+										"required-resource": {
+											ApiVersion: "test.crossplane.io/v1",
+											Kind:       "Foo",
+											Match: &fnv1.ResourceSelector_MatchName{
+												MatchName: "required-resource",
+											},
+										},
+									},
+								},
+							})
+							listeners = append(listeners, lis)
+
+							return pkgv1.Function{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "function-test",
+									Annotations: map[string]string{
+										AnnotationKeyRuntime:                  string(AnnotationValueRuntimeDevelopment),
+										AnnotationKeyRuntimeDevelopmentTarget: lis.Addr().String(),
+									},
+								},
+							}
+						}(),
+					},
+				},
+			},
+			want: want{
+				out: Outputs{
+					Requirements: map[string]fnv1.Requirements{
+						"test": {
+							Resources: map[string]*fnv1.ResourceSelector{
+								"required-resource": {
+									ApiVersion: "test.crossplane.io/v1",
+									Kind:       "Foo",
+									Match: &fnv1.ResourceSelector_MatchName{
+										MatchName: "required-resource",
+									},
+								},
+							},
+						},
+					},
+				},
 				err: cmpopts.AnyError,
 			},
 		},
@@ -256,6 +329,17 @@ func TestRender(t *testing.T) {
 										Reason:  "Provisioned",
 										Message: ptr.To("Provisioned successfully"),
 										Target:  fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
+									},
+								},
+								Requirements: &fnv1.Requirements{
+									Resources: map[string]*fnv1.ResourceSelector{
+										"example-resource": {
+											ApiVersion: "test.crossplane.io/v1",
+											Kind:       "Foo",
+											Match: &fnv1.ResourceSelector_MatchName{
+												MatchName: "example-resource",
+											},
+										},
 									},
 								},
 							})
@@ -367,6 +451,19 @@ func TestRender(t *testing.T) {
 							},
 						},
 					},
+					Requirements: map[string]fnv1.Requirements{
+						"test": {
+							Resources: map[string]*fnv1.ResourceSelector{
+								"example-resource": {
+									ApiVersion: "test.crossplane.io/v1",
+									Kind:       "Foo",
+									Match: &fnv1.ResourceSelector_MatchName{
+										MatchName: "example-resource",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -434,6 +531,17 @@ func TestRender(t *testing.T) {
 												}
 											}`),
 											Ready: fnv1.Ready_READY_TRUE,
+										},
+									},
+								},
+								Requirements: &fnv1.Requirements{
+									Resources: map[string]*fnv1.ResourceSelector{
+										"ready-resource": {
+											ApiVersion: "test.crossplane.io/v1",
+											Kind:       "Bar",
+											Match: &fnv1.ResourceSelector_MatchName{
+												MatchName: "ready-resource",
+											},
 										},
 									},
 								},
@@ -533,6 +641,19 @@ func TestRender(t *testing.T) {
 										"widgets": 9003
 									}
 								}`),
+							},
+						},
+					},
+					Requirements: map[string]fnv1.Requirements{
+						"test": {
+							Resources: map[string]*fnv1.ResourceSelector{
+								"ready-resource": {
+									ApiVersion: "test.crossplane.io/v1",
+									Kind:       "Bar",
+									Match: &fnv1.ResourceSelector_MatchName{
+										MatchName: "ready-resource",
+									},
+								},
 							},
 						},
 					},
@@ -751,6 +872,19 @@ func TestRender(t *testing.T) {
 										"widgets": 9003
 									}
 								}`),
+							},
+						},
+					},
+					Requirements: map[string]fnv1.Requirements{
+						"test": {
+							Resources: map[string]*fnv1.ResourceSelector{
+								"extra-resource-by-name": {
+									ApiVersion: "test.crossplane.io/v1",
+									Kind:       "Foo",
+									Match: &fnv1.ResourceSelector_MatchName{
+										MatchName: "extra-resource",
+									},
+								},
 							},
 						},
 					},
@@ -1417,7 +1551,7 @@ func TestRender(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			out, err := Render(tc.args.ctx, logging.NewNopLogger(), tc.args.in)
 
-			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(fnv1.Requirements{}, fnv1.ResourceSelector{})); diff != "" {
 				t.Errorf("%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
 			}
 

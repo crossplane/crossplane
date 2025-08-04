@@ -25,6 +25,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/load"
 )
 
 // Cache defines an interface for caching schemas.
@@ -91,7 +93,7 @@ func (c *LocalCache) Flush() error {
 func (c *LocalCache) Load(image string) ([]*unstructured.Unstructured, error) {
 	cacheImagePath := c.getCachePath(image)
 
-	loader, err := NewLoader(cacheImagePath)
+	loader, err := load.NewLoader(cacheImagePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot create loader from %s", cacheImagePath)
 	}
