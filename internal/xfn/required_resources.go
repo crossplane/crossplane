@@ -90,17 +90,17 @@ func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, r
 		requirements = newRequirements
 
 		// Clean up the required resources from the previous iteration to store the new ones
-		req.RequiredResources = make(map[string]*fnv1.Resources)
+		req.ExtraResources = make(map[string]*fnv1.Resources)
 
 		// Fetch the requested resources and add them to the desired state.
-		for name, selector := range newRequirements.GetResources() {
+		for name, selector := range newRequirements.GetExtraResources() {
 			resources, err := c.resources.Fetch(ctx, selector)
 			if err != nil {
 				return nil, errors.Wrapf(err, "fetching resources for %s", name)
 			}
 
 			// Resources would be nil in case of not found resources.
-			req.RequiredResources[name] = resources
+			req.ExtraResources[name] = resources
 		}
 
 		// Pass down the updated context across iterations.

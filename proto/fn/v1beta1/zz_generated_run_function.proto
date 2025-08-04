@@ -75,7 +75,7 @@ message RunFunctionRequest {
   // function requested required resources that did not exist, Crossplane sets
   // the map key to an empty Resources message to indicate that it attempted to
   // satisfy the request.
-  map<string, Resources> required_resources = 6;
+  map<string, Resources> extra_resources = 6;
 
   // Optional credentials that this function may use to communicate with an
   // external system.
@@ -152,7 +152,7 @@ message RequestMeta {
 message Requirements {
   // Resources that this function requires. The map key uniquely identifies the
   // group of resources.
-  map<string, ResourceSelector> resources = 1;
+  map<string, ResourceSelector> extra_resources = 1;
 }
 
 // ResourceSelector selects a group of resources, either by name or by label.
