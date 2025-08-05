@@ -27,12 +27,9 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -103,17 +100,6 @@ const (
 	// resources.
 	FieldOwnerComposedPrefix = "apiextensions.crossplane.io/composed"
 )
-
-// rbacGroupKind is a map of the RBAC resources. Needed since name validation
-// is different from other k8s resources.
-//
-//nolint:gochecknoglobals // Ack, this is global.
-var rbacGroupKind = map[schema.GroupKind]bool{
-	{Group: rbacv1.GroupName, Kind: "Role"}:               true,
-	{Group: rbacv1.GroupName, Kind: "ClusterRole"}:        true,
-	{Group: rbacv1.GroupName, Kind: "RoleBinding"}:        true,
-	{Group: rbacv1.GroupName, Kind: "ClusterRoleBinding"}: true,
-}
 
 // A FunctionComposer supports composing resources using a pipeline of
 // Composition Functions. It ignores the P&T resources array.
@@ -496,7 +482,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		}
 
 		// Validate name.
-		if !validateNameChars(cd.GetName(), cd.GetObjectKind().GroupVersionKind().GroupKind()) {
+		if ok, _ := names.ValidateName(cd.GetName(), cd.GetObjectKind().GroupVersionKind().GroupKind()); !ok {
 			return CompositionResult{}, errors.Errorf(errFmtInvalidName, name, cd.GetName())
 		}
 
@@ -1004,27 +990,4 @@ func convertTarget(t fnv1.Target) CompositionTarget {
 	}
 
 	return CompositionTargetComposite
-}
-
-// validateNameChars returns false if the passed name is not a valid
-// resource name; true otherwise. For almost all resources, the following
-// characters are allowed:
-//
-//	Most resource types require a name that can be used as a DNS label name
-//	as defined in RFC 1123. This means the name must:
-//
-//	* contain no more than 253 characters
-//	* contain only lowercase alphanumeric characters, '-'
-//	* start with an alphanumeric character
-//	* end with an alphanumeric character
-//
-// For RBAC resources we also allow the colon character.
-//
-// Forked from https://github.com/seans3/cli-utils/blob/9d0ec2cd7107b62f3dc263887b40fe0b7c44d813/pkg/object/objmetadata.go
-func validateNameChars(name string, gk schema.GroupKind) bool {
-	if _, exists := rbacGroupKind[gk]; exists {
-		name = strings.ReplaceAll(name, ":", "")
-	}
-	errs := validation.IsDNS1123Subdomain(name)
-	return len(errs) == 0
 }
