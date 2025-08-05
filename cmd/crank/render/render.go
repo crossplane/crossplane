@@ -72,6 +72,7 @@ type Inputs struct {
 	Functions           []pkgv1.Function
 	FunctionCredentials []corev1.Secret
 	ObservedResources   []composed.Unstructured
+	ExtraResources      []unstructured.Unstructured
 	RequiredResources   []unstructured.Unstructured
 	Context             map[string][]byte
 
@@ -202,7 +203,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 	}()
 
-	runner := xfn.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{extra: in.RequiredResources})
+	runner := xfn.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{resources: append(in.ExtraResources, in.RequiredResources...)})
 
 	observed := composite.ComposedResourceStates{}
 
@@ -451,19 +452,19 @@ func SetComposedResourceMetadata(cd resource.Object, xr resource.LegacyComposite
 // FilteringFetcher is a RequiredResourcesFetcher that "fetches" any supplied
 // resource that matches a resource selector.
 type FilteringFetcher struct {
-	extra []unstructured.Unstructured
+	resources []unstructured.Unstructured
 }
 
-// Fetch returns all of the underlying extra resources that match the supplied
+// Fetch returns all of the underlying resources that match the supplied
 // resource selector.
 func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
-	if len(f.extra) == 0 || rs == nil {
+	if len(f.resources) == 0 || rs == nil {
 		return nil, nil
 	}
 
 	out := &fnv1.Resources{}
 
-	for _, er := range f.extra {
+	for _, er := range f.resources {
 		if rs.GetApiVersion() != er.GetAPIVersion() {
 			continue
 		}
@@ -475,7 +476,7 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 		if rs.GetMatchName() == er.GetName() {
 			o, err := xfn.AsStruct(&er)
 			if err != nil {
-				return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())
+				return nil, errors.Wrapf(err, "cannot marshal resource %q", er.GetName())
 			}
 
 			out.Items = []*fnv1.Resource{{Resource: o}}
@@ -487,7 +488,7 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 			if labels.SelectorFromSet(rs.GetMatchLabels().GetLabels()).Matches(labels.Set(er.GetLabels())) {
 				o, err := xfn.AsStruct(&er)
 				if err != nil {
-					return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())
+					return nil, errors.Wrapf(err, "cannot marshal resource %q", er.GetName())
 				}
 
 				out.Items = append(out.GetItems(), &fnv1.Resource{Resource: o})

@@ -334,13 +334,15 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 		// Pre-populate bootstrap requirements
 		if fn.Requirements != nil {
-			req.ExtraResources = map[string]*fnv1.Resources{}
+			// Bootstrap requirements were introduced alongside the new field names,
+			// so we only need to support the new required_resources field.
+			req.RequiredResources = map[string]*fnv1.Resources{}
 			for _, sel := range fn.Requirements.RequiredResources {
 				resources, err := c.resources.Fetch(ctx, ToProtobufResourceSelector(sel))
 				if err != nil {
 					return CompositionResult{}, errors.Wrapf(err, errFmtFetchBootstrapRequirements, sel.RequirementName)
 				}
-				req.ExtraResources[sel.RequirementName] = resources
+				req.RequiredResources[sel.RequirementName] = resources
 			}
 		}
 

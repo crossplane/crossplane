@@ -71,15 +71,27 @@ message RunFunctionRequest {
 
   // Optional resources that the function specified in its requirements. Note
   // that resources is a map to Resources, plural. The map key corresponds to
-  // the key in a RunFunctionResponse's requirements.resources field. If a
-  // function requested required resources that did not exist, Crossplane sets
+  // the key in a RunFunctionResponse's requirements.extra_resources field. If a
+  // function requested extra resources that did not exist, Crossplane sets
   // the map key to an empty Resources message to indicate that it attempted to
-  // satisfy the request.
-  map<string, Resources> extra_resources = 6;
+  // satisfy the request. This field is only populated when the function uses
+  // extra_resources in its requirements.
+  //
+  // Deprecated: Use required_resources instead.
+  map<string, Resources> extra_resources = 6 [deprecated = true];
 
   // Optional credentials that this function may use to communicate with an
   // external system.
   map<string, Credentials> credentials = 7;
+
+  // Optional resources that the function specified in its requirements. Note
+  // that resources is a map to Resources, plural. The map key corresponds to
+  // the key in a RunFunctionResponse's requirements.resources field. If a
+  // function requested required resources that did not exist, Crossplane sets
+  // the map key to an empty Resources message to indicate that it attempted to
+  // satisfy the request. This field is only populated when the function uses
+  // resources in its requirements.
+  map<string, Resources> required_resources = 8;
 }
 
 // Credentials that a function may use to communicate with an external system.
@@ -152,7 +164,13 @@ message RequestMeta {
 message Requirements {
   // Resources that this function requires. The map key uniquely identifies the
   // group of resources.
-  map<string, ResourceSelector> extra_resources = 1;
+  //
+  // Deprecated: Use resources instead.
+  map<string, ResourceSelector> extra_resources = 1 [deprecated = true];
+
+  // Resources that this function requires. The map key uniquely identifies the
+  // group of resources.
+  map<string, ResourceSelector> resources = 2;
 }
 
 // ResourceSelector selects a group of resources, either by name or by label.
