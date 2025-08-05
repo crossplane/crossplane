@@ -707,10 +707,10 @@ func TestRender(t *testing.T) {
 										},
 									}, nil
 								case 1:
-									if len(request.GetExtraResources()) == 0 {
+									if len(request.GetExtraResources()) == 0 { //nolint:staticcheck // Testing deprecated field for backward compatibility
 										t.Fatalf("expected extra resources to be passed to function on second call")
 									}
-									res := request.GetExtraResources()["extra-resource-by-name"]
+									res := request.GetExtraResources()["extra-resource-by-name"] //nolint:staticcheck // Testing deprecated field for backward compatibility
 									if res == nil || len(res.GetItems()) == 0 {
 										t.Fatalf("expected extra resource to be passed to function on second call")
 									}
@@ -877,7 +877,7 @@ func TestRender(t *testing.T) {
 					},
 					Requirements: map[string]fnv1.Requirements{
 						"test": {
-							Resources: map[string]*fnv1.ResourceSelector{
+							ExtraResources: map[string]*fnv1.ResourceSelector{
 								"extra-resource-by-name": {
 									ApiVersion: "test.crossplane.io/v1",
 									Kind:       "Foo",
@@ -1847,7 +1847,7 @@ func TestFilterResources(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			f := &FilteringFetcher{extra: tc.params.ers}
+			f := &FilteringFetcher{resources: tc.params.ers}
 
 			out, err := f.Fetch(tc.args.ctx, tc.args.selector)
 			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(fnv1.Resources{}, fnv1.Resource{}, structpb.Struct{}, structpb.Value{})); diff != "" {

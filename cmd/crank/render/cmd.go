@@ -50,7 +50,8 @@ type Cmd struct {
 	IncludeFunctionResults bool              `help:"Include informational and warning messages from Functions in the rendered output as resources of kind: Result."                            short:"r"`
 	IncludeFullXR          bool              `help:"Include a direct copy of the input XR's spec and metadata fields in the rendered output."                                                  short:"x"`
 	ObservedResources      string            `help:"A YAML file or directory of YAML files specifying the observed state of composed resources."                                               placeholder:"PATH"                                                                                            predictor:"yaml_file_or_directory" short:"o"                          type:"path"`
-	RequiredResources      string            `aliases:"extra-resources"                                                                                                                        help:"A YAML file or directory of YAML files specifying required resources to pass to the Function pipeline." placeholder:"PATH"                 predictor:"yaml_file_or_directory" short:"e"   type:"path"`
+	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying required resources (deprecated, use --required-resources)." placeholder:"PATH" predictor:"yaml_file_or_directory" type:"path"`
+	RequiredResources      string            `help:"A YAML file or directory of YAML files specifying required resources to pass to the Function pipeline."     placeholder:"PATH" predictor:"yaml_file_or_directory" short:"e"   type:"path"`
 	IncludeContext         bool              `help:"Include the context in the rendered output as a resource of kind: Context."                                                                short:"c"`
 	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                      placeholder:"PATH"                                                                                            predictor:"yaml_file_or_directory" type:"path"`
 
@@ -116,6 +117,10 @@ Examples:
   # Pass required resources Functions in the pipeline can request.
   crossplane render xr.yaml composition.yaml functions.yaml \
 	--required-resources=required-resources.yaml
+
+  # Pass extra resources (deprecated, same as --required-resources).
+  crossplane render xr.yaml composition.yaml functions.yaml \
+	--extra-resources=extra-resources.yaml
 
   # Pass credentials to Functions in the pipeline that need them.
   crossplane render xr.yaml composition.yaml functions.yaml \
@@ -211,8 +216,16 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	}
 
 	ers := []unstructured.Unstructured{}
+	if c.ExtraResources != "" {
+		ers, err = LoadRequiredResources(c.fs, c.ExtraResources)
+		if err != nil {
+			return errors.Wrapf(err, "cannot load extra resources from %q", c.ExtraResources)
+		}
+	}
+
+	rrs := []unstructured.Unstructured{}
 	if c.RequiredResources != "" {
-		ers, err = LoadRequiredResources(c.fs, c.RequiredResources)
+		rrs, err = LoadRequiredResources(c.fs, c.RequiredResources)
 		if err != nil {
 			return errors.Wrapf(err, "cannot load required resources from %q", c.RequiredResources)
 		}
@@ -242,7 +255,8 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		Functions:           fns,
 		FunctionCredentials: fcreds,
 		ObservedResources:   ors,
-		RequiredResources:   ers,
+		ExtraResources:      ers,
+		RequiredResources:   rrs,
 		Context:             fctx,
 	})
 	if err != nil {
