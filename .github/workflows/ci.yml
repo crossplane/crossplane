@@ -308,15 +308,20 @@ jobs:
           # Extract the major and minor parts of the version
           MAJOR=$(echo "$VERSION" | cut -d. -f1)
           MINOR=$(echo "$VERSION" | cut -d. -f2)
-          # Decrement the MINOR version
-          if [[ "$MINOR" -gt 0 ]]; then
-            MINOR=$((MINOR - 1))
-          else
-            echo "Error: Minor version cannot be decremented below 0"
-            exit 1
-          fi
 
-          echo "CROSSPLANE_PRIOR_VERSION=$MAJOR.$MINOR" >> $GITHUB_ENV
+          # handle 2.0 with a hard coded prior version of 1.20
+          if [[ "$MAJOR" -eq 2 && "$MINOR" -eq 0 ]]; then
+            echo "CROSSPLANE_PRIOR_VERSION=1.20" >> $GITHUB_ENV
+          else
+            # Decrement the MINOR version for other releases
+            if [[ "$MINOR" -gt 0 ]]; then
+              MINOR=$((MINOR - 1))
+              echo "CROSSPLANE_PRIOR_VERSION=$MAJOR.$MINOR" >> $GITHUB_ENV
+            else
+              echo "Error: Minor version cannot be decremented below 0"
+              exit 1
+            fi
+          fi
 
       - name: Run E2E Tests
         uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
