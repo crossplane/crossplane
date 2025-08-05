@@ -327,32 +327,34 @@ func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 }
 
 // NewEnforcedCompositionSelector returns a EnforcedCompositionSelector.
-func NewEnforcedCompositionSelector(def v1.CompositeResourceDefinition, r event.Recorder) *EnforcedCompositionSelector {
-	return &EnforcedCompositionSelector{def: def, recorder: r}
+func NewEnforcedCompositionSelector(c client.Client, defRef corev1.ObjectReference, r event.Recorder) *EnforcedCompositionSelector {
+	return &EnforcedCompositionSelector{client: c, defRef: defRef, recorder: r}
 }
 
 // EnforcedCompositionSelector , if it's given, selects the enforced composition
 // on the definition for all composite instances.
 type EnforcedCompositionSelector struct {
-	def      v1.CompositeResourceDefinition
+	client   client.Client
+	defRef   corev1.ObjectReference
 	recorder event.Recorder
 }
 
 // SelectComposition selects the enforced composition if it's given in definition.
-func (s *EnforcedCompositionSelector) SelectComposition(_ context.Context, cp resource.Composite) error {
-	// We don't need to fetch the CompositeResourceDefinition at every reconcile
-	// because enforced composition ref is immutable as opposed to default
-	// composition ref.
-	if s.def.Spec.EnforcedCompositionRef == nil {
+func (s *EnforcedCompositionSelector) SelectComposition(ctx context.Context, cp resource.Composite) error {
+	def := &v1.CompositeResourceDefinition{}
+	if err := s.client.Get(ctx, meta.NamespacedNameOf(&s.defRef), def); err != nil {
+		return errors.Wrap(err, errGetXRD)
+	}
+	if def.Spec.EnforcedCompositionRef == nil {
 		return nil
 	}
 	// If the composition is already chosen, we don't need to check for compatibility
 	// as its target type reference is immutable.
-	if cp.GetCompositionReference() != nil && cp.GetCompositionReference().Name == s.def.Spec.EnforcedCompositionRef.Name {
+	if cp.GetCompositionReference() != nil && cp.GetCompositionReference().Name == def.Spec.EnforcedCompositionRef.Name {
 		return nil
 	}
+	cp.SetCompositionReference(&corev1.ObjectReference{Name: def.Spec.EnforcedCompositionRef.Name})
 
-	cp.SetCompositionReference(&corev1.ObjectReference{Name: s.def.Spec.EnforcedCompositionRef.Name})
 	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Enforced composition has been selected"))
 
 	return nil
