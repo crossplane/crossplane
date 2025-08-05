@@ -30,7 +30,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -482,9 +481,8 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			}
 		}
 
-		// Validate the name can be used as a kubernetes resource name by checking if the name
-		// is valid RFC 1123 subdomain.
-		if errs := validation.IsDNS1123Subdomain(cd.GetName()); len(errs) > 0 {
+		// Validate name.
+		if ok, _ := names.ValidateName(cd.GetName(), cd.GetObjectKind().GroupVersionKind().GroupKind()); !ok {
 			return CompositionResult{}, errors.Errorf(errFmtInvalidName, name, cd.GetName())
 		}
 
