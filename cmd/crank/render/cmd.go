@@ -109,7 +109,7 @@ Examples:
   # Simulate creating a new XR.
   crossplane render xr.yaml composition.yaml functions.yaml
 
-  # Simuilate creating a new Claim. The xrd establishes the relationship of
+  # Simulate creating a new Claim. The xrd establishes the relationship of
   the claim to the composition.
   crossplane render xr.yaml composition.yaml functions.yaml --xrd=xrd.yaml
 
