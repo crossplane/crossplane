@@ -23,6 +23,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
+	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
 	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
 
@@ -76,14 +77,9 @@ func (c *RevisionCapabilityChecker) CheckCapabilities(ctx context.Context, caps 
 			continue
 		}
 
-		has := map[string]bool{}
-		for _, cap := range rev.GetCapabilities() {
-			has[cap] = true
-		}
-
 		missing := make([]string, 0)
 		for _, cap := range caps {
-			if !has[cap] {
+			if !pkgmetav1.CapabilitiesContainFuzzyMatch(rev.GetCapabilities(), cap) {
 				missing = append(missing, cap)
 			}
 		}
