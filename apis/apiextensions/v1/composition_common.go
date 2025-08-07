@@ -163,3 +163,33 @@ type RequiredResourceSelector struct {
 	// +optional
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
 }
+
+// GetRequirementName returns the requirement name.
+func (r *RequiredResourceSelector) GetRequirementName() string {
+	return r.RequirementName
+}
+
+// GetAPIVersion returns the API version.
+func (r *RequiredResourceSelector) GetAPIVersion() string {
+	return r.APIVersion
+}
+
+// GetKind returns the kind.
+func (r *RequiredResourceSelector) GetKind() string {
+	return r.Kind
+}
+
+// GetName returns the name.
+func (r *RequiredResourceSelector) GetName() *string {
+	return r.Name
+}
+
+// GetMatchLabels returns the match labels.
+func (r *RequiredResourceSelector) GetMatchLabels() map[string]string {
+	return r.MatchLabels
+}
+
+// GetNamespace returns the namespace.
+func (r *RequiredResourceSelector) GetNamespace() *string {
+	return r.Namespace
+}
