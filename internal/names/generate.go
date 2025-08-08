@@ -19,8 +19,6 @@ package names
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -93,11 +91,7 @@ func (r *nameGenerator) GenerateName(ctx context.Context, cd resource.Object) er
 	if cName != "" {
 		owner := metav1.GetControllerOf(cd)
 		if owner != nil && owner.UID != "" {
-			// Create a hash of XR UID + composition resource name to ensure
-			// uniqueness while avoiding invalid Kubernetes name characters
-			// from the composition resource name.
-			h := sha256.Sum256([]byte(string(owner.UID) + cName))
-			cd.SetName(ChildName(cd.GetGenerateName(), hex.EncodeToString(h[:])[:12]))
+			cd.SetName(ChildName(cd.GetGenerateName(), string(owner.UID), cName))
 			return nil
 		}
 	}
