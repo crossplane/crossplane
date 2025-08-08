@@ -174,8 +174,8 @@ func (r *RuntimeFunctionRunner) Stop(ctx context.Context) error {
 	return nil
 }
 
-// getSecret retrieves the secret with the specified name and namespace from the provided list of secrets.
-func getSecret(name string, nameSpace string, secrets []corev1.Secret) (*corev1.Secret, error) {
+// GetSecret retrieves the secret with the specified name and namespace from the provided list of secrets.
+func GetSecret(name string, nameSpace string, secrets []corev1.Secret) (*corev1.Secret, error) {
 	for _, s := range secrets {
 		if s.GetName() == name && s.GetNamespace() == nameSpace {
 			return &s, nil
@@ -203,7 +203,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 	}()
 
-	runner := xfn.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{resources: append(in.ExtraResources, in.RequiredResources...)})
+	runner := xfn.NewFetchingFunctionRunner(runtimes, NewFilteringFetcher(append(in.ExtraResources, in.RequiredResources...)...))
 
 	observed := composite.ComposedResourceStates{}
 
@@ -271,7 +271,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 				continue
 			}
 
-			s, err := getSecret(cs.SecretRef.Name, cs.SecretRef.Namespace, in.FunctionCredentials)
+			s, err := GetSecret(cs.SecretRef.Name, cs.SecretRef.Namespace, in.FunctionCredentials)
 			if err != nil {
 				return Outputs{}, errors.Wrapf(err, "cannot get credentials from secret %q", cs.SecretRef.Name)
 			}
@@ -282,6 +282,20 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 						Data: s.Data,
 					},
 				},
+			}
+		}
+
+		// Handle bootstrap requirements
+		if fn.Requirements != nil {
+			// Bootstrap requirements were introduced alongside the new field names,
+			// so we only need to support the new required_resources field.
+			req.RequiredResources = map[string]*fnv1.Resources{}
+			for _, sel := range fn.Requirements.RequiredResources {
+				resources, err := NewFilteringFetcher(in.RequiredResources...).Fetch(ctx, xfn.ToProtobufResourceSelector(&sel))
+				if err != nil {
+					return Outputs{}, errors.Wrapf(err, "cannot fetch bootstrap required resources for requirement %q", sel.RequirementName)
+				}
+				req.RequiredResources[sel.RequirementName] = resources
 			}
 		}
 
@@ -453,6 +467,11 @@ func SetComposedResourceMetadata(cd resource.Object, xr resource.LegacyComposite
 // resource that matches a resource selector.
 type FilteringFetcher struct {
 	resources []unstructured.Unstructured
+}
+
+// NewFilteringFetcher creates a new FilteringFetcher with the given resources.
+func NewFilteringFetcher(resources ...unstructured.Unstructured) *FilteringFetcher {
+	return &FilteringFetcher{resources: resources}
 }
 
 // Fetch returns all of the underlying resources that match the supplied

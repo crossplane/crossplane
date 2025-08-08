@@ -229,7 +229,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// so we only need to support the new required_resources field.
 			req.RequiredResources = map[string]*fnv1.Resources{}
 			for _, sel := range fn.Requirements.RequiredResources {
-				resources, err := r.resources.Fetch(ctx, ToProtobufResourceSelector(sel))
+				resources, err := r.resources.Fetch(ctx, xfn.ToProtobufResourceSelector(&sel))
 				if err != nil {
 					op.Status.Failures++
 
@@ -413,31 +413,4 @@ func AddPipelineStepOutput(pipeline []v1alpha1.PipelineStepStatus, step string, 
 		Step:   step,
 		Output: output,
 	})
-}
-
-// ToProtobufResourceSelector converts API RequiredResourceSelector to protobuf ResourceSelector.
-func ToProtobufResourceSelector(r v1alpha1.RequiredResourceSelector) *fnv1.ResourceSelector {
-	selector := &fnv1.ResourceSelector{
-		ApiVersion: r.APIVersion,
-		Kind:       r.Kind,
-		Namespace:  r.Namespace,
-	}
-
-	// You can only set one of name or matchLabels.
-	if r.Name != nil {
-		selector.Match = &fnv1.ResourceSelector_MatchName{
-			MatchName: *r.Name,
-		}
-		return selector
-	}
-
-	if len(r.MatchLabels) > 0 {
-		selector.Match = &fnv1.ResourceSelector_MatchLabels{
-			MatchLabels: &fnv1.MatchLabels{
-				Labels: r.MatchLabels,
-			},
-		}
-	}
-
-	return selector
 }
