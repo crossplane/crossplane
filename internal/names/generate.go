@@ -19,8 +19,8 @@ package names
 
 import (
 	"context"
-	"fmt"
-	"strings"
+	"crypto/sha256"
+	"encoding/hex"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -93,13 +93,11 @@ func (r *nameGenerator) GenerateName(ctx context.Context, cd resource.Object) er
 	if cName != "" {
 		owner := metav1.GetControllerOf(cd)
 		if owner != nil && owner.UID != "" {
-			// We are going to roll the dice and hope no other XR child has a
-			// parent with the same uid ending in an effort to shorten the
-			// child name before the ChildName method has to trunc/add a hash.
-			uidParts := strings.Split(string(owner.UID), "-")
-			uidPart := uidParts[len(uidParts)-1]
-			name := ChildName(fmt.Sprintf("%s%s", cd.GetGenerateName(), uidPart), fmt.Sprintf("-%s", cName))
-			cd.SetName(name)
+			// Create a hash of XR UID + composition resource name to ensure
+			// uniqueness while avoiding invalid Kubernetes name characters
+			// from the composition resource name.
+			h := sha256.Sum256([]byte(string(owner.UID) + cName))
+			cd.SetName(ChildName(cd.GetGenerateName(), hex.EncodeToString(h[:])[:12]))
 			return nil
 		}
 	}
