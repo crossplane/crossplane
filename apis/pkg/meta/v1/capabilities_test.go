@@ -166,6 +166,26 @@ func TestCapabilitiesContainFuzzy(t *testing.T) {
 				result: true,
 			},
 		},
+		"FunctionCapabilityCamelCaseMatch": {
+			reason: "Should match camel case function capabilities with lowercase constants",
+			args: args{
+				capabilities: []string{"Composition", "Operation"},
+				key:          "composition",
+			},
+			want: want{
+				result: true,
+			},
+		},
+		"FunctionCapabilityReverseCamelCaseMatch": {
+			reason: "Should match lowercase function capabilities with camel case constants",
+			args: args{
+				capabilities: []string{"composition", "operation"},
+				key:          "Composition",
+			},
+			want: want{
+				result: true,
+			},
+		},
 	}
 
 	for name, tc := range cases {
