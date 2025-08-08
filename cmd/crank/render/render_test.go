@@ -1847,7 +1847,7 @@ func TestFilterResources(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			f := &FilteringFetcher{resources: tc.params.ers}
+			f := NewFilteringFetcher(tc.params.ers...)
 
 			out, err := f.Fetch(tc.args.ctx, tc.args.selector)
 			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(fnv1.Resources{}, fnv1.Resource{}, structpb.Struct{}, structpb.Value{})); diff != "" {
@@ -1905,9 +1905,9 @@ func TestGetSecret(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			_, err := getSecret(tc.name, tc.namespace, tc.secrets)
+			_, err := GetSecret(tc.name, tc.namespace, tc.secrets)
 			if (err != nil) != tc.wantErr {
-				t.Errorf("getSecret() error = %v, wantErr %v", err, tc.wantErr)
+				t.Errorf("GetSecret() error = %v, wantErr %v", err, tc.wantErr)
 			}
 		})
 	}

@@ -287,7 +287,9 @@ func TestFetchingFunctionRunner(t *testing.T) {
 					return nil, errors.New("boom")
 				}),
 			},
-			args: args{},
+			args: args{
+				req: &fnv1.RunFunctionRequest{},
+			},
 			want: want{
 				err: cmpopts.AnyError,
 			},
@@ -306,7 +308,9 @@ func TestFetchingFunctionRunner(t *testing.T) {
 					return rsp, nil
 				}),
 			},
-			args: args{},
+			args: args{
+				req: &fnv1.RunFunctionRequest{},
+			},
 			want: want{
 				rsp: &fnv1.RunFunctionResponse{
 					Results: []*fnv1.Result{
@@ -332,7 +336,9 @@ func TestFetchingFunctionRunner(t *testing.T) {
 					return rsp, nil
 				}),
 			},
-			args: args{},
+			args: args{
+				req: &fnv1.RunFunctionRequest{},
+			},
 			want: want{
 				rsp: &fnv1.RunFunctionResponse{
 					Results: []*fnv1.Result{
@@ -452,6 +458,94 @@ func TestFetchingFunctionRunner(t *testing.T) {
 							"gimme": {
 								ApiVersion: "test.crossplane.io/v1",
 								Kind:       "CoolResource",
+							},
+						},
+					},
+				},
+			},
+		},
+		"PreserveBootstrapResourcesWithDynamicRequirements": {
+			reason: "We should preserve bootstrap resources when functions set dynamic requirements",
+			params: params{
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// First call - check we have bootstrap resources and set dynamic requirements
+					if len(req.GetRequiredResources()) == 1 {
+						if _, exists := req.GetRequiredResources()["bootstrap-cm"]; !exists {
+							return nil, errors.New("bootstrap resource missing on first call")
+						}
+
+						// Set dynamic requirements - this triggers the bug path
+						rsp := &fnv1.RunFunctionResponse{
+							Requirements: &fnv1.Requirements{
+								Resources: map[string]*fnv1.ResourceSelector{
+									"dynamic-secret": {
+										ApiVersion: "v1",
+										Kind:       "Secret",
+										Match: &fnv1.ResourceSelector_MatchName{
+											MatchName: "dynamic-secret",
+										},
+									},
+								},
+							},
+						}
+						return rsp, nil
+					}
+
+					// Second call - verify we still have bootstrap AND dynamic resources
+					if len(req.GetRequiredResources()) != 2 {
+						return nil, errors.Errorf("expected 2 required resources, got %d", len(req.GetRequiredResources()))
+					}
+
+					if _, exists := req.GetRequiredResources()["bootstrap-cm"]; !exists {
+						return nil, errors.New("bootstrap resource lost after setting dynamic requirements")
+					}
+
+					if _, exists := req.GetRequiredResources()["dynamic-secret"]; !exists {
+						return nil, errors.New("dynamic resource not found")
+					}
+
+					// Requirements are stable now
+					return &fnv1.RunFunctionResponse{
+						Requirements: &fnv1.Requirements{
+							Resources: map[string]*fnv1.ResourceSelector{
+								"dynamic-secret": {
+									ApiVersion: "v1",
+									Kind:       "Secret",
+									Match: &fnv1.ResourceSelector_MatchName{
+										MatchName: "dynamic-secret",
+									},
+								},
+							},
+						},
+					}, nil
+				}),
+				resources: RequiredResourcesFetcherFn(func(_ context.Context, _ *fnv1.ResourceSelector) (*fnv1.Resources, error) {
+					// Return mock resources for dynamic requirements
+					return &fnv1.Resources{
+						Items: []*fnv1.Resource{{Resource: coolResource}},
+					}, nil
+				}),
+			},
+			args: args{
+				req: &fnv1.RunFunctionRequest{
+					// Start with bootstrap resources
+					RequiredResources: map[string]*fnv1.Resources{
+						"bootstrap-cm": {
+							Items: []*fnv1.Resource{{Resource: coolResource}},
+						},
+					},
+				},
+			},
+			want: want{
+				rsp: &fnv1.RunFunctionResponse{
+					Requirements: &fnv1.Requirements{
+						Resources: map[string]*fnv1.ResourceSelector{
+							"dynamic-secret": {
+								ApiVersion: "v1",
+								Kind:       "Secret",
+								Match: &fnv1.ResourceSelector_MatchName{
+									MatchName: "dynamic-secret",
+								},
 							},
 						},
 					},
