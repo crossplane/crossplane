@@ -10,7 +10,7 @@ lint:
     - PACKAGE_NO_IMPORT_CYCLE
 breaking:
   use:
-    - WIRE
+    - WIRE_JSON  # Includes JSON breaking changes, same as crossplane-runtime
   except:
     - EXTENSION_NO_DELETE
     - FIELD_SAME_DEFAULT
