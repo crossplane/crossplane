@@ -1226,10 +1226,10 @@ func TestFunctionCompose(t *testing.T) {
 						if cd, ok := obj.(*composed.Unstructured); ok {
 							// This test demonstrates the bug: the composed resource should use "existing-deployment-name" from resourceRefs,
 							// but currently it generates a new name instead
-							if cd.GetName() != "parent-xr-f4d3ac8501550bf84c63a814cc31ecb3161cbb88370f-test-res" {
+							if cd.GetName() != "parent-xr-e5ac98dc40a2" {
 								// This is the current buggy behavior - it generates a new name instead of using the existing one
 								// Log this for debugging when we run the test
-								return errors.Errorf("BUG: Composed resource generated new name %s instead of using existing name from resourceRefs: parent-xr-f4d3ac8501550bf84c63a814cc31ecb3161cbb88370f-test-res", cd.GetName())
+								return errors.Errorf("BUG: Composed resource generated new name %s instead of using existing name from resourceRefs: parent-xr-e5ac98dc40a2", cd.GetName())
 							}
 						}
 						return nil
@@ -1289,7 +1289,7 @@ func TestFunctionCompose(t *testing.T) {
 						{
 							APIVersion: "apps/v1",
 							Kind:       "Deployment",
-							Name:       "parent-xr-f4d3ac8501550bf84c63a814cc31ecb3161cbb88370f-test-res",
+							Name:       "parent-xr-e5ac98dc40a2",
 						},
 					})
 					return xr
