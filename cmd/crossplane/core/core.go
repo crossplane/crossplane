@@ -269,6 +269,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		// Wrap the packaged function runner with a caching one.
 		cfr := cached.NewFileBackedRunner(pfr, c.XfnCacheDir,
 			cached.WithLogger(log),
+			cached.WithMaxTTL(c.XfnCacheMaxTTL),
 			cached.WithMetrics(cfrm),
 		)
 
