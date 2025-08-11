@@ -19,8 +19,6 @@ package names
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -93,13 +91,7 @@ func (r *nameGenerator) GenerateName(ctx context.Context, cd resource.Object) er
 	if cName != "" {
 		owner := metav1.GetControllerOf(cd)
 		if owner != nil && owner.UID != "" {
-			// We are going to roll the dice and hope no other XR child has a
-			// parent with the same uid ending in an effort to shorten the
-			// child name before the ChildName method has to trunc/add a hash.
-			uidParts := strings.Split(string(owner.UID), "-")
-			uidPart := uidParts[len(uidParts)-1]
-			name := ChildName(fmt.Sprintf("%s%s", cd.GetGenerateName(), uidPart), fmt.Sprintf("-%s", cName))
-			cd.SetName(name)
+			cd.SetName(ChildName(cd.GetGenerateName(), string(owner.UID), cName))
 			return nil
 		}
 	}

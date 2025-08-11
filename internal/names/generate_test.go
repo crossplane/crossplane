@@ -190,7 +190,7 @@ func TestGenerateName(t *testing.T) {
 			want: want{
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "cool-resource-with-a-really-long-name-that-can-not-fit-all-in-one-place-",
-					Name:         "cool-resource-with-a-really-lonab455e7d35d099adea15e918d64db893",
+					Name:         "cool-resource-with-a-really-long-name-that-can-not-414af43727ed",
 					OwnerReferences: []metav1.OwnerReference{{
 						APIVersion: "Foo/v1",
 						Kind:       "Bar",
@@ -225,7 +225,7 @@ func TestGenerateName(t *testing.T) {
 			want: want{
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "cool-resource-",
-					Name:         "cool-resource-f4d3ac850155-kid1",
+					Name:         "cool-resource-12d400e0a9a6",
 					OwnerReferences: []metav1.OwnerReference{{
 						APIVersion: "Foo/v1",
 						Kind:       "Bar",
