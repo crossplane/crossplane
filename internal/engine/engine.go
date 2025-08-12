@@ -504,7 +504,6 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 		// We've already created this watch and the informer backing it is still
 		// running. We don't need to create a new watch.
 		if _, watchExists := c.sources[wid]; watchExists && activeInformer[wid.GVK] {
-			e.log.Debug("Watch exists for GVK, not starting a new one", "controller", name, "watch-type", wid.Type, "watched-gvk", wid.GVK)
 			continue
 		}
 		// There's at least one watch to start.
