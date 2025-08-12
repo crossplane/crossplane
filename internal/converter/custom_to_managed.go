@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 
 	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
 )
@@ -38,8 +39,16 @@ var (
 	customResourceDefinitionKind = extv1.SchemeGroupVersion.WithKind(customResourceDefinition)
 )
 
-// CustomToManagedResourceDefinitions in place converts and returns any
-// CustomResourceDefinition runtime object into a ManagedResourceDefinition.
+// Non-managed resource kinds that should not be converted to MRDs.
+const (
+	kindProviderConfig        = "ProviderConfig"
+	kindClusterProviderConfig = "ClusterProviderConfig"
+	kindProviderConfigUsage   = "ProviderConfigUsage"
+)
+
+// CustomToManagedResourceDefinitions converts managed resource CRDs to MRDs
+// while leaving other CRDs (like ProviderConfig) unchanged. The returned
+// slice contains a mix of converted MRDs and unchanged CRDs.
 func CustomToManagedResourceDefinitions(defaultActive bool, objects ...runtime.Object) ([]runtime.Object, error) {
 	var errs []error
 
@@ -52,6 +61,11 @@ func CustomToManagedResourceDefinitions(defaultActive bool, objects ...runtime.O
 			switch o := obj.(type) {
 			// to covert, all we need to worry about is the metadata and spec.state.
 			case *unstructured.Unstructured:
+				if !isManagedResource(o.Object) {
+					// Keep non-managed resources (like ProviderConfig) as regular CRDs
+					objects[i] = obj
+					continue
+				}
 				mrdObject, err := convertCRDToMRD(defaultActive, o.Object)
 				if err != nil {
 					errs = append(errs, err)
@@ -69,6 +83,11 @@ func CustomToManagedResourceDefinitions(defaultActive bool, objects ...runtime.O
 					errs = append(errs, err)
 					continue
 				}
+				if !isManagedResource(u.Object) {
+					// Keep non-managed resources (like ProviderConfig) as regular CRDs
+					objects[i] = obj
+					continue
+				}
 				mrdObject, err := convertCRDToMRD(defaultActive, u.Object)
 				if err != nil {
 					errs = append(errs, err)
@@ -79,6 +98,25 @@ func CustomToManagedResourceDefinitions(defaultActive bool, objects ...runtime.O
 		}
 	}
 	return objects, errors.Join(errs...)
+}
+
+// isManagedResource checks if a CRD represents a managed resource that should
+// be converted to an MRD. Returns false for provider configuration types and
+// other non-managed resource types.
+func isManagedResource(crd map[string]any) bool {
+	paved := fieldpath.Pave(crd)
+	
+	kind, err := paved.GetString("spec.names.kind")
+	if err != nil {
+		return true // Default to treating as managed resource if kind cannot be retrieved
+	}
+	
+	switch kind {
+	case kindProviderConfig, kindClusterProviderConfig, kindProviderConfigUsage:
+		return false // These are not managed resources
+	default:
+		return true // Everything else is assumed to be a managed resource
+	}
 }
 
 func convertCRDToMRD(defaultActive bool, in map[string]any) (*v1alpha1.ManagedResourceDefinition, error) {

@@ -877,17 +877,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	objects := pkg.GetObjects()
-	// The CustomToManagedResourceConversion feature converts CRDs to MRDs from
-	// a provider package.
+	// The CustomToManagedResourceConversion feature selectively converts CRDs
+	// to MRDs from a provider package. Only managed resource CRDs are converted;
+	// provider configuration CRDs (ProviderConfig, etc.) remain as regular CRDs.
 	if _, ok := pkgMeta.(*pkgmetav1.Provider); ok && r.features.Enabled(features.EnableBetaCustomToManagedResourceConversion) {
-		// Convert CRDs to MRDs
+		// Convert managed resource CRDs to MRDs, leaving other CRDs unchanged
 		// If SafeStart is not in capabilities, we default mrd state to Active.
 		activationState := !pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart)
-		if mrdObjs, err := converter.CustomToManagedResourceDefinitions(activationState, objects...); err != nil {
+		if converted, err := converter.CustomToManagedResourceDefinitions(activationState, objects...); err != nil {
 			log.Debug("failed to convert CRDs to MRDs for provider, skipping conversion", "error", err)
 			r.record.Event(pr, event.Warning(reasonConvertCRD, err))
 		} else {
-			objects = mrdObjs
+			objects = converted
 		}
 	}
 
