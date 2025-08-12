@@ -134,6 +134,66 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 		},
 	}
 
+	// Test ProviderConfig CRD (should not be converted to MRD)
+	testProviderConfigCRD := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": extv1.SchemeGroupVersion.String(),
+			"kind":       customResourceDefinition,
+			"metadata": map[string]any{
+				"name": "providerconfigs.aws.upbound.io",
+			},
+			"spec": map[string]any{
+				"group": "aws.upbound.io",
+				"names": map[string]any{
+					"kind":     "ProviderConfig",
+					"plural":   "providerconfigs",
+					"singular": "providerconfig",
+				},
+				"scope": "Cluster",
+			},
+		},
+	}
+
+	// Test ClusterProviderConfig CRD (should not be converted to MRD)
+	testClusterProviderConfigCRD := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": extv1.SchemeGroupVersion.String(),
+			"kind":       customResourceDefinition,
+			"metadata": map[string]any{
+				"name": "clusterproviderconfigs.aws.m.upbound.io",
+			},
+			"spec": map[string]any{
+				"group": "aws.m.upbound.io",
+				"names": map[string]any{
+					"kind":     "ClusterProviderConfig",
+					"plural":   "clusterproviderconfigs",
+					"singular": "clusterproviderconfig",
+				},
+				"scope": "Cluster",
+			},
+		},
+	}
+
+	// Test ProviderConfigUsage CRD (should not be converted to MRD)
+	testProviderConfigUsageCRD := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": extv1.SchemeGroupVersion.String(),
+			"kind":       customResourceDefinition,
+			"metadata": map[string]any{
+				"name": "providerconfigusages.aws.upbound.io",
+			},
+			"spec": map[string]any{
+				"group": "aws.upbound.io",
+				"names": map[string]any{
+					"kind":     "ProviderConfigUsage",
+					"plural":   "providerconfigusages",
+					"singular": "providerconfigusage",
+				},
+				"scope": "Cluster",
+			},
+		},
+	}
+
 	// Expected MRD from structured CRD (inactive)
 	expectedMRDFromCRDInactive := &v1alpha1.ManagedResourceDefinition{
 		TypeMeta: metav1.TypeMeta{
@@ -380,6 +440,56 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 				objects: []runtime.Object{&invalidJSONObject{}},
 				// We expect an error but don't care about the exact type since it's wrapped
 				err: errors.New("some error"),
+			},
+		},
+		"ProviderConfigCRD": {
+			reason: "Should not convert ProviderConfig CRD to MRD",
+			args: args{
+				defaultActive: false,
+				objects:       []runtime.Object{testProviderConfigCRD},
+			},
+			want: want{
+				objects: []runtime.Object{testProviderConfigCRD},
+			},
+		},
+		"ClusterProviderConfigCRD": {
+			reason: "Should not convert ClusterProviderConfig CRD to MRD",
+			args: args{
+				defaultActive: true,
+				objects:       []runtime.Object{testClusterProviderConfigCRD},
+			},
+			want: want{
+				objects: []runtime.Object{testClusterProviderConfigCRD},
+			},
+		},
+		"ProviderConfigUsageCRD": {
+			reason: "Should not convert ProviderConfigUsage CRD to MRD",
+			args: args{
+				defaultActive: false,
+				objects:       []runtime.Object{testProviderConfigUsageCRD},
+			},
+			want: want{
+				objects: []runtime.Object{testProviderConfigUsageCRD},
+			},
+		},
+		"MixedWithProviderConfigCRDs": {
+			reason: "Should convert MR CRDs but leave provider config CRDs unchanged",
+			args: args{
+				defaultActive: false,
+				objects: []runtime.Object{
+					testCRD,                    // Should be converted to MRD
+					testProviderConfigCRD,      // Should remain as CRD
+					testClusterProviderConfigCRD, // Should remain as CRD
+					testNonCRD,                 // Should remain unchanged
+				},
+			},
+			want: want{
+				objects: []runtime.Object{
+					expectedMRDFromCRDInactive, // testCRD converted to MRD
+					testProviderConfigCRD,      // Left as CRD
+					testClusterProviderConfigCRD, // Left as CRD
+					testNonCRD,                 // Left unchanged
+				},
 			},
 		},
 	}
