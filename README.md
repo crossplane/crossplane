@@ -12,7 +12,7 @@ Crossplane is a [Cloud Native Computing Foundation][cncf] project.
 
 ## Get Started
 
-Crossplane's [Get Started Docs] cover install and cloud provider quickstarts.
+Crossplane's [Get Started Docs] covers install and resource quickstarts.
 
 ## Releases
 
@@ -131,7 +131,7 @@ Crossplane is under the Apache 2.0 license.
 [Past meeting recordings]: https://www.youtube.com/playlist?list=PL510POnNVaaYYYDSICFSNWFqNbx1EMr-M
 [roadmap and releases board]: https://github.com/orgs/crossplane/projects/20/views/9?pane=info
 [cncf]: https://www.cncf.io/
-[Get Started Docs]: https://docs.crossplane.io/latest/getting-started/
+[Get Started Docs]: https://docs.crossplane.io/latest/get-started/get-started-with-composition
 [community calendar]: https://zoom-lfx.platform.linuxfoundation.org/meetings/crossplane?view=month
 [releases]: https://github.com/crossplane/crossplane/releases
 [ADOPTERS.md]: ADOPTERS.md
