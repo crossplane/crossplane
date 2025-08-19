@@ -132,6 +132,8 @@ type startCommand struct {
 	EnableRealtimeCompositions              bool `default:"true" group:"Beta Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
 	EnableCustomToManagedResourceConversion bool `default:"true" group:"Beta Features:" help:"Enable support CRD to MRD conversion when installing a package."`
 
+	WatchCacheNamespaced bool `default:"false" help:"Disable resource caching in the controller-runtime manager for resources outside of crossplane's current namespace."`
+
 	// These are features that we've removed support for. Crossplane returns an
 	// error when you enable them. This ensures you'll see an explicit and
 	// informative error on startup, instead of a potentially surprising one
@@ -174,11 +176,21 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	// They use their own. They're setup later in this method.
 	eb := record.NewBroadcaster()
 
+	cacheOptions := cache.Options{
+		SyncPeriod: &c.SyncInterval,
+	}
+	if c.WatchCacheNamespaced {
+		// This makes the cache controller watch resources only in crossplane's namespace.
+		// Otherwise, it tries to watch resources in all namespaces, and crashes if the
+		// crossplane ServiceAccount doesn't have enough permissions.
+		cacheOptions.DefaultNamespaces = map[string]cache.Config{
+			c.Namespace: {},
+		}
+	}
+
 	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, c.MaxReconcileRate), ctrl.Options{
 		Scheme: s,
-		Cache: cache.Options{
-			SyncPeriod: &c.SyncInterval,
-		},
+		Cache:  cacheOptions,
 		WebhookServer: webhook.NewServer(webhook.Options{
 			CertDir: c.TLSServerCertsDir,
 			TLSOpts: []func(*tls.Config){
