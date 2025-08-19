@@ -170,7 +170,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 	ro := []ReconcilerOption{
 		WithNewPackageRevisionWithRuntimeFn(nr),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithRuntimeHooks(NewProviderHooks(mgr.GetClient())),
@@ -204,7 +204,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 	ro := []ReconcilerOption{
 		WithNewPackageRevisionWithRuntimeFn(nr),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())),
