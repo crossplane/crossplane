@@ -1,0 +1,44 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xextraresources.test.crossplane.io
+spec:
+  compositeTypeRef:
+    apiVersion: test.crossplane.io/v1alpha1
+    kind: XExtraResource
+  mode: Pipeline
+  pipeline:
+  - step: function-with-extra-resources
+    functionRef:
+      name: function-dummy-extra-resources
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      response:
+        # This function demonstrates the extra resources feature
+        # It requests a ConfigMap and Crossplane will call it again with that resource
+        requirements:
+          resources:
+            test-configmap:
+              apiVersion: v1
+              kind: ConfigMap
+              matchName: extra-resource-data
+        desired:
+          composite:
+            resource:
+              status:
+                configMapData: "processed-extra-resource-value"
+          resources:
+            composed-secret:
+              resource:
+                apiVersion: v1
+                kind: Secret
+                metadata:
+                  name: composed-from-extra
+                  namespace: default
+                stringData:
+                  dataFromExtraResource: "Created using data from extra resource"
+              ready: READY_TRUE
+        results:
+        - severity: SEVERITY_NORMAL
+          message: "Function requested and processed extra resource ConfigMap"
