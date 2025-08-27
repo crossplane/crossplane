@@ -39,7 +39,7 @@ var (
 
 // Operation type metadata.
 var (
-	OperationKind             = reflect.TypeOf(Operation{}).Name()
+	OperationKind             = reflect.TypeFor[Operation]().Name()
 	OperationGroupKind        = schema.GroupKind{Group: Group, Kind: OperationKind}.String()
 	OperationKindAPIVersion   = OperationKind + "." + SchemeGroupVersion.String()
 	OperationGroupVersionKind = SchemeGroupVersion.WithKind(OperationKind)
@@ -47,7 +47,7 @@ var (
 
 // CronOperation type metadata.
 var (
-	CronOperationKind             = reflect.TypeOf(CronOperation{}).Name()
+	CronOperationKind             = reflect.TypeFor[CronOperation]().Name()
 	CronOperationGroupKind        = schema.GroupKind{Group: Group, Kind: CronOperationKind}.String()
 	CronOperationKindAPIVersion   = CronOperationKind + "." + SchemeGroupVersion.String()
 	CronOperationGroupVersionKind = SchemeGroupVersion.WithKind(CronOperationKind)
@@ -55,7 +55,7 @@ var (
 
 // WatchOperation type metadata.
 var (
-	WatchOperationKind             = reflect.TypeOf(WatchOperation{}).Name()
+	WatchOperationKind             = reflect.TypeFor[WatchOperation]().Name()
 	WatchOperationGroupKind        = schema.GroupKind{Group: Group, Kind: WatchOperationKind}.String()
 	WatchOperationKindAPIVersion   = WatchOperationKind + "." + SchemeGroupVersion.String()
 	WatchOperationGroupVersionKind = SchemeGroupVersion.WithKind(WatchOperationKind)

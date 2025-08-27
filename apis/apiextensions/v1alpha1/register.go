@@ -42,7 +42,7 @@ var (
 
 // Usage type metadata.
 var (
-	UsageKind             = reflect.TypeOf(Usage{}).Name()
+	UsageKind             = reflect.TypeFor[Usage]().Name()
 	UsageGroupKind        = schema.GroupKind{Group: Group, Kind: UsageKind}.String()
 	UsageKindAPIVersion   = UsageKind + "." + SchemeGroupVersion.String()
 	UsageGroupVersionKind = SchemeGroupVersion.WithKind(UsageKind)
@@ -50,12 +50,12 @@ var (
 
 // CompositeResourceDefinition type metadata.
 var (
-	ManagedResourceDefinitionKind             = reflect.TypeOf(ManagedResourceDefinition{}).Name()
+	ManagedResourceDefinitionKind             = reflect.TypeFor[ManagedResourceDefinition]().Name()
 	ManagedResourceDefinitionGroupKind        = schema.GroupKind{Group: Group, Kind: ManagedResourceDefinitionKind}.String()
 	ManagedResourceDefinitionKindAPIVersion   = ManagedResourceDefinitionKind + "." + SchemeGroupVersion.String()
 	ManagedResourceDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(ManagedResourceDefinitionKind)
 
-	ManagedResourceActivationPolicyKind             = reflect.TypeOf(ManagedResourceActivationPolicy{}).Name()
+	ManagedResourceActivationPolicyKind             = reflect.TypeFor[ManagedResourceActivationPolicy]().Name()
 	ManagedResourceActivationPolicyGroupKind        = schema.GroupKind{Group: Group, Kind: ManagedResourceActivationPolicyKind}.String()
 	ManagedResourceActivationPolicyKindAPIVersion   = ManagedResourceActivationPolicyKind + "." + SchemeGroupVersion.String()
 	ManagedResourceActivationPolicyGroupVersionKind = SchemeGroupVersion.WithKind(ManagedResourceActivationPolicyKind)
