@@ -350,7 +350,6 @@ func TestRunFunction(t *testing.T) {
 				}),
 				o: []FileBackedRunnerOption{
 					WithLogger(&TestLogger{t: t}),
-					//WithFilesystem(afero.NewMemMapFs()),
 					WithFilesystem(MockFs(map[string][]byte{
 						"coolfn/hello": func() []byte {
 							msg, _ := proto.Marshal(&v1alpha1.CachedRunFunctionResponse{
@@ -449,7 +448,7 @@ func TestCacheFunction(t *testing.T) {
 	}
 }
 
-// Make sure the Global TTL is used when a Function Response TTL is greater
+// Make sure the Global TTL is used when a Function Response TTL is greater.
 func TestCacheFunctionWithMaxTTL(t *testing.T) {
 	maxTTL := 5 * time.Minute
 	requestedTTL := 30 * time.Minute

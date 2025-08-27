@@ -32,8 +32,8 @@ func TestChildName(t *testing.T) {
 
 	cases := map[string]struct {
 		reason string
-		args
-		want string
+		args   args
+		want   string
 	}{
 		"ShortName": {
 			reason: "Should concatenate parent and hash when the result fits within 63 characters",
