@@ -543,8 +543,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			err = errors.Wrap(err, errRemoveFinalizer)
 			r.record.Event(xr, event.Warning(reasonDelete, err))
 			status.MarkConditions(xpv1.ReconcileError(err))
+			_ = r.client.Status().Update(updateCtx, xr)
 
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+			return reconcile.Result{}, err
 		}
 
 		log.Debug("Successfully deleted composite resource")
@@ -561,8 +562,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(xr, event.Warning(reasonInit, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(ctx, xr)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{}, err
 	}
 
 	orig := xr.GetCompositionReference()
@@ -574,8 +576,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errSelectComp)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		return reconcile.Result{}, err
 	}
 
 	if compRef := xr.GetCompositionReference(); compRef != nil && (orig == nil || *compRef != *orig) {
@@ -596,8 +599,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errFetchComp)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		return reconcile.Result{}, err
 	}
 
 	if rev := xr.GetCompositionRevisionReference(); rev != nil && (origRev == nil || *rev != *origRev) {
@@ -616,8 +620,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(ctx, xr)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{}, err
 	}
 
 	if err := r.composite.Configure(ctx, xr, rev); err != nil {
@@ -630,8 +635,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errConfigure)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		return reconcile.Result{}, err
 	}
 
 	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Revision: rev})
@@ -679,7 +685,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				status.MarkConditions(c)
 			}
 		}
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		_ = r.client.Status().Update(updateCtx, xr)
+		return reconcile.Result{}, err
 	}
 
 	ws := make([]engine.Watch, len(xr.GetResourceReferences()))
@@ -695,8 +702,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errWatch)
 		r.record.Event(xr, event.Warning(reasonWatch, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		return reconcile.Result{}, err
 	}
 
 	published, err := r.composite.PublishConnection(ctx, xr, res.ConnectionDetails)
@@ -710,8 +718,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errPublish)
 		r.record.Event(xr, event.Warning(reasonPublish, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		return reconcile.Result{}, err
 	}
 
 	if published {
