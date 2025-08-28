@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
+	"os"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
@@ -261,29 +263,88 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 	// Find a random, available port. There's a chance of a race here, where
 	// something else binds to the port before we start our container.
 
-	lis, err := net.Listen("tcp", "localhost:0")
+	// Check if we're using a remote Docker daemon
+	// Remote means TCP or SSH connection, not Unix socket (which is always local)
+	dockerHost := os.Getenv("DOCKER_HOST")
+	isRemoteDocker := dockerHost != "" && !strings.Contains(dockerHost, "unix://")
+
+	// Determine the bind address
+	bindAddr := "localhost"
+	if isRemoteDocker {
+		// When using remote Docker, bind to all interfaces
+		bindAddr = "0.0.0.0"
+	}
+
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:0", bindAddr))
 	if err != nil {
 		return "", "", errors.Wrap(err, "cannot get available TCP port")
 	}
 
-	containerAddr := lis.Addr().String()
+	listenerAddr := lis.Addr().String()
 	_ = lis.Close()
 
-	spec := fmt.Sprintf("%s:9443/tcp", containerAddr)
-
-	expose, bind, err := nat.ParsePortSpecs([]string{spec})
-	if err != nil {
-		return "", "", errors.Wrapf(err, "cannot parse Docker port spec %q", spec)
+	// Determine the address that containers should connect to
+	var containerConnectAddr string
+	if isRemoteDocker {
+		// Check for explicit host override
+		if renderHost := os.Getenv("CROSSPLANE_RENDER_HOST"); renderHost != "" {
+			_, port, _ := net.SplitHostPort(listenerAddr)
+			containerConnectAddr = net.JoinHostPort(renderHost, port)
+			r.log.Debug("Using CROSSPLANE_RENDER_HOST for container connection", "address", containerConnectAddr)
+		} else {
+			// Try to determine the host IP from DOCKER_HOST
+			parsedURL, err := url.Parse(dockerHost)
+			if err == nil && parsedURL.Host != "" {
+				dockerHostIP, _, _ := net.SplitHostPort(parsedURL.Host)
+				if dockerHostIP == "" {
+					dockerHostIP = parsedURL.Host
+				}
+				// Get the port from our listener
+				_, port, _ := net.SplitHostPort(listenerAddr)
+				// Use the same host as Docker daemon for container callback
+				containerConnectAddr = net.JoinHostPort(dockerHostIP, port)
+				r.log.Info("Using Docker daemon host for container connection", "address", containerConnectAddr, "note", "Set CROSSPLANE_RENDER_HOST if containers should connect to a different IP")
+			} else {
+				return "", "", errors.New("cannot determine host IP for remote Docker. Please set CROSSPLANE_RENDER_HOST environment variable")
+			}
+		}
+	} else {
+		// Local Docker - use the listener address as-is
+		containerConnectAddr = listenerAddr
 	}
+
+	// Get the host and port from listener address
+	_, listenerPort, _ := net.SplitHostPort(listenerAddr)
+
+	// Create port bindings
+	containerPort := nat.Port("9443/tcp")
 
 	cfg := &container.Config{
-		Image:        r.Image,
-		Cmd:          []string{"--insecure"},
-		ExposedPorts: expose,
-		Env:          r.Env,
+		Image: r.Image,
+		Cmd:   []string{"--insecure"},
+		ExposedPorts: nat.PortSet{
+			containerPort: struct{}{},
+		},
+		Env: r.Env,
 	}
+
+	// When using remote Docker, bind to all interfaces (both IPv4 and IPv6)
+	// by leaving HostIP empty.
+	hostIP := ""
+	if !isRemoteDocker {
+		// For local Docker, explicitly bind to 127.0.0.1
+		hostIP = "127.0.0.1"
+	}
+
 	hcfg := &container.HostConfig{
-		PortBindings: bind,
+		PortBindings: nat.PortMap{
+			containerPort: []nat.PortBinding{
+				{
+					HostIP:   hostIP,
+					HostPort: listenerPort,
+				},
+			},
+		},
 	}
 
 	options, err := r.getPullOptions()
@@ -303,7 +364,7 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 	}
 
 	// TODO(negz): Set a container name? Presumably unique across runs.
-	r.log.Debug("Creating Docker container", "image", r.Image, "address", containerAddr, "name", r.Name)
+	r.log.Debug("Creating Docker container", "image", r.Image, "listener", listenerAddr, "container_target", containerConnectAddr, "name", r.Name)
 
 	rsp, err := cli.ContainerCreate(ctx, cfg, hcfg, nil, nil, r.Name)
 	if err != nil {
@@ -329,7 +390,7 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 		return "", "", errors.Wrap(err, "cannot start Docker container")
 	}
 
-	return rsp.ID, containerAddr, errors.Wrap(err, "cannot start Docker container")
+	return rsp.ID, containerConnectAddr, errors.Wrap(err, "cannot start Docker container")
 }
 
 func (r *RuntimeDocker) getPullOptions() (typesimage.PullOptions, error) {
