@@ -36,3 +36,5 @@ gitlab/
 
 # ignore AI tools settings/config
 /.claude
+CLAUDE.md
+AGENTS.md
