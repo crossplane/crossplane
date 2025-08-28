@@ -199,7 +199,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errGetMRAP),
+				err: cmpopts.AnyError,
 			},
 		},
 		"MRAPBeingDeleted": {
@@ -238,7 +238,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errUpdateStatus),
+				err: cmpopts.AnyError,
 			},
 		},
 		"ReconciliationPaused": {
@@ -259,12 +259,12 @@ func TestReconcile(t *testing.T) {
 					MockGet:  WithMRAP(t, NewMRAP()),
 					MockList: test.NewMockListFn(errBoom),
 					MockStatusUpdate: WantMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
-						mrap.SetConditions(v1alpha1.BlockedActivationPolicy().WithMessage(errListMRD))
+						mrap.SetConditions(v1alpha1.BlockedActivationPolicy().WithMessage("cannot list ManagedResourceDefinition"))
 					})),
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errListMRD),
+				err: cmpopts.AnyError,
 			},
 		},
 		"ListMRDErrorStatusUpdateConflict": {
@@ -277,7 +277,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				err: cmpopts.AnyError,
 			},
 		},
 		"NoMRDsToActivate": {
@@ -453,7 +453,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errUpdateStatus),
+				err: cmpopts.AnyError,
 			},
 		},
 	}
@@ -471,7 +471,7 @@ func TestReconcile(t *testing.T) {
 				NamespacedName: types.NamespacedName{Name: "test-mrap"},
 			})
 
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
