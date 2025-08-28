@@ -648,10 +648,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// the string representation of invalid structs (%v), among other
 			// reasons. Setting these errors in conditions could cause the
 			// resource version to increment continuously, leading to endless
-			// reconciliation of the resource. To avoid this, we only log these
-			// errors and emit an event. The conditions' message will then just
-			// point to the event.
-			err = errors.Wrap(errors.New(errInvalidResources), errCompose)
+			// reconciliation of the resource. These are configuration errors
+			// that require human intervention, so we use a terminal error.
+			status.MarkConditions(xpv1.ReconcileError(errors.New(errInvalidResources)))
+			if updateErr := r.client.Status().Update(updateCtx, xr); updateErr != nil {
+				log.Debug("cannot update status", "error", updateErr)
+			}
+			return reconcile.Result{}, reconcile.TerminalError(errors.Wrap(errors.New(errInvalidResources), errCompose))
 		}
 		if r.authorizer != nil {
 			if composeErr := new(xerrors.ComposedResourceError); errors.As(err, composeErr) {

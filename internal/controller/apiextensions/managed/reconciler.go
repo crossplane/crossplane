@@ -207,8 +207,10 @@ func (r *Reconciler) handleErrorWithEvent(log logging.Logger, obj client.Object,
 	// Handle validation errors to prevent endless reconciliation
 	if kerrors.IsInvalid(err) {
 		// API Server's invalid errors may be unstable due to pointers in
-		// the string representation, causing endless reconciliation
-		err = errors.New("invalid resource configuration")
+		// the string representation, causing endless reconciliation.
+		// These are configuration errors that require human intervention,
+		// so we use a terminal error to stop retrying.
+		return reconcile.TerminalError(errors.Wrap(errors.New("invalid resource configuration"), errMsg))
 	}
 
 	return errors.Wrap(err, errMsg)

@@ -186,7 +186,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{},
+				r:   reconcile.Result{},
+				err: reconcile.TerminalError(errors.Errorf(errFmtUnbound, "", "some-other-claim")),
 			},
 		},
 		"DeleteCompositeError": {

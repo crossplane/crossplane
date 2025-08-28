@@ -384,10 +384,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// NOTE(hasheddan): consider creating event on package revision
 		// dictating constraints.
 		if addVer == "" {
-			log.Debug(errFindDependencyUpgrade, "error", errors.Errorf(errFmtNoValidVersion, depID, dep.Constraints))
-			status.MarkConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtNoValidVersion, depID, dep.Constraints)))
+			err := errors.Errorf(errFmtNoValidVersion, depID, dep.Constraints)
+			log.Debug(errFindDependencyUpgrade, "error", err)
+			status.MarkConditions(v1beta1.ResolutionFailed(err))
 
-			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
+			// Update status and return terminal error since manual intervention is required
+			if updateErr := r.client.Status().Update(ctx, lock); updateErr != nil {
+				log.Debug("cannot update status", "error", updateErr)
+			}
+			return reconcile.Result{}, reconcile.TerminalError(err)
 		}
 
 		pack, err := NewPackage(dep, addVer, ref)

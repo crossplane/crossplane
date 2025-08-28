@@ -360,7 +360,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
 
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		// Update status and return terminal error since this requires human intervention
+		if updateErr := r.client.Status().Update(ctx, cm); updateErr != nil {
+			log.Debug("cannot update claim status", "error", updateErr)
+		}
+		return reconcile.Result{}, reconcile.TerminalError(err)
 	}
 
 	// TODO(negz): Remove this call to Upgrade once no supported version of
