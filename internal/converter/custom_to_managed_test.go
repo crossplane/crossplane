@@ -477,18 +477,18 @@ func TestCustomToManagedResourceDefinitions(t *testing.T) {
 			args: args{
 				defaultActive: false,
 				objects: []runtime.Object{
-					testCRD,                    // Should be converted to MRD
-					testProviderConfigCRD,      // Should remain as CRD
+					testCRD,                      // Should be converted to MRD
+					testProviderConfigCRD,        // Should remain as CRD
 					testClusterProviderConfigCRD, // Should remain as CRD
-					testNonCRD,                 // Should remain unchanged
+					testNonCRD,                   // Should remain unchanged
 				},
 			},
 			want: want{
 				objects: []runtime.Object{
-					expectedMRDFromCRDInactive, // testCRD converted to MRD
-					testProviderConfigCRD,      // Left as CRD
+					expectedMRDFromCRDInactive,   // testCRD converted to MRD
+					testProviderConfigCRD,        // Left as CRD
 					testClusterProviderConfigCRD, // Left as CRD
-					testNonCRD,                 // Left unchanged
+					testNonCRD,                   // Left unchanged
 				},
 			},
 		},
