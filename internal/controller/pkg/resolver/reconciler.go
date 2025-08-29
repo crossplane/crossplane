@@ -389,9 +389,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			status.MarkConditions(v1beta1.ResolutionFailed(err))
 
 			// Update status and return terminal error since manual intervention is required
-			if updateErr := r.client.Status().Update(ctx, lock); updateErr != nil {
-				log.Debug("cannot update status", "error", updateErr)
-			}
+			_ = r.client.Status().Update(ctx, lock)
 			return reconcile.Result{}, reconcile.TerminalError(err)
 		}
 

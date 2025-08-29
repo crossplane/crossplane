@@ -651,9 +651,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// reconciliation of the resource. These are configuration errors
 			// that require human intervention, so we use a terminal error.
 			status.MarkConditions(xpv1.ReconcileError(errors.New(errInvalidResources)))
-			if updateErr := r.client.Status().Update(updateCtx, xr); updateErr != nil {
-				log.Debug("cannot update status", "error", updateErr)
-			}
+			_ = r.client.Status().Update(updateCtx, xr)
 			return reconcile.Result{}, reconcile.TerminalError(errors.Wrap(errors.New(errInvalidResources), errCompose))
 		}
 		if r.authorizer != nil {

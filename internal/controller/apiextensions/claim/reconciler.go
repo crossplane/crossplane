@@ -361,9 +361,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		status.MarkConditions(xpv1.ReconcileError(err))
 
 		// Update status and return terminal error since this requires human intervention
-		if updateErr := r.client.Status().Update(ctx, cm); updateErr != nil {
-			log.Debug("cannot update claim status", "error", updateErr)
-		}
+		_ = r.client.Status().Update(ctx, cm)
 		return reconcile.Result{}, reconcile.TerminalError(err)
 	}
 
