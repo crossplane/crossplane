@@ -930,6 +930,19 @@ func (p *ConfigurationRevision) SetCapabilities(caps []string) {
 	p.Status.Capabilities = caps
 }
 
+// PackageList is the interface satisfied by package list types.
+// +k8s:deepcopy-gen=false
+type PackageList interface {
+	client.ObjectList
+
+	// GetPackages gets the list of Packages in a PackageList.
+	// This is a costly operation, but allows for treating different package
+	// list types as a single interface. If causing a performance bottleneck in
+	// a shared reconciler, consider refactoring the controller to use a
+	// reconciler for the specific type.
+	GetPackages() []Package
+}
+
 // PackageRevisionList is the interface satisfied by package revision list
 // types.
 // +k8s:deepcopy-gen=false
@@ -1356,4 +1369,31 @@ func (p *FunctionRevisionList) GetRevisions() []PackageRevision {
 	}
 
 	return prs
+}
+
+// GetPackages of this ProviderList.
+func (p *ProviderList) GetPackages() []Package {
+	pkgs := make([]Package, len(p.Items))
+	for i, pkg := range p.Items {
+		pkgs[i] = &pkg
+	}
+	return pkgs
+}
+
+// GetPackages of this ConfigurationList.
+func (p *ConfigurationList) GetPackages() []Package {
+	pkgs := make([]Package, len(p.Items))
+	for i, pkg := range p.Items {
+		pkgs[i] = &pkg
+	}
+	return pkgs
+}
+
+// GetPackages of this FunctionList.
+func (p *FunctionList) GetPackages() []Package {
+	pkgs := make([]Package, len(p.Items))
+	for i, pkg := range p.Items {
+		pkgs[i] = &pkg
+	}
+	return pkgs
 }
