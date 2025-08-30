@@ -351,9 +351,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		for _, p := range l.Items {
-			source, err := fieldpath.Pave(p.Object).GetString("spec.package")
-			if err != nil {
-				continue
+			// Start with spec.package, which should always be set.
+			source, _ := fieldpath.Pave(p.Object).GetString("spec.package")
+
+			// If status.resolvedPackage is set, use that. This is
+			// the "real" package, as resolved by applying any
+			// ImageConfigs that might rewrite spec.package.
+			if resolved, err := fieldpath.Pave(p.Object).GetString("status.resolvedPackage"); err == nil && resolved != "" {
+				source = resolved
 			}
 
 			pref, err := name.ParseReference(source, name.StrictValidation)
