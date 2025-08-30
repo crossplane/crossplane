@@ -22,9 +22,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
-	k8sworkqueue "k8s.io/client-go/util/workqueue"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	k8sworkqueue "k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -332,19 +332,19 @@ func TestEnqueuePackageRevisionsForImageConfig(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// Create the handler
 			handler := EnqueuePackageRevisionsForImageConfig(tc.params.kube, tc.params.l, tc.params.log)
-			
+
 			// Create a mock workqueue to capture enqueued requests
 			mockQueue := &MockWorkQueue{}
-			
+
 			// Create a create event
 			event := event.CreateEvent{
 				Object: tc.params.obj,
 			}
-			
+
 			// Call the handler's Create method
 			ctx := context.Background()
 			handler.Create(ctx, event, mockQueue)
-			
+
 			// Check what was enqueued
 			if diff := cmp.Diff(tc.want.reqs, mockQueue.requests); diff != "" {
 				t.Errorf("\n%s\nEnqueuePackageRevisionsForImageConfig(...): -want, +got:\n%s", tc.reason, diff)
@@ -353,7 +353,7 @@ func TestEnqueuePackageRevisionsForImageConfig(t *testing.T) {
 	}
 }
 
-// MockWorkQueue implements workqueue.TypedRateLimitingInterface for testing
+// MockWorkQueue implements workqueue.TypedRateLimitingInterface for testing.
 type MockWorkQueue struct {
 	k8sworkqueue.TypedRateLimitingInterface[reconcile.Request]
 	requests []reconcile.Request
