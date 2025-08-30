@@ -133,7 +133,7 @@ func TestHasRewriteRules(t *testing.T) {
 	}
 }
 
-// testEnqueuePackagesForImageConfig tests the handler by calling it with mock events and queues
+// testEnqueuePackagesForImageConfig tests the handler by calling it with mock events and queues.
 func TestEnqueuePackagesForImageConfig(t *testing.T) {
 	errBoom := errors.New("boom")
 
@@ -354,7 +354,7 @@ func TestEnqueuePackagesForImageConfig(t *testing.T) {
 	}
 }
 
-// MockWorkQueue implements workqueue.TypedRateLimitingInterface for testing
+// MockWorkQueue implements workqueue.TypedRateLimitingInterface for testing.
 type MockWorkQueue struct {
 	workqueue.TypedRateLimitingInterface[reconcile.Request]
 	requests []reconcile.Request
@@ -363,4 +363,3 @@ type MockWorkQueue struct {
 func (m *MockWorkQueue) Add(item reconcile.Request) {
 	m.requests = append(m.requests, item)
 }
-
