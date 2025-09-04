@@ -47,6 +47,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
 	"github.com/crossplane/crossplane/v2/internal/xerrors"
@@ -380,6 +381,13 @@ func WithCompositeSchema(s composite.Schema) ReconcilerOption {
 	}
 }
 
+// WithCircuitBreaker specifies the circuit breaker to use for rate limiting.
+func WithCircuitBreaker(cb circuit.Breaker) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.circuit = cb
+	}
+}
+
 type revision struct {
 	CompositionRevisionFetcher
 }
@@ -454,6 +462,8 @@ func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...Rec
 		// Dynamic watches are disabled by default.
 		engine: &NopWatchStarter{},
 
+		circuit: &circuit.NopBreaker{},
+
 		log:        logging.NewNopLogger(),
 		record:     event.NewNopRecorder(),
 		conditions: conditions.ObservedGenerationPropagationManager{},
@@ -488,6 +498,8 @@ type Reconciler struct {
 	// Used to validate errors based on API issues.
 	authorizer Authorizer
 
+	circuit circuit.Breaker
+
 	log        logging.Logger
 	record     event.Recorder
 	conditions conditions.Manager
@@ -512,13 +524,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
 	}
 
-	status := r.conditions.For(xr)
-
 	log = log.WithValues(
 		"uid", xr.GetUID(),
 		"version", xr.GetResourceVersion(),
 		"name", xr.GetName(),
 	)
+
+	status := r.conditions.For(xr)
+
+	// Check circuit breaker state and set condition accordingly.
+	condition := v1.WatchCircuitClosed()
+	if s := r.circuit.GetState(ctx, req.NamespacedName); s.IsOpen {
+		condition = v1.WatchCircuitOpen(s.TriggeredBy)
+		log.Info("Circuit breaker is open", "triggered-by", s.TriggeredBy, "next-allowed-at", s.NextAllowedAt)
+	}
+	status.MarkConditions(condition)
 
 	// Check the pause annotation and return if it has the value "true"
 	// after logging, publishing an event and updating the SYNC status condition
@@ -669,7 +689,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// We encountered a fatal error. For any custom status conditions that were
 		// not received due to the fatal error, mark them as unknown.
 		for _, c := range xr.GetConditions() {
-			if xpv1.IsSystemConditionType(c.Type) {
+			if v1.IsSystemConditionType(c.Type) {
 				continue
 			}
 			if !resultMeta.conditionTypesSeen[c.Type] {
@@ -832,7 +852,7 @@ func (r *Reconciler) handleCommonCompositionResult(ctx context.Context, res Comp
 
 	conditionTypesSeen := make(map[xpv1.ConditionType]bool)
 	for _, c := range res.Conditions {
-		if xpv1.IsSystemConditionType(c.Type) {
+		if v1.IsSystemConditionType(c.Type) {
 			// Do not let users update system conditions.
 			continue
 		}

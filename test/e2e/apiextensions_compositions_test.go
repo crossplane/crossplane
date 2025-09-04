@@ -17,16 +17,23 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
@@ -324,6 +331,79 @@ func TestNamespacedXRClusterComposition(t *testing.T) {
 			WithTeardown("DeleteXR", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestCircuitBreaker(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/circuit-breaker"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests circuit breaker functionality when XR reconciliation is triggered too frequently due to rapid ConfigMap updates, ensuring the circuit opens with proper status conditions.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRBecomesReady",
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "xr.yaml", xpv1.Available()),
+			).
+			Assess("WaitForNormalOperation", funcs.SleepFor(45*time.Second)).
+			// Verify the circuit stays closed under normal operation
+			Assess("VerifyCircuitStaysClosedUnderNormalOperation",
+				funcs.ResourcesHaveConditionWithin(10*time.Second, manifests, "xr.yaml", apiextensionsv1.WatchCircuitClosed()),
+			).
+			Assess("TriggerCircuitBreakerWithRapidUpdates", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+				t.Helper()
+
+				t.Log("Starting rapid ConfigMap updates using Server-Side Apply to trigger circuit breaker...")
+
+				// Rapidly apply ConfigMap updates using SSA
+				// We'll do 60 updates over 2 seconds (30 updates/second)
+				// This should exhaust the 50-token bucket quickly
+				for i := range 60 {
+					cm := &unstructured.Unstructured{}
+					cm.SetAPIVersion("v1")
+					cm.SetKind("ConfigMap")
+					cm.SetNamespace("default")
+					cm.SetName("circuit-breaker-configmap")
+					fieldpath.Pave(cm.Object).SetString("data.counter", fmt.Sprintf("%d", i))
+
+					if err := cfg.Client().Resources().GetControllerRuntimeClient().Patch(ctx, cm, client.Apply, client.FieldOwner(FieldManager), client.ForceOwnership); err != nil {
+						t.Logf("SSA update %d failed: %v", i, err)
+					}
+
+					// 50ms between updates = 20 updates/second
+					time.Sleep(50 * time.Millisecond)
+				}
+
+				t.Log("Completed rapid ConfigMap updates using SSA")
+				return ctx
+			}).
+			Assess("CircuitBreakerOpens",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "xr.yaml",
+					xpv1.Condition{
+						Type:   apiextensionsv1.TypeResponsive,
+						Status: corev1.ConditionFalse,
+						Reason: apiextensionsv1.ReasonWatchCircuitOpen,
+						// Note: Message is intentionally omitted as E2E framework ignores messages during comparison
+					}),
+			).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
