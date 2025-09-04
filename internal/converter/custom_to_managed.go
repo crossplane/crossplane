@@ -105,12 +105,12 @@ func CustomToManagedResourceDefinitions(defaultActive bool, objects ...runtime.O
 // other non-managed resource types.
 func isManagedResource(crd map[string]any) bool {
 	paved := fieldpath.Pave(crd)
-	
+
 	kind, err := paved.GetString("spec.names.kind")
 	if err != nil {
 		return true // Default to treating as managed resource if kind cannot be retrieved
 	}
-	
+
 	switch kind {
 	case kindProviderConfig, kindClusterProviderConfig, kindProviderConfigUsage:
 		return false // These are not managed resources
