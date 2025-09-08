@@ -783,6 +783,73 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
+		"SuccessfulCreateMissingDependencyWithRejectedTags": {
+			reason: "We should not requeue if able to create missing dependency.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							// Populate package list so we attempt
+							// reconciliation. This is overridden by the mock
+							// DAG.
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
+								Name:    "cool-package",
+								Type:    ptr.To(v1beta1.ProviderPackageType),
+								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+								Version: "v1.0.0",
+							})
+							return nil
+						}),
+						MockCreate: test.NewMockCreateFn(nil, func(o client.Object) error {
+							// Make sure the correct tag was selected - v1.0.0,
+							// not v1 or v1.0, which both parse to the same
+							// semver as v1.0.0.
+							p := o.(*unstructured.Unstructured)
+							pkg, err := fieldpath.Pave(p.Object).GetString("spec.package")
+							if err != nil {
+								return err
+							}
+							if pkg != "xpkg.crossplane.io/cool-repo/cool-image:v1.0.0" {
+								return errors.Errorf("incorrect package version selected; want v1.0.0 got %s", pkg)
+							}
+							return nil
+						}),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1beta1.Dependency{
+										Package:     "xpkg.crossplane.io/cool-repo/cool-image",
+										Constraints: "v1.0.0",
+										Type:        ptr.To(v1beta1.ProviderPackageType),
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
+					}),
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v1", "v1.0", "v1.0.1", "v2.0.0", "v2"}, nil),
+					}),
+					WithConfigStore(&fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", nil),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
 		"SuccessfulCreateMissingDependencyWithRewrite": {
 			reason: "We should not requeue if able to create missing dependency with a rewrite config.",
 			args: args{
