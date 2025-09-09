@@ -29,6 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+var _ Breaker = &TokenBucketBreaker{}
+
 func TestTokenBucketBreakerRecordEvent(t *testing.T) {
 	target := types.NamespacedName{Name: "test-xr", Namespace: "default"}
 	source := EventSource{
