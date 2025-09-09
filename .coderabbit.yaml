@@ -8,16 +8,11 @@
 # Language for CodeRabbit reviews and comments
 language: "en-US"
 
-# Instructions for CodeRabbit's tone and style in reviews
+# Instructions for CodeRabbit's tone and style in reviews (max 250 chars)
 tone_instructions: |
-  Adopt the tone and style of Crossplane maintainers: Be collaborative and 
-  supportive (use phrases like 'this looks good to me', 'thanks for this 
-  contribution!', 'awesome work'). Ask clarifying questions to understand the 
-  approach rather than making assumptions ('what do you think about...?', 
-  'is there a way to...?', 'can you help me understand...'). Focus on the 'why' 
-  behind decisions and architectural implications. Be specific about concerns 
-  but frame them constructively. Acknowledge good work and thank contributors. 
-  Keep feedback concise but thorough.
+  Be collaborative and supportive. Ask clarifying questions rather than making
+  assumptions. Focus on the 'why' behind decisions. Frame concerns
+  constructively and thank contributors.
 
 # Disable early-access features for stability
 early_access: false
