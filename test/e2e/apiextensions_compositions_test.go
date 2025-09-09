@@ -17,12 +17,18 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/e2e-framework/klient/decoder"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
@@ -93,6 +99,200 @@ func TestCompositionRevisionSelection(t *testing.T) {
 			)).
 			Feature(),
 	)
+}
+
+func TestRealtimeCompositionPerformanceNamespaced(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/realtime-namespaced-performance"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests realtime composition performance for namespaced XRs. Verifies Crossplane detects external changes to composed resources within 2-3 seconds via watches, not polling (~60s). Catches performance regressions in realtime composition.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRIsReady",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess())).
+			Assess("WaitForComposedResources",
+				// Give some time for composed resources to be created and initial reconciliation to complete
+				funcs.SleepFor(5*time.Second),
+			).
+			Assess("CaptureBaselineState", CaptureReconciliationState(manifests, "xr.yaml", "baseline")).
+			Assess("ModifyComposedResource", ModifyComposedConfigMap("default")).
+			Assess("XRReconcilesInRealtime",
+				// This is the critical test - XR should be reconciled within 2-3 seconds if realtime composition is working
+				// If it takes ~60 seconds, then we're falling back to polling which is a performance regression
+				VerifyReconciledWithin(3*time.Second, manifests, "xr.yaml", "baseline"),
+			).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+// CaptureReconciliationState captures the current reconciliation state of an XR.
+func CaptureReconciliationState(dir, pattern, contextKey string) features.Func {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Helper()
+
+		// Parse the XR manifest to get namespace and name
+		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
+		if err != nil {
+			t.Fatalf("Failed to decode manifests: %v", err)
+		}
+
+		if len(rs) == 0 {
+			t.Fatal("No manifests found")
+		}
+
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(rs[0].GetObjectKind().GroupVersionKind())
+		obj.SetName(rs[0].GetName())
+		obj.SetNamespace(rs[0].GetNamespace())
+		
+		// Get the current XR to capture its reconciliation state
+		if err := cfg.Client().Resources().Get(ctx, obj.GetName(), obj.GetNamespace(), obj); err != nil {
+			t.Fatalf("Failed to get XR: %v", err)
+		}
+
+		// Capture the current reconciliation baseline
+		baselineState := map[string]interface{}{
+			"captureTime": metav1.Now(),
+			"object": obj,
+		}
+		
+		// Get the ReconcileSuccess condition timestamp as baseline
+		status, found, err := unstructured.NestedFieldNoCopy(obj.Object, "status", "conditions")
+		if err == nil && found {
+			if conditions, ok := status.([]interface{}); ok {
+				for _, c := range conditions {
+					if condition, ok := c.(map[string]interface{}); ok {
+						if condition["type"] == "ReconcileSuccess" {
+							if lastTransitionStr, ok := condition["lastTransitionTime"].(string); ok {
+								baselineState["lastReconcileTime"] = lastTransitionStr
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		ctx = context.WithValue(ctx, contextKey, baselineState)
+		t.Logf("Captured baseline reconciliation state")
+		
+		return ctx
+	}
+}
+
+// VerifyReconciledWithin verifies that an XR was reconciled within the specified duration
+// after a composed resource change, testing realtime composition performance.
+func VerifyReconciledWithin(d time.Duration, dir, pattern, contextKey string) features.Func {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Helper()
+
+		// Get the baseline state from context
+		baselineState, ok := ctx.Value(contextKey).(map[string]interface{})
+		if !ok {
+			t.Fatal("Failed to get baseline state from context")
+		}
+		
+		baselineObj := baselineState["object"].(*unstructured.Unstructured)
+		baselineReconcileTime := ""
+		if rt, exists := baselineState["lastReconcileTime"]; exists {
+			baselineReconcileTime = rt.(string)
+		}
+
+		// Create a new object to poll
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(baselineObj.GroupVersionKind())
+		obj.SetName(baselineObj.GetName())
+		obj.SetNamespace(baselineObj.GetNamespace())
+
+		// Poll for reconciliation within the timeout
+		deadline := time.Now().Add(d)
+		startTime := time.Now()
+		
+		t.Logf("Waiting up to %v for XR to reconcile after composed resource change...", d)
+		
+		for time.Now().Before(deadline) {
+			if err := cfg.Client().Resources().Get(ctx, obj.GetName(), obj.GetNamespace(), obj); err != nil {
+				t.Fatalf("Failed to get XR: %v", err)
+			}
+
+			// Check if reconciliation occurred by comparing condition timestamp
+			status, found, err := unstructured.NestedFieldNoCopy(obj.Object, "status", "conditions")
+			if err != nil || !found {
+				time.Sleep(200 * time.Millisecond)
+				continue
+			}
+			
+			conditions, ok := status.([]interface{})
+			if !ok {
+				time.Sleep(200 * time.Millisecond)
+				continue
+			}
+			
+			for _, c := range conditions {
+				condition, ok := c.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				
+				if condition["type"] == "ReconcileSuccess" {
+					currentReconcileTimeStr, ok := condition["lastTransitionTime"].(string)
+					if !ok {
+						continue
+					}
+					
+					// If we have a baseline, check if reconciliation happened after it
+					if baselineReconcileTime != "" && currentReconcileTimeStr != baselineReconcileTime {
+						elapsed := time.Since(startTime)
+						t.Logf("SUCCESS: XR reconciled in %v (well within %v limit)", elapsed, d)
+						t.Logf("Realtime composition is working - Crossplane detected composed resource change quickly!")
+						return ctx
+					}
+					
+					// If no baseline, check if reconciliation happened after we started waiting
+					if baselineReconcileTime == "" {
+						currentReconcileTime, err := time.Parse(time.RFC3339, currentReconcileTimeStr)
+						if err != nil {
+							continue
+						}
+						
+						if currentReconcileTime.After(startTime.Add(-1 * time.Second)) { // small buffer
+							elapsed := time.Since(startTime)
+							t.Logf("SUCCESS: XR reconciled in %v (well within %v limit)", elapsed, d)
+							t.Logf("Realtime composition is working!")
+							return ctx
+						}
+					}
+				}
+			}
+
+			time.Sleep(200 * time.Millisecond)
+		}
+
+		elapsed := time.Since(startTime)
+		t.Fatalf("PERFORMANCE REGRESSION DETECTED: XR was not reconciled within %v", d)
+		t.Fatalf("This suggests realtime composition is broken and falling back to polling (~60s)")
+		t.Fatalf("Expected: Resource watch triggers immediate reconciliation (<%v)", d)
+		t.Fatalf("Actual: Took >%v, likely waiting for polling interval", elapsed)
+		return ctx
+	}
 }
 
 func TestBasicCompositionNamespaced(t *testing.T) {
@@ -331,4 +531,38 @@ func TestNamespacedXRClusterComposition(t *testing.T) {
 			)).
 			Feature(),
 	)
+}
+
+// ModifyComposedConfigMap returns a function that directly modifies a composed ConfigMap.
+// This simulates an external change to a composed resource to test realtime composition.
+func ModifyComposedConfigMap(namespace string) features.Func {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Helper()
+
+		// Get the specific ConfigMap created by our composition (predictable name)
+		cm := &corev1.ConfigMap{}
+		cm.SetNamespace(namespace)
+		cm.SetName("perftest-composed-configmap")
+
+		if err := cfg.Client().Resources().Get(ctx, cm.GetName(), cm.GetNamespace(), cm); err != nil {
+			t.Fatalf("Failed to get composed ConfigMap %s/%s: %v", namespace, cm.GetName(), err)
+		}
+
+		t.Logf("Found composed ConfigMap: %s/%s", namespace, cm.GetName())
+
+		// Modify the ConfigMap data to simulate an external change
+		if cm.Data == nil {
+			cm.Data = make(map[string]string)
+		}
+		cm.Data["testData"] = "modified-by-external-system"
+		cm.Data["modifiedAt"] = time.Now().Format(time.RFC3339)
+
+		// Update the ConfigMap
+		if err := cfg.Client().Resources().Update(ctx, cm); err != nil {
+			t.Fatalf("Failed to update ConfigMap %s/%s: %v", namespace, cm.GetName(), err)
+		}
+
+		t.Logf("Modified composed ConfigMap %s/%s externally", namespace, cm.GetName())
+		return ctx
+	}
 }

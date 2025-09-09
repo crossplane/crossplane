@@ -1,0 +1,32 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: perftest.example.org
+spec:
+  scope: Namespaced
+  group: example.org
+  names:
+    kind: PerfTest
+    plural: perftests
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              testField:
+                type: string
+            required:
+            - testField
+          status:
+            type: object
+            properties:
+              observedGeneration:
+                type: integer
+              realtimeTestStatus:
+                type: string
