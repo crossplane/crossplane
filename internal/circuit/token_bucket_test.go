@@ -452,49 +452,6 @@ func TestTokenBucketBreakerConcurrency(t *testing.T) {
 	}
 }
 
-func TestTokenBucketBreakerGarbageCollection(t *testing.T) {
-	breaker := NewTokenBucketBreaker(
-		WithGarbageCollectTargetsAfter(100 * time.Millisecond),
-	)
-
-	ctx := context.Background()
-	target := types.NamespacedName{Name: "test-xr", Namespace: "default"}
-	source := EventSource{
-		GVK:  schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Bucket"},
-		Name: "test-bucket",
-	}
-
-	// Record an event to create target state
-	breaker.RecordEvent(ctx, target, source)
-
-	// Verify target exists
-	state := breaker.GetState(ctx, target)
-	want := State{
-		IsOpen:      false,
-		TriggeredBy: "",
-		// NextAllowedAt left unset (zero value) when circuit is closed
-	}
-	if diff := cmp.Diff(want, state, cmpopts.EquateApproxTime(2*time.Second)); diff != "" {
-		t.Errorf("Initial circuit state mismatch (-want +got):\n%s", diff)
-	}
-
-	// Wait for expiration
-	time.Sleep(150 * time.Millisecond)
-
-	// Run garbage collection
-	collected := breaker.GarbageCollectTargetsNow()
-	if collected != 1 {
-		t.Errorf("Expected to collect 1 target, got %d", collected)
-	}
-
-	// Verify target was removed (should return default state)
-	state = breaker.GetState(ctx, target)
-	want = State{IsOpen: false}
-	if diff := cmp.Diff(want, state, cmpopts.EquateApproxTime(2*time.Second)); diff != "" {
-		t.Errorf("Post-GC circuit state mismatch (-want +got):\n%s", diff)
-	}
-}
-
 // ExampleTokenBucketBreaker demonstrates circuit breaker behavior including
 // triggering the breaker and half-open state management.
 func ExampleTokenBucketBreaker() {

@@ -79,6 +79,7 @@ type TokenBucketBreaker struct {
 	config  Config
 	mu      sync.RWMutex
 	targets map[types.NamespacedName]*state
+	lastGC  time.Time // Last time garbage collection was performed
 }
 
 // state tracks the circuit breaker state for a single target resource.
@@ -128,6 +129,20 @@ func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.Namespa
 	defer b.mu.Unlock()
 
 	now := time.Now()
+
+	// Lazy garbage collection: clean up stale targets every hour
+	if now.Sub(b.lastGC) > 1*time.Hour {
+		for t, s := range b.targets {
+			s.mu.RLock()
+			shouldDelete := now.Sub(s.lastRefill) > b.config.expireAfter
+			s.mu.RUnlock()
+
+			if shouldDelete {
+				delete(b.targets, t)
+			}
+		}
+		b.lastGC = now
+	}
 
 	if b.targets[target] == nil {
 		b.targets[target] = &state{
@@ -230,42 +245,4 @@ func (b *TokenBucketBreaker) RecordAllowed(_ context.Context, target types.Names
 	defer state.mu.Unlock()
 
 	state.lastAllowed = time.Now()
-}
-
-// GarbageCollectTargets runs every interval until the supplied context is
-// cancelled. It garbage collects target states that haven't seen activity recently.
-func (b *TokenBucketBreaker) GarbageCollectTargets(ctx context.Context, interval time.Duration) {
-	t := time.NewTicker(interval)
-	defer t.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-			b.GarbageCollectTargetsNow()
-		}
-	}
-}
-
-// GarbageCollectTargetsNow immediately garbage collects target states that
-// haven't seen activity recently.
-func (b *TokenBucketBreaker) GarbageCollectTargetsNow() int {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	collected := 0
-
-	for target, state := range b.targets {
-		state.mu.RLock()
-		shouldDelete := !state.lastRefill.IsZero() && time.Since(state.lastRefill) > b.config.expireAfter
-		state.mu.RUnlock()
-
-		if shouldDelete {
-			delete(b.targets, target)
-			collected++
-		}
-	}
-
-	return collected
 }
