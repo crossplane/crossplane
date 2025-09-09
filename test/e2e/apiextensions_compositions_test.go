@@ -287,10 +287,10 @@ func VerifyReconciledWithin(d time.Duration, dir, pattern, contextKey string) fe
 		}
 
 		elapsed := time.Since(startTime)
-		t.Fatalf("PERFORMANCE REGRESSION DETECTED: XR was not reconciled within %v", d)
-		t.Fatalf("This suggests realtime composition is broken and falling back to polling (~60s)")
-		t.Fatalf("Expected: Resource watch triggers immediate reconciliation (<%v)", d)
-		t.Fatalf("Actual: Took >%v, likely waiting for polling interval", elapsed)
+		t.Fatalf("PERFORMANCE REGRESSION DETECTED: XR was not reconciled within %v\n" +
+			"This suggests realtime composition is broken and falling back to polling (~60s)\n" +
+			"Expected: Resource watch triggers immediate reconciliation (<%v)\n" +
+			"Actual: Took >%v, likely waiting for polling interval", d, d, elapsed)
 		return ctx
 	}
 }
