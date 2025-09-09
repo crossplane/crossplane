@@ -116,8 +116,8 @@ func EnqueueCompositeResources(of schema.GroupVersionKind, c client.Reader, log 
 
 			// queue those composites for reconciliation
 			for _, xr := range composites.Items {
-				log.Debug("Enqueueing composite resource because composed resource changed", "name", xr.GetName(), "cdGVK", cdGVK.String(), "cdName", ev.ObjectNew.GetName())
-				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: xr.GetName()}})
+				log.Debug("Enqueueing composite resource because composed resource changed", "name", xr.GetName(), "namespace", xr.GetNamespace(), "cdGVK", cdGVK.String(), "cdName", ev.ObjectNew.GetName())
+				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: xr.GetName(), Namespace: xr.GetNamespace()}})
 			}
 		},
 	}
