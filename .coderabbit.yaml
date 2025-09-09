@@ -5,7 +5,7 @@
 # GLOBAL SETTINGS
 # =============================================================================
 
-# Language for CodeRabbit reviews and comments
+# Language for CodeRabbit reviews and comments (default: en-US, keeping explicit)
 language: "en-US"
 
 # Instructions for CodeRabbit's tone and style in reviews (max 250 chars)
@@ -31,44 +31,11 @@ reviews:
   # Include the high-level summary in the walkthrough comment instead
   high_level_summary_in_walkthrough: true
   
-  # Placeholder text (unused since high_level_summary is false)
-  high_level_summary_placeholder: "@coderabbitai summary"
+  # Collapse walkthrough comment to reduce visual clutter in PRs
+  collapse_walkthrough: true
   
-  # Post review status comments on each review
-  review_status: true
-  
-  # Set GitHub commit status (✅/⚪/❌) to show CodeRabbit review progress in PR checks
-  commit_status: true
-  
-  # Keep walkthrough comment expanded (false = expanded, true = collapsed)
-  collapse_walkthrough: false
-  
-  # Include a summary of which files were changed and how in the walkthrough
-  changed_files_summary: true
-  
-  # Generate sequence diagrams to visualize code flow in the walkthrough
-  sequence_diagrams: true
-  
-  # Estimate and display the code review effort/complexity
-  estimate_code_review_effort: true
-  
-  # Analyze how well the PR addresses any linked GitHub issues
-  assess_linked_issues: true
-  
-  # Include potentially related issues in the walkthrough
-  related_issues: true
-  
-  # Include potentially related PRs in the walkthrough
-  related_prs: true
-  
-  # Suggest appropriate labels based on the changes
-  suggested_labels: true
-  
-  # Automatically apply suggested labels (disabled - let maintainers control)
-  auto_apply_labels: false
-  
-  # Suggest reviewers based on code ownership and expertise
-  suggested_reviewers: true
+  # Enable automatic label application
+  auto_apply_labels: true
   
   # Automatically assign suggested reviewers (disabled - let maintainers control)
   auto_assign_reviewers: false
@@ -124,9 +91,9 @@ reviews:
     
     - path: "**/*.md"
       instructions: |
-        Ensure Markdown files are wrapped at 80 columns for consistency and
+        Ensure Markdown files are wrapped at 100 columns for consistency and
         readability. Lines can be longer if it makes links more readable, but
-        otherwise should wrap at 80 characters. Check for proper heading
+        otherwise should wrap at 100 characters. Check for proper heading
         structure, clear language, and that documentation is helpful for users.
     
     - path: "**/apis/**"
@@ -194,13 +161,7 @@ reviews:
   
   # Automatic review settings
   auto_review:
-    # Enable automatic code reviews on PR creation and updates
-    enabled: true
-    
-    # Enable incremental reviews on each push to the PR
-    auto_incremental_review: true
-    
-    # Skip reviewing draft PRs until they're ready for review
+    # Skip reviewing draft PRs until they're ready for review (default: false, keeping explicit)
     drafts: false
     
     # Skip reviews if PR title contains these keywords (case-insensitive)
@@ -220,35 +181,27 @@ reviews:
   pre_merge_checks:
     # Check PR title for length and descriptiveness
     title:
-      mode: "warning"
       requirements: "Keep under 72 characters and be descriptive about what the change does."
     
-    # Check that PR has a meaningful description
-    description:
-      mode: "warning"
-    
-    # Assess how well the PR addresses any linked GitHub issues
-    issue_assessment:
-      mode: "warning"
-    
-    # Check that exported functions and types have proper documentation
+    # Disable docstring coverage check (too noisy for Go projects)
     docstrings:
-      mode: "warning"
-      threshold: 80
+      mode: "off"
     
     # Custom checks specific to Crossplane development practices
     custom_checks:
       - name: "Breaking Changes"
-        mode: "warning"
-        instructions: "Check if this change introduces any breaking changes to APIs, CLI commands, or behavior. If so, ensure proper deprecation notices and migration guides are provided."
+        mode: "error"
+        instructions: |
+          "Fails if files under 'apis/**' or 'cmd/**' remove or rename public
+          fields/flags, add new required public fields/flags, or remove behavior
+          without label 'breaking-change'.
       
-      - name: "Feature Gate Consideration"
-        mode: "warning"
-        instructions: "For new features, consider if they should be behind a feature gate, especially if they're experimental or could impact stability."
-      
-      - name: "Documentation Updates"
-        mode: "warning"
-        instructions: "Ensure that user-facing changes include appropriate documentation updates or clearly indicate what documentation needs to be updated."
+      - name: "Feature Gate Requirement"
+        mode: "error"
+        instructions: |
+          Fails if new experimental features that affect apis/**, or
+          significantly affect behavior, are added without a feature flag
+          implementation.
   
   # Disable automatic code generation features
   finishing_touches:
@@ -311,9 +264,6 @@ reviews:
 # =============================================================================
 
 chat:
-  # Reply to questions automatically without requiring @coderabbitai mention
-  auto_reply: true
-  
   # Disable ASCII/emoji art in responses
   art: false
 
@@ -322,32 +272,11 @@ chat:
 # =============================================================================
 
 knowledge_base:
-  # Enable knowledge base features (learning from codebase patterns)
-  opt_out: false
-  
-  # Enable web search for additional context during reviews
-  web_search:
-    enabled: true
-  
   # Learn from Crossplane's coding guidelines and apply them during reviews
   code_guidelines:
-    enabled: true
     filePatterns:
       - "**/contributing/README.md"
-  
-  # Use repository-specific learnings for public repos, org-wide for private
-  learnings:
-    scope: "auto"
-  
-  # Use repository-specific issues for public repos, org-wide for private
-  issues:
-    scope: "auto"
-  
-  # Use repository-specific PRs for public repos, org-wide for private
-  pull_requests:
-    scope: "auto"
   
   # Enable MCP integration to provide context about external libraries and APIs
   mcp:
     usage: "enabled"
-    disabled_servers: []
