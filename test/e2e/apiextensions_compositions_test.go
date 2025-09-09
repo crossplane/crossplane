@@ -371,7 +371,7 @@ func TestCircuitBreaker(t *testing.T) {
 				t.Log("Starting rapid ConfigMap updates using Server-Side Apply to trigger circuit breaker...")
 
 				// Rapidly apply ConfigMap updates using SSA
-				// We'll do 60 updates over 2 seconds (30 updates/second)
+				// We'll do 60 updates over 3 seconds (20 updates/second)
 				// This should exhaust the 50-token bucket quickly
 				for i := range 60 {
 					cm := &unstructured.Unstructured{}
