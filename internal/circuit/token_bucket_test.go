@@ -77,6 +77,7 @@ func TestTokenBucketBreakerRecordEvent(t *testing.T) {
 			breaker: NewTokenBucketBreaker(
 				WithBurst(2),
 				WithRefillRatePerSecond(0.1),
+				WithHalfOpenInterval(30*time.Second), // Explicit for test stability
 			),
 			setup: func(b *TokenBucketBreaker) {
 				ctx := context.Background()
@@ -104,6 +105,7 @@ func TestTokenBucketBreakerRecordEvent(t *testing.T) {
 				WithBurst(2),
 				WithRefillRatePerSecond(10), // Fast refill to ensure tokens are available
 				WithOpenDuration(100*time.Millisecond),
+				WithHalfOpenInterval(30*time.Second), // Explicit for test stability
 			),
 			setup: func(b *TokenBucketBreaker) {
 				ctx := context.Background()
@@ -136,7 +138,7 @@ func TestTokenBucketBreakerRecordEvent(t *testing.T) {
 			tc.breaker.RecordEvent(tc.args.ctx, tc.args.target, tc.args.source)
 			got := tc.breaker.GetState(tc.args.ctx, tc.args.target)
 
-			if diff := cmp.Diff(tc.want.state, got, cmpopts.EquateApproxTime(2*time.Second)); diff != "" {
+			if diff := cmp.Diff(tc.want.state, got, cmpopts.EquateApproxTime(50*time.Millisecond)); diff != "" {
 				t.Errorf("%s\nTokenBucketBreaker.RecordEvent(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -168,8 +170,14 @@ func TestTokenBucketBreakerGetState(t *testing.T) {
 		want    want
 	}{
 		"UnknownTarget": {
-			reason:  "Getting state for unknown target should return closed circuit",
-			breaker: NewTokenBucketBreaker(),
+			reason: "Getting state for unknown target should return closed circuit",
+			breaker: NewTokenBucketBreaker(
+				WithBurst(50.0),
+				WithRefillRatePerSecond(0.5),
+				WithOpenDuration(5*time.Minute),
+				WithHalfOpenInterval(30*time.Second),
+				WithGarbageCollectTargetsAfter(24*time.Hour),
+			),
 			args: args{
 				ctx:    context.Background(),
 				target: target,
@@ -181,8 +189,14 @@ func TestTokenBucketBreakerGetState(t *testing.T) {
 			},
 		},
 		"ClosedCircuit": {
-			reason:  "Getting state for target with closed circuit should return correct state",
-			breaker: NewTokenBucketBreaker(),
+			reason: "Getting state for target with closed circuit should return correct state",
+			breaker: NewTokenBucketBreaker(
+				WithBurst(50.0),
+				WithRefillRatePerSecond(0.5),
+				WithOpenDuration(5*time.Minute),
+				WithHalfOpenInterval(30*time.Second),
+				WithGarbageCollectTargetsAfter(24*time.Hour),
+			),
 			setup: func(b *TokenBucketBreaker) {
 				ctx := context.Background()
 				b.RecordEvent(ctx, target, source)
@@ -202,6 +216,7 @@ func TestTokenBucketBreakerGetState(t *testing.T) {
 			breaker: NewTokenBucketBreaker(
 				WithBurst(1),
 				WithRefillRatePerSecond(0.1),
+				WithHalfOpenInterval(30*time.Second), // Explicit for test stability
 			),
 			setup: func(b *TokenBucketBreaker) {
 				ctx := context.Background()
@@ -231,7 +246,7 @@ func TestTokenBucketBreakerGetState(t *testing.T) {
 
 			got := tc.breaker.GetState(tc.args.ctx, tc.args.target)
 
-			if diff := cmp.Diff(tc.want.state, got, cmpopts.EquateApproxTime(2*time.Second)); diff != "" {
+			if diff := cmp.Diff(tc.want.state, got, cmpopts.EquateApproxTime(50*time.Millisecond)); diff != "" {
 				t.Errorf("%s\nTokenBucketBreaker.GetState(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -262,8 +277,14 @@ func TestTokenBucketBreakerRecordAllowed(t *testing.T) {
 		want    want
 	}{
 		"UnknownTarget": {
-			reason:  "Recording allowed for unknown target should not panic",
-			breaker: NewTokenBucketBreaker(),
+			reason: "Recording allowed for unknown target should not panic",
+			breaker: NewTokenBucketBreaker(
+				WithBurst(50.0),
+				WithRefillRatePerSecond(0.5),
+				WithOpenDuration(5*time.Minute),
+				WithHalfOpenInterval(30*time.Second),
+				WithGarbageCollectTargetsAfter(24*time.Hour),
+			),
 			args: args{
 				ctx:    context.Background(),
 				target: types.NamespacedName{Name: "unknown", Namespace: "default"},
@@ -304,7 +325,7 @@ func TestTokenBucketBreakerRecordAllowed(t *testing.T) {
 			tc.breaker.RecordAllowed(tc.args.ctx, tc.args.target)
 			got := tc.breaker.GetState(tc.args.ctx, tc.args.target)
 
-			if diff := cmp.Diff(tc.want.state, got, cmpopts.EquateApproxTime(2*time.Second)); diff != "" {
+			if diff := cmp.Diff(tc.want.state, got, cmpopts.EquateApproxTime(50*time.Millisecond)); diff != "" {
 				t.Errorf("%s\nTokenBucketBreaker.RecordAllowed(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -315,6 +336,7 @@ func TestTokenBucketBreakerSourceTracking(t *testing.T) {
 	breaker := NewTokenBucketBreaker(
 		WithBurst(1),
 		WithRefillRatePerSecond(0.1),
+		WithHalfOpenInterval(30*time.Second), // Explicit for test stability
 	)
 
 	ctx := context.Background()
@@ -354,7 +376,7 @@ func TestTokenBucketBreakerSourceTracking(t *testing.T) {
 		TriggeredBy:   "Bucket/bucket-1 (default)",
 	}
 
-	if diff := cmp.Diff(want, state, cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
+	if diff := cmp.Diff(want, state, cmpopts.EquateApproxTime(50*time.Millisecond)); diff != "" {
 		t.Errorf("Expected circuit to be open with correct trigger source: -want, +got:\n%s", diff)
 	}
 }
@@ -364,6 +386,7 @@ func TestTokenBucketBreakerTokenRefill(t *testing.T) {
 		WithBurst(2),
 		WithRefillRatePerSecond(10),            // Fast refill for test
 		WithOpenDuration(200*time.Millisecond), // Longer cooldown
+		WithHalfOpenInterval(30*time.Second),   // Explicit for test stability
 	)
 
 	ctx := context.Background()
@@ -405,7 +428,7 @@ func TestTokenBucketBreakerTokenRefill(t *testing.T) {
 	breaker.RecordEvent(ctx, target, source)
 	state = breaker.GetState(ctx, target)
 	want := State{IsOpen: false}
-	if diff := cmp.Diff(want, state, cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
+	if diff := cmp.Diff(want, state, cmpopts.EquateApproxTime(50*time.Millisecond)); diff != "" {
 		t.Errorf("Expected circuit to remain closed after cooldown and token refill: -want, +got:\n%s", diff)
 	}
 }
@@ -414,6 +437,7 @@ func TestTokenBucketBreakerConcurrency(t *testing.T) {
 	breaker := NewTokenBucketBreaker(
 		WithBurst(95), // Not quite enough for 10 goroutines making 10 requests in parallel.
 		WithRefillRatePerSecond(1),
+		WithHalfOpenInterval(30*time.Second), // Explicit for test stability
 	)
 
 	ctx := context.Background()
