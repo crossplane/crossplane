@@ -527,6 +527,13 @@ func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1
 			continue
 		}
 
+		// We also skip any tags that are incomplete semantic versions (e.g.,
+		// "v1" will parse as "v1.0.0"). This prevents a "v1" tag, which may not
+		// point to v1.0.0 of a package, from matching a "v1.0.0" constraint.
+		if v.String() != strings.TrimPrefix(v.Original(), "v") {
+			continue
+		}
+
 		vs = append(vs, v)
 	}
 
