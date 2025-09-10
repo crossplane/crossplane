@@ -52,7 +52,7 @@ func CompositionRevisionMapFunc(of schema.GroupVersionKind, s composite.Schema, 
 		}
 
 		// This handler is for a specific type of XR. This
-		// revisionisn't compatible with that type.
+		// revision isn't compatible with that type.
 		if rev.Spec.CompositeTypeRef.APIVersion != of.GroupVersion().String() {
 			return nil
 		}

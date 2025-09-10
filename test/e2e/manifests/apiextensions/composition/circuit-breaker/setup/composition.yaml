@@ -8,7 +8,7 @@ spec:
     kind: CircuitBreakerTest
   mode: Pipeline
   pipeline:
-  - step: create-with-short-ttl
+  - step: create-configmap
     functionRef:
       name: function-dummy-circuit-breaker
     input:

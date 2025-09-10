@@ -176,7 +176,7 @@ func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.Namespa
 		state.recentIdx = 0
 	}
 
-	// It there's a token available, consume it.
+	// If there's a token available, consume it.
 	if state.tokens >= 1.0 {
 		state.tokens -= 1.0
 		return
