@@ -49,6 +49,9 @@ const LabelAreaAPIExtensions = "apiextensions"
 // test suite with caching enabled.
 const SuiteFunctionResponseCache = "function-response-cache"
 
+// contextKey is a type used for context keys to avoid context key collisions
+type contextKey string
+
 func init() {
 	environment.AddTestSuite(SuiteFunctionResponseCache,
 		config.WithHelmInstallOpts(
@@ -144,7 +147,7 @@ func TestRealtimeCompositionPerformanceNamespaced(t *testing.T) {
 }
 
 // CaptureReconciliationState captures the current reconciliation state of an XR.
-func CaptureReconciliationState(dir, pattern, contextKey string) features.Func {
+func CaptureReconciliationState(dir, pattern, ctxKey string) features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Helper()
 
@@ -162,7 +165,7 @@ func CaptureReconciliationState(dir, pattern, contextKey string) features.Func {
 		obj.SetGroupVersionKind(rs[0].GetObjectKind().GroupVersionKind())
 		obj.SetName(rs[0].GetName())
 		obj.SetNamespace(rs[0].GetNamespace())
-		
+
 		// Get the current XR to capture its reconciliation state
 		if err := cfg.Client().Resources().Get(ctx, obj.GetName(), obj.GetNamespace(), obj); err != nil {
 			t.Fatalf("Failed to get XR: %v", err)
@@ -171,9 +174,9 @@ func CaptureReconciliationState(dir, pattern, contextKey string) features.Func {
 		// Capture the current reconciliation baseline
 		baselineState := map[string]interface{}{
 			"captureTime": metav1.Now(),
-			"object": obj,
+			"object":      obj,
 		}
-		
+
 		// Get the ReconcileSuccess condition timestamp as baseline
 		status, found, err := unstructured.NestedFieldNoCopy(obj.Object, "status", "conditions")
 		if err == nil && found {
@@ -190,26 +193,26 @@ func CaptureReconciliationState(dir, pattern, contextKey string) features.Func {
 				}
 			}
 		}
-		
-		ctx = context.WithValue(ctx, contextKey, baselineState)
+
+		ctx = context.WithValue(ctx, contextKey(ctxKey), baselineState)
 		t.Logf("Captured baseline reconciliation state")
-		
+
 		return ctx
 	}
 }
 
 // VerifyReconciledWithin verifies that an XR was reconciled within the specified duration
 // after a composed resource change, testing realtime composition performance.
-func VerifyReconciledWithin(d time.Duration, dir, pattern, contextKey string) features.Func {
+func VerifyReconciledWithin(d time.Duration, _, pattern, ctxKey string) features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Helper()
 
 		// Get the baseline state from context
-		baselineState, ok := ctx.Value(contextKey).(map[string]interface{})
+		baselineState, ok := ctx.Value(contextKey(ctxKey)).(map[string]interface{})
 		if !ok {
 			t.Fatal("Failed to get baseline state from context")
 		}
-		
+
 		baselineObj := baselineState["object"].(*unstructured.Unstructured)
 		baselineReconcileTime := ""
 		if rt, exists := baselineState["lastReconcileTime"]; exists {
@@ -225,9 +228,9 @@ func VerifyReconciledWithin(d time.Duration, dir, pattern, contextKey string) fe
 		// Poll for reconciliation within the timeout
 		deadline := time.Now().Add(d)
 		startTime := time.Now()
-		
+
 		t.Logf("Waiting up to %v for XR to reconcile after composed resource change...", d)
-		
+
 		for time.Now().Before(deadline) {
 			if err := cfg.Client().Resources().Get(ctx, obj.GetName(), obj.GetNamespace(), obj); err != nil {
 				t.Fatalf("Failed to get XR: %v", err)
@@ -239,25 +242,25 @@ func VerifyReconciledWithin(d time.Duration, dir, pattern, contextKey string) fe
 				time.Sleep(200 * time.Millisecond)
 				continue
 			}
-			
+
 			conditions, ok := status.([]interface{})
 			if !ok {
 				time.Sleep(200 * time.Millisecond)
 				continue
 			}
-			
+
 			for _, c := range conditions {
 				condition, ok := c.(map[string]interface{})
 				if !ok {
 					continue
 				}
-				
+
 				if condition["type"] == "ReconcileSuccess" {
 					currentReconcileTimeStr, ok := condition["lastTransitionTime"].(string)
 					if !ok {
 						continue
 					}
-					
+
 					// If we have a baseline, check if reconciliation happened after it
 					if baselineReconcileTime != "" && currentReconcileTimeStr != baselineReconcileTime {
 						elapsed := time.Since(startTime)
@@ -265,14 +268,14 @@ func VerifyReconciledWithin(d time.Duration, dir, pattern, contextKey string) fe
 						t.Logf("Realtime composition is working - Crossplane detected composed resource change quickly!")
 						return ctx
 					}
-					
+
 					// If no baseline, check if reconciliation happened after we started waiting
 					if baselineReconcileTime == "" {
 						currentReconcileTime, err := time.Parse(time.RFC3339, currentReconcileTimeStr)
 						if err != nil {
 							continue
 						}
-						
+
 						if currentReconcileTime.After(startTime.Add(-1 * time.Second)) { // small buffer
 							elapsed := time.Since(startTime)
 							t.Logf("SUCCESS: XR reconciled in %v (well within %v limit)", elapsed, d)
@@ -287,9 +290,9 @@ func VerifyReconciledWithin(d time.Duration, dir, pattern, contextKey string) fe
 		}
 
 		elapsed := time.Since(startTime)
-		t.Fatalf("PERFORMANCE REGRESSION DETECTED: XR was not reconciled within %v\n" +
-			"This suggests realtime composition is broken and falling back to polling (~60s)\n" +
-			"Expected: Resource watch triggers immediate reconciliation (<%v)\n" +
+		t.Fatalf("PERFORMANCE REGRESSION DETECTED: XR was not reconciled within %v\n"+
+			"This suggests realtime composition is broken and falling back to polling (~60s)\n"+
+			"Expected: Resource watch triggers immediate reconciliation (<%v)\n"+
 			"Actual: Took >%v, likely waiting for polling interval", d, d, elapsed)
 		return ctx
 	}

@@ -1,7 +1,7 @@
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: perftest.example.org
+  name: perftests.example.org
 spec:
   scope: Namespaced
   group: example.org
