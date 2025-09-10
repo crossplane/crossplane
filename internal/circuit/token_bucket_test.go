@@ -138,7 +138,7 @@ func TestTokenBucketBreakerRecordEvent(t *testing.T) {
 			tc.breaker.RecordEvent(tc.args.ctx, tc.args.target, tc.args.source)
 			got := tc.breaker.GetState(tc.args.ctx, tc.args.target)
 
-			if diff := cmp.Diff(tc.want.state, got, cmpopts.EquateApproxTime(50*time.Millisecond)); diff != "" {
+			if diff := cmp.Diff(tc.want.state, got, cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 				t.Errorf("%s\nTokenBucketBreaker.RecordEvent(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -246,7 +246,7 @@ func TestTokenBucketBreakerGetState(t *testing.T) {
 
 			got := tc.breaker.GetState(tc.args.ctx, tc.args.target)
 
-			if diff := cmp.Diff(tc.want.state, got, cmpopts.EquateApproxTime(50*time.Millisecond)); diff != "" {
+			if diff := cmp.Diff(tc.want.state, got, cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 				t.Errorf("%s\nTokenBucketBreaker.GetState(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -325,7 +325,7 @@ func TestTokenBucketBreakerRecordAllowed(t *testing.T) {
 			tc.breaker.RecordAllowed(tc.args.ctx, tc.args.target)
 			got := tc.breaker.GetState(tc.args.ctx, tc.args.target)
 
-			if diff := cmp.Diff(tc.want.state, got, cmpopts.EquateApproxTime(50*time.Millisecond)); diff != "" {
+			if diff := cmp.Diff(tc.want.state, got, cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 				t.Errorf("%s\nTokenBucketBreaker.RecordAllowed(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})

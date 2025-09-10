@@ -79,7 +79,6 @@ type TokenBucketBreaker struct {
 	config  Config
 	mu      sync.RWMutex
 	targets map[types.NamespacedName]*state
-	lastGC  time.Time // Last time garbage collection was performed
 }
 
 // state tracks the circuit breaker state for a single target resource.
@@ -126,12 +125,11 @@ func NewTokenBucketBreaker(opts ...Option) *TokenBucketBreaker {
 // RecordEvent records a reconciliation event for the target resource.
 func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.NamespacedName, source EventSource) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
 
 	now := time.Now()
 
-	// Lazy garbage collection: clean up stale targets every hour
-	if now.Sub(b.lastGC) > 1*time.Hour {
+	if b.targets[target] == nil {
+		// Garbage collect stale targets when adding new ones
 		for t, s := range b.targets {
 			s.mu.RLock()
 			shouldDelete := now.Sub(s.lastRefill) > b.config.expireAfter
@@ -141,16 +139,15 @@ func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.Namespa
 				delete(b.targets, t)
 			}
 		}
-		b.lastGC = now
-	}
 
-	if b.targets[target] == nil {
 		b.targets[target] = &state{
 			tokens:     b.config.capacity, // Start with full bucket
 			lastRefill: now,
 		}
 	}
 	state := b.targets[target]
+	b.mu.Unlock()
+
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
