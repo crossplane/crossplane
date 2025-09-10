@@ -42,7 +42,7 @@ var (
 
 // Function type metadata.
 var (
-	FunctionKind             = reflect.TypeOf(Function{}).Name()
+	FunctionKind             = reflect.TypeFor[Function]().Name()
 	FunctionGroupKind        = schema.GroupKind{Group: Group, Kind: FunctionKind}.String()
 	FunctionKindAPIVersion   = FunctionKind + "." + SchemeGroupVersion.String()
 	FunctionGroupVersionKind = SchemeGroupVersion.WithKind(FunctionKind)
