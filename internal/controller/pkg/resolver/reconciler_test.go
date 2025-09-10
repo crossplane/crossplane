@@ -618,7 +618,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: false},
+				r:   reconcile.Result{},
+				err: reconcile.TerminalError(errors.Errorf(errFmtNoValidVersion, "hasheddan/config-nop-b", ">v1.0.0")),
 			},
 		},
 		"ErrorCreateMissingDependency": {
