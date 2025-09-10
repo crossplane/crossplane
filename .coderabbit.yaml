@@ -22,8 +22,10 @@ early_access: false
 # =============================================================================
 
 reviews:
-  # Use assertive profile to catch Crossplane-specific patterns that linters miss
-  profile: "assertive"
+  # We tested assertive and found it too verbose, e.g. approxing 200 comments on
+  # https://github.com/crossplane/crossplane/pull/6777. Some of the nitpicks do
+  # look valuable to me, but the signal to noise ratio isn't good enough.
+  profile: "chill"
   
   # Don't generate summary in PR description - let authors write their own
   high_level_summary: false
