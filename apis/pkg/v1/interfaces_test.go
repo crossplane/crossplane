@@ -33,3 +33,9 @@ var (
 	_ PackageRevisionList = &ConfigurationRevisionList{}
 	_ PackageRevisionList = &FunctionRevisionList{}
 )
+
+var (
+	_ PackageList = &ProviderList{}
+	_ PackageList = &ConfigurationList{}
+	_ PackageList = &FunctionList{}
+)
