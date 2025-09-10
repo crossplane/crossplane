@@ -350,7 +350,6 @@ func TestRunFunction(t *testing.T) {
 				}),
 				o: []FileBackedRunnerOption{
 					WithLogger(&TestLogger{t: t}),
-					// WithFilesystem(afero.NewMemMapFs()),
 					WithFilesystem(MockFs(map[string][]byte{
 						"coolfn/hello": func() []byte {
 							msg, _ := proto.Marshal(&v1alpha1.CachedRunFunctionResponse{
