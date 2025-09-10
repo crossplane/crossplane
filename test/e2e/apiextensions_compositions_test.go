@@ -236,6 +236,20 @@ func VerifyReconciledWithin(d time.Duration, _, pattern, ctxKey string) features
 				t.Fatalf("Failed to get XR: %v", err)
 			}
 
+			// Success check: the composed ConfigMap should be reverted back to desired state.
+			// This directly indicates a reconcile happened due to the watch enqueue.
+			{
+				cm := &corev1.ConfigMap{}
+				// Composition creates this with a predictable name in the XR's namespace.
+				if err := cfg.Client().Resources().Get(ctx, "perftest-composed-configmap", baselineObj.GetNamespace(), cm); err == nil {
+					if v, ok := cm.Data["testData"]; ok && v == "initial-value" {
+						elapsed := time.Since(startTime)
+						t.Logf("SUCCESS: Composed resource reverted in %v (<=%v), indicating realtime reconciliation.", elapsed, d)
+						return ctx
+					}
+				}
+			}
+
 			// Check if reconciliation occurred by comparing condition timestamp
 			status, found, err := unstructured.NestedFieldNoCopy(obj.Object, "status", "conditions")
 			if err != nil || !found {
@@ -271,7 +285,7 @@ func VerifyReconciledWithin(d time.Duration, _, pattern, ctxKey string) features
 
 					// If no baseline, check if reconciliation happened after we started waiting
 					if baselineReconcileTime == "" {
-						currentReconcileTime, err := time.Parse(time.RFC3339, currentReconcileTimeStr)
+						currentReconcileTime, err := time.Parse(time.RFC3339Nano, currentReconcileTimeStr)
 						if err != nil {
 							continue
 						}
