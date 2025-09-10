@@ -24,26 +24,32 @@ import (
 
 func TestIsSystemConditionType(t *testing.T) {
 	cases := map[string]struct {
+		reason        string
 		conditionType xpv1.ConditionType
 		want          bool
 	}{
 		"CrossplaneRuntimeSystemCondition": {
+			reason:        "builtin ready condition should be system type",
 			conditionType: xpv1.TypeReady,
 			want:          true,
 		},
 		"CrossplaneRuntimeSystemConditionSynced": {
+			reason:        "builtin synced condition should be system type",
 			conditionType: xpv1.TypeSynced,
 			want:          true,
 		},
 		"CrossplaneCircuitCondition": {
+			reason:        "circuit responsive condition should be system type",
 			conditionType: TypeResponsive,
 			want:          true,
 		},
 		"CustomCondition": {
+			reason:        "custom database condition should not be system type",
 			conditionType: "DatabaseReady",
 			want:          false,
 		},
 		"AnotherCustomCondition": {
+			reason:        "custom bucket condition should not be system type",
 			conditionType: "BucketReady",
 			want:          false,
 		},
@@ -53,7 +59,7 @@ func TestIsSystemConditionType(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := IsSystemConditionType(tc.conditionType)
 			if got != tc.want {
-				t.Errorf("IsSystemConditionType(%q) = %v, want %v", tc.conditionType, got, tc.want)
+				t.Errorf("%s: IsSystemConditionType(%q) = %v, want %v", tc.reason, tc.conditionType, got, tc.want)
 			}
 		})
 	}
