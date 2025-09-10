@@ -45,6 +45,9 @@ reviews:
   # Disable poem generation in walkthrough comments
   poem: false
   
+  # Disable review status messages to reduce comment noise
+  review_status: false
+  
   # Focus reviews on source code, exclude generated and vendor files
   path_filters:
     # Include source code
