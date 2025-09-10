@@ -191,16 +191,16 @@ func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.Namespa
 	events := make(map[string]int)
 	maxEvents := 0
 
-	for _, source := range state.recentSources {
-		if source == "" {
+	for _, src := range state.recentSources {
+		if src == "" {
 			continue
 		}
-		events[source]++
-		if events[source] < maxEvents {
+		events[src]++
+		if events[src] < maxEvents {
 			continue
 		}
-		maxEvents = events[source]
-		state.triggerSource = source
+		maxEvents = events[src]
+		state.triggerSource = src
 	}
 }
 
