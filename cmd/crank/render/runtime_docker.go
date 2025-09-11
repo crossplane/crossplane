@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"net"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
@@ -251,20 +252,21 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 
 	// Let Docker automatically allocate an available port on the bind address.
 	// This avoids race conditions and works reliably with Docker daemons.
-	spec := fmt.Sprintf("%s:0:%d/tcp", r.BindAddress, FunctionPort)
-	expose, bind, err := nat.ParsePortSpecs([]string{spec})
-	if err != nil {
-		return "", errors.Wrapf(err, "cannot parse Docker port spec %q", spec)
-	}
+	port := nat.Port(fmt.Sprintf("%d/tcp", FunctionPort))
 
 	cfg := &container.Config{
 		Image:        r.Image,
 		Cmd:          []string{"--insecure"},
-		ExposedPorts: expose,
+		ExposedPorts: nat.PortSet{port: struct{}{}},
 		Env:          r.Env,
 	}
 	hcfg := &container.HostConfig{
-		PortBindings: bind,
+		PortBindings: nat.PortMap{
+			port: []nat.PortBinding{{
+				HostIP:   r.BindAddress,
+				HostPort: "", // empty => engine allocates an ephemeral port
+			}},
+		},
 	}
 
 	options, err := r.getPullOptions()
@@ -336,7 +338,7 @@ func (r *RuntimeDocker) startContainer(ctx context.Context, cli *client.Client, 
 		return "", errors.Errorf("container %q has port binding for %s but no host address", r.Name, p.Port())
 	}
 
-	return fmt.Sprintf("%s:%s", host, binding.HostPort), nil
+	return net.JoinHostPort(host, binding.HostPort), nil
 }
 
 func (r *RuntimeDocker) getPullOptions() (typesimage.PullOptions, error) {
