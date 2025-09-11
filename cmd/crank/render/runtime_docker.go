@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
 	typesimage "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
@@ -231,19 +230,19 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 var _ Runtime = &RuntimeDocker{}
 
 func (r *RuntimeDocker) findContainer(ctx context.Context, cli *client.Client) (string, error) {
-	containers, err := cli.ContainerList(ctx, container.ListOptions{
-		Filters: filters.NewArgs(filters.KeyValuePair{Key: "name", Value: r.Name}),
-		All:     true, // Include stopped containers
-	})
-	if err != nil {
-		return "", errors.Wrap(err, "cannot list Docker containers")
-	}
-	if len(containers) == 0 {
-		return "", nil // No container found, but no error
+	if r.Name == "" {
+		return "", nil
 	}
 
-	// Docker guarantees unique container names, so containers[0] is the only match
-	return containers[0].ID, nil
+	inspect, err := cli.ContainerInspect(ctx, r.Name)
+	if err != nil {
+		if errdefs.IsNotFound(err) {
+			return "", nil // Container doesn't exist, but that's not an error
+		}
+		return "", errors.Wrapf(err, "cannot inspect Docker container %q", r.Name)
+	}
+
+	return inspect.ID, nil
 }
 
 func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client) (string, error) {
@@ -370,17 +369,13 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 		return RuntimeContext{}, errors.Wrap(err, "cannot create Docker client using environment variables")
 	}
 
-	containerID := ""
-
-	// Try to find existing container
-	if r.Name != "" {
-		containerID, err = r.findContainer(ctx, cli)
-		if err != nil {
-			return RuntimeContext{}, err
-		}
+	// Try to find an existing container with the supplied container name.
+	containerID, err := r.findContainer(ctx, cli)
+	if err != nil {
+		return RuntimeContext{}, err
 	}
 
-	// Create new container if not found
+	// Create new container if not found.
 	if containerID == "" {
 		containerID, err = r.createContainer(ctx, cli)
 		if err != nil {
@@ -410,6 +405,7 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 				return errors.Wrap(err, "cannot remove Docker container")
 			}
 		}
+
 		return nil
 	}
 
