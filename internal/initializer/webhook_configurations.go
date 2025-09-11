@@ -164,8 +164,10 @@ func (c *RemoveValidatingWebhooks) Run(ctx context.Context, kube client.Client) 
 	vwc := &admv1.ValidatingWebhookConfiguration{}
 
 	err := kube.Get(ctx, client.ObjectKey{Name: c.ConfigName}, vwc)
-	if kerrors.IsNotFound(err) {
+	if kerrors.IsNotFound(err) || kerrors.IsForbidden(err) {
 		// If the webhook configuration doesn't exist there's nothing to cleanup.
+		// If the pod does not have rights on ValidationWebhookConfigurations, return nil
+		// to avoid crashes.
 		return nil
 	}
 
