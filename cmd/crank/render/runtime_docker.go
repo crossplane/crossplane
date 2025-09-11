@@ -320,19 +320,22 @@ func (r *RuntimeDocker) startContainer(ctx context.Context, cli *client.Client, 
 		return "", errors.Wrap(err, "cannot inspect Docker container")
 	}
 
-	// Extract the allocated port from the container's port bindings
-	for _, bindings := range inspect.NetworkSettings.Ports {
-		if len(bindings) > 0 {
-			// Use Target if specified, otherwise fall back to the bind address
-			host := r.Target
-			if host == "" {
-				host = bindings[0].HostIP
-			}
-			return fmt.Sprintf("%s:%s", host, bindings[0].HostPort), nil
-		}
+	// Look up the specific function port instead of taking the first one
+	p := nat.Port(fmt.Sprintf("%d/tcp", FunctionPort))
+	if len(inspect.NetworkSettings.Ports[p]) == 0 {
+		return "", errors.Errorf("container %q has no published binding for port %s", r.Name, p.Port())
 	}
 
-	return "", errors.New("cannot determine container address from port bindings")
+	binding := inspect.NetworkSettings.Ports[p][0]
+	host := r.Target
+	if host == "" {
+		host = binding.HostIP
+	}
+	if host == "" {
+		return "", errors.Errorf("container %q has port binding for %s but no host address", r.Name, p.Port())
+	}
+
+	return fmt.Sprintf("%s:%s", host, binding.HostPort), nil
 }
 
 func (r *RuntimeDocker) getPullOptions() (typesimage.PullOptions, error) {
