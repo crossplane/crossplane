@@ -21,7 +21,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"net"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
@@ -38,6 +37,9 @@ import (
 
 	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
+
+// FunctionPort is the port that Composition Functions listen on inside their container.
+const FunctionPort = 9443
 
 // Annotations that can be used to configure the Docker runtime.
 const (
@@ -258,18 +260,10 @@ func (r *RuntimeDocker) findContainer(ctx context.Context, cli *client.Client) (
 
 func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client) (string, string, error) {
 	r.log.Debug("Starting Docker container runtime setup", "image", r.Image)
-	// Find a random, available port. There's a chance of a race here, where
-	// something else binds to the port before we start our container.
+	// Let Docker automatically allocate an available port on localhost.
+	// This avoids race conditions and works reliably with local Docker daemons.
 
-	lis, err := net.Listen("tcp", "localhost:0")
-	if err != nil {
-		return "", "", errors.Wrap(err, "cannot get available TCP port")
-	}
-
-	containerAddr := lis.Addr().String()
-	_ = lis.Close()
-
-	spec := fmt.Sprintf("%s:9443/tcp", containerAddr)
+	spec := fmt.Sprintf("127.0.0.1:0:%d/tcp", FunctionPort)
 
 	expose, bind, err := nat.ParsePortSpecs([]string{spec})
 	if err != nil {
@@ -303,7 +297,7 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 	}
 
 	// TODO(negz): Set a container name? Presumably unique across runs.
-	r.log.Debug("Creating Docker container", "image", r.Image, "address", containerAddr, "name", r.Name)
+	r.log.Debug("Creating Docker container", "image", r.Image, "name", r.Name)
 
 	rsp, err := cli.ContainerCreate(ctx, cfg, hcfg, nil, nil, r.Name)
 	if err != nil {
@@ -329,7 +323,26 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 		return "", "", errors.Wrap(err, "cannot start Docker container")
 	}
 
-	return rsp.ID, containerAddr, errors.Wrap(err, "cannot start Docker container")
+	// Inspect the container to get the actual allocated port
+	inspect, err := cli.ContainerInspect(ctx, rsp.ID)
+	if err != nil {
+		return "", "", errors.Wrap(err, "cannot inspect Docker container")
+	}
+
+	// Extract the allocated port from the container's port bindings
+	containerAddr := ""
+	for _, bindings := range inspect.NetworkSettings.Ports {
+		if len(bindings) > 0 {
+			containerAddr = fmt.Sprintf("%s:%s", bindings[0].HostIP, bindings[0].HostPort)
+			break
+		}
+	}
+
+	if containerAddr == "" {
+		return "", "", errors.New("cannot determine container address from port bindings")
+	}
+
+	return rsp.ID, containerAddr, nil
 }
 
 func (r *RuntimeDocker) getPullOptions() (typesimage.PullOptions, error) {
