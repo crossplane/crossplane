@@ -77,10 +77,11 @@ func TestGetRuntimeDocker(t *testing.T) {
 			},
 			want: want{
 				rd: &RuntimeDocker{
-					Image:      "test-image-from-annotation",
-					Cleanup:    AnnotationValueRuntimeDockerCleanupOrphan,
-					PullPolicy: AnnotationValueRuntimeDockerPullPolicyAlways,
-					Env:        []string{"KCL_DEFAULT_REGISTRY=registry.example.com", "ANOTHER_ENV_VAR=another-value"},
+					Image:       "test-image-from-annotation",
+					Cleanup:     AnnotationValueRuntimeDockerCleanupOrphan,
+					PullPolicy:  AnnotationValueRuntimeDockerPullPolicyAlways,
+					Env:         []string{"KCL_DEFAULT_REGISTRY=registry.example.com", "ANOTHER_ENV_VAR=another-value"},
+					BindAddress: "127.0.0.1",
 				},
 			},
 		},
@@ -105,11 +106,12 @@ func TestGetRuntimeDocker(t *testing.T) {
 			},
 			want: want{
 				rd: &RuntimeDocker{
-					Image:      "test-image-from-annotation",
-					Cleanup:    AnnotationValueRuntimeDockerCleanupOrphan,
-					Name:       "test-container-name-function",
-					PullPolicy: AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
-					Env:        []string{"KCL_DEFAULT_REGISTRY=registry.example.com"},
+					Image:       "test-image-from-annotation",
+					Cleanup:     AnnotationValueRuntimeDockerCleanupOrphan,
+					Name:        "test-container-name-function",
+					PullPolicy:  AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
+					Env:         []string{"KCL_DEFAULT_REGISTRY=registry.example.com"},
+					BindAddress: "127.0.0.1",
 				},
 			},
 		},
@@ -129,9 +131,10 @@ func TestGetRuntimeDocker(t *testing.T) {
 			},
 			want: want{
 				rd: &RuntimeDocker{
-					Image:      "test-package",
-					Cleanup:    AnnotationValueRuntimeDockerCleanupRemove,
-					PullPolicy: AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
+					Image:       "test-package",
+					Cleanup:     AnnotationValueRuntimeDockerCleanupRemove,
+					PullPolicy:  AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
+					BindAddress: "127.0.0.1",
 				},
 			},
 		},
@@ -194,10 +197,11 @@ func TestGetRuntimeDocker(t *testing.T) {
 			},
 			want: want{
 				rd: &RuntimeDocker{
-					Image:      "test-package",
-					Cleanup:    AnnotationValueRuntimeDockerCleanupStop,
-					PullPolicy: AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
-					Env:        nil,
+					Image:       "test-package",
+					Cleanup:     AnnotationValueRuntimeDockerCleanupStop,
+					PullPolicy:  AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
+					Env:         nil,
+					BindAddress: "127.0.0.1",
 				},
 			},
 		},
