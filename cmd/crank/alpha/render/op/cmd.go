@@ -45,6 +45,7 @@ type Cmd struct {
 	ContextFiles           map[string]string `help:"Comma-separated context key-value pairs to pass to the function pipeline. Values must be files containing JSON."                           mapsep:""          predictor:"file"`
 	ContextValues          map[string]string `help:"Comma-separated context key-value pairs to pass to the function pipeline. Values must be JSON. Keys take precedence over --context-files." mapsep:""`
 	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for functions."                                                       placeholder:"PATH" predictor:"yaml_file_or_directory" type:"path"`
+	FunctionAnnotations    []string          `help:"Override function annotations for all functions. Can be repeated."                                                                    placeholder:"KEY=VALUE" short:"a"`
 	IncludeContext         bool              `help:"Include the context in the rendered output as a resource of kind: Context."                                                                short:"c"`
 	IncludeFullOperation   bool              `help:"Include a direct copy of the input Operation's spec and metadata fields in the rendered output."                                           short:"o"`
 	IncludeFunctionResults bool              `help:"Include informational and warning messages from functions in the rendered output as resources of kind: Result."                            short:"r"`
@@ -118,6 +119,16 @@ Examples:
 
   # Include the full Operation with original spec and metadata.
   crossplane alpha render op operation.yaml functions.yaml -o
+
+  # Override function annotations for remote Docker daemon.
+  crossplane alpha render op operation.yaml functions.yaml \
+	-a render.crossplane.io/runtime-docker-publish-address=0.0.0.0 \
+	-a render.crossplane.io/runtime-docker-target=docker-host
+
+  # Use development runtime with custom target.
+  crossplane alpha render op operation.yaml functions.yaml \
+	-a render.crossplane.io/runtime=Development \
+	-a render.crossplane.io/runtime-development-target=localhost:9444
 `
 }
 
@@ -142,6 +153,11 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error {
 	fns, err := render.LoadFunctions(c.fs, c.Functions)
 	if err != nil {
 		return err
+	}
+
+	// Apply global annotation overrides to each function
+	if err := render.OverrideFunctionAnnotations(fns, c.FunctionAnnotations); err != nil {
+		return errors.Wrap(err, "cannot apply function annotation overrides")
 	}
 
 	// Load function credentials
