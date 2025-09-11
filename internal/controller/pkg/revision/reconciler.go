@@ -123,7 +123,7 @@ type ReconcilerOption func(*Reconciler)
 // Kubernetes API.
 func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.client = ca
+		r.client = ca.Client
 	}
 }
 

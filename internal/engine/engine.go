@@ -301,7 +301,9 @@ func (e *ControllerEngine) Start(name string, o ...ControllerOption) error {
 		return nil
 	}
 
-	co := &ControllerOptions{nc: kcontroller.NewUnmanaged}
+	co := &ControllerOptions{nc: func(name string, mgr manager.Manager, options kcontroller.Options) (kcontroller.Controller, error) {
+		return kcontroller.NewUnmanaged(name, options)
+	}}
 	for _, fn := range o {
 		fn(co)
 	}
