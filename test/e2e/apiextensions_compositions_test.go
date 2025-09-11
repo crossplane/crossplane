@@ -203,7 +203,7 @@ func CaptureReconciliationState(dir, pattern, ctxKey string) features.Func {
 
 // VerifyReconciledWithin verifies that an XR was reconciled within the specified duration
 // after a composed resource change, testing realtime composition performance.
-func VerifyReconciledWithin(d time.Duration, _, pattern, ctxKey string) features.Func {
+func VerifyReconciledWithin(d time.Duration, _, _, ctxKey string) features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Helper()
 
