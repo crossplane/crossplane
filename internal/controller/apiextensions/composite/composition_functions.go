@@ -599,8 +599,9 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	k := xr.GetKind()
 	ns := xr.GetNamespace()
 	n := xr.GetName()
-
 	u := xr.GetUID()
+	cs := xr.GetConditions()
+
 	if err := xfn.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
 	}
@@ -610,6 +611,14 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	xr.SetNamespace(ns)
 	xr.SetName(n)
 	xr.SetUID(u)
+
+	// Include any pending conditions so we don't lose them. SetConditions
+	// will set conditions to nil if it's not passed any arguments. SSA
+	// interprets this as null and rejects it, so we only set them if
+	// there's actually some to set.
+	if len(cs) > 0 {
+		xr.SetConditions(cs...)
+	}
 
 	// NOTE(phisco): Here we are fine using a hardcoded field owner as there is
 	// no risk of conflict between different XRs.

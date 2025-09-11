@@ -1,0 +1,9 @@
+apiVersion: example.org/v1alpha1
+kind: CircuitBreakerTest
+metadata:
+  name: circuit-breaker-xr
+spec:
+  message: "Testing circuit breaker functionality"
+  crossplane:
+    compositionRef:
+      name: circuit-breaker-composition

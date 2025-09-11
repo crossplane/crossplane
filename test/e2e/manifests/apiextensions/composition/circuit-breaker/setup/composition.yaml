@@ -1,0 +1,39 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: circuit-breaker-composition
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: CircuitBreakerTest
+  mode: Pipeline
+  pipeline:
+  - step: create-configmap
+    functionRef:
+      name: function-dummy-circuit-breaker
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      # This is a YAML-serialized RunFunctionResponse. function-dummy will
+      # return this response to create a ConfigMap that we'll update rapidly in the test.
+      response:
+        desired:
+          composite:
+            resource:
+              status:
+                message: "Circuit breaker test - ConfigMap will be updated rapidly"
+          resources:
+            configmap:
+              resource:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  name: circuit-breaker-configmap
+                  namespace: default
+                data:
+                  message: "This ConfigMap will be updated rapidly to trigger circuit breaker"
+                  counter: "0"
+              ready: READY_TRUE
+        results:
+         - severity: SEVERITY_NORMAL
+           message: "Creating ConfigMap for circuit breaker test"

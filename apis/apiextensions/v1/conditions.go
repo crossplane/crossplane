@@ -17,6 +17,8 @@ limitations under the License.
 package v1
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -36,6 +38,9 @@ const (
 	// A TypeValidPipeline CompositionRevision has a valid function
 	// pipeline.
 	TypeValidPipeline xpv1.ConditionType = "ValidPipeline"
+
+	// A TypeResponsive indicates whether the resource is responsive to changes.
+	TypeResponsive xpv1.ConditionType = "Responsive"
 )
 
 // Reasons a resource is or is not established or offered.
@@ -48,6 +53,9 @@ const (
 
 	ReasonValidPipeline       xpv1.ConditionReason = "ValidPipeline"
 	ReasonMissingCapabilities xpv1.ConditionReason = "MissingCapabilities"
+
+	ReasonWatchCircuitOpen   xpv1.ConditionReason = "WatchCircuitOpen"
+	ReasonWatchCircuitClosed xpv1.ConditionReason = "WatchCircuitClosed"
 )
 
 // WatchingComposite indicates that Crossplane has defined and is watching for a
@@ -114,5 +122,44 @@ func MissingCapabilities(message string) xpv1.Condition {
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonMissingCapabilities,
 		Message:            message,
+	}
+}
+
+// WatchCircuitOpen indicates the circuit breaker is open due to excessive watch events.
+func WatchCircuitOpen(triggeredBy string) xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeResponsive,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonWatchCircuitOpen,
+		Message:            fmt.Sprintf("Too many watch events from %s. Allowing events periodically.", triggeredBy),
+	}
+}
+
+// WatchCircuitClosed indicates the circuit breaker is closed (normal operation).
+func WatchCircuitClosed() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeResponsive,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonWatchCircuitClosed,
+	}
+}
+
+// IsSystemConditionType returns true if the condition type is a system
+// condition. This includes both crossplane-runtime system conditions and
+// apiextensions-specific system conditions like the circuit breaker.
+func IsSystemConditionType(t xpv1.ConditionType) bool {
+	// First check crossplane-runtime system conditions
+	if xpv1.IsSystemConditionType(t) {
+		return true
+	}
+
+	// Then check Crossplane-specific system conditions
+	switch t {
+	case TypeResponsive:
+		return true
+	default:
+		return false
 	}
 }
