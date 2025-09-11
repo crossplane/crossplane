@@ -142,7 +142,8 @@ type RuntimeDocker struct {
 	BindAddress string
 
 	// Target is the host address to use when connecting to the function.
-	// If empty, defaults to BindAddress.
+	// If empty, it defaults to the published HostIP from Docker inspect.
+	// When published on 0.0.0.0, set this explicitly (e.g. the remote Docker host).
 	Target string
 }
 

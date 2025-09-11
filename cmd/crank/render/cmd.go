@@ -47,16 +47,16 @@ type Cmd struct {
 	Functions         string `arg:"" help:"A YAML file or directory of YAML files specifying the Composition Functions to use to render the XR." predictor:"yaml_file_or_directory" type:"path"`
 
 	// Flags. Keep them in alphabetical order.
-	ContextFiles           map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be files containing JSON."                           mapsep:""          predictor:"file"`
+	ContextFiles           map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be files containing JSON."                           mapsep:""               predictor:"file"`
 	ContextValues          map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be JSON. Keys take precedence over --context-files." mapsep:""`
 	IncludeFunctionResults bool              `help:"Include informational and warning messages from Functions in the rendered output as resources of kind: Result."                            short:"r"`
 	IncludeFullXR          bool              `help:"Include a direct copy of the input XR's spec and metadata fields in the rendered output."                                                  short:"x"`
-	ObservedResources      string            `help:"A YAML file or directory of YAML files specifying the observed state of composed resources."                                               placeholder:"PATH" predictor:"yaml_file_or_directory" short:"o"   type:"path"`
-	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying required resources (deprecated, use --required-resources)."                              placeholder:"PATH" predictor:"yaml_file_or_directory" type:"path"`
-	RequiredResources      string            `help:"A YAML file or directory of YAML files specifying required resources to pass to the Function pipeline."                                    placeholder:"PATH" predictor:"yaml_file_or_directory" short:"e"   type:"path"`
+	ObservedResources      string            `help:"A YAML file or directory of YAML files specifying the observed state of composed resources."                                               placeholder:"PATH"      predictor:"yaml_file_or_directory" short:"o"   type:"path"`
+	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying required resources (deprecated, use --required-resources)."                              placeholder:"PATH"      predictor:"yaml_file_or_directory" type:"path"`
+	RequiredResources      string            `help:"A YAML file or directory of YAML files specifying required resources to pass to the Function pipeline."                                    placeholder:"PATH"      predictor:"yaml_file_or_directory" short:"e"   type:"path"`
 	IncludeContext         bool              `help:"Include the context in the rendered output as a resource of kind: Context."                                                                short:"c"`
-	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                      placeholder:"PATH" predictor:"yaml_file_or_directory" type:"path"`
-	FunctionAnnotations    []string          `help:"Override function annotations for all functions. Can be repeated."                                                                    placeholder:"KEY=VALUE" short:"a"`
+	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                      placeholder:"PATH"      predictor:"yaml_file_or_directory" type:"path"`
+	FunctionAnnotations    []string          `help:"Override function annotations for all functions. Can be repeated."                                                                         placeholder:"KEY=VALUE" short:"a"`
 
 	Timeout time.Duration `default:"1m"                                                                                                     help:"How long to run before timing out."`
 	XRD     string        `help:"A YAML file specifying the CompositeResourceDefinition (XRD) that defines the XR's schema and properties." optional:""                               placeholder:"PATH" type:"existingfile"`
@@ -85,7 +85,7 @@ the following annotations to each Function to change how they're run:
   render.crossplane.io/runtime-development-target: "dns:///example.org:7443"
 
     Connect to a Function running somewhere other than localhost:9443. The
-	target uses gRPC target syntax.
+	target uses gRPC target syntax (e.g., dns:///example.org:7443 or simply example.org:7443).
 
   render.crossplane.io/runtime-docker-cleanup: "Orphan"
 
@@ -140,10 +140,10 @@ Examples:
   crossplane render xr.yaml composition.yaml functions.yaml \
 	--function-credentials=credentials.yaml
 
-  # Override function annotations for remote Docker daemon.
-  crossplane render xr.yaml composition.yaml functions.yaml \
+  # Override function annotations for a remote Docker daemon.
+  DOCKER_HOST=tcp://192.168.1.100:2376 crossplane render xr.yaml composition.yaml functions.yaml \
 	-a render.crossplane.io/runtime-docker-publish-address=0.0.0.0 \
-	-a render.crossplane.io/runtime-docker-target=docker-host
+	-a render.crossplane.io/runtime-docker-target=192.168.1.100
 
   # Force all functions to use development runtime.
   crossplane render xr.yaml composition.yaml functions.yaml \
