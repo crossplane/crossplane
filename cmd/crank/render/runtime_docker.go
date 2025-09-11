@@ -62,6 +62,15 @@ const (
 	// access to use a different registry.
 	// It is a comma separated string of key=value pairs e.g. "key1=value1,key2=value2".
 	AnnotationKeyRuntimeEnvironmentVariables = "render.crossplane.io/runtime-docker-env"
+
+	// AnnotationKeyRuntimeDockerPublishAddress configures the host address that
+	// Docker should publish (bind) the Function's container port to. Defaults to 127.0.0.1.
+	// Use 0.0.0.0 to publish to all host interfaces for remote Docker access.
+	AnnotationKeyRuntimeDockerPublishAddress = "render.crossplane.io/runtime-docker-publish-address"
+
+	// AnnotationKeyRuntimeDockerTarget configures the address that the render
+	// CLI should use to connect to the Function's Docker container.
+	AnnotationKeyRuntimeDockerTarget = "render.crossplane.io/runtime-docker-target"
 )
 
 // DockerCleanup specifies what Docker should do with a Function container after
@@ -129,6 +138,13 @@ type RuntimeDocker struct {
 
 	// Env is the list of environment variables to set for the container.
 	Env []string
+
+	// BindAddress is the address to bind the function container to.
+	BindAddress string
+
+	// Target is the host address to use when connecting to the function.
+	// If empty, defaults to BindAddress.
+	Target string
 }
 
 // GetDockerPullPolicy extracts PullPolicy configuration from the supplied
@@ -172,12 +188,13 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 	}
 
 	r := &RuntimeDocker{
-		Image:      fn.Spec.Package,
-		Name:       "",
-		Cleanup:    cleanup,
-		PullPolicy: pullPolicy,
-		Keychain:   authn.DefaultKeychain,
-		log:        log,
+		Image:       fn.Spec.Package,
+		Name:        "",
+		Cleanup:     cleanup,
+		PullPolicy:  pullPolicy,
+		Keychain:    authn.DefaultKeychain,
+		log:         log,
+		BindAddress: "127.0.0.1", // Default to localhost for security
 	}
 
 	if i := fn.GetAnnotations()[AnnotationKeyRuntimeDockerImage]; i != "" {
@@ -198,6 +215,14 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 
 			r.Env = append(r.Env, pair)
 		}
+	}
+
+	if i := fn.GetAnnotations()[AnnotationKeyRuntimeDockerPublishAddress]; i != "" {
+		r.BindAddress = i
+	}
+
+	if i := fn.GetAnnotations()[AnnotationKeyRuntimeDockerTarget]; i != "" {
+		r.Target = i
 	}
 
 	return r, nil
@@ -224,9 +249,9 @@ func (r *RuntimeDocker) findContainer(ctx context.Context, cli *client.Client) (
 func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client) (string, error) {
 	r.log.Debug("Starting Docker container runtime setup", "image", r.Image)
 
-	// Let Docker automatically allocate an available port on localhost.
-	// This avoids race conditions and works reliably with local Docker daemons.
-	spec := fmt.Sprintf("127.0.0.1:0:%d/tcp", FunctionPort)
+	// Let Docker automatically allocate an available port on the bind address.
+	// This avoids race conditions and works reliably with Docker daemons.
+	spec := fmt.Sprintf("%s:0:%d/tcp", r.BindAddress, FunctionPort)
 	expose, bind, err := nat.ParsePortSpecs([]string{spec})
 	if err != nil {
 		return "", errors.Wrapf(err, "cannot parse Docker port spec %q", spec)
@@ -299,7 +324,12 @@ func (r *RuntimeDocker) startContainer(ctx context.Context, cli *client.Client, 
 	// Extract the allocated port from the container's port bindings
 	for _, bindings := range inspect.NetworkSettings.Ports {
 		if len(bindings) > 0 {
-			return fmt.Sprintf("%s:%s", bindings[0].HostIP, bindings[0].HostPort), nil
+			// Use Target if specified, otherwise fall back to the bind address
+			host := r.Target
+			if host == "" {
+				host = bindings[0].HostIP
+			}
+			return fmt.Sprintf("%s:%s", host, bindings[0].HostPort), nil
 		}
 	}
 

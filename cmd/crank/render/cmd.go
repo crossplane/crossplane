@@ -97,6 +97,17 @@ the following annotations to each Function to change how they're run:
     Always pull the Function's package, even if it already exists locally.
 	Other supported values are Never, or IfNotPresent.
 
+  render.crossplane.io/runtime-docker-publish-address: "0.0.0.0"
+
+    Host address that Docker should publish the Function's container port to.
+    Defaults to 127.0.0.1 (localhost only). Use 0.0.0.0 to publish to all host
+    network interfaces, enabling access from remote machines.
+
+  render.crossplane.io/runtime-docker-target: "docker-host"
+
+    Address that the render CLI should use to connect to the Function's Docker
+    container. If not specified, uses the publish address.
+
 Use the standard DOCKER_HOST, DOCKER_API_VERSION, DOCKER_CERT_PATH, and
 DOCKER_TLS_VERIFY environment variables to configure how this command connects
 to the Docker daemon.
