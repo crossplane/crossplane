@@ -1,0 +1,7 @@
+apiVersion: test.example.org/v2
+kind: TestResource
+metadata:
+  name: test-xr-after-change
+  namespace: default
+spec:
+  field: "test-value"

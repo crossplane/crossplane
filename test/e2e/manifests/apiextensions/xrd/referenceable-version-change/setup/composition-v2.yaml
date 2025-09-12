@@ -1,0 +1,27 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: test-composition-v2
+  labels:
+    test.example.org/version: v2
+spec:
+  compositeTypeRef:
+    apiVersion: test.example.org/v2
+    kind: TestResource
+  mode: Pipeline
+  pipeline:
+  - step: dummy
+    functionRef:
+      name: function-dummy
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+      - name: dummy-resource-v2
+        base:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: dummy-v2
+          data:
+            version: "v2"
