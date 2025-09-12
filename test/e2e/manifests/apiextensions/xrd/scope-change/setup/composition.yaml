@@ -1,0 +1,35 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: scopetest-composition
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: ScopeTest
+  mode: Pipeline
+  pipeline:
+  - step: be-a-dummy
+    functionRef:
+      name: function-dummy-scope-test
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      # This is a YAML-serialized RunFunctionResponse. function-dummy will
+      # overlay the desired state on any that was passed into it.
+      response:
+        desired:
+          composite:
+            resource:
+              status:
+                message: "Scope test is working!"
+          resources:
+            configmap:
+              resource:
+                apiVersion: v1
+                kind: ConfigMap
+                data:
+                  testData: "Scope change test successful!"
+              ready: READY_TRUE
+        results:
+         - severity: SEVERITY_NORMAL
+           message: "Scope change test composition is working!"
