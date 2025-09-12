@@ -27,6 +27,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	extv1alpha1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
 	v2 "github.com/crossplane/crossplane/v2/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
 	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
@@ -40,10 +41,12 @@ const (
 	errNotMetaConfiguration              = "package meta type is not Configuration"
 	errNotMetaFunction                   = "package meta type is not Function"
 	errNotCRD                            = "object is not a CRD"
+	errNotMRD                            = "object is not an MRD"
 	errNotXRD                            = "object is not an XRD"
 	errNotMutatingWebhookConfiguration   = "object is not a MutatingWebhookConfiguration"
 	errNotValidatingWebhookConfiguration = "object is not an ValidatingWebhookConfiguration"
 	errNotComposition                    = "object is not a Composition"
+	errNotActivationPolicy               = "object is not an ManagedResourceActivationPolicy"
 	errNotOperation                      = "object is not an Operation"
 	errNotCronOperation                  = "object is not a CronOperation"
 	errNotWatchOperation                 = "object is not a WatchOperation"
@@ -58,7 +61,7 @@ func NewProviderLinter() parser.Linter {
 		parser.PackageLinterFns(OneMeta),
 		parser.ObjectLinterFns(IsProvider, PackageValidSemver),
 		parser.ObjectLinterFns(parser.Or(
-			IsCRD,
+			IsCRD, IsMRD,
 			IsValidatingWebhookConfiguration,
 			IsMutatingWebhookConfiguration,
 		)))
@@ -70,7 +73,7 @@ func NewConfigurationLinter() parser.Linter {
 	return parser.NewPackageLinter(
 		parser.PackageLinterFns(OneMeta),
 		parser.ObjectLinterFns(IsConfiguration, PackageValidSemver),
-		parser.ObjectLinterFns(parser.Or(IsXRD, IsComposition, IsOperation, IsCronOperation, IsWatchOperation)))
+		parser.ObjectLinterFns(parser.Or(IsXRD, IsActivationPolicy, IsComposition, IsOperation, IsCronOperation, IsWatchOperation)))
 }
 
 // NewFunctionLinter is a convenience function for creating a package linter for
@@ -175,6 +178,16 @@ func IsCRD(o runtime.Object) error {
 	}
 }
 
+// IsMRD checks that an object is a ManagedResourceDefinition.
+func IsMRD(o runtime.Object) error {
+	switch o.(type) {
+	case *extv1alpha1.ManagedResourceDefinition:
+		return nil
+	default:
+		return errors.New(errNotMRD)
+	}
+}
+
 // IsMutatingWebhookConfiguration checks that an object is a MutatingWebhookConfiguration.
 func IsMutatingWebhookConfiguration(o runtime.Object) error {
 	if _, ok := o.(*admv1.MutatingWebhookConfiguration); !ok {
@@ -207,6 +220,15 @@ func IsXRD(o runtime.Object) error {
 func IsComposition(o runtime.Object) error {
 	if _, ok := o.(*v1.Composition); !ok {
 		return errors.New(errNotComposition)
+	}
+
+	return nil
+}
+
+// IsActivationPolicy checks that an object is an ManagedResourceActivationPolicy.
+func IsActivationPolicy(o runtime.Object) error {
+	if _, ok := o.(*extv1alpha1.ManagedResourceActivationPolicy); !ok {
+		return errors.New(errNotActivationPolicy)
 	}
 
 	return nil
