@@ -41,6 +41,7 @@ multiplatform-build:
 # generated, for example when you update an API type.
 generate:
   BUILD +go-modules-tidy
+  BUILD +go-modules-tools-tidy
   BUILD +go-generate
   BUILD +helm-generate
 
@@ -119,12 +120,24 @@ unhack:
   RUN .hack/kind delete cluster --name crossplane-hack
   RUN rm -rf .hack
 
-# go-modules downloads Crossplane's go modules. It's the base target of most Go
-# related target (go-build, etc).
-go-modules:
+# go-modules-tools downloads tools module dependencies. This is the base layer
+# since tools change less frequently than main dependencies.
+go-modules-tools:
   ARG NATIVEPLATFORM
   FROM --platform=${NATIVEPLATFORM} golang:${GO_VERSION}
   WORKDIR /crossplane
+  CACHE --id go-build --sharing shared /root/.cache/go-build
+  # Copy tools module files maintaining directory structure for generate.go
+  COPY tools/go.mod tools/go.sum ./tools/
+  # -C tools changes to tools directory before running go mod download
+  RUN go mod download -C tools
+  SAVE ARTIFACT tools/go.mod AS LOCAL tools/go.mod
+  SAVE ARTIFACT tools/go.sum AS LOCAL tools/go.sum
+
+# go-modules downloads Crossplane's go modules. It inherits from go-modules-tools
+# since main dependencies change more frequently than tools.
+go-modules:
+  FROM +go-modules-tools
   CACHE --id go-build --sharing shared /root/.cache/go-build
   COPY go.mod go.sum ./
   RUN go mod download
@@ -141,6 +154,16 @@ go-modules-tidy:
   RUN go mod verify
   SAVE ARTIFACT go.mod AS LOCAL go.mod
   SAVE ARTIFACT go.sum AS LOCAL go.sum
+
+# go-modules-tools-tidy tidies and verifies tools/go.mod and tools/go.sum.
+go-modules-tools-tidy:
+  FROM +go-modules-tools
+  CACHE --id go-build --sharing shared /root/.cache/go-build
+  # -C tools changes to tools directory before running go mod tidy
+  RUN go mod tidy -C tools
+  RUN go mod verify -C tools
+  SAVE ARTIFACT tools/go.mod AS LOCAL tools/go.mod
+  SAVE ARTIFACT tools/go.sum AS LOCAL tools/go.sum
 
 # go-generate runs Go code generation.
 go-generate:
