@@ -428,7 +428,7 @@ func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...Rec
 		gvk: of,
 
 		revision: revision{
-			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: cached, Applicator: resource.NewAPIPatchingApplicator(cached)}),
+			CompositionRevisionFetcher: NewAPIRevisionFetcher(cached),
 		},
 
 		composite: compositeResource{

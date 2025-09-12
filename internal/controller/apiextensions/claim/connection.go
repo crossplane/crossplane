@@ -80,7 +80,7 @@ func (a *APIConnectionPropagator) PropagateConnection(ctx context.Context, to Lo
 	ts := LocalConnectionSecretFor(to, to.GetObjectKind().GroupVersionKind())
 	ts.Data = fs.Data
 
-	err := a.client.Apply(ctx, ts,
+	err := a.client.Applicator.Apply(ctx, ts,
 		resource.ConnectionSecretMustBeControllableBy(to.GetUID()),
 		resource.AllowUpdateIf(func(current, desired runtime.Object) bool {
 			// We consider the update to be a no-op and don't allow it if the
