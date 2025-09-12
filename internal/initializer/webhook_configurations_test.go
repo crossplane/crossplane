@@ -290,6 +290,16 @@ func TestRemoveValidatingWebhooks(t *testing.T) {
 				},
 			},
 		},
+		"Forbidden": {
+			reason: "If the request to get the webhook configuration is forbidden, we should return early.",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
+						return kerrors.NewForbidden(schema.GroupResource{}, "", errBoom)
+					},
+				},
+			},
+		},
 		"NoOp": {
 			reason: "If the config doesn't have any entries to delete we should return early.",
 			params: params{
