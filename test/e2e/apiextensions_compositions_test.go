@@ -17,12 +17,15 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
@@ -94,6 +97,95 @@ func TestCompositionRevisionSelection(t *testing.T) {
 			Feature(),
 	)
 }
+
+func TestRealtimeCompositionPerformanceNamespaced(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/realtime-namespaced-performance"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests realtime composition performance for namespaced XRs. Verifies Crossplane detects external changes to composed resources within 2-3 seconds via watches, not polling (~60s). Catches performance regressions in realtime composition.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRIsReady",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess())).
+			Assess("WaitForComposedConfigMap", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+				t.Helper()
+				deadline := time.Now().Add(30 * time.Second)
+				for time.Now().Before(deadline) {
+					cm := &corev1.ConfigMap{}
+					if err := cfg.Client().Resources().Get(ctx, "perftest-composed-configmap", "default", cm); err == nil {
+						if cm.Data != nil && cm.Data["testData"] == "initial-value" {
+							t.Log("Composed ConfigMap is present with expected initial value.")
+							return ctx
+						}
+					}
+					time.Sleep(200 * time.Millisecond)
+				}
+				t.Fatalf("Timed out waiting for composed ConfigMap to exist with initial value within 30s")
+				return ctx
+			}).
+			Assess("ModifyComposedResource", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+				// Get and modify the ConfigMap to simulate external change
+				cm := &corev1.ConfigMap{}
+				if err := cfg.Client().Resources().Get(ctx, "perftest-composed-configmap", "default", cm); err != nil {
+					t.Fatalf("Failed to get ConfigMap: %v", err)
+				}
+				
+				// Verify initial value before modifying
+				if cm.Data == nil || cm.Data["testData"] != "initial-value" {
+					t.Fatalf("ConfigMap doesn't have expected initial value")
+				}
+				
+				cm.Data["testData"] = "modified-value"
+				if err := cfg.Client().Resources().Update(ctx, cm); err != nil {
+					t.Fatalf("Failed to update ConfigMap: %v", err)
+				}
+				
+				t.Logf("Modified ConfigMap testData to 'modified-value'")
+				return ctx
+			}).
+			Assess("XRReconcilesInRealtime", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+				// Wait for ConfigMap to revert to original value within 10 seconds
+				// If it takes ~60 seconds, we're falling back to polling which is a performance regression
+				deadline := time.Now().Add(10 * time.Second)
+				startTime := time.Now()
+				
+				for time.Now().Before(deadline) {
+					cm := &corev1.ConfigMap{}
+					if err := cfg.Client().Resources().Get(ctx, "perftest-composed-configmap", "default", cm); err == nil {
+						if cm.Data != nil && cm.Data["testData"] == "initial-value" {
+							elapsed := time.Since(startTime)
+							t.Logf("SUCCESS: ConfigMap reverted in %v, indicating realtime reconciliation!", elapsed)
+							return ctx
+						}
+					}
+					time.Sleep(200 * time.Millisecond)
+				}
+				
+				t.Fatalf("PERFORMANCE REGRESSION: ConfigMap not reverted within 10s (likely using 60s polling)")
+				return ctx
+			}).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
 
 func TestBasicCompositionNamespaced(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/basic-namespaced"
@@ -332,3 +424,4 @@ func TestNamespacedXRClusterComposition(t *testing.T) {
 			Feature(),
 	)
 }
+

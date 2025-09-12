@@ -1,0 +1,10 @@
+apiVersion: example.org/v1alpha1
+kind: PerfTest
+metadata:
+  namespace: default
+  name: perf-test-namespaced-xr
+spec:
+  testField: "test-value"
+  crossplane:
+    compositionRef:
+      name: perftest-composition-namespaced

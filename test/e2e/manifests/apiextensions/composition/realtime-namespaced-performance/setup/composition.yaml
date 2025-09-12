@@ -1,0 +1,33 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: perftest-composition-namespaced
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: PerfTest
+  mode: Pipeline
+  pipeline:
+  - step: create-configmap
+    functionRef:
+      name: function-dummy-perf-namespaced
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      response:
+        desired:
+          composite:
+            resource:
+              status:
+                realtimeTestStatus: "initial"
+          resources:
+            perftest-configmap:
+              resource:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  name: perftest-composed-configmap
+                  namespace: default
+                data:
+                  testData: "initial-value"
+              ready: READY_TRUE
