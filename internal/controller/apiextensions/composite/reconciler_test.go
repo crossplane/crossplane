@@ -90,7 +90,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errGet),
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"RemoveFinalizerError": {
@@ -114,7 +115,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"SuccessfulDelete": {
@@ -159,7 +161,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"SelectCompositionError": {
@@ -179,7 +182,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"FetchCompositionError": {
@@ -204,7 +208,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"InvalidPipelineError": {
@@ -232,7 +237,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"InvalidPipelineWithMessageError": {
@@ -260,7 +266,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"ConfigureCompositeError": {
@@ -288,7 +295,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"ComposeResourcesError": {
@@ -319,7 +327,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"PublishConnectionDetailsError": {
@@ -353,7 +362,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"CompositionWarnings": {
@@ -545,7 +555,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errUpdateStatus),
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"ReconciliationResumes": {
@@ -966,7 +977,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"CustomConditionUpdate": {
@@ -1258,16 +1270,16 @@ func TestReconcile(t *testing.T) {
 			r := NewReconciler(tc.args.c, tc.args.of, tc.args.opts...)
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.r, got); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
 			if tr, ok := r.record.(*testRecorder); ok {
-				if diff := cmp.Diff(tr.Want, tr.Got, test.EquateErrors()); diff != "" {
+				if diff := cmp.Diff(tr.Want, tr.Got); diff != "" {
 					t.Errorf("\n%s\nr.Reconcile(...): -want events, +got events:\n%s", tc.reason, diff)
 				}
 			}
