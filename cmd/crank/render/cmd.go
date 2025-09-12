@@ -101,6 +101,10 @@ Use the standard DOCKER_HOST, DOCKER_API_VERSION, DOCKER_CERT_PATH, and
 DOCKER_TLS_VERIFY environment variables to configure how this command connects
 to the Docker daemon.
 
+When using a remote Docker daemon (DOCKER_HOST=tcp://...), set CROSSPLANE_RENDER_HOST
+to specify the IP address that Docker containers should use to connect back to
+the render process. If not set, the IP from DOCKER_HOST will be used.
+
 Examples:
 
   # Simulate creating a new XR.
