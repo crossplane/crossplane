@@ -117,9 +117,22 @@ func TestRealtimeCompositionPerformanceNamespaced(t *testing.T) {
 			)).
 			Assess("XRIsReady",
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess())).
-			Assess("WaitForComposedConfigMap",
-				funcs.ResourcesCreatedWithin(30*time.Second, "default", "perftest-composed-configmap"),
-			).
+			Assess("WaitForComposedConfigMap", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+				t.Helper()
+				deadline := time.Now().Add(30 * time.Second)
+				for time.Now().Before(deadline) {
+					cm := &corev1.ConfigMap{}
+					if err := cfg.Client().Resources().Get(ctx, "perftest-composed-configmap", "default", cm); err == nil {
+						if cm.Data != nil && cm.Data["testData"] == "initial-value" {
+							t.Log("Composed ConfigMap is present with expected initial value.")
+							return ctx
+						}
+					}
+					time.Sleep(200 * time.Millisecond)
+				}
+				t.Fatalf("Timed out waiting for composed ConfigMap to exist with initial value within 30s")
+				return ctx
+			}).
 			Assess("ModifyComposedResource", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 				// Get and modify the ConfigMap to simulate external change
 				cm := &corev1.ConfigMap{}
