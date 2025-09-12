@@ -22,6 +22,8 @@ import (
 
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+
 	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/v2/test/e2e/config"
 	"github.com/crossplane/crossplane/v2/test/e2e/funcs"
@@ -72,13 +74,70 @@ func TestXRDValidation(t *testing.T) {
 	}
 	environment.Test(t,
 		cases.Build(t.Name()).
-			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithTeardown("DeleteValidComposition", funcs.AllOf(
 				funcs.DeleteResources(manifests, "*-valid.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "*-valid.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestXRDScopeChange(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/xrd/scope-change"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that XRD scope changes work without requiring manual Crossplane restart. This validates the RESTMapper cache invalidation workaround.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreateNamespacedXRD", funcs.AllOf(
+				// Create XRD with Namespaced scope
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition-namespaced.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("NamespacedXRCanBeCreated", funcs.AllOf(
+				// Create a namespaced XR
+				funcs.ApplyResources(FieldManager, manifests, "xr-namespaced.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr-namespaced.yaml"),
+			)).
+			Assess("NamespacedXRBecomesReady",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr-namespaced.yaml", xpv1.Available(), xpv1.ReconcileSuccess())).
+			Assess("ScopeChangeToClusterAllowsXRCreation", funcs.AllOf(
+				// Clean up the namespaced XR first
+				funcs.DeleteResources(manifests, "xr-namespaced.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "xr-namespaced.yaml"),
+
+				// Delete the namespaced XRD
+				funcs.DeleteResources(manifests, "setup/definition-namespaced.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "setup/definition-namespaced.yaml"),
+
+				// Create XRD with Cluster scope (same GVK, different scope)
+				funcs.ApplyResources(FieldManager, manifests, "definition-cluster.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "definition-cluster.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "definition-cluster.yaml", apiextensionsv1.WatchingComposite()),
+
+				// Create a cluster-scoped XR - this should work without manual restart
+				// This tests that our RESTMapper cache invalidation workaround works
+				funcs.ApplyResources(FieldManager, manifests, "xr-cluster.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr-cluster.yaml"),
+			)).
+			Assess("ClusterXRBecomesReady",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr-cluster.yaml", xpv1.Available(), xpv1.ReconcileSuccess())).
+			WithTeardown("DeleteScopeChangeResources", funcs.AllOf(
+				funcs.DeleteResources(manifests, "xr-cluster.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "xr-cluster.yaml"),
+				funcs.DeleteResources(manifests, "definition-cluster.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "definition-cluster.yaml"),
+			)).
+			WithTeardown("DeleteSetupResources", funcs.AllOf(
+				funcs.DeleteResources(manifests, "setup/composition.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "setup/composition.yaml"),
+				funcs.DeleteResources(manifests, "setup/functions.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "setup/functions.yaml"),
 			)).
 			Feature(),
 	)

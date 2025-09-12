@@ -1,0 +1,7 @@
+apiVersion: example.org/v1alpha1
+kind: ScopeTest
+metadata:
+  name: test-namespaced
+  namespace: crossplane-system
+spec:
+  testField: "namespaced-test"
