@@ -400,6 +400,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	xr.SetAPIVersion(in.CompositeResource.GetAPIVersion())
 	xr.SetKind(in.CompositeResource.GetKind())
 	xr.SetName(in.CompositeResource.GetName())
+	xr.SetNamespace(in.CompositeResource.GetNamespace())
 
 	xrCond := xpv1.Available()
 	if d.GetComposite().GetReady() == fnv1.Ready_READY_FALSE {
@@ -446,6 +447,13 @@ func SetComposedResourceMetadata(cd resource.Object, xr resource.LegacyComposite
 	// allowed to explicitly specify a name if they want though.
 	if cd.GetName() == "" && cd.GetGenerateName() == "" {
 		cd.SetGenerateName(xr.GetName() + "-")
+	}
+
+	// If the XR is namespaced it can only create composed resources in its own
+	// namespace. Cluster scoped XRs can compose cluster scoped resources, or
+	// resources in any namespace.
+	if xr.GetNamespace() != "" {
+		cd.SetNamespace(xr.GetNamespace())
 	}
 
 	meta.AddAnnotations(cd, map[string]string{AnnotationKeyCompositionResourceName: name})
