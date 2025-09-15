@@ -94,7 +94,10 @@ func TestXRDReferenceableVersionChange(t *testing.T) {
 	// workaround in ResourcesHaveConditionWithin.
 
 	environment.Test(t,
-		features.New("XRDReferenceableVersionChange").
+		features.NewWithDescription(
+			"XRDReferenceableVersionChange",
+			"Controller restarts on XRD generation change; composition selection switches from v1 to v2.",
+		).
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
@@ -104,7 +107,7 @@ func TestXRDReferenceableVersionChange(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/xrd-v1-referenceable.yaml", apiextensionsv1.WatchingComposite()),
 			)).
-			Assess("CreateV2XRBeforeChange", funcs.AllOf(
+			Assess("CreateXRBeforeChange", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "xr-before-change.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr-before-change.yaml"),
 				// XR should select v1 composition because referenceable version is v1
@@ -116,7 +119,7 @@ func TestXRDReferenceableVersionChange(t *testing.T) {
 				// Wait for controller to restart with new generation
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xrd-v2-referenceable.yaml", apiextensionsv1.WatchingComposite()),
 			)).
-			Assess("CreateV2XRAfterChange", funcs.AllOf(
+			Assess("CreateXRAfterChange", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "xr-after-change.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr-after-change.yaml"),
 				// XR should select v2 composition because referenceable version is v2
