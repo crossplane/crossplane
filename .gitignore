@@ -36,3 +36,7 @@ gitlab/
 
 # ignore AI tools settings/config
 /.claude
+
+# Ignore Earthly environment variables
+.env
+
