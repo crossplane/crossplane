@@ -164,6 +164,11 @@ func (p *DefaultPrinter) Print(w io.Writer, root *resource.Resource) error {
 // human-readable format.
 func (p *DefaultPrinter) PrintList(w io.Writer, root *resource.ResourceList) error {
 	tw := printers.GetNewTabWriter(w)
+
+	if len(root.Items) == 0 {
+		return nil
+	}
+
 	firstResource := root.Items[0]
 
 	headers, isPackageOrRevision := getHeaders(firstResource.Unstructured.GroupVersionKind().GroupKind(), p.wide)
