@@ -50,7 +50,7 @@ const (
 	reconcileActivateSuccessMsg = "Successfully activated ManagedResourceDefinition"
 )
 
-// A Reconciler reconciles CompositeResourceDefinitions.
+// A Reconciler reconciles ManagedResourceActivationPolicies.
 type Reconciler struct {
 	client.Client
 
@@ -87,11 +87,11 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	if meta.WasDeleted(mrap) {
 		status.MarkConditions(v1alpha1.TerminatingActivationPolicy())
 		if err := r.Status().Update(ogctx, mrap); err != nil {
-			log.Debug("cannot update status of ManagedResourceDefinition", "error", err)
+			log.Debug("cannot update status of ManagedResourceActivationPolicy", "error", err)
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
-			return reconcile.Result{}, errors.Wrap(err, "cannot update status of ManagedResourceDefinition")
+			return reconcile.Result{}, errors.Wrap(err, "cannot update status of ManagedResourceActivationPolicy")
 		}
 
 		return reconcile.Result{}, nil
@@ -144,5 +144,5 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	}
 
 	// TODO: we should really do a diff of the status to see if we should update or not.
-	return reconcile.Result{}, errors.Wrap(r.Status().Update(ogctx, mrap), "cannot update status of ManagedResourceDefinition")
+	return reconcile.Result{}, errors.Wrap(r.Status().Update(ogctx, mrap), "cannot update status of ManagedResourceActivationPolicy")
 }
