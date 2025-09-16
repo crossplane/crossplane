@@ -119,9 +119,7 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		log.Debug("failed to reconcile CustomResourceDefinition", "error", err)
 		r.record.Event(mrd, event.Warning(reasonReconcile, err))
 		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to reconcile CustomResourceDefinition, see events"))
-		if err := r.Status().Update(ogctx, mrd); err != nil {
-			log.Info("cannot update status of ManagedResourceDefinition", "error", err)
-		}
+		_ = r.Status().Update(ogctx, mrd)
 		return reconcile.Result{}, errors.Wrap(err, "cannot reconcile CustomResourceDefinition")
 	}
 
