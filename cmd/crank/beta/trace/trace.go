@@ -221,52 +221,24 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	for i := range resourceList.Items {
 		root := resourceList.Items[i]
 		root, err = c.getResourceTree(ctx, root, mapping, client, logger)
-		var treeClient resource.TreeClient
-
-		switch {
-		case xpkg.IsPackageType(mapping.GroupVersionKind.GroupKind()):
-			logger.Debug("Requested resource is an Package")
-
-			treeClient, err = xpkg.NewClient(client,
-				xpkg.WithDependencyOutput(xpkg.DependencyOutput(c.ShowPackageDependencies)),
-				xpkg.WithPackageRuntimeConfigs(c.ShowPackageRuntimeConfigs),
-				xpkg.WithRevisionOutput(xpkg.RevisionOutput(c.ShowPackageRevisions)))
-			if err != nil {
-				logger.Debug(errGetResource, "error", err)
-				return errors.Wrap(err, errGetResource)
-			}
-		default:
-			logger.Debug("Requested resource is not a package, assumed to be an XR, XRC or MR")
-
-			treeClient, err = xrm.NewClient(client,
-				xrm.WithConnectionSecrets(c.ShowConnectionSecrets),
-				xrm.WithConcurrency(c.Concurrency),
-			)
-			if err != nil {
-				return errors.Wrap(err, errInitKubeClient)
-			}
-		}
-
-		logger.Debug("Built client")
-
-		root, err = treeClient.GetResourceTree(ctx, root)
 		if err != nil {
 			logger.Debug(errGetResource, "error", err)
 			return errors.Wrap(err, errGetResource)
 		}
+
 		logger.Debug("Got resource tree", "root", root)
-	}
 
-	if shouldPrintAsList {
-		// Print list of resources
-		err = p.PrintList(k.Stdout, resourceList)
-	} else {
-		// Print a single resource
-		err = p.Print(k.Stdout, resourceList.Items[0])
-	}
+		if shouldPrintAsList {
+			// Print list of resources
+			err = p.PrintList(k.Stdout, resourceList)
+		} else {
+			// Print a single resource
+			err = p.Print(k.Stdout, resourceList.Items[0])
+		}
 
-	if err != nil {
-		return errors.Wrap(err, errCliOutput)
+		if err != nil {
+			return errors.Wrap(err, errCliOutput)
+		}
 	}
 
 	return nil
