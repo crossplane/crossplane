@@ -22,7 +22,7 @@ import (
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 )
 
 const (
@@ -40,12 +40,21 @@ func IndexCompositeResourcesRefs(s composite.Schema) client.IndexerFunc {
 		if !ok {
 			return nil // should never happen
 		}
+
 		xr := composite.Unstructured{Unstructured: *u, Schema: s}
 		refs := xr.GetResourceReferences()
+		xrNamespace := xr.GetNamespace()
+
 		keys := make([]string, 0, len(refs))
 		for _, ref := range refs {
-			keys = append(keys, refKey(ref.Namespace, ref.Name, ref.Kind, ref.APIVersion))
+			namespace := ref.Namespace
+			if namespace == "" {
+				namespace = xrNamespace
+			}
+
+			keys = append(keys, refKey(namespace, ref.Name, ref.Kind, ref.APIVersion))
 		}
+
 		return keys
 	}
 }

@@ -1,0 +1,19 @@
+# This is the package metadata for the Configuration installed by
+# configuration.yaml.
+#
+# This package is manually built/pushed to
+# ghcr.io/crossplane/e2e-depends-on-provider-nop, with something like:
+# ❯ export CR_PAT=<token>
+# ❯ echo $CR_PAT | docker login ghcr.io -u <user> --password-stdin
+# ❯ crossplane xpkg build -o e2e-depends-on-provider-nop.xpkg
+# ❯ crossplane xpkg push -f e2e-depends-on-provider-nop.xpkg ghcr.io/crossplane/e2e-depends-on-provider-nop:v0.2.0-gt
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: e2e-depends-on-provider-nop
+spec:
+  dependsOn:
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      package: xpkg.upbound.io/crossplane-contrib/provider-nop
+      version: "=v0.2.0"

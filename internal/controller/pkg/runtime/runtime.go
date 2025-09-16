@@ -22,10 +22,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 )
 
 const (
@@ -172,6 +172,7 @@ func (b *DeploymentRuntimeBuilder) ServiceAccount(overrides ...ServiceAccountOve
 	}
 
 	var allOverrides []ServiceAccountOverride
+
 	allOverrides = append(allOverrides,
 		// Optional defaults, will be used only if the runtime config does not
 		// specify them.
@@ -249,12 +250,12 @@ func (b *DeploymentRuntimeBuilder) Deployment(serviceAccount string, overrides .
 		allOverrides = append(allOverrides, DeploymentRuntimeWithImagePullPolicy(*b.revision.GetPackagePullPolicy()))
 	}
 
-	if b.revision.GetTLSClientSecretName() != nil {
-		allOverrides = append(allOverrides, DeploymentRuntimeWithTLSClientSecret(*b.revision.GetTLSClientSecretName()))
+	if b.revision.GetObservedTLSClientSecretName() != nil {
+		allOverrides = append(allOverrides, DeploymentRuntimeWithTLSClientSecret(*b.revision.GetObservedTLSClientSecretName()))
 	}
 
-	if b.revision.GetTLSServerSecretName() != nil {
-		allOverrides = append(allOverrides, DeploymentRuntimeWithTLSServerSecret(*b.revision.GetTLSServerSecretName()))
+	if b.revision.GetObservedTLSServerSecretName() != nil {
+		allOverrides = append(allOverrides, DeploymentRuntimeWithTLSServerSecret(*b.revision.GetObservedTLSServerSecretName()))
 	}
 
 	// We append the overrides passed to the function last so that they can
@@ -276,6 +277,7 @@ func (b *DeploymentRuntimeBuilder) Service(overrides ...ServiceOverride) *corev1
 	}
 
 	var allOverrides []ServiceOverride
+
 	allOverrides = append(allOverrides,
 		// Optional defaults, will be used only if the runtime config does not
 		// specify them.
@@ -299,13 +301,13 @@ func (b *DeploymentRuntimeBuilder) Service(overrides ...ServiceOverride) *corev1
 
 // TLSClientSecret builds and returns the Secret manifest for the TLS client certificate.
 func (b *DeploymentRuntimeBuilder) TLSClientSecret() *corev1.Secret {
-	if b.revision.GetTLSClientSecretName() == nil {
+	if b.revision.GetObservedTLSClientSecretName() == nil {
 		return nil
 	}
 
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            *b.revision.GetTLSClientSecretName(),
+			Name:            *b.revision.GetObservedTLSClientSecretName(),
 			Namespace:       b.namespace,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))},
 		},
@@ -314,13 +316,13 @@ func (b *DeploymentRuntimeBuilder) TLSClientSecret() *corev1.Secret {
 
 // TLSServerSecret builds and returns the Secret manifest for the TLS server certificate.
 func (b *DeploymentRuntimeBuilder) TLSServerSecret() *corev1.Secret {
-	if b.revision.GetTLSServerSecretName() == nil {
+	if b.revision.GetObservedTLSServerSecretName() == nil {
 		return nil
 	}
 
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            *b.revision.GetTLSServerSecretName(),
+			Name:            *b.revision.GetObservedTLSServerSecretName(),
 			Namespace:       b.namespace,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))},
 		},
@@ -329,7 +331,7 @@ func (b *DeploymentRuntimeBuilder) TLSServerSecret() *corev1.Secret {
 
 func (b *DeploymentRuntimeBuilder) podSelectors() map[string]string {
 	return map[string]string{
-		"pkg.crossplane.io/revision":           b.revision.GetName(),
+		v1.LabelRevision:                       b.revision.GetName(),
 		"pkg.crossplane.io/" + b.packageType(): b.packageName(),
 	}
 }
@@ -342,5 +344,6 @@ func (b *DeploymentRuntimeBuilder) packageType() string {
 	if _, ok := b.revision.(*v1.FunctionRevision); ok {
 		return "function"
 	}
+
 	return "provider"
 }

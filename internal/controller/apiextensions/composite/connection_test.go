@@ -28,12 +28,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
 var _ ConnectionDetailsFetcher = &SecretConnectionDetailsFetcher{}
@@ -51,14 +51,17 @@ func TestSecretConnectionDetailsFetcher(t *testing.T) {
 	type params struct {
 		kube client.Client
 	}
+
 	type args struct {
 		ctx context.Context
 		o   resource.ConnectionSecretOwner
 	}
+
 	type want struct {
 		conn managed.ConnectionDetails
 		err  error
 	}
+
 	cases := map[string]struct {
 		reason string
 		params params
@@ -156,10 +159,12 @@ func TestSecretConnectionDetailsFetcher(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := &SecretConnectionDetailsFetcher{client: tc.params.kube}
+
 			conn, err := c.FetchConnection(tc.args.ctx, tc.args.o)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nFetchConnection(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.conn, conn, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nFetchFetchConnection(...): -want, +got:\n%s", tc.reason, diff)
 			}

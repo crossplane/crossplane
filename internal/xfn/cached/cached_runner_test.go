@@ -30,10 +30,10 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
-	"github.com/crossplane/crossplane/internal/xfn/cached/proto/v1alpha1"
+	"github.com/crossplane/crossplane/v2/internal/xfn/cached/proto/v1alpha1"
+	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
 type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
@@ -46,18 +46,22 @@ var MockDir = []byte("DIR")
 
 func MockFs(files map[string][]byte) afero.Fs {
 	fs := afero.NewMemMapFs()
+
 	for path, data := range files {
 		// Special value for making a directory.
 		if bytes.Equal(data, MockDir) {
 			if err := fs.MkdirAll(path, 0o700); err != nil {
 				panic(err)
 			}
+
 			continue
 		}
+
 		if err := afero.WriteFile(fs, path, data, 0o600); err != nil {
 			panic(err)
 		}
 	}
+
 	return fs
 }
 
@@ -87,11 +91,13 @@ func TestRunFunction(t *testing.T) {
 		path string
 		o    []FileBackedRunnerOption
 	}
+
 	type args struct {
 		ctx  context.Context
 		name string
 		req  *fnv1.RunFunctionRequest
 	}
+
 	type want struct {
 		rsp *fnv1.RunFunctionResponse
 		err error
@@ -329,6 +335,54 @@ func TestRunFunction(t *testing.T) {
 				},
 			},
 		},
+		"MaxTTLClamping": {
+			reason: "If the response TTL exceeds the maximum TTL, it should be clamped to the max.",
+			params: params{
+				wrap: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					rsp := &fnv1.RunFunctionResponse{
+						Meta: &fnv1.ResponseMeta{
+							Tag: "hello",
+							// Request 60 minutes, but maxTTL will clamp to 30.
+							Ttl: durationpb.New(60 * time.Minute),
+						},
+					}
+					return rsp, nil
+				}),
+				o: []FileBackedRunnerOption{
+					WithLogger(&TestLogger{t: t}),
+					WithFilesystem(MockFs(map[string][]byte{
+						"coolfn/hello": func() []byte {
+							msg, _ := proto.Marshal(&v1alpha1.CachedRunFunctionResponse{
+								Deadline: timestamppb.New(time.Now().Add(45 * time.Minute)),
+								Response: &fnv1.RunFunctionResponse{
+									Meta: &fnv1.ResponseMeta{
+										Tag: "clamped",
+										Ttl: durationpb.New(30 * time.Minute),
+									},
+								},
+							})
+
+							return msg
+						}(),
+					})),
+					WithMaxTTL(7 * time.Minute),
+				},
+			},
+			args: args{
+				name: "coolfn",
+				req: &fnv1.RunFunctionRequest{
+					Meta: &fnv1.RequestMeta{Tag: "hello"},
+				},
+			},
+			want: want{
+				rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{
+						Tag: "clamped",
+						Ttl: durationpb.New(30 * time.Minute),
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -391,6 +445,62 @@ func TestCacheFunction(t *testing.T) {
 
 	if diff := cmp.Diff(rsp, got, protocmp.Transform()); diff != "" {
 		t.Errorf("\nr.RunFunction(...): -want rsp, +got rsp:\n%s", diff)
+	}
+}
+
+// Make sure the Global TTL is used when a Function Response TTL is greater.
+func TestCacheFunctionWithMaxTTL(t *testing.T) {
+	maxTTL := 5 * time.Minute
+	requestedTTL := 30 * time.Minute
+
+	rsp := &fnv1.RunFunctionResponse{
+		Meta: &fnv1.ResponseMeta{
+			Tag: "wrapped",
+			Ttl: durationpb.New(requestedTTL),
+		},
+	}
+
+	wrapped := FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+		return rsp, nil
+	})
+
+	fs := afero.NewMemMapFs()
+
+	r := NewFileBackedRunner(wrapped, "/cache",
+		WithLogger(&TestLogger{t: t}),
+		WithFilesystem(fs),
+		WithMaxTTL(maxTTL))
+
+	startTime := time.Now().UTC()
+
+	// Populate the cache with a response that has a TTL greater than maxTTL.
+	got, err := r.CacheFunction(context.TODO(), "coolfn", &fnv1.RunFunctionRequest{Meta: &fnv1.RequestMeta{Tag: "req"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The response should be returned unchanged.
+	if diff := cmp.Diff(rsp, got, protocmp.Transform()); diff != "" {
+		t.Errorf("\nr.CacheFunction(...): -want rsp, +got rsp:\n%s", diff)
+	}
+
+	// Read the cached file directly to verify the deadline was clamped.
+	b, err := r.fs.ReadFile("coolfn/req")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	crsp := &v1alpha1.CachedRunFunctionResponse{}
+	if err := proto.Unmarshal(b, crsp); err != nil {
+		t.Fatal(err)
+	}
+
+	deadline := crsp.GetDeadline().AsTime()
+	expectedDeadline := startTime.Add(maxTTL)
+
+	// Allow 1 second tolerance for timing differences.
+	if deadline.After(expectedDeadline.Add(1*time.Second)) || deadline.Before(expectedDeadline.Add(-1*time.Second)) {
+		t.Errorf("Expected deadline to be clamped to maxTTL. Got %v, expected around %v", deadline, expectedDeadline)
 	}
 }
 

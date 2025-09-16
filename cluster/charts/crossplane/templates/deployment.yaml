@@ -57,7 +57,13 @@ spec:
       {{- end }}
       hostNetwork: {{ .Values.hostNetwork }}
       initContainers:
-        - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
+        - name: {{ .Chart.Name }}-init
+          {{- if .Values.image.ignoreTag }}
+          image: "{{ .Values.image.repository }}"
+          {{- else }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
           - core
           - init
@@ -73,8 +79,10 @@ spec:
           - --function
           - "{{ $arg }}"
           {{- end }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          name: {{ .Chart.Name }}-init
+          {{- range $arg := .Values.provider.defaultActivations }}
+          - --activation
+          - "{{ $arg }}"
+          {{- end }}
           resources:
             {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
           {{- with .Values.securityContextCrossplane }}
@@ -125,8 +133,17 @@ spec:
             value: crossplane-tls-server
           - name: "TLS_CLIENT_SECRET_NAME"
             value: crossplane-tls-client
+          {{- range $key, $value := .Values.extraEnvVarsCrossplaneInit }}
+          - name: {{ $key | replace "." "_" }}
+            value: {{ $value | quote }}
+          {{- end}}
       containers:
-      - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
+      - name: {{ .Chart.Name }}
+        {{- if .Values.image.ignoreTag }}
+        image: "{{ .Values.image.repository }}"
+        {{- else }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
+        {{- end }}
         args:
         - core
         - start
@@ -134,7 +151,6 @@ spec:
         - {{ $arg }}
         {{- end }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        name: {{ .Chart.Name }}
         resources:
           {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
         startupProbe:

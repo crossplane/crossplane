@@ -28,11 +28,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 )
 
 // EnqueueForCompositionRevision enqueues reconciles for all XRs that will use a
@@ -116,8 +116,8 @@ func EnqueueCompositeResources(of schema.GroupVersionKind, c client.Reader, log 
 
 			// queue those composites for reconciliation
 			for _, xr := range composites.Items {
-				log.Debug("Enqueueing composite resource because composed resource changed", "name", xr.GetName(), "cdGVK", cdGVK.String(), "cdName", ev.ObjectNew.GetName())
-				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: xr.GetName()}})
+				log.Debug("Enqueueing composite resource because composed resource changed", "name", xr.GetName(), "namespace", xr.GetNamespace(), "cdGVK", cdGVK.String(), "cdName", ev.ObjectNew.GetName())
+				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: xr.GetName(), Namespace: xr.GetNamespace()}})
 			}
 		},
 	}

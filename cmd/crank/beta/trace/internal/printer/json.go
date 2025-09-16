@@ -23,7 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
 )
 
 const (
@@ -41,7 +41,9 @@ func (p *JSONPrinter) Print(w io.Writer, root *resource.Resource) error {
 	if err != nil {
 		return errors.Wrap(err, errCannotMarshalJSON)
 	}
+
 	_, err = fmt.Fprintln(w, string(out))
+
 	return err
 }
 

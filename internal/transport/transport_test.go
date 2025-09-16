@@ -22,8 +22,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
 // validatingRoundTripper is a round tripper that validates attributes of the
@@ -39,6 +39,7 @@ func (v *validatingRoundTripper) RoundTrip(req *http.Request) (*http.Response, e
 			return nil, err
 		}
 	}
+
 	return nil, nil
 }
 
@@ -51,6 +52,7 @@ func userAgentValidator(userAgent string) requestValidationFn {
 		if diff := cmp.Diff(r.Header.Get("User-Agent"), userAgent); diff != "" {
 			return errors.Errorf("expected User-Agent %s but got %s", userAgent, r.Header.Get("User-Agent"))
 		}
+
 		return nil
 	}
 }
@@ -129,6 +131,7 @@ func TestUserAgent(t *testing.T) {
 			u := NewUserAgent(&validatingRoundTripper{
 				validations: tc.validations,
 			}, tc.userAgent)
+
 			_, err := u.RoundTrip(tc.req) //nolint:bodyclose // No body to close.
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRoundTrip(...): -want err, +got err:\n%s", tc.reason, diff)

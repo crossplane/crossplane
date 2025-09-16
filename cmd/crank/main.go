@@ -24,13 +24,14 @@ import (
 	"github.com/willabides/kongplete"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/cmd/crank/beta"
-	"github.com/crossplane/crossplane/cmd/crank/completion"
-	"github.com/crossplane/crossplane/cmd/crank/render"
-	"github.com/crossplane/crossplane/cmd/crank/version"
-	"github.com/crossplane/crossplane/cmd/crank/xpkg"
+	"github.com/crossplane/crossplane/v2/cmd/crank/alpha"
+	"github.com/crossplane/crossplane/v2/cmd/crank/beta"
+	"github.com/crossplane/crossplane/v2/cmd/crank/completion"
+	"github.com/crossplane/crossplane/v2/cmd/crank/render"
+	"github.com/crossplane/crossplane/v2/cmd/crank/version"
+	"github.com/crossplane/crossplane/v2/cmd/crank/xpkg"
 )
 
 var _ = kong.Must(&cli{})
@@ -42,6 +43,7 @@ type (
 func (v verboseFlag) BeforeApply(ctx *kong.Context) error { //nolint:unparam // BeforeApply requires this signature.
 	logger := logging.NewLogrLogger(zap.New(zap.UseDevMode(true)))
 	ctx.BindTo(logger, (*logging.Logger)(nil))
+
 	return nil
 }
 
@@ -56,6 +58,7 @@ type cli struct {
 
 	// The alpha and beta subcommands are intentionally in a separate block. We
 	// want them to appear after all other subcommands.
+	Alpha   alpha.Cmd   `cmd:"" help:"Alpha commands."`
 	Beta    beta.Cmd    `cmd:"" help:"Beta commands."`
 	Version version.Cmd `cmd:"" help:"Print the client and server version information for the current context."`
 

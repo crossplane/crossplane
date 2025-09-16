@@ -30,12 +30,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/engine"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/internal/engine"
 )
 
 var (
@@ -53,6 +53,7 @@ type MockEngine struct {
 	MockGetCached       func() client.Client
 	MockGetUncached     func() client.Client
 	MockGetFieldIndexer func() client.FieldIndexer
+	MockIsAuthorizedFor func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) (bool, error)
 }
 
 func (m *MockEngine) IsRunning(name string) bool {
@@ -91,6 +92,10 @@ func (m *MockEngine) GetFieldIndexer() client.FieldIndexer {
 	return m.MockGetFieldIndexer()
 }
 
+func (m *MockEngine) IsAuthorizedFor(ctx context.Context, gvk schema.GroupVersionKind, namespace string) (bool, error) {
+	return m.MockIsAuthorizedFor(ctx, gvk, namespace)
+}
+
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
@@ -101,6 +106,7 @@ func TestReconcile(t *testing.T) {
 		ca   resource.ClientApplicator
 		opts []ReconcilerOption
 	}
+
 	type want struct {
 		r   reconcile.Result
 		err error
@@ -902,11 +908,12 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.ca, tc.args.opts...)
-			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}

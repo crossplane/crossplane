@@ -54,12 +54,11 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/yaml"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/claim"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 )
 
 // DefaultPollInterval is the suggested poll interval for wait.For.
@@ -81,6 +80,7 @@ func AllOf(fns ...features.Func) features.Func {
 				break
 			}
 		}
+
 		return ctx
 	}
 }
@@ -91,6 +91,7 @@ func InBackground(fn features.Func) features.Func {
 		t.Helper()
 
 		go fn(ctx, t, c)
+
 		return ctx
 	}
 }
@@ -124,12 +125,16 @@ func DeploymentBecomesAvailableWithin(d time.Duration, namespace, name string) f
 
 		dp := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
 		t.Logf("Waiting %s for deployment %s/%s to become Available...", d, dp.GetNamespace(), dp.GetName())
+
 		start := time.Now()
+
 		if err := wait.For(conditions.New(c.Client().Resources()).DeploymentConditionMatch(dp, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			t.Fatal(err)
 			return ctx
 		}
+
 		t.Logf("Deployment %s/%s is Available after %s", dp.GetNamespace(), dp.GetName(), since(start))
+
 		return ctx
 	}
 }
@@ -142,6 +147,7 @@ func DeploymentPodIsRunningMustNotChangeWithin(d time.Duration, namespace, name 
 
 		dp := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
 		t.Logf("Ensuring deployment %s/%s has running pod that does not change within %s", dp.GetNamespace(), dp.GetName(), d.String())
+
 		start := time.Now()
 
 		pod, err := podForDeployment(ctx, t, c, dp)
@@ -158,6 +164,7 @@ func DeploymentPodIsRunningMustNotChangeWithin(d time.Duration, namespace, name 
 
 		// now wait to make sure the pod stays running (does not change)
 		start = time.Now()
+
 		if err := wait.For(conditions.New(c.Client().Resources()).PodConditionMatch(pod, corev1.PodReady, corev1.ConditionFalse), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			if deadlineExceed(err) {
 				t.Logf("Deployment %s/%s had running pod that did not change after %s", dp.GetNamespace(), dp.GetName(), since(start))
@@ -165,9 +172,12 @@ func DeploymentPodIsRunningMustNotChangeWithin(d time.Duration, namespace, name 
 			}
 
 			t.Errorf("Error while observing pod for deployment %s/%s", dp.GetNamespace(), dp.GetName())
+
 			return ctx
 		}
+
 		t.Errorf("Deployment %s/%s had pod that changed within %s, but it should not have", dp.GetNamespace(), dp.GetName(), d.String())
+
 		return ctx
 	}
 }
@@ -193,6 +203,7 @@ func checkArgExistsWithin(d time.Duration, arg string, wantExist bool, namespace
 
 		dp := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
 		t.Logf("Waiting %s for pod in deployment %s/%s to have arg %s exist=%t...", d, dp.GetNamespace(), dp.GetName(), arg, wantExist)
+
 		start := time.Now()
 
 		if err := wait.For(func(ctx context.Context) (done bool, err error) {
@@ -226,6 +237,7 @@ func checkArgExistsWithin(d time.Duration, arg string, wantExist bool, namespace
 		}
 
 		t.Logf("Deployment %s/%s has pod with arg %s exist=%t after %s", dp.GetNamespace(), dp.GetName(), arg, wantExist, since(start))
+
 		return ctx
 	}
 }
@@ -243,6 +255,7 @@ func ResourcesCreatedWithin(d time.Duration, dir, pattern string, options ...dec
 		}
 
 		list := &unstructured.UnstructuredList{}
+
 		for _, o := range rs {
 			u := asUnstructured(o)
 			list.Items = append(list.Items, *u)
@@ -250,12 +263,14 @@ func ResourcesCreatedWithin(d time.Duration, dir, pattern string, options ...dec
 		}
 
 		start := time.Now()
+
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesFound(list), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			t.Errorf("resources did not exist: %v", err)
 			return ctx
 		}
 
 		t.Logf("%d resources found to exist after %s", len(rs), since(start))
+
 		return ctx
 	}
 }
@@ -269,12 +284,14 @@ func ResourceCreatedWithin(d time.Duration, o k8s.Object) features.Func {
 		t.Logf("Waiting %s for %s to be created...", d, identifier(o))
 
 		start := time.Now()
+
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(o, func(_ k8s.Object) bool { return true }), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			t.Errorf("resource %s did not exist: %v", identifier(o), err)
 			return ctx
 		}
 
 		t.Logf("resource %s found to exist after %s", identifier(o), since(start))
+
 		return ctx
 	}
 }
@@ -292,6 +309,7 @@ func ResourcesDeletedWithin(d time.Duration, dir, pattern string, options ...dec
 		}
 
 		list := &unstructured.UnstructuredList{}
+
 		for _, o := range rs {
 			u := asUnstructured(o)
 			list.Items = append(list.Items, *u)
@@ -299,16 +317,30 @@ func ResourcesDeletedWithin(d time.Duration, dir, pattern string, options ...dec
 		}
 
 		start := time.Now()
+
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesDeleted(list), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			objs := itemsToObjects(list.Items)
 			related, _ := RelatedObjects(ctx, t, c.Client().RESTConfig(), objs...)
 			events := valueOrError(eventString(ctx, c.Client().RESTConfig(), append(objs, related...)...))
 
 			t.Errorf("resources not deleted: %v:\n\n%s\n%s\nRelated objects:\n\n%s\n", err, toYAML(objs...), events, toYAML(related...))
+
 			return ctx
 		}
 
 		t.Logf("%d resources deleted after %s", len(rs), since(start))
+
+		return ctx
+	}
+}
+
+// SleepFor sleeps for the specified duration. This is useful for waiting
+// for time-based conditions to occur, such as cron schedules.
+func SleepFor(d time.Duration) features.Func {
+	return func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+		t.Helper()
+		t.Logf("Sleeping for %s...", d)
+		time.Sleep(d)
 		return ctx
 	}
 }
@@ -322,12 +354,14 @@ func ResourceDeletedWithin(d time.Duration, o k8s.Object) features.Func {
 		t.Logf("Waiting %s for %s to be deleted...", d, identifier(o))
 
 		start := time.Now()
+
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourceDeleted(o), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			t.Errorf("resource %s not deleted: %v", identifier(o), err)
 			return ctx
 		}
 
 		t.Logf("resource %s deleted after %s", identifier(o), since(start))
+
 		return ctx
 	}
 }
@@ -342,13 +376,16 @@ func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv1.Condi
 		reasons := make([]string, len(cds))
 		for i := range cds {
 			reasons[i] = string(cds[i].Reason)
+			// TODO: it would be better to let message be a regular expression and match on expected vs observed.
 			if cds[i].Message != "" {
 				t.Errorf("message must not be set in ResourceHasConditionWithin: %s", cds[i].Message)
 			}
 		}
+
 		desired := strings.Join(reasons, ", ")
 
 		t.Logf("Waiting %s for %s to become %s...", d, identifier(o), desired)
+
 		ogReport := make(map[string]bool)
 		old := make([]xpv1.Condition, len(cds))
 		match := func(o k8s.Object) bool {
@@ -368,9 +405,11 @@ func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv1.Condi
 				// ONLY if it is zero. But we will also log this fact to find it in the logs.
 				if got.ObservedGeneration == 0 {
 					got.ObservedGeneration = u.GetGeneration()
+
 					key := fmt.Sprintf("%s[%s]", u.GetKind(), got.Type)
 					if !ogReport[key] {
 						ogReport[key] = true
+
 						t.Logf("https://github.com/crossplane/crossplane/issues/6420: Warning, an unset observedGeneration was artificially updated for %s.status.conditions[%s]", u.GetKind(), got.Type)
 					}
 				}
@@ -393,15 +432,18 @@ func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv1.Condi
 		}
 
 		start := time.Now()
+
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(o, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			related, _ := RelatedObjects(ctx, t, c.Client().RESTConfig(), o)
 			events := valueOrError(eventString(ctx, c.Client().RESTConfig(), append(related, o)...))
 
 			t.Errorf("resource did not have desired conditions: %s: %v:\n\n%s\n%s\nRelated objects:\n\n%s\n", desired, err, toYAML(o), events, toYAML(related...))
+
 			return ctx
 		}
 
 		t.Logf("Resource has desired conditions after %s: %s", since(start), desired)
+
 		return ctx
 	}
 }
@@ -432,6 +474,7 @@ func or(a, b string) string {
 	if a != "" {
 		return a
 	}
+
 	return b
 }
 
@@ -455,10 +498,20 @@ func (nf notFound) String() string { return "NotFound" }
 // not be found.
 var NotFound = notFound{} //nolint:gochecknoglobals // We treat this as a constant.
 
+type anyValue struct{}
+
+func (av anyValue) String() string { return "Any" }
+
+// Any is a special 'want' value that indicates any value (except NotFound) should match.
+var Any = anyValue{} //nolint:gochecknoglobals // We treat this as a constant.
+
+// FieldValueChecker is a function that checks if a field value matches some criteria.
+type FieldValueChecker func(got any) bool
+
 // ResourcesHaveFieldValueWithin fails a test if the supplied resources do not
 // have the supplied value at the supplied field path within the supplied
 // duration. The supplied 'want' value must cmp.Equal the actual value.
-func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, want any, options ...decoder.DecodeOption) features.Func {
+func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, want any, options ...decoder.DecodeOption) features.Func { //nolint:gocognit // Only a little over.
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
@@ -469,6 +522,7 @@ func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, w
 		}
 
 		list := &unstructured.UnstructuredList{}
+
 		for _, o := range rs {
 			u := asUnstructured(o)
 			list.Items = append(list.Items, *u)
@@ -478,28 +532,52 @@ func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, w
 		count := atomic.Int32{}
 		match := func(o k8s.Object) bool {
 			count.Add(1)
+
 			u := asUnstructured(o)
+
 			got, err := fieldpath.Pave(u.Object).GetValue(path)
 			if fieldpath.IsNotFound(err) {
 				if _, ok := want.(notFound); ok {
 					return true
 				}
+				// If we want Any but got NotFound, it doesn't match
+				if _, ok := want.(anyValue); ok {
+					return false
+				}
 			}
+
 			if err != nil {
 				return false
+			}
+
+			// If we have a custom checker function, use it
+			if checker, ok := want.(FieldValueChecker); ok {
+				return checker(got)
+			}
+
+			// If we want Any and we have a value (not NotFound), it matches
+			if _, ok := want.(anyValue); ok {
+				return true
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {
 				t.Logf("%s doesn't yet have desired value at field path %s: %s", identifier(u), path, diff)
 				return false
 			}
+
 			return true
 		}
 
 		start := time.Now()
+
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
-			y, _ := yaml.Marshal(list.Items)
-			t.Errorf("resources did not have desired value %q at field path %s: %v:\n\n%s\n\n", want, path, err, y)
+			objs := make([]client.Object, len(list.Items))
+			for i := range list.Items {
+				objs[i] = &list.Items[i]
+			}
+
+			t.Errorf("resources did not have desired value %q at field path %s: %v:\n\n%s\n\n", want, path, err, toYAML(objs...))
+
 			return ctx
 		}
 
@@ -509,6 +587,7 @@ func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, w
 		}
 
 		t.Logf("%d resources have desired value %q at field path %s after %s", len(rs), want, path, since(start))
+
 		return ctx
 	}
 }
@@ -524,31 +603,51 @@ func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, wan
 
 		match := func(o k8s.Object) bool {
 			u := asUnstructured(o)
+
 			got, err := fieldpath.Pave(u.Object).GetValue(path)
 			if fieldpath.IsNotFound(err) {
 				if _, ok := want.(notFound); ok {
 					return true
 				}
+				// If we want Any but got NotFound, it doesn't match
+				if _, ok := want.(anyValue); ok {
+					return false
+				}
 			}
+
 			if err != nil {
 				return false
+			}
+
+			// If we have a custom checker function, use it
+			if checker, ok := want.(FieldValueChecker); ok {
+				return checker(got)
+			}
+
+			// If we want Any and we have a value (not NotFound), it matches
+			if _, ok := want.(anyValue); ok {
+				return true
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {
 				t.Logf("%s doesn't yet have desired value at field path %s: %s", identifier(u), path, diff)
 				return false
 			}
+
 			return true
 		}
 
 		start := time.Now()
+
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(o, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			y, _ := yaml.Marshal(o)
 			t.Errorf("resource did not have desired value %q at field path %s: %v:\n\n%s\n\n", want, path, err, y)
+
 			return ctx
 		}
 
 		t.Logf("%s has desired value %q at field path %s after %s", identifier(o), want, path, since(start))
+
 		return ctx
 	}
 }
@@ -575,6 +674,7 @@ func ApplyResources(manager, dir, pattern string, options ...decoder.DecodeOptio
 		}
 
 		t.Logf("Applied resources from %s (matched %d manifests)", filepath.Join(dir, pattern), len(files))
+
 		return ctx
 	}
 }
@@ -600,6 +700,7 @@ func ApplyClaim(manager, dir, cm string, options ...decoder.DecodeOption) featur
 			t.Error(err)
 			return ctx
 		}
+
 		if len(objs) != 1 {
 			t.Errorf("Only one claim allows in %s", filepath.Join(dir, cm))
 			return ctx
@@ -613,7 +714,9 @@ func ApplyClaim(manager, dir, cm string, options ...decoder.DecodeOption) featur
 			t.Fatal(err)
 			return ctx
 		}
+
 		t.Logf("Applied resources from %s (matched %d manifests)", filepath.Join(dir, cm), len(files))
+
 		return ctx
 	}
 }
@@ -643,6 +746,7 @@ func ResourcesFailToApply(manager, dir, pattern string, options ...decoder.Decod
 
 		files, _ := fs.Glob(dfs, pattern)
 		t.Logf("All resources from %s (matched %d manifests) failed to apply", filepath.Join(dir, pattern), len(files))
+
 		return ctx
 	}
 }
@@ -661,9 +765,11 @@ func ApplyHandler(r *resources.Resources, manager string, osh ...onSuccessHandle
 		if err := r.GetControllerRuntimeClient().Patch(ctx, obj, client.Apply, client.FieldOwner(manager), client.ForceOwnership); err != nil {
 			return err
 		}
+
 		for _, h := range osh {
 			h(obj)
 		}
+
 		return nil
 	}
 }
@@ -685,6 +791,7 @@ func DeleteResourcesWithPropagationPolicy(dir, pattern string, deletePropagation
 
 		files, _ := fs.Glob(dfs, pattern)
 		t.Logf("Deleted resources from %s (matched %d manifests)", filepath.Join(dir, pattern), len(files))
+
 		return ctx
 	}
 }
@@ -707,6 +814,7 @@ func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 			t.Fatalf("claim not available in the context")
 			return ctx
 		}
+
 		list := &unstructured.UnstructuredList{}
 		ucm := unstructured.Unstructured{}
 		ucm.SetNamespace(cm.GetNamespace())
@@ -717,7 +825,9 @@ func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 		m := func(o k8s.Object) bool {
 			return o.GetGeneration() != cm.GetGeneration()
 		}
+
 		t.Logf("Ensuring claim %s does not change within %s", identifier(cm), d.String())
+
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
 			if deadlineExceed(err) {
 				t.Logf("Claim %s did not change within %s", identifier(cm), d.String())
@@ -725,9 +835,12 @@ func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 			}
 
 			t.Errorf("Error while observing claim %s: %v", identifier(cm), err)
+
 			return ctx
 		}
+
 		t.Errorf("Claim %s changed within %s, but it should not have", identifier(cm), d.String())
+
 		return ctx
 	}
 }
@@ -743,10 +856,12 @@ func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 			t.Fatalf("claim not available in the context")
 			return ctx
 		}
+
 		if err := c.Client().Resources().Get(ctx, cm.GetName(), cm.GetNamespace(), cm); err != nil {
 			t.Errorf("Error while getting claim: %v", err)
 			return ctx
 		}
+
 		cp := &composite.Unstructured{}
 		cp.SetName(cm.GetResourceReference().Name)
 		cp.SetGroupVersionKind(cm.GetResourceReference().GroupVersionKind())
@@ -755,6 +870,7 @@ func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 			t.Errorf("Error while getting composite: %v", err)
 			return ctx
 		}
+
 		list := &unstructured.UnstructuredList{}
 		ucp := unstructured.Unstructured{}
 		ucp.SetName(cp.GetName())
@@ -766,6 +882,7 @@ func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 		}
 
 		t.Logf("Ensuring composite resource %s does not change within %s", identifier(cp), d.String())
+
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
 			if deadlineExceed(err) {
 				t.Logf("Composite resource %s did not change within %s", identifier(cp), d.String())
@@ -773,9 +890,12 @@ func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 			}
 
 			t.Errorf("Error while observing composite resource %s: %v", identifier(cp), err)
+
 			return ctx
 		}
+
 		t.Errorf("Composite resource %s changed within %s, but it should not have", identifier(cp), d.String())
+
 		return ctx
 	}
 }
@@ -811,7 +931,9 @@ func CompositeResourceMustMatchWithin(d time.Duration, dir, claimFile string, ma
 		count := atomic.Int32{}
 		m := func(o k8s.Object) bool {
 			count.Add(1)
+
 			u := asUnstructured(o)
+
 			return match(&composite.Unstructured{Unstructured: *u})
 		}
 
@@ -826,6 +948,7 @@ func CompositeResourceMustMatchWithin(d time.Duration, dir, claimFile string, ma
 		}
 
 		t.Logf("composite resource %s matched", identifier(&uxr))
+
 		return ctx
 	}
 }
@@ -833,7 +956,7 @@ func CompositeResourceMustMatchWithin(d time.Duration, dir, claimFile string, ma
 // CompositeResourceHasFieldValueWithin asserts that the XR referred to by the
 // claim in the given file has the specified value at the specified path within
 // the specified time.
-func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path string, want any, options ...decoder.DecodeOption) features.Func {
+func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path string, want any, options ...decoder.DecodeOption) features.Func { //nolint:gocognit // Only a little over.
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
@@ -846,10 +969,12 @@ func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path 
 
 		hasResourceRef := func(o k8s.Object) bool {
 			u := asUnstructured(o)
+
 			got, err := fieldpath.Pave(u.Object).GetString("spec.resourceRef.name")
 			if err != nil {
 				return false
 			}
+
 			return got != ""
 		}
 
@@ -866,28 +991,48 @@ func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path 
 		count := atomic.Int32{}
 		match := func(o k8s.Object) bool {
 			count.Add(1)
+
 			u := asUnstructured(o)
+
 			got, err := fieldpath.Pave(u.Object).GetValue(path)
 			if fieldpath.IsNotFound(err) {
 				if _, ok := want.(notFound); ok {
 					return true
 				}
+				// If we want Any but got NotFound, it doesn't match
+				if _, ok := want.(anyValue); ok {
+					return false
+				}
 			}
+
 			if err != nil {
 				return false
+			}
+
+			// If we have a custom checker function, use it
+			if checker, ok := want.(FieldValueChecker); ok {
+				return checker(got)
+			}
+
+			// If we want Any and we have a value (not NotFound), it matches
+			if _, ok := want.(anyValue); ok {
+				return true
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {
 				t.Logf("%s doesn't yet have desired value at field path %s: %s", identifier(xr), path, diff)
 				return false
 			}
+
 			return true
 		}
 
 		start := time.Now()
+
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(xr, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			y, _ := yaml.Marshal(xr)
 			t.Errorf("XR did not have desired value %q at field path %s: %v:\n\n%s\n\n", want, path, err, y)
+
 			return ctx
 		}
 
@@ -897,14 +1042,15 @@ func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path 
 		}
 
 		t.Logf("%s has desired value %q at field path %s after %s", identifier(xr), want, path, since(start))
+
 		return ctx
 	}
 }
 
-// ComposedResourcesHaveFieldValueWithin fails a test if the composed
+// ClaimComposedResourcesHaveFieldValueWithin fails a test if the composed
 // resources created by the claim does not have the supplied value at the
 // supplied path within the supplied duration.
-func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path string, want any, filter func(object k8s.Object) bool, options ...decoder.DecodeOption) features.Func { //nolint:gocognit // Not too much over.
+func ClaimComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path string, want any, filter func(object k8s.Object) bool, options ...decoder.DecodeOption) features.Func { //nolint:gocognit // Not too much over.
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
@@ -916,10 +1062,12 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 
 		hasResourceRef := func(o k8s.Object) bool {
 			u := asUnstructured(o)
+
 			got, err := fieldpath.Pave(u.Object).GetString("spec.resourceRef.name")
 			if err != nil {
 				return false
 			}
+
 			return got != ""
 		}
 
@@ -933,8 +1081,105 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 
 		xrRef := cm.GetResourceReference()
 		uxr.SetGroupVersionKind(xrRef.GroupVersionKind())
+
 		if err := c.Client().Resources().Get(ctx, xrRef.Name, "", uxr); err != nil {
 			t.Errorf("cannot get composite %s: %v", xrRef.Name, err)
+			return ctx
+		}
+
+		mrRefs := uxr.GetResourceReferences()
+
+		list := &unstructured.UnstructuredList{}
+		for _, ref := range mrRefs {
+			mr := &unstructured.Unstructured{}
+			mr.SetName(ref.Name)
+			mr.SetNamespace(ref.Namespace)
+			mr.SetGroupVersionKind(ref.GroupVersionKind())
+			list.Items = append(list.Items, *mr)
+		}
+
+		count := atomic.Int32{}
+		match := func(o k8s.Object) bool {
+			// filter function should return true if the object needs to be checked. e.g., if you want to check the field
+			// path of a VPC object, filter function should return true for VPC objects only.
+			if filter != nil && !filter(o) {
+				t.Logf("skipping resource %s/%s/%s due to filtering", o.GetNamespace(), o.GetName(), o.GetObjectKind().GroupVersionKind().String())
+				return true
+			}
+
+			count.Add(1)
+
+			u := asUnstructured(o)
+
+			got, err := fieldpath.Pave(u.Object).GetValue(path)
+			if fieldpath.IsNotFound(err) {
+				if _, ok := want.(notFound); ok {
+					return true
+				}
+				// If we want Any but got NotFound, it doesn't match
+				if _, ok := want.(anyValue); ok {
+					return false
+				}
+			}
+
+			if err != nil {
+				return false
+			}
+
+			// If we have a custom checker function, use it
+			if checker, ok := want.(FieldValueChecker); ok {
+				return checker(got)
+			}
+
+			// If we want Any and we have a value (not NotFound), it matches
+			if _, ok := want.(anyValue); ok {
+				return true
+			}
+
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Logf("%s doesn't yet have desired value at field path %s: %s", identifier(u), path, diff)
+				return false
+			}
+
+			return true
+		}
+
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+			y, _ := yaml.Marshal(list.Items)
+			t.Errorf("resources did not have desired value %q at field path %q before timeout (%s): %s\n\n%s\n\n", want, path, d.String(), err, y)
+
+			return ctx
+		}
+
+		if count.Load() == 0 {
+			t.Errorf("there were no unfiltered referred managed resources to check")
+			return ctx
+		}
+
+		t.Logf("matching resources had desired value %q at field path %s", want, path)
+
+		return ctx
+	}
+}
+
+// ComposedResourcesHaveFieldValueWithin fails a test if the composed
+// resource created by the composition do not have the supplied value at the
+// supplied path within the supplied duration.
+func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path string, want any, filter func(object k8s.Object) bool, options ...decoder.DecodeOption) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		// Wait for the XR to be available.
+		ResourcesHaveConditionWithin(d, dir, file, xpv1.Available(), xpv1.ReconcileSuccess())(ctx, t, c)
+
+		uxr := &composite.Unstructured{} // modern schema
+		if err := decoder.DecodeFile(os.DirFS(dir), file, uxr, options...); err != nil {
+			t.Error(err)
+			return ctx
+		}
+
+		if err := c.Client().Resources().Get(ctx, uxr.GetName(), uxr.GetNamespace(), uxr); err != nil {
+			t.Errorf("cannot get composite %s: %v", uxr.GetName(), err)
 			return ctx
 		}
 
@@ -1003,10 +1248,12 @@ func ListedResourcesValidatedWithin(d time.Duration, list k8s.ObjectList, minObj
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourceListMatchN(list, minObjects, validate, listOptions...), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			y, _ := yaml.Marshal(list)
 			t.Errorf("resources didn't pass validation: %v:\n\n%s\n\n", err, y)
+
 			return ctx
 		}
 
 		t.Logf("at least %d resource(s) have desired conditions", minObjects)
+
 		return ctx
 	}
 }
@@ -1020,13 +1267,16 @@ func ListedResourcesDeletedWithin(d time.Duration, list k8s.ObjectList, listOpti
 		if err := c.Client().Resources().List(ctx, list, listOptions...); err != nil {
 			return ctx
 		}
+
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesDeleted(list), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			y, _ := yaml.Marshal(list)
 			t.Errorf("resources wasn't deleted: %v:\n\n%s\n\n", err, y)
+
 			return ctx
 		}
 
 		t.Log("resources deleted")
+
 		return ctx
 	}
 }
@@ -1041,30 +1291,37 @@ func ListedResourcesModifiedWith(list k8s.ObjectList, minObjects int, modify fun
 		if err := c.Client().Resources().List(ctx, list, listOptions...); err != nil {
 			return ctx
 		}
+
 		var found int
+
 		metaList, err := meta.ExtractList(list)
 		if err != nil {
 			return ctx
 		}
+
 		for _, obj := range metaList {
 			if o, ok := obj.(k8s.Object); ok {
 				modify(o)
+
 				if err = c.Client().Resources().Update(ctx, o); err != nil {
 					t.Errorf("failed to update resource %s/%s: %v", o.GetNamespace(), o.GetName(), err)
 					return ctx
 				}
+
 				found++
 			} else if !ok {
 				t.Fatalf("unexpected type %T in list, does not satisfy k8s.Object", obj)
 				return ctx
 			}
 		}
+
 		if found < minObjects {
 			t.Errorf("expected minimum %d resources to be modified, found %d", minObjects, found)
 			return ctx
 		}
 
 		t.Logf("%d resource(s) have been modified", found)
+
 		return ctx
 	}
 }
@@ -1084,17 +1341,20 @@ func LogResources(list k8s.ObjectList, listOptions ...resources.ListOption) feat
 			if err := c.Client().Resources().List(ctx, list, listOptions...); err != nil {
 				return false, nil //nolint:nilerr // retry and ignore the error
 			}
+
 			metaList, err := meta.ExtractList(list)
 			if err != nil {
 				return false, err
 			}
 
 			found := map[string]bool{}
+
 			for _, obj := range metaList {
 				obj, ok := obj.(k8s.Object)
 				if !ok {
 					return false, fmt.Errorf("unexpected type %T in list, does not satisfy k8s.Object", obj)
 				}
+
 				id := fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName())
 				if _, ok := prev[id]; !ok {
 					t.Logf("- CREATED:   %s (%s)", identifier(obj), obj.GetCreationTimestamp().String())
@@ -1114,6 +1374,7 @@ func LogResources(list k8s.ObjectList, listOptions ...resources.ListOption) feat
 						t.Logf("- CONDITION: %s: %s=%s Reason=%s: %s (%s)", identifier(u), c.Type, c.Status, c.Reason, or(c.Message, `""`), c.LastTransitionTime)
 					}
 				}
+
 				for ty, c := range prev[id] {
 					if _, ok := got[ty]; !ok {
 						t.Logf("- %s: %s disappeared", identifier(u), c.Type)
@@ -1133,6 +1394,7 @@ func LogResources(list k8s.ObjectList, listOptions ...resources.ListOption) feat
 
 			return false, nil
 		})
+
 		return ctx
 	}
 }
@@ -1160,6 +1422,7 @@ func DeletionBlockedByUsageWebhook(dir, pattern string, options ...decoder.Decod
 
 		files, _ := fs.Glob(dfs, pattern)
 		t.Logf("Deletion blocked for resources from %s (matched %d manifests)", filepath.Join(dir, pattern), len(files))
+
 		return ctx
 	}
 }
@@ -1188,6 +1451,7 @@ func asUnstructured(o runtime.Object) *unstructured.Unstructured {
 	u := &unstructured.Unstructured{}
 	j, _ := json.Marshal(o)
 	_ = json.Unmarshal(j, u)
+
 	return u
 }
 
@@ -1201,18 +1465,22 @@ func identifier(o k8s.Object) string {
 			if t.Kind() == reflect.Ptr {
 				t = t.Elem()
 			}
+
 			k = t.Name()
 		} else {
 			k = fmt.Sprintf("%T", o)
 		}
 	}
+
 	groupSuffix := ""
 	if g := o.GetObjectKind().GroupVersionKind().Group; g != "" {
 		groupSuffix = "." + g
 	}
+
 	if o.GetNamespace() == "" {
 		return fmt.Sprintf("%s%s %s", k, groupSuffix, o.GetName())
 	}
+
 	return fmt.Sprintf("%s%s %s/%s", k, groupSuffix, o.GetNamespace(), o.GetName())
 }
 
@@ -1222,14 +1490,35 @@ func FilterByGK(gk schema.GroupKind) func(o k8s.Object) bool {
 		if o.GetObjectKind() == nil {
 			return false
 		}
+
 		return o.GetObjectKind().GroupVersionKind().Group == gk.Group && o.GetObjectKind().GroupVersionKind().Kind == gk.Kind
 	}
 }
 
 func toYAML(objs ...client.Object) string {
 	docs := make([]string, 0, len(objs))
-	for _, o := range objs {
-		oy, _ := yaml.Marshal(o)
+	for _, obj := range objs {
+		// First round-trip the object through JSON to make it
+		// unstructured.
+		j, _ := json.Marshal(obj)
+		u := &unstructured.Unstructured{}
+		_ = json.Unmarshal(j, u)
+
+		p := fieldpath.Pave(u.Object)
+
+		// Remove managed fields. They're seldom useful when
+		// troubleshooting a broken test, and distract from the rest of
+		// the object.
+		_ = p.DeleteField("metadata.managedFields")
+
+		// For resources like XRDs and CRDs with huge specs, filter it
+		// out. Otherwise it usually overflows the backscroll when a
+		// test fails.
+		if u.GetKind() == "CustomResourceDefinition" || u.GetKind() == "CompositeResourceDefinition" {
+			_ = p.DeleteField("spec")
+		}
+
+		oy, _ := yaml.Marshal(u)
 		docs = append(docs, string(oy))
 	}
 
@@ -1243,6 +1532,7 @@ func eventString(ctx context.Context, cfg *rest.Config, objs ...client.Object) (
 	}
 
 	evts := &corev1.EventList{}
+
 	for _, o := range objs {
 		opts := []client.ListOption{
 			client.MatchingFields{"involvedObject.uid": string(o.GetUID())},
@@ -1250,6 +1540,7 @@ func eventString(ctx context.Context, cfg *rest.Config, objs ...client.Object) (
 		if ns := o.GetNamespace(); ns != "" {
 			opts = append(opts, client.InNamespace(ns))
 		}
+
 		list := &corev1.EventList{}
 		if err := c.List(ctx, list, opts...); err != nil {
 			return "", errors.Errorf("failed to list events: %v", err)
@@ -1257,6 +1548,7 @@ func eventString(ctx context.Context, cfg *rest.Config, objs ...client.Object) (
 
 		evts.Items = append(evts.Items, list.Items...)
 	}
+
 	if len(evts.Items) == 0 {
 		return "", nil
 	}
@@ -1264,10 +1556,12 @@ func eventString(ctx context.Context, cfg *rest.Config, objs ...client.Object) (
 	sort.Sort(kubectlevents.SortableEvents(evts.Items))
 
 	var buf bytes.Buffer
+
 	w := printers.GetNewTabWriter(&buf)
 	if err := kubectlevents.NewEventPrinter(false, true).PrintObj(evts, w); err != nil {
 		return "", errors.Errorf("failed to print events: %v", err)
 	}
+
 	_ = w.Flush()
 
 	return buf.String(), nil
@@ -1277,6 +1571,7 @@ func valueOrError(s string, err error) string {
 	if err != nil {
 		return err.Error()
 	}
+
 	return s
 }
 
@@ -1285,6 +1580,7 @@ func itemsToObjects(items []unstructured.Unstructured) []client.Object {
 	for i, item := range items {
 		objects[i] = &item
 	}
+
 	return objects
 }
 
@@ -1301,6 +1597,7 @@ func deadlineExceed(err error) bool {
 // container, then this function returns an error.
 func podForDeployment(ctx context.Context, t *testing.T, c *envconf.Config, dp *appsv1.Deployment) (*corev1.Pod, error) {
 	t.Helper()
+
 	if err := c.Client().Resources().Get(ctx, dp.GetName(), dp.GetNamespace(), dp); err != nil {
 		t.Logf("failed to get deployment %s/%s: %s", dp.GetNamespace(), dp.GetName(), err)
 		return nil, err
@@ -1308,6 +1605,7 @@ func podForDeployment(ctx context.Context, t *testing.T, c *envconf.Config, dp *
 
 	// use the deployment's selector to list all pods belonging to the deployment
 	selector := metav1.FormatLabelSelector(dp.Spec.Selector)
+
 	pods := &corev1.PodList{}
 	if err := c.Client().Resources().List(ctx, pods, resources.WithLabelSelector(selector)); err != nil {
 		t.Logf("failed to list pods for deployment %s/%s: %s", dp.GetNamespace(), dp.GetName(), err)

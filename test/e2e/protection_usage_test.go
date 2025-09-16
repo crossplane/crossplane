@@ -6,10 +6,10 @@ import (
 
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 
-	"github.com/crossplane/crossplane/test/e2e/config"
-	"github.com/crossplane/crossplane/test/e2e/funcs"
+	"github.com/crossplane/crossplane/v2/test/e2e/config"
+	"github.com/crossplane/crossplane/v2/test/e2e/funcs"
 )
 
 // TODO(negz): Add composition-focused test here? We have one for the legacy
@@ -82,6 +82,20 @@ func TestUsageStandaloneNamespaced(t *testing.T) {
 				// Deletion of protected resource should be allowed after usage is cleared.
 				funcs.DeleteResources(manifests, "with-reason/used.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "with-reason/used.yaml"),
+			),
+		},
+		{
+			// Usages across namespaces should be blocked if the by resource is not specified, using resourceRef.
+			Name: "CrossNamespaceUsageBlockedWithoutByResourceRef",
+			Assessment: funcs.AllOf(
+				funcs.ResourcesFailToApply(FieldManager, manifests, "ref-without-by-cross-namespace-invalid/*.yaml"),
+			),
+		},
+		{
+			// Usages across namespaces should be blocked if the by resource is not specified, using resourceSelector.
+			Name: "CrossNamespaceUsageBlockedWithoutByResourceSelector",
+			Assessment: funcs.AllOf(
+				funcs.ResourcesFailToApply(FieldManager, manifests, "selector-without-by-cross-namespace-invalid/*.yaml"),
 			),
 		},
 	}

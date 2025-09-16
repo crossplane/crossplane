@@ -37,20 +37,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/conditions"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/feature"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
-	internaldag "github.com/crossplane/crossplane/internal/dag"
-	"github.com/crossplane/crossplane/internal/features"
-	"github.com/crossplane/crossplane/internal/xpkg"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
+	internaldag "github.com/crossplane/crossplane/v2/internal/dag"
+	"github.com/crossplane/crossplane/v2/internal/features"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 const (
@@ -127,13 +127,6 @@ func WithConfigStore(c xpkg.ConfigStore) ReconcilerOption {
 	}
 }
 
-// WithDefaultRegistry sets the default registry to use.
-func WithDefaultRegistry(registry string) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.registry = registry
-	}
-}
-
 // WithFeatures specifies which feature flags should be enabled.
 func WithFeatures(f *feature.Flags) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -156,7 +149,6 @@ type Reconciler struct {
 	newDag     internaldag.NewDAGFn
 	fetcher    xpkg.Fetcher
 	config     xpkg.ConfigStore
-	registry   string
 	features   *feature.Flags
 	conditions conditions.Manager
 
@@ -171,14 +163,15 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize clientset")
 	}
+
 	f, err := xpkg.NewK8sFetcher(cs, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
 	if err != nil {
 		return errors.Wrap(err, "cannot build fetcher")
 	}
+
 	opts := []ReconcilerOption{
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithFetcher(f),
-		WithDefaultRegistry(o.DefaultRegistry),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithFeatures(o.Features),
 	}
@@ -241,6 +234,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetLock, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetLock)
 	}
+
 	status := r.conditions.For(lock)
 
 	// If no packages exist in Lock then we remove finalizer and wait until
@@ -250,20 +244,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if len(lock.Packages) == 0 {
 		if err := r.lock.RemoveFinalizer(ctx, lock); err != nil {
 			log.Debug(errRemoveFinalizer, "error", err)
+
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			return reconcile.Result{}, errors.Wrap(err, errRemoveFinalizer)
 		}
+
 		lock.CleanConditions()
+
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
 
 	if err := r.lock.AddFinalizer(ctx, lock); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
+
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		return reconcile.Result{}, errors.Wrap(err, errAddFinalizer)
 	}
 
@@ -274,11 +274,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	)
 
 	dag := r.newDag()
+
 	implied, err := dag.Init(v1beta1.ToNodes(lock.Packages...))
 	if err != nil {
 		log.Debug(errBuildDAG, "error", err)
 		status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errBuildDAG)))
+
 		_ = r.client.Status().Update(ctx, lock)
+
 		return reconcile.Result{}, errors.Wrap(err, errBuildDAG)
 	}
 
@@ -288,7 +291,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		log.Debug(errSortDAG, "error", err)
 		status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errSortDAG)))
+
 		_ = r.client.Status().Update(ctx, lock)
+
 		return reconcile.Result{}, errors.Wrap(err, errSortDAG)
 	}
 
@@ -302,35 +307,46 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// be requeued when it adds itself to the Lock, at which point we will
 	// check for missing nodes again.
 	dep, ok := implied[0].(*v1beta1.Dependency)
+
 	depID := dep.Identifier()
 	if !ok {
 		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, depID))
 		status.MarkConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtMissingDependency, depID)))
+
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
 
-	ref, err := name.ParseReference(depID, name.WithDefaultRegistry(r.registry))
+	// NOTE(phisco): dependencies identifiers are without registry and tag, so we can't enforce strict validation.
+	ref, err := name.ParseReference(depID)
 	if err != nil {
 		log.Debug(errInvalidDependency, "error", err)
 		status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errInvalidDependency)))
+
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
 
-	var pkg *unstructured.Unstructured
-	var installedVersion string
+	var (
+		pkg              *unstructured.Unstructured
+		installedVersion string
+	)
+
 	if r.features.Enabled(features.EnableAlphaDependencyVersionUpgrades) {
 		l, err := NewPackageList(dep)
 		if err != nil {
 			log.Debug(errGetDependency, "error", err)
 			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errGetDependency)))
+
 			_ = r.client.Status().Update(ctx, lock)
+
 			return reconcile.Result{}, errors.Wrap(err, errGetDependency)
 		}
 
 		if err := r.client.List(ctx, l); err != nil {
 			log.Debug(errGetDependency, "error", err)
 			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errGetDependency)))
+
 			_ = r.client.Status().Update(ctx, lock)
+
 			return reconcile.Result{}, errors.Wrap(err, errGetDependency)
 		}
 
@@ -339,10 +355,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if err != nil {
 				continue
 			}
-			pref, err := name.ParseReference(source, name.WithDefaultRegistry(r.registry))
+
+			pref, err := name.ParseReference(source, name.StrictValidation)
 			if err != nil {
 				continue
 			}
+
 			if pref.Context().Name() == ref.Context().Name() {
 				pkg = &p
 				installedVersion = pref.Identifier()
@@ -357,7 +375,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if addVer, err = r.findDependencyVersionToInstall(ctx, dep, log, ref); err != nil {
 			log.Debug(errFindDependency, "error", errors.Wrapf(err, depID, dep.Constraints))
 			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errFindDependency)))
+
 			_ = r.client.Status().Update(ctx, lock)
+
 			return reconcile.Result{Requeue: false}, errors.Wrap(err, errFindDependency)
 		}
 
@@ -366,6 +386,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if addVer == "" {
 			log.Debug(errFindDependencyUpgrade, "error", errors.Errorf(errFmtNoValidVersion, depID, dep.Constraints))
 			status.MarkConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtNoValidVersion, depID, dep.Constraints)))
+
 			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 		}
 
@@ -373,7 +394,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err != nil {
 			log.Debug(errConstructDependency, "error", err)
 			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errConstructDependency)))
+
 			_ = r.client.Status().Update(ctx, lock)
+
 			return reconcile.Result{}, errors.Wrap(err, errConstructDependency)
 		}
 
@@ -382,11 +405,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.client.Create(ctx, pack); err != nil && !kerrors.IsAlreadyExists(err) {
 			log.Debug(errCreateDependency, "error", err)
 			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errCreateDependency)))
+
 			_ = r.client.Status().Update(ctx, lock)
+
 			return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
 		}
 
 		status.MarkConditions(v1beta1.ResolutionSucceeded())
+
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
 
@@ -402,7 +428,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, depID))
 		status.MarkConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtMissingDependency, depID)))
+
 		_ = r.client.Status().Update(ctx, lock)
+
 		return reconcile.Result{}, errors.Errorf(errFmtMissingDependency, depID)
 	}
 
@@ -410,7 +438,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		log.Debug(errFindDependencyUpgrade, "error", errors.Wrapf(err, depID, dep.Constraints))
 		status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errFindDependencyUpgrade)))
+
 		_ = r.client.Status().Update(ctx, lock)
+
 		return reconcile.Result{}, errors.Wrap(err, errFindDependencyUpgrade)
 	}
 
@@ -419,16 +449,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if strings.HasPrefix(newVer, "sha256:") {
 		format = packageDigestFmt
 	}
+
 	_ = fieldpath.Pave(pkg.Object).SetString("spec.package", fmt.Sprintf(format, ref.String(), newVer))
 
 	if err := r.client.Update(ctx, pkg); err != nil {
 		log.Debug(errUpdateDependency, "error", err)
 		status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errUpdateDependency)))
+
 		_ = r.client.Status().Update(ctx, lock)
+
 		return reconcile.Result{}, errors.Wrap(err, errUpdateDependency)
 	}
 
 	status.MarkConditions(v1beta1.ResolutionSucceeded())
+
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 }
 
@@ -454,8 +488,10 @@ func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1
 		log.Info("cannot rewrite image path using config", "error", err)
 		return "", errors.Wrap(err, errRewriteImage)
 	}
+
 	if newPath != "" {
-		ref, err = name.ParseReference(newPath, name.WithDefaultRegistry(r.registry))
+		// NOTE(phisco): newPath is a dependency identifier, which are without registry and tag, so we can't enforce strict validation.
+		ref, err = name.ParseReference(newPath)
 		if err != nil {
 			log.Info("rewritten image path is invalid", "error", err)
 			return "", errors.Wrap(err, errInvalidRewrite)
@@ -469,6 +505,7 @@ func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1
 	}
 
 	var s []string
+
 	if ps != "" {
 		log.Debug("Selected pull secret from image config store", "image", ref.String(), "pullSecretConfig", psConfig, "pullSecret", ps, "rewriteConfig", rewriteConfigName)
 		s = append(s, ps)
@@ -489,10 +526,19 @@ func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1
 			// We skip any tags that are not valid semantic versions.
 			continue
 		}
+
+		// We also skip any tags that are incomplete semantic versions (e.g.,
+		// "v1" will parse as "v1.0.0"). This prevents a "v1" tag, which may not
+		// point to v1.0.0 of a package, from matching a "v1.0.0" constraint.
+		if v.String() != strings.TrimPrefix(v.Original(), "v") {
+			continue
+		}
+
 		vs = append(vs, v)
 	}
 
 	sort.Sort(semver.Collection(vs))
+
 	for _, v := range vs {
 		if c.Check(v) {
 			addVer = v.Original()
@@ -524,8 +570,10 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 		log.Info("cannot rewrite image path using config", "error", err)
 		return "", errors.Wrap(err, errRewriteImage)
 	}
+
 	if newPath != "" {
-		ref, err = name.ParseReference(newPath, name.WithDefaultRegistry(r.registry))
+		// NOTE(phisco): it's a dependency's reference, so we can not enforce strict validation.
+		ref, err = name.ParseReference(newPath)
 		if err != nil {
 			log.Info("rewritten image path is invalid", "error", err)
 			return "", errors.Wrap(err, errInvalidRewrite)
@@ -539,6 +587,7 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 	}
 
 	var s []string
+
 	if ps != "" {
 		log.Debug("Selected pull secret from image config store", "image", ref.String(), "pullSecretConfig", psConfig, "pullSecret", ps, "rewriteConfig", rewriteConfigName)
 		s = append(s, ps)
@@ -557,6 +606,7 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 			// We skip any tags that are not valid semantic versions.
 			continue
 		}
+
 		availableVersions = append(availableVersions, v)
 	}
 
@@ -567,16 +617,19 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 			log.Debug(errInvalidConstraint, "error", err)
 			return "", errors.Wrap(err, errInvalidConstraint)
 		}
+
 		parentConstraints = append(parentConstraints, constraint)
 	}
 
 	sort.Sort(semver.Collection(availableVersions))
 	currentVersion := semver.MustParse(insVer)
+
 	var targetVersion *semver.Version
 
 	// We aim to find the lowest version that satisfies all parent constraints and is greater than the current version.
 	for _, v := range availableVersions {
 		valid := true
+
 		for _, c := range parentConstraints {
 			if !c.Check(v) {
 				valid = false
@@ -600,6 +653,7 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 	}
 
 	log.Debug(errFindDependencyUpgrade, "error", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.GetParentConstraints()))
+
 	return "", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.GetParentConstraints())
 }
 
@@ -608,11 +662,13 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 func findDigestToUpdate(node internaldag.Node) (string, error) {
 	foundDigest := ""
 	foundVersion := false
+
 	for _, c := range node.GetParentConstraints() {
 		if d, err := conregv1.NewHash(c); err == nil {
 			if foundDigest != "" && foundDigest != d.String() {
 				return "", errors.Errorf(errFmtDiffDigests, node.GetParentConstraints())
 			}
+
 			foundDigest = d.String()
 		} else {
 			foundVersion = true
@@ -639,6 +695,7 @@ func NewPackage(dep *v1beta1.Dependency, version string, ref name.Reference) (*u
 	if strings.HasPrefix(version, "sha256:") {
 		format = packageDigestFmt
 	}
+
 	_ = fieldpath.Pave(pack.Object).SetString("spec.package", fmt.Sprintf(format, ref.String(), version))
 
 	switch {

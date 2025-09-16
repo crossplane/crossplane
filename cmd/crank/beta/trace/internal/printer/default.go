@@ -27,14 +27,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/printers"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource/xpkg"
+	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 const (
@@ -69,11 +69,13 @@ func (r *defaultPrinterRow) String() string {
 	if r.wide {
 		cols = append(cols, r.resourceName)
 	}
+
 	cols = append(cols,
 		r.synced,
 		r.ready,
 		r.status,
 	)
+
 	return strings.Join(cols, "\t")
 }
 
@@ -98,6 +100,7 @@ func (r *defaultPkgPrinterRow) String() string {
 	if r.wide {
 		cols = append(cols, r.packageImg)
 	}
+
 	cols = append(cols,
 		r.version,
 		r.installed,
@@ -105,6 +108,7 @@ func (r *defaultPkgPrinterRow) String() string {
 		r.state,
 		r.status,
 	)
+
 	return strings.Join(cols, "\t") + "\t"
 }
 
@@ -122,6 +126,7 @@ func getHeaders(gk schema.GroupKind, wide bool) (headers fmt.Stringer, isPackage
 			status:     "STATUS",
 		}, true
 	}
+
 	return &defaultPrinterRow{
 		wide:         wide,
 		name:         "NAME",
@@ -196,12 +201,14 @@ func (p *DefaultPrinter) printResourceTree(tw *tabwriter.Writer, root *resource.
 
 	for len(queue) > 0 {
 		var item *queueItem
+
 		l := len(queue)
 		item, queue = queue[l-1], queue[:l-1] // Pop the last element
 
 		// Build the name of the current node, prepending the required prefix to
 		// show the tree structure
 		name := strings.Builder{}
+
 		childPrefix := item.prefix // Inherited prefix for all the children of the current node
 		switch {
 		case item.depth == 0:
@@ -209,9 +216,11 @@ func (p *DefaultPrinter) printResourceTree(tw *tabwriter.Writer, root *resource.
 			// prefix for its children
 		case item.isLast:
 			name.WriteString(item.prefix + "└─ ")
+
 			childPrefix += "   "
 		default:
 			name.WriteString(item.prefix + "├─ ")
+
 			childPrefix += "│  "
 		}
 
@@ -249,7 +258,9 @@ func (p *DefaultPrinter) printResourceTree(tw *tabwriter.Writer, root *resource.
 func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringer {
 	readyCond := r.GetCondition(xpv1.TypeReady)
 	syncedCond := r.GetCondition(xpv1.TypeSynced)
+
 	var status, m string
+
 	switch {
 	case r.Unstructured.GetDeletionTimestamp() != nil:
 		// Report the status as deleted if the resource is being deleted
@@ -293,7 +304,7 @@ func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringe
 	return &defaultPrinterRow{
 		wide:         wide,
 		name:         name,
-		resourceName: r.Unstructured.GetAnnotations()[composite.AnnotationKeyCompositionResourceName],
+		resourceName: r.Unstructured.GetAnnotations()[xcrd.AnnotationKeyCompositionResourceName],
 		ready:        mapEmptyStatusToDash(readyCond.Status),
 		synced:       mapEmptyStatusToDash(syncedCond.Status),
 		status:       status,
@@ -301,8 +312,10 @@ func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringe
 }
 
 func getPkgResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringer {
-	var err error
-	var packageImg, state, status, m string
+	var (
+		err                          error
+		packageImg, state, status, m string
+	)
 
 	healthyCond := r.GetCondition(pkgv1.TypeHealthy)
 	installedCond := r.GetCondition(pkgv1.TypeInstalled)
@@ -346,6 +359,7 @@ func getPkgResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stri
 
 		// Get the state (active vs. inactive) of this package revision.
 		var err error
+
 		state, err = fieldpath.Pave(r.Unstructured.Object).GetString("spec.desiredState")
 		if err != nil {
 			state = err.Error()
@@ -372,13 +386,11 @@ func getPkgResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stri
 	}
 
 	// Parse the image reference extracting the tag, we'll leave it empty if we
-	// couldn't parse it and leave the whole thing as package instead. We pass
-	// an empty default registry here so the displayed package image will be
-	// unmodified from what we found in the spec, similar to how kubectl output
-	// behaves.
+	// couldn't parse it and leave the whole thing as package instead.
 	var packageImgTag string
-	if tag, err := gcrname.NewTag(packageImg, gcrname.WithDefaultRegistry("")); err == nil {
+	if tag, err := gcrname.NewTag(packageImg, gcrname.StrictValidation); err == nil {
 		packageImgTag = tag.TagStr()
+
 		packageImg = tag.RepositoryStr()
 		if tag.RegistryStr() != "" {
 			packageImg = fmt.Sprintf("%s/%s", tag.RegistryStr(), packageImg)
@@ -402,5 +414,6 @@ func mapEmptyStatusToDash(s corev1.ConditionStatus) string {
 	if s == "" {
 		return "-"
 	}
+
 	return string(s)
 }

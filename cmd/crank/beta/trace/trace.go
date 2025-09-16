@@ -31,15 +31,15 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/apis/pkg"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/printer"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xrm"
-	"github.com/crossplane/crossplane/cmd/crank/internal"
+	"github.com/crossplane/crossplane/v2/apis/pkg"
+	"github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/printer"
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource/xpkg"
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource/xrm"
+	"github.com/crossplane/crossplane/v2/cmd/crank/internal"
 )
 
 const (
@@ -117,6 +117,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, errInitPrinter)
 	}
+
 	logger.Debug("Built printer", "output", c.Output)
 
 	clientconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -137,6 +138,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	if kubeconfig.QPS == 0 {
 		kubeconfig.QPS = 20
 	}
+
 	if kubeconfig.Burst == 0 {
 		kubeconfig.Burst = 30
 	}
@@ -187,6 +189,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 				return errors.Wrap(err, errKubeNamespace)
 			}
 		}
+
 		logger.Debug("Requested resource is namespaced", "namespace", namespace)
 		rootRef.Namespace = namespace
 	}
@@ -218,11 +221,39 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	for i := range resourceList.Items {
 		root := resourceList.Items[i]
 		root, err = c.getResourceTree(ctx, root, mapping, client, logger)
+		var treeClient resource.TreeClient
+
+		switch {
+		case xpkg.IsPackageType(mapping.GroupVersionKind.GroupKind()):
+			logger.Debug("Requested resource is an Package")
+
+			treeClient, err = xpkg.NewClient(client,
+				xpkg.WithDependencyOutput(xpkg.DependencyOutput(c.ShowPackageDependencies)),
+				xpkg.WithPackageRuntimeConfigs(c.ShowPackageRuntimeConfigs),
+				xpkg.WithRevisionOutput(xpkg.RevisionOutput(c.ShowPackageRevisions)))
+			if err != nil {
+				logger.Debug(errGetResource, "error", err)
+				return errors.Wrap(err, errGetResource)
+			}
+		default:
+			logger.Debug("Requested resource is not a package, assumed to be an XR, XRC or MR")
+
+			treeClient, err = xrm.NewClient(client,
+				xrm.WithConnectionSecrets(c.ShowConnectionSecrets),
+				xrm.WithConcurrency(c.Concurrency),
+			)
+			if err != nil {
+				return errors.Wrap(err, errInitKubeClient)
+			}
+		}
+
+		logger.Debug("Built client")
+
+		root, err = treeClient.GetResourceTree(ctx, root)
 		if err != nil {
 			logger.Debug(errGetResource, "error", err)
 			return errors.Wrap(err, errGetResource)
 		}
-
 		logger.Debug("Got resource tree", "root", root)
 	}
 

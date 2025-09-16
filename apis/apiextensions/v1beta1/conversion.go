@@ -16,7 +16,7 @@ limitations under the License.
 
 package v1beta1
 
-import "github.com/crossplane/crossplane/internal/protection"
+import "github.com/crossplane/crossplane/v2/internal/protection"
 
 // A ResourceConverter converts a Resource to the internal implementation.
 //

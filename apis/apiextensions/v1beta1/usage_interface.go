@@ -19,9 +19,9 @@ limitations under the License.
 package v1beta1
 
 import (
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 
-	"github.com/crossplane/crossplane/internal/protection"
+	"github.com/crossplane/crossplane/v2/internal/protection"
 )
 
 // These methods are in a separate file so ../hack/duplicate_api_type.sh
@@ -44,8 +44,10 @@ func (u *Usage) GetUsedBy() *protection.Resource {
 	if u.Spec.By == nil {
 		return nil
 	}
+
 	conv := GeneratedResourceConverter{}
 	out := conv.ToInternal(*u.Spec.By)
+
 	return &out
 }
 
@@ -55,6 +57,7 @@ func (u *Usage) SetUsedBy(r *protection.Resource) {
 		u.Spec.By = nil
 		return
 	}
+
 	conv := GeneratedResourceConverter{}
 	out := conv.FromInternal(*r)
 	u.Spec.By = &out

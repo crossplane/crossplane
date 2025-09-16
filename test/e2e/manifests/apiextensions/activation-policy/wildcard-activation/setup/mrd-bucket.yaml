@@ -1,0 +1,31 @@
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceDefinition
+metadata:
+  name: buckets.wildcard.activation-e2e.crossplane.io
+spec:
+  scope: Namespaced
+  group: wildcard.activation-e2e.crossplane.io
+  names:
+    kind: Bucket
+    plural: buckets
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              region:
+                type: string
+            required:
+            - region
+          status:
+            type: object
+            properties:
+              bucketName:
+                type: string
+  state: Inactive

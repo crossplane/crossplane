@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 )
 
 // CompositeResourceScope specifies the scope of a composite resource.
@@ -37,6 +37,7 @@ const (
 
 // CompositeResourceDefinitionSpec specifies the desired state of the definition.
 // +kubebuilder:validation:XValidation:rule="self.scope == 'LegacyCluster' || !has(self.claimNames)",message="Only LegacyCluster composite resources can offer claims"
+// +kubebuilder:validation:XValidation:rule="self.scope == 'LegacyCluster' || !has(self.connectionSecretKeys)",message="Only LegacyCluster composite resources support connection secrets"
 type CompositeResourceDefinitionSpec struct {
 	// Group specifies the API group of the defined composite resource.
 	// Composite resources are served under `/apis/<group>/...`. Must match the
@@ -76,9 +77,11 @@ type CompositeResourceDefinitionSpec struct {
 	// +kubebuilder:validation:XValidation:rule="!has(self.singular) || self.singular == self.singular.lowerAscii()",message="Singular name must be lowercase"
 	ClaimNames *extv1.CustomResourceDefinitionNames `json:"claimNames,omitempty"`
 
-	// ConnectionSecretKeys is the list of keys that will be exposed to the end
-	// user of the defined kind.
-	// If the list is empty, all keys will be published.
+	// ConnectionSecretKeys is the list of connection secret keys the
+	// defined XR can publish. If the list is empty, all keys will be
+	// published. If the list isn't empty, any connection secret keys that
+	// don't appear in the list will be filtered out. Only LegacyCluster XRs
+	// support connection secrets.
 	// +optional
 	ConnectionSecretKeys []string `json:"connectionSecretKeys,omitempty"`
 
@@ -249,6 +252,7 @@ type CompositeResourceDefinitionControllerStatus struct {
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=xrd;xrds
+// +kubebuilder:deprecatedversion:warning="CompositeResourceDefinition v1 is deprecated and will be removed in a future release; consider migrating to v2"
 type CompositeResourceDefinition struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -275,13 +279,15 @@ func (c *CompositeResourceDefinition) GetCondition(ct xpv1.ConditionType) xpv1.C
 type CompositeResourceDefinitionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []CompositeResourceDefinition `json:"items"`
+
+	Items []CompositeResourceDefinition `json:"items"`
 }
 
 // GetCompositeGroupVersionKind returns the schema.GroupVersionKind of the CRD for
 // the composite resource this CompositeResourceDefinition defines.
 func (c *CompositeResourceDefinition) GetCompositeGroupVersionKind() schema.GroupVersionKind {
 	v := ""
+
 	for _, vr := range c.Spec.Versions {
 		if vr.Referenceable {
 			v = vr.Name
@@ -307,6 +313,7 @@ func (c *CompositeResourceDefinition) GetClaimGroupVersionKind() schema.GroupVer
 	}
 
 	v := ""
+
 	for _, vr := range c.Spec.Versions {
 		if vr.Referenceable {
 			v = vr.Name

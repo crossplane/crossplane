@@ -22,7 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 )
 
 // Condition types.
@@ -263,6 +263,7 @@ func PackageHealth(pr PackageRevision) xpv1.Condition {
 	runtimeHealth := pr.GetCondition(TypeRuntimeHealthy)
 
 	revisionHealthy := revisionHealth.Status == corev1.ConditionTrue
+
 	runtimeHealthy := runtimeHealth.Status == corev1.ConditionTrue
 	if _, hasRuntime := pr.(PackageRevisionWithRuntime); !hasRuntime {
 		// If the package revision does not have a runtime, we skip checking the runtime health.
@@ -278,6 +279,7 @@ func PackageHealth(pr PackageRevision) xpv1.Condition {
 		if revisionHealth.Message != "" {
 			m += " with message: " + revisionHealth.Message
 		}
+
 		return Unhealthy().WithMessage(m)
 	}
 
@@ -286,6 +288,7 @@ func PackageHealth(pr PackageRevision) xpv1.Condition {
 		if runtimeHealth.Message != "" {
 			m += " with message: " + runtimeHealth.Message
 		}
+
 		return Unhealthy().WithMessage(m)
 	}
 

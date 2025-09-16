@@ -17,6 +17,8 @@ image:
   tag: ""
   # -- The image pull policy used for Crossplane and RBAC Manager pods.
   pullPolicy: IfNotPresent
+  # -- Do not use the {{ .image.tag }} value to compute the image uri.
+  ignoreTag: false
 
 # -- Add `nodeSelectors` to the Crossplane pod deployment.
 nodeSelector: {}
@@ -55,6 +57,8 @@ args: []
 provider:
   # -- A list of Provider packages to install.
   packages: []
+  # -- Define entries for the default managed resource activation policy. If defined, a default MRAP will contain these activations.
+  defaultActivations: ["*"]
 
 configuration:
   # -- A list of Configuration packages to install.
@@ -183,7 +187,11 @@ readiness:
   # -- The port the readyz server listens on.
   port: ""
 
-# -- Add custom environmental variables to the Crossplane pod deployment.
+# -- Add custom environmental variables to the Crossplane pod deployment init container.
+# Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`.
+extraEnvVarsCrossplaneInit: {}
+
+# -- Add custom environmental variables to the Crossplane pod deployment application container.
 # Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`.
 extraEnvVarsCrossplane: {}
 
@@ -205,13 +213,3 @@ extraVolumeMountsCrossplane: {}
 
 # -- To add arbitrary Kubernetes Objects during a Helm Install
 extraObjects: []
-  # - apiVersion: pkg.crossplane.io/v1alpha1
-  #   kind: ControllerConfig
-  #   metadata:
-  #     name: aws-config
-  #     annotations:
-  #       eks.amazonaws.com/role-arn: arn:aws:iam::123456789101:role/example
-  #       helm.sh/hook: post-install
-  #   spec:
-  #     podSecurityContext:
-  #       fsGroup: 2000

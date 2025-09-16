@@ -16,7 +16,7 @@ limitations under the License.
 
 package v1beta1
 
-import "github.com/crossplane/crossplane/internal/protection"
+import "github.com/crossplane/crossplane/v2/internal/protection"
 
 // A ResourceConverter converts a Resource to the internal implementation.
 //
@@ -40,7 +40,7 @@ type ResourceConverter interface {
 // goverter:converter
 // goverter:name GeneratedNamespacedResourceConverter
 // goverter:output:file ./zz_generated.conversion.go
-// goverter:output:package github.com/crossplane/crossplane/apis/protection/v1beta1
+// goverter:output:package github.com/crossplane/crossplane/v2/apis/protection/v1beta1
 // +k8s:deepcopy-gen=false
 type NamespacedResourceConverter interface {
 	ToInternal(in NamespacedResource) protection.Resource

@@ -1,0 +1,19 @@
+apiVersion: ops.crossplane.io/v1alpha1
+kind: Operation
+metadata:
+  name: retry-test
+spec:
+  mode: Pipeline
+  retryLimit: 3
+  pipeline:
+  - step: always-fail
+    functionRef:
+      name: function-dummy-ops-retry
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      # This response will always cause the function to fail
+      response:
+        results:
+        - severity: SEVERITY_FATAL
+          message: "Simulated failure for retry testing"

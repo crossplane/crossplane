@@ -25,25 +25,28 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/protection/v1beta1"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/v2/apis/protection/v1beta1"
 )
 
 var errBoom = errors.New("boom")
 
 func TestResolveSelectors(t *testing.T) {
 	valueTrue := true
+
 	type args struct {
 		client client.Client
 		u      *v1beta1.Usage
 	}
+
 	type want struct {
 		u   *v1beta1.Usage
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -524,13 +527,16 @@ func TestResolveSelectors(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := newAPISelectorResolver(tc.args.client)
+
 			err := r.ResolveSelectors(context.Background(), tc.args.u)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nr.resolveSelectors(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if err != nil {
 				return
 			}
+
 			if diff := cmp.Diff(tc.want.u, tc.args.u); diff != "" {
 				t.Errorf("%s\nr.resolveSelectors(...): -want usage, +got error:\n%s", tc.reason, diff)
 			}

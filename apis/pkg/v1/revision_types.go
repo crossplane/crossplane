@@ -19,7 +19,7 @@ package v1
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 )
 
 // PackageRevisionDesiredState is the desired state of the package revision.
@@ -102,6 +102,10 @@ type PackageRevisionStatus struct {
 	// different from spec.image if the package path was rewritten using an
 	// image config.
 	ResolvedPackage string `json:"resolvedImage,omitempty"`
+
+	// Capabilities of this package. Capabilities are opaque strings that
+	// may be meaningful to package consumers.
+	Capabilities []string `json:"capabilities,omitempty"`
 }
 
 // A ControllerReference references the controller (e.g. Deployment), if any,

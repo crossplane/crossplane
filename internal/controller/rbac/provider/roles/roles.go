@@ -23,9 +23,10 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
 
 const (
@@ -105,13 +106,15 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 		return rs[i].Plural+rs[i].Group < rs[j].Plural+rs[j].Group
 	})
 
-	groups := make([]string, 0)            // Allows deterministic iteration over groups.
+	groups := make([]string, 0) // Allows deterministic iteration over groups.
+
 	resources := make(map[string][]string) // Resources by group.
 	for _, r := range rs {
 		if _, ok := resources[r.Group]; !ok {
 			resources[r.Group] = make([]string, 0)
 			groups = append(groups, r.Group)
 		}
+
 		resources[r.Group] = append(resources[r.Group], r.Plural, r.Plural+suffixStatus)
 	}
 
@@ -174,11 +177,20 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 		Rules: append(append(withVerbs(rules, verbsSystem), ruleFinalizers), rulesSystemExtra...),
 	}
 
+	if pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
+		// For SafeStart to work, the system role needs to be able to View CRDs.
+		system.Rules = append(system.Rules, withVerbs([]rbacv1.PolicyRule{{
+			APIGroups: []string{"apiextensions.k8s.io"},
+			Resources: []string{"customresourcedefinitions"},
+		}}, verbsView)...)
+	}
+
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}
 	for i := range roles {
 		ref := meta.AsController(meta.TypedReferenceTo(pr, v1.ProviderRevisionGroupVersionKind))
 		roles[i].SetOwnerReferences([]metav1.OwnerReference{ref})
 	}
+
 	return roles
 }
 
@@ -188,5 +200,6 @@ func withVerbs(r []rbacv1.PolicyRule, verbs []string) []rbacv1.PolicyRule {
 		verbal[i] = r[i]
 		verbal[i].Verbs = verbs
 	}
+
 	return verbal
 }

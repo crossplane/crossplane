@@ -1,0 +1,33 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: invalid-namespaced-xr-cluster-composition
+spec:
+  compositeTypeRef:
+    apiVersion: validation.example.org/v1alpha1
+    kind: NamespacedTest
+  mode: Pipeline
+  pipeline:
+  - step: create-cluster-resource
+    functionRef:
+      name: function-dummy-ext-basic
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      response:
+        desired:
+          resources:
+            cluster-role-test:
+              resource:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRole
+                metadata:
+                  name: cluster-role
+                rules:
+                  - apiGroups:
+                      - example.org
+                    resources:
+                      - clustertests
+                    verbs:
+                      - '*'
+              ready: READY_TRUE

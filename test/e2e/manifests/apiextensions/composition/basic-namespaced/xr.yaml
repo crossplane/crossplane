@@ -8,5 +8,3 @@ spec:
   crossplane:
     compositionRef:
       name: basic-composition-namespaced
-    writeConnectionSecretToRef:
-      name: basic-secret-namespaced

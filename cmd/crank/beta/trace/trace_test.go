@@ -5,8 +5,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
 func TestCmd_getResourceAndName(t *testing.T) {
@@ -14,11 +14,13 @@ func TestCmd_getResourceAndName(t *testing.T) {
 		Resource string
 		Name     string
 	}
+
 	type want struct {
 		resource string
 		name     string
 		err      error
 	}
+
 	tests := map[string]struct {
 		reason string
 		fields args
@@ -85,13 +87,16 @@ func TestCmd_getResourceAndName(t *testing.T) {
 				Resource: tt.fields.Resource,
 				Name:     tt.fields.Name,
 			}
+
 			gotResource, gotName, err := c.getResourceAndName()
 			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Cmd.getResourceAndName() error = %v, wantErr %v", err, tt.want.err)
 			}
+
 			if diff := cmp.Diff(tt.want.resource, gotResource); diff != "" {
 				t.Errorf("Cmd.getResourceAndName() resource = %v, want %v", gotResource, tt.want.resource)
 			}
+
 			if diff := cmp.Diff(tt.want.name, gotName); diff != "" {
 				t.Errorf("Cmd.getResourceAndName() name = %v, want %v", gotName, tt.want.name)
 			}

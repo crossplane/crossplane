@@ -12,6 +12,9 @@ Zone.Identifier
 .tmp-earthly-out/
 build/
 
+# Exclude the ko data dir
+kodata/
+
 # gitlab example
 # exclude files generate by running the example
 external-dns-*.tgz
@@ -30,3 +33,6 @@ gitlab/
 # go build output (from go build ./cmd/crank etc)
 /crank
 /crossplane
+
+# ignore AI tools settings/config
+/.claude

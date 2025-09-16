@@ -32,13 +32,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	"github.com/crossplane/crossplane/internal/version"
-	"github.com/crossplane/crossplane/internal/xpkg"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/version"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 
 	// Load all the auth plugins for the cloud providers.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -54,7 +54,7 @@ const (
 type installCmd struct {
 	// Arguments.
 	Kind    string `arg:"" enum:"provider,configuration,function"                                                                            help:"The kind of package to install. One of \"provider\", \"configuration\", or \"function\"."`
-	Package string `arg:"" help:"The package to install."`
+	Package string `arg:"" help:"The package to install, must  be fully qualified, including the registry, repository, and tag."             placeholder:"REGISTRY/REPOSITORY:TAG"`
 	Name    string `arg:"" help:"The name of the new package in the Crossplane API. Derived from the package repository and tag by default." optional:""`
 
 	// Flags. Keep sorted alphabetically.
@@ -71,14 +71,16 @@ This command installs a package in a Crossplane control plane. It uses
 ~/.kube/config to connect to the control plane. You can override this using the
 KUBECONFIG environment variable.
 
+IMPORTANT: the package must be fully qualified, including the registry, repository, and tag.
+
 Examples:
 
   # Wait 1 minute for the package to finish installing before returning.
-  crossplane xpkg install provider upbound/provider-aws-eks:v0.41.0 --wait=1m
+  crossplane xpkg install provider xpkg.crossplane.io/crossplane-contrib/provider-aws-eks:v0.41.0 --wait=1m
 
   # Install a Function named function-eg that uses a runtime config named
   # customconfig.
-  crossplane xpkg install function upbound/function-example:v0.1.4 function-eg \
+  crossplane xpkg install function xpkg.crossplane.io/crossplane/function-example:v0.1.4 function-eg \
     --runtime-config=customconfig
 `
 }
@@ -87,11 +89,12 @@ Examples:
 func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	pkgName := c.Name
 	if pkgName == "" {
-		ref, err := name.ParseReference(c.Package, name.WithDefaultRegistry(xpkg.DefaultRegistry))
+		ref, err := name.ParseReference(c.Package, name.StrictValidation)
 		if err != nil {
 			logger.Debug(errPkgIdentifier, "error", err)
 			return errors.Wrap(err, errPkgIdentifier)
 		}
+
 		pkgName = xpkg.ToDNSLabel(ref.Context().RepositoryStr())
 	}
 
@@ -105,6 +108,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	if c.ManualActivation {
 		rap = v1.ManualActivation
 	}
+
 	secrets := make([]corev1.LocalObjectReference, len(c.PackagePullSecrets))
 	for i, s := range c.PackagePullSecrets {
 		secrets[i] = corev1.LocalObjectReference{
@@ -120,6 +124,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	}
 
 	var pkg v1.Package
+
 	switch c.Kind {
 	case "provider":
 		pkg = &v1.Provider{
@@ -146,6 +151,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 		if !ok {
 			return errors.Errorf("package kind %T does not support runtime configuration", pkg)
 		}
+
 		rpkg.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: c.RuntimeConfig})
 	}
 
@@ -153,6 +159,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, errKubeConfig)
 	}
+
 	logger.Debug("Found kubeconfig")
 
 	s := runtime.NewScheme()
@@ -163,12 +170,14 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, errKubeClient)
 	}
+
 	logger.Debug("Created kubernetes client")
 
 	timeout := 10 * time.Second
 	if c.Wait > 0 {
 		timeout = c.Wait
 	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -179,6 +188,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	if c.Wait > 0 {
 		// Poll every 2 seconds to see whether the package is ready.
 		logger.Debug("Waiting for package to be ready", "timeout", timeout)
+
 		go wait.UntilWithContext(ctx, func(ctx context.Context) {
 			if err := kube.Get(ctx, client.ObjectKeyFromObject(pkg), pkg); err != nil {
 				logger.Debug("Cannot get package", "error", err)
@@ -189,6 +199,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 			if pkg.GetCondition(v1.TypeHealthy).Status == corev1.ConditionTrue {
 				logger.Debug("Package is ready")
 				cancel()
+
 				return
 			}
 
@@ -203,6 +214,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	}
 
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", c.Kind, pkg.GetName())
+
 	return err
 }
 
@@ -215,8 +227,10 @@ func warnIfNotFound(err error) error {
 	if !errors.As(err, &serr) {
 		return err
 	}
+
 	if serr.ErrStatus.Code != http.StatusNotFound {
 		return err
 	}
+
 	return errors.WithMessagef(err, "crossplane CLI (version %s) might be out of date", version.New().GetVersionString())
 }

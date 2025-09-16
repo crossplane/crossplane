@@ -56,12 +56,9 @@ const (
 
 	// ExamplesAnnotation is the annotation value used for the examples.yaml
 	// layer.
-	// TODO(lsviben) Consider changing this to "examples".
+	// TODO(lsviben) Consider changing this to "examples". This has been preserved
+	// to not break existing packages.
 	ExamplesAnnotation string = "upbound"
-
-	// DefaultRegistry is the registry name that will be used when no registry
-	// is provided.
-	DefaultRegistry string = "xpkg.crossplane.io"
 )
 
 const (
@@ -75,6 +72,7 @@ func truncate(str string, num int) string {
 	if len(str) > num {
 		t = str[0:num]
 	}
+
 	return t
 }
 
@@ -87,18 +85,22 @@ func FriendlyID(name, hash string) string {
 // ToDNSLabel converts the string to a valid DNS label.
 func ToDNSLabel(s string) string {
 	var cut strings.Builder
+
 	for i := range s {
 		b := s[i]
 		if ('a' <= b && b <= 'z') || ('0' <= b && b <= '9') {
 			cut.WriteByte(b)
 		}
+
 		if (b == '.' || b == '/' || b == ':' || b == '-') && (i != 0 && i != 62 && i != len(s)-1) {
 			cut.WriteByte('-')
 		}
+
 		if i == 62 {
 			break
 		}
 	}
+
 	return strings.Trim(cut.String(), "-")
 }
 
@@ -106,6 +108,7 @@ func ToDNSLabel(s string) string {
 func BuildPath(path, name, ext string) string {
 	full := filepath.Join(path, name)
 	existExt := filepath.Ext(full)
+
 	return full[0:len(full)-len(existExt)] + ext
 }
 
@@ -115,10 +118,12 @@ func ParseNameFromMeta(fs afero.Fs, path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	pkgName, err := parseNameFromPackage(bs)
 	if err != nil {
 		return "", err
 	}
+
 	return pkgName, nil
 }
 
@@ -142,6 +147,7 @@ type metaPkg struct {
 func parseNameFromPackage(bs []byte) (string, error) {
 	p := &metaPkg{}
 	err := yaml.Unmarshal(bs, p)
+
 	return p.Metadata.Name, err
 }
 

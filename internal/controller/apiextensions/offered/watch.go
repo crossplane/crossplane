@@ -28,11 +28,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 // OffersClaim accepts any CompositeResourceDefinition that offers a claim.
@@ -42,6 +42,7 @@ func OffersClaim() resource.PredicateFn {
 		if !ok {
 			return false
 		}
+
 		return d.OffersClaim()
 	}
 }
@@ -53,6 +54,7 @@ func IsClaimCRD() resource.PredicateFn {
 		if !ok {
 			return false
 		}
+
 		return slices.Contains(d.Spec.Names.Categories, xcrd.CategoryClaim)
 	}
 }
@@ -95,6 +97,7 @@ func addClaim(obj runtime.Object, queue adder) {
 	if !ok || u == nil {
 		return
 	}
+
 	cp := &composite.Unstructured{Unstructured: *u, Schema: composite.SchemaLegacy}
 	if ref := cp.GetClaimReference(); ref != nil {
 		queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}})

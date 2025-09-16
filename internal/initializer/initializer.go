@@ -24,7 +24,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 )
 
 // New returns a new *Initializer.
@@ -42,6 +42,9 @@ type StepFunc func(ctx context.Context, kube client.Client) error
 
 // Run calls the step function.
 func (f StepFunc) Run(ctx context.Context, kube client.Client) error {
+	if f == nil {
+		return nil
+	}
 	return f(ctx, kube)
 }
 
@@ -59,20 +62,27 @@ func (c *Initializer) Init(ctx context.Context) error {
 		if s == nil {
 			continue
 		}
+
 		if err := s.Run(ctx, c.kube); err != nil {
 			return err
 		}
+
 		t := reflect.TypeOf(s)
+
 		var name string
+
 		if t != nil {
 			if t.Kind() == reflect.Ptr {
 				t = t.Elem()
 			}
+
 			name = t.Name()
 		} else {
 			name = fmt.Sprintf("%T", s)
 		}
+
 		c.log.Info("Step has been completed", "Name", name)
 	}
+
 	return nil
 }

@@ -19,7 +19,7 @@ package v1beta1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 )
 
 // ResourceRef is a reference to a resource. It's suitable for cluster
@@ -119,6 +119,7 @@ type NamespacedResource struct {
 
 // UsageSpec defines the desired state of Usage.
 // +kubebuilder:validation:XValidation:rule="has(self.by) || has(self.reason)",message="either \"spec.by\" or \"spec.reason\" must be specified."
+// +kubebuilder:validation:XValidation:rule="has(self.by) || (!has(self.of.resourceRef) || !has(self.of.resourceRef.__namespace__)) && (!has(self.of.resourceSelector) || !has(self.of.resourceSelector.__namespace__))",message="cross-namespace \"spec.of\" is not allowed without \"spec.by\" resource."
 type UsageSpec struct {
 	// Of is the resource that is "being used".
 	// +kubebuilder:validation:XValidation:rule="has(self.resourceRef) || has(self.resourceSelector)",message="either a resource reference or a resource selector should be set."
@@ -161,8 +162,9 @@ type UsageStatus struct {
 type Usage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              UsageSpec   `json:"spec"`
-	Status            UsageStatus `json:"status,omitempty"`
+
+	Spec   UsageSpec   `json:"spec"`
+	Status UsageStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -171,5 +173,6 @@ type Usage struct {
 type UsageList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Usage `json:"items"`
+
+	Items []Usage `json:"items"`
 }

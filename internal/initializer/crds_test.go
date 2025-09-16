@@ -30,8 +30,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
 func TestCoreCRDs(t *testing.T) {
@@ -39,9 +39,11 @@ func TestCoreCRDs(t *testing.T) {
 		kube client.Client
 		opts []CoreCRDsOption
 	}
+
 	type want struct {
 		err error
 	}
+
 	fsWithoutConversionCRD := afero.NewMemMapFs()
 	f, _ := fsWithoutConversionCRD.Create("/crds/nonwebhookcrd.yaml")
 	_, _ = f.WriteString(nonWebhookCRD)
@@ -61,6 +63,7 @@ func TestCoreCRDs(t *testing.T) {
 	}
 	s := runtime.NewScheme()
 	_ = extv1.AddToScheme(s)
+
 	cases := map[string]struct {
 		reason string
 		args
@@ -146,7 +149,7 @@ func TestCoreCRDs(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := NewCoreCRDs("/crds", s, tc.opts...).Run(context.TODO(), tc.kube)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRun(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
 		})

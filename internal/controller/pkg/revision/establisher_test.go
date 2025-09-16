@@ -34,12 +34,13 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
 
 var _ Establisher = &APIEstablisher{}
@@ -70,7 +71,17 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			reason: "Establishment should be successful if we can establish control for a parent of existing objects.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(nil),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{
+								Data: map[string][]byte{
+									"tls.crt": caBundle,
+								},
+							}).DeepCopyInto(s)
+							return nil
+						}
+						return nil
+					},
 					MockUpdate: test.NewMockUpdateFn(nil),
 				}),
 				objs: []runtime.Object{
@@ -92,6 +103,11 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							v1.LabelParentPackage: "provider-name",
 						},
 					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
 				},
 				control: true,
 			},
@@ -103,7 +119,17 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			reason: "Establishment should be successful if we can establish control for a parent of new objects.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{
+								Data: map[string][]byte{
+									"tls.crt": caBundle,
+								},
+							}).DeepCopyInto(s)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
 					MockCreate: test.NewMockCreateFn(nil),
 				}),
 				objs: []runtime.Object{
@@ -123,6 +149,11 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						},
 						Labels: map[string]string{
 							v1.LabelParentPackage: "provider-name",
+						},
+					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
 						},
 					},
 				},
@@ -198,8 +229,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							v1.LabelParentPackage: "provider-name",
 						},
 					},
-					Spec: v1.ProviderRevisionSpec{
-						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
 							TLSServerSecretName: &tlsServerSecretName,
 						},
 					},
@@ -256,11 +287,51 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				refs: []xpv1.TypedReference{{Name: "ref-me"}},
 			},
 		},
+		"FailedTLSSecretNotPresent": {
+			reason: "Establishment should fail if TLS server secret is not present when trying to establish control.",
+			args: args{
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockCreate: test.NewMockCreateFn(nil),
+				}),
+				objs: []runtime.Object{
+					&extv1.CustomResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "ref-me",
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Name: "provider-name",
+								UID:  "some-unique-uid-2312",
+							},
+						},
+						Labels: map[string]string{
+							v1.LabelParentPackage: "provider-name",
+						},
+					},
+				},
+				control: true,
+			},
+			want: want{
+				err: errors.New(errWebhookSecretNotPresent),
+			},
+		},
 		"FailedCreationWebhookDisabledConversionRequested": {
 			reason: "Establishment should fail if the CRD requires conversion webhook and Crossplane does not have the webhooks enabled.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							// Return empty secret (no CA bundle)
+							s.Data = map[string][]byte{}
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
 					MockCreate: test.NewMockCreateFn(nil),
 				}),
 				objs: []runtime.Object{
@@ -287,11 +358,16 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							v1.LabelParentPackage: "provider-name",
 						},
 					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
 				},
 				control: true,
 			},
 			want: want{
-				err: errors.New(errConversionWithNoWebhookCA),
+				err: errors.New(errWebhookSecretWithoutCABundle),
 			},
 		},
 		"FailedGettingWebhookTLSSecretControl": {
@@ -301,8 +377,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					MockGet: test.NewMockGetFn(errBoom),
 				}),
 				parent: &v1.ProviderRevision{
-					Spec: v1.ProviderRevisionSpec{
-						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
 							TLSServerSecretName: &tlsServerSecretName,
 						},
 					},
@@ -343,8 +419,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					},
 				}),
 				parent: &v1.ProviderRevision{
-					Spec: v1.ProviderRevisionSpec{
-						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
 							TLSServerSecretName: &tlsServerSecretName,
 						},
 					},
@@ -382,7 +458,17 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			reason: "Cannot establish control of object if we cannot create it.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{
+								Data: map[string][]byte{
+									"tls.crt": caBundle,
+								},
+							}).DeepCopyInto(s)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
 					MockCreate: test.NewMockCreateFn(errBoom),
 				}),
 				objs: []runtime.Object{
@@ -396,6 +482,11 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test",
 					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
 				},
 				control: true,
 			},
@@ -407,7 +498,17 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			reason: "Cannot establish control of object if we cannot update it.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(nil),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{
+								Data: map[string][]byte{
+									"tls.crt": caBundle,
+								},
+							}).DeepCopyInto(s)
+							return nil
+						}
+						return nil
+					},
 					MockUpdate: test.NewMockUpdateFn(errBoom),
 				}),
 				objs: []runtime.Object{
@@ -421,6 +522,11 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test",
 					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
 				},
 				control: true,
 			},
@@ -428,15 +534,292 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				err: errBoom,
 			},
 		},
+		"SuccessfulManagedResourceDefinitionUnsetState": {
+			reason: "Establishment should be successful for ManagedResourceDefinitions with various spec.state values.",
+			args: args{
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{
+								Data: map[string][]byte{
+									"tls.crt": caBundle,
+								},
+							}).DeepCopyInto(s)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
+					MockCreate: test.NewMockCreateFn(nil),
+				}),
+				objs: []runtime.Object{
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-mrd-unset",
+						},
+						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							// spec.state field is intentionally unset (zero value)
+						},
+					},
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-mrd-active",
+						},
+						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							State: v1alpha1.ManagedResourceDefinitionActive,
+						},
+					},
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-mrd-inactive",
+						},
+						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							State: v1alpha1.ManagedResourceDefinitionInactive,
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Name: "provider-name",
+								UID:  "some-unique-uid-2312",
+							},
+						},
+						Labels: map[string]string{
+							v1.LabelParentPackage: "provider-name",
+						},
+					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
+				},
+				control: true,
+			},
+			want: want{
+				refs: []xpv1.TypedReference{
+					{Name: "test-mrd-unset"},
+					{Name: "test-mrd-active"},
+					{Name: "test-mrd-inactive"},
+				},
+			},
+		},
+		"SuccessfulManagedResourceDefinitionAllStateCombinations": {
+			reason: "Establishment should handle all combinations of existing vs desired ManagedResourceDefinition states correctly.",
+			args: args{
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{
+								Data: map[string][]byte{
+									"tls.crt": caBundle,
+								},
+							}).DeepCopyInto(s)
+							return nil
+						}
+						if mrd, ok := obj.(*v1alpha1.ManagedResourceDefinition); ok {
+							switch mrd.GetName() {
+							case "active-to-unset":
+								// Existing: Active, Desired: Unset -> Expected: Active (preserve existing)
+								(&v1alpha1.ManagedResourceDefinition{
+									ObjectMeta: metav1.ObjectMeta{
+										Name:            "active-to-unset",
+										ResourceVersion: "100",
+									},
+									Spec: v1alpha1.ManagedResourceDefinitionSpec{
+										State: v1alpha1.ManagedResourceDefinitionActive,
+									},
+								}).DeepCopyInto(mrd)
+							case "active-to-active":
+								// Existing: Active, Desired: Active -> Expected: Active (use desired)
+								(&v1alpha1.ManagedResourceDefinition{
+									ObjectMeta: metav1.ObjectMeta{
+										Name:            "active-to-active",
+										ResourceVersion: "101",
+									},
+									Spec: v1alpha1.ManagedResourceDefinitionSpec{
+										State: v1alpha1.ManagedResourceDefinitionActive,
+									},
+								}).DeepCopyInto(mrd)
+							case "active-to-inactive":
+								// Existing: Active, Desired: Inactive -> Expected: Active (preserve existing)
+								(&v1alpha1.ManagedResourceDefinition{
+									ObjectMeta: metav1.ObjectMeta{
+										Name:            "active-to-inactive",
+										ResourceVersion: "102",
+									},
+									Spec: v1alpha1.ManagedResourceDefinitionSpec{
+										State: v1alpha1.ManagedResourceDefinitionActive,
+									},
+								}).DeepCopyInto(mrd)
+							case "inactive-to-unset":
+								// Existing: Inactive, Desired: Unset -> Expected: Inactive (preserve existing)
+								(&v1alpha1.ManagedResourceDefinition{
+									ObjectMeta: metav1.ObjectMeta{
+										Name:            "inactive-to-unset",
+										ResourceVersion: "103",
+									},
+									Spec: v1alpha1.ManagedResourceDefinitionSpec{
+										State: v1alpha1.ManagedResourceDefinitionInactive,
+									},
+								}).DeepCopyInto(mrd)
+							case "inactive-to-active":
+								// Existing: Inactive, Desired: Active -> Expected: Active (use desired)
+								(&v1alpha1.ManagedResourceDefinition{
+									ObjectMeta: metav1.ObjectMeta{
+										Name:            "inactive-to-active",
+										ResourceVersion: "104",
+									},
+									Spec: v1alpha1.ManagedResourceDefinitionSpec{
+										State: v1alpha1.ManagedResourceDefinitionInactive,
+									},
+								}).DeepCopyInto(mrd)
+							case "inactive-to-inactive":
+								// Existing: Inactive, Desired: Inactive -> Expected: Inactive (preserve existing)
+								(&v1alpha1.ManagedResourceDefinition{
+									ObjectMeta: metav1.ObjectMeta{
+										Name:            "inactive-to-inactive",
+										ResourceVersion: "105",
+									},
+									Spec: v1alpha1.ManagedResourceDefinitionSpec{
+										State: v1alpha1.ManagedResourceDefinitionInactive,
+									},
+								}).DeepCopyInto(mrd)
+							}
+							return nil
+						}
+						return nil
+					},
+					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						// Verify the merge logic for all combinations
+						if mrd, ok := obj.(*v1alpha1.ManagedResourceDefinition); ok {
+							switch mrd.GetName() {
+							case "active-to-unset":
+								// Existing: Active, Desired: Unset (not active) -> Expected: Active (preserve existing)
+								if mrd.Spec.State != v1alpha1.ManagedResourceDefinitionActive {
+									return errors.Errorf("expected state to be Active for active-to-unset, got %s", mrd.Spec.State)
+								}
+							case "active-to-active":
+								// Existing: Active, Desired: Active -> Expected: Active (use desired)
+								if mrd.Spec.State != v1alpha1.ManagedResourceDefinitionActive {
+									return errors.Errorf("expected state to be Active for active-to-active, got %s", mrd.Spec.State)
+								}
+							case "active-to-inactive":
+								// Existing: Active, Desired: Inactive (not active) -> Expected: Active (preserve existing)
+								if mrd.Spec.State != v1alpha1.ManagedResourceDefinitionActive {
+									return errors.Errorf("expected state to be Active for active-to-inactive, got %s", mrd.Spec.State)
+								}
+							case "inactive-to-unset":
+								// Existing: Inactive, Desired: Unset (not active) -> Expected: Inactive (preserve existing)
+								if mrd.Spec.State != v1alpha1.ManagedResourceDefinitionInactive {
+									return errors.Errorf("expected state to be Inactive for inactive-to-unset, got %s", mrd.Spec.State)
+								}
+							case "inactive-to-active":
+								// Existing: Inactive, Desired: Active -> Expected: Active (use desired)
+								if mrd.Spec.State != v1alpha1.ManagedResourceDefinitionActive {
+									return errors.Errorf("expected state to be Active for inactive-to-active, got %s", mrd.Spec.State)
+								}
+							case "inactive-to-inactive":
+								// Existing: Inactive, Desired: Inactive (not active) -> Expected: Inactive (preserve existing)
+								if mrd.Spec.State != v1alpha1.ManagedResourceDefinitionInactive {
+									return errors.Errorf("expected state to be Inactive for inactive-to-inactive, got %s", mrd.Spec.State)
+								}
+							}
+						}
+						return nil
+					},
+				}),
+				objs: []runtime.Object{
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "active-to-unset",
+						},
+						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							// spec.state field is intentionally unset (zero value)
+						},
+					},
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "active-to-active",
+						},
+						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							State: v1alpha1.ManagedResourceDefinitionActive,
+						},
+					},
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "active-to-inactive",
+						},
+						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							State: v1alpha1.ManagedResourceDefinitionInactive,
+						},
+					},
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "inactive-to-unset",
+						},
+						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							// spec.state field is intentionally unset (zero value)
+						},
+					},
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "inactive-to-active",
+						},
+						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							State: v1alpha1.ManagedResourceDefinitionActive,
+						},
+					},
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "inactive-to-inactive",
+						},
+						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							State: v1alpha1.ManagedResourceDefinitionInactive,
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Name: "provider-name",
+								UID:  "some-unique-uid-2312",
+							},
+						},
+						Labels: map[string]string{
+							v1.LabelParentPackage: "provider-name",
+						},
+					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
+				},
+				control: true,
+			},
+			want: want{
+				refs: []xpv1.TypedReference{
+					{Name: "active-to-unset"},
+					{Name: "active-to-active"},
+					{Name: "active-to-inactive"},
+					{Name: "inactive-to-unset"},
+					{Name: "inactive-to-active"},
+					{Name: "inactive-to-inactive"},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			refs, err := tc.args.est.Establish(context.TODO(), tc.args.objs, tc.args.parent, tc.args.control)
-
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors(), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			sort := cmpopts.SortSlices(func(x, y xpv1.TypedReference) bool {
 				return x.Name < y.Name
 			})
@@ -478,12 +861,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -505,12 +890,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -552,12 +939,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -621,12 +1010,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -680,12 +1071,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -736,12 +1129,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
-					Status: v1.PackageRevisionStatus{
-						ObjectRefs: []xpv1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "releases.helm.crossplane.io",
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ObjectRefs: []xpv1.TypedReference{
+								{
+									APIVersion: "apiextensions.k8s.io/v1",
+									Kind:       "CustomResourceDefinition",
+									Name:       "releases.helm.crossplane.io",
+								},
 							},
 						},
 					},
@@ -756,7 +1151,6 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := tc.args.est.ReleaseObjects(context.TODO(), tc.args.parent)
-
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -768,10 +1162,12 @@ func TestGetPackageOwnerReference(t *testing.T) {
 	type args struct {
 		revision resource.Object
 	}
+
 	type want struct {
 		ref metav1.OwnerReference
 		ok  bool
 	}
+
 	ref := metav1.OwnerReference{
 		APIVersion: "v1",
 		Kind:       "Provider",
@@ -820,6 +1216,7 @@ func TestGetPackageOwnerReference(t *testing.T) {
 			if diff := cmp.Diff(tc.want.ref, result); diff != "" {
 				t.Errorf("\n%s\ne.GetPackageOwnerReference(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.ok, ok); diff != "" {
 				t.Errorf("\n%s\ne.GetPackageOwnerReference(...): -want, +got:\n%s", tc.reason, diff)
 			}

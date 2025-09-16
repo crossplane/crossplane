@@ -27,6 +27,9 @@ type RevisionActivationPolicy string
 // PackageSpec specifies the desired state of a Package.
 type PackageSpec struct {
 	// Package is the name of the package that is being requested.
+	// must be a fully qualified image name, including the registry,
+	// repository, and tag. for example, "registry.example.com/repo/package:tag".
+	// +kubebuilder:validation:XValidation:rule="self.matches('^[^\\\\.\\\\/]+(\\\\.[^\\\\.\\\\/]+)+(\\\\/[^\\\\/:@]+)+(:[^:@]+(@sha256.+)?|@sha256.+)$')",message="must be a fully qualified image name, including the registry, repository, and tag or digest. For example, 'registry.example.com/repo/package:tag' or 'registry.example.com/repo/package[:tag]@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'."
 	Package string `json:"package"`
 
 	// RevisionActivationPolicy specifies how the package controller should

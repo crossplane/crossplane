@@ -21,7 +21,7 @@ package v1beta1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 )
 
 // +kubebuilder:object:root=true
@@ -66,7 +66,8 @@ type FunctionStatus struct {
 type FunctionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Function `json:"items"`
+
+	Items []Function `json:"items"`
 }
 
 // FunctionRevisionSpec specifies configuration for a FunctionRevision.
@@ -104,7 +105,8 @@ type FunctionRevision struct {
 
 // FunctionRevisionStatus represents the observed state of a FunctionRevision.
 type FunctionRevisionStatus struct {
-	PackageRevisionStatus `json:",inline"`
+	PackageRevisionStatus        `json:",inline"`
+	PackageRevisionRuntimeStatus `json:",inline"`
 
 	// Endpoint is the gRPC endpoint where Crossplane will send
 	// RunFunctionRequests.
@@ -117,5 +119,6 @@ type FunctionRevisionStatus struct {
 type FunctionRevisionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []FunctionRevision `json:"items"`
+
+	Items []FunctionRevision `json:"items"`
 }

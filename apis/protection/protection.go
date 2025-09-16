@@ -20,7 +20,7 @@ package protection
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	v1beta1 "github.com/crossplane/crossplane/apis/protection/v1beta1"
+	v1beta1 "github.com/crossplane/crossplane/v2/apis/protection/v1beta1"
 )
 
 func init() {

@@ -27,11 +27,11 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
-	legacy "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
-	"github.com/crossplane/crossplane/apis/protection/v1beta1"
-	"github.com/crossplane/crossplane/internal/protection"
+	legacy "github.com/crossplane/crossplane/v2/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/v2/apis/protection/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/protection"
 )
 
 // indexKey is a controller-runtime cache index key. It's used to index usages
@@ -118,6 +118,7 @@ func (f *Finder) FindUsageOf(ctx context.Context, o Object) ([]protection.Usage,
 	if err := f.client.List(ctx, ul, client.MatchingFields{indexKey: indexVal(o.GetAPIVersion(), o.GetKind(), o.GetName(), o.GetNamespace())}); err != nil {
 		return nil, errors.Wrapf(err, "cannot list %s", v1beta1.UsageGroupVersionKind)
 	}
+
 	for _, u := range ul.Items {
 		usages = append(usages, &u)
 	}
@@ -126,6 +127,7 @@ func (f *Finder) FindUsageOf(ctx context.Context, o Object) ([]protection.Usage,
 	if err := f.client.List(ctx, cul, client.MatchingFields{indexKey: indexVal(o.GetAPIVersion(), o.GetKind(), o.GetName(), "")}); err != nil {
 		return nil, errors.Wrapf(err, "cannot list %s", v1beta1.ClusterUsageGroupVersionKind)
 	}
+
 	for _, u := range cul.Items {
 		usages = append(usages, &u)
 	}
@@ -134,6 +136,7 @@ func (f *Finder) FindUsageOf(ctx context.Context, o Object) ([]protection.Usage,
 	if err := f.client.List(ctx, lul, client.MatchingFields{indexKey: indexVal(o.GetAPIVersion(), o.GetKind(), o.GetName(), "")}); err != nil {
 		return nil, errors.Wrapf(err, "cannot list %s", legacy.UsageGroupVersionKind)
 	}
+
 	for _, u := range lul.Items {
 		usages = append(usages, &u)
 	}

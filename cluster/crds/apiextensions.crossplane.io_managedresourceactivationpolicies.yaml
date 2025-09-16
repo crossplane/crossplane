@@ -1,0 +1,126 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: managedresourceactivationpolicies.apiextensions.crossplane.io
+spec:
+  group: apiextensions.crossplane.io
+  names:
+    categories:
+    - crossplane
+    kind: ManagedResourceActivationPolicy
+    listKind: ManagedResourceActivationPolicyList
+    plural: managedresourceactivationpolicies
+    shortNames:
+    - mrap
+    singular: managedresourceactivationpolicy
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: A ManagedResourceActivationPolicy defines the activation policy
+          for ManagedResourceDefinitions.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ManagedResourceActivationPolicySpec specifies the desired
+              activation state of ManagedResourceDefinitions.
+            properties:
+              activate:
+                description: |-
+                  Activations is an array of MRD names to activate. Supports wildcard
+                  prefixes (like `*.aws.crossplane.io`) but not full regular expressions.
+                items:
+                  description: ActivationPolicy matches on MRD names with wildcard
+                    prefix support.
+                  type: string
+                minItems: 1
+                type: array
+            required:
+            - activate
+            type: object
+          status:
+            description: ManagedResourceActivationPolicyStatus shows the observed
+              state of the policy.
+            properties:
+              activated:
+                description: Activated names the ManagedResourceDefinitions this policy
+                  has activated.
+                items:
+                  type: string
+                type: array
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        LastTransitionTime is the last time this condition transitioned from one
+                        status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        A Message containing details about this condition's last transition from
+                        one status to another, if any.
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: |-
+                        Type of this condition. At most one of each condition type may apply to
+                        a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

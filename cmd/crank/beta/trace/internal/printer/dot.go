@@ -8,12 +8,12 @@ import (
 	"github.com/emicklei/dot"
 	"github.com/pkg/errors"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource/xpkg"
 )
 
 // DotPrinter defines the DotPrinter configuration.
@@ -54,6 +54,7 @@ func (r *dotLabel) String() string {
 			"Error: "+r.error,
 		)
 	}
+
 	return strings.Join(out, "\n") + "\n"
 }
 
@@ -77,6 +78,7 @@ func (r *dotPackageLabel) String() string {
 		out = append(out,
 			"Installed: "+r.installed)
 	}
+
 	out = append(out,
 		"Healthy: "+r.healthy,
 	)
@@ -91,6 +93,7 @@ func (r *dotPackageLabel) String() string {
 			"Error: "+r.error,
 		)
 	}
+
 	return strings.Join(out, "\n") + "\n"
 }
 
@@ -146,11 +149,14 @@ func printGraphQueue(g *dot.Graph, queue []*queueItem) {
 		if item.parent != nil {
 			g.Edge(*item.parent, node)
 		}
+
 		var label fmt.Stringer
+
 		gk := item.resource.Unstructured.GroupVersionKind().GroupKind()
 		switch {
 		case xpkg.IsPackageType(gk):
 			pkg, err := fieldpath.Pave(item.resource.Unstructured.Object).GetString("spec.package")
+
 			l := &dotPackageLabel{
 				apiVersion: item.resource.Unstructured.GroupVersionKind().GroupVersion().String(),
 				name:       item.resource.Unstructured.GetName(),
@@ -161,9 +167,11 @@ func printGraphQueue(g *dot.Graph, queue []*queueItem) {
 			if err != nil {
 				l.error = err.Error()
 			}
+
 			label = l
 		case xpkg.IsPackageRevisionType(gk):
 			pkg, err := fieldpath.Pave(item.resource.Unstructured.Object).GetString("spec.image")
+
 			l := &dotPackageLabel{
 				apiVersion: item.resource.Unstructured.GroupVersionKind().GroupVersion().String(),
 				name:       item.resource.Unstructured.GetName(),
@@ -174,6 +182,7 @@ func printGraphQueue(g *dot.Graph, queue []*queueItem) {
 			if err != nil {
 				l.error = err.Error()
 			}
+
 			label = l
 		default:
 			label = &dotLabel{
@@ -184,6 +193,7 @@ func printGraphQueue(g *dot.Graph, queue []*queueItem) {
 				synced:     string(item.resource.GetCondition(xpv1.TypeSynced).Status),
 			}
 		}
+
 		node.Label(label.String())
 		node.Attr("penwidth", "2")
 

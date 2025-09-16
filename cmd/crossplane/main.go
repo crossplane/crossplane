@@ -24,6 +24,7 @@ import (
 	"github.com/alecthomas/kong"
 	admv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	authv1 "k8s.io/api/authorization/v1"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -33,12 +34,12 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/apis"
-	"github.com/crossplane/crossplane/cmd/crossplane/core"
-	"github.com/crossplane/crossplane/cmd/crossplane/rbac"
-	"github.com/crossplane/crossplane/internal/version"
+	"github.com/crossplane/crossplane/v2/apis"
+	"github.com/crossplane/crossplane/v2/cmd/crossplane/core"
+	"github.com/crossplane/crossplane/v2/cmd/crossplane/rbac"
+	"github.com/crossplane/crossplane/v2/internal/version"
 )
 
 type (
@@ -71,24 +72,20 @@ func (d debugFlag) BeforeApply(ctx *kong.Context) error { //nolint:unparam // Be
 	// logger when we're running in debug mode.
 	ctrl.SetLogger(zl)
 	logging.SetFilteredKlogLogger(zl)
+
 	return nil
 }
 
 func (v versionFlag) BeforeApply(app *kong.Kong) error { //nolint:unparam // BeforeApply requires this signature.
 	_, _ = fmt.Fprintln(app.Stdout, version.New().GetVersionString())
 	app.Exit(0)
+
 	return nil
 }
 
 func main() {
 	zl := zap.New().WithName("crossplane")
 	logging.SetFilteredKlogLogger(zl)
-
-	// Setting the controller-runtime logger to a no-op logger by default,
-	// unless debug mode is enabled. This is because the controller-runtime
-	// logger is *very* verbose even at info level. This is not really needed,
-	// but otherwise we get a warning from the controller-runtime.
-	ctrl.SetLogger(zap.New(zap.WriteTo(io.Discard)))
 
 	// Note that the controller managers scheme must be a superset of the
 	// package manager's object scheme; it must contain all object types that
@@ -97,15 +94,26 @@ func main() {
 	// objects.
 	s := runtime.NewScheme()
 
-	ctx := kong.Parse(&cli{},
+	c := &cli{}
+
+	ctx := kong.Parse(c,
 		kong.Name("crossplane"),
 		kong.Description("An open source multicloud control plane."),
 		kong.BindTo(logging.NewLogrLogger(zl), (*logging.Logger)(nil)),
 		kong.UsageOnError(),
-		rbac.KongVars,
 		core.KongVars,
 	)
+
+	if !c.Debug {
+		// Setting the controller-runtime logger to a no-op logger by default,
+		// unless debug mode is enabled. This is because the controller-runtime
+		// logger is *very* verbose even at info level. This is not really needed,
+		// but otherwise we get a warning from the controller-runtime.
+		ctrl.SetLogger(zap.New(zap.WriteTo(io.Discard)))
+	}
+
 	ctx.FatalIfErrorf(corev1.AddToScheme(s), "cannot add core v1 Kubernetes API types to scheme")
+	ctx.FatalIfErrorf(authv1.AddToScheme(s), "cannot add authorization v1 Kubernetes API types to scheme")
 	ctx.FatalIfErrorf(appsv1.AddToScheme(s), "cannot add apps v1 Kubernetes API types to scheme")
 	ctx.FatalIfErrorf(rbacv1.AddToScheme(s), "cannot add rbac v1 Kubernetes API types to scheme")
 	ctx.FatalIfErrorf(coordinationv1.AddToScheme(s), "cannot add coordination v1 Kubernetes API types to scheme")

@@ -11,7 +11,7 @@ spec:
     kind: NopResource
     plural: nopresources
   connectionSecretKeys:
-  - test
+  - super
   versions:
   - name: v1alpha1
     served: true

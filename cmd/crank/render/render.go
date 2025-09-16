@@ -32,20 +32,19 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
+	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
-	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
-	"github.com/crossplane/crossplane/internal/xfn"
-	"github.com/crossplane/crossplane/internal/xresource"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
-	ucomposite "github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/v2/internal/xfn"
+	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
 // Wait for the server to be ready before sending RPCs. Notably this gives
@@ -74,6 +73,7 @@ type Inputs struct {
 	FunctionCredentials []corev1.Secret
 	ObservedResources   []composed.Unstructured
 	ExtraResources      []unstructured.Unstructured
+	RequiredResources   []unstructured.Unstructured
 	Context             map[string][]byte
 
 	// TODO(negz): Allow supplying observed XR and composed resource connection
@@ -82,10 +82,16 @@ type Inputs struct {
 
 // Outputs contains all outputs from the render process.
 type Outputs struct {
+	// The rendered XR
 	CompositeResource *ucomposite.Unstructured
+	// The rendered downstream resources (typically MRs) derived from the XR
 	ComposedResources []composed.Unstructured
-	Results           []unstructured.Unstructured
-	Context           *unstructured.Unstructured
+	// The Function results (not render results)
+	Results []unstructured.Unstructured
+	// The Crossplane context object
+	Context *unstructured.Unstructured
+	// The Function requirements
+	Requirements map[string]fnv1.Requirements
 
 	// TODO(negz): Allow returning desired XR connection details. Maybe as a
 	// Secret? Should we honor writeConnectionSecretToRef? What if secret stores
@@ -112,10 +118,12 @@ func NewRuntimeFunctionRunner(ctx context.Context, log logging.Logger, fns []pkg
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot get runtime for Function %q", fn.GetName())
 		}
+
 		rctx, err := runtime.Start(ctx)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot start Function %q", fn.GetName())
 		}
+
 		contexts[fn.GetName()] = rctx
 
 		conn, err := grpc.NewClient(rctx.Target,
@@ -124,6 +132,7 @@ func NewRuntimeFunctionRunner(ctx context.Context, log logging.Logger, fns []pkg
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot dial Function %q at address %q", fn.GetName(), rctx.Target)
 		}
+
 		conns[fn.GetName()] = conn
 	}
 
@@ -150,25 +159,29 @@ func (r *RuntimeFunctionRunner) Stop(ctx context.Context) error {
 
 	for name, conn := range r.conns {
 		_ = conn.Close()
+
 		delete(r.conns, name)
 	}
+
 	for name, rctx := range r.contexts {
 		if err := rctx.Stop(ctx); err != nil {
 			return errors.Wrapf(err, "cannot stop function %q runtime (target %q)", name, rctx.Target)
 		}
+
 		delete(r.contexts, name)
 	}
 
 	return nil
 }
 
-// getSecret retrieves the secret with the specified name and namespace from the provided list of secrets.
-func getSecret(name string, nameSpace string, secrets []corev1.Secret) (*corev1.Secret, error) {
+// GetSecret retrieves the secret with the specified name and namespace from the provided list of secrets.
+func GetSecret(name string, nameSpace string, secrets []corev1.Secret) (*corev1.Secret, error) {
 	for _, s := range secrets {
 		if s.GetName() == name && s.GetNamespace() == nameSpace {
 			return &s, nil
 		}
 	}
+
 	return nil, errors.Errorf("secret %q not found", name)
 }
 
@@ -190,9 +203,10 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 	}()
 
-	runner := composite.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{extra: in.ExtraResources})
+	runner := xfn.NewFetchingFunctionRunner(runtimes, NewFilteringFetcher(append(in.ExtraResources, in.RequiredResources...)...))
 
 	observed := composite.ComposedResourceStates{}
+
 	for i, cd := range in.ObservedResources {
 		name := cd.GetAnnotations()[AnnotationKeyCompositionResourceName]
 		observed[composite.ResourceName(name)] = composite.ComposedResourceState{
@@ -214,6 +228,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 
 	results := make([]unstructured.Unstructured, 0)
 	conditions := make([]xpv1.Condition, 0)
+	requirements := make(map[string]fnv1.Requirements)
 
 	// The Function context starts empty.
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
@@ -224,10 +239,12 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		if err := json.Unmarshal(data, &jv); err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot unmarshal JSON value for context key %q", k)
 		}
+
 		v, err := structpb.NewValue(jv)
 		if err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot store JSON value for context key %q", k)
 		}
+
 		fctx.Fields[k] = v
 	}
 
@@ -243,6 +260,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			if err := in.UnmarshalJSON(fn.Input.Raw); err != nil {
 				return Outputs{}, errors.Wrapf(err, "cannot unmarshal input for Composition pipeline step %q", fn.Step)
 			}
+
 			req.Input = in
 		}
 
@@ -253,16 +271,31 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 				continue
 			}
 
-			s, err := getSecret(cs.SecretRef.Name, cs.SecretRef.Namespace, in.FunctionCredentials)
+			s, err := GetSecret(cs.SecretRef.Name, cs.SecretRef.Namespace, in.FunctionCredentials)
 			if err != nil {
 				return Outputs{}, errors.Wrapf(err, "cannot get credentials from secret %q", cs.SecretRef.Name)
 			}
+
 			req.Credentials[cs.Name] = &fnv1.Credentials{
 				Source: &fnv1.Credentials_CredentialData{
 					CredentialData: &fnv1.CredentialData{
 						Data: s.Data,
 					},
 				},
+			}
+		}
+
+		// Handle bootstrap requirements
+		if fn.Requirements != nil {
+			// Bootstrap requirements were introduced alongside the new field names,
+			// so we only need to support the new required_resources field.
+			req.RequiredResources = map[string]*fnv1.Resources{}
+			for _, sel := range fn.Requirements.RequiredResources {
+				resources, err := NewFilteringFetcher(in.RequiredResources...).Fetch(ctx, xfn.ToProtobufResourceSelector(&sel))
+				if err != nil {
+					return Outputs{}, errors.Wrapf(err, "cannot fetch bootstrap required resources for requirement %q", sel.RequirementName)
+				}
+				req.RequiredResources[sel.RequirementName] = resources
 			}
 		}
 
@@ -280,6 +313,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 
 		for _, c := range rsp.GetConditions() {
 			var status corev1.ConditionStatus
+
 			switch c.GetStatus() {
 			case fnv1.Status_STATUS_CONDITION_TRUE:
 				status = corev1.ConditionTrue
@@ -298,11 +332,16 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			})
 		}
 
+		if rsp.GetRequirements() != nil {
+			requirements[fn.Step] = *rsp.GetRequirements()
+		}
+
 		// Results of fatal severity stop the Composition process.
 		for _, rs := range rsp.GetResults() {
 			switch rs.GetSeverity() { //nolint:exhaustive // We intentionally have a broad default case.
 			case fnv1.Severity_SEVERITY_FATAL:
-				return Outputs{}, errors.Errorf("pipeline step %q returned a fatal result: %s", fn.Step, rs.GetMessage())
+				// Even in the fatal case, return requirements if they exist, so that the caller can try to satisfy them
+				return Outputs{Requirements: requirements}, errors.Errorf("pipeline step %q returned a fatal result: %s", fn.Step, rs.GetMessage())
 			default:
 				results = append(results, unstructured.Unstructured{Object: map[string]any{
 					"apiVersion": "render.crossplane.io/v1beta1",
@@ -316,14 +355,16 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	}
 
 	desired := make([]composed.Unstructured, 0, len(d.GetResources()))
+
 	var unready []string
+
 	for name, dr := range d.GetResources() {
 		if dr.GetReady() != fnv1.Ready_READY_TRUE {
 			unready = append(unready, name)
 		}
 
 		cd := composed.New()
-		if err := composite.FromStruct(cd, dr.GetResource()); err != nil {
+		if err := xfn.FromStruct(cd, dr.GetResource()); err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot unmarshal desired composed resource %q", name)
 		}
 
@@ -333,6 +374,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		if ok {
 			cd.SetNamespace(or.Resource.GetNamespace())
 			cd.SetName(or.Resource.GetName())
+			cd.SetGenerateName(or.Resource.GetGenerateName())
 		}
 
 		// Set standard composed resource metadata that is derived from the XR.
@@ -349,7 +391,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	})
 
 	xr := ucomposite.New()
-	if err := composite.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
+	if err := xfn.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
 		return Outputs{}, errors.Wrap(err, "cannot render desired composite resource")
 	}
 
@@ -358,10 +400,14 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	xr.SetAPIVersion(in.CompositeResource.GetAPIVersion())
 	xr.SetKind(in.CompositeResource.GetKind())
 	xr.SetName(in.CompositeResource.GetName())
+
 	xrCond := xpv1.Available()
-	if len(unready) > 0 {
+	if d.GetComposite().GetReady() == fnv1.Ready_READY_FALSE {
+		xrCond = xpv1.Creating()
+	} else if d.GetComposite().GetReady() == fnv1.Ready_READY_UNSPECIFIED && len(unready) > 0 {
 		xrCond = xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unready)))
 	}
+
 	xrCond.LastTransitionTime = conditionTime()
 	xr.SetConditions(xrCond)
 
@@ -376,7 +422,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		xr.SetConditions(c)
 	}
 
-	out := Outputs{CompositeResource: xr, ComposedResources: desired, Results: results}
+	out := Outputs{CompositeResource: xr, ComposedResources: desired, Results: results, Requirements: requirements}
 	if fctx != nil {
 		out.Context = &unstructured.Unstructured{Object: map[string]any{
 			"apiVersion": "render.crossplane.io/v1beta1",
@@ -384,6 +430,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			"fields":     fctx.GetFields(),
 		}}
 	}
+
 	return out, nil
 }
 
@@ -394,10 +441,16 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 // crossplane.io/claim-namespace, and crossplane.io/claim-name annotations.
 //
 // https://github.com/crossplane/crossplane/blob/0965f0/internal/controller/apiextensions/composite/composition_render.go#L117
-func SetComposedResourceMetadata(cd resource.Object, xr xresource.LegacyComposite, name string) error {
-	cd.SetGenerateName(xr.GetName() + "-")
+func SetComposedResourceMetadata(cd resource.Object, xr resource.LegacyComposite, name string) error {
+	// We recommend composed resources let us generate a name for them. They're
+	// allowed to explicitly specify a name if they want though.
+	if cd.GetName() == "" && cd.GetGenerateName() == "" {
+		cd.SetGenerateName(xr.GetName() + "-")
+	}
+
 	meta.AddAnnotations(cd, map[string]string{AnnotationKeyCompositionResourceName: name})
 	meta.AddLabels(cd, map[string]string{AnnotationKeyCompositeName: xr.GetName()})
+
 	if ref := xr.GetClaimReference(); ref != nil {
 		meta.AddLabels(cd, map[string]string{
 			AnnotationKeyClaimNamespace: ref.Namespace,
@@ -406,43 +459,57 @@ func SetComposedResourceMetadata(cd resource.Object, xr xresource.LegacyComposit
 	}
 
 	or := meta.AsController(meta.TypedReferenceTo(xr, xr.GetObjectKind().GroupVersionKind()))
+
 	return errors.Wrapf(meta.AddControllerReference(cd, or), "cannot set composite resource %q as controller ref of composed resource", xr.GetName())
 }
 
-// FilteringFetcher is a composite.ExtraResourcesFetcher that "fetches" any
-// supplied resource that matches a resource selector.
+// FilteringFetcher is a RequiredResourcesFetcher that "fetches" any supplied
+// resource that matches a resource selector.
 type FilteringFetcher struct {
-	extra []unstructured.Unstructured
+	resources []unstructured.Unstructured
 }
 
-// Fetch returns all of the underlying extra resources that match the supplied
+// NewFilteringFetcher creates a new FilteringFetcher with the given resources.
+func NewFilteringFetcher(resources ...unstructured.Unstructured) *FilteringFetcher {
+	return &FilteringFetcher{resources: resources}
+}
+
+// Fetch returns all of the underlying resources that match the supplied
 // resource selector.
 func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
-	if len(f.extra) == 0 || rs == nil {
+	if len(f.resources) == 0 || rs == nil {
 		return nil, nil
 	}
+
 	out := &fnv1.Resources{}
-	for _, er := range f.extra {
+
+	for _, er := range f.resources {
 		if rs.GetApiVersion() != er.GetAPIVersion() {
 			continue
 		}
+
 		if rs.GetKind() != er.GetKind() {
 			continue
 		}
+
 		if rs.GetMatchName() == er.GetName() {
-			o, err := composite.AsStruct(&er)
+			o, err := xfn.AsStruct(&er)
 			if err != nil {
-				return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())
+				return nil, errors.Wrapf(err, "cannot marshal resource %q", er.GetName())
 			}
+
 			out.Items = []*fnv1.Resource{{Resource: o}}
+
 			return out, nil
 		}
+
 		if rs.GetMatchLabels() != nil {
 			if labels.SelectorFromSet(rs.GetMatchLabels().GetLabels()).Matches(labels.Set(er.GetLabels())) {
-				o, err := composite.AsStruct(&er)
+				o, err := xfn.AsStruct(&er)
 				if err != nil {
-					return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())
+					return nil, errors.Wrapf(err, "cannot marshal resource %q", er.GetName())
 				}
+
 				out.Items = append(out.GetItems(), &fnv1.Resource{Resource: o})
 			}
 		}

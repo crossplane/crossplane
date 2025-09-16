@@ -22,9 +22,9 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/utils/ptr"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 )
 
 // Label keys.
@@ -147,18 +147,10 @@ func CompositeResourceSpecProps(s v1.CompositeResourceScope, defaultPol *xpv1.Up
 			// Controllers should replace the entire resourceRefs array.
 			XListType: ptr.To("atomic"),
 		},
-		"writeConnectionSecretToRef": {
-			Type:     "object",
-			Required: []string{"name", "namespace"},
-			Properties: map[string]extv1.JSONSchemaProps{
-				"name":      {Type: "string"},
-				"namespace": {Type: "string"},
-			},
-		},
 	}
 
-	// Namespaced XRs don't get to reference secrets or composed resources in
-	// other namespaces.
+	// Namespaced XRs don't get to reference composed resources in other
+	// namespaces.
 	if s == v1.CompositeResourceScopeNamespaced {
 		props["resourceRefs"] = extv1.JSONSchemaProps{
 			Type: "array",
@@ -176,18 +168,10 @@ func CompositeResourceSpecProps(s v1.CompositeResourceScope, defaultPol *xpv1.Up
 			// Controllers should replace the entire resourceRefs array.
 			XListType: ptr.To("atomic"),
 		}
-
-		props["writeConnectionSecretToRef"] = extv1.JSONSchemaProps{
-			Type:     "object",
-			Required: []string{"name"},
-			Properties: map[string]extv1.JSONSchemaProps{
-				"name": {Type: "string"},
-			},
-		}
 	}
 
 	// Legacy XRs have their Crossplane machinery fields directly under spec.
-	// They also support referencing a claim.
+	// They also support referencing a claim, and writing a secret.
 	if s == v1.CompositeResourceScopeLegacyCluster {
 		props["claimRef"] = extv1.JSONSchemaProps{
 			Type:     "object",
@@ -197,6 +181,15 @@ func CompositeResourceSpecProps(s v1.CompositeResourceScope, defaultPol *xpv1.Up
 				"kind":       {Type: "string"},
 				"namespace":  {Type: "string"},
 				"name":       {Type: "string"},
+			},
+		}
+
+		props["writeConnectionSecretToRef"] = extv1.JSONSchemaProps{
+			Type:     "object",
+			Required: []string{"name", "namespace"},
+			Properties: map[string]extv1.JSONSchemaProps{
+				"name":      {Type: "string"},
+				"namespace": {Type: "string"},
 			},
 		}
 
@@ -327,19 +320,8 @@ func CompositeResourceStatusProps(s v1.CompositeResourceScope) map[string]extv1.
 
 	switch s {
 	case v1.CompositeResourceScopeNamespaced, v1.CompositeResourceScopeCluster:
-		// Modern XRs use status.crossplane, and don't support claims.
-		props["crossplane"] = extv1.JSONSchemaProps{
-			Type:        "object",
-			Description: "Indicates how Crossplane is reconciling this composite resource",
-			Properties: map[string]extv1.JSONSchemaProps{
-				"connectionDetails": {
-					Type: "object",
-					Properties: map[string]extv1.JSONSchemaProps{
-						"lastPublishedTime": {Type: "string", Format: "date-time"},
-					},
-				},
-			},
-		}
+		// Modern XRs don't have connection details or support claims, so
+		// there's nothing else to put in the status for them
 	case v1.CompositeResourceScopeLegacyCluster:
 		// Legacy XRs don't use status.crossplane, and support claims.
 		props["connectionDetails"] = extv1.JSONSchemaProps{
@@ -399,6 +381,7 @@ func CompositeResourcePrinterColumns(s v1.CompositeResourceScope) []extv1.Custom
 			if cols[i].Name == "COMPOSITION" {
 				cols[i].JSONPath = ".spec.compositionRef.name"
 			}
+
 			if cols[i].Name == "COMPOSITIONREVISION" {
 				cols[i].JSONPath = ".spec.compositionRevisionRef.name"
 			}
@@ -438,10 +421,12 @@ func CompositeResourceClaimPrinterColumns() []extv1.CustomResourceColumnDefiniti
 // GetPropFields returns the fields from a map of schema properties.
 func GetPropFields(props map[string]extv1.JSONSchemaProps) []string {
 	propFields := make([]string, len(props))
+
 	i := 0
 	for k := range props {
 		propFields[i] = k
 		i++
 	}
+
 	return propFields
 }

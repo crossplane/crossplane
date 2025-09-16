@@ -34,12 +34,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 )
 
 var (
@@ -186,14 +186,17 @@ func TestIsEstablished(t *testing.T) {
 
 func TestForCompositeResource(t *testing.T) {
 	defaultCompositionUpdatePolicy := xpv1.UpdatePolicy("Automatic")
+
 	type args struct {
 		xrd *v1.CompositeResourceDefinition
 		v   *v1.CompositeResourceValidation
 	}
+
 	type want struct {
 		c   *extv1.CustomResourceDefinition
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -387,13 +390,6 @@ func TestForCompositeResource(t *testing.T) {
 															},
 															XListType: ptr.To("atomic"),
 														},
-														"writeConnectionSecretToRef": {
-															Type:     "object",
-															Required: []string{"name"},
-															Properties: map[string]extv1.JSONSchemaProps{
-																"name": {Type: "string"},
-															},
-														},
 													},
 												},
 											},
@@ -431,18 +427,6 @@ func TestForCompositeResource(t *testing.T) {
 																"status":             {Type: "string"},
 																"type":               {Type: "string"},
 																"observedGeneration": {Type: "integer", Format: "int64"},
-															},
-														},
-													},
-												},
-												"crossplane": {
-													Description: "Indicates how Crossplane is reconciling this composite resource",
-													Type:        "object",
-													Properties: map[string]extv1.JSONSchemaProps{
-														"connectionDetails": {
-															Type: "object",
-															Properties: map[string]extv1.JSONSchemaProps{
-																"lastPublishedTime": {Type: "string", Format: "date-time"},
 															},
 														},
 													},
@@ -2027,7 +2011,9 @@ func TestForCompositeResource(t *testing.T) {
 			} else {
 				xrd = d
 			}
+
 			xrd.Spec.Versions[0].Schema = tc.args.v
+
 			got, err := ForCompositeResource(xrd)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nForCompositeResource(...): -want err, +got err:\n%s", tc.reason, diff)
@@ -3007,6 +2993,7 @@ func TestSetCrdMetadata(t *testing.T) {
 		crd *extv1.CustomResourceDefinition
 		xrd *v1.CompositeResourceDefinition
 	}
+
 	tests := map[string]struct {
 		reason string
 		args   args

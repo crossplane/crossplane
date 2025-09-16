@@ -24,10 +24,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
 
 // DeploymentSelectorMigrator handles migration of provider deployments
@@ -94,25 +94,28 @@ func (m *DeletingDeploymentSelectorMigrator) MigrateDeploymentSelector(ctx conte
 
 	// Check if there's an existing deployment
 	existingDeploy := &appsv1.Deployment{}
+
 	err := m.client.Get(ctx, types.NamespacedName{
 		Name:      expectedDeploy.Name,
 		Namespace: expectedDeploy.Namespace,
 	}, existingDeploy)
-
 	if kerrors.IsNotFound(err) {
 		// No existing deployment, no migration needed
 		return nil
 	}
+
 	if err != nil {
 		return errors.Wrap(err, "cannot get existing deployment")
 	}
 
 	existing := providerRev.GetLabels()[v1.LabelParentPackage]
+
 	if existingDeploy.Spec.Selector == nil || existingDeploy.Spec.Selector.MatchLabels == nil {
 		// No selector or match labels, no migration needed
 		return nil
 	}
-	expected := existingDeploy.Spec.Selector.MatchLabels["pkg.crossplane.io/provider"]
+
+	expected := existingDeploy.Spec.Selector.MatchLabels[v1.LabelProvider]
 
 	// Check if the provider label needs migration
 	if expected == existing {

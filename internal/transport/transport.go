@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/crossplane/crossplane/internal/version"
+	"github.com/crossplane/crossplane/v2/internal/version"
 )
 
 // DefaultUserAgent is the default User-Agent header that is set when making

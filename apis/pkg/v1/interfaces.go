@@ -22,8 +22,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 )
 
 const (
@@ -43,6 +43,15 @@ const (
 	// revisions, and can be used to select all provider revisions that belong
 	// to a particular family. It is not added to providers, only revisions.
 	LabelProviderFamily = "pkg.crossplane.io/provider-family"
+
+	// LabelProvider is used as the key for the provider name label.
+	LabelProvider = "pkg.crossplane.io/provider"
+
+	// LabelFunction is used as the key for the function name label.
+	LabelFunction = "pkg.crossplane.io/function"
+
+	// LabelRevision is used as the key for the package revision name label.
+	LabelRevision = "pkg.crossplane.io/revision"
 )
 
 var (
@@ -60,6 +69,7 @@ func RefNames(refs []corev1.LocalObjectReference) []string {
 	for i, ref := range refs {
 		stringRefs[i] = ref.Name
 	}
+
 	return stringRefs
 }
 
@@ -86,13 +96,16 @@ type PackageWithRuntime interface {
 func (s *PackageStatus) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	for _, ref := range refs {
 		exists := false
+
 		for i, existing := range s.AppliedImageConfigRefs {
 			if existing.Reason != ref.Reason {
 				continue
 			}
+
 			s.AppliedImageConfigRefs[i] = ref
 			exists = true
 		}
+
 		if !exists {
 			s.AppliedImageConfigRefs = append(s.AppliedImageConfigRefs, ref)
 		}
@@ -470,8 +483,14 @@ type PackageRevisionWithRuntime interface { //nolint:interfacebloat // TODO(negz
 	GetTLSServerSecretName() *string
 	SetTLSServerSecretName(n *string)
 
+	GetObservedTLSServerSecretName() *string
+	SetObservedTLSServerSecretName(n *string)
+
 	GetTLSClientSecretName() *string
 	SetTLSClientSecretName(n *string)
+
+	GetObservedTLSClientSecretName() *string
+	SetObservedTLSClientSecretName(n *string)
 }
 
 // SetAppliedImageConfigRefs sets applied image config refs, replacing any
@@ -479,13 +498,16 @@ type PackageRevisionWithRuntime interface { //nolint:interfacebloat // TODO(negz
 func (s *PackageRevisionStatus) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	for _, ref := range refs {
 		exists := false
+
 		for i, existing := range s.AppliedImageConfigRefs {
 			if existing.Reason != ref.Reason {
 				continue
 			}
+
 			s.AppliedImageConfigRefs[i] = ref
 			exists = true
 		}
+
 		if !exists {
 			s.AppliedImageConfigRefs = append(s.AppliedImageConfigRefs, ref)
 		}
@@ -549,6 +571,9 @@ type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we
 
 	GetResolvedSource() string
 	SetResolvedSource(s string)
+
+	GetCapabilities() []string
+	SetCapabilities(caps []string)
 }
 
 // GetCondition of this ProviderRevision.
@@ -678,6 +703,16 @@ func (p *ProviderRevision) SetTLSServerSecretName(s *string) {
 	p.Spec.TLSServerSecretName = s
 }
 
+// GetObservedTLSServerSecretName of this ProviderRevision.
+func (p *ProviderRevision) GetObservedTLSServerSecretName() *string {
+	return p.Status.TLSServerSecretName
+}
+
+// SetObservedTLSServerSecretName of this ProviderRevision.
+func (p *ProviderRevision) SetObservedTLSServerSecretName(s *string) {
+	p.Status.TLSServerSecretName = s
+}
+
 // GetTLSClientSecretName of this ProviderRevision.
 func (p *ProviderRevision) GetTLSClientSecretName() *string {
 	return p.Spec.TLSClientSecretName
@@ -686,6 +721,16 @@ func (p *ProviderRevision) GetTLSClientSecretName() *string {
 // SetTLSClientSecretName of this ProviderRevision.
 func (p *ProviderRevision) SetTLSClientSecretName(s *string) {
 	p.Spec.TLSClientSecretName = s
+}
+
+// GetObservedTLSClientSecretName of this ProviderRevision.
+func (p *ProviderRevision) GetObservedTLSClientSecretName() *string {
+	return p.Status.TLSClientSecretName
+}
+
+// SetObservedTLSClientSecretName of this ProviderRevision.
+func (p *ProviderRevision) SetObservedTLSClientSecretName(s *string) {
+	p.Status.TLSClientSecretName = s
 }
 
 // GetCommonLabels of this ProviderRevision.
@@ -721,6 +766,16 @@ func (p *ProviderRevision) GetResolvedSource() string {
 // SetResolvedSource of this ProviderRevision.
 func (p *ProviderRevision) SetResolvedSource(s string) {
 	p.Status.ResolvedPackage = s
+}
+
+// GetCapabilities of this ProviderRevision.
+func (p *ProviderRevision) GetCapabilities() []string {
+	return p.Status.Capabilities
+}
+
+// SetCapabilities of this ProviderRevision.
+func (p *ProviderRevision) SetCapabilities(caps []string) {
+	p.Status.Capabilities = caps
 }
 
 // GetCondition of this ConfigurationRevision.
@@ -865,6 +920,16 @@ func (p *ConfigurationRevision) SetResolvedSource(s string) {
 	p.Status.ResolvedPackage = s
 }
 
+// GetCapabilities of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetCapabilities() []string {
+	return p.Status.Capabilities
+}
+
+// SetCapabilities of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetCapabilities(caps []string) {
+	p.Status.Capabilities = caps
+}
+
 // PackageRevisionList is the interface satisfied by package revision list
 // types.
 // +k8s:deepcopy-gen=false
@@ -885,6 +950,7 @@ func (p *ProviderRevisionList) GetRevisions() []PackageRevision {
 	for i, r := range p.Items {
 		prs[i] = &r
 	}
+
 	return prs
 }
 
@@ -894,6 +960,7 @@ func (p *ConfigurationRevisionList) GetRevisions() []PackageRevision {
 	for i, r := range p.Items {
 		prs[i] = &r
 	}
+
 	return prs
 }
 
@@ -913,6 +980,7 @@ func GetSecretNameWithSuffix(name, suffix string) *string {
 	if len(name) > 253-len(suffix) {
 		name = name[0 : 253-len(suffix)]
 	}
+
 	s := name + suffix
 
 	return &s
@@ -1205,9 +1273,29 @@ func (r *FunctionRevision) SetTLSServerSecretName(s *string) {
 	r.Spec.TLSServerSecretName = s
 }
 
+// GetObservedTLSServerSecretName of this FunctionRevision.
+func (r *FunctionRevision) GetObservedTLSServerSecretName() *string {
+	return r.Status.TLSServerSecretName
+}
+
+// SetObservedTLSServerSecretName of this FunctionRevision.
+func (r *FunctionRevision) SetObservedTLSServerSecretName(s *string) {
+	r.Status.TLSServerSecretName = s
+}
+
 // GetTLSClientSecretName of this FunctionRevision.
 func (r *FunctionRevision) GetTLSClientSecretName() *string {
 	return r.Spec.TLSClientSecretName
+}
+
+// SetObservedTLSClientSecretName of this FunctionRevision.
+func (r *FunctionRevision) SetObservedTLSClientSecretName(s *string) {
+	r.Status.TLSClientSecretName = s
+}
+
+// GetObservedTLSClientSecretName of this FunctionRevision.
+func (r *FunctionRevision) GetObservedTLSClientSecretName() *string {
+	return r.Status.TLSClientSecretName
 }
 
 // SetTLSClientSecretName of this FunctionRevision.
@@ -1250,11 +1338,22 @@ func (r *FunctionRevision) SetResolvedSource(s string) {
 	r.Status.ResolvedPackage = s
 }
 
+// GetCapabilities of this FunctionRevision.
+func (r *FunctionRevision) GetCapabilities() []string {
+	return r.Status.Capabilities
+}
+
+// SetCapabilities of this FunctionRevision.
+func (r *FunctionRevision) SetCapabilities(caps []string) {
+	r.Status.Capabilities = caps
+}
+
 // GetRevisions of this ConfigurationRevisionList.
 func (p *FunctionRevisionList) GetRevisions() []PackageRevision {
 	prs := make([]PackageRevision, len(p.Items))
 	for i, r := range p.Items {
 		prs[i] = &r
 	}
+
 	return prs
 }

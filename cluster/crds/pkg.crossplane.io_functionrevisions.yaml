@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.5
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: functionrevisions.pkg.crossplane.io
 spec:
   group: pkg.crossplane.io
@@ -84,18 +84,6 @@ spec:
                   and services.
                   More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
                 type: object
-              controllerConfigRef:
-                description: |-
-                  ControllerConfigRef references a ControllerConfig resource that will be
-                  used to configure the packaged controller Deployment.
-                  Deprecated: Use RuntimeConfigReference instead.
-                properties:
-                  name:
-                    description: Name of the ControllerConfig.
-                    type: string
-                required:
-                - name
-                type: object
               desiredState:
                 description: DesiredState of the PackageRevision. Can be either Active
                   or Inactive.
@@ -216,6 +204,13 @@ spec:
                   - reason
                   type: object
                 type: array
+              capabilities:
+                description: |-
+                  Capabilities of this package. Capabilities are opaque strings that
+                  may be meaningful to package consumers.
+                items:
+                  type: string
+                type: array
               conditions:
                 description: Conditions of the resource.
                 items:
@@ -308,6 +303,16 @@ spec:
                   ResolvedPackage is the name of the package that was installed. It may be
                   different from spec.image if the package path was rewritten using an
                   image config.
+                type: string
+              tlsClientSecretName:
+                description: |-
+                  TLSClientSecretName is the name of the TLS Secret that stores client
+                  certificates of the Provider.
+                type: string
+              tlsServerSecretName:
+                description: |-
+                  TLSServerSecretName is the name of the TLS Secret that stores server
+                  certificates of the Provider.
                 type: string
             type: object
         type: object
@@ -382,18 +387,6 @@ spec:
                   and services.
                   More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
                 type: object
-              controllerConfigRef:
-                description: |-
-                  ControllerConfigRef references a ControllerConfig resource that will be
-                  used to configure the packaged controller Deployment.
-                  Deprecated: Use RuntimeConfigReference instead.
-                properties:
-                  name:
-                    description: Name of the ControllerConfig.
-                    type: string
-                required:
-                - name
-                type: object
               desiredState:
                 description: DesiredState of the PackageRevision. Can be either Active
                   or Inactive.
@@ -514,6 +507,13 @@ spec:
                   - reason
                   type: object
                 type: array
+              capabilities:
+                description: |-
+                  Capabilities of this package. Capabilities are opaque strings that
+                  may be meaningful to package consumers.
+                items:
+                  type: string
+                type: array
               conditions:
                 description: Conditions of the resource.
                 items:
@@ -606,6 +606,16 @@ spec:
                   ResolvedPackage is the name of the package that was installed. It may be
                   different from spec.image if the package path was rewritten using an
                   image config.
+                type: string
+              tlsClientSecretName:
+                description: |-
+                  TLSClientSecretName is the name of the TLS Secret that stores client
+                  certificates of the Provider.
+                type: string
+              tlsServerSecretName:
+                description: |-
+                  TLSServerSecretName is the name of the TLS Secret that stores server
+                  certificates of the Provider.
                 type: string
             type: object
         type: object

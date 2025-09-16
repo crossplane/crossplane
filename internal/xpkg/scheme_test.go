@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
 
 type mockHub struct{ runtime.Object }
@@ -39,6 +39,7 @@ func (c *mockConvertible) ConvertTo(_ conversion.Hub) error {
 	if c.Fail {
 		return errors.New("nope")
 	}
+
 	return nil
 }
 
@@ -98,6 +99,7 @@ func TestTryConvert(t *testing.T) {
 			if diff := cmp.Diff(tc.want.ok, ok); diff != "" {
 				t.Errorf("\n%s\nTryConvert(...): -want ok, +got ok:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.meta, got); diff != "" {
 				t.Errorf("\n%s\nTryConvert(...): -want, +got:\n%s", tc.reason, diff)
 			}

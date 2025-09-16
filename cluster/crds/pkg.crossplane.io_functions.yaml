@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.5
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: functions.pkg.crossplane.io
 spec:
   group: pkg.crossplane.io
@@ -69,18 +69,6 @@ spec:
                   and services.
                   More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
                 type: object
-              controllerConfigRef:
-                description: |-
-                  ControllerConfigRef references a ControllerConfig resource that will be
-                  used to configure the packaged controller Deployment.
-                  Deprecated: Use RuntimeConfigReference instead.
-                properties:
-                  name:
-                    description: Name of the ControllerConfig.
-                    type: string
-                required:
-                - name
-                type: object
               ignoreCrossplaneConstraints:
                 default: false
                 description: |-
@@ -89,8 +77,16 @@ spec:
                   Default is false.
                 type: boolean
               package:
-                description: Package is the name of the package that is being requested.
+                description: |-
+                  Package is the name of the package that is being requested.
+                  must be a fully qualified image name, including the registry,
+                  repository, and tag. for example, "registry.example.com/repo/package:tag".
                 type: string
+                x-kubernetes-validations:
+                - message: must be a fully qualified image name, including the registry,
+                    repository, and tag or digest. For example, 'registry.example.com/repo/package:tag'
+                    or 'registry.example.com/repo/package[:tag]@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'.
+                  rule: self.matches('^[^\\.\\/]+(\\.[^\\.\\/]+)+(\\/[^\\/:@]+)+(:[^:@]+(@sha256.+)?|@sha256.+)$')
               packagePullPolicy:
                 default: IfNotPresent
                 description: |-
@@ -314,18 +310,6 @@ spec:
                   and services.
                   More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
                 type: object
-              controllerConfigRef:
-                description: |-
-                  ControllerConfigRef references a ControllerConfig resource that will be
-                  used to configure the packaged controller Deployment.
-                  Deprecated: Use RuntimeConfigReference instead.
-                properties:
-                  name:
-                    description: Name of the ControllerConfig.
-                    type: string
-                required:
-                - name
-                type: object
               ignoreCrossplaneConstraints:
                 default: false
                 description: |-
@@ -334,8 +318,16 @@ spec:
                   Default is false.
                 type: boolean
               package:
-                description: Package is the name of the package that is being requested.
+                description: |-
+                  Package is the name of the package that is being requested.
+                  must be a fully qualified image name, including the registry,
+                  repository, and tag. for example, "registry.example.com/repo/package:tag".
                 type: string
+                x-kubernetes-validations:
+                - message: must be a fully qualified image name, including the registry,
+                    repository, and tag or digest. For example, 'registry.example.com/repo/package:tag'
+                    or 'registry.example.com/repo/package[:tag]@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'.
+                  rule: self.matches('^[^\\.\\/]+(\\.[^\\.\\/]+)+(\\/[^\\/:@]+)+(:[^:@]+(@sha256.+)?|@sha256.+)$')
               packagePullPolicy:
                 default: IfNotPresent
                 description: |-

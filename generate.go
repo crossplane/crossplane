@@ -26,7 +26,6 @@ limitations under the License.
 
 // Replicate identical API versions
 
-//go:generate ./hack/duplicate_api_type.sh apis/apiextensions/v1beta1/environment_config_types.go apis/apiextensions/v1alpha1 false
 //go:generate ./hack/duplicate_api_type.sh apis/apiextensions/v1beta1/usage_types.go apis/apiextensions/v1alpha1 true
 
 //go:generate ./hack/duplicate_api_type.sh apis/pkg/v1/package_types.go apis/pkg/v1beta1
@@ -47,8 +46,9 @@ limitations under the License.
 
 // Generate deepcopy methodsets and CRD manifests
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/pkg/v1beta1;./apis/pkg/v1 crd:crdVersions=v1,generateEmbeddedObjectMeta=true output:artifacts:config=./cluster/crds
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/apiextensions/v1alpha1;./apis/apiextensions/v1beta1;./apis/apiextensions/v1;./apis/apiextensions/v2alpha1 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/apiextensions/v1alpha1;./apis/apiextensions/v1beta1;./apis/apiextensions/v1;./apis/apiextensions/v2 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/protection/v1beta1 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/ops/v1alpha1 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
 
 // We generate the meta.pkg.crossplane.io types separately as the generated CRDs
 // are never installed, only used for API documentation.
@@ -65,7 +65,7 @@ limitations under the License.
 
 // Replicate identical gRPC APIs
 
-//go:generate ./hack/duplicate_proto_type.sh apis/apiextensions/fn/proto/v1/run_function.proto apis/apiextensions/fn/proto/v1beta1
+//go:generate ./hack/duplicate_proto_type.sh proto/fn/v1/run_function.proto proto/fn/v1beta1
 
 // Generate gRPC types and stubs.
 //
