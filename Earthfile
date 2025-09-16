@@ -78,10 +78,11 @@ e2e:
         --no-color=false \
         --format ${GOTESTSUM_FORMAT} \
         --junitfile e2e-tests.xml \
-        --raw-command go tool test2json -t -p E2E ./e2e -test.v ${FLAGS}
+        --raw-command go tool test2json -t -p E2E ./e2e -test.v -kind-logs-location=./kind-logs ${FLAGS}
     END
   FINALLY
     SAVE ARTIFACT --if-exists e2e-tests.xml AS LOCAL _output/tests/e2e-tests.xml
+    SAVE ARTIFACT --if-exists kind-logs/ AS LOCAL _output/tests/kind-logs
   END
 
 # hack builds Crossplane, and deploys it to a kind cluster. It runs in your
