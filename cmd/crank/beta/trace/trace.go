@@ -228,17 +228,19 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 
 		logger.Debug("Got resource tree", "root", root)
 
-		if shouldPrintAsList {
-			// Print list of resources
-			err = p.PrintList(k.Stdout, resourceList)
-		} else {
-			// Print a single resource
-			err = p.Print(k.Stdout, resourceList.Items[0])
-		}
+		resourceList.Items[i] = root
+	}
 
-		if err != nil {
-			return errors.Wrap(err, errCliOutput)
-		}
+	if shouldPrintAsList {
+		// Print list of resources
+		err = p.PrintList(k.Stdout, resourceList)
+	} else {
+		// Print a single resource
+		err = p.Print(k.Stdout, resourceList.Items[0])
+	}
+
+	if err != nil {
+		return errors.Wrap(err, errCliOutput)
 	}
 
 	return nil
