@@ -91,6 +91,7 @@ const (
 	reasonRenderCRD   event.Reason = "RenderCRD"
 	reasonEstablishXR event.Reason = "EstablishComposite"
 	reasonTerminateXR event.Reason = "TerminateComposite"
+	reasonRestartXR   event.Reason = "RestartComposite"
 )
 
 // A ControllerEngine can start and stop Kubernetes controllers on demand.
@@ -496,9 +497,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Check if XRD has changed since controller was last started
 	if ControllerNeedsRestart(d) {
+		r.record.Event(d, event.Normal(reasonRestartXR, "XRD specification changed; restarting controller to apply updates"))
+
 		if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
 			err = errors.Wrap(err, errStopController)
-			r.record.Event(d, event.Warning(reasonEstablishXR, err))
+			r.record.Event(d, event.Warning(reasonRestartXR, err))
 
 			return reconcile.Result{}, err
 		}
