@@ -40,10 +40,15 @@ multiplatform-build:
 # the build target. It's important to run it explicitly when code needs to be
 # generated, for example when you update an API type.
 generate:
-  BUILD +go-modules-tidy
-  BUILD +go-modules-tools-tidy
   BUILD +go-generate
   BUILD +helm-generate
+
+# tidy runs go mod tidy to clean up module dependencies. This is separated from
+# generate to avoid unnecessary downloads during development when source files
+# change but dependencies don't.
+tidy:
+  BUILD +go-modules-tidy
+  BUILD +go-modules-tools-tidy
 
 # e2e runs end-to-end tests. See test/e2e/README.md for details.
 e2e:
