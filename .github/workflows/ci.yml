@@ -64,6 +64,9 @@ jobs:
       - name: Generate Files
         run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +generate
 
+      - name: Tidy Modules
+        run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +tidy
+
       - name: Count Changed Files
         id: changed_files
         run: echo "count=$(git status --porcelain | wc -l)" >> $GITHUB_OUTPUT
