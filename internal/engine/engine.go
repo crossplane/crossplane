@@ -692,6 +692,20 @@ func (e *ControllerEngine) GarbageCollectCustomResourceInformers(ctx context.Con
 					continue
 				}
 
+				// Try to invalidate client cache if supported. This ensures that if the CRD
+				// is recreated with different properties (like scope), the client will fetch
+				// fresh discovery data instead of using stale cache.
+				if inv, ok := e.cached.(Invalidatable); ok {
+					if err := inv.Invalidate(); err != nil {
+						e.log.Debug("Failed to invalidate cached client cache", "gvk", gvk, "error", err)
+					}
+				}
+				if inv, ok := e.uncached.(Invalidatable); ok {
+					if err := inv.Invalidate(); err != nil {
+						e.log.Debug("Failed to invalidate uncached client cache", "gvk", gvk, "error", err)
+					}
+				}
+
 				e.log.Debug("Removed informer for type defined by deleted CustomResourceDefinition", "crd", crd.GetName(), "gvk", gvk)
 			}
 		},

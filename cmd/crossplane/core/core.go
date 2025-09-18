@@ -363,10 +363,17 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("API extensions cache stopped")
 	}()
 
-	cached, err := client.New(mgr.GetConfig(), client.Options{
+	// Create an invalidatable RESTMapper that supports cache invalidation for
+	// CRD scope changes. This replaces the manager's default RESTMapper.
+	m, err := engine.NewInvalidatableRESTMapper(mgr.GetConfig(), mgr.GetHTTPClient())
+	if err != nil {
+		return errors.Wrap(err, "cannot create invalidatable REST mapper")
+	}
+
+	cached, err := engine.NewInvalidatableClient(mgr.GetConfig(), client.Options{
 		HTTPClient: mgr.GetHTTPClient(),
 		Scheme:     mgr.GetScheme(),
-		Mapper:     mgr.GetRESTMapper(),
+		Mapper:     m,
 		Cache: &client.CacheOptions{
 			Reader: ca,
 
@@ -378,15 +385,15 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		},
 	})
 	if err != nil {
-		return errors.Wrap(err, "cannot create client for API extension controllers")
+		return errors.Wrap(err, "cannot create cached client for API extension controllers")
 	}
 
 	// Create a separate no-cache client for use when the composite controller does not find an Unstructured
 	// resource that it expects to find in the cache.
-	uncached, err := client.New(mgr.GetConfig(), client.Options{
+	uncached, err := engine.NewInvalidatableClient(mgr.GetConfig(), client.Options{
 		HTTPClient: mgr.GetHTTPClient(),
 		Scheme:     mgr.GetScheme(),
-		Mapper:     mgr.GetRESTMapper(),
+		Mapper:     m,
 	})
 	if err != nil {
 		return errors.Wrap(err, "cannot create uncached client for API extension controllers")
