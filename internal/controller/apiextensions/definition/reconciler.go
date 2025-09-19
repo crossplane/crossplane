@@ -50,6 +50,7 @@ import (
 	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/watch"
 	apiextensionscontroller "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
@@ -524,6 +525,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		composite.WithCompositeConnectionDetailsFetcher(fetcher),
 	)
 
+	// Create circuit breaker for this XR controller
+	cb := circuit.NewTokenBucketBreaker()
+
 	// All XRs have modern schema unless their XRD's scope is LegacyCluster.
 	schema := ucomposite.SchemaModern
 	if ptr.Deref(d.Spec.Scope, v1.CompositeResourceScopeLegacyCluster) == v1.CompositeResourceScopeLegacyCluster {
@@ -540,6 +544,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		composite.WithLogger(r.log.WithValues("controller", composite.ControllerName(d.GetName()))),
 		composite.WithRecorder(r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
 		composite.WithPollInterval(r.options.PollInterval),
+		composite.WithCircuitBreaker(cb),
+		composite.WithAuthorizer(r.engine),
 		composite.WithComposer(fc),
 		composite.WithFeatures(r.options.Features),
 	}
@@ -563,13 +569,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			r.log.Debug(errAddIndex, "error", err)
 		}
 
-		h := EnqueueCompositeResources(d.GetCompositeGroupVersionKind(), r.engine.GetCached(), r.log)
+		cmf := CompositeResourcesMapFunc(d.GetCompositeGroupVersionKind(), r.engine.GetCached(), r.log)
+		h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(cmf, cb))
 		ro = append(ro,
 			composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine),
 			composite.WithPollInterval(0), // Disable polling.
 		)
 	}
-	ro = append(ro, composite.WithAuthorizer(r.engine))
 
 	cr := composite.NewReconciler(r.engine.GetCached(), d.GetCompositeGroupVersionKind(), ro...)
 	ko := r.options.ForControllerRuntime()
@@ -612,9 +618,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xr := &kunstructured.Unstructured{}
 	xr.SetGroupVersionKind(gvk)
 
-	crh := EnqueueForCompositionRevision(gvk, schema, r.engine.GetCached(), log)
+	crmf := CompositionRevisionMapFunc(gvk, schema, r.engine.GetCached(), log)
+	crh := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(crmf, cb))
+
+	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(SelfMapFunc(), cb))
+
 	if err := r.engine.StartWatches(ctx, name,
-		engine.WatchFor(xr, engine.WatchTypeCompositeResource, &handler.EnqueueRequestForObject{}),
+		engine.WatchFor(xr, engine.WatchTypeCompositeResource, h),
 		engine.WatchFor(&v1.CompositionRevision{}, engine.WatchTypeCompositionRevision, crh),
 	); err != nil {
 		log.Debug(errStartWatches, "error", err)
