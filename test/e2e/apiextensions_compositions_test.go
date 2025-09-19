@@ -17,16 +17,26 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/json"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/klient/wait"
+	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
+	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
@@ -86,6 +96,89 @@ func TestCompositionRevisionSelection(t *testing.T) {
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "claim.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestRealtimeCompositionPerformanceNamespaced(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/realtime-namespaced-performance"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests realtime composition performance for namespaced XRs. Verifies Crossplane detects external changes to composed resources within 10 seconds via watches, not polling (~60s). Catches performance regressions in realtime composition.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRIsReady",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess())).
+			Assess("WaitForComposedConfigMap", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+				t.Helper()
+				cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "perftest-composed-configmap", Namespace: metav1.NamespaceDefault}}
+				t.Logf("Waiting for composed ConfigMap to exist with initial value...")
+
+				start := time.Now()
+				if err := wait.For(conditions.New(cfg.Client().Resources()).ResourceMatch(cm, func(o k8s.Object) bool {
+					u := asUnstructured(o)
+					got, err := fieldpath.Pave(u.Object).GetString("data.testData")
+					return err == nil && got == "initial-value"
+				}), wait.WithTimeout(30*time.Second), wait.WithInterval(funcs.DefaultPollInterval)); err != nil {
+					t.Fatalf("Timed out waiting for composed ConfigMap to exist with initial value: %v", err)
+				}
+
+				t.Logf("Composed ConfigMap found with initial value after %s", time.Since(start))
+				return ctx
+			}).
+			Assess("ModifyComposedResource", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+				// Get and modify the ConfigMap to simulate external change using server-side apply
+				cm := &corev1.ConfigMap{}
+				if err := cfg.Client().Resources().Get(ctx, "perftest-composed-configmap", metav1.NamespaceDefault, cm); err != nil {
+					t.Fatalf("Failed to get ConfigMap: %v", err)
+				}
+
+				// Use server-side apply to avoid resource version conflicts
+				cm.Data["testData"] = "modified-value"
+				if err := cfg.Client().Resources().GetControllerRuntimeClient().Patch(ctx, cm, client.Apply, client.FieldOwner("e2e-test"), client.ForceOwnership); err != nil {
+					t.Fatalf("Failed to update ConfigMap using server-side apply: %v", err)
+				}
+
+				t.Logf("Modified ConfigMap testData to 'modified-value'")
+				return ctx
+			}).
+			Assess("XRReconcilesInRealtime", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+				// Wait for ConfigMap to revert to original value within 10 seconds
+				// If it takes ~60 seconds, we're falling back to polling which is a performance regression
+				cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "perftest-composed-configmap", Namespace: metav1.NamespaceDefault}}
+				startTime := time.Now()
+
+				if err := wait.For(conditions.New(cfg.Client().Resources()).ResourceMatch(cm, func(o k8s.Object) bool {
+					u := asUnstructured(o)
+					got, err := fieldpath.Pave(u.Object).GetString("data.testData")
+					return err == nil && got == "initial-value"
+				}), wait.WithTimeout(10*time.Second), wait.WithInterval(200*time.Millisecond)); err != nil {
+					elapsed := time.Since(startTime)
+					t.Fatalf("PERFORMANCE REGRESSION: ConfigMap not reverted within 10s (elapsed: %v) - likely using 60s polling instead of realtime watches: %v", elapsed, err)
+				}
+
+				elapsed := time.Since(startTime)
+				t.Logf("SUCCESS: ConfigMap reverted in %v, indicating realtime reconciliation!", elapsed)
+				return ctx
+			}).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
@@ -331,4 +424,21 @@ func TestNamespacedXRClusterComposition(t *testing.T) {
 			)).
 			Feature(),
 	)
+}
+
+// asUnstructured turns an arbitrary runtime.Object into an *Unstructured. If
+// it's already a concrete *Unstructured it just returns it, otherwise it
+// round-trips it through JSON encoding. This is necessary because types that
+// are registered with our scheme will be returned as Objects backed by the
+// concrete type, whereas types that are not will be returned as *Unstructured.
+func asUnstructured(o runtime.Object) *unstructured.Unstructured {
+	if u, ok := o.(*unstructured.Unstructured); ok {
+		return u
+	}
+
+	u := &unstructured.Unstructured{}
+	j, _ := json.Marshal(o)
+	_ = json.Unmarshal(j, u)
+
+	return u
 }
