@@ -91,6 +91,7 @@ const (
 	reasonRenderCRD   event.Reason = "RenderCRD"
 	reasonEstablishXR event.Reason = "EstablishComposite"
 	reasonTerminateXR event.Reason = "TerminateComposite"
+	reasonRestartXR   event.Reason = "RestartComposite"
 )
 
 // A ControllerEngine can start and stop Kubernetes controllers on demand.
@@ -494,20 +495,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, nil
 	}
 
-	observed := d.Status.Controllers.CompositeResourceTypeRef
+	// Check if XRD has changed since controller was last started
+	if ControllerNeedsRestart(d) {
+		r.record.Event(d, event.Normal(reasonRestartXR, "XRD specification changed; restarting controller to apply updates"))
 
-	desired := v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
-	if observed.APIVersion != "" && observed != desired {
 		if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
 			err = errors.Wrap(err, errStopController)
-			r.record.Event(d, event.Warning(reasonEstablishXR, err))
+			r.record.Event(d, event.Warning(reasonRestartXR, err))
 
 			return reconcile.Result{}, err
 		}
 
-		log.Debug("Referenceable version changed; stopped composite resource controller",
-			"observed-version", observed.APIVersion,
-			"desired-version", desired.APIVersion)
+		log.Debug("XRD generation changed; stopped composite resource controller",
+			"observed-generation", d.GetCondition(v1.TypeEstablished).ObservedGeneration,
+			"current-generation", d.GetGeneration())
 	}
 
 	if r.engine.IsRunning(composite.ControllerName(d.GetName())) {
@@ -629,4 +630,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	status.MarkConditions(v1.WatchingComposite())
 
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+}
+
+// ControllerNeedsRestart returns true if the composite resource controller
+// needs to be restarted based on the XRD's current generation compared to
+// when the controller was last started.
+func ControllerNeedsRestart(d *v1.CompositeResourceDefinition) bool {
+	c := d.GetCondition(v1.TypeEstablished)
+
+	// Only check if we have a WatchingComposite condition
+	if c.Reason != v1.ReasonWatchingComposite {
+		return false
+	}
+
+	// If observedGeneration is 0, the condition was never properly set
+	if c.ObservedGeneration == 0 {
+		return false
+	}
+
+	// Restart needed if the XRD has changed since the controller was started
+	return c.ObservedGeneration != d.GetGeneration()
 }

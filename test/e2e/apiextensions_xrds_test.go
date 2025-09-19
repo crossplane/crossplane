@@ -83,3 +83,57 @@ func TestXRDValidation(t *testing.T) {
 			Feature(),
 	)
 }
+
+func TestXRDReferenceableVersionChange(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/xrd/referenceable-version-change"
+
+	// TODO(negz): https://github.com/crossplane/crossplane/issues/6805
+	// This test would be more robust if it could verify that the WatchingComposite
+	// condition's observedGeneration changes from 1 to 2 when the XRD is updated.
+	// Currently we can only see this in the test logs due to the observedGeneration
+	// workaround in ResourcesHaveConditionWithin.
+
+	environment.Test(t,
+		features.NewWithDescription(
+			"XRDReferenceableVersionChange",
+			"Controller restarts on XRD generation change; composition selection switches from v1 to v2.",
+		).
+			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreateXRDWithV1Referenceable", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/xrd-v1-referenceable.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateXRBeforeChange", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr-before-change.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr-before-change.yaml"),
+				// XR should select v1 composition because referenceable version is v1
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr-before-change.yaml", "spec.crossplane.compositionRef.name", "test-composition-v1"),
+			)).
+			Assess("UpdateXRDToV2Referenceable", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xrd-v2-referenceable.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xrd-v2-referenceable.yaml"),
+				// Wait for controller to restart with new generation
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xrd-v2-referenceable.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateXRAfterChange", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr-after-change.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr-after-change.yaml"),
+				// XR should select v2 composition because referenceable version is v2
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr-after-change.yaml", "spec.crossplane.compositionRef.name", "test-composition-v2"),
+			)).
+			WithTeardown("DeleteResources", funcs.AllOf(
+				// Delete XRs first, then XRD and compositions
+				funcs.DeleteResources(manifests, "xr-*.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "xr-*.yaml"),
+				funcs.DeleteResources(manifests, "xrd-*.yaml"),
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "xrd-*.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
