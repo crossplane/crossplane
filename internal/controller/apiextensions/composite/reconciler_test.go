@@ -1296,7 +1296,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"CircuitBreakerClosed": {
@@ -1326,7 +1327,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 	}
