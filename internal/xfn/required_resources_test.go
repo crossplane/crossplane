@@ -167,6 +167,84 @@ func TestExistingRequiredResourcesFetcherFetch(t *testing.T) {
 				},
 			},
 		},
+		"SuccessMatchLabelsSortedByName": {
+			reason: "We should resources sorted by name when multiple resources are found by labels",
+			args: args{
+				rs: &fnv1.ResourceSelector{
+					ApiVersion: "test.crossplane.io/v1",
+					Kind:       "Foo",
+					Match: &fnv1.ResourceSelector_MatchLabels{
+						MatchLabels: &fnv1.MatchLabels{
+							Labels: map[string]string{
+								"cool": "resource",
+							},
+						},
+					},
+					Namespace: ptr.To("default"),
+				},
+				c: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						obj.(*kunstructured.UnstructuredList).Items = []kunstructured.Unstructured{
+							{
+								Object: map[string]any{
+									"apiVersion": "test.crossplane.io/v1",
+									"kind":       "Foo",
+									"metadata": map[string]any{
+										"name": "b-cool-resource",
+										"labels": map[string]any{
+											"cool": "resource",
+										},
+									},
+								},
+							},
+							{
+								Object: map[string]any{
+									"apiVersion": "test.crossplane.io/v1",
+									"kind":       "Foo",
+									"metadata": map[string]any{
+										"name": "a-cool-resource",
+										"labels": map[string]any{
+											"cool": "resource",
+										},
+									},
+								},
+							},
+						}
+						return nil
+					}),
+				},
+			},
+			want: want{
+				res: &fnv1.Resources{
+					Items: []*fnv1.Resource{
+						{
+							Resource: MustStruct(map[string]any{
+								"apiVersion": "test.crossplane.io/v1",
+								"kind":       "Foo",
+								"metadata": map[string]any{
+									"name": "a-cool-resource",
+									"labels": map[string]any{
+										"cool": "resource",
+									},
+								},
+							}),
+						},
+						{
+							Resource: MustStruct(map[string]any{
+								"apiVersion": "test.crossplane.io/v1",
+								"kind":       "Foo",
+								"metadata": map[string]any{
+									"name": "b-cool-resource",
+									"labels": map[string]any{
+										"cool": "resource",
+									},
+								},
+							}),
+						},
+					},
+				},
+			},
+		},
 		"NotFoundMatchName": {
 			reason: "We should return no error when a resource is not found by name",
 			args: args{
