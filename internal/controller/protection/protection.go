@@ -20,9 +20,9 @@ package protection
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 
-	"github.com/crossplane/crossplane/internal/controller/protection/usage"
+	"github.com/crossplane/crossplane/v2/internal/controller/protection/usage"
 )
 
 // Setup protection controllers.

@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 )
 
 // CompositeResourceScope specifies the scope of a composite resource.
@@ -252,6 +252,7 @@ type CompositeResourceDefinitionControllerStatus struct {
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=xrd;xrds
+// +kubebuilder:deprecatedversion:warning="CompositeResourceDefinition v1 is deprecated and will be removed in a future release; consider migrating to v2"
 type CompositeResourceDefinition struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -278,13 +279,15 @@ func (c *CompositeResourceDefinition) GetCondition(ct xpv1.ConditionType) xpv1.C
 type CompositeResourceDefinitionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []CompositeResourceDefinition `json:"items"`
+
+	Items []CompositeResourceDefinition `json:"items"`
 }
 
 // GetCompositeGroupVersionKind returns the schema.GroupVersionKind of the CRD for
 // the composite resource this CompositeResourceDefinition defines.
 func (c *CompositeResourceDefinition) GetCompositeGroupVersionKind() schema.GroupVersionKind {
 	v := ""
+
 	for _, vr := range c.Spec.Versions {
 		if vr.Referenceable {
 			v = vr.Name
@@ -310,6 +313,7 @@ func (c *CompositeResourceDefinition) GetClaimGroupVersionKind() schema.GroupVer
 	}
 
 	v := ""
+
 	for _, vr := range c.Spec.Versions {
 		if vr.Referenceable {
 			v = vr.Name

@@ -27,12 +27,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/internal/initializer"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/initializer"
 )
 
 const (
@@ -48,18 +48,16 @@ const (
 
 // FunctionHooks performs runtime operations for function packages.
 type FunctionHooks struct {
-	client          resource.ClientApplicator
-	defaultRegistry string
+	client resource.ClientApplicator
 }
 
 // NewFunctionHooks returns a new FunctionHooks.
-func NewFunctionHooks(client client.Client, defaultRegistry string) *FunctionHooks {
+func NewFunctionHooks(client client.Client) *FunctionHooks {
 	return &FunctionHooks{
 		client: resource.ClientApplicator{
 			Client:     client,
 			Applicator: resource.NewAPIPatchingApplicator(client),
 		},
-		defaultRegistry: defaultRegistry,
 	}
 }
 
@@ -68,6 +66,9 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
 		return nil
 	}
+
+	pr.SetObservedTLSServerSecretName(pr.GetTLSServerSecretName())
+	pr.SetObservedTLSClientSecretName(pr.GetTLSClientSecretName())
 
 	// Ensure Prerequisites
 	// Note(turkenh): We need certificates have generated when we get to the
@@ -123,12 +124,13 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 
 	sa := build.ServiceAccount()
 
-	// Determine the function's image, taking into account the default registry.
-	image, err := name.ParseReference(pr.GetResolvedSource(), name.WithDefaultRegistry(h.defaultRegistry))
+	// Determine the function's image.
+	image, err := name.ParseReference(pr.GetResolvedSource(), name.StrictValidation)
 	if err != nil {
 		return errors.Wrap(err, errParseFunctionImage)
 	}
-	d := build.Deployment(sa.Name, functionDeploymentOverrides(image.Name())...)
+
+	d := build.Deployment(sa.Name, functionDeploymentOverrides(pr, image.Name())...)
 	// Create/Apply the SA only if the deployment references it.
 	// This is to avoid creating a SA that is NOT used by the deployment when
 	// the SA is managed externally by the user and configured by setting
@@ -139,6 +141,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 			return errors.Wrap(err, errApplyFunctionSA)
 		}
 	}
+
 	if err := h.client.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyFunctionDeployment)
 	}
@@ -148,9 +151,11 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 			if c.Status == corev1.ConditionTrue {
 				return nil
 			}
+
 			return errors.Errorf(errFmtUnavailableFunctionDeployment, c.Message)
 		}
 	}
+
 	return errors.New(errNoAvailableConditionFunctionDeployment)
 }
 
@@ -177,12 +182,34 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWith
 	return nil
 }
 
-func functionDeploymentOverrides(image string) []DeploymentOverride {
+func functionDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string) []DeploymentOverride {
 	do := []DeploymentOverride{
 		DeploymentRuntimeWithAdditionalPorts([]corev1.ContainerPort{
 			{
 				Name:          GRPCPortName,
 				ContainerPort: GRPCPort,
+			},
+		}),
+		DeploymentRuntimeWithAdditionalEnvironments([]corev1.EnvVar{
+			{
+				Name: "FUNCTION_NAME",
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
+						FieldPath: fmt.Sprintf("metadata.labels['%s']", v1.LabelFunction),
+					},
+				},
+			},
+			{
+				Name: "REVISION_NAME",
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
+						FieldPath: fmt.Sprintf("metadata.labels['%s']", v1.LabelRevision),
+					},
+				},
+			},
+			{
+				Name:  "REVISION_UID",
+				Value: string(pr.GetUID()),
 			},
 		}),
 	}

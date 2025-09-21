@@ -18,6 +18,7 @@ package e2e
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -30,19 +31,18 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/test/e2e/config"
-	"github.com/crossplane/crossplane/test/e2e/funcs"
+	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/test/e2e/config"
+	"github.com/crossplane/crossplane/v2/test/e2e/funcs"
 )
 
 // LabelAreaLifecycle is applied to all 'features' pertaining to managing
 // Crossplane's lifecycle (installing, upgrading, etc).
 const LabelAreaLifecycle = "lifecycle"
-
-const TestSuiteLifecycle = "lifecycle"
 
 // Note: First time Installation is tested as part of the environment setup,
 // if not disabled explicitly.
@@ -56,7 +56,6 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
-			WithLabel(config.LabelTestSuite, TestSuiteLifecycle).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
@@ -67,21 +66,34 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
-			WithSetup("ClaimIsAvailable", funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+			WithSetup("ClaimIsAvailable", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("DeleteClaim", funcs.AllOf(
-				funcs.DeleteResources(manifests, "claim.yaml"),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "claim.yaml"),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
+
+				// TODO(negz): We're seeing composed resources
+				// sticking around after the claim is deleted,
+				// even though the claim is deleting the XR (and
+				// thus its composed resources) with foreground
+				// deletion. How is that possible?
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+					APIVersion: "nop.crossplane.io/v1alpha1",
+					Kind:       "NopResource",
+				}))),
 			)).
-			Assess("DeletePrerequisites",
-				funcs.AllOf(
-					funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList),
-					// Wait for package revisions to be deleted before we
-					// uninstall Crossplane.
-					// TODO(negz): Use foreground deletion?
-					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.ProviderRevisionList{}),
-					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.FunctionRevisionList{}),
-				),
-			).
+			Assess("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+
+				// TODO(negz): We're seeing revisions sticking
+				// around after Crossplane is uninstalled, which
+				// blocks deleting their CRDs. It's unclear how
+				// that's possible given that we're deleting the
+				// packages with foreground deletion, and
+				// waiting for the packages to be gone.
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.ProviderRevisionList{}),
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.FunctionRevisionList{}),
+			)).
 			Assess("UninstallCrossplane", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUninstall(
 					helm.WithName(helmReleaseName),
@@ -145,32 +157,57 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			//  Tracking issue https://github.com/crossplane/crossplane/issues/6506
 			Assess("DeleteProviderNopDeployment", func(ctx context.Context, t *testing.T, e *envconf.Config) context.Context {
 				t.Helper()
-				err := e.Client().Resources("crossplane-system").Delete(ctx, &appsv1.Deployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "provider-nop-lifecycle-upgrade-37f3300ebfa7",
-						Namespace: "crossplane-system",
-					},
-				})
+				ds := &appsv1.DeploymentList{}
+				err := e.Client().Resources("crossplane-system").List(ctx, ds)
 				if client.IgnoreNotFound(err) != nil {
-					t.Errorf("Failed to delete provider-nop-lifecycle-upgrade-37f3300ebfa7 deployment: %v", err)
+					t.Errorf("Failed to list deployments: %v", err)
+				}
+				// Look for anything with the prefix "provider-nop-lifecycle-upgrade" and delete it.
+				for _, d := range ds.Items {
+					if strings.HasPrefix(d.Name, "provider-nop-lifecycle-upgrade") {
+						if err := e.Client().Resources("crossplane-system").Delete(ctx, &d); client.IgnoreNotFound(err) != nil {
+							t.Errorf("Failed to delete %s deployment: %v", d.Name, err)
+						}
+					}
 				}
 				return ctx
 			}).
 			Assess("ProviderIsReady",
 				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			Assess("DeleteClaim", funcs.AllOf(
-				funcs.DeleteResources(manifests, "claim.yaml"),
-				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
+
+				// TODO(negz): We're seeing composed resources
+				// sticking around after the claim is deleted,
+				// even though the claim is deleting the XR (and
+				// thus its composed resources) with foreground
+				// deletion. How is that possible?
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+					APIVersion: "nop.crossplane.io/v1alpha1",
+					Kind:       "NopResource",
+				}))),
 			)).
-			WithTeardown("DeletePrerequisites",
-				funcs.AllOf(
-					funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList),
-					// Wait for package revisions to be deleted before we
-					// uninstall Crossplane.
-					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.ProviderRevisionList{}),
-					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.FunctionRevisionList{}),
-				),
-			).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				// TODO(lsviben): We are deleting the XRD without foreground deletion as it
+				// messes up the deletion, when the XRD version downgrades from v2 to v1. For
+				// some reason, the XRD deletion gets stuck, as the garbage collector is still
+				// trying to delete the XRD with v2 version, which is not available anymore.
+				funcs.DeleteResources(manifests, "setup/definition.yaml"),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/composition.yaml", metav1.DeletePropagationForeground),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/functions.yaml", metav1.DeletePropagationForeground),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/provider.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+
+				// TODO(negz): We're seeing revisions sticking
+				// around after Crossplane is uninstalled, which
+				// blocks deleting their CRDs. It's unclear how
+				// that's possible given that we're deleting the
+				// packages with foreground deletion, and
+				// waiting for the packages to be gone.
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.ProviderRevisionList{}),
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.FunctionRevisionList{}),
+			)).
 			// Uninstalling the Crossplane Helm chart doesn't remove its CRDs. We
 			// want to make sure they can be deleted cleanly. If they can't, it's a
 			// sign something they define might have stuck around.
@@ -220,10 +257,23 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			Assess("CoreCRDsAreEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, crdsDir, "*.yaml", funcs.CRDInitialNamesAccepted())).
 			Assess("ClaimIsStillAvailable", funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("DeleteClaim", funcs.AllOf(
-				funcs.DeleteResources(manifests, "claim.yaml"),
-				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
+
+				// TODO(negz): We're seeing composed resources
+				// sticking around after the claim is deleted,
+				// even though the claim is deleting the XR (and
+				// thus its composed resources) with foreground
+				// deletion. How is that possible?
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+					APIVersion: "nop.crossplane.io/v1alpha1",
+					Kind:       "NopResource",
+				}))),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
 			Feature(),
 	)
 }

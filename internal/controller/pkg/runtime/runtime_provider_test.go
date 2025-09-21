@@ -29,12 +29,11 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/internal/xpkg"
+	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
 
 const (
@@ -112,6 +111,12 @@ func TestProviderPreHook(t *testing.T) {
 							TLSServerSecretName: ptr.To("some-server-secret"),
 						},
 					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSClientSecretName: ptr.To("some-client-secret"),
+							TLSServerSecretName: ptr.To("some-server-secret"),
+						},
+					},
 				},
 			},
 		},
@@ -119,12 +124,13 @@ func TestProviderPreHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewProviderHooks(tc.args.client, xpkg.DefaultRegistry)
-			err := h.Pre(context.TODO(), tc.args.rev, tc.args.manifests)
+			h := NewProviderHooks(tc.args.client)
 
+			err := h.Pre(context.TODO(), tc.args.rev, tc.args.manifests)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.rev, tc.args.rev, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -183,8 +189,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -212,8 +220,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyProviderSA),
@@ -230,8 +240,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -262,8 +274,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyProviderDeployment),
@@ -280,8 +294,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -309,8 +325,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				err: errors.New(errNoAvailableConditionProviderDeployment),
@@ -327,8 +345,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -364,8 +384,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				err: errors.Errorf(errFmtUnavailableProviderDeployment, errBoom.Error()),
@@ -382,8 +404,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -418,8 +442,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 			},
@@ -435,8 +461,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -474,8 +502,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 			},
@@ -491,8 +521,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -557,8 +589,10 @@ func TestProviderPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: providerImage,
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
 					},
 				},
 			},
@@ -567,12 +601,13 @@ func TestProviderPostHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewProviderHooks(tc.args.client, xpkg.DefaultRegistry)
-			err := h.Post(context.TODO(), tc.args.rev, tc.args.manifests)
+			h := NewProviderHooks(tc.args.client)
 
+			err := h.Post(context.TODO(), tc.args.rev, tc.args.manifests)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.rev, tc.args.rev, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -689,12 +724,13 @@ func TestProviderDeactivateHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewProviderHooks(tc.args.client, xpkg.DefaultRegistry)
-			err := h.Deactivate(context.TODO(), tc.args.rev, tc.args.manifests)
+			h := NewProviderHooks(tc.args.client)
 
+			err := h.Deactivate(context.TODO(), tc.args.rev, tc.args.manifests)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.rev, tc.args.rev, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want, +got:\n%s", tc.reason, diff)
 			}

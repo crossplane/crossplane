@@ -24,13 +24,14 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 )
 
 func TestIndexCompositeResourcesRefs(t *testing.T) {
 	type args struct {
 		object client.Object
 	}
+
 	tests := map[string]struct {
 		schema composite.Schema
 		args   args

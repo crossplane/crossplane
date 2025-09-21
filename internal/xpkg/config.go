@@ -6,9 +6,9 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 )
 
 const (
@@ -121,10 +121,12 @@ func (s *ImageConfigStore) RewritePath(ctx context.Context, image string) (image
 	// Find the longest prefix match in the selected image config; this is what
 	// we'll replace.
 	matchPrefix := ""
+
 	for _, m := range config.Spec.MatchImages {
 		if !strings.HasPrefix(image, m.Prefix) {
 			continue
 		}
+
 		if len(m.Prefix) > len(matchPrefix) {
 			matchPrefix = m.Prefix
 		}
@@ -142,8 +144,10 @@ func (s *ImageConfigStore) bestMatch(ctx context.Context, image string, valid is
 		return nil, errors.Wrap(err, errListImageConfigs)
 	}
 
-	var config *v1beta1.ImageConfig
-	var longest int
+	var (
+		config  *v1beta1.ImageConfig
+		longest int
+	)
 
 	for _, c := range l.Items {
 		if !valid(&c) {

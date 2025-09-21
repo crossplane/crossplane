@@ -26,11 +26,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 )
+
+// hasPullSecret returns true if the ImageConfig has authentication with a pull secret.
+func hasPullSecret(ic *v1beta1.ImageConfig) bool {
+	if ic.Spec.Registry == nil {
+		return false
+	}
+	if ic.Spec.Registry.Authentication == nil {
+		return false
+	}
+	return ic.Spec.Registry.Authentication.PullSecretRef.Name != ""
+}
+
+// hasRewriteRules returns true if the ImageConfig has image rewrite rules.
+func hasRewriteRules(ic *v1beta1.ImageConfig) bool {
+	return ic.Spec.RewriteImage != nil
+}
 
 // EnqueuePackageRevisionsForImageConfig enqueues a reconcile for all package
 // revisions an ImageConfig applies to.
@@ -40,8 +56,8 @@ func EnqueuePackageRevisionsForImageConfig(kube client.Client, l v1.PackageRevis
 		if !ok {
 			return nil
 		}
-		// We only care about ImageConfigs that have a pull secret.
-		if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
+		// We only care about ImageConfigs that have a pull secret or rewrite rules.
+		if !hasPullSecret(ic) && !hasRewriteRules(ic) {
 			return nil
 		}
 		// Enqueue all package revisions matching the prefixes in the ImageConfig.
@@ -54,6 +70,7 @@ func EnqueuePackageRevisionsForImageConfig(kube client.Client, l v1.PackageRevis
 		}
 
 		var matches []reconcile.Request
+
 		for _, rev := range rl.GetRevisions() {
 			for _, m := range ic.Spec.MatchImages {
 				if strings.HasPrefix(rev.GetSource(), m.Prefix) || strings.HasPrefix(rev.GetResolvedSource(), m.Prefix) {
@@ -65,6 +82,7 @@ func EnqueuePackageRevisionsForImageConfig(kube client.Client, l v1.PackageRevis
 				}
 			}
 		}
+
 		return matches
 	})
 }
@@ -88,6 +106,7 @@ func EnqueuePackageRevisionsForLock(kube client.Client, l v1.PackageRevisionList
 		for _, rev := range rl.GetRevisions() {
 			matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: rev.GetName()}})
 		}
+
 		return matches
 	})
 }

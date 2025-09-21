@@ -17,6 +17,7 @@ limitations under the License.
 package runtime
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -24,25 +25,27 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	"github.com/crossplane/crossplane/internal/controller/pkg/revision"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
 )
 
 const (
 	namespace = "crossplane-system"
 
-	providerImage        = "crossplane/provider-foo:v1.2.3"
-	providerName         = "upbound-provider-foo"
-	providerMetaName     = "provider-foo"
+	providerImage        = "xpkg.crossplane.io/crossplane/provider-foo:v1.2.3"
+	providerName         = "crossplane-provider-foo"
 	providerRevisionName = "provider-foo-1234"
+	providerRevisionUID  = "12345678-1234-1234-1234-123456789012"
 
-	functionImage        = "crossplane/function-foo:v1.2.3"
+	functionImage        = "xpkg.crossplane.io/crossplane/function-foo:v1.2.3"
 	functionName         = "function-foo"
 	functionRevisionName = "function-foo-1234"
+	functionRevisionUID  = "98765432-1234-1234-1234-210987654321"
 
 	tlsServerSecretName = "tls-server-secret"
 	tlsClientSecretName = "tls-client-secret"
@@ -59,12 +62,15 @@ var (
 			Labels: map[string]string{
 				v1.LabelParentPackage: providerName,
 			},
+			UID: types.UID(providerRevisionUID),
 		},
 		Spec: v1.ProviderRevisionSpec{
 			PackageRevisionSpec: v1.PackageRevisionSpec{
 				Package: providerImage,
 			},
-			PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+		},
+		Status: v1.ProviderRevisionStatus{
+			PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
 				TLSServerSecretName: ptr.To(tlsServerSecretName),
 				TLSClientSecretName: ptr.To(tlsClientSecretName),
 			},
@@ -81,12 +87,15 @@ var (
 			Labels: map[string]string{
 				v1.LabelParentPackage: functionName,
 			},
+			UID: types.UID(functionRevisionUID),
 		},
 		Spec: v1.FunctionRevisionSpec{
 			PackageRevisionSpec: v1.PackageRevisionSpec{
 				Package: functionImage,
 			},
-			PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+		},
+		Status: v1.FunctionRevisionStatus{
+			PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
 				TLSServerSecretName: ptr.To(tlsServerSecretName),
 			},
 		},
@@ -99,9 +108,11 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 		overrides          []DeploymentOverride
 		serviceAccountName string
 	}
+
 	type want struct {
 		want *appsv1.Deployment
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -119,8 +130,8 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
-					"pkg.crossplane.io/provider": providerName,
-					"pkg.crossplane.io/revision": providerRevisionName,
+					v1.LabelProvider: providerName,
+					v1.LabelRevision: providerRevisionName,
 				})),
 			},
 		},
@@ -171,8 +182,8 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
-					"pkg.crossplane.io/provider": providerName,
-					"pkg.crossplane.io/revision": providerRevisionName,
+					v1.LabelProvider: providerName,
+					v1.LabelRevision: providerRevisionName,
 				}), func(deployment *appsv1.Deployment) {
 					deployment.Spec.Replicas = ptr.To[int32](3)
 					deployment.Spec.Template.Labels["k"] = "v"
@@ -212,8 +223,8 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
-					"pkg.crossplane.io/provider": providerName,
-					"pkg.crossplane.io/revision": providerRevisionName,
+					v1.LabelProvider: providerName,
+					v1.LabelRevision: providerRevisionName,
 				}), func(deployment *appsv1.Deployment) {
 					deployment.Spec.Template.Annotations = map[string]string{
 						"prometheus.io/scrape": "false",
@@ -288,8 +299,8 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
-					"pkg.crossplane.io/provider": providerName,
-					"pkg.crossplane.io/revision": providerRevisionName,
+					v1.LabelProvider: providerName,
+					v1.LabelRevision: providerRevisionName,
 				}), func(deployment *appsv1.Deployment) {
 					deployment.Name = "my-provider-foo"
 					deployment.Labels = map[string]string{
@@ -328,7 +339,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					namespace: namespace,
 				},
 				serviceAccountName: functionRevisionName,
-				overrides:          functionDeploymentOverrides(functionImage),
+				overrides:          functionDeploymentOverrides(functionRevision, functionImage),
 			},
 			want: want{
 				want: deploymentFunction(functionName, functionRevisionName, functionImage),
@@ -351,9 +362,11 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 		overrides          []ServiceOverride
 		serviceAccountName string
 	}
+
 	type want struct {
 		want *corev1.Service
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -388,6 +401,7 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 								APIVersion:         "pkg.crossplane.io/v1",
 								Kind:               "ProviderRevision",
 								Name:               providerRevisionName,
+								UID:                types.UID(providerRevisionUID),
 								Controller:         ptr.To(true),
 								BlockOwnerDeletion: ptr.To(true),
 							},
@@ -395,8 +409,8 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 					},
 					Spec: corev1.ServiceSpec{
 						Selector: map[string]string{
-							"pkg.crossplane.io/provider": providerName,
-							"pkg.crossplane.io/revision": providerRevisionName,
+							v1.LabelProvider: providerName,
+							v1.LabelRevision: providerRevisionName,
 						},
 						Ports: []corev1.ServicePort{
 							{
@@ -431,6 +445,7 @@ func deploymentProvider(provider string, rev string, image string, overrides ...
 					APIVersion:         "pkg.crossplane.io/v1",
 					Kind:               "ProviderRevision",
 					Name:               rev,
+					UID:                types.UID(providerRevisionUID),
 					Controller:         ptr.To(true),
 					BlockOwnerDeletion: ptr.To(true),
 				},
@@ -440,8 +455,8 @@ func deploymentProvider(provider string, rev string, image string, overrides ...
 			Replicas: ptr.To[int32](1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"pkg.crossplane.io/revision": rev,
-					"pkg.crossplane.io/provider": provider,
+					v1.LabelRevision: rev,
+					v1.LabelProvider: provider,
 				},
 			},
 			Template: corev1.PodTemplateSpec{
@@ -452,8 +467,8 @@ func deploymentProvider(provider string, rev string, image string, overrides ...
 						"prometheus.io/path":   "/metrics",
 					},
 					Labels: map[string]string{
-						"pkg.crossplane.io/revision": rev,
-						"pkg.crossplane.io/provider": provider,
+						v1.LabelRevision: rev,
+						v1.LabelProvider: provider,
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -494,6 +509,26 @@ func deploymentProvider(provider string, rev string, image string, overrides ...
 											FieldPath: "metadata.namespace",
 										},
 									},
+								},
+								{
+									Name: "PROVIDER_NAME",
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
+											FieldPath: fmt.Sprintf("metadata.labels['%s']", v1.LabelProvider),
+										},
+									},
+								},
+								{
+									Name: "REVISION_NAME",
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
+											FieldPath: fmt.Sprintf("metadata.labels['%s']", v1.LabelRevision),
+										},
+									},
+								},
+								{
+									Name:  "REVISION_UID",
+									Value: providerRevisionUID,
 								},
 								{
 									Name:  "ESS_TLS_CERTS_DIR",
@@ -593,6 +628,7 @@ func deploymentFunction(function string, rev string, image string, overrides ...
 					APIVersion:         "pkg.crossplane.io/v1beta1",
 					Kind:               "FunctionRevision",
 					Name:               rev,
+					UID:                types.UID(functionRevisionUID),
 					Controller:         ptr.To(true),
 					BlockOwnerDeletion: ptr.To(true),
 				},
@@ -602,15 +638,15 @@ func deploymentFunction(function string, rev string, image string, overrides ...
 			Replicas: ptr.To[int32](1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"pkg.crossplane.io/revision": rev,
-					"pkg.crossplane.io/function": function,
+					v1.LabelRevision: rev,
+					v1.LabelFunction: function,
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"pkg.crossplane.io/revision": rev,
-						"pkg.crossplane.io/function": function,
+						v1.LabelRevision: rev,
+						v1.LabelFunction: function,
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -639,6 +675,26 @@ func deploymentFunction(function string, rev string, image string, overrides ...
 								{
 									Name:  "TLS_SERVER_CERTS_DIR",
 									Value: "/tls/server",
+								},
+								{
+									Name: "FUNCTION_NAME",
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
+											FieldPath: fmt.Sprintf("metadata.labels['%s']", v1.LabelFunction),
+										},
+									},
+								},
+								{
+									Name: "REVISION_NAME",
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
+											FieldPath: fmt.Sprintf("metadata.labels['%s']", v1.LabelRevision),
+										},
+									},
+								},
+								{
+									Name:  "REVISION_UID",
+									Value: functionRevisionUID,
 								},
 							},
 							VolumeMounts: []corev1.VolumeMount{

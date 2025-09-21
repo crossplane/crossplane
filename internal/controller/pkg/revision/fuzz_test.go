@@ -27,15 +27,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/parser"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	"github.com/crossplane/crossplane/internal/dag"
-	dagfake "github.com/crossplane/crossplane/internal/dag/fake"
-	"github.com/crossplane/crossplane/internal/xpkg"
+	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/dag"
+	dagfake "github.com/crossplane/crossplane/v2/internal/dag/fake"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 var (
@@ -46,10 +46,12 @@ var (
 
 func init() {
 	var err error
+
 	metaScheme, err = xpkg.BuildMetaScheme()
 	if err != nil {
 		panic(err)
 	}
+
 	objScheme, err = xpkg.BuildObjectScheme()
 	if err != nil {
 		panic(err)
@@ -58,15 +60,19 @@ func init() {
 
 func newFuzzDag(ff *fuzz.ConsumeFuzzer) (func() dag.DAG, error) {
 	traceNodeMap := make(map[string]dag.Node)
+
 	err := ff.FuzzMap(&traceNodeMap)
 	if err != nil {
 		return func() dag.DAG { return nil }, err
 	}
+
 	lp := &v1beta1.LockPackage{}
+
 	err = ff.GenerateStruct(lp)
 	if err != nil {
 		return func() dag.DAG { return nil }, err
 	}
+
 	return func() dag.DAG {
 		return &dagfake.MockDag{
 			MockInit: func(_ []dag.Node) ([]dag.Node, error) {
@@ -88,9 +94,11 @@ func newFuzzDag(ff *fuzz.ConsumeFuzzer) (func() dag.DAG, error) {
 func getFuzzMockClient(ff *fuzz.ConsumeFuzzer) (*test.MockClient, error) {
 	lockPackages := make([]v1beta1.LockPackage, 0)
 	ff.CreateSlice(&lockPackages)
+
 	if len(lockPackages) == 0 {
 		return nil, errors.New("No packages created")
 	}
+
 	return &test.MockClient{
 		MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 			l := obj.(*v1beta1.Lock)
@@ -106,16 +114,20 @@ func FuzzRevisionControllerPackageHandling(f *testing.F) {
 		ff := fuzz.NewConsumer(revisionData)
 		p := parser.New(metaScheme, objScheme)
 		r := io.NopCloser(bytes.NewReader(data))
+
 		pkg, err := p.Parse(context.Background(), r)
 		if err != nil {
 			return
 		}
+
 		if len(pkg.GetMeta()) == 0 {
 			return
 		}
+
 		if len(pkg.GetObjects()) == 0 {
 			return
 		}
+
 		prs := &v1.PackageRevisionSpec{}
 		ff.GenerateStruct(prs)
 		pr := &v1.ConfigurationRevision{Spec: *prs}
@@ -123,7 +135,9 @@ func FuzzRevisionControllerPackageHandling(f *testing.F) {
 		if err := linter.Lint(pkg); err != nil {
 			return
 		}
+
 		pkgMeta, _ := xpkg.TryConvertToPkg(pkg.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{})
+
 		c, err := getFuzzMockClient(ff)
 		if err != nil {
 			return
@@ -133,6 +147,7 @@ func FuzzRevisionControllerPackageHandling(f *testing.F) {
 		if err != nil {
 			return
 		}
+
 		pm := &PackageDependencyManager{
 			client: c,
 			newDag: fd,

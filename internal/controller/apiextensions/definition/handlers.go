@@ -22,103 +22,117 @@ import (
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	kevent "sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 )
 
-// EnqueueForCompositionRevision enqueues reconciles for all XRs that will use a
-// newly created CompositionRevision.
-func EnqueueForCompositionRevision(of schema.GroupVersionKind, s composite.Schema, c client.Reader, log logging.Logger) handler.Funcs {
-	return handler.Funcs{
-		CreateFunc: func(ctx context.Context, e kevent.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-			rev, ok := e.Object.(*v1.CompositionRevision)
-			if !ok {
-				return
+// CompositionRevisionMapFunc returns a MapFunc that maps CompositionRevisions to affected XRs.
+func CompositionRevisionMapFunc(of schema.GroupVersionKind, s composite.Schema, c client.Reader, log logging.Logger) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		rev, ok := obj.(*v1.CompositionRevision)
+		if !ok {
+			return nil
+		}
+
+		// We don't know what composition this revision is for,
+		// so we can't determine whether an XR might use it.
+		// This should never happen in practice - the
+		// composition controller sets this label when it
+		// creates a revision.
+		compName := rev.Labels[v1.LabelCompositionName]
+		if compName == "" {
+			return nil
+		}
+
+		// This handler is for a specific type of XR. This
+		// revision isn't compatible with that type.
+		if rev.Spec.CompositeTypeRef.APIVersion != of.GroupVersion().String() {
+			return nil
+		}
+		if rev.Spec.CompositeTypeRef.Kind != of.Kind {
+			return nil
+		}
+
+		xrs := kunstructured.UnstructuredList{}
+		xrs.SetGroupVersionKind(of)
+		xrs.SetKind(of.Kind + "List")
+		// TODO(negz): Index XRs by composition revision name?
+		if err := c.List(ctx, &xrs); err != nil {
+			// Logging is most we can do here. This is a programming error if it happens.
+			log.Info("cannot list in CompositionRevision handler", "type", of.String(), "error", err)
+			return nil
+		}
+
+		requests := make([]reconcile.Request, 0)
+		for _, u := range xrs.Items {
+			xr := composite.Unstructured{Unstructured: u, Schema: s}
+
+			// We only care about XRs that would
+			// automatically update to this new revision.
+			if pol := xr.GetCompositionUpdatePolicy(); pol != nil && *pol == xpv1.UpdateManual {
+				continue
 			}
 
-			// We don't know what composition this revision is for,
-			// so we can't determine whether an XR might use it.
-			// This should never happen in practice - the
-			// composition controller sets this label when it
-			// creates a revision.
-			compName := rev.Labels[v1.LabelCompositionName]
-			if compName == "" {
-				return
+			// We only care about XRs that reference the
+			// composition this revision derives from.
+			if ref := xr.GetCompositionReference(); ref == nil || ref.Name != compName {
+				continue
 			}
 
-			// This handler is for a specific type of XR. This
-			// revisionisn't compatible with that type.
-			if rev.Spec.CompositeTypeRef.APIVersion != of.GroupVersion().String() {
-				return
-			}
-			if rev.Spec.CompositeTypeRef.Kind != of.Kind {
-				return
-			}
+			requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{
+				Name:      xr.GetName(),
+				Namespace: xr.GetNamespace(),
+			}})
+		}
 
-			xrs := kunstructured.UnstructuredList{}
-			xrs.SetGroupVersionKind(of)
-			xrs.SetKind(of.Kind + "List")
-			// TODO(negz): Index XRs by composition revision name?
-			if err := c.List(ctx, &xrs); err != nil {
-				// Logging is most we can do here. This is a programming error if it happens.
-				log.Info("cannot list in CompositionRevision handler", "type", of.String(), "error", err)
-				return
-			}
-
-			for _, u := range xrs.Items {
-				xr := composite.Unstructured{Unstructured: u, Schema: s}
-
-				// We only care about XRs that would
-				// automatically update to this new revision.
-				if pol := xr.GetCompositionUpdatePolicy(); pol != nil && *pol == xpv1.UpdateManual {
-					continue
-				}
-
-				// We only care about XRs that reference the
-				// composition this revision derives from.
-				if ref := xr.GetCompositionReference(); ref == nil || ref.Name != compName {
-					continue
-				}
-
-				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{
-					Name:      xr.GetName(),
-					Namespace: xr.GetNamespace(),
-				}})
-			}
-		},
+		return requests
 	}
 }
 
-// EnqueueCompositeResources enqueues reconciles for all XRs that reference an
-// updated composed resource.
-func EnqueueCompositeResources(of schema.GroupVersionKind, c client.Reader, log logging.Logger) handler.Funcs {
-	return handler.Funcs{
-		UpdateFunc: func(ctx context.Context, ev kevent.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-			xrGVK := of
-			cdGVK := ev.ObjectNew.GetObjectKind().GroupVersionKind()
-			key := refKey(ev.ObjectNew.GetNamespace(), ev.ObjectNew.GetName(), cdGVK.Kind, cdGVK.GroupVersion().String())
+// SelfMapFunc returns a MapFunc that maps an object to itself for reconciliation.
+// This is equivalent to handler.EnqueueRequestForObject but as a MapFunc.
+func SelfMapFunc() handler.MapFunc {
+	return func(_ context.Context, obj client.Object) []reconcile.Request {
+		return []reconcile.Request{{
+			NamespacedName: types.NamespacedName{
+				Name:      obj.GetName(),
+				Namespace: obj.GetNamespace(),
+			},
+		}}
+	}
+}
 
-			composites := kunstructured.UnstructuredList{}
-			composites.SetGroupVersionKind(xrGVK.GroupVersion().WithKind(xrGVK.Kind + "List"))
-			if err := c.List(ctx, &composites, client.MatchingFields{compositeResourcesRefsIndex: key}); err != nil {
-				log.Debug("cannot list composite resources related to a composed resource change", "error", err, "gvk", xrGVK.String(), "fieldSelector", compositeResourcesRefsIndex+"="+key)
-				return
-			}
+// CompositeResourcesMapFunc returns a MapFunc that maps composed resources to affected XRs.
+func CompositeResourcesMapFunc(of schema.GroupVersionKind, c client.Reader, log logging.Logger) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		cdGVK := obj.GetObjectKind().GroupVersionKind()
+		key := refKey(obj.GetNamespace(), obj.GetName(), cdGVK.Kind, cdGVK.GroupVersion().String())
 
-			// queue those composites for reconciliation
-			for _, xr := range composites.Items {
-				log.Debug("Enqueueing composite resource because composed resource changed", "name", xr.GetName(), "cdGVK", cdGVK.String(), "cdName", ev.ObjectNew.GetName())
-				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: xr.GetName()}})
-			}
-		},
+		composites := kunstructured.UnstructuredList{}
+		composites.SetGroupVersionKind(of.GroupVersion().WithKind(of.Kind + "List"))
+		if err := c.List(ctx, &composites, client.MatchingFields{compositeResourcesRefsIndex: key}); err != nil {
+			log.Debug("cannot list composite resources related to a composed resource change", "error", err, "gvk", of.String(), "fieldSelector", compositeResourcesRefsIndex+"="+key)
+			return nil
+		}
+
+		requests := make([]reconcile.Request, len(composites.Items))
+		for i, xr := range composites.Items {
+			log.Debug("Mapping composite resource because composed resource changed",
+				"namespace", xr.GetNamespace(),
+				"name", xr.GetName(),
+				"cdGVK", cdGVK.String(),
+				"cdName", obj.GetName(),
+			)
+			requests[i] = reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&xr)}
+		}
+
+		return requests
 	}
 }

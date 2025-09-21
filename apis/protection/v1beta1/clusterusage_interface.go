@@ -19,9 +19,9 @@ limitations under the License.
 package v1beta1
 
 import (
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 
-	"github.com/crossplane/crossplane/internal/protection"
+	"github.com/crossplane/crossplane/v2/internal/protection"
 )
 
 // GetUserOf gets the resource this ClusterUsage indicates a use of.
@@ -41,8 +41,10 @@ func (u *ClusterUsage) GetUsedBy() *protection.Resource {
 	if u.Spec.By == nil {
 		return nil
 	}
+
 	conv := GeneratedResourceConverter{}
 	out := conv.ToInternal(*u.Spec.By)
+
 	return &out
 }
 
@@ -52,6 +54,7 @@ func (u *ClusterUsage) SetUsedBy(r *protection.Resource) {
 		u.Spec.By = nil
 		return
 	}
+
 	conv := GeneratedResourceConverter{}
 	out := conv.FromInternal(*r)
 	u.Spec.By = &out

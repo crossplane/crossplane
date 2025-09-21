@@ -26,11 +26,11 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/parser"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/internal/xpkg"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 const (
@@ -55,19 +55,11 @@ const (
 
 // ImageBackend is a backend for parser.
 type ImageBackend struct {
-	registry string
-	fetcher  xpkg.Fetcher
+	fetcher xpkg.Fetcher
 }
 
 // An ImageBackendOption sets configuration for an image backend.
 type ImageBackendOption func(i *ImageBackend)
-
-// WithDefaultRegistry sets the default registry that an image backend will use.
-func WithDefaultRegistry(registry string) ImageBackendOption {
-	return func(i *ImageBackend) {
-		i.registry = registry
-	}
-}
 
 // NewImageBackend creates a new image backend.
 func NewImageBackend(fetcher xpkg.Fetcher, opts ...ImageBackendOption) *ImageBackend {
@@ -77,6 +69,7 @@ func NewImageBackend(fetcher xpkg.Fetcher, opts ...ImageBackendOption) *ImageBac
 	for _, opt := range opts {
 		opt(i)
 	}
+
 	return i
 }
 
@@ -96,7 +89,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	}
 	// Use the package recorded in the status rather than the one from the spec,
 	// since it may have been rewritten by an image config.
-	ref, err := name.ParseReference(n.pr.GetResolvedSource(), name.WithDefaultRegistry(i.registry))
+	ref, err := name.ParseReference(n.pr.GetResolvedSource(), name.StrictValidation)
 	if err != nil {
 		return nil, errors.Wrap(err, errBadReference)
 	}
@@ -105,6 +98,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	if n.pullSecretFromConfig != "" {
 		ps = append(ps, n.pullSecretFromConfig)
 	}
+
 	img, err := i.fetcher.Fetch(ctx, ref, ps...)
 	if err != nil {
 		return nil, errors.Wrap(err, errFetchPackage)
@@ -122,7 +116,9 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 
 	// Determine if the image is using annotated layers.
 	var tarc io.ReadCloser
+
 	foundAnnotated := false
+
 	for _, l := range manifest.Layers {
 		if a, ok := l.Annotations[layerAnnotation]; !ok || a != baseAnnotationValue {
 			continue
@@ -135,14 +131,18 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 		if foundAnnotated {
 			return nil, errors.New(errMultipleAnnotatedLayers)
 		}
+
 		foundAnnotated = true
+
 		layer, err := img.LayerByDigest(l.Digest)
 		if err != nil {
 			return nil, errors.Wrap(err, errFetchLayer)
 		}
+
 		if err := validate.Layer(layer); err != nil {
 			return nil, errors.Wrap(err, errValidateLayer)
 		}
+
 		tarc, err = layer.Uncompressed()
 		if err != nil {
 			return nil, errors.Wrap(err, errGetUncompressed)
@@ -154,6 +154,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 		if err := validate.Image(img); err != nil {
 			return nil, errors.Wrap(err, errValidateImage)
 		}
+
 		tarc = mutate.Extract(img)
 	}
 
@@ -161,15 +162,19 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	// layer contents or flattened filesystem content. Either way, we only want
 	// the package YAML stream.
 	t := tar.NewReader(tarc)
+
 	var read int
+
 	for {
 		h, err := t.Next()
 		if err != nil {
 			return nil, errors.Wrapf(err, errFmtNoPackageFileFound, read, foundAnnotated)
 		}
+
 		if filepath.Base(h.Name) == xpkg.StreamFile {
 			break
 		}
+
 		read++
 	}
 
@@ -202,6 +207,7 @@ func PackageRevision(pr v1.PackageRevision) parser.BackendOption {
 		if !ok {
 			return
 		}
+
 		i.pr = pr
 	}
 }
@@ -213,6 +219,7 @@ func PullSecretFromConfig(secret string) parser.BackendOption {
 		if !ok {
 			return
 		}
+
 		i.pullSecretFromConfig = secret
 	}
 }

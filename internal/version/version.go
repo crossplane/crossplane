@@ -59,9 +59,11 @@ func (v *Versioner) InConstraints(c string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	constraint, err := semver.NewConstraint(c)
 	if err != nil {
 		return false, err
 	}
+
 	return constraint.Check(ver), nil
 }

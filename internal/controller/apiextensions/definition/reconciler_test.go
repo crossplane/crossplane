@@ -30,12 +30,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/engine"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/internal/engine"
 )
 
 var (
@@ -53,6 +53,7 @@ type MockEngine struct {
 	MockGetCached       func() client.Client
 	MockGetUncached     func() client.Client
 	MockGetFieldIndexer func() client.FieldIndexer
+	MockIsAuthorizedFor func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) (bool, error)
 }
 
 func (m *MockEngine) IsRunning(name string) bool {
@@ -91,6 +92,10 @@ func (m *MockEngine) GetFieldIndexer() client.FieldIndexer {
 	return m.MockGetFieldIndexer()
 }
 
+func (m *MockEngine) IsAuthorizedFor(ctx context.Context, gvk schema.GroupVersionKind, namespace string) (bool, error) {
+	return m.MockIsAuthorizedFor(ctx, gvk, namespace)
+}
+
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
@@ -101,6 +106,7 @@ func TestReconcile(t *testing.T) {
 		ca   resource.ClientApplicator
 		opts []ReconcilerOption
 	}
+
 	type want struct {
 		r   reconcile.Result
 		err error
@@ -599,12 +605,15 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"VersionChangedStopControllerError": {
-			reason: "We should return any error we encounter while stopping our controller because the XRD's referenceable version changed.",
+			reason: "We should return any error we encounter while stopping our controller because the XRD generation changed.",
 			args: args{
 				ca: resource.ClientApplicator{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							xrd := &v1.CompositeResourceDefinition{
+								ObjectMeta: metav1.ObjectMeta{
+									Generation: 5, // Current generation
+								},
 								Spec: v1.CompositeResourceDefinitionSpec{
 									Group: "example.org",
 									Names: extv1.CustomResourceDefinitionNames{
@@ -623,12 +632,16 @@ func TestReconcile(t *testing.T) {
 								Status: v1.CompositeResourceDefinitionStatus{
 									Controllers: v1.CompositeResourceDefinitionControllerStatus{
 										CompositeResourceTypeRef: v1.TypeReference{
-											APIVersion: "example.org/v1",
+											APIVersion: "example.org/v2",
 											Kind:       "XR",
 										},
 									},
 								},
 							}
+							// Set a WatchingComposite condition with old generation
+							c := v1.WatchingComposite()
+							c.ObservedGeneration = 3 // Older generation to trigger restart
+							xrd.SetConditions(c)
 
 							*obj.(*v1.CompositeResourceDefinition) = *xrd
 							return nil
@@ -902,13 +915,106 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.ca, tc.args.opts...)
-			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestControllerNeedsRestart(t *testing.T) {
+	type args struct {
+		d *v1.CompositeResourceDefinition
+	}
+	type want struct {
+		restart bool
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NoCondition": {
+			reason: "Should return false when no Established condition exists",
+			args: args{
+				d: &v1.CompositeResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{Generation: 5},
+				},
+			},
+			want: want{restart: false},
+		},
+		"WrongConditionReason": {
+			reason: "Should return false when Established condition has wrong reason",
+			args: args{
+				d: func() *v1.CompositeResourceDefinition {
+					d := &v1.CompositeResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Generation: 5},
+					}
+					d.SetConditions(v1.TerminatingComposite())
+					return d
+				}(),
+			},
+			want: want{restart: false},
+		},
+		"ZeroObservedGeneration": {
+			reason: "Should return false when observedGeneration is 0",
+			args: args{
+				d: func() *v1.CompositeResourceDefinition {
+					d := &v1.CompositeResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Generation: 5},
+					}
+					c := v1.WatchingComposite()
+					c.ObservedGeneration = 0
+					d.SetConditions(c)
+					return d
+				}(),
+			},
+			want: want{restart: false},
+		},
+		"SameGeneration": {
+			reason: "Should return false when observedGeneration matches current generation",
+			args: args{
+				d: func() *v1.CompositeResourceDefinition {
+					d := &v1.CompositeResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Generation: 5},
+					}
+					c := v1.WatchingComposite()
+					c.ObservedGeneration = 5
+					d.SetConditions(c)
+					return d
+				}(),
+			},
+			want: want{restart: false},
+		},
+		"DifferentGeneration": {
+			reason: "Should return true when observedGeneration differs from current generation",
+			args: args{
+				d: func() *v1.CompositeResourceDefinition {
+					d := &v1.CompositeResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Generation: 5},
+					}
+					c := v1.WatchingComposite()
+					c.ObservedGeneration = 3
+					d.SetConditions(c)
+					return d
+				}(),
+			},
+			want: want{restart: true},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := ControllerNeedsRestart(tc.args.d)
+			if diff := cmp.Diff(tc.want.restart, got); diff != "" {
+				t.Errorf("\n%s\nControllerNeedsRestart(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

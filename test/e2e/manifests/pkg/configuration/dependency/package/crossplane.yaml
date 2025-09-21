@@ -7,9 +7,6 @@
 # ❯ echo $CR_PAT | docker login ghcr.io -u <user> --password-stdin
 # ❯ crossplane xpkg build -o e2e-depends-on-provider-nop.xpkg
 # ❯ crossplane xpkg push -f e2e-depends-on-provider-nop.xpkg ghcr.io/crossplane/e2e-depends-on-provider-nop:v0.3.1
-#
-# The dependency does not specify a registry, so the default registry will be
-# used during installation.
 apiVersion: meta.pkg.crossplane.io/v1
 kind: Configuration
 metadata:
@@ -18,5 +15,5 @@ spec:
   dependsOn:
   - apiVersion: pkg.crossplane.io/v1
     kind: Provider
-    package: crossplane-contrib/provider-nop
+    package: xpkg.upbound.io/crossplane-contrib/provider-nop
     version: "=v0.3.1"

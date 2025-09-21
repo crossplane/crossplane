@@ -18,6 +18,7 @@ limitations under the License.
 package validate
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,11 +27,11 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/internal/version"
-	"github.com/crossplane/crossplane/internal/xpkg"
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/load"
+	"github.com/crossplane/crossplane/v2/internal/version"
 )
 
 // Cmd arguments and flags for render subcommand.
@@ -99,11 +100,11 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	}
 
 	if len(c.CrossplaneImage) < 1 {
-		c.CrossplaneImage = fmt.Sprintf("%s/crossplane/crossplane:%s", xpkg.DefaultRegistry, version.New().GetVersionString())
+		c.CrossplaneImage = fmt.Sprintf("xpkg.crossplane.io/crossplane/crossplane:%s", version.New().GetVersionString())
 	}
 
 	// Load all extensions
-	extensionLoader, err := NewLoader(c.Extensions)
+	extensionLoader, err := load.NewLoader(c.Extensions)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load extensions from %q", c.Extensions)
 	}
@@ -114,7 +115,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	}
 
 	// Load all resources
-	resourceLoader, err := NewLoader(c.Resources)
+	resourceLoader, err := load.NewLoader(c.Resources)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load resources from %q", c.Resources)
 	}
@@ -142,7 +143,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	}
 
 	// Validate resources against schemas
-	if err := SchemaValidation(resources, m.crds, c.ErrorOnMissingSchemas, c.SkipSuccessResults, k.Stdout); err != nil {
+	if err := SchemaValidation(context.Background(), resources, m.crds, c.ErrorOnMissingSchemas, c.SkipSuccessResults, k.Stdout); err != nil {
 		return errors.Wrapf(err, "cannot validate resources")
 	}
 

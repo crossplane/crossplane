@@ -18,26 +18,32 @@ const (
 func MappingFor(rmapper meta.RESTMapper, resourceOrKindArg string) (*meta.RESTMapping, error) {
 	// TODO(phisco): actually use the Builder.
 	fullySpecifiedGVR, groupResource := schema.ParseResourceArg(resourceOrKindArg)
+
 	gvk := schema.GroupVersionKind{}
 	if fullySpecifiedGVR != nil {
 		gvk, _ = rmapper.KindFor(*fullySpecifiedGVR)
 	}
+
 	if gvk.Empty() {
 		gvk, _ = rmapper.KindFor(groupResource.WithVersion(""))
 	}
+
 	if !gvk.Empty() {
 		return rmapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	}
+
 	fullySpecifiedGVK, groupKind := schema.ParseKindArg(resourceOrKindArg)
 	if fullySpecifiedGVK == nil {
 		gvk := groupKind.WithVersion("")
 		fullySpecifiedGVK = &gvk
 	}
+
 	if !fullySpecifiedGVK.Empty() {
 		if mapping, err := rmapper.RESTMapping(fullySpecifiedGVK.GroupKind(), fullySpecifiedGVK.Version); err == nil {
 			return mapping, nil
 		}
 	}
+
 	mapping, err := rmapper.RESTMapping(groupKind, gvk.Version)
 	if err != nil {
 		// if we error out here, it is because we could not match a resource or a kind
@@ -48,7 +54,9 @@ func MappingFor(rmapper meta.RESTMapper, resourceOrKindArg string) (*meta.RESTMa
 		if meta.IsNoMatchError(err) {
 			return nil, fmt.Errorf(errFmtResourceTypeNotFound, groupResource.Resource)
 		}
+
 		return nil, err
 	}
+
 	return mapping, nil
 }

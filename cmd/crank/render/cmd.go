@@ -20,6 +20,7 @@ package render
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/alecthomas/kong"
@@ -28,13 +29,14 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 // Cmd arguments and flags for render subcommand.
@@ -45,14 +47,16 @@ type Cmd struct {
 	Functions         string `arg:"" help:"A YAML file or directory of YAML files specifying the Composition Functions to use to render the XR." predictor:"yaml_file_or_directory" type:"path"`
 
 	// Flags. Keep them in alphabetical order.
-	ContextFiles           map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be files containing JSON."                           mapsep:""          predictor:"file"`
+	ContextFiles           map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be files containing JSON."                           mapsep:""               predictor:"file"`
 	ContextValues          map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be JSON. Keys take precedence over --context-files." mapsep:""`
 	IncludeFunctionResults bool              `help:"Include informational and warning messages from Functions in the rendered output as resources of kind: Result."                            short:"r"`
 	IncludeFullXR          bool              `help:"Include a direct copy of the input XR's spec and metadata fields in the rendered output."                                                  short:"x"`
-	ObservedResources      string            `help:"A YAML file or directory of YAML files specifying the observed state of composed resources."                                               placeholder:"PATH" predictor:"yaml_file_or_directory" short:"o"   type:"path"`
-	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying extra resources to pass to the Function pipeline."                                       placeholder:"PATH" predictor:"yaml_file_or_directory" short:"e"   type:"path"`
+	ObservedResources      string            `help:"A YAML file or directory of YAML files specifying the observed state of composed resources."                                               placeholder:"PATH"      predictor:"yaml_file_or_directory" short:"o"   type:"path"`
+	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying required resources (deprecated, use --required-resources)."                              placeholder:"PATH"      predictor:"yaml_file_or_directory" type:"path"`
+	RequiredResources      string            `help:"A YAML file or directory of YAML files specifying required resources to pass to the Function pipeline."                                    placeholder:"PATH"      predictor:"yaml_file_or_directory" short:"e"   type:"path"`
 	IncludeContext         bool              `help:"Include the context in the rendered output as a resource of kind: Context."                                                                short:"c"`
-	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                      placeholder:"PATH" predictor:"yaml_file_or_directory" type:"path"`
+	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                      placeholder:"PATH"      predictor:"yaml_file_or_directory" type:"path"`
+	FunctionAnnotations    []string          `help:"Override function annotations for all functions. Can be repeated."                                                                         placeholder:"KEY=VALUE" short:"a"`
 
 	Timeout time.Duration `default:"1m"                                                                                                     help:"How long to run before timing out."`
 	XRD     string        `help:"A YAML file specifying the CompositeResourceDefinition (XRD) that defines the XR's schema and properties." optional:""                               placeholder:"PATH" type:"existingfile"`
@@ -81,7 +85,7 @@ the following annotations to each Function to change how they're run:
   render.crossplane.io/runtime-development-target: "dns:///example.org:7443"
 
     Connect to a Function running somewhere other than localhost:9443. The
-	target uses gRPC target syntax.
+	target uses gRPC target syntax (e.g., dns:///example.org:7443 or simply example.org:7443).
 
   render.crossplane.io/runtime-docker-cleanup: "Orphan"
 
@@ -95,6 +99,17 @@ the following annotations to each Function to change how they're run:
 
     Always pull the Function's package, even if it already exists locally.
 	Other supported values are Never, or IfNotPresent.
+
+  render.crossplane.io/runtime-docker-publish-address: "0.0.0.0"
+
+    Host address that Docker should publish the Function's container port to.
+    Defaults to 127.0.0.1 (localhost only). Use 0.0.0.0 to publish to all host
+    network interfaces, enabling access from remote machines.
+
+  render.crossplane.io/runtime-docker-target: "docker-host"
+
+    Address that the render CLI should use to connect to the Function's Docker
+    container. If not specified, uses the publish address.
 
 Use the standard DOCKER_HOST, DOCKER_API_VERSION, DOCKER_CERT_PATH, and
 DOCKER_TLS_VERIFY environment variables to configure how this command connects
@@ -113,13 +128,27 @@ Examples:
   crossplane render xr.yaml composition.yaml functions.yaml \
     --context-values=apiextensions.crossplane.io/environment='{"key": "value"}'
 
-  # Pass extra resources Functions in the pipeline can request.
+  # Pass required resources Functions in the pipeline can request.
+  crossplane render xr.yaml composition.yaml functions.yaml \
+	--required-resources=required-resources.yaml
+
+  # Pass extra resources (deprecated, same as --required-resources).
   crossplane render xr.yaml composition.yaml functions.yaml \
 	--extra-resources=extra-resources.yaml
 
   # Pass credentials to Functions in the pipeline that need them.
   crossplane render xr.yaml composition.yaml functions.yaml \
 	--function-credentials=credentials.yaml
+
+  # Override function annotations for a remote Docker daemon.
+  DOCKER_HOST=tcp://192.168.1.100:2376 crossplane render xr.yaml composition.yaml functions.yaml \
+	-a render.crossplane.io/runtime-docker-publish-address=0.0.0.0 \
+	-a render.crossplane.io/runtime-docker-target=192.168.1.100
+
+  # Force all functions to use development runtime.
+  crossplane render xr.yaml composition.yaml functions.yaml \
+	-a render.crossplane.io/runtime=Development \
+	-a render.crossplane.io/runtime-development-target=localhost:9444
 `
 }
 
@@ -161,6 +190,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 			if !exists {
 				return fmt.Errorf("composition %q is missing required label %q", comp.GetName(), key)
 			}
+
 			if compValue != value {
 				return fmt.Errorf("composition %q has incorrect value for label %q: want %q, got %q",
 					comp.GetName(), key, value, compValue)
@@ -176,19 +206,28 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	if err != nil {
 		return errors.Wrapf(err, "cannot load functions from %q", c.Functions)
 	}
+
+	// Apply global annotation overrides to each function
+	if err := OverrideFunctionAnnotations(fns, c.FunctionAnnotations); err != nil {
+		return errors.Wrap(err, "cannot apply function annotation overrides")
+	}
+
 	if c.XRD != "" {
 		xrd, err := LoadXRD(c.fs, c.XRD)
 		if err != nil {
 			return errors.Wrapf(err, "cannot load XRD from %q", c.XRD)
 		}
+
 		crd, err := xcrd.ForCompositeResource(xrd)
 		if err != nil {
 			return errors.Wrapf(err, "cannot derive composite CRD from XRD %q", xrd.GetName())
 		}
+
 		if err := DefaultValues(xr.UnstructuredContent(), xr.GetAPIVersion(), *crd); err != nil {
 			return errors.Wrapf(err, "cannot default values for XR %q", xr.GetName())
 		}
 	}
+
 	fcreds := []corev1.Secret{}
 	if c.FunctionCredentials != "" {
 		fcreds, err = LoadCredentials(c.fs, c.FunctionCredentials)
@@ -207,20 +246,31 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 
 	ers := []unstructured.Unstructured{}
 	if c.ExtraResources != "" {
-		ers, err = LoadExtraResources(c.fs, c.ExtraResources)
+		ers, err = LoadRequiredResources(c.fs, c.ExtraResources)
 		if err != nil {
 			return errors.Wrapf(err, "cannot load extra resources from %q", c.ExtraResources)
 		}
 	}
 
+	rrs := []unstructured.Unstructured{}
+	if c.RequiredResources != "" {
+		rrs, err = LoadRequiredResources(c.fs, c.RequiredResources)
+		if err != nil {
+			return errors.Wrapf(err, "cannot load required resources from %q", c.RequiredResources)
+		}
+	}
+
 	fctx := map[string][]byte{}
+
 	for k, filename := range c.ContextFiles {
 		v, err := afero.ReadFile(c.fs, filename)
 		if err != nil {
 			return errors.Wrapf(err, "cannot read context value for key %q", k)
 		}
+
 		fctx[k] = v
 	}
+
 	for k, v := range c.ContextValues {
 		fctx[k] = []byte(v)
 	}
@@ -235,6 +285,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		FunctionCredentials: fcreds,
 		ObservedResources:   ors,
 		ExtraResources:      ers,
+		RequiredResources:   rrs,
 		Context:             fctx,
 	})
 	if err != nil {
@@ -298,5 +349,24 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		}
 	}
 
+	return nil
+}
+
+// OverrideFunctionAnnotations applies annotation overrides from flags to
+// functions.
+func OverrideFunctionAnnotations(fns []pkgv1.Function, annotations []string) error {
+	for i := range fns {
+		if fns[i].Annotations == nil {
+			fns[i].Annotations = make(map[string]string)
+		}
+		for _, annotation := range annotations {
+			parts := strings.SplitN(annotation, "=", 2)
+			if len(parts) != 2 {
+				return errors.Errorf("invalid function annotation format %q, expected key=value", annotation)
+			}
+			key, value := parts[0], parts[1]
+			fns[i].Annotations[key] = value // Flags override existing annotations
+		}
+	}
 	return nil
 }

@@ -32,15 +32,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/conditions"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
-	"github.com/crossplane/crossplane/internal/xpkg"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 const (
@@ -89,13 +89,6 @@ func WithNamespace(n string) ReconcilerOption {
 	}
 }
 
-// WithDefaultRegistry specifies the registry to use for fetching images.
-func WithDefaultRegistry(registry string) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.registry = registry
-	}
-}
-
 // WithServiceAccount specifies the service account to use for fetching images.
 func WithServiceAccount(sa string) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -118,7 +111,6 @@ type Reconciler struct {
 	log            logging.Logger
 	serviceAccount string
 	namespace      string
-	registry       string
 	conditions     conditions.Manager
 
 	newRevision func() v1.PackageRevision
@@ -149,7 +141,6 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(np),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
-		WithDefaultRegistry(o.DefaultRegistry),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithValidator(cosignValidator),
 		WithLogger(log),
@@ -184,7 +175,6 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(np),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
-		WithDefaultRegistry(o.DefaultRegistry),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithValidator(cosignValidator),
 		WithLogger(log),
@@ -219,7 +209,6 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(np),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
-		WithDefaultRegistry(o.DefaultRegistry),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithValidator(cosignValidator),
 		WithLogger(log),
@@ -259,11 +248,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		log.Debug(errGetRevision, "error", err)
+
 		status := r.conditions.For(pr)
 		status.MarkConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetRevision)))
+
 		_ = r.client.Status().Update(ctx, pr)
+
 		return reconcile.Result{}, errors.Wrap(err, errGetRevision)
 	}
+
 	status := r.conditions.For(pr)
 
 	log = log.WithValues(
@@ -299,15 +292,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		log.Debug("Cannot get image verification config", "error", err)
 		status.MarkConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetVerificationConfig)))
+
 		_ = r.client.Status().Update(ctx, pr)
+
 		return reconcile.Result{}, errors.Wrap(err, errGetVerificationConfig)
 	}
+
 	if vc == nil || vc.Cosign == nil {
 		// No verification config found for this image, so, we will skip
 		// verification.
 		log.Debug("No signature verification config found for image, skipping verification")
 		status.MarkConditions(v1.VerificationSkipped())
 		pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonVerify)
+
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update package status")
 	}
 
@@ -316,11 +313,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		Reason: v1.ImageConfigReasonVerify,
 	})
 
-	ref, err := name.ParseReference(imagePath, name.WithDefaultRegistry(r.registry))
+	ref, err := name.ParseReference(imagePath, name.StrictValidation)
 	if err != nil {
 		log.Debug("Cannot parse package image reference", "error", err)
 		status.MarkConditions(v1.VerificationIncomplete(errors.Wrap(err, errParseReference)))
+
 		_ = r.client.Status().Update(ctx, pr)
+
 		return reconcile.Result{}, errors.Wrap(err, errParseReference)
 	}
 
@@ -333,9 +332,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		log.Debug("Cannot get image config pull secret for image", "error", err)
 		status.MarkConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetConfigPullSecret)))
+
 		_ = r.client.Status().Update(ctx, pr)
+
 		return reconcile.Result{}, errors.Wrap(err, errGetConfigPullSecret)
 	}
+
 	if s != "" {
 		pullSecrets = append(pullSecrets, s)
 	}
@@ -343,13 +345,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err = r.validator.Validate(ctx, ref, vc, pullSecrets...); err != nil {
 		log.Debug("Signature verification failed", "error", err)
 		status.MarkConditions(v1.VerificationFailed(ic, err))
+
 		if sErr := r.client.Status().Update(ctx, pr); sErr != nil {
 			return reconcile.Result{}, errors.Wrap(sErr, "cannot update status with failed verification")
 		}
+
 		return reconcile.Result{}, errors.Wrap(err, errFailedVerification)
 	}
 
 	status.MarkConditions(v1.VerificationSucceeded(ic))
+
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update status with successful verification")
 }
 
@@ -372,6 +377,7 @@ func enqueuePackageRevisionsForImageConfig(kube client.Client, log logging.Logge
 		}
 
 		var matches []reconcile.Request
+
 		for _, p := range l.GetRevisions() {
 			for _, m := range ic.Spec.MatchImages {
 				if strings.HasPrefix(p.GetResolvedSource(), m.Prefix) {
@@ -380,6 +386,7 @@ func enqueuePackageRevisionsForImageConfig(kube client.Client, log logging.Logge
 				}
 			}
 		}
+
 		return matches
 	})
 }

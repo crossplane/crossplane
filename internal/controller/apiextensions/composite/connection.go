@@ -23,10 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
-
-	"github.com/crossplane/crossplane/internal/xresource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 )
 
 // Error strings.
@@ -37,10 +35,10 @@ const (
 
 // A ConnectionDetailsFetcherFn fetches the connection details of the supplied
 // resource, if any.
-type ConnectionDetailsFetcherFn func(ctx context.Context, o xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error)
+type ConnectionDetailsFetcherFn func(ctx context.Context, o ConnectionSecretOwner) (managed.ConnectionDetails, error)
 
 // FetchConnection calls the FetchConnectionDetailsFn.
-func (f ConnectionDetailsFetcherFn) FetchConnection(ctx context.Context, o xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+func (f ConnectionDetailsFetcherFn) FetchConnection(ctx context.Context, o ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 	return f(ctx, o)
 }
 
@@ -48,17 +46,20 @@ func (f ConnectionDetailsFetcherFn) FetchConnection(ctx context.Context, o xreso
 type ConnectionDetailsFetcherChain []ConnectionDetailsFetcher
 
 // FetchConnection details of the supplied composed resource, if any.
-func (fc ConnectionDetailsFetcherChain) FetchConnection(ctx context.Context, o xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+func (fc ConnectionDetailsFetcherChain) FetchConnection(ctx context.Context, o ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 	all := make(managed.ConnectionDetails)
+
 	for _, p := range fc {
 		conn, err := p.FetchConnection(ctx, o)
 		if err != nil {
 			return nil, err
 		}
+
 		for k, v := range conn {
 			all[k] = v
 		}
 	}
+
 	return all, nil
 }
 
@@ -76,7 +77,7 @@ func NewSecretConnectionDetailsFetcher(c client.Client) *SecretConnectionDetails
 
 // FetchConnection details of the supplied composed resource from its Kubernetes
 // connection secret, per its WriteConnectionSecretToRef, if any.
-func (cdf *SecretConnectionDetailsFetcher) FetchConnection(ctx context.Context, o xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+func (cdf *SecretConnectionDetailsFetcher) FetchConnection(ctx context.Context, o ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 	sref := o.GetWriteConnectionSecretToReference()
 	if sref == nil {
 		return nil, nil
@@ -90,9 +91,11 @@ func (cdf *SecretConnectionDetailsFetcher) FetchConnection(ctx context.Context, 
 	}
 
 	s := &corev1.Secret{}
+
 	nn := types.NamespacedName{Namespace: ns, Name: sref.Name}
 	if err := cdf.client.Get(ctx, nn, s); client.IgnoreNotFound(err) != nil {
 		return nil, errors.Wrap(err, errGetSecret)
 	}
+
 	return s.Data, nil
 }

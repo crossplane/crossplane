@@ -23,11 +23,13 @@ import (
 	"strings"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
@@ -37,23 +39,24 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/conditions"
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite/watch"
-	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
-	"github.com/crossplane/crossplane/internal/engine"
-	"github.com/crossplane/crossplane/internal/features"
-	"github.com/crossplane/crossplane/internal/xcrd"
-	ucomposite "github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/internal/circuit"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/watch"
+	apiextensionscontroller "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
+	"github.com/crossplane/crossplane/v2/internal/engine"
+	"github.com/crossplane/crossplane/v2/internal/features"
+	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 const (
@@ -89,6 +92,7 @@ const (
 	reasonRenderCRD   event.Reason = "RenderCRD"
 	reasonEstablishXR event.Reason = "EstablishComposite"
 	reasonTerminateXR event.Reason = "TerminateComposite"
+	reasonRestartXR   event.Reason = "RestartComposite"
 )
 
 // A ControllerEngine can start and stop Kubernetes controllers on demand.
@@ -104,6 +108,7 @@ type ControllerEngine interface {
 	GetCached() client.Client
 	GetUncached() client.Client
 	GetFieldIndexer() client.FieldIndexer
+	IsAuthorizedFor(ctx context.Context, gvk schema.GroupVersionKind, namespace string) (bool, error)
 }
 
 // A NopEngine does nothing.
@@ -144,6 +149,11 @@ func (e *NopEngine) GetUncached() client.Client {
 // GetFieldIndexer returns a nil field indexer.
 func (e *NopEngine) GetFieldIndexer() client.FieldIndexer {
 	return nil
+}
+
+// IsAuthorizedFor validates if this controller engine is allowed to control a GVK in an optional namespace.
+func (e *NopEngine) IsAuthorizedFor(_ context.Context, _ schema.GroupVersionKind, _ string) (bool, error) {
+	return false, nil
 }
 
 // A CRDRenderer renders a CompositeResourceDefinition's corresponding
@@ -306,6 +316,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetXRD, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetXRD)
 	}
+
 	status := r.conditions.For(d)
 
 	log = log.WithValues(
@@ -318,17 +329,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		err = errors.Wrap(err, errRenderCRD)
 		r.record.Event(d, event.Warning(reasonRenderCRD, err))
+
 		return reconcile.Result{}, err
 	}
 
 	if meta.WasDeleted(d) {
 		status.MarkConditions(v1.TerminatingComposite())
+
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			log.Debug(errUpdateStatus, "error", err)
+
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errUpdateStatus)
+
 			return reconcile.Result{}, err
 		}
 
@@ -336,6 +352,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.client.Get(ctx, nn, crd); resource.IgnoreNotFound(err) != nil {
 			err = errors.Wrap(err, errGetCRD)
 			r.record.Event(d, event.Warning(reasonTerminateXR, err))
+
 			return reconcile.Result{}, err
 		}
 
@@ -353,16 +370,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
 				err = errors.Wrap(err, errStopController)
 				r.record.Event(d, event.Warning(reasonTerminateXR, err))
+
 				return reconcile.Result{}, err
 			}
+
 			log.Debug("Stopped composite resource controller")
 
 			if err := r.composite.RemoveFinalizer(ctx, d); err != nil {
 				if kerrors.IsConflict(err) {
 					return reconcile.Result{Requeue: true}, nil
 				}
+
 				err = errors.Wrap(err, errRemoveFinalizer)
 				r.record.Event(d, event.Warning(reasonTerminateXR, err))
+
 				return reconcile.Result{}, err
 			}
 
@@ -380,18 +401,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// delete all defined custom resources manually here.
 		o := &kunstructured.Unstructured{}
 		o.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
+
 		if err := r.client.DeleteAllOf(ctx, o); err != nil && !kmeta.IsNoMatchError(err) && !kerrors.IsNotFound(err) {
 			err = errors.Wrap(err, errDeleteCRs)
 			r.record.Event(d, event.Warning(reasonTerminateXR, err))
+
 			return reconcile.Result{}, err
 		}
 
 		l := &kunstructured.UnstructuredList{}
 		l.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
+
 		if err := r.client.List(ctx, l); resource.Ignore(kmeta.IsNoMatchError, err) != nil {
 			log.Debug("cannot list composite resources to check whether the XRD can be deleted", "error", err, "gvk", d.GetCompositeGroupVersionKind().String())
 			err = errors.Wrap(err, errListCRs)
 			r.record.Event(d, event.Warning(reasonTerminateXR, err))
+
 			return reconcile.Result{}, err
 		}
 
@@ -401,6 +426,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if len(l.Items) > 0 {
 			log.Debug(waitCRDelete)
 			r.record.Event(d, event.Normal(reasonTerminateXR, waitCRDelete))
+
 			return reconcile.Result{Requeue: true}, nil
 		}
 
@@ -409,16 +435,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
 			err = errors.Wrap(err, errStopController)
 			r.record.Event(d, event.Warning(reasonTerminateXR, err))
+
 			return reconcile.Result{}, err
 		}
+
 		log.Debug("Stopped composite resource controller")
 
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
 			log.Debug(errDeleteCRD, "error", err)
 			err = errors.Wrap(err, errDeleteCRD)
 			r.record.Event(d, event.Warning(reasonTerminateXR, err))
+
 			return reconcile.Result{}, err
 		}
+
 		log.Debug("Deleted composite resource CustomResourceDefinition")
 		r.record.Event(d, event.Normal(reasonTerminateXR, fmt.Sprintf("Deleted composite resource CustomResourceDefinition: %s", crd.GetName())))
 
@@ -430,24 +460,31 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.composite.AddFinalizer(ctx, d); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
+
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
+
 		return reconcile.Result{}, err
 	}
 
 	origRV := ""
 	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID()), resource.StoreCurrentRV(&origRV)); err != nil {
 		log.Debug(errApplyCRD, "error", err)
+
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errApplyCRD)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
+
 		return reconcile.Result{}, err
 	}
+
 	if crd.GetResourceVersion() != origRV {
 		r.record.Event(d, event.Normal(reasonEstablishXR, fmt.Sprintf("Applied composite resource CustomResourceDefinition: %s", crd.GetName())))
 	}
@@ -455,34 +492,41 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if !xcrd.IsEstablished(crd.Status) {
 		log.Debug(waitCRDEstablish)
 		r.record.Event(d, event.Normal(reasonEstablishXR, waitCRDEstablish))
+
 		return reconcile.Result{Requeue: true}, nil
 	}
 
-	observed := d.Status.Controllers.CompositeResourceTypeRef
-	desired := v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
-	if observed.APIVersion != "" && observed != desired {
+	// Check if XRD has changed since controller was last started
+	if ControllerNeedsRestart(d) {
+		r.record.Event(d, event.Normal(reasonRestartXR, "XRD specification changed; restarting controller to apply updates"))
+
 		if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
 			err = errors.Wrap(err, errStopController)
-			r.record.Event(d, event.Warning(reasonEstablishXR, err))
+			r.record.Event(d, event.Warning(reasonRestartXR, err))
+
 			return reconcile.Result{}, err
 		}
-		log.Debug("Referenceable version changed; stopped composite resource controller",
-			"observed-version", observed.APIVersion,
-			"desired-version", desired.APIVersion)
+
+		log.Debug("XRD generation changed; stopped composite resource controller",
+			"observed-generation", d.GetCondition(v1.TypeEstablished).ObservedGeneration,
+			"current-generation", d.GetGeneration())
 	}
 
 	if r.engine.IsRunning(composite.ControllerName(d.GetName())) {
 		log.Debug("Composite resource controller is running")
 		status.MarkConditions(v1.WatchingComposite())
+
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
-	runner := composite.NewFetchingFunctionRunner(r.options.FunctionRunner, composite.NewExistingExtraResourcesFetcher(r.engine.GetCached()))
 	fetcher := composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached())
-	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), runner,
+	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), r.options.FunctionRunner,
 		composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.engine.GetCached(), r.engine.GetUncached(), fetcher)),
 		composite.WithCompositeConnectionDetailsFetcher(fetcher),
 	)
+
+	// Create circuit breaker for this XR controller
+	cb := circuit.NewTokenBucketBreaker()
 
 	// All XRs have modern schema unless their XRD's scope is LegacyCluster.
 	schema := ucomposite.SchemaModern
@@ -493,13 +537,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ro := []composite.ReconcilerOption{
 		composite.WithCompositeSchema(schema),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
-			composite.NewEnforcedCompositionSelector(*d, r.record),
+			composite.NewEnforcedCompositionSelector(r.client, corev1.ObjectReference{Name: d.Name}, r.record),
 			composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record),
 			composite.NewAPILabelSelectorResolver(r.engine.GetCached()),
 		)),
 		composite.WithLogger(r.log.WithValues("controller", composite.ControllerName(d.GetName()))),
 		composite.WithRecorder(r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
 		composite.WithPollInterval(r.options.PollInterval),
+		composite.WithCircuitBreaker(cb),
+		composite.WithAuthorizer(r.engine),
 		composite.WithComposer(fc),
 		composite.WithFeatures(r.options.Features),
 	}
@@ -523,7 +569,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			r.log.Debug(errAddIndex, "error", err)
 		}
 
-		h := EnqueueCompositeResources(d.GetCompositeGroupVersionKind(), r.engine.GetCached(), r.log)
+		cmf := CompositeResourcesMapFunc(d.GetCompositeGroupVersionKind(), r.engine.GetCached(), r.log)
+		h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(cmf, cb))
 		ro = append(ro,
 			composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine),
 			composite.WithPollInterval(0), // Disable polling.
@@ -561,6 +608,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errStartController, "error", err)
 		err = errors.Wrap(err, errStartController)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -570,14 +618,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xr := &kunstructured.Unstructured{}
 	xr.SetGroupVersionKind(gvk)
 
-	crh := EnqueueForCompositionRevision(gvk, schema, r.engine.GetCached(), log)
+	crmf := CompositionRevisionMapFunc(gvk, schema, r.engine.GetCached(), log)
+	crh := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(crmf, cb))
+
+	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(SelfMapFunc(), cb))
+
 	if err := r.engine.StartWatches(ctx, name,
-		engine.WatchFor(xr, engine.WatchTypeCompositeResource, &handler.EnqueueRequestForObject{}),
+		engine.WatchFor(xr, engine.WatchTypeCompositeResource, h),
 		engine.WatchFor(&v1.CompositionRevision{}, engine.WatchTypeCompositionRevision, crh),
 	); err != nil {
 		log.Debug(errStartWatches, "error", err)
 		err = errors.Wrap(err, errStartWatches)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -585,5 +638,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	status.MarkConditions(v1.WatchingComposite())
+
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+}
+
+// ControllerNeedsRestart returns true if the composite resource controller
+// needs to be restarted based on the XRD's current generation compared to
+// when the controller was last started.
+func ControllerNeedsRestart(d *v1.CompositeResourceDefinition) bool {
+	c := d.GetCondition(v1.TypeEstablished)
+
+	// Only check if we have a WatchingComposite condition
+	if c.Reason != v1.ReasonWatchingComposite {
+		return false
+	}
+
+	// If observedGeneration is 0, the condition was never properly set
+	if c.ObservedGeneration == 0 {
+		return false
+	}
+
+	// Restart needed if the XRD has changed since the controller was started
+	return c.ObservedGeneration != d.GetGeneration()
 }

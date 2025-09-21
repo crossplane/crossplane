@@ -33,8 +33,8 @@ import (
 	"sigs.k8s.io/e2e-framework/support/kind"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
-	"github.com/crossplane/crossplane/test/e2e/config"
-	"github.com/crossplane/crossplane/test/e2e/funcs"
+	"github.com/crossplane/crossplane/v2/test/e2e/config"
+	"github.com/crossplane/crossplane/v2/test/e2e/funcs"
 )
 
 // TODO(phisco): make it configurable.
@@ -42,13 +42,6 @@ const namespace = "crossplane-system"
 
 // TODO(phisco): make it configurable.
 const crdsDir = "cluster/crds"
-
-// The caller (e.g. make e2e) must ensure these exist.
-// Run `make build e2e-tag-images` to produce them.
-const (
-	// TODO(phisco): make it configurable.
-	imgcore = "crossplane-e2e/crossplane:latest"
-)
 
 const (
 	// TODO(phisco): make it configurable.
@@ -65,6 +58,12 @@ func TestMain(m *testing.M) {
 	// https://github.com/kubernetes-sigs/e2e-framework/issues/270
 	log.SetLogger(klog.NewKlogr())
 
+	// Parse flags to ensure we have the environment configured
+	cfg, err := envconf.NewFromFlags()
+	if err != nil {
+		panic(err)
+	}
+
 	// Set the default suite, to be used as base for all the other suites.
 	environment.AddDefaultTestSuite(
 		config.WithoutBaseDefaultTestSuite(),
@@ -78,8 +77,8 @@ func TestMain(m *testing.M) {
 			helm.WithArgs(
 				// Run with debug logging to ensure all log statements are run.
 				"--set args={--debug}",
-				"--set image.repository="+strings.Split(imgcore, ":")[0],
-				"--set image.tag="+strings.Split(imgcore, ":")[1],
+				"--set image.repository="+strings.Split(environment.GetCrossplaneImage(), ":")[0],
+				"--set image.tag="+strings.Split(environment.GetCrossplaneImage(), ":")[1],
 				"--set metrics.enabled=true",
 			),
 		),
@@ -88,13 +87,10 @@ func TestMain(m *testing.M) {
 		}),
 	)
 
-	cfg, err := envconf.NewFromFlags()
-	if err != nil {
-		panic(err)
-	}
-
-	var setup []env.Func
-	var finish []env.Func
+	var (
+		setup  []env.Func
+		finish []env.Func
+	)
 
 	if environment.IsKindCluster() {
 		setup = append(setup, envfuncs.CreateClusterWithConfig(
@@ -115,7 +111,7 @@ func TestMain(m *testing.M) {
 	if environment.ShouldLoadImages() {
 		clusterName := environment.GetKindClusterName()
 		setup = append(setup,
-			envfuncs.LoadDockerImageToCluster(clusterName, imgcore),
+			envfuncs.LoadDockerImageToCluster(clusterName, environment.GetCrossplaneImage()),
 		)
 	}
 
@@ -152,6 +148,7 @@ func TestMain(m *testing.M) {
 		if _, exists := feature.Labels()[config.LabelTestSuite]; !exists {
 			t.Fatalf("Feature %q does not have the required %q label set", feature.Name(), config.LabelTestSuite)
 		}
+
 		return ctx, nil
 	})
 

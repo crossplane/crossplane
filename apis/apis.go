@@ -20,9 +20,10 @@ package apis
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplane/crossplane/apis/apiextensions"
-	"github.com/crossplane/crossplane/apis/pkg"
-	"github.com/crossplane/crossplane/apis/protection"
+	"github.com/crossplane/crossplane/v2/apis/apiextensions"
+	"github.com/crossplane/crossplane/v2/apis/ops"
+	"github.com/crossplane/crossplane/v2/apis/pkg"
+	"github.com/crossplane/crossplane/v2/apis/protection"
 )
 
 func init() {
@@ -31,6 +32,7 @@ func init() {
 		apiextensions.AddToScheme,
 		pkg.AddToScheme,
 		protection.AddToScheme,
+		ops.AddToScheme,
 	)
 }
 

@@ -3,7 +3,7 @@
 
 package v1beta1
 
-import protection "github.com/crossplane/crossplane/internal/protection"
+import protection "github.com/crossplane/crossplane/v2/internal/protection"
 
 type GeneratedResourceConverter struct{}
 
@@ -15,6 +15,7 @@ func (c *GeneratedResourceConverter) FromInternal(source protection.Resource) Re
 	v1beta1Resource.ResourceSelector = c.pProtectionResourceSelectorToPV1beta1ResourceSelector(source.ResourceSelector)
 	return v1beta1Resource
 }
+
 func (c *GeneratedResourceConverter) ToInternal(source Resource) protection.Resource {
 	var protectionResource protection.Resource
 	protectionResource.APIVersion = source.APIVersion
@@ -23,11 +24,13 @@ func (c *GeneratedResourceConverter) ToInternal(source Resource) protection.Reso
 	protectionResource.ResourceSelector = c.pV1beta1ResourceSelectorToPProtectionResourceSelector(source.ResourceSelector)
 	return protectionResource
 }
+
 func (c *GeneratedResourceConverter) ToInternalResourceRef(source ResourceRef) protection.ResourceRef {
 	var protectionResourceRef protection.ResourceRef
 	protectionResourceRef.Name = source.Name
 	return protectionResourceRef
 }
+
 func (c *GeneratedResourceConverter) ToInternalResourceSelector(source ResourceSelector) protection.ResourceSelector {
 	var protectionResourceSelector protection.ResourceSelector
 	if source.MatchLabels != nil {
@@ -42,6 +45,7 @@ func (c *GeneratedResourceConverter) ToInternalResourceSelector(source ResourceS
 	}
 	return protectionResourceSelector
 }
+
 func (c *GeneratedResourceConverter) pProtectionResourceRefToPV1beta1ResourceRef(source *protection.ResourceRef) *ResourceRef {
 	var pV1beta1ResourceRef *ResourceRef
 	if source != nil {
@@ -51,6 +55,7 @@ func (c *GeneratedResourceConverter) pProtectionResourceRefToPV1beta1ResourceRef
 	}
 	return pV1beta1ResourceRef
 }
+
 func (c *GeneratedResourceConverter) pProtectionResourceSelectorToPV1beta1ResourceSelector(source *protection.ResourceSelector) *ResourceSelector {
 	var pV1beta1ResourceSelector *ResourceSelector
 	if source != nil {
@@ -69,6 +74,7 @@ func (c *GeneratedResourceConverter) pProtectionResourceSelectorToPV1beta1Resour
 	}
 	return pV1beta1ResourceSelector
 }
+
 func (c *GeneratedResourceConverter) pV1beta1ResourceRefToPProtectionResourceRef(source *ResourceRef) *protection.ResourceRef {
 	var pProtectionResourceRef *protection.ResourceRef
 	if source != nil {
@@ -77,6 +83,7 @@ func (c *GeneratedResourceConverter) pV1beta1ResourceRefToPProtectionResourceRef
 	}
 	return pProtectionResourceRef
 }
+
 func (c *GeneratedResourceConverter) pV1beta1ResourceSelectorToPProtectionResourceSelector(source *ResourceSelector) *protection.ResourceSelector {
 	var pProtectionResourceSelector *protection.ResourceSelector
 	if source != nil {

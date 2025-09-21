@@ -5,10 +5,4 @@ kind: Function
 metadata:
   name: function-dummy-ext-selection
 spec:
-  # NOTE(negz): This is currently manually pushed. See README.md at
-  # https://github.com/crossplane-contrib/function-dummy.
-  # NOTE(negz): This version of the function uses meta.pkg.crossplane.io/v1beta1
-  # and is built with an old SDK that only serves v1beta1 RPCs. This is
-  # intentional. We want to make sure Crossplane is backward compatible with
-  # older v1beta1 functions.
-  package: xpkg.upbound.io/crossplane-contrib/function-dummy:v0.2.1
+  package: xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.1

@@ -34,19 +34,19 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
+	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
-	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
-	ucomposite "github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/xfn"
+	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
 var (
-	_ composite.FunctionRunner        = &RuntimeFunctionRunner{}
-	_ composite.ExtraResourcesFetcher = &FilteringFetcher{}
+	_ xfn.FunctionRunner           = &RuntimeFunctionRunner{}
+	_ xfn.RequiredResourcesFetcher = &FilteringFetcher{}
 )
 
 func TestRender(t *testing.T) {
@@ -57,6 +57,7 @@ func TestRender(t *testing.T) {
 		ctx context.Context
 		in  Inputs
 	}
+
 	type want struct {
 		out Outputs
 		err error
@@ -180,6 +181,79 @@ func TestRender(t *testing.T) {
 				},
 			},
 			want: want{
+				out: Outputs{
+					Requirements: map[string]fnv1.Requirements{},
+				},
+				err: cmpopts.AnyError,
+			},
+		},
+		"FatalResultWithRequirements": {
+			args: args{
+				ctx: context.Background(),
+				in: Inputs{
+					CompositeResource: ucomposite.New(),
+					Composition: &apiextensionsv1.Composition{
+						Spec: apiextensionsv1.CompositionSpec{
+							Mode: apiextensionsv1.CompositionModePipeline,
+							Pipeline: []apiextensionsv1.PipelineStep{
+								{
+									Step:        "test",
+									FunctionRef: apiextensionsv1.FunctionReference{Name: "function-test"},
+								},
+							},
+						},
+					},
+					Functions: []pkgv1.Function{
+						func() pkgv1.Function {
+							lis := NewFunction(t, &fnv1.RunFunctionResponse{
+								Results: []*fnv1.Result{
+									{
+										Severity: fnv1.Severity_SEVERITY_FATAL,
+									},
+								},
+								Requirements: &fnv1.Requirements{
+									Resources: map[string]*fnv1.ResourceSelector{
+										"required-resource": {
+											ApiVersion: "test.crossplane.io/v1",
+											Kind:       "Foo",
+											Match: &fnv1.ResourceSelector_MatchName{
+												MatchName: "required-resource",
+											},
+										},
+									},
+								},
+							})
+							listeners = append(listeners, lis)
+
+							return pkgv1.Function{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "function-test",
+									Annotations: map[string]string{
+										AnnotationKeyRuntime:                  string(AnnotationValueRuntimeDevelopment),
+										AnnotationKeyRuntimeDevelopmentTarget: lis.Addr().String(),
+									},
+								},
+							}
+						}(),
+					},
+				},
+			},
+			want: want{
+				out: Outputs{
+					Requirements: map[string]fnv1.Requirements{
+						"test": {
+							Resources: map[string]*fnv1.ResourceSelector{
+								"required-resource": {
+									ApiVersion: "test.crossplane.io/v1",
+									Kind:       "Foo",
+									Match: &fnv1.ResourceSelector_MatchName{
+										MatchName: "required-resource",
+									},
+								},
+							},
+						},
+					},
+				},
 				err: cmpopts.AnyError,
 			},
 		},
@@ -255,6 +329,17 @@ func TestRender(t *testing.T) {
 										Reason:  "Provisioned",
 										Message: ptr.To("Provisioned successfully"),
 										Target:  fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
+									},
+								},
+								Requirements: &fnv1.Requirements{
+									Resources: map[string]*fnv1.ResourceSelector{
+										"example-resource": {
+											ApiVersion: "test.crossplane.io/v1",
+											Kind:       "Foo",
+											Match: &fnv1.ResourceSelector_MatchName{
+												MatchName: "example-resource",
+											},
+										},
 									},
 								},
 							})
@@ -366,6 +451,19 @@ func TestRender(t *testing.T) {
 							},
 						},
 					},
+					Requirements: map[string]fnv1.Requirements{
+						"test": {
+							Resources: map[string]*fnv1.ResourceSelector{
+								"example-resource": {
+									ApiVersion: "test.crossplane.io/v1",
+									Kind:       "Foo",
+									Match: &fnv1.ResourceSelector_MatchName{
+										MatchName: "example-resource",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -433,6 +531,17 @@ func TestRender(t *testing.T) {
 												}
 											}`),
 											Ready: fnv1.Ready_READY_TRUE,
+										},
+									},
+								},
+								Requirements: &fnv1.Requirements{
+									Resources: map[string]*fnv1.ResourceSelector{
+										"ready-resource": {
+											ApiVersion: "test.crossplane.io/v1",
+											Kind:       "Bar",
+											Match: &fnv1.ResourceSelector_MatchName{
+												MatchName: "ready-resource",
+											},
 										},
 									},
 								},
@@ -535,10 +644,23 @@ func TestRender(t *testing.T) {
 							},
 						},
 					},
+					Requirements: map[string]fnv1.Requirements{
+						"test": {
+							Resources: map[string]*fnv1.ResourceSelector{
+								"ready-resource": {
+									ApiVersion: "test.crossplane.io/v1",
+									Kind:       "Bar",
+									Match: &fnv1.ResourceSelector_MatchName{
+										MatchName: "ready-resource",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
-		"SuccessWithExtraResources": {
+		"SuccessWithResources": {
 			args: args{
 				ctx: context.Background(),
 				in: Inputs{
@@ -585,10 +707,10 @@ func TestRender(t *testing.T) {
 										},
 									}, nil
 								case 1:
-									if len(request.GetExtraResources()) == 0 {
+									if len(request.GetExtraResources()) == 0 { //nolint:staticcheck // Testing deprecated field for backward compatibility
 										t.Fatalf("expected extra resources to be passed to function on second call")
 									}
-									res := request.GetExtraResources()["extra-resource-by-name"]
+									res := request.GetExtraResources()["extra-resource-by-name"] //nolint:staticcheck // Testing deprecated field for backward compatibility
 									if res == nil || len(res.GetItems()) == 0 {
 										t.Fatalf("expected extra resource to be passed to function on second call")
 									}
@@ -653,7 +775,7 @@ func TestRender(t *testing.T) {
 							}
 						}(),
 					},
-					ExtraResources: []unstructured.Unstructured{
+					RequiredResources: []unstructured.Unstructured{
 						{
 							Object: MustLoadJSON(`{
 								"apiVersion": "test.crossplane.io/v1",
@@ -753,6 +875,798 @@ func TestRender(t *testing.T) {
 							},
 						},
 					},
+					Requirements: map[string]fnv1.Requirements{
+						"test": {
+							ExtraResources: map[string]*fnv1.ResourceSelector{
+								"extra-resource-by-name": {
+									ApiVersion: "test.crossplane.io/v1",
+									Kind:       "Foo",
+									Match: &fnv1.ResourceSelector_MatchName{
+										MatchName: "extra-resource",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"CompositeReadyFalseWithUnreadyResources": {
+			reason: "When composite resource Ready is READY_FALSE and there are unready resources, XR condition should be Creating without message (first condition takes precedence)",
+			args: args{
+				ctx: context.Background(),
+				in: Inputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render"
+								}
+							}`),
+						},
+					},
+					Composition: &apiextensionsv1.Composition{
+						Spec: apiextensionsv1.CompositionSpec{
+							Mode: apiextensionsv1.CompositionModePipeline,
+							Pipeline: []apiextensionsv1.PipelineStep{
+								{
+									Step:        "test",
+									FunctionRef: apiextensionsv1.FunctionReference{Name: "function-test"},
+								},
+							},
+						},
+					},
+					Functions: []pkgv1.Function{
+						func() pkgv1.Function {
+							lis := NewFunction(t, &fnv1.RunFunctionResponse{
+								Desired: &fnv1.State{
+									Composite: &fnv1.Resource{
+										Resource: MustStructJSON(`{
+											"status": {
+												"widgets": 9001
+											}
+										}`),
+										Ready: fnv1.Ready_READY_FALSE,
+									},
+									Resources: map[string]*fnv1.Resource{
+										"a-cool-resource": {
+											Resource: MustStructJSON(`{
+												"apiVersion": "btest.crossplane.io/v1",
+												"kind": "BComposed",
+												"spec": {
+													"widgets": 9002
+												}
+											}`),
+											// Ready field is not set (defaults to READY_UNSPECIFIED which is != READY_TRUE)
+										},
+										"b-cool-resource": {
+											Resource: MustStructJSON(`{
+												"apiVersion": "atest.crossplane.io/v1",
+												"kind": "AComposed",
+												"spec": {
+													"widgets": 9003
+												}
+											}`),
+											Ready: fnv1.Ready_READY_FALSE,
+										},
+									},
+								},
+							})
+							listeners = append(listeners, lis)
+
+							return pkgv1.Function{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "function-test",
+									Annotations: map[string]string{
+										AnnotationKeyRuntime:                  string(AnnotationValueRuntimeDevelopment),
+										AnnotationKeyRuntimeDevelopmentTarget: lis.Addr().String(),
+									},
+								},
+							}
+						}(),
+					},
+				},
+			},
+			want: want{
+				out: Outputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render"
+								},
+								"status": {
+									"widgets": 9001,
+									"conditions": [{
+										"lastTransitionTime": "2024-01-01T00:00:00Z",
+										"type": "Ready",
+										"status": "False",
+										"reason": "Creating"
+									}]
+								}
+							}`),
+						},
+					},
+					ComposedResources: []composed.Unstructured{
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "btest.crossplane.io/v1",
+									"metadata": {
+										"generateName": "test-render-",
+										"labels": {
+											"crossplane.io/composite": "test-render"
+										},
+										"annotations": {
+											"crossplane.io/composition-resource-name": "a-cool-resource"
+										},
+										"ownerReferences": [{
+											"apiVersion": "nop.example.org/v1alpha1",
+											"kind": "XNopResource",
+											"name": "test-render",
+											"blockOwnerDeletion": true,
+											"controller": true,
+											"uid": ""
+										}]
+									},
+									"kind": "BComposed",
+									"spec": {
+										"widgets": 9002
+									}
+								}`),
+							},
+						},
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "atest.crossplane.io/v1",
+									"metadata": {
+										"generateName": "test-render-",
+										"labels": {
+											"crossplane.io/composite": "test-render"
+										},
+										"annotations": {
+											"crossplane.io/composition-resource-name": "b-cool-resource"
+										},
+										"ownerReferences": [{
+											"apiVersion": "nop.example.org/v1alpha1",
+											"kind": "XNopResource",
+											"name": "test-render",
+											"blockOwnerDeletion": true,
+											"controller": true,
+											"uid": ""
+										}]
+									},
+									"kind": "AComposed",
+									"spec": {
+										"widgets": 9003
+									}
+								}`),
+							},
+						},
+					},
+				},
+			},
+		},
+		"CompositeReadyTrueWithUnreadyResources": {
+			reason: "When composite resource Ready is READY_TRUE and there are unready resources, XR condition should be Available",
+			args: args{
+				ctx: context.Background(),
+				in: Inputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render"
+								}
+							}`),
+						},
+					},
+					Composition: &apiextensionsv1.Composition{
+						Spec: apiextensionsv1.CompositionSpec{
+							Mode: apiextensionsv1.CompositionModePipeline,
+							Pipeline: []apiextensionsv1.PipelineStep{
+								{
+									Step:        "test",
+									FunctionRef: apiextensionsv1.FunctionReference{Name: "function-test"},
+								},
+							},
+						},
+					},
+					Functions: []pkgv1.Function{
+						func() pkgv1.Function {
+							lis := NewFunction(t, &fnv1.RunFunctionResponse{
+								Desired: &fnv1.State{
+									Composite: &fnv1.Resource{
+										Resource: MustStructJSON(`{
+											"status": {
+												"widgets": 9001
+											}
+										}`),
+										Ready: fnv1.Ready_READY_TRUE,
+									},
+									Resources: map[string]*fnv1.Resource{
+										"a-cool-resource": {
+											Resource: MustStructJSON(`{
+												"apiVersion": "btest.crossplane.io/v1",
+												"kind": "BComposed",
+												"spec": {
+													"widgets": 9002
+												}
+											}`),
+											// Ready field is not set (defaults to READY_UNSPECIFIED which is != READY_TRUE)
+										},
+									},
+								},
+							})
+							listeners = append(listeners, lis)
+
+							return pkgv1.Function{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "function-test",
+									Annotations: map[string]string{
+										AnnotationKeyRuntime:                  string(AnnotationValueRuntimeDevelopment),
+										AnnotationKeyRuntimeDevelopmentTarget: lis.Addr().String(),
+									},
+								},
+							}
+						}(),
+					},
+				},
+			},
+			want: want{
+				out: Outputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render"
+								},
+								"status": {
+									"widgets": 9001,
+									"conditions": [{
+										"lastTransitionTime": "2024-01-01T00:00:00Z",
+										"type": "Ready",
+										"status": "True",
+										"reason": "Available"
+									}]
+								}
+							}`),
+						},
+					},
+					ComposedResources: []composed.Unstructured{
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "btest.crossplane.io/v1",
+									"metadata": {
+										"generateName": "test-render-",
+										"labels": {
+											"crossplane.io/composite": "test-render"
+										},
+										"annotations": {
+											"crossplane.io/composition-resource-name": "a-cool-resource"
+										},
+										"ownerReferences": [{
+											"apiVersion": "nop.example.org/v1alpha1",
+											"kind": "XNopResource",
+											"name": "test-render",
+											"blockOwnerDeletion": true,
+											"controller": true,
+											"uid": ""
+										}]
+									},
+									"kind": "BComposed",
+									"spec": {
+										"widgets": 9002
+									}
+								}`),
+							},
+						},
+					},
+				},
+			},
+		},
+		"CompositeReadyFalse": {
+			reason: "When composite resource Ready is READY_FALSE, XR condition should be Creating without message",
+			args: args{
+				ctx: context.Background(),
+				in: Inputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render"
+								}
+							}`),
+						},
+					},
+					Composition: &apiextensionsv1.Composition{
+						Spec: apiextensionsv1.CompositionSpec{
+							Mode: apiextensionsv1.CompositionModePipeline,
+							Pipeline: []apiextensionsv1.PipelineStep{
+								{
+									Step:        "test",
+									FunctionRef: apiextensionsv1.FunctionReference{Name: "function-test"},
+								},
+							},
+						},
+					},
+					Functions: []pkgv1.Function{
+						func() pkgv1.Function {
+							lis := NewFunction(t, &fnv1.RunFunctionResponse{
+								Desired: &fnv1.State{
+									Composite: &fnv1.Resource{
+										Resource: MustStructJSON(`{
+											"status": {
+												"widgets": 9001
+											}
+										}`),
+										Ready: fnv1.Ready_READY_FALSE,
+									},
+									Resources: map[string]*fnv1.Resource{
+										"a-cool-resource": {
+											Resource: MustStructJSON(`{
+												"apiVersion": "btest.crossplane.io/v1",
+												"kind": "BComposed",
+												"spec": {
+													"widgets": 9002
+												}
+											}`),
+											Ready: fnv1.Ready_READY_TRUE,
+										},
+									},
+								},
+							})
+							listeners = append(listeners, lis)
+
+							return pkgv1.Function{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "function-test",
+									Annotations: map[string]string{
+										AnnotationKeyRuntime:                  string(AnnotationValueRuntimeDevelopment),
+										AnnotationKeyRuntimeDevelopmentTarget: lis.Addr().String(),
+									},
+								},
+							}
+						}(),
+					},
+				},
+			},
+			want: want{
+				out: Outputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render"
+								},
+								"status": {
+									"widgets": 9001,
+									"conditions": [{
+										"lastTransitionTime": "2024-01-01T00:00:00Z",
+										"type": "Ready",
+										"status": "False",
+										"reason": "Creating"
+									}]
+								}
+							}`),
+						},
+					},
+					ComposedResources: []composed.Unstructured{
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "btest.crossplane.io/v1",
+									"metadata": {
+										"generateName": "test-render-",
+										"labels": {
+											"crossplane.io/composite": "test-render"
+										},
+										"annotations": {
+											"crossplane.io/composition-resource-name": "a-cool-resource"
+										},
+										"ownerReferences": [{
+											"apiVersion": "nop.example.org/v1alpha1",
+											"kind": "XNopResource",
+											"name": "test-render",
+											"blockOwnerDeletion": true,
+											"controller": true,
+											"uid": ""
+										}]
+									},
+									"kind": "BComposed",
+									"spec": {
+										"widgets": 9002
+									}
+								}`),
+							},
+						},
+					},
+				},
+			},
+		},
+		"CompositeReadyUnspecifiedWithUnreadyResources": {
+			reason: "When composite resource Ready is unspecified and there are unready resources, XR condition should be Creating with message",
+			args: args{
+				ctx: context.Background(),
+				in: Inputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render"
+								}
+							}`),
+						},
+					},
+					Composition: &apiextensionsv1.Composition{
+						Spec: apiextensionsv1.CompositionSpec{
+							Mode: apiextensionsv1.CompositionModePipeline,
+							Pipeline: []apiextensionsv1.PipelineStep{
+								{
+									Step:        "test",
+									FunctionRef: apiextensionsv1.FunctionReference{Name: "function-test"},
+								},
+							},
+						},
+					},
+					Functions: []pkgv1.Function{
+						func() pkgv1.Function {
+							lis := NewFunction(t, &fnv1.RunFunctionResponse{
+								Desired: &fnv1.State{
+									Composite: &fnv1.Resource{
+										Resource: MustStructJSON(`{
+											"status": {
+												"widgets": 9001
+											}
+										}`),
+										// Ready field is not set (defaults to READY_UNSPECIFIED)
+									},
+									Resources: map[string]*fnv1.Resource{
+										"a-cool-resource": {
+											Resource: MustStructJSON(`{
+												"apiVersion": "btest.crossplane.io/v1",
+												"kind": "BComposed",
+												"spec": {
+													"widgets": 9002
+												}
+											}`),
+											// Ready field is not set (defaults to READY_UNSPECIFIED which is != READY_TRUE)
+										},
+									},
+								},
+							})
+							listeners = append(listeners, lis)
+
+							return pkgv1.Function{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "function-test",
+									Annotations: map[string]string{
+										AnnotationKeyRuntime:                  string(AnnotationValueRuntimeDevelopment),
+										AnnotationKeyRuntimeDevelopmentTarget: lis.Addr().String(),
+									},
+								},
+							}
+						}(),
+					},
+				},
+			},
+			want: want{
+				out: Outputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render"
+								},
+								"status": {
+									"widgets": 9001,
+									"conditions": [{
+										"lastTransitionTime": "2024-01-01T00:00:00Z",
+										"type": "Ready",
+										"status": "False",
+										"reason": "Creating",
+										"message": "Unready resources: a-cool-resource"
+									}]
+								}
+							}`),
+						},
+					},
+					ComposedResources: []composed.Unstructured{
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "btest.crossplane.io/v1",
+									"metadata": {
+										"generateName": "test-render-",
+										"labels": {
+											"crossplane.io/composite": "test-render"
+										},
+										"annotations": {
+											"crossplane.io/composition-resource-name": "a-cool-resource"
+										},
+										"ownerReferences": [{
+											"apiVersion": "nop.example.org/v1alpha1",
+											"kind": "XNopResource",
+											"name": "test-render",
+											"blockOwnerDeletion": true,
+											"controller": true,
+											"uid": ""
+										}]
+									},
+									"kind": "BComposed",
+									"spec": {
+										"widgets": 9002
+									}
+								}`),
+							},
+						},
+					},
+				},
+			},
+		},
+		"CompositeReadyUnspecifiedNoUnreadyResources": {
+			reason: "When composite resource Ready is unspecified and there are no unready resources, XR condition should be Available",
+			args: args{
+				ctx: context.Background(),
+				in: Inputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render"
+								}
+							}`),
+						},
+					},
+					Composition: &apiextensionsv1.Composition{
+						Spec: apiextensionsv1.CompositionSpec{
+							Mode: apiextensionsv1.CompositionModePipeline,
+							Pipeline: []apiextensionsv1.PipelineStep{
+								{
+									Step:        "test",
+									FunctionRef: apiextensionsv1.FunctionReference{Name: "function-test"},
+								},
+							},
+						},
+					},
+					Functions: []pkgv1.Function{
+						func() pkgv1.Function {
+							lis := NewFunction(t, &fnv1.RunFunctionResponse{
+								Desired: &fnv1.State{
+									Composite: &fnv1.Resource{
+										Resource: MustStructJSON(`{
+											"status": {
+												"widgets": 9001
+											}
+										}`),
+										// Ready field is not set (defaults to READY_UNSPECIFIED)
+									},
+									Resources: map[string]*fnv1.Resource{
+										"a-cool-resource": {
+											Resource: MustStructJSON(`{
+												"apiVersion": "btest.crossplane.io/v1",
+												"kind": "BComposed",
+												"spec": {
+													"widgets": 9002
+												}
+											}`),
+											Ready: fnv1.Ready_READY_TRUE,
+										},
+									},
+								},
+							})
+							listeners = append(listeners, lis)
+
+							return pkgv1.Function{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "function-test",
+									Annotations: map[string]string{
+										AnnotationKeyRuntime:                  string(AnnotationValueRuntimeDevelopment),
+										AnnotationKeyRuntimeDevelopmentTarget: lis.Addr().String(),
+									},
+								},
+							}
+						}(),
+					},
+				},
+			},
+			want: want{
+				out: Outputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render"
+								},
+								"status": {
+									"widgets": 9001,
+									"conditions": [{
+										"lastTransitionTime": "2024-01-01T00:00:00Z",
+										"type": "Ready",
+										"status": "True",
+										"reason": "Available"
+									}]
+								}
+							}`),
+						},
+					},
+					ComposedResources: []composed.Unstructured{
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "btest.crossplane.io/v1",
+									"metadata": {
+										"generateName": "test-render-",
+										"labels": {
+											"crossplane.io/composite": "test-render"
+										},
+										"annotations": {
+											"crossplane.io/composition-resource-name": "a-cool-resource"
+										},
+										"ownerReferences": [{
+											"apiVersion": "nop.example.org/v1alpha1",
+											"kind": "XNopResource",
+											"name": "test-render",
+											"blockOwnerDeletion": true,
+											"controller": true,
+											"uid": ""
+										}]
+									},
+									"kind": "BComposed",
+									"spec": {
+										"widgets": 9002
+									}
+								}`),
+							},
+						},
+					},
+				},
+			},
+		},
+		"NamespacedXRPropagatesToComposed": {
+			reason: "A namespaced XR should propagate its namespace to composed resources",
+			args: args{
+				ctx: context.Background(),
+				in: Inputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render",
+									"namespace": "test-namespace"
+								}
+							}`),
+						},
+					},
+					Composition: &apiextensionsv1.Composition{
+						Spec: apiextensionsv1.CompositionSpec{
+							Mode: apiextensionsv1.CompositionModePipeline,
+							Pipeline: []apiextensionsv1.PipelineStep{
+								{
+									Step:        "test",
+									FunctionRef: apiextensionsv1.FunctionReference{Name: "function-test"},
+								},
+							},
+						},
+					},
+					Functions: []pkgv1.Function{
+						func() pkgv1.Function {
+							lis := NewFunction(t, &fnv1.RunFunctionResponse{
+								Desired: &fnv1.State{
+									Composite: &fnv1.Resource{
+										Resource: MustStructJSON(`{
+											"status": {
+												"widgets": 9001
+											}
+										}`),
+									},
+									Resources: map[string]*fnv1.Resource{
+										"a-cool-resource": {
+											Resource: MustStructJSON(`{
+												"apiVersion": "btest.crossplane.io/v1",
+												"kind": "BComposed",
+												"spec": {
+													"widgets": 9002
+												}
+											}`),
+											Ready: fnv1.Ready_READY_TRUE,
+										},
+									},
+								},
+							})
+							listeners = append(listeners, lis)
+
+							return pkgv1.Function{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "function-test",
+									Annotations: map[string]string{
+										AnnotationKeyRuntime:                  string(AnnotationValueRuntimeDevelopment),
+										AnnotationKeyRuntimeDevelopmentTarget: lis.Addr().String(),
+									},
+								},
+							}
+						}(),
+					},
+				},
+			},
+			want: want{
+				out: Outputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render",
+									"namespace": "test-namespace"
+								},
+								"status": {
+									"widgets": 9001,
+									"conditions": [{
+										"lastTransitionTime": "2024-01-01T00:00:00Z",
+										"type": "Ready",
+										"status": "True",
+										"reason": "Available"
+									}]
+								}
+							}`),
+						},
+					},
+					ComposedResources: []composed.Unstructured{
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "btest.crossplane.io/v1",
+									"metadata": {
+										"generateName": "test-render-",
+										"namespace": "test-namespace",
+										"labels": {
+											"crossplane.io/composite": "test-render"
+										},
+										"annotations": {
+											"crossplane.io/composition-resource-name": "a-cool-resource"
+										},
+										"ownerReferences": [{
+											"apiVersion": "nop.example.org/v1alpha1",
+											"kind": "XNopResource",
+											"name": "test-render",
+											"blockOwnerDeletion": true,
+											"controller": true,
+											"uid": ""
+										}]
+									},
+									"kind": "BComposed",
+									"spec": {
+										"widgets": 9002
+									}
+								}`),
+							},
+						},
+					},
 				},
 			},
 		},
@@ -762,9 +1676,10 @@ func TestRender(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			out, err := Render(tc.args.ctx, logging.NewNopLogger(), tc.args.in)
 
-			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(fnv1.Requirements{}, fnv1.ResourceSelector{})); diff != "" {
 				t.Errorf("%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nRender(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -786,6 +1701,7 @@ func NewFunction(t *testing.T, rsp *fnv1.RunFunctionResponse) net.Listener {
 
 	srv := grpc.NewServer(grpc.Creds(insecure.NewCredentials()))
 	fnv1.RegisterFunctionRunnerServiceServer(srv, &MockFunctionRunner{Response: rsp})
+
 	go srv.Serve(lis) // This will stop when lis is closed.
 
 	return lis
@@ -801,6 +1717,7 @@ func NewFunctionWithRunFunc(t *testing.T, runFunc func(context.Context, *fnv1.Ru
 
 	srv := grpc.NewServer(grpc.Creds(insecure.NewCredentials()))
 	fnv1.RegisterFunctionRunnerServiceServer(srv, &MockFunctionRunner{RunFunc: runFunc})
+
 	go srv.Serve(lis) // This will stop when lis is closed.
 
 	return lis
@@ -818,17 +1735,20 @@ func (r *MockFunctionRunner) RunFunction(ctx context.Context, req *fnv1.RunFunct
 	if r.Response != nil {
 		return r.Response, r.Error
 	}
+
 	return r.RunFunc(ctx, req)
 }
 
-func TestFilterExtraResources(t *testing.T) {
+func TestFilterResources(t *testing.T) {
 	type params struct {
 		ers []unstructured.Unstructured
 	}
+
 	type args struct {
 		ctx      context.Context
 		selector *fnv1.ResourceSelector
 	}
+
 	type want struct {
 		out *fnv1.Resources
 		err error
@@ -1052,13 +1972,15 @@ func TestFilterExtraResources(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			f := &FilteringFetcher{extra: tc.params.ers}
+			f := NewFilteringFetcher(tc.params.ers...)
+
 			out, err := f.Fetch(tc.args.ctx, tc.args.selector)
 			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(fnv1.Resources{}, fnv1.Resource{}, structpb.Struct{}, structpb.Value{})); diff != "" {
-				t.Errorf("%s\nfilterExtraResources(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("%s\nfilterResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
-				t.Errorf("%s\nfilterExtraResources(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("%s\nfilterResources(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -1108,9 +2030,9 @@ func TestGetSecret(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			_, err := getSecret(tc.name, tc.namespace, tc.secrets)
+			_, err := GetSecret(tc.name, tc.namespace, tc.secrets)
 			if (err != nil) != tc.wantErr {
-				t.Errorf("getSecret() error = %v, wantErr %v", err, tc.wantErr)
+				t.Errorf("GetSecret() error = %v, wantErr %v", err, tc.wantErr)
 			}
 		})
 	}
@@ -1121,5 +2043,6 @@ func MustStructJSON(j string) *structpb.Struct {
 	if err := protojson.Unmarshal([]byte(j), s); err != nil {
 		panic(err)
 	}
+
 	return s
 }

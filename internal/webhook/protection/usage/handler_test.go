@@ -28,12 +28,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/protection/v1beta1"
-	"github.com/crossplane/crossplane/internal/protection"
-	"github.com/crossplane/crossplane/internal/protection/usage"
+	"github.com/crossplane/crossplane/v2/apis/protection/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/protection"
+	"github.com/crossplane/crossplane/v2/internal/protection/usage"
 )
 
 var _ admission.Handler = &Handler{}
@@ -48,17 +48,21 @@ var errBoom = errors.New("boom")
 
 func TestHandle(t *testing.T) {
 	protected := "This resource is protected!"
+
 	type params struct {
 		client client.Client
 		f      Finder
 		opts   []HandlerOption
 	}
+
 	type args struct {
 		request admission.Request
 	}
+
 	type want struct {
 		resp admission.Response
 	}
+
 	cases := map[string]struct {
 		reason string
 		params params
@@ -360,6 +364,7 @@ func TestHandle(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			h := NewHandler(tc.params.client, tc.params.f, tc.params.opts...)
+
 			got := h.Handle(context.Background(), tc.args.request)
 			if diff := cmp.Diff(tc.want.resp, got); diff != "" {
 				t.Errorf("%s\nHandle(...): -want response, +got:\n%s", tc.reason, diff)

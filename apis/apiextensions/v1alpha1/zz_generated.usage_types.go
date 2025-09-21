@@ -21,7 +21,7 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 )
 
 // ResourceRef is a reference to a resource.
@@ -102,6 +102,7 @@ type UsageStatus struct {
 type Usage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
+
 	// +kubebuilder:validation:XValidation:rule="has(self.by) || has(self.reason)",message="either \"spec.by\" or \"spec.reason\" must be specified."
 	Spec   UsageSpec   `json:"spec"`
 	Status UsageStatus `json:"status,omitempty"`
@@ -115,5 +116,6 @@ type Usage struct {
 type UsageList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Usage `json:"items"`
+
+	Items []Usage `json:"items"`
 }

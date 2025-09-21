@@ -31,15 +31,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/controller/rbac/controller"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/controller"
 )
 
 const (
@@ -137,6 +137,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	for _, f := range opts {
 		f(r)
 	}
+
 	return r
 }
 
@@ -180,9 +181,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	applied := make([]string, 0)
+
 	for _, cr := range r.rbac.RenderClusterRoles(d) {
 		log := log.WithValues("role-name", cr.GetName())
 		origRV := ""
+
 		err := r.client.Apply(ctx, &cr,
 			resource.MustBeControllableBy(d.GetUID()),
 			resource.AllowUpdateIf(ClusterRolesDiffer),
@@ -192,16 +195,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug("Skipped no-op RBAC ClusterRole apply")
 			continue
 		}
+
 		if err != nil {
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errApplyRole)
 			r.record.Event(d, event.Warning(reasonApplyRoles, err))
+
 			return reconcile.Result{}, err
 		}
+
 		if cr.GetResourceVersion() != origRV {
 			log.Debug("Applied RBAC ClusterRole")
+
 			applied = append(applied, cr.GetName())
 		}
 	}
@@ -225,5 +233,6 @@ func ClusterRolesDiffer(current, desired runtime.Object) bool {
 	// happens, we probably do want to panic.
 	c := current.(*rbacv1.ClusterRole) //nolint:forcetypeassert // See above.
 	d := desired.(*rbacv1.ClusterRole) //nolint:forcetypeassert // See above.
+
 	return !cmp.Equal(c.GetLabels(), d.GetLabels()) || !cmp.Equal(c.Rules, d.Rules)
 }

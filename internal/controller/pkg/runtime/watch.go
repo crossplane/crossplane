@@ -8,10 +8,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 )
 
 // EnqueuePackageRevisionsForRuntimeConfig enqueues a reconcile for all package
@@ -30,11 +30,13 @@ func EnqueuePackageRevisionsForRuntimeConfig(kube client.Client, l v1.PackageRev
 		}
 
 		var matches []reconcile.Request
+
 		for _, rev := range rl.GetRevisions() {
 			rt, ok := rev.(v1.PackageRevisionWithRuntime)
 			if !ok {
 				continue
 			}
+
 			ref := rt.GetRuntimeConfigRef()
 			if ref != nil && ref.Name == rc.GetName() {
 				matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: rev.GetName()}})

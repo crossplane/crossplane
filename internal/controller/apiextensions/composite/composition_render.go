@@ -18,11 +18,11 @@ package composite
 import (
 	"k8s.io/apimachinery/pkg/util/json"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 // Error strings.
@@ -97,7 +97,7 @@ func RenderComposedResourceMetadata(cd, xr resource.Object, n ResourceName) erro
 	}
 
 	if n != "" {
-		SetCompositionResourceName(cd, n)
+		xcrd.SetCompositionResourceName(cd, string(n))
 	}
 
 	// TODO(negz): What happens if there is no claim? Will this set empty
@@ -113,6 +113,7 @@ func RenderComposedResourceMetadata(cd, xr resource.Object, n ResourceName) erro
 	meta.AddLabels(cd, metaLabels)
 
 	or := meta.AsController(meta.TypedReferenceTo(xr, xr.GetObjectKind().GroupVersionKind()))
+
 	return errors.Wrap(meta.AddControllerReference(cd, or), errSetControllerRef)
 }
 

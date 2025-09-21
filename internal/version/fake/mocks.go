@@ -20,7 +20,7 @@ package fake
 import (
 	"github.com/Masterminds/semver"
 
-	"github.com/crossplane/crossplane/internal/version"
+	"github.com/crossplane/crossplane/v2/internal/version"
 )
 
 var _ version.Operations = &MockVersioner{}

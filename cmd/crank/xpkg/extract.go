@@ -34,11 +34,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/spf13/afero"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/internal/xpkg"
-	"github.com/crossplane/crossplane/internal/xpkg/upbound"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 const (
@@ -81,10 +80,12 @@ func xpkgFetch(path string) fetchFn {
 // that have Run() methods that receive it.
 func (c *extractCmd) AfterApply() error {
 	c.fs = afero.NewOsFs()
+
 	c.fetch = registryFetch
 	if c.FromDaemon {
 		c.fetch = daemonFetch
 	}
+
 	if c.FromXpkg {
 		// If package is not defined, attempt to find single package in current
 		// directory.
@@ -93,29 +94,31 @@ func (c *extractCmd) AfterApply() error {
 			if err != nil {
 				return errors.Wrap(err, errGetwd)
 			}
+
 			path, err := xpkg.FindXpkgInDir(c.fs, wd)
 			if err != nil {
 				return errors.Wrap(err, errFindPackageinWd)
 			}
+
 			c.Package = path
 		}
+
 		c.fetch = xpkgFetch(c.Package)
 	}
+
 	if !c.FromXpkg {
 		if c.Package == "" {
 			return errors.New(errMustProvideTag)
 		}
-		upCtx, err := upbound.NewFromFlags(c.Flags)
-		if err != nil {
-			return err
-		}
 
-		name, err := name.ParseReference(c.Package, name.WithDefaultRegistry(upCtx.RegistryEndpoint.Hostname()))
+		name, err := name.ParseReference(c.Package, name.StrictValidation)
 		if err != nil {
 			return errors.Wrap(err, errInvalidTag)
 		}
+
 		c.name = name
 	}
+
 	return nil
 }
 
@@ -126,13 +129,10 @@ type extractCmd struct {
 	name  name.Reference
 	fetch fetchFn
 
-	Package    string `arg:""                                                                                                                                                     help:"Name of the package to extract. Must be a valid OCI image tag or a path if using --from-xpkg." optional:""`
+	Package    string `arg:""                                                                                                                                                     help:"Name of the package to extract. Must be a valid and fully qualified OCI image tag or a path if using --from-xpkg." optional:"" placeholder:"REGISTRY/REPOSITORY:TAG or PATH"`
 	FromDaemon bool   `help:"Indicates that the image should be fetched from the Docker daemon."`
 	FromXpkg   bool   `help:"Indicates that the image should be fetched from a local xpkg. If package is not specified and only one exists in current directory it will be used."`
-	Output     string `default:"out.gz"                                                                                                                                           help:"Package output file path. Extension must be .gz or will be replaced."                          short:"o"`
-
-	// Common API configuration
-	Flags upbound.Flags `embed:""`
+	Output     string `default:"out.gz"                                                                                                                                           help:"Package output file path. Extension must be .gz or will be replaced."                                              short:"o"`
 }
 
 // Run runs the xpkg extract cmd.
@@ -154,19 +154,25 @@ func (c *extractCmd) Run(logger logging.Logger) error { //nolint:gocyclo // xpkg
 
 	// Determine if the image is using annotated layers.
 	var tarc io.ReadCloser
+
 	foundAnnotated := false
+
 	for _, l := range manifest.Layers {
 		if a, ok := l.Annotations[xpkg.AnnotationKey]; !ok || a != xpkg.PackageAnnotation {
 			continue
 		}
+
 		if foundAnnotated {
 			return errors.New(errMultipleAnnotatedLayers)
 		}
+
 		foundAnnotated = true
+
 		layer, err := img.LayerByDigest(l.Digest)
 		if err != nil {
 			return errors.Wrap(err, errFetchLayer)
 		}
+
 		tarc, err = layer.Uncompressed()
 		if err != nil {
 			return errors.Wrap(err, errGetUncompressed)
@@ -182,12 +188,15 @@ func (c *extractCmd) Run(logger logging.Logger) error { //nolint:gocyclo // xpkg
 	// layer contents or flattened filesystem content. Either way, we only want
 	// the package YAML stream.
 	t := tar.NewReader(tarc)
+
 	var size int64
+
 	for {
 		h, err := t.Next()
 		if err != nil {
 			return errors.Wrap(err, errOpenPackageStream)
 		}
+
 		if h.Name == xpkg.StreamFile {
 			size = h.Size
 			break
@@ -195,22 +204,27 @@ func (c *extractCmd) Run(logger logging.Logger) error { //nolint:gocyclo // xpkg
 	}
 
 	out := xpkg.ReplaceExt(filepath.Clean(c.Output), cacheContentExt)
+
 	cf, err := c.fs.Create(out)
 	if err != nil {
 		return errors.Wrap(err, errCreateOutputFile)
 	}
 	defer cf.Close() //nolint:errcheck // defer close
+
 	w, err := gzip.NewWriterLevel(cf, gzip.BestSpeed)
 	if err != nil {
 		return errors.Wrap(err, errCreateGzipWriter)
 	}
+
 	if _, err = io.CopyN(w, t, size); err != nil {
 		return errors.Wrap(err, errExtractPackageContents)
 	}
+
 	if err := w.Close(); err != nil {
 		return errors.Wrap(err, errExtractPackageContents)
 	}
 
 	logger.Debug("xpkg contents extracted to %s", out)
+
 	return nil
 }

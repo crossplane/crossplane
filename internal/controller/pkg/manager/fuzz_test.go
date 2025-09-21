@@ -22,11 +22,11 @@ import (
 
 	fuzz "github.com/AdaLogics/go-fuzz-headers"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/internal/xpkg"
-	"github.com/crossplane/crossplane/internal/xpkg/fake"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
+	"github.com/crossplane/crossplane/v2/internal/xpkg/fake"
 )
 
 func FuzzPackageRevision(f *testing.F) {
@@ -34,19 +34,23 @@ func FuzzPackageRevision(f *testing.F) {
 		ff := fuzz.NewConsumer(data)
 		pkg := &v1.Provider{}
 		ff.GenerateStruct(pkg)
+
 		fetcher := &fake.MockFetcher{
 			MockHead: fake.NewMockHeadFn(nil, errors.New("boom")),
 		}
 		r := NewPackageRevisioner(fetcher)
 		_, _ = r.Revision(context.Background(), pkg, "")
+
 		n, err := ff.GetString()
 		if err != nil {
 			t.Skip()
 		}
+
 		h, err := ff.GetString()
 		if err != nil {
 			t.Skip()
 		}
+
 		_ = xpkg.FriendlyID(n, h)
 	})
 }

@@ -35,16 +35,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/internal/controller/rbac/controller"
+	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/controller"
 )
 
 const (
@@ -100,7 +101,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		WithOrgDiffer(OrgDiffer{DefaultRegistry: o.DefaultRegistry}))
+		WithOrgDiffer(OrgDiffer{}))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -173,6 +174,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	for _, f := range opts {
 		f(r)
 	}
+
 	return r
 }
 
@@ -244,8 +246,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errListPRs)
 			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
+
 			return reconcile.Result{}, err
 		}
 
@@ -274,9 +278,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	applied := make([]string, 0)
+
 	for _, cr := range r.rbac.RenderClusterRoles(pr, resources) {
 		log := log.WithValues("role-name", cr.GetName())
 		origRV := ""
+
 		err := r.client.Apply(ctx, &cr,
 			resource.MustBeControllableBy(pr.GetUID()),
 			resource.AllowUpdateIf(ClusterRolesDiffer),
@@ -286,16 +292,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug("Skipped no-op RBAC ClusterRole apply")
 			continue
 		}
+
 		if err != nil {
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errApplyRole)
 			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
+
 			return reconcile.Result{}, err
 		}
+
 		if cr.GetResourceVersion() != origRV {
 			log.Debug("Applied RBAC ClusterRole")
+
 			applied = append(applied, cr.GetName())
 		}
 	}
@@ -320,8 +331,14 @@ func DefinedResources(refs []xpv1.TypedReference) []Resource {
 		// just skip this resource since it can't be a CRD.
 		gv, _ := schema.ParseGroupVersion(ref.APIVersion)
 
-		// We're only concerned with CRDs.
-		if gv.Group != apiextensions.GroupName || ref.Kind != "CustomResourceDefinition" {
+		// We're only concerned with CRDs or MRDs.
+		switch {
+		case gv.Group == apiextensions.GroupName && ref.Kind == "CustomResourceDefinition":
+		// Do the work!
+		case gv.Group == v1alpha1.Group && ref.Kind == v1alpha1.ManagedResourceDefinitionKind:
+		// Do the work!
+		default:
+			// Filter out the non CRD or MRD.
 			continue
 		}
 
@@ -333,6 +350,7 @@ func DefinedResources(refs []xpv1.TypedReference) []Resource {
 
 		out = append(out, Resource{Group: g, Plural: p})
 	}
+
 	return out
 }
 
@@ -344,30 +362,29 @@ func ClusterRolesDiffer(current, desired runtime.Object) bool {
 	// happens, we probably do want to panic.
 	c := current.(*rbacv1.ClusterRole) //nolint:forcetypeassert // See above.
 	d := desired.(*rbacv1.ClusterRole) //nolint:forcetypeassert // See above.
+
 	return !cmp.Equal(c.GetLabels(), d.GetLabels()) || !cmp.Equal(c.Rules, d.Rules)
 }
 
 // An OrgDiffer determines whether two references are part of the same org. In
 // this context we consider an org to consist of:
 //
-//   - The registry (e.g. xpkg.upbound.io or index.docker.io).
+//   - The registry (e.g. xpkg.crossplane.io or index.docker.io).
 //   - The part of the repository path before the first slash (e.g. crossplane
 //     in crossplane/provider-aws).
-type OrgDiffer struct {
-	// The default OCI registry to use when parsing references.
-	DefaultRegistry string
-}
+type OrgDiffer struct{}
 
 // Differs returns true if the supplied references are not part of the same OCI
 // registry and org.
 func (d OrgDiffer) Differs(a, b string) bool {
 	// If we can't parse either reference we can't compare them. Safest thing to
 	// do is to assume they're not part of the same org.
-	ra, err := name.ParseReference(a, name.WithDefaultRegistry(d.DefaultRegistry))
+	ra, err := name.ParseReference(a, name.WithDefaultRegistry(""))
 	if err != nil {
 		return true
 	}
-	rb, err := name.ParseReference(b, name.WithDefaultRegistry(d.DefaultRegistry))
+
+	rb, err := name.ParseReference(b, name.WithDefaultRegistry(""))
 	if err != nil {
 		return true
 	}
@@ -375,7 +392,7 @@ func (d OrgDiffer) Differs(a, b string) bool {
 	ca := ra.Context()
 	cb := rb.Context()
 
-	// If the registries (e.g. xpkg.upbound.io) don't match they're not in the
+	// If the registries (e.g. xpkg.crossplane.io) don't match they're not in the
 	// same org.
 	if ca.RegistryStr() != cb.RegistryStr() {
 		return true

@@ -23,13 +23,15 @@ import (
 	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/parser"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
-	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	"github.com/crossplane/crossplane/internal/version"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	extv1alpha1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
+	v2 "github.com/crossplane/crossplane/v2/apis/apiextensions/v2"
+	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
+	"github.com/crossplane/crossplane/v2/internal/version"
 )
 
 const (
@@ -39,10 +41,15 @@ const (
 	errNotMetaConfiguration              = "package meta type is not Configuration"
 	errNotMetaFunction                   = "package meta type is not Function"
 	errNotCRD                            = "object is not a CRD"
+	errNotMRD                            = "object is not an MRD"
 	errNotXRD                            = "object is not an XRD"
 	errNotMutatingWebhookConfiguration   = "object is not a MutatingWebhookConfiguration"
 	errNotValidatingWebhookConfiguration = "object is not an ValidatingWebhookConfiguration"
 	errNotComposition                    = "object is not a Composition"
+	errNotActivationPolicy               = "object is not an ManagedResourceActivationPolicy"
+	errNotOperation                      = "object is not an Operation"
+	errNotCronOperation                  = "object is not a CronOperation"
+	errNotWatchOperation                 = "object is not a WatchOperation"
 	errBadConstraints                    = "package version constraints are poorly formatted"
 	errFmtCrossplaneIncompatible         = "package is not compatible with Crossplane version (%s)"
 )
@@ -50,9 +57,11 @@ const (
 // NewProviderLinter is a convenience function for creating a package linter for
 // providers.
 func NewProviderLinter() parser.Linter {
-	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsProvider, PackageValidSemver),
+	return parser.NewPackageLinter(
+		parser.PackageLinterFns(OneMeta),
+		parser.ObjectLinterFns(IsProvider, PackageValidSemver),
 		parser.ObjectLinterFns(parser.Or(
-			IsCRD,
+			IsCRD, IsMRD,
 			IsValidatingWebhookConfiguration,
 			IsMutatingWebhookConfiguration,
 		)))
@@ -61,13 +70,19 @@ func NewProviderLinter() parser.Linter {
 // NewConfigurationLinter is a convenience function for creating a package linter for
 // configurations.
 func NewConfigurationLinter() parser.Linter {
-	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsConfiguration, PackageValidSemver), parser.ObjectLinterFns(parser.Or(IsXRD, IsComposition)))
+	return parser.NewPackageLinter(
+		parser.PackageLinterFns(OneMeta),
+		parser.ObjectLinterFns(IsConfiguration, PackageValidSemver),
+		parser.ObjectLinterFns(parser.Or(IsXRD, IsActivationPolicy, IsComposition, IsOperation, IsCronOperation, IsWatchOperation)))
 }
 
 // NewFunctionLinter is a convenience function for creating a package linter for
 // functions.
 func NewFunctionLinter() parser.Linter {
-	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsFunction, PackageValidSemver), parser.ObjectLinterFns())
+	return parser.NewPackageLinter(
+		parser.PackageLinterFns(OneMeta),
+		parser.ObjectLinterFns(IsFunction, PackageValidSemver),
+		parser.ObjectLinterFns())
 }
 
 // OneMeta checks that there is only one meta object in the package.
@@ -75,6 +90,7 @@ func OneMeta(pkg parser.Lintable) error {
 	if len(pkg.GetMeta()) != 1 {
 		return errors.New(errNotExactlyOneMeta)
 	}
+
 	return nil
 }
 
@@ -84,6 +100,7 @@ func IsProvider(o runtime.Object) error {
 	if _, ok := po.(*pkgmetav1.Provider); !ok {
 		return errors.New(errNotMetaProvider)
 	}
+
 	return nil
 }
 
@@ -93,6 +110,7 @@ func IsConfiguration(o runtime.Object) error {
 	if _, ok := po.(*pkgmetav1.Configuration); !ok {
 		return errors.New(errNotMetaConfiguration)
 	}
+
 	return nil
 }
 
@@ -102,6 +120,7 @@ func IsFunction(o runtime.Object) error {
 	if _, ok := po.(*pkgmetav1.Function); !ok {
 		return errors.New(errNotMetaFunction)
 	}
+
 	return nil
 }
 
@@ -117,13 +136,16 @@ func PackageCrossplaneCompatible(v version.Operations) parser.ObjectLinterFn {
 		if p.GetCrossplaneConstraints() == nil {
 			return nil
 		}
+
 		in, err := v.InConstraints(p.GetCrossplaneConstraints().Version)
 		if err != nil {
 			return errors.Wrapf(err, errFmtCrossplaneIncompatible, v.GetVersionString())
 		}
+
 		if !in {
 			return errors.Errorf(errFmtCrossplaneIncompatible, v.GetVersionString())
 		}
+
 		return nil
 	}
 }
@@ -138,9 +160,11 @@ func PackageValidSemver(o runtime.Object) error {
 	if p.GetCrossplaneConstraints() == nil {
 		return nil
 	}
+
 	if _, err := semver.NewConstraint(p.GetCrossplaneConstraints().Version); err != nil {
 		return errors.Wrap(err, errBadConstraints)
 	}
+
 	return nil
 }
 
@@ -154,11 +178,22 @@ func IsCRD(o runtime.Object) error {
 	}
 }
 
+// IsMRD checks that an object is a ManagedResourceDefinition.
+func IsMRD(o runtime.Object) error {
+	switch o.(type) {
+	case *extv1alpha1.ManagedResourceDefinition:
+		return nil
+	default:
+		return errors.New(errNotMRD)
+	}
+}
+
 // IsMutatingWebhookConfiguration checks that an object is a MutatingWebhookConfiguration.
 func IsMutatingWebhookConfiguration(o runtime.Object) error {
 	if _, ok := o.(*admv1.MutatingWebhookConfiguration); !ok {
 		return errors.New(errNotMutatingWebhookConfiguration)
 	}
+
 	return nil
 }
 
@@ -167,13 +202,14 @@ func IsValidatingWebhookConfiguration(o runtime.Object) error {
 	if _, ok := o.(*admv1.ValidatingWebhookConfiguration); !ok {
 		return errors.New(errNotValidatingWebhookConfiguration)
 	}
+
 	return nil
 }
 
 // IsXRD checks that an object is a CompositeResourceDefinition.
 func IsXRD(o runtime.Object) error {
 	switch o.(type) {
-	case *v1.CompositeResourceDefinition, *v2alpha1.CompositeResourceDefinition:
+	case *v1.CompositeResourceDefinition, *v2.CompositeResourceDefinition:
 		return nil
 	default:
 		return errors.New(errNotXRD)
@@ -185,5 +221,42 @@ func IsComposition(o runtime.Object) error {
 	if _, ok := o.(*v1.Composition); !ok {
 		return errors.New(errNotComposition)
 	}
+
+	return nil
+}
+
+// IsActivationPolicy checks that an object is an ManagedResourceActivationPolicy.
+func IsActivationPolicy(o runtime.Object) error {
+	if _, ok := o.(*extv1alpha1.ManagedResourceActivationPolicy); !ok {
+		return errors.New(errNotActivationPolicy)
+	}
+
+	return nil
+}
+
+// IsOperation checks that an object is an Operation.
+func IsOperation(o runtime.Object) error {
+	if _, ok := o.(*v1alpha1.Operation); !ok {
+		return errors.New(errNotOperation)
+	}
+
+	return nil
+}
+
+// IsCronOperation checks that an object is a CronOperation.
+func IsCronOperation(o runtime.Object) error {
+	if _, ok := o.(*v1alpha1.CronOperation); !ok {
+		return errors.New(errNotCronOperation)
+	}
+
+	return nil
+}
+
+// IsWatchOperation checks that an object is a WatchOperation.
+func IsWatchOperation(o runtime.Object) error {
+	if _, ok := o.(*v1alpha1.WatchOperation); !ok {
+		return errors.New(errNotWatchOperation)
+	}
+
 	return nil
 }

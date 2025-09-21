@@ -17,20 +17,28 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
-	"github.com/crossplane/crossplane/test/e2e/config"
-	"github.com/crossplane/crossplane/test/e2e/funcs"
+	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/test/e2e/config"
+	"github.com/crossplane/crossplane/v2/test/e2e/funcs"
 )
 
 // LabelAreaAPIExtensions is applied to all features pertaining to API
@@ -52,11 +60,6 @@ func init() {
 		}),
 	)
 }
-
-var nopList = composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
-	APIVersion: "nop.crossplane.io/v1alpha1",
-	Kind:       "NopResource",
-}))
 
 func TestCompositionRevisionSelection(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/realtime-revision-selection"
@@ -88,10 +91,13 @@ func TestCompositionRevisionSelection(t *testing.T) {
 				funcs.ResourcesHaveFieldValueWithin(10*time.Second, manifests, "claim.yaml", "status.coolerField", "from-updated-composition"),
 			).
 			WithTeardown("DeleteClaim", funcs.AllOf(
-				funcs.DeleteResources(manifests, "claim.yaml"),
-				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "claim.yaml"),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
 			Feature(),
 	)
 }
@@ -113,15 +119,50 @@ func TestBasicCompositionNamespaced(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
 			)).
 			Assess("XRIsReady",
-				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess())).
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess())).
 			Assess("XRHasStatusField",
-				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
 			).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestLackOfRightsNamespaced(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/lack-of-rights-namespaced"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Test that when attempting to compose a resource the controller has insufficient rights to manage, we get correct messaging.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRHasStatusField", funcs.AllOf(
+				// A blank error is as good as we can do at the moment. This validates we get into a reconciliation error, which is better than nothing.
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "xr.yaml", xpv1.ReconcileError(errors.New(""))),
+			)).
 			WithTeardown("DeleteXR", funcs.AllOf(
 				funcs.DeleteResources(manifests, "xr.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
 			Feature(),
 	)
 }
@@ -143,15 +184,24 @@ func TestBasicCompositionCluster(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
 			)).
 			Assess("XRIsReady",
-				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess())).
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess()),
+			).
+			Assess("ComposedResourceHasGenerateName",
+				funcs.ComposedResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "metadata.generateName", "basic-xr-cluster-", func(object k8s.Object) bool {
+					return object.GetObjectKind().GroupVersionKind().Kind == "ConfigMap"
+				}),
+			).
 			Assess("XRHasStatusField",
-				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
 			).
 			WithTeardown("DeleteXR", funcs.AllOf(
-				funcs.DeleteResources(manifests, "xr.yaml"),
-				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
 			Feature(),
 	)
 }
@@ -173,7 +223,7 @@ func TestCompositionSelection(t *testing.T) {
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyClaim(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
-				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv1.Available()),
 			)).
 			Assess("LabelSelectorPropagatesToXR", funcs.AllOf(
 				// The label selector should be propagated claim -> XR.
@@ -200,10 +250,13 @@ func TestCompositionSelection(t *testing.T) {
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.compositionSelector.matchLabels[region]", funcs.NotFound),
 			)).
 			WithTeardown("DeleteClaim", funcs.AllOf(
-				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
 			Feature(),
 	)
 }
@@ -250,6 +303,111 @@ func TestCompositionValidation(t *testing.T) {
 			WithTeardown("DeleteValidComposition", funcs.AllOf(
 				funcs.DeleteResources(manifests, "composition-valid.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "composition-valid.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestNamespacedXRClusterComposition(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/namespaced-xr-no-cluster-scoped-resource"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that namespaced XRs cannot compose cluster-scoped resources, ensuring proper validation and error handling when such invalid compositions are attempted.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateNamespacedXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRHasReconcileError",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.ReconcileError(errors.New(""))),
+			).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestCircuitBreaker(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/circuit-breaker"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests circuit breaker functionality when XR reconciliation is triggered too frequently due to rapid ConfigMap updates, ensuring the circuit opens with proper status conditions.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRBecomesReady",
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "xr.yaml", xpv1.Available()),
+			).
+			Assess("WaitForNormalOperation", funcs.SleepFor(45*time.Second)).
+			// Verify the circuit stays closed under normal operation
+			Assess("VerifyCircuitStaysClosedUnderNormalOperation",
+				funcs.ResourcesHaveConditionWithin(10*time.Second, manifests, "xr.yaml", apiextensionsv1.WatchCircuitClosed()),
+			).
+			Assess("TriggerCircuitBreakerWithRapidUpdates", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+				t.Helper()
+
+				t.Log("Starting rapid ConfigMap updates using Server-Side Apply to trigger circuit breaker...")
+
+				// Rapidly apply ConfigMap updates using SSA
+				// We'll do 60 updates over 3 seconds (20 updates/second)
+				// This should exhaust the 50-token bucket quickly
+				for i := range 60 {
+					cm := &unstructured.Unstructured{}
+					cm.SetAPIVersion("v1")
+					cm.SetKind("ConfigMap")
+					cm.SetNamespace("default")
+					cm.SetName("circuit-breaker-configmap")
+					fieldpath.Pave(cm.Object).SetString("data.counter", fmt.Sprintf("%d", i))
+
+					if err := cfg.Client().Resources().GetControllerRuntimeClient().Patch(ctx, cm, client.Apply, client.FieldOwner(FieldManager), client.ForceOwnership); err != nil {
+						t.Logf("SSA update %d failed: %v", i, err)
+					}
+
+					// 50ms between updates = 20 updates/second
+					time.Sleep(50 * time.Millisecond)
+				}
+
+				t.Log("Completed rapid ConfigMap updates using SSA")
+				return ctx
+			}).
+			Assess("CircuitBreakerOpens",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "xr.yaml",
+					xpv1.Condition{
+						Type:   apiextensionsv1.TypeResponsive,
+						Status: corev1.ConditionFalse,
+						Reason: apiextensionsv1.ReasonWatchCircuitOpen,
+						// Note: Message is intentionally omitted as E2E framework ignores messages during comparison
+					}),
+			).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Feature(),
 	)

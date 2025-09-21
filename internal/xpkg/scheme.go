@@ -23,11 +23,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
-	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
-	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
+	v2 "github.com/crossplane/crossplane/v2/apis/apiextensions/v2"
+	opsv1alpha1 "github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
+	pkgmetav1alpha1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1alpha1"
+	pkgmetav1beta1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1beta1"
 )
 
 // BuildMetaScheme builds the default scheme used for identifying metadata in a
@@ -37,12 +39,15 @@ func BuildMetaScheme() (*runtime.Scheme, error) {
 	if err := pkgmetav1alpha1.SchemeBuilder.AddToScheme(metaScheme); err != nil {
 		return nil, err
 	}
+
 	if err := pkgmetav1beta1.SchemeBuilder.AddToScheme(metaScheme); err != nil {
 		return nil, err
 	}
+
 	if err := pkgmetav1.SchemeBuilder.AddToScheme(metaScheme); err != nil {
 		return nil, err
 	}
+
 	return metaScheme, nil
 }
 
@@ -53,18 +58,31 @@ func BuildObjectScheme() (*runtime.Scheme, error) {
 	if err := v1.AddToScheme(objScheme); err != nil {
 		return nil, err
 	}
-	if err := v2alpha1.AddToScheme(objScheme); err != nil {
+
+	if err := v1alpha1.AddToScheme(objScheme); err != nil {
 		return nil, err
 	}
+
+	if err := opsv1alpha1.AddToScheme(objScheme); err != nil {
+		return nil, err
+	}
+
+	if err := v2.AddToScheme(objScheme); err != nil {
+		return nil, err
+	}
+
 	if err := extv1beta1.AddToScheme(objScheme); err != nil {
 		return nil, err
 	}
+
 	if err := extv1.AddToScheme(objScheme); err != nil {
 		return nil, err
 	}
+
 	if err := admv1.AddToScheme(objScheme); err != nil {
 		return nil, err
 	}
+
 	return objScheme, nil
 }
 
@@ -93,5 +111,6 @@ func TryConvert(obj runtime.Object, candidates ...conversion.Hub) (runtime.Objec
 func TryConvertToPkg(obj runtime.Object, candidates ...conversion.Hub) (pkgmetav1.Pkg, bool) {
 	po, _ := TryConvert(obj, candidates...)
 	m, ok := po.(pkgmetav1.Pkg)
+
 	return m, ok
 }

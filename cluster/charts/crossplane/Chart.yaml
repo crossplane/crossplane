@@ -7,7 +7,7 @@ icon: https://docs.crossplane.io/android-chrome-192x192.png
 home: https://crossplane.io
 maintainers:
   - name: Crossplane Maintainers
-    email: info@crossplane.io
+    email: crossplane-info@lists.cncf.io
 source:
 - https://github.com/crossplane/crossplane
 - https://github.com/crossplane/crossplane-runtime

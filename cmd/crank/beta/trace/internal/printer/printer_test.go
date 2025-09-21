@@ -20,13 +20,13 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
+	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 // DummyManifestOpt can be passed to customize a dummy manifest.
@@ -48,6 +48,7 @@ func DummyManifest(kind, name string, opts ...DummyManifestOpt) unstructured.Uns
 	for _, opt := range opts {
 		opt(&m)
 	}
+
 	return m
 }
 
@@ -74,7 +75,7 @@ func WithConditions(conds ...xpv1.Condition) DummyManifestOpt {
 
 func WithCompositionResourceName(n string) DummyManifestOpt {
 	return func(m *unstructured.Unstructured) {
-		meta.AddAnnotations(m, map[string]string{composite.AnnotationKeyCompositionResourceName: n})
+		meta.AddAnnotations(m, map[string]string{xcrd.AnnotationKeyCompositionResourceName: n})
 	}
 }
 
@@ -210,41 +211,41 @@ func GetComplexPackage() *resource.Resource {
 	return &resource.Resource{
 		Unstructured: DummyPackage(v1.ConfigurationGroupVersionKind, "platform-ref-aws",
 			WithConditions(v1.Active(), v1.Healthy()),
-			WithPackage("xpkg.upbound.io/upbound/platform-ref-aws:v0.9.0")),
+			WithPackage("xpkg.crossplane.io/crossplane/platform-ref-aws:v0.9.0")),
 		Children: []*resource.Resource{
 			{
 				Unstructured: DummyPackage(v1.ConfigurationRevisionGroupVersionKind, "platform-ref-aws-9ad7b5db2899",
 					WithConditions(v1.Active(), v1.Healthy()),
-					WithImage("xpkg.upbound.io/upbound/platform-ref-aws:v0.9.0"),
+					WithImage("xpkg.crossplane.io/crossplane/platform-ref-aws:v0.9.0"),
 					WithDesiredState(v1.PackageRevisionActive)),
 			},
 			{
-				Unstructured: DummyPackage(v1.ConfigurationGroupVersionKind, "upbound-configuration-aws-network",
+				Unstructured: DummyPackage(v1.ConfigurationGroupVersionKind, "crossplane-configuration-aws-network",
 					WithConditions(v1.Active(), v1.Healthy()),
-					WithPackage("xpkg.upbound.io/upbound/configuration-aws-network:v0.7.0")),
+					WithPackage("xpkg.crossplane.io/crossplane/configuration-aws-network:v0.7.0")),
 				Children: []*resource.Resource{
 					{
-						Unstructured: DummyPackage(v1.ConfigurationRevisionGroupVersionKind, "upbound-configuration-aws-network-97be9100cfe1",
+						Unstructured: DummyPackage(v1.ConfigurationRevisionGroupVersionKind, "crossplane-configuration-aws-network-97be9100cfe1",
 							WithConditions(v1.Active(), v1.Healthy()),
-							WithImage("xpkg.upbound.io/upbound/configuration-aws-network:v0.7.0"),
+							WithImage("xpkg.crossplane.io/crossplane/configuration-aws-network:v0.7.0"),
 							WithDesiredState(v1.PackageRevisionActive)),
 					},
 					{
-						Unstructured: DummyPackage(v1.ProviderGroupVersionKind, "upbound-provider-aws-ec2",
-							WithConditions(v1.Active(), v1.UnknownHealth().WithMessage("cannot resolve package dependencies: incompatible dependencies: [xpkg.upbound.io/crossplane-contrib/provider-helm xpkg.upbound.io/crossplane-contrib/provider-kubernetes]")),
-							WithPackage("xpkg.upbound.io/upbound/provider-aws-ec2:v0.47.0"),
+						Unstructured: DummyPackage(v1.ProviderGroupVersionKind, "crossplane-provider-aws-ec2",
+							WithConditions(v1.Active(), v1.UnknownHealth().WithMessage("cannot resolve package dependencies: incompatible dependencies: [xpkg.crossplane.io/crossplane-contrib/provider-helm xpkg.crossplane.io/crossplane-contrib/provider-kubernetes]")),
+							WithPackage("xpkg.crossplane.io/crossplane/provider-aws-ec2:v0.47.0"),
 						),
 						Children: []*resource.Resource{
 							{
-								Unstructured: DummyPackage(v1.ProviderRevisionGroupVersionKind, "upbound-provider-aws-ec2-9ad7b5db2899",
+								Unstructured: DummyPackage(v1.ProviderRevisionGroupVersionKind, "crossplane-provider-aws-ec2-9ad7b5db2899",
 									WithConditions(v1.Active(), v1.Unhealthy().WithMessage("post establish runtime hook failed for package: provider package deployment has no condition of type \"Available\" yet")),
-									WithImage("xpkg.upbound.io/upbound/provider-aws-ec2:v0.47.0"),
+									WithImage("xpkg.crossplane.io/crossplane/provider-aws-ec2:v0.47.0"),
 									WithDesiredState(v1.PackageRevisionActive)),
 							},
 							{
-								Unstructured: DummyPackage(v1.ProviderGroupVersionKind, "upbound-provider-aws-something",
+								Unstructured: DummyPackage(v1.ProviderGroupVersionKind, "crossplane-provider-aws-something",
 									WithConditions(v1.Active()), // Missing healthy condition on purpose.
-									WithPackage("xpkg.upbound.io/upbound/provider-aws-something:v0.47.0"),
+									WithPackage("xpkg.crossplane.io/crossplane/provider-aws-something:v0.47.0"),
 								),
 							},
 						},

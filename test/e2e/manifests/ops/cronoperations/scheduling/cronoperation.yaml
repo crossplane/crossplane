@@ -1,0 +1,26 @@
+apiVersion: ops.crossplane.io/v1alpha1
+kind: CronOperation
+metadata:
+  name: basic-cronop
+spec:
+  schedule: "* * * * *"  # Every minute for fast testing
+  startingDeadlineSeconds: 30
+  concurrencyPolicy: Allow
+  successfulHistoryLimit: 2
+  failedHistoryLimit: 1
+  operationTemplate:
+    spec:
+      mode: Pipeline
+      pipeline:
+      - step: nop
+        functionRef:
+          name: function-dummy-cronops-basic
+        input:
+          apiVersion: dummy.fn.crossplane.io/v1beta1
+          kind: Response
+          # This is a YAML-serialized RunFunctionResponse. function-dummy will
+          # overlay the desired state on any that was passed into it.
+          response:
+            results:
+             - severity: SEVERITY_NORMAL
+               message: "CronOperation ran me!"

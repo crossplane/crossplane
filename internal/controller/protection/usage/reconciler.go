@@ -33,23 +33,23 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/conditions"
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
-	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
+	xpresource "github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 
-	legacy "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
-	"github.com/crossplane/crossplane/apis/protection/v1beta1"
-	"github.com/crossplane/crossplane/internal/protection"
-	"github.com/crossplane/crossplane/internal/protection/usage"
-	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	legacy "github.com/crossplane/crossplane/v2/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/v2/apis/protection/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/protection"
+	"github.com/crossplane/crossplane/v2/internal/protection/usage"
+	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 const (
@@ -241,6 +241,7 @@ func NewReconciler(mgr manager.Manager, u protection.Usage, f Finder, opts ...Re
 	for _, f := range opts {
 		f(r)
 	}
+
 	return r
 }
 
@@ -264,6 +265,7 @@ type Reconciler struct {
 // relationship, adding a finalizer and handling proper deletion.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Reconcilers are typically complex.
 	log := r.log.WithValues("request", req)
+
 	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
 	defer cancel()
 
@@ -288,6 +290,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errResolveSelectors, "error", err)
 		err = errors.Wrap(err, errResolveSelectors)
 		r.record.Event(u, event.Warning(reasonResolveSelectors, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -326,6 +329,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				log.Debug(errGetUsing, "error", err)
 				err = errors.Wrap(xpresource.IgnoreNotFound(err), errGetUsing)
 				r.record.Event(u, event.Warning(reasonGetUsing, err))
+
 				return reconcile.Result{}, err
 			} else if err == nil {
 				// Using resource is still there, so we need to wait for it to be deleted.
@@ -351,28 +355,33 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug(errGetUsed, "error", err)
 			err = errors.Wrap(err, errGetUsed)
 			r.record.Event(u, event.Warning(reasonGetUsed, err))
+
 			return reconcile.Result{}, err
 		} else if err == nil {
 			// Remove the in-use label from the used resource if no other usages exists.
-
 			usages, err := r.resource.FindUsageOf(ctx, used)
 			if err != nil {
 				log.Debug(errFindUsages, "error", err)
 				err = errors.Wrap(err, errFindUsages)
 				r.record.Event(u, event.Warning(reasonFindUsages, err))
+
 				return reconcile.Result{}, err
 			}
 			// There are no "other" usageResource's referencing the used resource,
 			// so we can remove the in-use label from the used resource
 			if len(usages) < 2 {
 				meta.RemoveLabels(used, inUseLabelKey)
+
 				if err = r.client.Update(ctx, used); err != nil {
 					log.Debug(errRemoveInUseLabel, "error", err)
+
 					if kerrors.IsConflict(err) {
 						return reconcile.Result{Requeue: true}, nil
 					}
+
 					err = errors.Wrap(err, errRemoveInUseLabel)
 					r.record.Event(u, event.Warning(reasonRemoveInUseLabel, err))
+
 					return reconcile.Result{}, err
 				}
 			}
@@ -389,6 +398,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 					// very soon.
 					time.Sleep(2 * time.Second)
 					log.Info("Replaying deletion of the used resource", "apiVersion", used.GetAPIVersion(), "kind", used.GetKind(), "name", used.GetName(), "policy", policy)
+
 					if err := r.client.Delete(context.Background(), used, client.PropagationPolicy(policy)); err != nil {
 						log.Info("Error when replaying deletion of the used resource", "apiVersion", used.GetAPIVersion(), "kind", used.GetKind(), "name", used.GetName(), "err", err)
 					}
@@ -399,11 +409,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Remove the finalizer from the usage
 		if err := r.usage.RemoveFinalizer(ctx, u); err != nil {
 			log.Debug(errRemoveFinalizer, "error", err)
+
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errRemoveFinalizer)
 			r.record.Event(u, event.Warning(reasonRemoveFinalizer, err))
+
 			return reconcile.Result{}, err
 		}
 
@@ -413,11 +426,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Add finalizer for Usage resource.
 	if err := r.usage.AddFinalizer(ctx, u); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
+
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(u, event.Warning(reasonAddFinalizer, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -426,13 +442,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		meta.AddAnnotations(u, map[string]string{
 			detailsAnnotationKey: d,
 		})
+
 		if err := r.client.Update(ctx, u); err != nil {
 			log.Debug(errAddDetailsAnnotation, "error", err)
+
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errAddDetailsAnnotation)
 			r.record.Event(u, event.Warning(reasonDetailsToUsage, err))
+
 			return reconcile.Result{}, err
 		}
 	}
@@ -442,6 +462,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetUsed, "error", err)
 		err = errors.Wrap(err, errGetUsed)
 		r.record.Event(u, event.Warning(reasonGetUsed, err))
+
 		return reconcile.Result{}, err
 	}
 
@@ -451,13 +472,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// new reconciles since it uses a patching applicator to update the
 		// resource.
 		meta.AddLabels(used, map[string]string{inUseLabelKey: "true"})
+
 		if err := r.client.Update(ctx, used); err != nil {
 			log.Debug(errAddInUseLabel, "error", err)
+
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
+
 			err = errors.Wrap(err, errAddInUseLabel)
 			r.record.Event(u, event.Warning(reasonAddInUseLabel, err))
+
 			return reconcile.Result{}, err
 		}
 	}
@@ -476,6 +501,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug(errGetUsing, "error", err)
 			err = errors.Wrap(err, errGetUsing)
 			r.record.Event(u, event.Warning(reasonGetUsing, err))
+
 			return reconcile.Result{}, err
 		}
 
@@ -484,13 +510,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			meta.AddOwnerReference(u, meta.AsOwner(
 				meta.TypedReferenceTo(using, using.GetObjectKind().GroupVersionKind()),
 			))
+
 			if err := r.client.Update(ctx, u); err != nil {
 				log.Debug(errAddOwnerToUsage, "error", err)
+
 				if kerrors.IsConflict(err) {
 					return reconcile.Result{Requeue: true}, nil
 				}
+
 				err = errors.Wrap(err, errAddOwnerToUsage)
 				r.record.Event(u, event.Warning(reasonOwnerRefToUsage, err))
+
 				return reconcile.Result{}, err
 			}
 		}
@@ -515,11 +545,13 @@ func detailsAnnotation(u protection.Usage) string {
 	}
 
 	by := u.GetUsedBy()
+
 	of := u.GetUserOf()
 	if by != nil {
 		if ns := ptr.Deref(of.ResourceRef.Namespace, ""); ns != "" {
 			return fmt.Sprintf("%s/%s uses %s/%s in namespace %s", by.Kind, by.ResourceRef.Name, of.Kind, of.ResourceRef.Name, ns)
 		}
+
 		return fmt.Sprintf("%s/%s uses %s/%s", by.Kind, by.ResourceRef.Name, of.Kind, of.ResourceRef.Name)
 	}
 

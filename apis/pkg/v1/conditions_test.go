@@ -6,13 +6,14 @@ import (
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 
-	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	commonv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 )
 
 func TestPackageHealth(t *testing.T) {
 	type args struct {
 		pr PackageRevision
 	}
+
 	type want struct {
 		condition commonv1.Condition
 	}
@@ -26,20 +27,22 @@ func TestPackageHealth(t *testing.T) {
 			reason: "Should return healthy condition when both revision and runtime are healthy for package with runtime",
 			args: args{
 				pr: &ProviderRevision{
-					Status: PackageRevisionStatus{
-						ConditionedStatus: commonv1.ConditionedStatus{
-							Conditions: []commonv1.Condition{
-								{
-									Type:    TypeRevisionHealthy,
-									Status:  corev1.ConditionTrue,
-									Reason:  ReasonHealthy,
-									Message: "Package revision is healthy",
-								},
-								{
-									Type:    TypeRuntimeHealthy,
-									Status:  corev1.ConditionTrue,
-									Reason:  ReasonHealthy,
-									Message: "Package runtime is healthy",
+					Status: ProviderRevisionStatus{
+						PackageRevisionStatus: PackageRevisionStatus{
+							ConditionedStatus: commonv1.ConditionedStatus{
+								Conditions: []commonv1.Condition{
+									{
+										Type:    TypeRevisionHealthy,
+										Status:  corev1.ConditionTrue,
+										Reason:  ReasonHealthy,
+										Message: "Package revision is healthy",
+									},
+									{
+										Type:    TypeRuntimeHealthy,
+										Status:  corev1.ConditionTrue,
+										Reason:  ReasonHealthy,
+										Message: "Package runtime is healthy",
+									},
 								},
 							},
 						},
@@ -76,20 +79,22 @@ func TestPackageHealth(t *testing.T) {
 			reason: "Should return unhealthy condition when revision is unhealthy",
 			args: args{
 				pr: &ProviderRevision{
-					Status: PackageRevisionStatus{
-						ConditionedStatus: commonv1.ConditionedStatus{
-							Conditions: []commonv1.Condition{
-								{
-									Type:    TypeRevisionHealthy,
-									Status:  corev1.ConditionFalse,
-									Reason:  ReasonUnhealthy,
-									Message: "Package revision is not ready",
-								},
-								{
-									Type:    TypeRuntimeHealthy,
-									Status:  corev1.ConditionTrue,
-									Reason:  ReasonHealthy,
-									Message: "Package runtime is healthy",
+					Status: ProviderRevisionStatus{
+						PackageRevisionStatus: PackageRevisionStatus{
+							ConditionedStatus: commonv1.ConditionedStatus{
+								Conditions: []commonv1.Condition{
+									{
+										Type:    TypeRevisionHealthy,
+										Status:  corev1.ConditionFalse,
+										Reason:  ReasonUnhealthy,
+										Message: "Package revision is not ready",
+									},
+									{
+										Type:    TypeRuntimeHealthy,
+										Status:  corev1.ConditionTrue,
+										Reason:  ReasonHealthy,
+										Message: "Package runtime is healthy",
+									},
 								},
 							},
 						},
@@ -104,20 +109,22 @@ func TestPackageHealth(t *testing.T) {
 			reason: "Should return unhealthy condition when runtime is unhealthy",
 			args: args{
 				pr: &ProviderRevision{
-					Status: PackageRevisionStatus{
-						ConditionedStatus: commonv1.ConditionedStatus{
-							Conditions: []commonv1.Condition{
-								{
-									Type:    TypeRevisionHealthy,
-									Status:  corev1.ConditionTrue,
-									Reason:  ReasonHealthy,
-									Message: "Package revision is healthy",
-								},
-								{
-									Type:    TypeRuntimeHealthy,
-									Status:  corev1.ConditionFalse,
-									Reason:  ReasonUnhealthy,
-									Message: "Runtime deployment is not ready",
+					Status: ProviderRevisionStatus{
+						PackageRevisionStatus: PackageRevisionStatus{
+							ConditionedStatus: commonv1.ConditionedStatus{
+								Conditions: []commonv1.Condition{
+									{
+										Type:    TypeRevisionHealthy,
+										Status:  corev1.ConditionTrue,
+										Reason:  ReasonHealthy,
+										Message: "Package revision is healthy",
+									},
+									{
+										Type:    TypeRuntimeHealthy,
+										Status:  corev1.ConditionFalse,
+										Reason:  ReasonUnhealthy,
+										Message: "Runtime deployment is not ready",
+									},
 								},
 							},
 						},
@@ -162,19 +169,21 @@ func TestPackageHealth(t *testing.T) {
 			reason: "Should return unhealthy condition when revision health is unknown",
 			args: args{
 				pr: &ProviderRevision{
-					Status: PackageRevisionStatus{
-						ConditionedStatus: commonv1.ConditionedStatus{
-							Conditions: []commonv1.Condition{
-								{
-									Type:   TypeRevisionHealthy,
-									Status: corev1.ConditionUnknown,
-									Reason: ReasonUnknownHealth,
-								},
-								{
-									Type:    TypeRuntimeHealthy,
-									Status:  corev1.ConditionTrue,
-									Reason:  ReasonHealthy,
-									Message: "Package runtime is healthy",
+					Status: ProviderRevisionStatus{
+						PackageRevisionStatus: PackageRevisionStatus{
+							ConditionedStatus: commonv1.ConditionedStatus{
+								Conditions: []commonv1.Condition{
+									{
+										Type:   TypeRevisionHealthy,
+										Status: corev1.ConditionUnknown,
+										Reason: ReasonUnknownHealth,
+									},
+									{
+										Type:    TypeRuntimeHealthy,
+										Status:  corev1.ConditionTrue,
+										Reason:  ReasonHealthy,
+										Message: "Package runtime is healthy",
+									},
 								},
 							},
 						},
@@ -189,19 +198,21 @@ func TestPackageHealth(t *testing.T) {
 			reason: "Should return unhealthy condition when runtime health is unknown for package with runtime",
 			args: args{
 				pr: &ProviderRevision{
-					Status: PackageRevisionStatus{
-						ConditionedStatus: commonv1.ConditionedStatus{
-							Conditions: []commonv1.Condition{
-								{
-									Type:    TypeRevisionHealthy,
-									Status:  corev1.ConditionTrue,
-									Reason:  ReasonHealthy,
-									Message: "Package revision is healthy",
-								},
-								{
-									Type:   TypeRuntimeHealthy,
-									Status: corev1.ConditionUnknown,
-									Reason: ReasonUnknownHealth,
+					Status: ProviderRevisionStatus{
+						PackageRevisionStatus: PackageRevisionStatus{
+							ConditionedStatus: commonv1.ConditionedStatus{
+								Conditions: []commonv1.Condition{
+									{
+										Type:    TypeRevisionHealthy,
+										Status:  corev1.ConditionTrue,
+										Reason:  ReasonHealthy,
+										Message: "Package revision is healthy",
+									},
+									{
+										Type:   TypeRuntimeHealthy,
+										Status: corev1.ConditionUnknown,
+										Reason: ReasonUnknownHealth,
+									},
 								},
 							},
 						},

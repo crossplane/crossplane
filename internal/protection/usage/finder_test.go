@@ -27,11 +27,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	legacy "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
-	"github.com/crossplane/crossplane/apis/protection/v1beta1"
-	"github.com/crossplane/crossplane/internal/protection"
+	legacy "github.com/crossplane/crossplane/v2/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/v2/apis/protection/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/protection"
 )
 
 type IndexFieldFn func(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error
@@ -45,10 +45,12 @@ func TestFindUsageOf(t *testing.T) {
 		r  client.Reader
 		fi client.FieldIndexer
 	}
+
 	type args struct {
 		ctx context.Context
 		o   Object
 	}
+
 	type want struct {
 		u   []protection.Usage
 		err error
@@ -172,6 +174,7 @@ func TestFindUsageOf(t *testing.T) {
 			if diff := cmp.Diff(tc.want.u, u); diff != "" {
 				t.Errorf("%s\nf.FindUsageOf(...): -want u, +got u:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nf.FindUsageOf(...): -want err, +got err:\n%s", tc.reason, diff)
 			}

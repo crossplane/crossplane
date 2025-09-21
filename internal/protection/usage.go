@@ -18,7 +18,7 @@ limitations under the License.
 package protection
 
 import (
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 )
 
 // AnnotationKeyDeletionAttempt is the annotation key used to record whether

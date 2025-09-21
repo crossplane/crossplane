@@ -30,11 +30,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
 
 const (
@@ -52,6 +52,7 @@ func (m *MockDeploymentSelectorMigrator) MigrateDeploymentSelector(ctx context.C
 	if m.MockMigrateDeploymentSelector != nil {
 		return m.MockMigrateDeploymentSelector(ctx, pr, b)
 	}
+
 	return nil
 }
 
@@ -64,6 +65,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 		pr      v1.PackageRevisionWithRuntime
 		builder ManifestBuilder
 	}
+
 	type want struct {
 		err error
 	}
@@ -240,7 +242,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						deploy.Namespace = testNamespaceName
 						deploy.Spec.Selector = &metav1.LabelSelector{
 							MatchLabels: map[string]string{
-								"pkg.crossplane.io/provider": "crossplane-provider-nop",
+								v1.LabelProvider: "crossplane-provider-nop",
 							},
 						}
 						return nil
@@ -274,7 +276,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						deploy.Namespace = testNamespaceName
 						deploy.Spec.Selector = &metav1.LabelSelector{
 							MatchLabels: map[string]string{
-								"pkg.crossplane.io/provider": "provider-nop", // Old format
+								v1.LabelProvider: "provider-nop", // Old format
 							},
 						}
 						return nil
@@ -288,7 +290,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 							Spec: appsv1.DeploymentSpec{
 								Selector: &metav1.LabelSelector{
 									MatchLabels: map[string]string{
-										"pkg.crossplane.io/provider": "provider-nop",
+										v1.LabelProvider: "provider-nop",
 									},
 								},
 							},
@@ -328,7 +330,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						deploy.Namespace = testNamespaceName
 						deploy.Spec.Selector = &metav1.LabelSelector{
 							MatchLabels: map[string]string{
-								"pkg.crossplane.io/provider": "provider-nop", // Old format
+								v1.LabelProvider: "provider-nop", // Old format
 							},
 						}
 						return nil
@@ -358,8 +360,8 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			migrator := NewDeletingDeploymentSelectorMigrator(tc.args.client, testLog)
-			err := migrator.MigrateDeploymentSelector(context.Background(), tc.args.pr, tc.args.builder)
 
+			err := migrator.MigrateDeploymentSelector(context.Background(), tc.args.pr, tc.args.builder)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nMigrateDeploymentSelector(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

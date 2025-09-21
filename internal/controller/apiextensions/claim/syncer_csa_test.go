@@ -25,16 +25,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/claim"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	"github.com/crossplane/crossplane/internal/names"
-	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
+	"github.com/crossplane/crossplane/v2/internal/names"
+	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 func TestClientSideSync(t *testing.T) {
@@ -44,11 +44,13 @@ func TestClientSideSync(t *testing.T) {
 		c  client.Client
 		ng names.NameGenerator
 	}
+
 	type args struct {
 		ctx context.Context
 		cm  *claim.Unstructured
 		xr  *composite.Unstructured
 	}
+
 	type want struct {
 		cm  *claim.Unstructured
 		xr  *composite.Unstructured
@@ -401,9 +403,11 @@ func TestClientSideSync(t *testing.T) {
 			if diff := cmp.Diff(tc.want.cm, tc.args.cm); diff != "" {
 				t.Errorf("\n%s\ns.Sync(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.xr, tc.args.xr); diff != "" {
 				t.Errorf("\n%s\ns.Sync(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ns.Sync(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -418,5 +422,6 @@ func NewComposite(m ...CompositeModifier) *composite.Unstructured {
 	for _, fn := range m {
 		fn(xr)
 	}
+
 	return xr
 }

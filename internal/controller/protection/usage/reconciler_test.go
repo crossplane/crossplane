@@ -31,17 +31,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	xpresource "github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/protection/v1beta1"
-	"github.com/crossplane/crossplane/internal/protection"
-	"github.com/crossplane/crossplane/internal/protection/usage"
-	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/v2/apis/protection/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/protection"
+	"github.com/crossplane/crossplane/v2/internal/protection/usage"
+	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 type fakeSelectorResolver struct {
@@ -61,12 +61,14 @@ func (fn FinderFn) FindUsageOf(ctx context.Context, o usage.Object) ([]protectio
 func TestReconcile(t *testing.T) {
 	now := metav1.Now()
 	reason := "protected"
+
 	type args struct {
 		mgr  manager.Manager
 		u    protection.Usage
 		f    Finder
 		opts []ReconcilerOption
 	}
+
 	type want struct {
 		r   reconcile.Result
 		err error
@@ -913,10 +915,12 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.mgr, tc.args.u, tc.args.f, tc.args.opts...)
+
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.r, got); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want result, +got:\n%s", tc.reason, diff)
 			}

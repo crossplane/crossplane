@@ -20,7 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 )
 
 // MatchType is the method used to match the image.
@@ -62,7 +62,8 @@ type ImageConfig struct {
 type ImageConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ImageConfig `json:"items"`
+
+	Items []ImageConfig `json:"items"`
 }
 
 // ImageConfigSpec contains the configuration for matching images.

@@ -19,12 +19,15 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
+	authv1 "k8s.io/api/authorization/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery"
 	kcache "k8s.io/client-go/tools/cache"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -35,8 +38,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+
+	"github.com/crossplane/crossplane/v2/internal/xerrors"
 )
 
 // A ControllerEngine manages a set of controllers that can be dynamically
@@ -46,6 +51,12 @@ type ControllerEngine struct {
 	// The manager of this engine's controllers. Controllers managed by the
 	// engine use the engine's client and cache, not the manager's.
 	mgr manager.Manager
+
+	// namespace  is the core Crossplane Namespace name.
+	namespace string
+
+	// serviceAccount is the core Crossplane ServiceAccount name.
+	serviceAccount string
 
 	// The engine must have exclusive use of these informers. All controllers
 	// managed by the engine should use these informers.
@@ -93,13 +104,15 @@ type Metrics interface {
 // New creates a new controller engine.
 func New(mgr manager.Manager, infs TrackingInformers, c client.Client, nc client.Client, o ...ControllerEngineOption) *ControllerEngine {
 	e := &ControllerEngine{
-		mgr:         mgr,
-		infs:        infs,
-		cached:      c,
-		uncached:    nc,
-		controllers: make(map[string]*controller),
-		log:         logging.NewNopLogger(),
-		metrics:     &NopMetrics{},
+		mgr:            mgr,
+		infs:           infs,
+		cached:         c,
+		uncached:       nc,
+		controllers:    make(map[string]*controller),
+		log:            logging.NewNopLogger(),
+		metrics:        &NopMetrics{},
+		namespace:      "crossplane-system",
+		serviceAccount: "crossplane",
 	}
 
 	for _, fn := range o {
@@ -123,6 +136,20 @@ func WithLogger(l logging.Logger) ControllerEngineOption {
 func WithMetrics(m Metrics) ControllerEngineOption {
 	return func(e *ControllerEngine) {
 		e.metrics = m
+	}
+}
+
+// WithNamespace configures the system namespace.
+func WithNamespace(namespace string) ControllerEngineOption {
+	return func(e *ControllerEngine) {
+		e.namespace = namespace
+	}
+}
+
+// WithServiceAccount configures the system service account.
+func WithServiceAccount(serviceAccount string) ControllerEngineOption {
+	return func(e *ControllerEngine) {
+		e.serviceAccount = serviceAccount
 	}
 }
 
@@ -179,6 +206,73 @@ func WithNewControllerFn(fn NewControllerFn) ControllerOption {
 	return func(o *ControllerOptions) {
 		o.nc = fn
 	}
+}
+
+// IsAuthorizedFor validates if this controller engine is allowed to control a GVK in an optional namespace.
+func (e *ControllerEngine) IsAuthorizedFor(ctx context.Context, gvk schema.GroupVersionKind, namespace string) (bool, error) {
+	dc, err := discovery.NewDiscoveryClientForConfig(e.mgr.GetConfig())
+	if err != nil {
+		return false, err
+	}
+	rs, err := dc.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
+	if err != nil {
+		return false, err
+	}
+
+	resource := schema.GroupVersionResource{
+		Group:   gvk.Group,
+		Version: gvk.Version,
+	}
+	for _, r := range rs.APIResources {
+		if r.Kind == gvk.Kind {
+			resource.Resource = r.Name
+		}
+	}
+	if resource.Resource == "" {
+		return false, fmt.Errorf("no resource found for %q", gvk)
+	}
+
+	review := &authv1.SelfSubjectAccessReview{
+		Spec: authv1.SelfSubjectAccessReviewSpec{
+			ResourceAttributes: &authv1.ResourceAttributes{
+				Namespace: namespace,
+				// First try the Verb "*"
+				Verb:     "*",
+				Group:    resource.Group,
+				Version:  resource.Version,
+				Resource: resource.Resource,
+			},
+		},
+	}
+	if err := e.uncached.Create(ctx, review); err != nil {
+		return false, errors.Wrap(err, "cannot create self access review")
+	}
+
+	if review.Status.Allowed {
+		return true, nil
+	}
+
+	// We don't have *, but maybe we have all the needed rights?
+	var denied []string
+	for _, verb := range []string{"get", "list", "watch", "create", "update", "patch", "delete"} {
+		review.Spec.ResourceAttributes.Verb = verb
+		if err := e.uncached.Create(ctx, review); err != nil {
+			return false, errors.Wrap(err, "cannot create self access review")
+		}
+		if !review.Status.Allowed {
+			denied = append(denied, verb)
+		}
+	}
+	if len(denied) > 0 {
+		return false, xerrors.SubjectAccessReviewError{
+			User:        fmt.Sprintf("system:serviceaccount:%s:%s", e.namespace, e.serviceAccount),
+			Resource:    resource,
+			Namespace:   namespace,
+			DeniedVerbs: denied,
+		}
+	}
+
+	return true, nil
 }
 
 // GetCached gets a client backed by the controller engine's cache.
@@ -244,6 +338,7 @@ func (e *ControllerEngine) Start(name string, o ...ControllerOption) error {
 			// Make a best effort attempt to cleanup the controller so that
 			// IsRunning will return false.
 			_ = e.Stop(ctx, name)
+
 			return
 		}
 
@@ -312,7 +407,9 @@ func (e *ControllerEngine) Stop(ctx context.Context, name string) error {
 func (e *ControllerEngine) IsRunning(name string) bool {
 	e.mx.RLock()
 	defer e.mx.RUnlock()
+
 	_, running := e.controllers[name]
+
 	return running
 }
 
@@ -372,6 +469,7 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 		if err != nil {
 			return errors.Wrapf(err, "cannot determine group, version, and kind for %T", ws[i].kind)
 		}
+
 		gvks[i] = gvk
 	}
 
@@ -386,6 +484,7 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 	// controller calls StartWatches repeatedly (e.g. an XR controller) this
 	// will eventually self-correct.
 	a := e.infs.ActiveInformers()
+
 	activeInformer := make(map[schema.GroupVersionKind]bool, len(a))
 	for _, gvk := range a {
 		activeInformer[gvk] = true
@@ -397,7 +496,9 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 	// resource that no other XR it controls already composes. So, we try to
 	// avoid taking a write lock and blocking all reconciles unless we need to.
 	c.mx.RLock()
+
 	start := false
+
 	for i, w := range ws {
 		wid := WatchID{Type: w.wt, GVK: gvks[i]}
 		// We've already created this watch and the informer backing it is still
@@ -408,8 +509,10 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 		}
 		// There's at least one watch to start.
 		start = true
+
 		break
 	}
+
 	c.mx.RUnlock()
 
 	// Nothing to start.
@@ -426,6 +529,7 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 	// Refresh active informers in case they changed between when we lost
 	// the read lock and took the write lock.
 	a = e.infs.ActiveInformers()
+
 	activeInformer = make(map[schema.GroupVersionKind]bool, len(a))
 	for _, gvk := range a {
 		activeInformer[gvk] = true
@@ -455,6 +559,7 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 		if err != nil {
 			return errors.Wrapf(err, "cannot get informer for %q", wid.GVK)
 		}
+
 		src := NewStoppableSource(inf, w.handler, w.predicates...)
 		if err := c.ctrl.Watch(src); err != nil {
 			return errors.Wrapf(err, "cannot start %q watch for %q", wid.Type, wid.GVK)
@@ -487,6 +592,7 @@ func (e *ControllerEngine) GetWatches(name string) ([]WatchID, error) {
 	for wid := range c.sources {
 		out = append(out, wid)
 	}
+
 	return out, nil
 }
 
@@ -504,13 +610,16 @@ func (e *ControllerEngine) StopWatches(ctx context.Context, name string, ws ...W
 
 	// Don't take the write lock if we want to keep all watches.
 	c.mx.RLock()
+
 	stop := false
+
 	for _, wid := range ws {
 		if _, watchExists := c.sources[wid]; watchExists {
 			stop = true
 			break
 		}
 	}
+
 	c.mx.RUnlock()
 
 	if !stop {
@@ -524,17 +633,21 @@ func (e *ControllerEngine) StopWatches(ctx context.Context, name string, ws ...W
 	defer c.mx.Unlock()
 
 	stopped := 0
+
 	for _, wid := range ws {
 		w, watchExists := c.sources[wid]
 		if !watchExists {
 			continue
 		}
+
 		if err := w.Stop(ctx); err != nil {
 			return stopped, errors.Wrapf(err, "cannot stop %q watch for %q", wid.Type, wid.GVK)
 		}
+
 		delete(c.sources, wid)
 		e.log.Debug("Stopped watching GVK", "controller", name, "watch-type", wid.Type, "watched-gvk", wid.GVK)
 		e.metrics.WatchStopped(name, wid.Type)
+
 		stopped++
 	}
 
@@ -589,6 +702,7 @@ func (e *ControllerEngine) GarbageCollectCustomResourceInformers(ctx context.Con
 
 	go func() {
 		<-ctx.Done()
+
 		if err := i.RemoveEventHandler(h); err != nil {
 			e.log.Info("Cannot remove garbage collector event handler from CustomResourceDefinition informer")
 		}

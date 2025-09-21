@@ -17,7 +17,7 @@ limitations under the License.
 // Package features defines Crossplane feature flags.
 package features
 
-import "github.com/crossplane/crossplane-runtime/pkg/feature"
+import "github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 
 // Alpha Feature flags.
 const (
@@ -38,6 +38,10 @@ const (
 	// EnableAlphaFunctionResponseCache enables alpha support for caching
 	// composition function responses.
 	EnableAlphaFunctionResponseCache feature.Flag = "EnableAlphaFunctionResponseCache"
+
+	// EnableAlphaOperations enables alpha support for Operations, including
+	// CronOperations and WatchOperations.
+	EnableAlphaOperations feature.Flag = "EnableAlphaOperations"
 )
 
 // Beta Feature Flags.
@@ -61,4 +65,9 @@ const (
 	// compositions, i.e. watching composed resources and reconciling
 	// compositions immediately when any composed resource is updated.
 	EnableBetaRealtimeCompositions feature.Flag = "EnableBetaRealtimeCompositions"
+
+	// EnableBetaCustomToManagedResourceConversion enables beta support for
+	// custom resource definition to managed resource definition conversion.
+	// Conversion happens at provider install time.
+	EnableBetaCustomToManagedResourceConversion feature.Flag = "EnableBetaCustomToManagedResourceConversion"
 )

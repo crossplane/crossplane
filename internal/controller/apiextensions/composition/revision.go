@@ -21,9 +21,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 )
 
 // NewCompositionRevision creates a new revision of the supplied Composition.
@@ -55,7 +55,7 @@ func NewCompositionRevision(c *v1.Composition, revision int64) *v1.CompositionRe
 	meta.AddOwnerReference(cr, meta.AsController(ref))
 
 	for k, v := range c.GetLabels() {
-		cr.ObjectMeta.Labels[k] = v
+		cr.Labels[k] = v
 	}
 
 	return cr
@@ -67,5 +67,6 @@ func NewCompositionRevisionSpec(cs v1.CompositionSpec, revision int64) v1.Compos
 	conv := v1.GeneratedRevisionSpecConverter{}
 	rs := conv.ToRevisionSpec(cs)
 	rs.Revision = revision
+
 	return rs
 }

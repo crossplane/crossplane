@@ -18,9 +18,9 @@ limitations under the License.
 package controller
 
 import (
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 
-	"github.com/crossplane/crossplane/internal/xpkg"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 // Options specific to pkg controllers.
@@ -36,15 +36,12 @@ type Options struct {
 	// ServiceAccount is the core Crossplane ServiceAccount name.
 	ServiceAccount string
 
-	// DefaultRegistry used to pull packages.
-	DefaultRegistry string
-
 	// FetcherOptions can be used to add optional parameters to
 	// NewK8sFetcher.
 	FetcherOptions []xpkg.FetcherOpt
 
 	// PackageRuntime specifies the runtime to use for package runtime.
-	PackageRuntime PackageRuntime
+	PackageRuntime ActiveRuntime
 
 	// MaxConcurrentPackageEstablishers is the maximum number of goroutines to use
 	// for establishing Providers, Configurations and Functions.

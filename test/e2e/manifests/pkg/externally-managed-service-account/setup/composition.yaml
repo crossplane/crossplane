@@ -1,11 +1,11 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: xnopresources.nop.example.org
+  name: pkg-external-sa
 spec:
   compositeTypeRef:
-    apiVersion: nop.example.org/v1alpha1
-    kind: XNopResource
+    apiVersion: example.org/v1alpha1
+    kind: Test
   mode: Pipeline
   pipeline:
   - step: be-a-dummy
@@ -23,19 +23,14 @@ spec:
               status:
                 coolerField: "I'M COOLER!"
           resources:
-            nop-resource-1:
+            configmap:
               resource:
-                apiVersion: nop.crossplane.io/v1alpha1
-                kind: NopResource
-                spec:
-                  forProvider:
-                    conditionAfter:
-                    - conditionType: Ready
-                      conditionStatus: "False"
-                      time: 0s
-                    - conditionType: Ready
-                      conditionStatus: "True"
-                      time: 10s
-  - step: detect-readiness
-    functionRef:
-      name: function-auto-ready-pkg-external-sa
+                apiVersion: v1
+                kind: ConfigMap
+                data:
+                  coolData: "I'm cool!"
+              ready: READY_TRUE
+        results:
+         - severity: SEVERITY_NORMAL
+           message: "I am doing a compose!"
+
