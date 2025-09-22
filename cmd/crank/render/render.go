@@ -489,6 +489,11 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 		return nil, nil
 	}
 
+	// Sort resources by name to ensure a stable order.
+	sort.Slice(f.resources, func(i, j int) bool {
+		return f.resources[i].GetName() < f.resources[j].GetName()
+	})
+
 	out := &fnv1.Resources{}
 
 	for _, er := range f.resources {
