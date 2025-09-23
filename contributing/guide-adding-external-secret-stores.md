@@ -113,8 +113,8 @@ requires some dirty work as we need to this for all types:
                 managed.WithExternalConnecter(&serviceAccountKeyServiceConnector{client: mgr.GetClient()}),
                 managed.WithPollInterval(o.PollInterval),
                 managed.WithLogger(o.Logger.WithValues("controller", name)),
--               managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
-+               managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+-               managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)))
++               managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 +               managed.WithConnectionPublishers(cps...))
 
         return ctrl.NewControllerManagedBy(mgr).
