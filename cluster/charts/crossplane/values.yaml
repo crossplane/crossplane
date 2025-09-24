@@ -187,6 +187,13 @@ readiness:
   # -- The port the readyz server listens on.
   port: ""
 
+# -- Add custom `initContainers` to the Crossplane pod deployment init containers.
+extraInitContainersCrossplane: []
+# Example:
+# - name: example
+#   image: busybox:
+#   command: ['sh', '-c', 'sleep 10']
+
 # -- Add custom environmental variables to the Crossplane pod deployment init container.
 # Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`.
 extraEnvVarsCrossplaneInit: {}
