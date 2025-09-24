@@ -191,7 +191,7 @@ readiness:
 extraInitContainersCrossplane: []
 # Example:
 # - name: example
-#   image: busybox:
+#   image: busybox
 #   command: ['sh', '-c', 'sleep 10']
 
 # -- Add custom environmental variables to the Crossplane pod deployment init container.
