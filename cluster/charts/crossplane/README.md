@@ -72,6 +72,7 @@ and their default values.
 | `customLabels` | Add custom `labels` to the Crossplane pod deployment. | `{}` |
 | `deploymentStrategy` | The deployment strategy for the Crossplane and RBAC Manager pods. | `"RollingUpdate"` |
 | `dnsPolicy` | Specify the `dnsPolicy` to be used by the Crossplane pod. | `""` |
+| `extraEnvVarsCrossplaneInit` | Add custom `initContainers` to the Crossplane pod deployment init containers. | `[]` |
 | `extraEnvVarsCrossplane` | Add custom environmental variables to the Crossplane pod deployment application container. Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`. | `{}` |
 | `extraEnvVarsCrossplaneInit` | Add custom environmental variables to the Crossplane pod deployment init container. Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`. | `{}` |
 | `extraEnvVarsRBACManager` | Add custom environmental variables to the RBAC Manager pod deployment. Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`. | `{}` |
