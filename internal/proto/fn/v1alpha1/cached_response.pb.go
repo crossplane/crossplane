@@ -17,7 +17,7 @@
 // versions:
 // 	protoc-gen-go v1.36.9
 // 	protoc        (unknown)
-// source: internal/xfn/cached/proto/v1alpha1/cached_response.proto
+// source: internal/proto/fn/v1alpha1/cached_response.proto
 
 package v1alpha1
 
@@ -52,7 +52,7 @@ type CachedRunFunctionResponse struct {
 
 func (x *CachedRunFunctionResponse) Reset() {
 	*x = CachedRunFunctionResponse{}
-	mi := &file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_msgTypes[0]
+	mi := &file_internal_proto_fn_v1alpha1_cached_response_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -64,7 +64,7 @@ func (x *CachedRunFunctionResponse) String() string {
 func (*CachedRunFunctionResponse) ProtoMessage() {}
 
 func (x *CachedRunFunctionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_msgTypes[0]
+	mi := &file_internal_proto_fn_v1alpha1_cached_response_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -77,7 +77,7 @@ func (x *CachedRunFunctionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CachedRunFunctionResponse.ProtoReflect.Descriptor instead.
 func (*CachedRunFunctionResponse) Descriptor() ([]byte, []int) {
-	return file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_rawDescGZIP(), []int{0}
+	return file_internal_proto_fn_v1alpha1_cached_response_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *CachedRunFunctionResponse) GetDeadline() *timestamppb.Timestamp {
@@ -94,36 +94,36 @@ func (x *CachedRunFunctionResponse) GetResponse() *v1.RunFunctionResponse {
 	return nil
 }
 
-var File_internal_xfn_cached_proto_v1alpha1_cached_response_proto protoreflect.FileDescriptor
+var File_internal_proto_fn_v1alpha1_cached_response_proto protoreflect.FileDescriptor
 
-const file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_rawDesc = "" +
+const file_internal_proto_fn_v1alpha1_cached_response_proto_rawDesc = "" +
 	"\n" +
-	"8internal/xfn/cached/proto/v1alpha1/cached_response.proto\x12\"internal.xfn.cached.proto.v1alpha1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1eproto/fn/v1/run_function.proto\"\x9f\x01\n" +
+	"0internal/proto/fn/v1alpha1/cached_response.proto\x12\x1ainternal.proto.fn.v1alpha1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1eproto/fn/v1/run_function.proto\"\x9f\x01\n" +
 	"\x19CachedRunFunctionResponse\x126\n" +
 	"\bdeadline\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bdeadline\x12J\n" +
-	"\bresponse\x18\x02 \x01(\v2..apiextensions.fn.proto.v1.RunFunctionResponseR\bresponseBHZFgithub.com/crossplane/crossplane/v2/internal/xfn/cached/proto/v1alpha1b\x06proto3"
+	"\bresponse\x18\x02 \x01(\v2..apiextensions.fn.proto.v1.RunFunctionResponseR\bresponseB@Z>github.com/crossplane/crossplane/v2/internal/proto/fn/v1alpha1b\x06proto3"
 
 var (
-	file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_rawDescOnce sync.Once
-	file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_rawDescData []byte
+	file_internal_proto_fn_v1alpha1_cached_response_proto_rawDescOnce sync.Once
+	file_internal_proto_fn_v1alpha1_cached_response_proto_rawDescData []byte
 )
 
-func file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_rawDescGZIP() []byte {
-	file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_rawDescOnce.Do(func() {
-		file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_rawDesc), len(file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_rawDesc)))
+func file_internal_proto_fn_v1alpha1_cached_response_proto_rawDescGZIP() []byte {
+	file_internal_proto_fn_v1alpha1_cached_response_proto_rawDescOnce.Do(func() {
+		file_internal_proto_fn_v1alpha1_cached_response_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_internal_proto_fn_v1alpha1_cached_response_proto_rawDesc), len(file_internal_proto_fn_v1alpha1_cached_response_proto_rawDesc)))
 	})
-	return file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_rawDescData
+	return file_internal_proto_fn_v1alpha1_cached_response_proto_rawDescData
 }
 
-var file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_goTypes = []any{
-	(*CachedRunFunctionResponse)(nil), // 0: internal.xfn.cached.proto.v1alpha1.CachedRunFunctionResponse
+var file_internal_proto_fn_v1alpha1_cached_response_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_internal_proto_fn_v1alpha1_cached_response_proto_goTypes = []any{
+	(*CachedRunFunctionResponse)(nil), // 0: internal.proto.fn.v1alpha1.CachedRunFunctionResponse
 	(*timestamppb.Timestamp)(nil),     // 1: google.protobuf.Timestamp
 	(*v1.RunFunctionResponse)(nil),    // 2: apiextensions.fn.proto.v1.RunFunctionResponse
 }
-var file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_depIdxs = []int32{
-	1, // 0: internal.xfn.cached.proto.v1alpha1.CachedRunFunctionResponse.deadline:type_name -> google.protobuf.Timestamp
-	2, // 1: internal.xfn.cached.proto.v1alpha1.CachedRunFunctionResponse.response:type_name -> apiextensions.fn.proto.v1.RunFunctionResponse
+var file_internal_proto_fn_v1alpha1_cached_response_proto_depIdxs = []int32{
+	1, // 0: internal.proto.fn.v1alpha1.CachedRunFunctionResponse.deadline:type_name -> google.protobuf.Timestamp
+	2, // 1: internal.proto.fn.v1alpha1.CachedRunFunctionResponse.response:type_name -> apiextensions.fn.proto.v1.RunFunctionResponse
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -131,26 +131,26 @@ var file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_depIdxs = []in
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_init() }
-func file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_init() {
-	if File_internal_xfn_cached_proto_v1alpha1_cached_response_proto != nil {
+func init() { file_internal_proto_fn_v1alpha1_cached_response_proto_init() }
+func file_internal_proto_fn_v1alpha1_cached_response_proto_init() {
+	if File_internal_proto_fn_v1alpha1_cached_response_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_rawDesc), len(file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_proto_fn_v1alpha1_cached_response_proto_rawDesc), len(file_internal_proto_fn_v1alpha1_cached_response_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_goTypes,
-		DependencyIndexes: file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_depIdxs,
-		MessageInfos:      file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_msgTypes,
+		GoTypes:           file_internal_proto_fn_v1alpha1_cached_response_proto_goTypes,
+		DependencyIndexes: file_internal_proto_fn_v1alpha1_cached_response_proto_depIdxs,
+		MessageInfos:      file_internal_proto_fn_v1alpha1_cached_response_proto_msgTypes,
 	}.Build()
-	File_internal_xfn_cached_proto_v1alpha1_cached_response_proto = out.File
-	file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_goTypes = nil
-	file_internal_xfn_cached_proto_v1alpha1_cached_response_proto_depIdxs = nil
+	File_internal_proto_fn_v1alpha1_cached_response_proto = out.File
+	file_internal_proto_fn_v1alpha1_cached_response_proto_goTypes = nil
+	file_internal_proto_fn_v1alpha1_cached_response_proto_depIdxs = nil
 }
