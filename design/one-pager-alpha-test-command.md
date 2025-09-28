@@ -45,7 +45,7 @@ crossplane alpha test -d tests/
 **Inputs (expressed in the YAML test file)**
 
 - Configure all render inputs **in the file**, not via CLI flags:
-  - `functions` (required), `xr`, `composition`
+  - `functions`, `xr`, `composition`
   - `context` (`values`, `files`)
   - `observedResources`, `extraResources`
   - toggles: `includeFullXR`, `includeContext`, `includeFunctionResults`, `timeout`
