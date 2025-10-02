@@ -377,6 +377,10 @@ policies throughout their lifecycle:
     maintainers](https://github.com/cncf/foundation/blob/main/project-maintainers.csv)
     list
   * `cncf-crossplane-maintainers@lists.cncf.io` mailing list
+* **Project list:** Each extension should keep their entry in the [Community
+  Extension Project
+  list](https://docs.crossplane.io/latest/learn/community-extension-projects/)
+  up to date.
 * **API group**: New extension projects starting out in `crossplane-contrib`
   should use  the  `*.crossplane.io`  API group for their API resources. If the
   project was started in a different organization and contributed to
@@ -398,7 +402,9 @@ The steering committee will review the provided information and assess whether
 the proposed extension is a good fit for the project. The steering committee may
 provide feedback or ask for changes if they feel it is needed to improve the
 chance of long term success of the extension. If approved, a new repository will
-be created and the initial maintainers will be added.
+be created and the initial maintainers will be added. The new maintainer team
+should then add the project to the [project
+list](https://docs.crossplane.io/latest/learn/community-extension-projects/).
 
 Then, the day to day governance of the new extension repository follows the same
 policies defined in this document for [repository
@@ -428,6 +434,19 @@ community extension projects that are in good health and compliance with all
 site should not include guides for extensions that are private, owned by
 vendors, or archived. All public references by the project must be only for
 healthy and compliant community extension projects.
+
+#### Community Extension Projects List
+
+The current list of community extension projects can be found in the [Crossplane
+documentation](https://docs.crossplane.io/latest/learn/community-extension-projects/).
+This list serves as the authoritative reference for all active community
+extension projects that are in good health and compliance with project policies.
+
+Community extension projects are expected to keep this list updated by
+submitting pull requests to add their project when they join the
+`crossplane-contrib` organization, and to ensure their project information
+remains current and accurate. Projects that become archived should also be
+removed from this list.
 
 ## Updating the Governance
 
