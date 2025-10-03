@@ -111,6 +111,14 @@ rules:
 - apiGroups: [apiextensions.k8s.io]
   resources: [customresourcedefinitions]
   verbs: [get, list, watch]
+- apiGroups:
+    - protection.crossplane.io
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups:
+    - ops.crossplane.io
+  resources: ["*"]
+  verbs: ["*"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -147,6 +155,14 @@ rules:
   - secrets.crossplane.io
   resources: ["*"]
   verbs: ["*"]
+- apiGroups:
+    - protection.crossplane.io
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups:
+    - ops.crossplane.io
+  resources: ["*"]
+  verbs: ["*"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -176,6 +192,14 @@ rules:
   verbs: [get, list, watch]
 - apiGroups:
   - secrets.crossplane.io
+  resources: ["*"]
+  verbs: [get, list, watch]
+- apiGroups:
+    - protection.crossplane.io
+  resources: ["*"]
+  verbs: [get, list, watch]
+- apiGroups:
+    - ops.crossplane.io
   resources: ["*"]
   verbs: [get, list, watch]
 ---
