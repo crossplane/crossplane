@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Crossplane Authors.
+Copyright 2025 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,43 +25,18 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/roles"
 )
 
 const (
-	namePrefix     = "crossplane:function:"
-	nameSuffixEdit = ":aggregate-to-edit"
-	nameSuffixView = ":aggregate-to-view"
-
-	keyAggregateToCrossplane = "rbac.crossplane.io/aggregate-to-crossplane"
-	keyAggregateToAdmin      = "rbac.crossplane.io/aggregate-to-admin"
-	keyAggregateToEdit       = "rbac.crossplane.io/aggregate-to-edit"
-	keyAggregateToView       = "rbac.crossplane.io/aggregate-to-view"
-
-	valTrue = "true"
-
-	suffixStatus = "/status"
+	namePrefix = "crossplane:function:"
 )
-
-//nolint:gochecknoglobals // We treat these as constants.
-var (
-	verbsEdit = []string{rbacv1.VerbAll}
-	verbsView = []string{"get", "list", "watch"}
-)
-
-// A Resource is a Kubernetes API resource.
-type Resource struct {
-	// Group is the unversioned API group of this resource.
-	Group string
-
-	// Plural is the plural name of this resource.
-	Plural string
-}
 
 // RenderClusterRoles returns ClusterRoles for the supplied FunctionRevision.
 // Functions are invoked via gRPC and don't need direct Kubernetes API access,
 // so we only create aggregated roles for human users to interact with the
 // resources defined by the function.
-func RenderClusterRoles(fr *v1.FunctionRevision, rs []Resource) []rbacv1.ClusterRole {
+func RenderClusterRoles(fr *v1.FunctionRevision, rs []roles.Resource) []rbacv1.ClusterRole {
 	// Return early if we have no resources to render roles for.
 	if len(rs) == 0 {
 		return nil
@@ -82,7 +57,7 @@ func RenderClusterRoles(fr *v1.FunctionRevision, rs []Resource) []rbacv1.Cluster
 			groups = append(groups, r.Group)
 		}
 
-		resources[r.Group] = append(resources[r.Group], r.Plural, r.Plural+suffixStatus)
+		resources[r.Group] = append(resources[r.Group], r.Plural, r.Plural+roles.SuffixStatus)
 	}
 
 	rules := []rbacv1.PolicyRule{}
@@ -95,48 +70,38 @@ func RenderClusterRoles(fr *v1.FunctionRevision, rs []Resource) []rbacv1.Cluster
 
 	edit := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namePrefix + fr.GetName() + nameSuffixEdit,
+			Name: namePrefix + fr.GetName() + roles.NameSuffixEdit,
 			Labels: map[string]string{
 				// Edit rules aggregate to the Crossplane ClusterRole too.
 				// Crossplane needs access to reconcile all composite resources
 				// and composite resource claims.
-				keyAggregateToCrossplane: valTrue,
+				roles.KeyAggregateToCrossplane: roles.ValTrue,
 
 				// Edit rules aggregate to admin too. Currently edit and admin
 				// differ only in their base roles.
-				keyAggregateToAdmin: valTrue,
+				roles.KeyAggregateToAdmin: roles.ValTrue,
 
-				keyAggregateToEdit: valTrue,
+				roles.KeyAggregateToEdit: roles.ValTrue,
 			},
 		},
-		Rules: withVerbs(rules, verbsEdit),
+		Rules: roles.WithVerbs(rules, roles.VerbsEdit),
 	}
 
 	view := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namePrefix + fr.GetName() + nameSuffixView,
+			Name: namePrefix + fr.GetName() + roles.NameSuffixView,
 			Labels: map[string]string{
-				keyAggregateToView: valTrue,
+				roles.KeyAggregateToView: roles.ValTrue,
 			},
 		},
-		Rules: withVerbs(rules, verbsView),
+		Rules: roles.WithVerbs(rules, roles.VerbsView),
 	}
 
-	roles := []rbacv1.ClusterRole{*edit, *view}
-	for i := range roles {
+	clusterRoles := []rbacv1.ClusterRole{*edit, *view}
+	for i := range clusterRoles {
 		ref := meta.AsController(meta.TypedReferenceTo(fr, v1.FunctionRevisionGroupVersionKind))
-		roles[i].SetOwnerReferences([]metav1.OwnerReference{ref})
+		clusterRoles[i].SetOwnerReferences([]metav1.OwnerReference{ref})
 	}
 
-	return roles
-}
-
-func withVerbs(r []rbacv1.PolicyRule, verbs []string) []rbacv1.PolicyRule {
-	verbal := make([]rbacv1.PolicyRule, len(r))
-	for i := range r {
-		verbal[i] = r[i]
-		verbal[i].Verbs = verbs
-	}
-
-	return verbal
+	return clusterRoles
 }

@@ -27,6 +27,7 @@ import (
 
 	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/roles"
 )
 
 func TestRenderClusterRoles(t *testing.T) {
@@ -43,8 +44,8 @@ func TestRenderClusterRoles(t *testing.T) {
 		BlockOwnerDeletion: &ctrl,
 	}
 
-	nameEdit := namePrefix + prName + nameSuffixEdit
-	nameView := namePrefix + prName + nameSuffixView
+	nameEdit := namePrefix + prName + roles.NameSuffixEdit
+	nameView := namePrefix + prName + roles.NameSuffixView
 	nameSystem := SystemClusterRoleName(prName)
 
 	groupA := "example.org"
@@ -57,7 +58,7 @@ func TestRenderClusterRoles(t *testing.T) {
 
 	type args struct {
 		pr        *v1.ProviderRevision
-		resources []Resource
+		resources []roles.Resource
 	}
 
 	cases := map[string]struct {
@@ -69,14 +70,14 @@ func TestRenderClusterRoles(t *testing.T) {
 			reason: "If there are no resources (yet) we should not produce any ClusterRoles.",
 			args: args{
 				pr:        &v1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: prName, UID: prUID}},
-				resources: []Resource{},
+				resources: []roles.Resource{},
 			},
 		},
 		"MergeGroups": {
 			reason: "A ProviderRevision should merge resources by group to produce the fewest rules possible.",
 			args: args{
 				pr: &v1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: prName, UID: prUID}},
-				resources: []Resource{
+				resources: []roles.Resource{
 					{
 						Group:  groupA,
 						Plural: pluralA,
@@ -97,21 +98,21 @@ func TestRenderClusterRoles(t *testing.T) {
 						Name:            nameEdit,
 						OwnerReferences: []metav1.OwnerReference{crCtrlr},
 						Labels: map[string]string{
-							keyAggregateToCrossplane: valTrue,
-							keyAggregateToAdmin:      valTrue,
-							keyAggregateToEdit:       valTrue,
+							roles.KeyAggregateToCrossplane: roles.ValTrue,
+							roles.KeyAggregateToAdmin:      roles.ValTrue,
+							roles.KeyAggregateToEdit:       roles.ValTrue,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{groupA},
-							Resources: []string{pluralA, pluralA + suffixStatus, pluralB, pluralB + suffixStatus},
-							Verbs:     verbsEdit,
+							Resources: []string{pluralA, pluralA + roles.SuffixStatus, pluralB, pluralB + roles.SuffixStatus},
+							Verbs:     roles.VerbsEdit,
 						},
 						{
 							APIGroups: []string{groupC},
-							Resources: []string{pluralC, pluralC + suffixStatus},
-							Verbs:     verbsEdit,
+							Resources: []string{pluralC, pluralC + roles.SuffixStatus},
+							Verbs:     roles.VerbsEdit,
 						},
 					},
 				},
@@ -120,19 +121,19 @@ func TestRenderClusterRoles(t *testing.T) {
 						Name:            nameView,
 						OwnerReferences: []metav1.OwnerReference{crCtrlr},
 						Labels: map[string]string{
-							keyAggregateToView: valTrue,
+							roles.KeyAggregateToView: roles.ValTrue,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{groupA},
-							Resources: []string{pluralA, pluralA + suffixStatus, pluralB, pluralB + suffixStatus},
-							Verbs:     verbsView,
+							Resources: []string{pluralA, pluralA + roles.SuffixStatus, pluralB, pluralB + roles.SuffixStatus},
+							Verbs:     roles.VerbsView,
 						},
 						{
 							APIGroups: []string{groupC},
-							Resources: []string{pluralC, pluralC + suffixStatus},
-							Verbs:     verbsView,
+							Resources: []string{pluralC, pluralC + roles.SuffixStatus},
+							Verbs:     roles.VerbsView,
 						},
 					},
 				},
@@ -145,12 +146,12 @@ func TestRenderClusterRoles(t *testing.T) {
 					Rules: append([]rbacv1.PolicyRule{
 						{
 							APIGroups: []string{groupA},
-							Resources: []string{pluralA, pluralA + suffixStatus, pluralB, pluralB + suffixStatus},
+							Resources: []string{pluralA, pluralA + roles.SuffixStatus, pluralB, pluralB + roles.SuffixStatus},
 							Verbs:     verbsSystem,
 						},
 						{
 							APIGroups: []string{groupC},
-							Resources: []string{pluralC, pluralC + suffixStatus},
+							Resources: []string{pluralC, pluralC + roles.SuffixStatus},
 							Verbs:     verbsSystem,
 						},
 						{
@@ -173,7 +174,7 @@ func TestRenderClusterRoles(t *testing.T) {
 						},
 					},
 				},
-				resources: []Resource{
+				resources: []roles.Resource{
 					{
 						Group:  groupA,
 						Plural: pluralA,
@@ -186,16 +187,16 @@ func TestRenderClusterRoles(t *testing.T) {
 						Name:            nameEdit,
 						OwnerReferences: []metav1.OwnerReference{crCtrlr},
 						Labels: map[string]string{
-							keyAggregateToCrossplane: valTrue,
-							keyAggregateToAdmin:      valTrue,
-							keyAggregateToEdit:       valTrue,
+							roles.KeyAggregateToCrossplane: roles.ValTrue,
+							roles.KeyAggregateToAdmin:      roles.ValTrue,
+							roles.KeyAggregateToEdit:       roles.ValTrue,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{groupA},
-							Resources: []string{pluralA, pluralA + suffixStatus},
-							Verbs:     verbsEdit,
+							Resources: []string{pluralA, pluralA + roles.SuffixStatus},
+							Verbs:     roles.VerbsEdit,
 						},
 					},
 				},
@@ -204,14 +205,14 @@ func TestRenderClusterRoles(t *testing.T) {
 						Name:            nameView,
 						OwnerReferences: []metav1.OwnerReference{crCtrlr},
 						Labels: map[string]string{
-							keyAggregateToView: valTrue,
+							roles.KeyAggregateToView: roles.ValTrue,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{groupA},
-							Resources: []string{pluralA, pluralA + suffixStatus},
-							Verbs:     verbsView,
+							Resources: []string{pluralA, pluralA + roles.SuffixStatus},
+							Verbs:     roles.VerbsView,
 						},
 					},
 				},
@@ -224,7 +225,7 @@ func TestRenderClusterRoles(t *testing.T) {
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{groupA},
-							Resources: []string{pluralA, pluralA + suffixStatus},
+							Resources: []string{pluralA, pluralA + roles.SuffixStatus},
 							Verbs:     verbsSystem,
 						},
 						{
@@ -235,10 +236,10 @@ func TestRenderClusterRoles(t *testing.T) {
 						{
 							APIGroups: []string{"", coordinationv1.GroupName},
 							Resources: []string{pluralSecrets, pluralConfigmaps, pluralEvents, pluralLeases},
-							Verbs:     verbsEdit,
+							Verbs:     roles.VerbsEdit,
 						},
 						{
-							Verbs:     verbsView,
+							Verbs:     roles.VerbsView,
 							APIGroups: []string{"apiextensions.k8s.io"},
 							Resources: []string{"customresourcedefinitions"},
 						},

@@ -27,23 +27,15 @@ import (
 
 	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/roles"
 )
 
 const (
 	namePrefix       = "crossplane:provider:"
-	nameSuffixEdit   = ":aggregate-to-edit"
-	nameSuffixView   = ":aggregate-to-view"
 	nameSuffixSystem = ":system"
 
-	keyAggregateToCrossplane = "rbac.crossplane.io/aggregate-to-crossplane"
-	keyAggregateToAdmin      = "rbac.crossplane.io/aggregate-to-admin"
-	keyAggregateToEdit       = "rbac.crossplane.io/aggregate-to-edit"
-	keyAggregateToView       = "rbac.crossplane.io/aggregate-to-view"
-	keyProviderName          = "rbac.crossplane.io/system"
+	keyProviderName = "rbac.crossplane.io/system"
 
-	valTrue = "true"
-
-	suffixStatus     = "/status"
 	suffixFinalizers = "/finalizers"
 
 	pluralEvents     = "events"
@@ -54,8 +46,6 @@ const (
 
 //nolint:gochecknoglobals // We treat these as constants.
 var (
-	verbsEdit   = []string{rbacv1.VerbAll}
-	verbsView   = []string{"get", "list", "watch"}
 	verbsSystem = []string{"get", "list", "watch", "update", "patch", "create"}
 	verbsUpdate = []string{"update"}
 )
@@ -74,7 +64,7 @@ var rulesSystemExtra = []rbacv1.PolicyRule{
 	{
 		APIGroups: []string{"", coordinationv1.GroupName},
 		Resources: []string{pluralSecrets, pluralConfigmaps, pluralEvents, pluralLeases},
-		Verbs:     verbsEdit,
+		Verbs:     roles.VerbsEdit,
 	},
 }
 
@@ -84,17 +74,8 @@ func SystemClusterRoleName(revisionName string) string {
 	return namePrefix + revisionName + nameSuffixSystem
 }
 
-// A Resource is a Kubernetes API resource.
-type Resource struct {
-	// Group is the unversioned API group of this resource.
-	Group string
-
-	// Plural is the plural name of this resource.
-	Plural string
-}
-
 // RenderClusterRoles returns ClusterRoles for the supplied ProviderRevision.
-func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.ClusterRole {
+func RenderClusterRoles(pr *v1.ProviderRevision, rs []roles.Resource) []rbacv1.ClusterRole {
 	// Return early if we have no resources to render roles for.
 	if len(rs) == 0 {
 		return nil
@@ -115,7 +96,7 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 			groups = append(groups, r.Group)
 		}
 
-		resources[r.Group] = append(resources[r.Group], r.Plural, r.Plural+suffixStatus)
+		resources[r.Group] = append(resources[r.Group], r.Plural, r.Plural+roles.SuffixStatus)
 	}
 
 	rules := []rbacv1.PolicyRule{}
@@ -138,31 +119,31 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 
 	edit := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namePrefix + pr.GetName() + nameSuffixEdit,
+			Name: namePrefix + pr.GetName() + roles.NameSuffixEdit,
 			Labels: map[string]string{
 				// Edit rules aggregate to the Crossplane ClusterRole too.
 				// Crossplane needs access to reconcile all composite resources
 				// and composite resource claims.
-				keyAggregateToCrossplane: valTrue,
+				roles.KeyAggregateToCrossplane: roles.ValTrue,
 
 				// Edit rules aggregate to admin too. Currently edit and admin
 				// differ only in their base roles.
-				keyAggregateToAdmin: valTrue,
+				roles.KeyAggregateToAdmin: roles.ValTrue,
 
-				keyAggregateToEdit: valTrue,
+				roles.KeyAggregateToEdit: roles.ValTrue,
 			},
 		},
-		Rules: withVerbs(rules, verbsEdit),
+		Rules: roles.WithVerbs(rules, roles.VerbsEdit),
 	}
 
 	view := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namePrefix + pr.GetName() + nameSuffixView,
+			Name: namePrefix + pr.GetName() + roles.NameSuffixView,
 			Labels: map[string]string{
-				keyAggregateToView: valTrue,
+				roles.KeyAggregateToView: roles.ValTrue,
 			},
 		},
-		Rules: withVerbs(rules, verbsView),
+		Rules: roles.WithVerbs(rules, roles.VerbsView),
 	}
 
 	// The 'system' RBAC role does not aggregate; it is intended to be bound
@@ -174,32 +155,22 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 				keyProviderName: pr.GetName(),
 			},
 		},
-		Rules: append(append(withVerbs(rules, verbsSystem), ruleFinalizers), rulesSystemExtra...),
+		Rules: append(append(roles.WithVerbs(rules, verbsSystem), ruleFinalizers), rulesSystemExtra...),
 	}
 
 	if pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
 		// For SafeStart to work, the system role needs to be able to View CRDs.
-		system.Rules = append(system.Rules, withVerbs([]rbacv1.PolicyRule{{
+		system.Rules = append(system.Rules, roles.WithVerbs([]rbacv1.PolicyRule{{
 			APIGroups: []string{"apiextensions.k8s.io"},
 			Resources: []string{"customresourcedefinitions"},
-		}}, verbsView)...)
+		}}, roles.VerbsView)...)
 	}
 
-	roles := []rbacv1.ClusterRole{*edit, *view, *system}
-	for i := range roles {
+	clusterRoles := []rbacv1.ClusterRole{*edit, *view, *system}
+	for i := range clusterRoles {
 		ref := meta.AsController(meta.TypedReferenceTo(pr, v1.ProviderRevisionGroupVersionKind))
-		roles[i].SetOwnerReferences([]metav1.OwnerReference{ref})
+		clusterRoles[i].SetOwnerReferences([]metav1.OwnerReference{ref})
 	}
 
-	return roles
-}
-
-func withVerbs(r []rbacv1.PolicyRule, verbs []string) []rbacv1.PolicyRule {
-	verbal := make([]rbacv1.PolicyRule, len(r))
-	for i := range r {
-		verbal[i] = r[i]
-		verbal[i].Verbs = verbs
-	}
-
-	return verbal
+	return clusterRoles
 }

@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Crossplane Authors.
+Copyright 2025 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/roles"
 )
 
 func TestReconcile(t *testing.T) {
@@ -149,7 +150,7 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						}),
 					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.FunctionRevision, []Resource) []rbacv1.ClusterRole {
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.FunctionRevision, []roles.Resource) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}
 					})),
 				},
@@ -173,7 +174,7 @@ func TestReconcile(t *testing.T) {
 							return resource.AllowUpdateIf(func(_, _ runtime.Object) bool { return false })(ctx, o, o)
 						}),
 					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.FunctionRevision, []Resource) []rbacv1.ClusterRole {
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.FunctionRevision, []roles.Resource) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}
 					})),
 				},
@@ -198,7 +199,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.FunctionRevision, []Resource) []rbacv1.ClusterRole {
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.FunctionRevision, []roles.Resource) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "test-role",

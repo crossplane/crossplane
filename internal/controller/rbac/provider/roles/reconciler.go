@@ -23,19 +23,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/name"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -43,9 +38,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/rbac/controller"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/roles"
 )
 
 const (
@@ -64,14 +59,14 @@ const (
 // A ClusterRoleRenderer renders ClusterRoles for the given resources.
 type ClusterRoleRenderer interface {
 	// RenderClusterRoles for the supplied resources.
-	RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.ClusterRole
+	RenderClusterRoles(pr *v1.ProviderRevision, rs []roles.Resource) []rbacv1.ClusterRole
 }
 
 // A ClusterRoleRenderFn renders ClusterRoles for the supplied resources.
-type ClusterRoleRenderFn func(pr *v1.ProviderRevision, rs []Resource) []rbacv1.ClusterRole
+type ClusterRoleRenderFn func(pr *v1.ProviderRevision, rs []roles.Resource) []rbacv1.ClusterRole
 
 // RenderClusterRoles renders ClusterRoles for the supplied CRDs.
-func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.ClusterRole {
+func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1.ProviderRevision, rs []roles.Resource) []rbacv1.ClusterRole {
 	return fn(pr, rs)
 }
 
@@ -228,7 +223,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	resources := DefinedResources(pr.Status.ObjectRefs)
+	resources := roles.DefinedResources(pr.Status.ObjectRefs)
 
 	// If this revision is part of a provider family we consider it to 'own' all
 	// of the family's CRDs (despite it not actually being an owner reference).
@@ -273,7 +268,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				continue
 			}
 
-			resources = append(resources, DefinedResources(member.Status.ObjectRefs)...)
+			resources = append(resources, roles.DefinedResources(member.Status.ObjectRefs)...)
 		}
 	}
 
@@ -285,7 +280,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		err := r.client.Apply(ctx, &cr,
 			resource.MustBeControllableBy(pr.GetUID()),
-			resource.AllowUpdateIf(ClusterRolesDiffer),
+			resource.AllowUpdateIf(roles.ClusterRolesDiffer),
 			resource.StoreCurrentRV(&origRV),
 		)
 		if resource.IsNotAllowed(err) {
@@ -320,50 +315,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// There's no need to requeue explicitly - we're watching all PRs.
 	return reconcile.Result{Requeue: false}, nil
-}
-
-// DefinedResources returns the resources defined by the supplied references.
-func DefinedResources(refs []xpv1.TypedReference) []Resource {
-	out := make([]Resource, 0, len(refs))
-	for _, ref := range refs {
-		// This would only return an error if the APIVersion contained more than
-		// one "/". This should be impossible, but if it somehow happens we'll
-		// just skip this resource since it can't be a CRD.
-		gv, _ := schema.ParseGroupVersion(ref.APIVersion)
-
-		// We're only concerned with CRDs or MRDs.
-		switch {
-		case gv.Group == apiextensions.GroupName && ref.Kind == "CustomResourceDefinition":
-		// Do the work!
-		case gv.Group == v1alpha1.Group && ref.Kind == v1alpha1.ManagedResourceDefinitionKind:
-		// Do the work!
-		default:
-			// Filter out the non CRD or MRD.
-			continue
-		}
-
-		p, g, valid := strings.Cut(ref.Name, ".")
-		if !valid {
-			// This shouldn't be possible - CRDs must be named <plural>.<group>.
-			continue
-		}
-
-		out = append(out, Resource{Group: g, Plural: p})
-	}
-
-	return out
-}
-
-// ClusterRolesDiffer returns true if the supplied objects are different
-// ClusterRoles. We consider ClusterRoles to be different if their labels and
-// rules do not match.
-func ClusterRolesDiffer(current, desired runtime.Object) bool {
-	// Calling this with anything but ClusterRoles is a programming error. If it
-	// happens, we probably do want to panic.
-	c := current.(*rbacv1.ClusterRole) //nolint:forcetypeassert // See above.
-	d := desired.(*rbacv1.ClusterRole) //nolint:forcetypeassert // See above.
-
-	return !cmp.Equal(c.GetLabels(), d.GetLabels()) || !cmp.Equal(c.Rules, d.Rules)
 }
 
 // An OrgDiffer determines whether two references are part of the same org. In

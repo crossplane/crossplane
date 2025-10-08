@@ -43,6 +43,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/roles"
 )
 
 func TestReconcile(t *testing.T) {
@@ -156,7 +157,7 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						}),
 					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []Resource) []rbacv1.ClusterRole {
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []roles.Resource) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}
 					})),
 				},
@@ -180,7 +181,7 @@ func TestReconcile(t *testing.T) {
 							return resource.AllowUpdateIf(func(_, _ runtime.Object) bool { return false })(ctx, o, o)
 						}),
 					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []Resource) []rbacv1.ClusterRole {
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []roles.Resource) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}
 					})),
 				},
@@ -222,7 +223,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []Resource) []rbacv1.ClusterRole {
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []roles.Resource) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}
 					})),
 				},
@@ -250,7 +251,7 @@ func TestReconcile(t *testing.T) {
 							}),
 						},
 					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []Resource) []rbacv1.ClusterRole {
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []roles.Resource) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}
 					})),
 				},
@@ -280,27 +281,27 @@ func TestReconcile(t *testing.T) {
 func TestDefinedResources(t *testing.T) {
 	cases := map[string]struct {
 		refs []xpv1.TypedReference
-		want []Resource
+		want []roles.Resource
 	}{
 		"UnparseableAPIVersion": {
 			refs: []xpv1.TypedReference{{
 				APIVersion: "too/many/slashes",
 			}},
-			want: []Resource{},
+			want: []roles.Resource{},
 		},
 		"WrongGroup": {
 			refs: []xpv1.TypedReference{{
 				APIVersion: "example.org/v1",
 				Kind:       "CustomResourceDefinition",
 			}},
-			want: []Resource{},
+			want: []roles.Resource{},
 		},
 		"WrongKind": {
 			refs: []xpv1.TypedReference{{
 				APIVersion: extv1.SchemeGroupVersion.String(),
 				Kind:       "ConversionReview",
 			}},
-			want: []Resource{},
+			want: []roles.Resource{},
 		},
 		"InvalidName": {
 			refs: []xpv1.TypedReference{{
@@ -308,7 +309,7 @@ func TestDefinedResources(t *testing.T) {
 				Kind:       "CustomResourceDefinition",
 				Name:       "I'm different!",
 			}},
-			want: []Resource{},
+			want: []roles.Resource{},
 		},
 		"DefinedResource": {
 			refs: []xpv1.TypedReference{{
@@ -316,7 +317,7 @@ func TestDefinedResources(t *testing.T) {
 				Kind:       "CustomResourceDefinition",
 				Name:       "pinballs.example.org",
 			}},
-			want: []Resource{{
+			want: []roles.Resource{{
 				Group:  "example.org",
 				Plural: "pinballs",
 			}},
@@ -325,7 +326,7 @@ func TestDefinedResources(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := DefinedResources(tc.refs)
+			got := roles.DefinedResources(tc.refs)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("DefinedResources(...): -want, +got:\n%s", diff)
 			}
@@ -387,7 +388,7 @@ func TestClusterRolesDiffer(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := ClusterRolesDiffer(tc.current, tc.desired)
+			got := roles.ClusterRolesDiffer(tc.current, tc.desired)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ClusterRolesDiffer(...): -want, +got\n:%s", diff)
 			}

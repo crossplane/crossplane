@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Crossplane Authors.
+Copyright 2025 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/roles"
 )
 
 func TestRenderClusterRoles(t *testing.T) {
@@ -44,8 +45,8 @@ func TestRenderClusterRoles(t *testing.T) {
 		BlockOwnerDeletion: &ctrl,
 	}
 
-	nameEdit := namePrefix + frName + nameSuffixEdit
-	nameView := namePrefix + frName + nameSuffixView
+	nameEdit := namePrefix + frName + roles.NameSuffixEdit
+	nameView := namePrefix + frName + roles.NameSuffixView
 
 	groupA := "example.org"
 	groupB := "example.org"
@@ -57,7 +58,7 @@ func TestRenderClusterRoles(t *testing.T) {
 
 	type args struct {
 		fr        *v1.FunctionRevision
-		resources []Resource
+		resources []roles.Resource
 	}
 
 	cases := map[string]struct {
@@ -69,14 +70,14 @@ func TestRenderClusterRoles(t *testing.T) {
 			reason: "If there are no resources (yet) we should not produce any ClusterRoles.",
 			args: args{
 				fr:        &v1.FunctionRevision{ObjectMeta: metav1.ObjectMeta{Name: frName, UID: frUID}},
-				resources: []Resource{},
+				resources: []roles.Resource{},
 			},
 		},
 		"SingleResource": {
 			reason: "A FunctionRevision with a single resource should produce edit and view ClusterRoles.",
 			args: args{
 				fr: &v1.FunctionRevision{ObjectMeta: metav1.ObjectMeta{Name: frName, UID: frUID}},
-				resources: []Resource{
+				resources: []roles.Resource{
 					{
 						Group:  groupA,
 						Plural: pluralA,
@@ -89,16 +90,16 @@ func TestRenderClusterRoles(t *testing.T) {
 						Name:            nameEdit,
 						OwnerReferences: []metav1.OwnerReference{crCtrlr},
 						Labels: map[string]string{
-							keyAggregateToCrossplane: valTrue,
-							keyAggregateToAdmin:      valTrue,
-							keyAggregateToEdit:       valTrue,
+							roles.KeyAggregateToCrossplane: roles.ValTrue,
+							roles.KeyAggregateToAdmin:      roles.ValTrue,
+							roles.KeyAggregateToEdit:       roles.ValTrue,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{groupA},
-							Resources: []string{pluralA, pluralA + suffixStatus},
-							Verbs:     verbsEdit,
+							Resources: []string{pluralA, pluralA + roles.SuffixStatus},
+							Verbs:     roles.VerbsEdit,
 						},
 					},
 				},
@@ -107,14 +108,14 @@ func TestRenderClusterRoles(t *testing.T) {
 						Name:            nameView,
 						OwnerReferences: []metav1.OwnerReference{crCtrlr},
 						Labels: map[string]string{
-							keyAggregateToView: valTrue,
+							roles.KeyAggregateToView: roles.ValTrue,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{groupA},
-							Resources: []string{pluralA, pluralA + suffixStatus},
-							Verbs:     verbsView,
+							Resources: []string{pluralA, pluralA + roles.SuffixStatus},
+							Verbs:     roles.VerbsView,
 						},
 					},
 				},
@@ -124,7 +125,7 @@ func TestRenderClusterRoles(t *testing.T) {
 			reason: "A FunctionRevision should merge resources by group to produce the fewest rules possible.",
 			args: args{
 				fr: &v1.FunctionRevision{ObjectMeta: metav1.ObjectMeta{Name: frName, UID: frUID}},
-				resources: []Resource{
+				resources: []roles.Resource{
 					{
 						Group:  groupA,
 						Plural: pluralA,
@@ -145,21 +146,21 @@ func TestRenderClusterRoles(t *testing.T) {
 						Name:            nameEdit,
 						OwnerReferences: []metav1.OwnerReference{crCtrlr},
 						Labels: map[string]string{
-							keyAggregateToCrossplane: valTrue,
-							keyAggregateToAdmin:      valTrue,
-							keyAggregateToEdit:       valTrue,
+							roles.KeyAggregateToCrossplane: roles.ValTrue,
+							roles.KeyAggregateToAdmin:      roles.ValTrue,
+							roles.KeyAggregateToEdit:       roles.ValTrue,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{groupA},
-							Resources: []string{pluralA, pluralA + suffixStatus, pluralB, pluralB + suffixStatus},
-							Verbs:     verbsEdit,
+							Resources: []string{pluralA, pluralA + roles.SuffixStatus, pluralB, pluralB + roles.SuffixStatus},
+							Verbs:     roles.VerbsEdit,
 						},
 						{
 							APIGroups: []string{groupC},
-							Resources: []string{pluralC, pluralC + suffixStatus},
-							Verbs:     verbsEdit,
+							Resources: []string{pluralC, pluralC + roles.SuffixStatus},
+							Verbs:     roles.VerbsEdit,
 						},
 					},
 				},
@@ -168,19 +169,19 @@ func TestRenderClusterRoles(t *testing.T) {
 						Name:            nameView,
 						OwnerReferences: []metav1.OwnerReference{crCtrlr},
 						Labels: map[string]string{
-							keyAggregateToView: valTrue,
+							roles.KeyAggregateToView: roles.ValTrue,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{groupA},
-							Resources: []string{pluralA, pluralA + suffixStatus, pluralB, pluralB + suffixStatus},
-							Verbs:     verbsView,
+							Resources: []string{pluralA, pluralA + roles.SuffixStatus, pluralB, pluralB + roles.SuffixStatus},
+							Verbs:     roles.VerbsView,
 						},
 						{
 							APIGroups: []string{groupC},
-							Resources: []string{pluralC, pluralC + suffixStatus},
-							Verbs:     verbsView,
+							Resources: []string{pluralC, pluralC + roles.SuffixStatus},
+							Verbs:     roles.VerbsView,
 						},
 					},
 				},
@@ -190,7 +191,7 @@ func TestRenderClusterRoles(t *testing.T) {
 			reason: "Resources should be sorted deterministically to avoid spurious diffs.",
 			args: args{
 				fr: &v1.FunctionRevision{ObjectMeta: metav1.ObjectMeta{Name: frName, UID: frUID}},
-				resources: []Resource{
+				resources: []roles.Resource{
 					{
 						Group:  groupC,
 						Plural: pluralC,
@@ -211,21 +212,21 @@ func TestRenderClusterRoles(t *testing.T) {
 						Name:            nameEdit,
 						OwnerReferences: []metav1.OwnerReference{crCtrlr},
 						Labels: map[string]string{
-							keyAggregateToCrossplane: valTrue,
-							keyAggregateToAdmin:      valTrue,
-							keyAggregateToEdit:       valTrue,
+							roles.KeyAggregateToCrossplane: roles.ValTrue,
+							roles.KeyAggregateToAdmin:      roles.ValTrue,
+							roles.KeyAggregateToEdit:       roles.ValTrue,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{groupA},
-							Resources: []string{pluralA, pluralA + suffixStatus, pluralB, pluralB + suffixStatus},
-							Verbs:     verbsEdit,
+							Resources: []string{pluralA, pluralA + roles.SuffixStatus, pluralB, pluralB + roles.SuffixStatus},
+							Verbs:     roles.VerbsEdit,
 						},
 						{
 							APIGroups: []string{groupC},
-							Resources: []string{pluralC, pluralC + suffixStatus},
-							Verbs:     verbsEdit,
+							Resources: []string{pluralC, pluralC + roles.SuffixStatus},
+							Verbs:     roles.VerbsEdit,
 						},
 					},
 				},
@@ -234,19 +235,19 @@ func TestRenderClusterRoles(t *testing.T) {
 						Name:            nameView,
 						OwnerReferences: []metav1.OwnerReference{crCtrlr},
 						Labels: map[string]string{
-							keyAggregateToView: valTrue,
+							roles.KeyAggregateToView: roles.ValTrue,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{groupA},
-							Resources: []string{pluralA, pluralA + suffixStatus, pluralB, pluralB + suffixStatus},
-							Verbs:     verbsView,
+							Resources: []string{pluralA, pluralA + roles.SuffixStatus, pluralB, pluralB + roles.SuffixStatus},
+							Verbs:     roles.VerbsView,
 						},
 						{
 							APIGroups: []string{groupC},
-							Resources: []string{pluralC, pluralC + suffixStatus},
-							Verbs:     verbsView,
+							Resources: []string{pluralC, pluralC + roles.SuffixStatus},
+							Verbs:     roles.VerbsView,
 						},
 					},
 				},
@@ -359,7 +360,7 @@ func TestClusterRolesDiffer(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := ClusterRolesDiffer(tc.current, tc.desired)
+			got := roles.ClusterRolesDiffer(tc.current, tc.desired)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\n%s\nClusterRolesDiffer(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -376,7 +377,7 @@ func TestWithVerbs(t *testing.T) {
 	}
 
 	verbs := []string{"get", "list", "watch"}
-	got := withVerbs(rules, verbs)
+	got := roles.WithVerbs(rules, verbs)
 
 	want := []rbacv1.PolicyRule{
 		{
@@ -387,12 +388,12 @@ func TestWithVerbs(t *testing.T) {
 	}
 
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("withVerbs(...): -want, +got:\n%s", diff)
+		t.Errorf("roles.WithVerbs(...): -want, +got:\n%s", diff)
 	}
 
 	// Ensure original rules are not modified
 	if len(rules[0].Verbs) != 0 {
-		t.Errorf("withVerbs should not modify original rules")
+		t.Errorf("roles.WithVerbs should not modify original rules")
 	}
 }
 
@@ -400,7 +401,7 @@ func TestDefinedResources(t *testing.T) {
 	cases := map[string]struct {
 		reason string
 		refs   []runtime.Object
-		want   []Resource
+		want   []roles.Resource
 	}{
 		"CRD": {
 			reason: "A CRD reference should be converted to a Resource.",
@@ -415,7 +416,7 @@ func TestDefinedResources(t *testing.T) {
 					},
 				},
 			},
-			want: []Resource{
+			want: []roles.Resource{
 				{
 					Group:  "example.org",
 					Plural: "examples",
@@ -435,7 +436,7 @@ func TestDefinedResources(t *testing.T) {
 					},
 				},
 			},
-			want: []Resource{},
+			want: []roles.Resource{},
 		},
 		"NonCRD": {
 			reason: "A non-CRD reference should be ignored.",
@@ -450,7 +451,7 @@ func TestDefinedResources(t *testing.T) {
 					},
 				},
 			},
-			want: []Resource{},
+			want: []roles.Resource{},
 		},
 	}
 
@@ -462,7 +463,7 @@ func TestDefinedResources(t *testing.T) {
 				refs = append(refs, *obj.(*metav1.PartialObjectMetadata))
 			}
 
-			got := DefinedResources(convertToTypedRefs(refs))
+			got := roles.DefinedResources(convertToTypedRefs(refs))
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\n%s\nDefinedResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
