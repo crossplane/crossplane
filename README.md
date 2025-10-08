@@ -34,6 +34,8 @@ documentation].
 You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
 
+The release process is fully documented in the [`crossplane/release`] repo.
+
 ## Roadmap
 
 The public roadmap for Crossplane is published as a GitHub project board. Issues
@@ -144,6 +146,7 @@ Crossplane is under the Apache 2.0 license.
 [Get Started Docs]: https://docs.crossplane.io/latest/get-started/get-started-with-composition
 [community calendar]: https://zoom-lfx.platform.linuxfoundation.org/meetings/crossplane?view=month
 [releases]: https://github.com/crossplane/crossplane/releases
+[`crossplane/release`]: https://github.com/crossplane/release
 [ADOPTERS.md]: ADOPTERS.md
 [regular community meetings]: https://github.com/crossplane/crossplane/blob/main/README.md#get-involved
 [Crossplane Roadmap]: https://github.com/orgs/crossplane/projects/20/views/9?pane=info
