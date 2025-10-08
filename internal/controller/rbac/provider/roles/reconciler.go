@@ -272,6 +272,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
+	// Deduplicate resources aggregated from provider family members.
+	seen := make(map[roles.Resource]struct{}, len(resources))
+	dedup := resources[:0]
+	for _, rsrc := range resources {
+		if _, ok := seen[rsrc]; ok {
+			continue
+		}
+		seen[rsrc] = struct{}{}
+		dedup = append(dedup, rsrc)
+	}
+	resources = dedup
+
 	applied := make([]string, 0)
 
 	for _, cr := range r.rbac.RenderClusterRoles(pr, resources) {

@@ -99,7 +99,7 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []roles.Resource) []rbacv1.C
 		resources[r.Group] = append(resources[r.Group], r.Plural, r.Plural+roles.SuffixStatus)
 	}
 
-	rules := []rbacv1.PolicyRule{}
+	var rules []rbacv1.PolicyRule
 	for _, g := range groups {
 		rules = append(rules, rbacv1.PolicyRule{
 			APIGroups: []string{g},

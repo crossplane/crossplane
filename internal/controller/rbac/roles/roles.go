@@ -78,6 +78,7 @@ type Resource struct {
 // DefinedResources returns the resources defined by the supplied references.
 func DefinedResources(refs []xpv1.TypedReference) []Resource {
 	out := make([]Resource, 0, len(refs))
+	seen := make(map[string]struct{}, len(refs))
 	for _, ref := range refs {
 		// This would only return an error if the APIVersion contained more than
 		// one "/". This should be impossible, but if it somehow happens we'll
@@ -100,6 +101,13 @@ func DefinedResources(refs []xpv1.TypedReference) []Resource {
 			// This shouldn't be possible - CRDs must be named <plural>.<group>.
 			continue
 		}
+
+		// Deduplicate resources by group+plural to avoid redundant RBAC entries.
+		key := p + "." + g
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
 
 		out = append(out, Resource{Group: g, Plural: p})
 	}
