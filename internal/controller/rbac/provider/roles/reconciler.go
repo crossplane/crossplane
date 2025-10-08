@@ -46,14 +46,15 @@ import (
 const (
 	timeout = 2 * time.Minute
 
-	errGetPR     = "cannot get ProviderRevision"
-	errListPRs   = "cannot list ProviderRevisions"
-	errApplyRole = "cannot apply ClusterRole"
+	errGetPR         = "cannot get ProviderRevision"
+	errListPRs       = "cannot list ProviderRevisions"
+	errFmtApplyRole = "cannot apply ClusterRole %q"
 )
 
 // Event reasons.
 const (
-	reasonApplyRoles event.Reason = "ApplyClusterRoles"
+	reasonApplyRoles       event.Reason = "ApplyClusterRoles"
+	reasonApplyRolesFailed event.Reason = "ApplyClusterRolesFailed"
 )
 
 // A ClusterRoleRenderer renders ClusterRoles for the given resources.
@@ -243,7 +244,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 
 			err = errors.Wrap(err, errListPRs)
-			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
+			r.record.Event(pr, event.Warning(reasonApplyRolesFailed, err))
 
 			return reconcile.Result{}, err
 		}
@@ -305,8 +306,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				return reconcile.Result{Requeue: true}, nil
 			}
 
-			err = errors.Wrap(err, errApplyRole)
-			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
+			err = errors.Wrapf(err, errFmtApplyRole, cr.GetName())
+			r.record.Event(pr, event.Warning(reasonApplyRolesFailed, err))
 
 			return reconcile.Result{}, err
 		}
