@@ -163,7 +163,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errApplyRole),
+				err: errors.Wrapf(errBoom, errFmtApplyRole, ""),
 			},
 		},
 		"SuccessfulNoOp": {

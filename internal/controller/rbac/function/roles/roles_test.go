@@ -423,6 +423,26 @@ func TestDefinedResources(t *testing.T) {
 				},
 			},
 		},
+		"MRD": {
+			reason: "An MRD reference should be converted to a Resource.",
+			refs: []runtime.Object{
+				&metav1.PartialObjectMetadata{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "apiextensions.crossplane.io/v1alpha1",
+						Kind:       "ManagedResourceDefinition",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "buckets.storage.example.org",
+					},
+				},
+			},
+			want: []roles.Resource{
+				{
+					Group:  "storage.example.org",
+					Plural: "buckets",
+				},
+			},
+		},
 		"InvalidName": {
 			reason: "A CRD reference with an invalid name should be ignored.",
 			refs: []runtime.Object{
