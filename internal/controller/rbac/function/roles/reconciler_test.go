@@ -34,6 +34,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
@@ -124,7 +125,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								fr := o.(*v1.FunctionRevision)
 								fr.SetAnnotations(map[string]string{
-									"crossplane.io/paused": "true",
+									meta.AnnotationKeyReconciliationPaused: "true",
 								})
 								return nil
 							}),
@@ -156,7 +157,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errApplyRole),
+				err: errors.Wrapf(errBoom, errFmtApplyRole, ""),
 			},
 		},
 		"SuccessfulNoOp": {
