@@ -44,7 +44,7 @@ import (
 const (
 	timeout = 2 * time.Minute
 
-	errGetFR         = "cannot get FunctionRevision"
+	errGetFR        = "cannot get FunctionRevision"
 	errFmtApplyRole = "cannot apply ClusterRole %q"
 )
 

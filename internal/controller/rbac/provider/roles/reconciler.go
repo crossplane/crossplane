@@ -46,8 +46,8 @@ import (
 const (
 	timeout = 2 * time.Minute
 
-	errGetPR         = "cannot get ProviderRevision"
-	errListPRs       = "cannot list ProviderRevisions"
+	errGetPR        = "cannot get ProviderRevision"
+	errListPRs      = "cannot list ProviderRevisions"
 	errFmtApplyRole = "cannot apply ClusterRole %q"
 )
 
@@ -224,66 +224,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	resources := roles.DefinedResources(pr.Status.ObjectRefs)
-
-	// If this revision is part of a provider family we consider it to 'own' all
-	// of the family's CRDs (despite it not actually being an owner reference).
-	// This allows the revision to use core types installed by another provider,
-	// e.g. ProviderConfigs. It also allows the provider to cross-resource
-	// reference resources from other providers within its family.
-	//
-	// TODO(negz): Once generic cross-resource references are implemented we can
-	// reduce this to only allowing access to core types, like ProviderConfig.
-	// https://github.com/crossplane/crossplane/issues/1770
-	if family := pr.GetLabels()[v1.LabelProviderFamily]; family != "" {
-		// TODO(negz): Get active revisions in family.
-		prs := &v1.ProviderRevisionList{}
-		if err := r.client.List(ctx, prs, client.MatchingLabels{v1.LabelProviderFamily: family}); err != nil {
-			if kerrors.IsConflict(err) {
-				return reconcile.Result{Requeue: true}, nil
-			}
-
-			err = errors.Wrap(err, errListPRs)
-			r.record.Event(pr, event.Warning(reasonApplyRolesFailed, err))
-
-			return reconcile.Result{}, err
-		}
-
-		// TODO(negz): Should we filter down to only active revisions? I don't
-		// think there's any benefit. If the revision is inactive and never
-		// created any CRDs there will be no CRDs to grant permissions for. If
-		// it's inactive but did create (or would share) CRDs then this provider
-		// might try use them, and we should let it.
-		for _, member := range prs.Items {
-			// We already added our own resources.
-			if member.GetUID() == pr.GetUID() {
-				continue
-			}
-
-			// We only allow packages in the same OCI registry and org to be
-			// part of the same family. This prevents a malicious provider from
-			// declaring itself part of a family and thus being granted RBAC
-			// access to its types.
-			// TODO(negz): Consider using package signing here in future.
-			if r.org.Differs(pr.Spec.Package, member.Spec.Package) {
-				continue
-			}
-
-			resources = append(resources, roles.DefinedResources(member.Status.ObjectRefs)...)
-		}
+	resources, requeue, err := r.aggregateFamilyResources(ctx, pr)
+	if err != nil {
+		return reconcile.Result{Requeue: requeue}, err
 	}
-
-	// Deduplicate resources aggregated from provider family members.
-	seen := make(map[roles.Resource]struct{}, len(resources))
-	dedup := resources[:0]
-	for _, rsrc := range resources {
-		if _, ok := seen[rsrc]; ok {
-			continue
-		}
-		seen[rsrc] = struct{}{}
-		dedup = append(dedup, rsrc)
-	}
-	resources = dedup
 
 	applied := make([]string, 0)
 
@@ -328,6 +272,71 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// There's no need to requeue explicitly - we're watching all PRs.
 	return reconcile.Result{Requeue: false}, nil
+}
+
+// aggregateFamilyResources aggregates resources from the provider revision and
+// its family members, then deduplicates them.
+func (r *Reconciler) aggregateFamilyResources(ctx context.Context, pr *v1.ProviderRevision) ([]roles.Resource, bool, error) {
+	resources := roles.DefinedResources(pr.Status.ObjectRefs)
+
+	// If this revision is part of a provider family we consider it to 'own' all
+	// of the family's CRDs (despite it not actually being an owner reference).
+	// This allows the revision to use core types installed by another provider,
+	// e.g. ProviderConfigs. It also allows the provider to cross-resource
+	// reference resources from other providers within its family.
+	//
+	// TODO(negz): Once generic cross-resource references are implemented we can
+	// reduce this to only allowing access to core types, like ProviderConfig.
+	// https://github.com/crossplane/crossplane/issues/1770
+	if family := pr.GetLabels()[v1.LabelProviderFamily]; family != "" {
+		// TODO(negz): Get active revisions in family.
+		prs := &v1.ProviderRevisionList{}
+		if err := r.client.List(ctx, prs, client.MatchingLabels{v1.LabelProviderFamily: family}); err != nil {
+			if kerrors.IsConflict(err) {
+				return nil, true, nil
+			}
+
+			err = errors.Wrap(err, errListPRs)
+			r.record.Event(pr, event.Warning(reasonApplyRolesFailed, err))
+
+			return nil, false, err
+		}
+
+		// TODO(negz): Should we filter down to only active revisions? I don't
+		// think there's any benefit. If the revision is inactive and never
+		// created any CRDs there will be no CRDs to grant permissions for. If
+		// it's inactive but did create (or would share) CRDs then this provider
+		// might try use them, and we should let it.
+		for _, member := range prs.Items {
+			// We already added our own resources.
+			if member.GetUID() == pr.GetUID() {
+				continue
+			}
+
+			// We only allow packages in the same OCI registry and org to be
+			// part of the same family. This prevents a malicious provider from
+			// declaring itself part of a family and thus being granted RBAC
+			// access to its types.
+			// TODO(negz): Consider using package signing here in future.
+			if r.org.Differs(pr.Spec.Package, member.Spec.Package) {
+				continue
+			}
+
+			resources = append(resources, roles.DefinedResources(member.Status.ObjectRefs)...)
+		}
+	}
+
+	// Deduplicate resources aggregated from provider family members.
+	seen := make(map[roles.Resource]struct{}, len(resources))
+	dedup := resources[:0]
+	for _, rsrc := range resources {
+		if _, ok := seen[rsrc]; ok {
+			continue
+		}
+		seen[rsrc] = struct{}{}
+		dedup = append(dedup, rsrc)
+	}
+	return dedup, false, nil
 }
 
 // An OrgDiffer determines whether two references are part of the same org. In
