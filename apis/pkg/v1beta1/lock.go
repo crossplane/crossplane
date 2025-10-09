@@ -24,6 +24,23 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/dag"
 )
 
+// Transaction coordination annotations for the Lock resource.
+// These annotations are used to coordinate exclusive access to the Lock
+// when transaction mode is enabled via feature flag.
+const (
+	// AnnotationCurrentTransaction indicates which Transaction currently has exclusive access
+	// to mutate this Lock. Only one Transaction can execute at a time.
+	AnnotationCurrentTransaction = "pkg.crossplane.io/current-transaction"
+
+	// AnnotationNextTransactionNumber stores the next available transaction number.
+	// Incremented by each Transaction when it releases the Lock.
+	AnnotationNextTransactionNumber = "pkg.crossplane.io/next-transaction-number"
+
+	// AnnotationTransactionHistoryLimit dictates how many completed transactions to retain.
+	// Defaults to 10. Can be disabled by explicitly setting to 0.
+	AnnotationTransactionHistoryLimit = "pkg.crossplane.io/transaction-history-limit"
+)
+
 var (
 	_ dag.Node = &Dependency{}
 	_ dag.Node = &LockPackage{}

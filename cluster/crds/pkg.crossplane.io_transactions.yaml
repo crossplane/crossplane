@@ -1,0 +1,557 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+  name: transactions.pkg.crossplane.io
+spec:
+  group: pkg.crossplane.io
+  names:
+    categories:
+    - crossplane
+    - pkg
+    kind: Transaction
+    listKind: TransactionList
+    plural: transactions
+    singular: transaction
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.change
+      name: CHANGE
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Validated')].status
+      name: VALIDATED
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Installed')].status
+      name: INSTALLED
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Succeeded')].status
+      name: SUCCEEDED
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          Transaction represents a complete proposed state of the package system
+          and validates the entire operation before making changes.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: TransactionSpec defines the desired state of a Transaction.
+            properties:
+              change:
+                description: Change represents the type of change to make to the package
+                  system.
+                type: string
+              delete:
+                description: |-
+                  Delete specifies parameters for deleting a package.
+                  Required when Change is "Delete".
+                properties:
+                  source:
+                    description: Source is the OCI repository of the package to delete.
+                    type: string
+                required:
+                - source
+                type: object
+              install:
+                description: |-
+                  Install specifies parameters for installing a package.
+                  Required when Change is "Install".
+                properties:
+                  package:
+                    description: |-
+                      Package is a complete snapshot of the Package resource configuration
+                      at the time the Transaction was created. This ensures stable inputs
+                      across retries and provides all information needed to create PackageRevisions.
+                    properties:
+                      apiVersion:
+                        description: APIVersion of the Package resource (e.g., "pkg.crossplane.io/v1")
+                        type: string
+                      kind:
+                        description: Kind of the Package resource (e.g., "Provider",
+                          "Configuration", "Function")
+                        type: string
+                      metadata:
+                        description: |-
+                          Metadata contains essential Package metadata (name, labels)
+                          Excludes fields not needed for PackageRevision creation (generation, ownerRefs, etc.)
+                        properties:
+                          labels:
+                            additionalProperties:
+                              type: string
+                            description: Labels applied to the Package resource
+                            type: object
+                          name:
+                            description: Name of the Package resource
+                            type: string
+                          uid:
+                            description: UID of the Package resource, required for
+                              creating owner references
+                            type: string
+                        required:
+                        - name
+                        - uid
+                        type: object
+                      spec:
+                        description: |-
+                          Spec is the complete Package.Spec configuration.
+                          Includes PackageSpec fields for all package types, and PackageRuntimeSpec
+                          fields for Provider and Function packages.
+                        properties:
+                          commonLabels:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              Map of string keys and values that can be used to organize and categorize
+                              (scope and select) objects. May match selectors of replication controllers
+                              and services.
+                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+                            type: object
+                          ignoreCrossplaneConstraints:
+                            default: false
+                            description: |-
+                              IgnoreCrossplaneConstraints indicates to the package manager whether to
+                              honor Crossplane version constrains specified by the package.
+                              Default is false.
+                            type: boolean
+                          package:
+                            description: |-
+                              Package is the name of the package that is being requested.
+                              must be a fully qualified image name, including the registry,
+                              repository, and tag. for example, "registry.example.com/repo/package:tag".
+                            type: string
+                            x-kubernetes-validations:
+                            - message: must be a fully qualified image name, including
+                                the registry, repository, and tag or digest. For example,
+                                'registry.example.com/repo/package:tag' or 'registry.example.com/repo/package[:tag]@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'.
+                              rule: self.matches('^[^\\.\\/]+(\\.[^\\.\\/]+)+(\\/[^\\/:@]+)+(:[^:@]+(@sha256.+)?|@sha256.+)$')
+                          packagePullPolicy:
+                            default: IfNotPresent
+                            description: |-
+                              PackagePullPolicy defines the pull policy for the package.
+                              Default is IfNotPresent.
+                            type: string
+                          packagePullSecrets:
+                            description: |-
+                              PackagePullSecrets are named secrets in the same namespace that can be used
+                              to fetch packages from private registries.
+                            items:
+                              description: |-
+                                LocalObjectReference contains enough information to let you locate the
+                                referenced object inside the same namespace.
+                              properties:
+                                name:
+                                  default: ""
+                                  description: |-
+                                    Name of the referent.
+                                    This field is effectively required, but due to backwards compatibility is
+                                    allowed to be empty. Instances of this type with an empty value here are
+                                    almost certainly wrong.
+                                    More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  type: string
+                              type: object
+                              x-kubernetes-map-type: atomic
+                            type: array
+                          revisionActivationPolicy:
+                            default: Automatic
+                            description: |-
+                              RevisionActivationPolicy specifies how the package controller should
+                              update from one revision to the next. Options are Automatic or Manual.
+                              Default is Automatic.
+                            type: string
+                          revisionHistoryLimit:
+                            default: 1
+                            description: |-
+                              RevisionHistoryLimit dictates how the package controller cleans up old
+                              inactive package revisions.
+                              Defaults to 1. Can be disabled by explicitly setting to 0.
+                            format: int64
+                            type: integer
+                          runtimeConfigRef:
+                            default:
+                              name: default
+                            description: |-
+                              RuntimeConfigRef references a RuntimeConfig resource that will be used
+                              to configure the package runtime.
+                            properties:
+                              apiVersion:
+                                default: pkg.crossplane.io/v1beta1
+                                description: API version of the referent.
+                                type: string
+                              kind:
+                                default: DeploymentRuntimeConfig
+                                description: Kind of the referent.
+                                type: string
+                              name:
+                                description: Name of the RuntimeConfig.
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          skipDependencyResolution:
+                            default: false
+                            description: |-
+                              SkipDependencyResolution indicates to the package manager whether to skip
+                              resolving dependencies for a package. Setting this value to true may have
+                              unintended consequences.
+                              Default is false.
+                            type: boolean
+                        required:
+                        - package
+                        type: object
+                    required:
+                    - apiVersion
+                    - kind
+                    - metadata
+                    - spec
+                    type: object
+                required:
+                - package
+                type: object
+              replace:
+                description: |-
+                  Replace specifies parameters for replacing one package with another.
+                  Required when Change is "Replace".
+                properties:
+                  package:
+                    description: |-
+                      Package is a complete snapshot of the new Package resource configuration.
+                      The Transaction controller uses this to create the replacement package
+                      and resolve its dependency tree for equivalence validation.
+                    properties:
+                      apiVersion:
+                        description: APIVersion of the Package resource (e.g., "pkg.crossplane.io/v1")
+                        type: string
+                      kind:
+                        description: Kind of the Package resource (e.g., "Provider",
+                          "Configuration", "Function")
+                        type: string
+                      metadata:
+                        description: |-
+                          Metadata contains essential Package metadata (name, labels)
+                          Excludes fields not needed for PackageRevision creation (generation, ownerRefs, etc.)
+                        properties:
+                          labels:
+                            additionalProperties:
+                              type: string
+                            description: Labels applied to the Package resource
+                            type: object
+                          name:
+                            description: Name of the Package resource
+                            type: string
+                          uid:
+                            description: UID of the Package resource, required for
+                              creating owner references
+                            type: string
+                        required:
+                        - name
+                        - uid
+                        type: object
+                      spec:
+                        description: |-
+                          Spec is the complete Package.Spec configuration.
+                          Includes PackageSpec fields for all package types, and PackageRuntimeSpec
+                          fields for Provider and Function packages.
+                        properties:
+                          commonLabels:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              Map of string keys and values that can be used to organize and categorize
+                              (scope and select) objects. May match selectors of replication controllers
+                              and services.
+                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+                            type: object
+                          ignoreCrossplaneConstraints:
+                            default: false
+                            description: |-
+                              IgnoreCrossplaneConstraints indicates to the package manager whether to
+                              honor Crossplane version constrains specified by the package.
+                              Default is false.
+                            type: boolean
+                          package:
+                            description: |-
+                              Package is the name of the package that is being requested.
+                              must be a fully qualified image name, including the registry,
+                              repository, and tag. for example, "registry.example.com/repo/package:tag".
+                            type: string
+                            x-kubernetes-validations:
+                            - message: must be a fully qualified image name, including
+                                the registry, repository, and tag or digest. For example,
+                                'registry.example.com/repo/package:tag' or 'registry.example.com/repo/package[:tag]@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'.
+                              rule: self.matches('^[^\\.\\/]+(\\.[^\\.\\/]+)+(\\/[^\\/:@]+)+(:[^:@]+(@sha256.+)?|@sha256.+)$')
+                          packagePullPolicy:
+                            default: IfNotPresent
+                            description: |-
+                              PackagePullPolicy defines the pull policy for the package.
+                              Default is IfNotPresent.
+                            type: string
+                          packagePullSecrets:
+                            description: |-
+                              PackagePullSecrets are named secrets in the same namespace that can be used
+                              to fetch packages from private registries.
+                            items:
+                              description: |-
+                                LocalObjectReference contains enough information to let you locate the
+                                referenced object inside the same namespace.
+                              properties:
+                                name:
+                                  default: ""
+                                  description: |-
+                                    Name of the referent.
+                                    This field is effectively required, but due to backwards compatibility is
+                                    allowed to be empty. Instances of this type with an empty value here are
+                                    almost certainly wrong.
+                                    More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  type: string
+                              type: object
+                              x-kubernetes-map-type: atomic
+                            type: array
+                          revisionActivationPolicy:
+                            default: Automatic
+                            description: |-
+                              RevisionActivationPolicy specifies how the package controller should
+                              update from one revision to the next. Options are Automatic or Manual.
+                              Default is Automatic.
+                            type: string
+                          revisionHistoryLimit:
+                            default: 1
+                            description: |-
+                              RevisionHistoryLimit dictates how the package controller cleans up old
+                              inactive package revisions.
+                              Defaults to 1. Can be disabled by explicitly setting to 0.
+                            format: int64
+                            type: integer
+                          runtimeConfigRef:
+                            default:
+                              name: default
+                            description: |-
+                              RuntimeConfigRef references a RuntimeConfig resource that will be used
+                              to configure the package runtime.
+                            properties:
+                              apiVersion:
+                                default: pkg.crossplane.io/v1beta1
+                                description: API version of the referent.
+                                type: string
+                              kind:
+                                default: DeploymentRuntimeConfig
+                                description: Kind of the referent.
+                                type: string
+                              name:
+                                description: Name of the RuntimeConfig.
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          skipDependencyResolution:
+                            default: false
+                            description: |-
+                              SkipDependencyResolution indicates to the package manager whether to skip
+                              resolving dependencies for a package. Setting this value to true may have
+                              unintended consequences.
+                              Default is false.
+                            type: boolean
+                        required:
+                        - package
+                        type: object
+                    required:
+                    - apiVersion
+                    - kind
+                    - metadata
+                    - spec
+                    type: object
+                  source:
+                    description: Source is the OCI repository of the package to be
+                      replaced.
+                    type: string
+                required:
+                - package
+                - source
+                type: object
+              retryLimit:
+                default: 5
+                description: |-
+                  RetryLimit configures how many times the transaction may fail. When the
+                  failure limit is exceeded, the transaction will not be retried.
+                  Follows the same pattern as Operation resources for consistency.
+                format: int64
+                type: integer
+            required:
+            - change
+            type: object
+            x-kubernetes-validations:
+            - message: install is required when change is Install
+              rule: 'self.change == ''Install'' ? has(self.install) : true'
+            - message: delete is required when change is Delete
+              rule: 'self.change == ''Delete'' ? has(self.delete) : true'
+            - message: replace is required when change is Replace
+              rule: 'self.change == ''Replace'' ? has(self.replace) : true'
+          status:
+            description: TransactionStatus defines the observed state of a Transaction.
+            properties:
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        LastTransitionTime is the last time this condition transitioned from one
+                        status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        A Message containing details about this condition's last transition from
+                        one status to another, if any.
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: |-
+                        Type of this condition. At most one of each condition type may apply to
+                        a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              failures:
+                description: |-
+                  Number of transaction failures. Incremented each time the transaction
+                  fails and retries. When this reaches RetryLimit, the transaction
+                  will not be retried again.
+                format: int64
+                type: integer
+              proposedLockPackages:
+                description: |-
+                  ProposedLockPackages contains the complete proposed Lock state after resolving
+                  the requested change and all dependencies. This represents what the Lock
+                  will contain if the Transaction succeeds.
+                items:
+                  description: LockPackage is a package that is in the lock.
+                  properties:
+                    apiVersion:
+                      description: APIVersion of the package.
+                      type: string
+                    dependencies:
+                      description: |-
+                        Dependencies are the list of dependencies of this package. The order of
+                        the dependencies will dictate the order in which they are resolved.
+                      items:
+                        description: A Dependency is a dependency of a package in
+                          the lock.
+                        properties:
+                          apiVersion:
+                            description: APIVersion of the package.
+                            type: string
+                          constraints:
+                            description: |-
+                              Constraints is a valid semver range or a digest, which will be used to select a valid
+                              dependency version.
+                            type: string
+                          kind:
+                            description: Kind of the package (not the kind of the
+                              package revision).
+                            type: string
+                          package:
+                            description: Package is the OCI image name without a tag
+                              or digest.
+                            type: string
+                          type:
+                            description: |-
+                              Type is the type of package. Can be either Configuration or Provider.
+                              Deprecated: Specify an apiVersion and kind instead.
+                            enum:
+                            - Configuration
+                            - Provider
+                            - Function
+                            type: string
+                        required:
+                        - constraints
+                        - package
+                        type: object
+                      type: array
+                    kind:
+                      description: Kind of the package (not the kind of the package
+                        revision).
+                      type: string
+                    name:
+                      description: Name corresponds to the name of the package revision
+                        for this package.
+                      type: string
+                    source:
+                      description: Source is the OCI image name without a tag or digest.
+                      type: string
+                    type:
+                      description: |-
+                        Type is the type of package.
+                        Deprecated: Specify an apiVersion and kind instead.
+                      enum:
+                      - Configuration
+                      - Provider
+                      - Function
+                      type: string
+                    version:
+                      description: Version is the tag or digest of the OCI image.
+                      type: string
+                  required:
+                  - dependencies
+                  - name
+                  - source
+                  - version
+                  type: object
+                type: array
+              transactionNumber:
+                description: |-
+                  TransactionNumber is a monotonically increasing number assigned when
+                  the Transaction acquires the Lock. Used for ordering Transaction execution.
+                format: int64
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

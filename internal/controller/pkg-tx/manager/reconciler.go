@@ -1,0 +1,169 @@
+/*
+Copyright 2025 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// Package manager implements transaction-aware package controllers.
+package manager
+
+import (
+	"context"
+	"time"
+
+	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1alpha1"
+)
+
+const (
+	reconcileTimeout = 1 * time.Minute
+
+	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
+)
+
+// Event reasons.
+const (
+	reasonCreateTransaction event.Reason = "CreateTransaction"
+	reasonTransactionStatus event.Reason = "TransactionStatus"
+	reasonPaused            event.Reason = "ReconciliationPaused"
+)
+
+// A Reconciler reconciles packages by creating and monitoring Transactions.
+type Reconciler struct {
+	client     client.Client
+	log        logging.Logger
+	record     event.Recorder
+	conditions conditions.Manager
+	pkg        v1.Package // Template package to deep copy for each reconcile
+}
+
+// Reconcile a package by creating Transactions and reflecting Transaction status.
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	log := r.log.WithValues("request", req)
+	log.Debug("Reconciling")
+
+	// TODO(negz): We won't update status if this times out.
+	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
+	defer cancel()
+
+	// Get the package by deep copying the template
+	pkg := r.pkg.DeepCopyObject().(v1.Package) //nolint:forcetypeassert // Will always be a package.
+	if err := r.client.Get(ctx, req.NamespacedName, pkg); err != nil {
+		log.Debug("cannot get package", "error", err)
+		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get package")
+	}
+
+	status := r.conditions.For(pkg)
+
+	// Check the pause annotation and return if it has the value "true"
+	if meta.IsPaused(pkg) {
+		r.record.Event(pkg, event.Normal(reasonPaused, reconcilePausedMsg))
+		status.MarkConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pkg), "cannot update package status")
+	}
+
+	if c := pkg.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
+		pkg.CleanConditions()
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pkg), "cannot update package status")
+	}
+
+	// Determine change type and create Transaction
+	changeType := v1alpha1.ChangeTypeInstall
+	if meta.WasDeleted(pkg) {
+		changeType = v1alpha1.ChangeTypeDelete
+	}
+
+	log = log.WithValues("package", pkg.GetName(), "source", pkg.GetSource(), "changeType", changeType)
+
+	// Create or get existing Transaction for this package change
+	name := TransactionName(pkg)
+
+	tx := &v1alpha1.Transaction{}
+	err := r.client.Get(ctx, types.NamespacedName{Name: name}, tx)
+	if resource.IgnoreNotFound(err) != nil {
+		err = errors.Wrap(err, "cannot check for existing transaction")
+		r.record.Event(pkg, event.Warning(reasonCreateTransaction, err))
+		return reconcile.Result{}, err
+	}
+
+	// Create new Transaction if it doesn't exist
+	if kerrors.IsNotFound(err) {
+		tx = NewTransaction(pkg, changeType)
+		if err := r.client.Create(ctx, tx); err != nil {
+			err = errors.Wrap(err, "cannot create transaction")
+			r.record.Event(pkg, event.Warning(reasonCreateTransaction, err))
+			return reconcile.Result{}, err
+		}
+	}
+
+	// Handle deletion completion
+	if meta.WasDeleted(pkg) {
+		if TransactionComplete(tx) {
+			log.Debug("Delete transaction complete, removing finalizer", "transaction", name)
+			// Note: Finalizer removal logic would go here if we add finalizers
+			return reconcile.Result{}, nil
+		}
+
+		// Transaction not complete - we'll be requeued when it updates
+		log.Debug("Delete transaction not complete, waiting for update", "transaction", name)
+		return reconcile.Result{}, nil
+	}
+
+	// TODO(negz): We probably want to derive the healthy condition from the
+	// active revision (if any), not the transaction.
+
+	// Update package status based on Transaction status and emit event on
+	// first completion.
+	succeeded := tx.Status.GetCondition(v1alpha1.TypeSucceeded)
+	switch succeeded.Status {
+	case corev1.ConditionTrue:
+		// Emit event only when transaction first completes
+		if pkg.GetCondition(v1.TypeInstalled).Status != corev1.ConditionTrue {
+			r.record.Event(pkg, event.Normal(reasonTransactionStatus, "Successfully installed package"))
+		}
+		pkg.SetConditions(v1.Active())
+		pkg.SetConditions(v1.Healthy())
+	case corev1.ConditionFalse:
+		pkg.SetConditions(v1.Inactive().WithMessage(succeeded.Message))
+		pkg.SetConditions(v1.Unhealthy().WithMessage(succeeded.Message))
+	case corev1.ConditionUnknown, "":
+		// Transaction still in progress
+	}
+
+	// Update package status
+	if err := r.client.Status().Update(ctx, pkg); err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "cannot update package status")
+	}
+
+	return reconcile.Result{}, nil
+}
+
+// TransactionComplete returns true if the Transaction has completed (successfully or with failure).
+func TransactionComplete(tx *v1alpha1.Transaction) bool {
+	c := tx.Status.GetCondition(v1alpha1.TypeSucceeded)
+	return c.Status == corev1.ConditionTrue || c.Status == corev1.ConditionFalse
+}

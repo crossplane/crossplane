@@ -54,7 +54,6 @@ const DefaultRetryLimit = 5
 // Event reasons.
 const (
 	reasonRunPipelineStep       = "RunPipelineStep"
-	reasonMaxFailures           = "MaxFailures"
 	reasonFunctionInvocation    = "FunctionInvocation"
 	reasonInvalidOutput         = "InvalidOutput"
 	reasonInvalidResource       = "InvalidResource"
