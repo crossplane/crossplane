@@ -7,6 +7,7 @@ require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v1.4.0
+	github.com/containerd/errdefs v1.0.0
 	github.com/crossplane/crossplane-runtime/v2 v2.1.0-rc.0
 	github.com/docker/docker v28.2.2+incompatible
 	github.com/docker/go-connections v0.5.0
@@ -56,7 +57,6 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
-	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/cyberphone/json-canonicalization v0.0.0-20231011164504-785e29786b46 // indirect
 	github.com/cyphar/filepath-securejoin v0.3.6 // indirect
