@@ -23,19 +23,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/name"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -43,35 +38,36 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/rbac/controller"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/roles"
 )
 
 const (
 	timeout = 2 * time.Minute
 
-	errGetPR     = "cannot get ProviderRevision"
-	errListPRs   = "cannot list ProviderRevisions"
-	errApplyRole = "cannot apply ClusterRole"
+	errGetPR        = "cannot get ProviderRevision"
+	errListPRs      = "cannot list ProviderRevisions"
+	errFmtApplyRole = "cannot apply ClusterRole %q"
 )
 
 // Event reasons.
 const (
-	reasonApplyRoles event.Reason = "ApplyClusterRoles"
+	reasonApplyRoles       event.Reason = "ApplyClusterRoles"
+	reasonApplyRolesFailed event.Reason = "ApplyClusterRolesFailed"
 )
 
 // A ClusterRoleRenderer renders ClusterRoles for the given resources.
 type ClusterRoleRenderer interface {
 	// RenderClusterRoles for the supplied resources.
-	RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.ClusterRole
+	RenderClusterRoles(pr *v1.ProviderRevision, rs []roles.Resource) []rbacv1.ClusterRole
 }
 
 // A ClusterRoleRenderFn renders ClusterRoles for the supplied resources.
-type ClusterRoleRenderFn func(pr *v1.ProviderRevision, rs []Resource) []rbacv1.ClusterRole
+type ClusterRoleRenderFn func(pr *v1.ProviderRevision, rs []roles.Resource) []rbacv1.ClusterRole
 
 // RenderClusterRoles renders ClusterRoles for the supplied CRDs.
-func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.ClusterRole {
+func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1.ProviderRevision, rs []roles.Resource) []rbacv1.ClusterRole {
 	return fn(pr, rs)
 }
 
@@ -228,53 +224,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	resources := DefinedResources(pr.Status.ObjectRefs)
-
-	// If this revision is part of a provider family we consider it to 'own' all
-	// of the family's CRDs (despite it not actually being an owner reference).
-	// This allows the revision to use core types installed by another provider,
-	// e.g. ProviderConfigs. It also allows the provider to cross-resource
-	// reference resources from other providers within its family.
-	//
-	// TODO(negz): Once generic cross-resource references are implemented we can
-	// reduce this to only allowing access to core types, like ProviderConfig.
-	// https://github.com/crossplane/crossplane/issues/1770
-	if family := pr.GetLabels()[v1.LabelProviderFamily]; family != "" {
-		// TODO(negz): Get active revisions in family.
-		prs := &v1.ProviderRevisionList{}
-		if err := r.client.List(ctx, prs, client.MatchingLabels{v1.LabelProviderFamily: family}); err != nil {
-			if kerrors.IsConflict(err) {
-				return reconcile.Result{Requeue: true}, nil
-			}
-
-			err = errors.Wrap(err, errListPRs)
-			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
-
-			return reconcile.Result{}, err
-		}
-
-		// TODO(negz): Should we filter down to only active revisions? I don't
-		// think there's any benefit. If the revision is inactive and never
-		// created any CRDs there will be no CRDs to grant permissions for. If
-		// it's inactive but did create (or would share) CRDs then this provider
-		// might try use them, and we should let it.
-		for _, member := range prs.Items {
-			// We already added our own resources.
-			if member.GetUID() == pr.GetUID() {
-				continue
-			}
-
-			// We only allow packages in the same OCI registry and org to be
-			// part of the same family. This prevents a malicious provider from
-			// declaring itself part of a family and thus being granted RBAC
-			// access to its types.
-			// TODO(negz): Consider using package signing here in future.
-			if r.org.Differs(pr.Spec.Package, member.Spec.Package) {
-				continue
-			}
-
-			resources = append(resources, DefinedResources(member.Status.ObjectRefs)...)
-		}
+	resources, requeue, err := r.aggregateFamilyResources(ctx, pr)
+	if err != nil {
+		return reconcile.Result{Requeue: requeue}, err
 	}
 
 	applied := make([]string, 0)
@@ -285,7 +237,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		err := r.client.Apply(ctx, &cr,
 			resource.MustBeControllableBy(pr.GetUID()),
-			resource.AllowUpdateIf(ClusterRolesDiffer),
+			resource.AllowUpdateIf(roles.ClusterRolesDiffer),
 			resource.StoreCurrentRV(&origRV),
 		)
 		if resource.IsNotAllowed(err) {
@@ -298,8 +250,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				return reconcile.Result{Requeue: true}, nil
 			}
 
-			err = errors.Wrap(err, errApplyRole)
-			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
+			err = errors.Wrapf(err, errFmtApplyRole, cr.GetName())
+			r.record.Event(pr, event.Warning(reasonApplyRolesFailed, err))
 
 			return reconcile.Result{}, err
 		}
@@ -322,48 +274,69 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{Requeue: false}, nil
 }
 
-// DefinedResources returns the resources defined by the supplied references.
-func DefinedResources(refs []xpv1.TypedReference) []Resource {
-	out := make([]Resource, 0, len(refs))
-	for _, ref := range refs {
-		// This would only return an error if the APIVersion contained more than
-		// one "/". This should be impossible, but if it somehow happens we'll
-		// just skip this resource since it can't be a CRD.
-		gv, _ := schema.ParseGroupVersion(ref.APIVersion)
+// aggregateFamilyResources aggregates resources from the provider revision and
+// its family members, then deduplicates them.
+func (r *Reconciler) aggregateFamilyResources(ctx context.Context, pr *v1.ProviderRevision) ([]roles.Resource, bool, error) {
+	resources := roles.DefinedResources(pr.Status.ObjectRefs)
 
-		// We're only concerned with CRDs or MRDs.
-		switch {
-		case gv.Group == apiextensions.GroupName && ref.Kind == "CustomResourceDefinition":
-		// Do the work!
-		case gv.Group == v1alpha1.Group && ref.Kind == v1alpha1.ManagedResourceDefinitionKind:
-		// Do the work!
-		default:
-			// Filter out the non CRD or MRD.
-			continue
+	// If this revision is part of a provider family we consider it to 'own' all
+	// of the family's CRDs (despite it not actually being an owner reference).
+	// This allows the revision to use core types installed by another provider,
+	// e.g. ProviderConfigs. It also allows the provider to cross-resource
+	// reference resources from other providers within its family.
+	//
+	// TODO(negz): Once generic cross-resource references are implemented we can
+	// reduce this to only allowing access to core types, like ProviderConfig.
+	// https://github.com/crossplane/crossplane/issues/1770
+	if family := pr.GetLabels()[v1.LabelProviderFamily]; family != "" {
+		// TODO(negz): Get active revisions in family.
+		prs := &v1.ProviderRevisionList{}
+		if err := r.client.List(ctx, prs, client.MatchingLabels{v1.LabelProviderFamily: family}); err != nil {
+			if kerrors.IsConflict(err) {
+				return nil, true, nil
+			}
+
+			err = errors.Wrap(err, errListPRs)
+			r.record.Event(pr, event.Warning(reasonApplyRolesFailed, err))
+
+			return nil, false, err
 		}
 
-		p, g, valid := strings.Cut(ref.Name, ".")
-		if !valid {
-			// This shouldn't be possible - CRDs must be named <plural>.<group>.
-			continue
-		}
+		// TODO(negz): Should we filter down to only active revisions? I don't
+		// think there's any benefit. If the revision is inactive and never
+		// created any CRDs there will be no CRDs to grant permissions for. If
+		// it's inactive but did create (or would share) CRDs then this provider
+		// might try use them, and we should let it.
+		for _, member := range prs.Items {
+			// We already added our own resources.
+			if member.GetUID() == pr.GetUID() {
+				continue
+			}
 
-		out = append(out, Resource{Group: g, Plural: p})
+			// We only allow packages in the same OCI registry and org to be
+			// part of the same family. This prevents a malicious provider from
+			// declaring itself part of a family and thus being granted RBAC
+			// access to its types.
+			// TODO(negz): Consider using package signing here in future.
+			if r.org.Differs(pr.Spec.Package, member.Spec.Package) {
+				continue
+			}
+
+			resources = append(resources, roles.DefinedResources(member.Status.ObjectRefs)...)
+		}
 	}
 
-	return out
-}
-
-// ClusterRolesDiffer returns true if the supplied objects are different
-// ClusterRoles. We consider ClusterRoles to be different if their labels and
-// rules do not match.
-func ClusterRolesDiffer(current, desired runtime.Object) bool {
-	// Calling this with anything but ClusterRoles is a programming error. If it
-	// happens, we probably do want to panic.
-	c := current.(*rbacv1.ClusterRole) //nolint:forcetypeassert // See above.
-	d := desired.(*rbacv1.ClusterRole) //nolint:forcetypeassert // See above.
-
-	return !cmp.Equal(c.GetLabels(), d.GetLabels()) || !cmp.Equal(c.Rules, d.Rules)
+	// Deduplicate resources aggregated from provider family members.
+	seen := make(map[roles.Resource]struct{}, len(resources))
+	dedup := resources[:0]
+	for _, rsrc := range resources {
+		if _, ok := seen[rsrc]; ok {
+			continue
+		}
+		seen[rsrc] = struct{}{}
+		dedup = append(dedup, rsrc)
+	}
+	return dedup, false, nil
 }
 
 // An OrgDiffer determines whether two references are part of the same org. In
