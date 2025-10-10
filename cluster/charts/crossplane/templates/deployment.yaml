@@ -57,6 +57,9 @@ spec:
       {{- end }}
       hostNetwork: {{ .Values.hostNetwork }}
       initContainers:
+        {{- with .Values.extraInitContainersCrossplane }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         - name: {{ .Chart.Name }}-init
           {{- if .Values.image.ignoreTag }}
           image: "{{ .Values.image.repository }}"
