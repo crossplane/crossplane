@@ -140,7 +140,7 @@ func TestStartController(t *testing.T) {
 			args: args{
 				name: "cool-controller",
 				opts: []ControllerOption{
-					WithNewControllerFn(func(_ string, _ manager.Manager, _ kcontroller.Options) (kcontroller.Controller, error) {
+					WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
 						return nil, errors.New("boom")
 					}),
 				},
@@ -164,7 +164,7 @@ func TestStartController(t *testing.T) {
 			args: args{
 				name: "cool-controller",
 				opts: []ControllerOption{
-					WithNewControllerFn(func(_ string, _ manager.Manager, _ kcontroller.Options) (kcontroller.Controller, error) {
+					WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
 						return &MockController{
 							MockStart: func(_ context.Context) error {
 								return errors.New("boom")
@@ -193,7 +193,7 @@ func TestStartController(t *testing.T) {
 			args: args{
 				name: "cool-controller",
 				opts: []ControllerOption{
-					WithNewControllerFn(func(_ string, _ manager.Manager, _ kcontroller.Options) (kcontroller.Controller, error) {
+					WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
 						return &MockController{
 							MockStart: func(ctx context.Context) error {
 								<-ctx.Done()
@@ -286,7 +286,7 @@ func TestIsRunning(t *testing.T) {
 			argsStart: argsStart{
 				name: "cool-controller",
 				opts: []ControllerOption{
-					WithNewControllerFn(func(_ string, _ manager.Manager, _ kcontroller.Options) (kcontroller.Controller, error) {
+					WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
 						return &MockController{
 							MockStart: func(ctx context.Context) error {
 								<-ctx.Done()
@@ -318,7 +318,7 @@ func TestIsRunning(t *testing.T) {
 			argsStart: argsStart{
 				name: "cool-controller",
 				opts: []ControllerOption{
-					WithNewControllerFn(func(_ string, _ manager.Manager, _ kcontroller.Options) (kcontroller.Controller, error) {
+					WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
 						return &MockController{
 							MockStart: func(_ context.Context) error {
 								return errors.New("boom")
@@ -425,7 +425,7 @@ func TestStopController(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.uc, tc.params.opts...)
 
-			err := e.Start(tc.args.name, WithNewControllerFn(func(_ string, _ manager.Manager, _ kcontroller.Options) (kcontroller.Controller, error) {
+			err := e.Start(tc.args.name, WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
 				return &MockController{
 					MockStart: func(ctx context.Context) error {
 						<-ctx.Done()
@@ -526,7 +526,7 @@ func TestStartWatches(t *testing.T) {
 			argsStart: argsStart{
 				name: "cool-controller",
 				opts: []ControllerOption{
-					WithNewControllerFn(func(_ string, _ manager.Manager, _ kcontroller.Options) (kcontroller.Controller, error) {
+					WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
 						return &MockController{
 							MockStart: func(ctx context.Context) error {
 								<-ctx.Done()
@@ -583,7 +583,7 @@ func TestStartWatches(t *testing.T) {
 			argsStart: argsStart{
 				name: "cool-controller",
 				opts: []ControllerOption{
-					WithNewControllerFn(func(_ string, _ manager.Manager, _ kcontroller.Options) (kcontroller.Controller, error) {
+					WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
 						return &MockController{
 							MockStart: func(ctx context.Context) error {
 								<-ctx.Done()
@@ -889,7 +889,7 @@ func TestStopWatches(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.uc, tc.params.opts...)
 
-			err := e.Start(tc.args.name, WithNewControllerFn(func(_ string, _ manager.Manager, _ kcontroller.Options) (kcontroller.Controller, error) {
+			err := e.Start(tc.args.name, WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
 				return &MockController{
 					MockStart: func(ctx context.Context) error {
 						<-ctx.Done()

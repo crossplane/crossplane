@@ -186,7 +186,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log := log.WithValues("role-name", cr.GetName())
 		origRV := ""
 
-		err := r.client.Apply(ctx, &cr,
+		err := r.client.Applicator.Apply(ctx, &cr,
 			resource.MustBeControllableBy(d.GetUID()),
 			resource.AllowUpdateIf(ClusterRolesDiffer),
 			resource.StoreCurrentRV(&origRV),

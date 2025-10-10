@@ -114,8 +114,7 @@ func TestAsStruct(t *testing.T) {
 			want: want{
 				s: MustStruct(map[string]any{
 					"metadata": map[string]any{
-						"name":              "cool-map",
-						"creationTimestamp": nil,
+						"name": "cool-map",
 					},
 				}),
 			},

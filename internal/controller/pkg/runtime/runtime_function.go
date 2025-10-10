@@ -90,7 +90,7 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 				TargetPort: intstr.FromString(GRPCPortName),
 			},
 		}))
-	if err := h.client.Apply(ctx, svc); err != nil {
+	if err := h.client.Applicator.Apply(ctx, svc); err != nil {
 		return errors.Wrap(err, errApplyFunctionService)
 	}
 
@@ -103,13 +103,13 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 	fRev.Status.Endpoint = fmt.Sprintf(ServiceEndpointFmt, svc.Name, svc.Namespace, GRPCPort)
 
 	secServer := build.TLSServerSecret()
-	if err := h.client.Apply(ctx, secServer); err != nil {
+	if err := h.client.Applicator.Apply(ctx, secServer); err != nil {
 		return errors.Wrap(err, errApplyFunctionSecret)
 	}
 
 	if err := initializer.NewTLSCertificateGenerator(secServer.Namespace, initializer.RootCACertSecretName,
 		initializer.TLSCertificateGeneratorWithServerSecretName(secServer.GetName(), initializer.DNSNamesForService(svc.Name, svc.Namespace)),
-		initializer.TLSCertificateGeneratorWithOwner([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(pr, pr.GetObjectKind().GroupVersionKind()))})).Run(ctx, h.client); err != nil {
+		initializer.TLSCertificateGeneratorWithOwner([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(pr, pr.GetObjectKind().GroupVersionKind()))})).Run(ctx, h.client.Client); err != nil {
 		return errors.Wrapf(err, "cannot generate TLS certificates for %q", pr.GetLabels()[v1.LabelParentPackage])
 	}
 
@@ -142,7 +142,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 		}
 	}
 
-	if err := h.client.Apply(ctx, d); err != nil {
+	if err := h.client.Applicator.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyFunctionDeployment)
 	}
 

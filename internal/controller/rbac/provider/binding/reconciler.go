@@ -220,7 +220,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"subjects", subjects,
 	)
 
-	err := r.client.Apply(ctx, rb, resource.MustBeControllableBy(pr.GetUID()), resource.AllowUpdateIf(ClusterRoleBindingsDiffer))
+	err := r.client.Applicator.Apply(ctx, rb, resource.MustBeControllableBy(pr.GetUID()), resource.AllowUpdateIf(ClusterRoleBindingsDiffer))
 	if resource.IsNotAllowed(err) {
 		log.Debug("Skipped no-op ClusterRoleBinding apply")
 		return reconcile.Result{}, nil
