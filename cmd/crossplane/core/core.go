@@ -340,7 +340,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		// only happen when realtime composition is enabled, and we should GC
 		// the informer within 60 seconds. This handler tries to make the error
 		// a little more informative, and less scary.
-		DefaultWatchErrorHandler: func(_ *kcache.Reflector, err error) {
+		DefaultWatchErrorHandler: func(_ context.Context, _ *kcache.Reflector, err error) {
 			if errors.Is(io.EOF, err) {
 				// Watch closed normally.
 				return

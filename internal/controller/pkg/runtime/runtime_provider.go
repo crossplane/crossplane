@@ -86,7 +86,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 			TargetPort: intstr.FromString(WebhookPortName),
 		},
 	}))
-	if err := h.client.Apply(ctx, svc); err != nil {
+	if err := h.client.Applicator.Apply(ctx, svc); err != nil {
 		return errors.Wrap(err, errApplyProviderService)
 	}
 
@@ -99,18 +99,18 @@ func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 		return nil
 	}
 
-	if err := h.client.Apply(ctx, secClient); err != nil {
+	if err := h.client.Applicator.Apply(ctx, secClient); err != nil {
 		return errors.Wrap(err, errApplyProviderSecret)
 	}
 
-	if err := h.client.Apply(ctx, secServer); err != nil {
+	if err := h.client.Applicator.Apply(ctx, secServer); err != nil {
 		return errors.Wrap(err, errApplyProviderSecret)
 	}
 
 	if err := initializer.NewTLSCertificateGenerator(secClient.Namespace, initializer.RootCACertSecretName,
 		initializer.TLSCertificateGeneratorWithOwner(pr.GetOwnerReferences()),
 		initializer.TLSCertificateGeneratorWithServerSecretName(secServer.GetName(), initializer.DNSNamesForService(svc.Name, svc.Namespace)),
-		initializer.TLSCertificateGeneratorWithClientSecretName(secClient.GetName(), []string{pr.GetName()})).Run(ctx, h.client); err != nil {
+		initializer.TLSCertificateGeneratorWithClientSecretName(secClient.GetName(), []string{pr.GetName()})).Run(ctx, h.client.Client); err != nil {
 		return errors.Wrapf(err, "cannot generate TLS certificates for %q", pr.GetLabels()[v1.LabelParentPackage])
 	}
 
@@ -143,7 +143,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 		}
 	}
 
-	if err := h.client.Apply(ctx, d); err != nil {
+	if err := h.client.Applicator.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyProviderDeployment)
 	}
 
@@ -285,5 +285,5 @@ func applySA(ctx context.Context, cl resource.ClientApplicator, sa *corev1.Servi
 		}
 	}
 
-	return cl.Apply(ctx, sa)
+	return cl.Applicator.Apply(ctx, sa)
 }

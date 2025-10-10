@@ -480,7 +480,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// the package's revision activation policy.
 			rev.SetDesiredState(v1.PackageRevisionInactive)
 
-			if err := r.client.Apply(ctx, rev, resource.MustBeControllableBy(p.GetUID())); err != nil {
+			if err := r.client.Applicator.Apply(ctx, rev, resource.MustBeControllableBy(p.GetUID())); err != nil {
 				if kerrors.IsConflict(err) {
 					return reconcile.Result{Requeue: true}, nil
 				}
@@ -556,7 +556,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	controlRef.BlockOwnerDeletion = ptr.To(true)
 	meta.AddOwnerReference(pr, controlRef)
 
-	if err := r.client.Apply(ctx, pr, resource.MustBeControllableBy(p.GetUID())); err != nil {
+	if err := r.client.Applicator.Apply(ctx, pr, resource.MustBeControllableBy(p.GetUID())); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}

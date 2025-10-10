@@ -162,7 +162,7 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	}
 
 	// Apply the XR, unless it's a no-op change.
-	err := s.client.Apply(ctx, xr, resource.AllowUpdateIf(func(old, obj runtime.Object) bool { return !cmp.Equal(old, obj) }))
+	err := s.client.Applicator.Apply(ctx, xr, resource.AllowUpdateIf(func(old, obj runtime.Object) bool { return !cmp.Equal(old, obj) }))
 	if err := resource.Ignore(resource.IsNotAllowed, err); err != nil {
 		return errors.Wrap(err, errApplyComposite)
 	}

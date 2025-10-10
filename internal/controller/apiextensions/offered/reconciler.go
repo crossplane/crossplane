@@ -221,7 +221,7 @@ func NewReconciler(ca resource.ClientApplicator, opts ...ReconcilerOption) *Reco
 
 		claim: definition{
 			CRDRenderer: CRDRenderFn(xcrd.ForCompositeResourceClaim),
-			Finalizer:   resource.NewAPIFinalizer(ca, finalizer),
+			Finalizer:   resource.NewAPIFinalizer(ca.Client, finalizer),
 		},
 
 		engine: &NopEngine{},
@@ -432,7 +432,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	origRV := ""
-	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID()), resource.StoreCurrentRV(&origRV)); err != nil {
+	if err := r.client.Applicator.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID()), resource.StoreCurrentRV(&origRV)); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
