@@ -45,7 +45,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
@@ -188,7 +187,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 		For(&v1.CompositeResourceDefinition{}).
 		Owns(&extv1.CustomResourceDefinition{}, builder.WithPredicates(resource.NewPredicates(IsCompositeResourceCRD()))).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -587,7 +586,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// for composed resources to become ready, and we don't want to back off as
 	// far as 60 seconds. Instead we cap the XR reconciler at 30 seconds.
 	ko.RateLimiter = workqueue.NewTypedItemExponentialFailureRateLimiter[reconcile.Request](1*time.Second, 30*time.Second)
-	ko.Reconciler = ratelimiter.NewReconciler(controllerName, errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
+
+	ko.Reconciler = errors.WithSilentRequeueOnConflict(cr)
 
 	gvk := d.GetCompositeGroupVersionKind()
 	name := controllerName

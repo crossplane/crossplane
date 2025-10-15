@@ -42,7 +42,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
@@ -198,7 +197,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		// ImageConfigs with a pull secret.
 		Watches(&v1beta1.ImageConfig{}, handler.EnqueueRequestsFromMapFunc(ForName(lockName, HasPullSecret()))).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, opts...)), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(NewReconciler(mgr, opts...)))
 }
 
 // NewReconciler creates a new lock dependency reconciler.

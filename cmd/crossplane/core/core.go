@@ -46,7 +46,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
 
 	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
@@ -102,10 +101,10 @@ type startCommand struct {
 
 	PackageRuntime string `default:"Deployment" env:"PACKAGE_RUNTIME" help:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)" placeholder:"runtime | runtime1=package1;runtime2=package2"`
 
-	SyncInterval                     time.Duration `default:"1h"  help:"How often all resources will be double-checked for drift from the desired state."                      short:"s"`
-	PollInterval                     time.Duration `default:"1m"  help:"How often individual resources will be checked for drift from the desired state."`
-	MaxReconcileRate                 int           `default:"100" help:"The global maximum rate per second at which resources may checked for drift from the desired state."`
-	MaxConcurrentPackageEstablishers int           `default:"10"  help:"The the maximum number of goroutines to use for establishing Providers, Configurations and Functions."`
+	SyncInterval                     time.Duration `default:"1h"                 help:"How often all resources will be double-checked for drift from the desired state."                      short:"s"`
+	PollInterval                     time.Duration `default:"1m"                 help:"How often individual resources will be checked for drift from the desired state."`
+	MaxConcurrentReconciles          int           `aliases:"max-reconcile-rate" default:"100"                                                                                                help:"The maximum number of concurrent reconcile operations (worker pool size)."`
+	MaxConcurrentPackageEstablishers int           `default:"10"                 help:"The the maximum number of goroutines to use for establishing Providers, Configurations and Functions."`
 
 	EnableWebhooks bool `aliases:"webhook-enabled" default:"true" env:"ENABLE_WEBHOOKS,WEBHOOK_ENABLED" help:"Enable webhook configuration."`
 
@@ -175,7 +174,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	// They use their own. They're setup later in this method.
 	eb := record.NewBroadcaster()
 
-	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, c.MaxReconcileRate), ctrl.Options{
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: s,
 		Cache: cache.Options{
 			SyncPeriod: &c.SyncInterval,
@@ -230,9 +229,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	o := controller.Options{
 		Logger:                  log,
-		MaxConcurrentReconciles: c.MaxReconcileRate,
+		MaxConcurrentReconciles: c.MaxConcurrentReconciles,
 		PollInterval:            c.PollInterval,
-		GlobalRateLimiter:       ratelimiter.NewGlobal(c.MaxReconcileRate),
 		Features:                &feature.Flags{},
 	}
 

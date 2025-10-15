@@ -35,7 +35,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
@@ -137,17 +136,17 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1.ProviderRevision{}).
 		Watches(&v1beta1.ImageConfig{}, enqueuePackageRevisionsForImageConfig(mgr.GetClient(), log, &v1.ProviderRevisionList{}))
 
-	ro := []ReconcilerOption{
+	r := NewReconciler(mgr.GetClient(),
 		WithNewPackageRevisionFn(np),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithValidator(cosignValidator),
 		WithLogger(log),
-	}
+	)
 
 	return cb.WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(n, errors.WithSilentRequeueOnConflict(NewReconciler(mgr.GetClient(), ro...)), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }
 
 // SetupConfigurationRevision adds a controller that reconciles ConfigurationRevisions.
@@ -171,17 +170,17 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1.ConfigurationRevision{}).
 		Watches(&v1beta1.ImageConfig{}, enqueuePackageRevisionsForImageConfig(mgr.GetClient(), log, &v1.ConfigurationRevisionList{}))
 
-	ro := []ReconcilerOption{
+	r := NewReconciler(mgr.GetClient(),
 		WithNewPackageRevisionFn(np),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithValidator(cosignValidator),
 		WithLogger(log),
-	}
+	)
 
 	return cb.WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(n, errors.WithSilentRequeueOnConflict(NewReconciler(mgr.GetClient(), ro...)), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }
 
 // SetupFunctionRevision adds a controller that reconciles FunctionRevisions.
@@ -205,17 +204,17 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1.FunctionRevision{}).
 		Watches(&v1beta1.ImageConfig{}, enqueuePackageRevisionsForImageConfig(mgr.GetClient(), log, &v1.FunctionRevisionList{}))
 
-	ro := []ReconcilerOption{
+	r := NewReconciler(mgr.GetClient(),
 		WithNewPackageRevisionFn(np),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithValidator(cosignValidator),
 		WithLogger(log),
-	}
+	)
 
 	return cb.WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(n, errors.WithSilentRequeueOnConflict(NewReconciler(mgr.GetClient(), ro...)), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }
 
 // NewReconciler creates a new package reconciler for signature verification.

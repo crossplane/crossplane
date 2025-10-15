@@ -29,7 +29,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 
 	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
 	opscontroller "github.com/crossplane/crossplane/v2/internal/controller/ops/controller"
@@ -50,7 +49,7 @@ func Setup(mgr ctrl.Manager, o opscontroller.Options) error {
 		Named(name).
 		For(&v1alpha1.Operation{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }
 
 // ReconcilerOption is used to configure the Reconciler.

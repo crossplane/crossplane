@@ -37,7 +37,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
@@ -167,7 +166,11 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		Owns(&corev1.ServiceAccount{}).
 		Watches(&v1beta1.ImageConfig{}, revision.EnqueuePackageRevisionsForImageConfig(mgr.GetClient(), &v1.ProviderRevisionList{}, log))
 
-	ro := []ReconcilerOption{
+	if o.Features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
+		cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, EnqueuePackageRevisionsForRuntimeConfig(mgr.GetClient(), &v1.ProviderRevisionList{}, log))
+	}
+
+	r := NewReconciler(mgr,
 		WithNewPackageRevisionWithRuntimeFn(nr),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -176,14 +179,10 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithRuntimeHooks(NewProviderHooks(mgr.GetClient())),
 		WithFeatureFlags(o.Features),
 		WithDeploymentSelectorMigrator(NewDeletingDeploymentSelectorMigrator(mgr.GetClient(), log)),
-	}
-
-	if o.Features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
-		cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, EnqueuePackageRevisionsForRuntimeConfig(mgr.GetClient(), &v1.ProviderRevisionList{}, log))
-	}
+	)
 
 	return cb.WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, ro...)), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }
 
 // SetupFunctionRevision adds a controller that reconciles FunctionRevisions.
@@ -201,7 +200,11 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		Owns(&corev1.ServiceAccount{}).
 		Watches(&v1beta1.ImageConfig{}, revision.EnqueuePackageRevisionsForImageConfig(mgr.GetClient(), &v1.FunctionRevisionList{}, log))
 
-	ro := []ReconcilerOption{
+	if o.Features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
+		cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, EnqueuePackageRevisionsForRuntimeConfig(mgr.GetClient(), &v1.FunctionRevisionList{}, log))
+	}
+
+	r := NewReconciler(mgr,
 		WithNewPackageRevisionWithRuntimeFn(nr),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -209,14 +212,10 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithServiceAccount(o.ServiceAccount),
 		WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())),
 		WithFeatureFlags(o.Features),
-	}
-
-	if o.Features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
-		cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, EnqueuePackageRevisionsForRuntimeConfig(mgr.GetClient(), &v1.FunctionRevisionList{}, log))
-	}
+	)
 
 	return cb.WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, ro...)), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }
 
 // NewReconciler creates a new package revision reconciler.
