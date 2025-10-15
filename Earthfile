@@ -446,7 +446,7 @@ ci-push-build-artifacts:
   ARG --required CROSSPLANE_VERSION
   ARG --required BUILD_DIR
   ARG ARTIFACTS_DIR=_output
-  ARG BUCKET_RELEASES=crossplane.releases
+  ARG BUCKET_RELEASES=crossplane-releases
   ARG AWS_DEFAULT_REGION
   FROM amazon/aws-cli:2.15.61
   COPY --dir ${ARTIFACTS_DIR} artifacts
@@ -460,8 +460,8 @@ ci-promote-build-artifacts:
   ARG --required BUILD_DIR
   ARG --required CHANNEL
   ARG HELM_REPO_URL=https://charts.crossplane.io
-  ARG BUCKET_RELEASES=crossplane.releases
-  ARG BUCKET_CHARTS=crossplane.charts
+  ARG BUCKET_RELEASES=crossplane-releases
+  ARG BUCKET_CHARTS=crossplane-helm-charts
   ARG PRERELEASE=false
   ARG AWS_DEFAULT_REGION
   FROM amazon/aws-cli:2.15.61
