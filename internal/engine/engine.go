@@ -173,7 +173,7 @@ type WatchGarbageCollector interface {
 }
 
 // A NewControllerFn can start a new controller-runtime controller.
-type NewControllerFn func(name string, mgr manager.Manager, options kcontroller.Options) (kcontroller.Controller, error)
+type NewControllerFn func(name string, options kcontroller.Options) (kcontroller.Controller, error)
 
 // ControllerOptions configure a controller.
 type ControllerOptions struct {
@@ -314,7 +314,7 @@ func (e *ControllerEngine) Start(name string, o ...ControllerOption) error {
 	// already unique in the engine.
 	co.runtime.SkipNameValidation = ptr.To(true)
 
-	c, err := co.nc(name, e.mgr, co.runtime)
+	c, err := co.nc(name, co.runtime)
 	if err != nil {
 		return errors.Wrap(err, "cannot create new controller")
 	}
