@@ -526,7 +526,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	)
 
 	// Create circuit breaker for this XR controller
-	cb := circuit.NewTokenBucketBreaker()
+	controllerName := composite.ControllerName(d.GetName())
+	controllerLabel := fmt.Sprintf("composite/%s.%s", d.Spec.Names.Plural, d.Spec.Group)
+
+	cb := circuit.NewTokenBucketBreaker(
+		circuit.WithMetrics(r.options.CircuitBreakerMetrics, controllerLabel),
+	)
 
 	// All XRs have modern schema unless their XRD's scope is LegacyCluster.
 	schema := ucomposite.SchemaModern
@@ -541,8 +546,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record),
 			composite.NewAPILabelSelectorResolver(r.engine.GetCached()),
 		)),
-		composite.WithLogger(r.log.WithValues("controller", composite.ControllerName(d.GetName()))),
-		composite.WithRecorder(r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
+		composite.WithLogger(r.log.WithValues("controller", controllerName)),
+		composite.WithRecorder(r.record.WithAnnotations("controller", controllerName)),
 		composite.WithPollInterval(r.options.PollInterval),
 		composite.WithCircuitBreaker(cb),
 		composite.WithAuthorizer(r.engine),
@@ -570,9 +575,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		cmf := CompositeResourcesMapFunc(d.GetCompositeGroupVersionKind(), r.engine.GetCached(), r.log)
-		h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(cmf, cb))
+		h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(cmf, cb, r.options.CircuitBreakerMetrics, controllerLabel))
 		ro = append(ro,
-			composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine),
+			composite.WithWatchStarter(controllerName, h, r.engine),
 			composite.WithPollInterval(0), // Disable polling.
 		)
 	}
@@ -587,10 +592,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// for composed resources to become ready, and we don't want to back off as
 	// far as 60 seconds. Instead we cap the XR reconciler at 30 seconds.
 	ko.RateLimiter = workqueue.NewTypedItemExponentialFailureRateLimiter[reconcile.Request](1*time.Second, 30*time.Second)
-	ko.Reconciler = ratelimiter.NewReconciler(composite.ControllerName(d.GetName()), errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
+	ko.Reconciler = ratelimiter.NewReconciler(controllerName, errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
 
 	gvk := d.GetCompositeGroupVersionKind()
-	name := composite.ControllerName(d.GetName())
+	name := controllerName
 
 	// TODO(negz): Update CompositeReconcilerOptions to produce
 	// ControllerOptions instead? It bothers me that this is the only feature
@@ -619,9 +624,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xr.SetGroupVersionKind(gvk)
 
 	crmf := CompositionRevisionMapFunc(gvk, schema, r.engine.GetCached(), log)
-	crh := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(crmf, cb))
+	crh := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(crmf, cb, r.options.CircuitBreakerMetrics, controllerLabel))
 
-	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(SelfMapFunc(), cb))
+	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(SelfMapFunc(), cb, r.options.CircuitBreakerMetrics, controllerLabel))
 
 	if err := r.engine.StartWatches(ctx, name,
 		engine.WatchFor(xr, engine.WatchTypeCompositeResource, h),

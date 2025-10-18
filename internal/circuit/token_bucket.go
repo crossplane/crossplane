@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/crossplane/crossplane/v2/internal/metrics"
 )
 
 // Config controls circuit breaker behavior using a token bucket approach.
@@ -35,50 +37,63 @@ type Config struct {
 }
 
 // Option configures a circuit breaker.
-type Option func(*Config)
+type Option func(*TokenBucketBreaker)
 
 // WithBurst sets the token bucket burst allowance.
 func WithBurst(b float64) Option {
-	return func(c *Config) {
-		c.capacity = b
+	return func(tb *TokenBucketBreaker) {
+		tb.config.capacity = b
 	}
 }
 
 // WithRefillRatePerSecond sets the token bucket refill rate.
 func WithRefillRatePerSecond(r float64) Option {
-	return func(c *Config) {
-		c.refillRatePerSecond = r
+	return func(tb *TokenBucketBreaker) {
+		tb.config.refillRatePerSecond = r
 	}
 }
 
 // WithOpenDuration sets how long the circuit stays open before auto-closing.
 func WithOpenDuration(d time.Duration) Option {
-	return func(c *Config) {
-		c.cooldownTime = d
+	return func(tb *TokenBucketBreaker) {
+		tb.config.cooldownTime = d
 	}
 }
 
 // WithHalfOpenInterval sets how often to allow requests in half-open state.
 func WithHalfOpenInterval(i time.Duration) Option {
-	return func(c *Config) {
-		c.halfOpenInterval = i
+	return func(tb *TokenBucketBreaker) {
+		tb.config.halfOpenInterval = i
 	}
 }
 
 // WithGarbageCollectTargetsAfter sets how long to keep inactive target states
 // before garbage collection.
 func WithGarbageCollectTargetsAfter(d time.Duration) Option {
-	return func(c *Config) {
-		c.expireAfter = d
+	return func(tb *TokenBucketBreaker) {
+		tb.config.expireAfter = d
+	}
+}
+
+// WithMetrics configures the breaker to emit metrics for the supplied controller label.
+func WithMetrics(m metrics.CBMetrics, controller string) Option {
+	return func(tb *TokenBucketBreaker) {
+		if tb == nil || m == nil {
+			return
+		}
+		tb.metrics = m
+		tb.controller = controller
 	}
 }
 
 // TokenBucketBreaker is a concrete implementation of the Breaker interface that uses
 // a token bucket approach to rate limit reconciliation events.
 type TokenBucketBreaker struct {
-	config  Config
-	mu      sync.RWMutex
-	targets map[types.NamespacedName]*state
+	config     Config
+	mu         sync.RWMutex
+	targets    map[types.NamespacedName]*state
+	controller string
+	metrics    metrics.CBMetrics
 }
 
 // state tracks the circuit breaker state for a single target resource.
@@ -102,21 +117,21 @@ type state struct {
 
 // NewTokenBucketBreaker creates a new token bucket-based circuit breaker.
 func NewTokenBucketBreaker(opts ...Option) *TokenBucketBreaker {
-	config := Config{
-		capacity:            50.0,             // Allow 50-event burst.
-		refillRatePerSecond: 0.5,              // Allow 1 every 2s sustained.
-		cooldownTime:        5 * time.Minute,  // Circuit stays open for 5 minutes.
-		halfOpenInterval:    30 * time.Second, // Allow probe every 30s when open.
-		expireAfter:         24 * time.Hour,   // Clean up targets after 24 hours.
+	b := &TokenBucketBreaker{
+		config: Config{
+			capacity:            50.0,             // Allow 50-event burst.
+			refillRatePerSecond: 0.5,              // Allow 1 every 2s sustained.
+			cooldownTime:        5 * time.Minute,  // Circuit stays open for 5 minutes.
+			halfOpenInterval:    30 * time.Second, // Allow probe every 30s when open.
+			expireAfter:         24 * time.Hour,   // Clean up targets after 24 hours.
+		},
+		targets: make(map[types.NamespacedName]*state),
 	}
 
 	for _, opt := range opts {
-		opt(&config)
-	}
-
-	b := &TokenBucketBreaker{
-		config:  config,
-		targets: make(map[types.NamespacedName]*state),
+		if opt != nil {
+			opt(b)
+		}
 	}
 
 	return b
@@ -168,6 +183,7 @@ func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.Namespa
 
 		// Cooldown period has expired. Close the circuit.
 		state.isOpen = false
+		b.observeClose()
 
 		// Clear ring buffer on close
 		for i := range state.recentSources {
@@ -186,6 +202,7 @@ func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.Namespa
 	state.isOpen = true
 	state.openedAt = now
 	state.lastAllowed = now
+	b.observeOpen()
 
 	// Analyze ring buffer to find most frequent source
 	events := make(map[string]int)
@@ -242,4 +259,18 @@ func (b *TokenBucketBreaker) RecordAllowed(_ context.Context, target types.Names
 	defer state.mu.Unlock()
 
 	state.lastAllowed = time.Now()
+}
+
+func (b *TokenBucketBreaker) observeOpen() {
+	if b.metrics == nil || b.controller == "" {
+		return
+	}
+	b.metrics.IncOpen(b.controller)
+}
+
+func (b *TokenBucketBreaker) observeClose() {
+	if b.metrics == nil || b.controller == "" {
+		return
+	}
+	b.metrics.IncClose(b.controller)
 }
