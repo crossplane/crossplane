@@ -324,6 +324,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"version", d.GetResourceVersion(),
 		"name", d.GetName(),
 	)
+	controllerName := composite.ControllerName(d.GetName())
 
 	crd, err := r.composite.Render(d)
 	if err != nil {
@@ -367,7 +368,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// It's likely that we've already stopped this controller on a
 			// previous reconcile, but we try again just in case. This is a
 			// no-op if the controller was already stopped.
-			if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
+			if err := r.engine.Stop(ctx, controllerName); err != nil {
 				err = errors.Wrap(err, errStopController)
 				r.record.Event(d, event.Warning(reasonTerminateXR, err))
 
@@ -432,7 +433,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		// The controller must be stopped before the deletion of the CRD so that
 		// it doesn't crash.
-		if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
+		if err := r.engine.Stop(ctx, controllerName); err != nil {
 			err = errors.Wrap(err, errStopController)
 			r.record.Event(d, event.Warning(reasonTerminateXR, err))
 
@@ -500,7 +501,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if ControllerNeedsRestart(d) {
 		r.record.Event(d, event.Normal(reasonRestartXR, "XRD specification changed; restarting controller to apply updates"))
 
-		if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
+		if err := r.engine.Stop(ctx, controllerName); err != nil {
 			err = errors.Wrap(err, errStopController)
 			r.record.Event(d, event.Warning(reasonRestartXR, err))
 
@@ -512,7 +513,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			"current-generation", d.GetGeneration())
 	}
 
-	if r.engine.IsRunning(composite.ControllerName(d.GetName())) {
+	if r.engine.IsRunning(controllerName) {
 		log.Debug("Composite resource controller is running")
 		status.MarkConditions(v1.WatchingComposite())
 
@@ -526,7 +527,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	)
 
 	// Create circuit breaker for this XR controller
-	controllerName := composite.ControllerName(d.GetName())
 	controllerLabel := fmt.Sprintf("composite/%s.%s", d.Spec.Names.Plural, d.Spec.Group)
 
 	cb := circuit.NewTokenBucketBreaker(

@@ -84,7 +84,9 @@ func registerCounterVec(reg prometheus.Registerer, cv **prometheus.CounterVec) {
 				return
 			}
 		}
-		panic(err)
+		// Avoid crashing the control plane if registration fails; the collector
+		// will continue to function locally even if it's not exported.
+		return
 	}
 }
 
