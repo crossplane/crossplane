@@ -2,7 +2,7 @@
 
 ## XR Circuit Breaker Counters
 
-Crossplane exposes counters that let operators observe the XR watch circuit breaker introduced in Crossplane v1. Following metrics are scraped from the manager's `/metrics` endpoint:
+Crossplane exposes counters that let operators observe the XR watch circuit breaker. Following metrics are scraped from the manager's `/metrics` endpoint:
 
 - `crossplane_circuit_breaker_opens_total{controller}` – counts transitions from a closed circuit breaker to open.
 - `crossplane_circuit_breaker_closes_total{controller}` – counts transitions from open back to closed.
