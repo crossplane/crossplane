@@ -20,6 +20,7 @@ package core
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"os"
@@ -279,6 +280,17 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		false)
 	if err != nil {
 		return errors.Wrap(err, "cannot load client TLS certificates")
+	
+	// Load function CA certificate and add it to the client TLS config
+	if functionCACert, err := os.ReadFile("/etc/ssl/certs/function-ca.crt"); err == nil {
+		if clienttls.RootCAs == nil {
+			clienttls.RootCAs, _ = x509.SystemCertPool()
+			if clienttls.RootCAs == nil {
+				clienttls.RootCAs = x509.NewCertPool()
+			}
+		}
+		clienttls.RootCAs.AppendCertsFromPEM(functionCACert)
+	}
 	}
 
 	pfrm := xfn.NewPrometheusMetrics()
