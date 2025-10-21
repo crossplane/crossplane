@@ -527,7 +527,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	)
 
 	// Create circuit breaker for this XR controller
-	controllerLabel := fmt.Sprintf("composite/%s.%s", d.Spec.Names.Plural, d.Spec.Group)
+	controllerLabel := composite.ControllerName(fmt.Sprintf("%s.%s", d.Spec.Names.Plural, d.Spec.Group))
 
 	cb := circuit.NewTokenBucketBreaker(
 		circuit.WithMetrics(r.options.CircuitBreakerMetrics, controllerLabel),
