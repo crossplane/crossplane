@@ -13,7 +13,7 @@ CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 */
 
-package metrics
+package circuit
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
@@ -32,13 +32,13 @@ const (
 )
 
 var (
-	_ CBMetrics            = &NopMetrics{}
-	_ CBMetrics            = &PrometheusMetrics{}
+	_ Metrics              = &NopMetrics{}
+	_ Metrics              = &PrometheusMetrics{}
 	_ prometheus.Collector = &PrometheusMetrics{}
 )
 
-// CBMetrics records circuit breaker transitions and event outcomes.
-type CBMetrics interface {
+// Metrics records circuit breaker transitions and event outcomes.
+type Metrics interface {
 	IncOpen(controller string)
 	IncClose(controller string)
 	IncEvent(controller, result string)
@@ -90,6 +90,7 @@ func (m *PrometheusMetrics) IncOpen(controller string) {
 }
 
 // IncClose records a circuit breaker close transition.
+// Naming?
 func (m *PrometheusMetrics) IncClose(controller string) {
 	m.closes.With(prometheus.Labels{"controller": controller}).Inc()
 }

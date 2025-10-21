@@ -23,22 +23,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"github.com/crossplane/crossplane/v2/internal/metrics"
 )
 
 // NewMapFunc wraps a handler.MapFunc with circuit breaker functionality.
 // It records events for each target resource and filters out requests when the
 // circuit breaker is open, allowing occasional requests through in half-open state.
-func NewMapFunc(wrapped handler.MapFunc, breaker Breaker, m metrics.CBMetrics, controller string) handler.MapFunc {
+func NewMapFunc(wrapped handler.MapFunc, breaker Breaker, m Metrics, controller string) handler.MapFunc {
 	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		if m == nil {
+			m = &NopMetrics{}
+		}
 		// Get the original requests
 		requests := wrapped(ctx, obj)
 
 		recordEvent := func(result string) {
-			if m == nil {
-				return
-			}
 			m.IncEvent(controller, result)
 		}
 
@@ -58,7 +56,7 @@ func NewMapFunc(wrapped handler.MapFunc, breaker Breaker, m metrics.CBMetrics, c
 			// MODIFIED events with deletionTimestamp set) can reach
 			// the reconciler to remove finalizers.
 			if obj.GetDeletionTimestamp() != nil {
-				recordEvent(metrics.CircuitBreakerResultAllowed)
+				recordEvent(CircuitBreakerResultAllowed)
 				keep = append(keep, req)
 				continue
 			}
@@ -72,7 +70,7 @@ func NewMapFunc(wrapped handler.MapFunc, breaker Breaker, m metrics.CBMetrics, c
 			// If breaker is closed, allow the request
 			if !state.IsOpen {
 				keep = append(keep, req)
-				recordEvent(metrics.CircuitBreakerResultAllowed)
+				recordEvent(CircuitBreakerResultAllowed)
 				continue
 			}
 
@@ -80,11 +78,11 @@ func NewMapFunc(wrapped handler.MapFunc, breaker Breaker, m metrics.CBMetrics, c
 			if time.Now().After(state.NextAllowedAt) {
 				keep = append(keep, req)
 				breaker.RecordAllowed(ctx, req.NamespacedName)
-				recordEvent(metrics.CircuitBreakerResultHalfOpenAllowed)
+				recordEvent(CircuitBreakerResultHalfOpenAllowed)
 				continue
 			}
 			// Otherwise filter out - fully open state
-			recordEvent(metrics.CircuitBreakerResultDropped)
+			recordEvent(CircuitBreakerResultDropped)
 		}
 
 		return keep

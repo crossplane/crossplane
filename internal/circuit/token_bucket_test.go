@@ -28,8 +28,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-
-	"github.com/crossplane/crossplane/v2/internal/metrics"
 )
 
 var _ Breaker = &TokenBucketBreaker{}
@@ -491,7 +489,7 @@ func TestTokenBucketBreakerMetrics(t *testing.T) {
 	}
 
 	reg := prometheus.NewRegistry()
-	cbm := metrics.NewPrometheusMetrics()
+	cbm := NewPrometheusMetrics()
 	reg.MustRegister(cbm)
 
 	breaker := NewTokenBucketBreaker(

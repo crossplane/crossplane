@@ -23,8 +23,6 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/types"
-
-	"github.com/crossplane/crossplane/v2/internal/metrics"
 )
 
 // Config controls circuit breaker behavior using a token bucket approach.
@@ -76,12 +74,16 @@ func WithGarbageCollectTargetsAfter(d time.Duration) Option {
 }
 
 // WithMetrics configures the breaker to emit metrics for the supplied controller label.
-func WithMetrics(m metrics.CBMetrics, controller string) Option {
+func WithMetrics(m Metrics, controller string) Option {
 	return func(tb *TokenBucketBreaker) {
-		if tb == nil || m == nil {
+		if tb == nil {
 			return
 		}
-		tb.metrics = m
+		if m == nil {
+			tb.metrics = &NopMetrics{}
+		} else {
+			tb.metrics = m
+		}
 		tb.controller = controller
 	}
 }
@@ -93,7 +95,7 @@ type TokenBucketBreaker struct {
 	mu         sync.RWMutex
 	targets    map[types.NamespacedName]*state
 	controller string
-	metrics    metrics.CBMetrics
+	metrics    Metrics
 }
 
 // state tracks the circuit breaker state for a single target resource.
@@ -125,7 +127,9 @@ func NewTokenBucketBreaker(opts ...Option) *TokenBucketBreaker {
 			halfOpenInterval:    30 * time.Second, // Allow probe every 30s when open.
 			expireAfter:         24 * time.Hour,   // Clean up targets after 24 hours.
 		},
-		targets: make(map[types.NamespacedName]*state),
+		targets:    make(map[types.NamespacedName]*state),
+		metrics:    &NopMetrics{},
+		controller: "",
 	}
 
 	for _, opt := range opts {
@@ -262,15 +266,9 @@ func (b *TokenBucketBreaker) RecordAllowed(_ context.Context, target types.Names
 }
 
 func (b *TokenBucketBreaker) observeOpen() {
-	if b.metrics == nil || b.controller == "" {
-		return
-	}
 	b.metrics.IncOpen(b.controller)
 }
 
 func (b *TokenBucketBreaker) observeClose() {
-	if b.metrics == nil || b.controller == "" {
-		return
-	}
 	b.metrics.IncClose(b.controller)
 }

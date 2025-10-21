@@ -50,6 +50,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
 
 	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions"
 	apiextensionscontroller "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/v2/internal/controller/ops"
@@ -395,7 +396,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	cem := engine.NewPrometheusMetrics()
 	metrics.Registry.MustRegister(cem)
 
-	cbm := metrics.NewPrometheusMetrics()
+	cbm := circuit.NewPrometheusMetrics()
 	metrics.Registry.MustRegister(cbm)
 
 	// It's important the engine's client is wrapped with unstructured.NewClient
