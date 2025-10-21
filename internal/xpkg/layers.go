@@ -35,8 +35,13 @@ import (
 
 // Error strings.
 const (
-	errLayer  = "cannot get image layers"
-	errDigest = "cannot get image digest"
+	errLayer          = "cannot get image layers"
+	errDigest         = "cannot get image digest"
+	errAppendManifest = "cannot apply extensions manifest to index"
+
+	errReadExtRoot   = "cannot read extensions root %q"
+	errCreateTarball = "cannot create tarball from filesystem %q"
+	errCreateLayer   = "cannot create layer from tarball for %q"
 )
 
 // Layer creates a v1.Layer that represents the layer contents for the xpkg and
@@ -172,7 +177,7 @@ func ImageFromFiles(baseFs afero.Fs, root string) (v1.Image, error) {
 
 	entries, err := afero.ReadDir(baseFs, root)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, errReadExtRoot, root)
 	}
 
 	for _, entry := range entries {
@@ -183,7 +188,7 @@ func ImageFromFiles(baseFs afero.Fs, root string) (v1.Image, error) {
 
 		src, err := FSToTar(afero.NewBasePathFs(baseFs, entry.Name()), entry.Name())
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, errCreateTarball, entry.Name())
 		}
 
 		// Create extension layer from the in-memory tarball
@@ -191,7 +196,7 @@ func ImageFromFiles(baseFs afero.Fs, root string) (v1.Image, error) {
 			return io.NopCloser(bytes.NewReader(src)), nil
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, errCreateLayer, entry.Name())
 		}
 
 		// Append layer from the dir tarball
@@ -205,7 +210,7 @@ func ImageFromFiles(baseFs afero.Fs, root string) (v1.Image, error) {
 			},
 		)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, errAppendManifest)
 		}
 	}
 

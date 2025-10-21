@@ -21,7 +21,7 @@ import (
 	"bytes"
 	"io"
 	"io/fs"
-	"path/filepath"
+	"path"
 
 	"github.com/spf13/afero"
 
@@ -32,6 +32,8 @@ const (
 	errCreatePrefixDir = "failed to create prefix directory in tar archive"
 	errPopulateTar     = "failed to populate tar archive"
 	errCloseTar        = "failed to close tar archive"
+	errBuildHeader     = "failed to build header for %q"
+	errWriteHeader     = "failed to write header for %q"
 )
 
 // FSToTar produces a tarball of all the files in a filesystem.
@@ -71,7 +73,7 @@ func FSToTar(f afero.Fs, prefix string) ([]byte, error) {
 
 func addToTar(tw *tar.Writer, prefix string, f afero.Fs, filename string, info fs.FileInfo) error {
 	// Compute the full path in the tar archive
-	fullPath := filepath.Join(prefix, filename)
+	fullPath := path.Join(prefix, filename)
 
 	if info.IsDir() {
 		// Skip the root directory as it was already added
@@ -81,11 +83,11 @@ func addToTar(tw *tar.Writer, prefix string, f afero.Fs, filename string, info f
 
 		h, err := tar.FileInfoHeader(info, "")
 		if err != nil {
-			return err
+			return errors.Wrapf(err, errBuildHeader, fullPath)
 		}
 		h.Name = fullPath
 		if err := tw.WriteHeader(h); err != nil {
-			return err
+			return errors.Wrapf(err, errWriteHeader, fullPath)
 		}
 		return nil
 	}
@@ -96,19 +98,20 @@ func addToTar(tw *tar.Writer, prefix string, f afero.Fs, filename string, info f
 
 	h, err := tar.FileInfoHeader(info, "")
 	if err != nil {
-		return err
+		return errors.Wrapf(err, errBuildHeader, fullPath)
 	}
 	h.Name = fullPath
 
 	if err := tw.WriteHeader(h); err != nil {
-		return err
+		return errors.Wrapf(err, errWriteHeader, fullPath)
 	}
 
 	file, err := f.Open(filename)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to open a file for %q", fullPath)
 	}
+	defer func() { _ = file.Close() }()
 
 	_, err = io.Copy(tw, file)
-	return err
+	return errors.Wrapf(err, "failed to copy file contents from %q", fullPath)
 }

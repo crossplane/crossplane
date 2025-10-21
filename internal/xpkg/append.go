@@ -29,6 +29,7 @@ import (
 )
 
 const (
+	errGetManifest     = "error retrieving image manifest"
 	errGetManifestList = "error retrieving manifest list"
 	errManifestDigest  = "error getting manifest digest"
 
@@ -112,12 +113,12 @@ func (a *Appender) Append(index v1.ImageIndex, extImg v1.Image, opts ...AppendOp
 func (a *Appender) ConvertImageToIndex(img v1.Image) (v1.ImageIndex, error) {
 	digest, err := img.Digest()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errManifestDigest)
 	}
 
 	manifest, err := img.Manifest()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errGetManifest)
 	}
 
 	desc := v1.Descriptor{
