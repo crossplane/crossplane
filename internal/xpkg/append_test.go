@@ -23,18 +23,20 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/spf13/afero"
 
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
 var (
 	randImage           v1.Image
 	noPlatform          *v1.Platform
 	expectedAnnotations map[string]string
+	indexWithExtensions v1.ImageIndex
 )
 
 func init() {
@@ -44,13 +46,22 @@ func init() {
 	}
 	randImage, _ = random.Image(layerSize, 1)
 	noPlatform = nil
+	indexWithExtensions = mutate.AppendManifests(empty.Index, mutate.IndexAddendum{
+		Add: empty.Image,
+		Descriptor: v1.Descriptor{
+			MediaType:   types.OCIManifestSchema1,
+			Annotations: expectedAnnotations,
+		},
+	})
 }
 
 func TestAppend(t *testing.T) {
 	type args struct {
-		keychain  remote.Option
-		remoteRef name.Reference
-		image     v1.Image
+		keychain      remote.Option
+		remoteRef     name.Reference
+		image         v1.Image
+		index         v1.ImageIndex
+		manifestCount int
 	}
 	cases := map[string]struct {
 		reason string
@@ -60,7 +71,18 @@ func TestAppend(t *testing.T) {
 		"SuccessWithCorrectManifestAnnotation": {
 			reason: "Extensions manifest is correctly annotated",
 			args: args{
-				image: randImage,
+				image:         randImage,
+				index:         empty.Index,
+				manifestCount: 1,
+			},
+			want: nil,
+		},
+		"OnlyOneAnnotatedManifest": {
+			reason: "Only one annotated extensions manifest exists in the index",
+			args: args{
+				image:         randImage,
+				index:         indexWithExtensions,
+				manifestCount: 1,
 			},
 			want: nil,
 		},
@@ -70,13 +92,20 @@ func TestAppend(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			appender := NewAppender(tc.args.keychain, tc.args.remoteRef)
 
-			index, err := appender.Append(empty.Index, tc.args.image)
+			index, err := appender.Append(tc.args.index, tc.args.image)
 
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nAppend(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
 
 			manifestList, _ := index.IndexManifest()
+
+			if len(manifestList.Manifests) != tc.args.manifestCount {
+				t.Errorf("Unexpected number of manifests in the index. Expected %d, found %d",
+					tc.args.manifestCount,
+					len(manifestList.Manifests))
+			}
+
 			extManifest := manifestList.Manifests[0]
 			if diff := cmp.Diff(extManifest.Annotations, expectedAnnotations); diff != "" {
 				t.Errorf("\n%s\nUnexpected or missing manifest annotations: -want annotations, +got annotations:\n%s", tc.reason, diff)
