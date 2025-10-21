@@ -491,7 +491,8 @@ func TestTokenBucketBreakerMetrics(t *testing.T) {
 	}
 
 	reg := prometheus.NewRegistry()
-	cbm := metrics.NewCBMetrics(reg)
+	cbm := metrics.NewPrometheusMetrics()
+	reg.MustRegister(cbm)
 
 	breaker := NewTokenBucketBreaker(
 		WithBurst(1),

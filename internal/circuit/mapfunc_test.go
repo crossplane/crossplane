@@ -77,7 +77,8 @@ func TestNewMapFuncMetrics(t *testing.T) {
 			t.Parallel()
 
 			reg := prometheus.NewRegistry()
-			cbm := metrics.NewCBMetrics(reg)
+			cbm := metrics.NewPrometheusMetrics()
+			reg.MustRegister(cbm)
 
 			fb := &fakeBreaker{state: tc.breakerState}
 

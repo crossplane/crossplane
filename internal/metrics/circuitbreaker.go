@@ -1,9 +1,21 @@
+/*
+Copyright 2025 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy of the
+License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+*/
+
 package metrics
 
 import (
-	"errors"
-	"sync"
-
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -19,6 +31,12 @@ const (
 	CircuitBreakerResultHalfOpenAllowed = "halfopen_allowed"
 )
 
+var (
+	_ CBMetrics            = &NopMetrics{}
+	_ CBMetrics            = &PrometheusMetrics{}
+	_ prometheus.Collector = &PrometheusMetrics{}
+)
+
 // CBMetrics records circuit breaker transitions and event outcomes.
 type CBMetrics interface {
 	IncOpen(controller string)
@@ -26,27 +44,28 @@ type CBMetrics interface {
 	IncEvent(controller, result string)
 }
 
-type cbMetrics struct {
+// NopMetrics does nothing.
+type NopMetrics struct{}
+
+// IncOpen does nothing.
+func (m *NopMetrics) IncOpen(_ string) {}
+
+// IncClose does nothing.
+func (m *NopMetrics) IncClose(_ string) {}
+
+// IncEvent does nothing.
+func (m *NopMetrics) IncEvent(_ string, _ string) {}
+
+// PrometheusMetrics records circuit breaker transitions and results.
+type PrometheusMetrics struct {
 	opens  *prometheus.CounterVec
 	closes *prometheus.CounterVec
 	events *prometheus.CounterVec
-
-	controllers sync.Map // map[string]*controllerCounters
 }
 
-type controllerCounters struct {
-	opens  prometheus.Counter
-	closes prometheus.Counter
-
-	mu     sync.RWMutex
-	events map[string]prometheus.Counter
-}
-
-// NewCBMetrics creates circuit breaker metrics backed by the supplied Prometheus
-// registerer. Metrics are registered the first time this function is called with
-// a given registerer. Subsequent calls reuse the existing collectors.
-func NewCBMetrics(reg prometheus.Registerer) CBMetrics {
-	m := &cbMetrics{
+// NewPrometheusMetrics creates circuit breaker metrics backed by Prometheus.
+func NewPrometheusMetrics() *PrometheusMetrics {
+	return &PrometheusMetrics{
 		opens: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: "crossplane",
 			Name:      "circuit_breaker_opens_total",
@@ -63,109 +82,40 @@ func NewCBMetrics(reg prometheus.Registerer) CBMetrics {
 			Help:      "Number of XR watch events handled by the circuit breaker, labelled by outcome.",
 		}, []string{"controller", "result"}),
 	}
-
-	registerCounterVec(reg, &m.opens)
-	registerCounterVec(reg, &m.closes)
-	registerCounterVec(reg, &m.events)
-
-	return m
 }
 
-func registerCounterVec(reg prometheus.Registerer, cv **prometheus.CounterVec) {
-	if reg == nil {
-		return
-	}
-
-	if err := reg.Register(*cv); err != nil {
-		var already prometheus.AlreadyRegisteredError
-		if errors.As(err, &already) {
-			if existing, ok := already.ExistingCollector.(*prometheus.CounterVec); ok {
-				*cv = existing
-				return
-			}
-		}
-		// Avoid crashing the control plane if registration fails; the collector
-		// will continue to function locally even if it's not exported.
-		return
-	}
+// IncOpen records a circuit breaker open transition.
+func (m *PrometheusMetrics) IncOpen(controller string) {
+	m.opens.With(prometheus.Labels{"controller": controller}).Inc()
 }
 
-func (m *cbMetrics) IncOpen(controller string) {
-	if m == nil {
-		return
-	}
-
-	cc := m.getController(controller)
-	cc.opens.Inc()
+// IncClose records a circuit breaker close transition.
+func (m *PrometheusMetrics) IncClose(controller string) {
+	m.closes.With(prometheus.Labels{"controller": controller}).Inc()
 }
 
-func (m *cbMetrics) IncClose(controller string) {
-	if m == nil {
-		return
-	}
-
-	cc := m.getController(controller)
-	cc.closes.Inc()
+// IncEvent records a circuit breaker event outcome.
+func (m *PrometheusMetrics) IncEvent(controller, result string) {
+	m.events.With(prometheus.Labels{
+		"controller": controller,
+		"result":     result,
+	}).Inc()
 }
 
-func (m *cbMetrics) IncEvent(controller, result string) {
-	if m == nil {
-		return
-	}
-
-	cc := m.getController(controller)
-
-	cc.mu.RLock()
-	counter, ok := cc.events[result]
-	cc.mu.RUnlock()
-	if ok {
-		counter.Inc()
-		return
-	}
-
-	cc.mu.Lock()
-	counter = cc.events[result]
-	if counter == nil {
-		counter = m.events.WithLabelValues(controller, result)
-		cc.events[result] = counter
-	}
-	cc.mu.Unlock()
-
-	counter.Inc()
+// Describe sends the super-set of all possible descriptors of metrics
+// collected by this Collector to the provided channel and returns once
+// the last descriptor has been sent.
+func (m *PrometheusMetrics) Describe(ch chan<- *prometheus.Desc) {
+	m.opens.Describe(ch)
+	m.closes.Describe(ch)
+	m.events.Describe(ch)
 }
 
-func (m *cbMetrics) getController(controller string) *controllerCounters {
-	if controller == "" {
-		controller = "unknown"
-	}
-
-	if cc, ok := m.controllers.Load(controller); ok {
-		if counters, ok := cc.(*controllerCounters); ok {
-			return counters
-		}
-	}
-
-	cc := &controllerCounters{
-		opens:  m.opens.WithLabelValues(controller),
-		closes: m.closes.WithLabelValues(controller),
-		events: make(map[string]prometheus.Counter, 3),
-	}
-
-	for _, result := range []string{
-		CircuitBreakerResultAllowed,
-		CircuitBreakerResultDropped,
-		CircuitBreakerResultHalfOpenAllowed,
-	} {
-		cc.events[result] = m.events.WithLabelValues(controller, result)
-	}
-
-	actual, loaded := m.controllers.LoadOrStore(controller, cc)
-	if loaded {
-		if counters, ok := actual.(*controllerCounters); ok {
-			return counters
-		}
-		return cc
-	}
-
-	return cc
+// Collect is called by the Prometheus registry when collecting metrics.
+// The implementation sends each collected metric via the provided channel
+// and returns once the last metric has been sent.
+func (m *PrometheusMetrics) Collect(ch chan<- prometheus.Metric) {
+	m.opens.Collect(ch)
+	m.closes.Collect(ch)
+	m.events.Collect(ch)
 }

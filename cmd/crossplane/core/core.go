@@ -395,7 +395,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	cem := engine.NewPrometheusMetrics()
 	metrics.Registry.MustRegister(cem)
 
-	cbm := metrics.NewCBMetrics(metrics.Registry)
+	cbm := metrics.NewPrometheusMetrics()
+	metrics.Registry.MustRegister(cbm)
 
 	// It's important the engine's client is wrapped with unstructured.NewClient
 	// because controller-runtime always caches *unstructured.Unstructured, not
