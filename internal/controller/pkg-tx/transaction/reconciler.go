@@ -33,6 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 )
 
 const (
@@ -47,6 +48,18 @@ const (
 	reasonValidation      = "Validation"
 	reasonInstallation    = "Installation"
 )
+
+// DependencySolver resolves package dependencies to concrete digests.
+type DependencySolver interface {
+	// Solve takes a package reference and the current Lock state, then:
+	// - Fetches the package from the OCI registry
+	// - Resolves tags to specific digests
+	// - Recursively resolves all dependencies
+	// - Validates version constraints are satisfiable
+	// - Detects circular dependencies
+	// - Returns the complete proposed Lock state with all packages at specific digests
+	Solve(ctx context.Context, source string, currentLock []v1beta1.LockPackage) ([]v1beta1.LockPackage, error)
+}
 
 // A Reconciler reconciles Transactions.
 type Reconciler struct {
