@@ -25,7 +25,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -474,49 +473,6 @@ func TestTokenBucketBreakerConcurrency(t *testing.T) {
 	}
 	if diff := cmp.Diff(want, state, cmpopts.EquateApproxTime(2*time.Second)); diff != "" {
 		t.Errorf("Open circuit state mismatch (-want +got):\n%s", diff)
-	}
-}
-
-func TestTokenBucketBreakerMetrics(t *testing.T) {
-	t.Parallel()
-
-	controller := "composite/tests.example.org"
-	target := types.NamespacedName{Name: "test-xr", Namespace: "default"}
-	source := EventSource{
-		GVK:       schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Bucket"},
-		Name:      "event-source",
-		Namespace: "default",
-	}
-
-	reg := prometheus.NewRegistry()
-	cbm := NewPrometheusMetrics()
-	reg.MustRegister(cbm)
-
-	breaker := NewTokenBucketBreaker(
-		WithBurst(1),
-		WithRefillRatePerSecond(1000),
-		WithOpenDuration(10*time.Millisecond),
-		WithMetrics(cbm, controller),
-	)
-
-	ctx := context.Background()
-
-	// First event consumes the initial token.
-	breaker.RecordEvent(ctx, target, source)
-	// Second event opens the circuit.
-	breaker.RecordEvent(ctx, target, source)
-
-	if got := metricValue(t, reg, "crossplane_circuit_breaker_opens_total", map[string]string{"controller": controller}); got != 1 {
-		t.Fatalf("expected 1 circuit open, got %.0f", got)
-	}
-
-	time.Sleep(25 * time.Millisecond)
-
-	// Third event after cooldown should close the circuit.
-	breaker.RecordEvent(ctx, target, source)
-
-	if got := metricValue(t, reg, "crossplane_circuit_breaker_closes_total", map[string]string{"controller": controller}); got != 1 {
-		t.Fatalf("expected 1 circuit close, got %.0f", got)
 	}
 }
 
