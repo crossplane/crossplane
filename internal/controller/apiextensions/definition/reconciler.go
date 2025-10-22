@@ -324,7 +324,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"version", d.GetResourceVersion(),
 		"name", d.GetName(),
 	)
-	controllerName := composite.ControllerName(d.GetName())
 
 	crd, err := r.composite.Render(d)
 	if err != nil {
@@ -368,7 +367,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// It's likely that we've already stopped this controller on a
 			// previous reconcile, but we try again just in case. This is a
 			// no-op if the controller was already stopped.
-			if err := r.engine.Stop(ctx, controllerName); err != nil {
+			if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
 				err = errors.Wrap(err, errStopController)
 				r.record.Event(d, event.Warning(reasonTerminateXR, err))
 
@@ -433,7 +432,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		// The controller must be stopped before the deletion of the CRD so that
 		// it doesn't crash.
-		if err := r.engine.Stop(ctx, controllerName); err != nil {
+		if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
 			err = errors.Wrap(err, errStopController)
 			r.record.Event(d, event.Warning(reasonTerminateXR, err))
 
@@ -501,7 +500,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if ControllerNeedsRestart(d) {
 		r.record.Event(d, event.Normal(reasonRestartXR, "XRD specification changed; restarting controller to apply updates"))
 
-		if err := r.engine.Stop(ctx, controllerName); err != nil {
+		if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
 			err = errors.Wrap(err, errStopController)
 			r.record.Event(d, event.Warning(reasonRestartXR, err))
 
@@ -513,7 +512,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			"current-generation", d.GetGeneration())
 	}
 
-	if r.engine.IsRunning(controllerName) {
+	if r.engine.IsRunning(composite.ControllerName(d.GetName())) {
 		log.Debug("Composite resource controller is running")
 		status.MarkConditions(v1.WatchingComposite())
 
@@ -526,11 +525,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		composite.WithCompositeConnectionDetailsFetcher(fetcher),
 	)
 
-	// Create circuit breaker for this XR controller
-	controllerLabel := composite.ControllerName(fmt.Sprintf("%s.%s", d.Spec.Names.Plural, d.Spec.Group))
-
 	cb := circuit.NewTokenBucketBreaker(
-		circuit.WithMetrics(r.options.CircuitBreakerMetrics, controllerLabel),
+		circuit.WithMetrics(r.options.CircuitBreakerMetrics, composite.ControllerName(d.GetName())),
 	)
 
 	// All XRs have modern schema unless their XRD's scope is LegacyCluster.
@@ -546,8 +542,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record),
 			composite.NewAPILabelSelectorResolver(r.engine.GetCached()),
 		)),
-		composite.WithLogger(r.log.WithValues("controller", controllerName)),
-		composite.WithRecorder(r.record.WithAnnotations("controller", controllerName)),
+		composite.WithLogger(r.log.WithValues("controller", composite.ControllerName(d.GetName()))),
+		composite.WithRecorder(r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
 		composite.WithPollInterval(r.options.PollInterval),
 		composite.WithCircuitBreaker(cb),
 		composite.WithAuthorizer(r.engine),
@@ -575,9 +571,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		cmf := CompositeResourcesMapFunc(d.GetCompositeGroupVersionKind(), r.engine.GetCached(), r.log)
-		h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(cmf, cb, r.options.CircuitBreakerMetrics, controllerLabel))
+		h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(cmf, cb, r.options.CircuitBreakerMetrics, composite.ControllerName(d.GetName())))
 		ro = append(ro,
-			composite.WithWatchStarter(controllerName, h, r.engine),
+			composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine),
 			composite.WithPollInterval(0), // Disable polling.
 		)
 	}
@@ -592,10 +588,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// for composed resources to become ready, and we don't want to back off as
 	// far as 60 seconds. Instead we cap the XR reconciler at 30 seconds.
 	ko.RateLimiter = workqueue.NewTypedItemExponentialFailureRateLimiter[reconcile.Request](1*time.Second, 30*time.Second)
-	ko.Reconciler = ratelimiter.NewReconciler(controllerName, errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
+	ko.Reconciler = ratelimiter.NewReconciler(composite.ControllerName(d.GetName()), errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
 
 	gvk := d.GetCompositeGroupVersionKind()
-	name := controllerName
+	name := composite.ControllerName(d.GetName())
 
 	// TODO(negz): Update CompositeReconcilerOptions to produce
 	// ControllerOptions instead? It bothers me that this is the only feature
@@ -624,9 +620,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xr.SetGroupVersionKind(gvk)
 
 	crmf := CompositionRevisionMapFunc(gvk, schema, r.engine.GetCached(), log)
-	crh := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(crmf, cb, r.options.CircuitBreakerMetrics, controllerLabel))
+	crh := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(crmf, cb, r.options.CircuitBreakerMetrics, composite.ControllerName(d.GetName())))
 
-	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(SelfMapFunc(), cb, r.options.CircuitBreakerMetrics, controllerLabel))
+	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(SelfMapFunc(), cb, r.options.CircuitBreakerMetrics, composite.ControllerName(d.GetName())))
 
 	if err := r.engine.StartWatches(ctx, name,
 		engine.WatchFor(xr, engine.WatchTypeCompositeResource, h),
