@@ -525,9 +525,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		composite.WithCompositeConnectionDetailsFetcher(fetcher),
 	)
 
-	cb := circuit.NewTokenBucketBreaker(
-		circuit.WithMetrics(r.options.CircuitBreakerMetrics, composite.ControllerName(d.GetName())),
-	)
+	cb := circuit.NewTokenBucketBreaker(r.options.CircuitBreakerMetrics, composite.ControllerName(d.GetName()))
 
 	// All XRs have modern schema unless their XRD's scope is LegacyCluster.
 	schema := ucomposite.SchemaModern

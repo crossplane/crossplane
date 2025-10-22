@@ -35,56 +35,41 @@ type Config struct {
 }
 
 // Option configures a circuit breaker.
-type Option func(*TokenBucketBreaker)
+type Option func(*Config)
 
 // WithBurst sets the token bucket burst allowance.
 func WithBurst(b float64) Option {
-	return func(tb *TokenBucketBreaker) {
-		tb.config.capacity = b
+	return func(c *Config) {
+		c.capacity = b
 	}
 }
 
 // WithRefillRatePerSecond sets the token bucket refill rate.
 func WithRefillRatePerSecond(r float64) Option {
-	return func(tb *TokenBucketBreaker) {
-		tb.config.refillRatePerSecond = r
+	return func(c *Config) {
+		c.refillRatePerSecond = r
 	}
 }
 
 // WithOpenDuration sets how long the circuit stays open before auto-closing.
 func WithOpenDuration(d time.Duration) Option {
-	return func(tb *TokenBucketBreaker) {
-		tb.config.cooldownTime = d
+	return func(c *Config) {
+		c.cooldownTime = d
 	}
 }
 
 // WithHalfOpenInterval sets how often to allow requests in half-open state.
 func WithHalfOpenInterval(i time.Duration) Option {
-	return func(tb *TokenBucketBreaker) {
-		tb.config.halfOpenInterval = i
+	return func(c *Config) {
+		c.halfOpenInterval = i
 	}
 }
 
 // WithGarbageCollectTargetsAfter sets how long to keep inactive target states
 // before garbage collection.
 func WithGarbageCollectTargetsAfter(d time.Duration) Option {
-	return func(tb *TokenBucketBreaker) {
-		tb.config.expireAfter = d
-	}
-}
-
-// WithMetrics configures the breaker to emit metrics for the supplied controller label.
-func WithMetrics(m Metrics, controller string) Option {
-	return func(tb *TokenBucketBreaker) {
-		if tb == nil {
-			return
-		}
-		if m == nil {
-			tb.metrics = &NopMetrics{}
-		} else {
-			tb.metrics = m
-		}
-		tb.controller = controller
+	return func(c *Config) {
+		c.expireAfter = d
 	}
 }
 
@@ -118,24 +103,24 @@ type state struct {
 }
 
 // NewTokenBucketBreaker creates a new token bucket-based circuit breaker.
-func NewTokenBucketBreaker(opts ...Option) *TokenBucketBreaker {
-	b := &TokenBucketBreaker{
-		config: Config{
-			capacity:            50.0,             // Allow 50-event burst.
-			refillRatePerSecond: 0.5,              // Allow 1 every 2s sustained.
-			cooldownTime:        5 * time.Minute,  // Circuit stays open for 5 minutes.
-			halfOpenInterval:    30 * time.Second, // Allow probe every 30s when open.
-			expireAfter:         24 * time.Hour,   // Clean up targets after 24 hours.
-		},
-		targets:    make(map[types.NamespacedName]*state),
-		metrics:    &NopMetrics{},
-		controller: "",
+func NewTokenBucketBreaker(m Metrics, controller string, opts ...Option) *TokenBucketBreaker {
+	config := Config{
+		capacity:            50.0,             // Allow 50-event burst.
+		refillRatePerSecond: 0.5,              // Allow 1 every 2s sustained.
+		cooldownTime:        5 * time.Minute,  // Circuit stays open for 5 minutes.
+		halfOpenInterval:    30 * time.Second, // Allow probe every 30s when open.
+		expireAfter:         24 * time.Hour,   // Clean up targets after 24 hours.
 	}
 
 	for _, opt := range opts {
-		if opt != nil {
-			opt(b)
-		}
+		opt(&config)
+	}
+
+	b := &TokenBucketBreaker{
+		config:     config,
+		targets:    make(map[types.NamespacedName]*state),
+		metrics:    m,
+		controller: controller,
 	}
 
 	return b

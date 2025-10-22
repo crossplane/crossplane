@@ -30,9 +30,6 @@ import (
 // circuit breaker is open, allowing occasional requests through in half-open state.
 func NewMapFunc(wrapped handler.MapFunc, breaker Breaker, m Metrics, controller string) handler.MapFunc {
 	return func(ctx context.Context, obj client.Object) []reconcile.Request {
-		if m == nil {
-			m = &NopMetrics{}
-		}
 		// Get the original requests
 		requests := wrapped(ctx, obj)
 
