@@ -396,9 +396,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	cem := engine.NewPrometheusMetrics()
 	metrics.Registry.MustRegister(cem)
 
-	cbm := circuit.NewPrometheusMetrics()
-	metrics.Registry.MustRegister(cbm)
-
 	// It's important the engine's client is wrapped with unstructured.NewClient
 	// because controller-runtime always caches *unstructured.Unstructured, not
 	// our wrapper types like *composite.Unstructured. This client takes care of
@@ -427,6 +424,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	// Automatically fetch required resources.
 	runner = xfn.NewFetchingFunctionRunner(runner, xfn.NewExistingRequiredResourcesFetcher(cached))
+
+	cbm := circuit.NewPrometheusMetrics()
+	metrics.Registry.MustRegister(cbm)
 
 	ao := apiextensionscontroller.Options{
 		Options:               o,
