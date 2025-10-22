@@ -88,6 +88,7 @@ if [ "${_compr}" = "true" ]; then
     fi
     if ! mv "${BIN}" crossplane; then
         echo "Failed to rename the unpacked Crossplane CLI binary: \"${BIN}\". Make sure it exists inside the compressed file."
+        exit 1
     fi
     rm "${BIN}.sha256" "${url_file}"
 else
