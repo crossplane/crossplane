@@ -4,9 +4,7 @@
 
 Observability is crucial to Crossplane users; both those operating Crossplane
 and those using Crossplane to operate their infrastructure. Crossplane currently
-approaches observability via Kubernetes events and structured logs. Crossplane's
-Prometheus counters, including XR circuit breaker telemetry, are listed in
-`docs/reference/observability/metrics.md`.
+approaches observability via Kubernetes events and structured logs.
 
 ## Goals
 
