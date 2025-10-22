@@ -1,16 +1,17 @@
 /*
 Copyright 2025 The Crossplane Authors.
 
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-this file except in compliance with the License. You may obtain a copy of the
-License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software distributed
-under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-CONDITIONS OF ANY KIND, either express or implied. See the License for the
-specific language governing permissions and limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 package circuit
@@ -23,9 +24,11 @@ const (
 	// CircuitBreakerResultAllowed indicates the event was processed while the circuit
 	// was closed.
 	CircuitBreakerResultAllowed = "allowed"
+
 	// CircuitBreakerResultDropped indicates the event was dropped while the circuit
 	// was open.
 	CircuitBreakerResultDropped = "dropped"
+
 	// CircuitBreakerResultHalfOpenAllowed indicates the event was processed while
 	// probing a half-open circuit.
 	CircuitBreakerResultHalfOpenAllowed = "halfopen_allowed"
@@ -36,13 +39,6 @@ var (
 	_ Metrics              = &PrometheusMetrics{}
 	_ prometheus.Collector = &PrometheusMetrics{}
 )
-
-// Metrics records circuit breaker transitions and event outcomes.
-type Metrics interface {
-	IncOpen(controller string)
-	IncClose(controller string)
-	IncEvent(controller, result string)
-}
 
 // NopMetrics does nothing.
 type NopMetrics struct{}
@@ -71,11 +67,13 @@ func NewPrometheusMetrics() *PrometheusMetrics {
 			Name:      "circuit_breaker_opens_total",
 			Help:      "Number of times the XR circuit breaker transitioned from closed to open.",
 		}, []string{"controller"}),
+
 		closes: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: "crossplane",
 			Name:      "circuit_breaker_closes_total",
 			Help:      "Number of times the XR circuit breaker transitioned from open to closed.",
 		}, []string{"controller"}),
+
 		events: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: "crossplane",
 			Name:      "circuit_breaker_events_total",
@@ -90,7 +88,6 @@ func (m *PrometheusMetrics) IncOpen(controller string) {
 }
 
 // IncClose records a circuit breaker close transition.
-// Naming?
 func (m *PrometheusMetrics) IncClose(controller string) {
 	m.closes.With(prometheus.Labels{"controller": controller}).Inc()
 }
