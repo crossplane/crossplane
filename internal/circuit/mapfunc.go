@@ -29,6 +29,10 @@ import (
 // It records events for each target resource and filters out requests when the
 // circuit breaker is open, allowing occasional requests through in half-open state.
 func NewMapFunc(wrapped handler.MapFunc, breaker Breaker, m Metrics, controller string) handler.MapFunc {
+	if m == nil {
+		m = &NopMetrics{}
+	}
+
 	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		// Get the original requests
 		requests := wrapped(ctx, obj)

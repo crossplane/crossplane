@@ -116,6 +116,10 @@ func NewTokenBucketBreaker(m Metrics, controller string, opts ...Option) *TokenB
 		opt(&config)
 	}
 
+	if m == nil {
+		m = &NopMetrics{}
+	}
+
 	b := &TokenBucketBreaker{
 		config:     config,
 		targets:    make(map[types.NamespacedName]*state),
