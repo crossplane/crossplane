@@ -63,6 +63,14 @@ func WithValidator(v Validator) ReconcilerOption {
 	}
 }
 
+// WithValidators specifies a chain of validators for the Reconciler.
+// Validators run in sequence, failing fast on the first error.
+func WithValidators(validators ...Validator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.validator = ValidatorChain(validators)
+	}
+}
+
 // NewReconciler returns a Reconciler of Transactions.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
