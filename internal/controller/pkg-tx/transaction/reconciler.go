@@ -61,6 +61,12 @@ type DependencySolver interface {
 	Solve(ctx context.Context, source string, currentLock []v1beta1.LockPackage) ([]v1beta1.LockPackage, error)
 }
 
+// Installer installs packages by creating Package and PackageRevision resources
+// and establishing control of CRDs and other package objects.
+type Installer interface {
+	InstallPackages(ctx context.Context, tx *v1alpha1.Transaction) error
+}
+
 // A Reconciler reconciles Transactions.
 type Reconciler struct {
 	client client.Client
@@ -72,6 +78,7 @@ type Reconciler struct {
 	lock      LockManager
 	solver    DependencySolver
 	validator Validator
+	installer Installer
 }
 
 // Reconcile a Transaction by acquiring the lock, resolving dependencies,
@@ -187,7 +194,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(err, "cannot update Transaction status")
 	}
 
-	log.Debug("TODO: Install packages and CRDs")
+	if err := r.installer.InstallPackages(ctx, tx); err != nil {
+		log.Debug("cannot install packages", "error", err)
+		r.record.Event(tx, event.Warning(reasonInstallation, errors.Wrap(err, "cannot install packages")))
+		tx.Status.Failures++
+		status.MarkConditions(
+			xpv1.ReconcileError(errors.Wrap(err, "cannot install packages")),
+			v1alpha1.TransactionFailed("cannot install packages"),
+		)
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, tx), "cannot update Transaction status")
+	}
 
 	status.MarkConditions(v1alpha1.InstallationComplete())
 	if err := r.client.Status().Update(ctx, tx); err != nil {
