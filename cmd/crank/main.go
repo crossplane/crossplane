@@ -18,7 +18,10 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
 	"os"
+	"reflect"
+	"strings"
 
 	"github.com/alecthomas/kong"
 	"github.com/willabides/kongplete"
@@ -29,6 +32,7 @@ import (
 	"github.com/crossplane/crossplane/v2/cmd/crank/alpha"
 	"github.com/crossplane/crossplane/v2/cmd/crank/beta"
 	"github.com/crossplane/crossplane/v2/cmd/crank/completion"
+	"github.com/crossplane/crossplane/v2/cmd/crank/plugin"
 	"github.com/crossplane/crossplane/v2/cmd/crank/render"
 	"github.com/crossplane/crossplane/v2/cmd/crank/version"
 	"github.com/crossplane/crossplane/v2/cmd/crank/xpkg"
@@ -53,8 +57,9 @@ type cli struct {
 	// order they're specified here. Keep them in alphabetical order.
 
 	// Subcommands.
-	XPKG   xpkg.Cmd   `cmd:"" help:"Manage Crossplane packages."`
-	Render render.Cmd `cmd:"" help:"Render a composite resource (XR)."`
+	Plugin plugin.Cmd  `cmd:"" help:"Manage crossplane CLI plugins."`
+	Render render.Cmd  `cmd:"" help:"Render a composite resource (XR)."`
+	XPKG   xpkg.Cmd    `cmd:"" help:"Manage Crossplane packages."`
 
 	// The alpha and beta subcommands are intentionally in a separate block. We
 	// want them to appear after all other subcommands.
@@ -70,6 +75,16 @@ type cli struct {
 }
 
 func main() {
+	// Check if this might be a plugin invocation
+	if len(os.Args) > 1 {
+		// Try to find and execute a plugin
+		if err := tryPlugin(os.Args[1], os.Args[2:]); err == nil {
+			// Plugin executed successfully
+			return
+		}
+	}
+
+	// Fall back to normal CLI parsing
 	logger := logging.NewNopLogger()
 	parser := kong.Must(&cli{},
 		kong.Name("crossplane"),
@@ -93,4 +108,60 @@ func main() {
 
 	err = ctx.Run()
 	ctx.FatalIfErrorf(err)
+}
+
+// tryPlugin attempts to find and execute a plugin for the given command
+func tryPlugin(cmd string, args []string) error {
+	// Skip if it's a known built-in command or flag
+	if isBuiltinCommand(cmd) {
+		return fmt.Errorf("builtin command")
+	}
+
+	// Look for plugin
+	pluginPath, err := plugin.FindPlugin(cmd)
+	if err != nil {
+		return err
+	}
+
+	// Execute plugin
+	return plugin.Execute(pluginPath, args)
+}
+
+// isBuiltinCommand checks if the command is a known built-in command
+func isBuiltinCommand(cmd string) bool {
+	// Check for flags
+	if strings.HasPrefix(cmd, "-") {
+		return true
+	}
+
+	// Dynamically get built-in commands from the cli struct
+	c := &cli{}
+	t := reflect.TypeOf(*c)
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+
+		// Check if field has a cmd tag (indicating it's a command)
+		if cmdTag, ok := field.Tag.Lookup("cmd"); ok && cmdTag == "" {
+			// Convert field name to lowercase command name
+			// XPKG -> xpkg, Render -> render, Alpha -> alpha, etc.
+			fieldName := strings.ToLower(field.Name)
+
+			// Special case: Completions field name vs actual command
+			if field.Name == "Completions" {
+				fieldName = "completions"
+			}
+
+			if cmd == fieldName {
+				return true
+			}
+		}
+	}
+
+	// Also check for common help aliases
+	if cmd == "help" || cmd == "--help" || cmd == "-h" {
+		return true
+	}
+
+	return false
 }
