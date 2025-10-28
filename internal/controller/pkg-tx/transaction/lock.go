@@ -49,23 +49,6 @@ var (
 	ErrTransactionDoesNotHoldLock = errors.New("transaction does not hold the lock")
 )
 
-// LockManager manages exclusive access to the Lock resource for Transactions.
-type LockManager interface {
-	// Acquire attempts to gain exclusive access to the Lock for a Transaction.
-	// Returns the current Lock packages (what's currently installed).
-	// Returns ErrLockHeldByAnotherTransaction if lock is held by a different Transaction.
-	// If the Transaction already holds the lock, returns the current Lock state.
-	Acquire(ctx context.Context, tx *v1alpha1.Transaction) ([]v1beta1.LockPackage, error)
-
-	// Commit releases exclusive access and updates Lock state with new packages.
-	// Only the Transaction that currently holds the lock can commit it.
-	Commit(ctx context.Context, tx *v1alpha1.Transaction, packages []v1beta1.LockPackage) error
-
-	// Release releases the lock without updating packages (for failures/cancellations).
-	// Returns nil if the lock was successfully released, or if the Transaction never held it.
-	Release(ctx context.Context, tx *v1alpha1.Transaction) error
-}
-
 // AtomicLockManager implements LockManager using the Kubernetes API.
 type AtomicLockManager struct {
 	client client.Client

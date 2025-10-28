@@ -23,6 +23,18 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
+	"github.com/crossplane/crossplane/v2/internal/xpkg/dependency"
+)
+
+const (
+	// Default namespace for package operations.
+	defaultNamespace = "crossplane-system"
+
+	// Default maximum concurrent package establishers.
+	defaultMaxConcurrentEstablishers = 10
 )
 
 // ReconcilerOption configures a Reconciler.
@@ -71,15 +83,30 @@ func WithValidators(validators ...Validator) ReconcilerOption {
 	}
 }
 
+// WithInstaller specifies how the Reconciler should install packages.
+func WithInstaller(i Installer) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.installer = i
+	}
+}
+
 // NewReconciler returns a Reconciler of Transactions.
-func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
+func NewReconciler(mgr manager.Manager, pkg xpkg.Client, opts ...ReconcilerOption) *Reconciler {
+	c := mgr.GetClient()
+	e := revision.NewAPIEstablisher(c, defaultNamespace, defaultMaxConcurrentEstablishers)
+
 	r := &Reconciler{
-		client:     mgr.GetClient(),
+		client:     c,
 		log:        logging.NewNopLogger(),
 		record:     event.NewNopRecorder(),
 		conditions: conditions.ObservedGenerationPropagationManager{},
-		lock:       NewAtomicLockManager(mgr.GetClient()),
-		validator:  ValidatorChain{},
+		lock:       NewAtomicLockManager(c),
+		solver:     dependency.NewTwoPassSolver(pkg),
+		validator: ValidatorChain{
+			// TODO(negz): Validate RBAC, etc.
+			NewSchemaValidator(c, pkg),
+		},
+		installer: NewPackageInstaller(c, pkg, e),
 	}
 
 	for _, f := range opts {

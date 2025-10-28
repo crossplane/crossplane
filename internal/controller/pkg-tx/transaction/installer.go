@@ -52,11 +52,33 @@ type Establisher interface {
 	Establish(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error)
 }
 
+// NopEstablisher does nothing.
+type NopEstablisher struct{}
+
+// NewNopEstablisher returns a new NopEstablisher.
+func NewNopEstablisher() *NopEstablisher {
+	return &NopEstablisher{}
+}
+
+// Establish does nothing.
+func (*NopEstablisher) Establish(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+	return nil, nil
+}
+
 // PackageInstaller installs packages in dependency order.
 type PackageInstaller struct {
 	kube    client.Client
 	pkg     xpkg.Client
 	objects Establisher
+}
+
+// NewPackageInstaller creates a new PackageInstaller.
+func NewPackageInstaller(kube client.Client, pkg xpkg.Client, e Establisher) *PackageInstaller {
+	return &PackageInstaller{
+		kube:    kube,
+		pkg:     pkg,
+		objects: e,
+	}
 }
 
 // InstallPackages installs all packages in the transaction in dependency order.

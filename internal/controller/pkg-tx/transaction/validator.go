@@ -32,11 +32,6 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
-// Validator validates a Transaction.
-type Validator interface {
-	Validate(ctx context.Context, tx *v1alpha1.Transaction) error
-}
-
 // ValidatorChain runs multiple validators in sequence (fail-fast).
 type ValidatorChain []Validator
 

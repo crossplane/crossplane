@@ -49,15 +49,25 @@ const (
 	reasonInstallation    = "Installation"
 )
 
+// LockManager manages exclusive access to the Lock resource for Transactions.
+type LockManager interface {
+	// Acquire attempts to gain exclusive access to the Lock for a Transaction.
+	// Returns the current Lock packages (what's currently installed).
+	// Returns ErrLockHeldByAnotherTransaction if lock is held by a different Transaction.
+	// If the Transaction already holds the lock, returns the current Lock state.
+	Acquire(ctx context.Context, tx *v1alpha1.Transaction) ([]v1beta1.LockPackage, error)
+
+	// Commit releases exclusive access and updates Lock state with new packages.
+	// Only the Transaction that currently holds the lock can commit it.
+	Commit(ctx context.Context, tx *v1alpha1.Transaction, packages []v1beta1.LockPackage) error
+
+	// Release releases the lock without updating packages (for failures/cancellations).
+	// Returns nil if the lock was successfully released, or if the Transaction never held it.
+	Release(ctx context.Context, tx *v1alpha1.Transaction) error
+}
+
 // DependencySolver resolves package dependencies to concrete digests.
 type DependencySolver interface {
-	// Solve takes a package reference and the current Lock state, then:
-	// - Fetches the package from the OCI registry
-	// - Resolves tags to specific digests
-	// - Recursively resolves all dependencies
-	// - Validates version constraints are satisfiable
-	// - Detects circular dependencies
-	// - Returns the complete proposed Lock state with all packages at specific digests
 	Solve(ctx context.Context, source string, currentLock []v1beta1.LockPackage) ([]v1beta1.LockPackage, error)
 }
 
@@ -65,6 +75,11 @@ type DependencySolver interface {
 // and establishing control of CRDs and other package objects.
 type Installer interface {
 	InstallPackages(ctx context.Context, tx *v1alpha1.Transaction) error
+}
+
+// Validator validates a Transaction.
+type Validator interface {
+	Validate(ctx context.Context, tx *v1alpha1.Transaction) error
 }
 
 // A Reconciler reconciles Transactions.
@@ -116,10 +131,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if tx.Status.Failures >= limit {
 		log.Debug("Transaction failure limit reached", "limit", limit)
 
-		status.MarkConditions(
-			xpv1.ReconcileSuccess(),
-			v1alpha1.TransactionFailed("failure limit reached"),
-		)
+		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.TransactionFailed("failure limit reached"))
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, tx), "cannot update Transaction status")
 	}
 
@@ -129,15 +141,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	currentPackages, err := r.lock.Acquire(ctx, tx)
+	if errors.Is(err, ErrLockHeldByAnotherTransaction) {
+		log.Debug("Lock is held by another transaction")
+		status.MarkConditions(v1alpha1.TransactionBlocked("waiting for lock held by another transaction"))
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, tx), "cannot update Transaction status")
+	}
 	if err != nil {
-		if errors.Is(err, ErrLockHeldByAnotherTransaction) {
-			log.Debug("Lock is held by another transaction")
-			status.MarkConditions(v1alpha1.TransactionBlocked("waiting for lock held by another transaction"))
-			if err := r.client.Status().Update(ctx, tx); err != nil {
-				return reconcile.Result{}, errors.Wrap(err, "cannot update Transaction status")
-			}
-			return reconcile.Result{}, nil
-		}
 		return reconcile.Result{}, errors.Wrap(err, "cannot acquire lock")
 	}
 
@@ -167,11 +176,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("cannot solve dependencies", "error", err)
 		r.record.Event(tx, event.Warning(reasonDependencySolve, errors.Wrap(err, "cannot solve dependencies")))
 		tx.Status.Failures++
-		status.MarkConditions(
-			xpv1.ReconcileError(errors.Wrap(err, "cannot solve dependencies")),
-			v1alpha1.TransactionFailed("cannot solve dependencies"),
-		)
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, tx), "cannot update Transaction status")
+		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "cannot solve dependencies")), v1alpha1.TransactionFailed("cannot solve dependencies"))
+		_ = r.client.Status().Update(ctx, tx)
+
+		return reconcile.Result{}, errors.Wrap(err, "cannot solve dependencies")
 	}
 
 	tx.Status.ProposedLockPackages = proposedPackages
@@ -188,11 +196,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("validation failed", "error", err)
 		r.record.Event(tx, event.Warning(reasonValidation, errors.Wrap(err, "validation failed")))
 		tx.Status.Failures++
-		status.MarkConditions(
-			xpv1.ReconcileError(errors.Wrap(err, "validation failed")),
-			v1alpha1.TransactionFailed("validation failed"),
-		)
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, tx), "cannot update Transaction status")
+		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "validation failed")), v1alpha1.TransactionFailed("validation failed"))
+		_ = r.client.Status().Update(ctx, tx)
+
+		return reconcile.Result{}, errors.Wrap(err, "validation failed")
 	}
 
 	status.MarkConditions(v1alpha1.InstallationInProgress())
@@ -204,11 +211,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("cannot install packages", "error", err)
 		r.record.Event(tx, event.Warning(reasonInstallation, errors.Wrap(err, "cannot install packages")))
 		tx.Status.Failures++
-		status.MarkConditions(
-			xpv1.ReconcileError(errors.Wrap(err, "cannot install packages")),
-			v1alpha1.TransactionFailed("cannot install packages"),
-		)
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, tx), "cannot update Transaction status")
+		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "cannot install packages")), v1alpha1.TransactionFailed("cannot install packages"))
+		_ = r.client.Status().Update(ctx, tx)
+
+		return reconcile.Result{}, errors.Wrap(err, "cannot install packages")
 	}
 
 	status.MarkConditions(v1alpha1.InstallationComplete())
@@ -220,17 +226,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("cannot commit lock", "error", err)
 		r.record.Event(tx, event.Warning(reasonLockAcquisition, errors.Wrap(err, "cannot commit lock")))
 		tx.Status.Failures++
-		status.MarkConditions(
-			xpv1.ReconcileError(errors.Wrap(err, "cannot commit lock")),
-			v1alpha1.TransactionFailed("cannot commit lock"),
-		)
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, tx), "cannot update Transaction status")
+		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "cannot commit lock")), v1alpha1.TransactionFailed("cannot commit lock"))
+		_ = r.client.Status().Update(ctx, tx)
+
+		return reconcile.Result{}, errors.Wrap(err, "cannot commit lock")
 	}
 
-	status.MarkConditions(
-		xpv1.ReconcileSuccess(),
-		v1alpha1.TransactionComplete(),
-	)
-
+	status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.TransactionComplete())
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, tx), "cannot update Transaction status")
 }
