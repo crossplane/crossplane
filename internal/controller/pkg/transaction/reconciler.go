@@ -135,6 +135,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, tx), "cannot update Transaction status")
 	}
 
+	// Delete and Replace are not yet implemented. Fast-fail these transactions
+	// with a clear error message.
+	if tx.Spec.Change == v1alpha1.ChangeTypeDelete {
+		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.TransactionFailed("Delete transactions are not yet implemented"))
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, tx), "cannot update Transaction status")
+	}
+	if tx.Spec.Change == v1alpha1.ChangeTypeReplace {
+		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.TransactionFailed("Replace transactions are not yet implemented"))
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, tx), "cannot update Transaction status")
+	}
+
 	status.MarkConditions(v1alpha1.TransactionRunning())
 	if err := r.client.Status().Update(ctx, tx); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "cannot update Transaction status")
