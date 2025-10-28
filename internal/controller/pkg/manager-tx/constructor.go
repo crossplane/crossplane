@@ -39,7 +39,7 @@ import (
 
 // SetupProvider adds a controller that reconciles Providers by creating Transactions.
 func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
-	name := "pkg-tx/" + strings.ToLower(v1.ProviderGroupKind)
+	name := "pkg/" + strings.ToLower(v1.ProviderGroupKind)
 
 	r := NewProviderReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
@@ -56,7 +56,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 
 // SetupConfiguration adds a controller that reconciles Configurations by creating Transactions.
 func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
-	name := "pkg-tx/" + strings.ToLower(v1.ConfigurationGroupKind)
+	name := "pkg/" + strings.ToLower(v1.ConfigurationGroupKind)
 
 	r := NewConfigurationReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
@@ -73,7 +73,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 
 // SetupFunction adds a controller that reconciles Functions by creating Transactions.
 func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
-	name := "pkg-tx/" + strings.ToLower(v1.FunctionGroupKind)
+	name := "pkg/" + strings.ToLower(v1.FunctionGroupKind)
 
 	r := NewFunctionReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),

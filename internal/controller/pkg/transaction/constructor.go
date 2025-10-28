@@ -18,12 +18,22 @@ limitations under the License.
 package transaction
 
 import (
+	"strings"
+
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
 	"github.com/crossplane/crossplane/v2/internal/xpkg/dependency"
@@ -114,4 +124,20 @@ func NewReconciler(mgr manager.Manager, pkg xpkg.Client, opts ...ReconcilerOptio
 	}
 
 	return r
+}
+
+// Setup adds a controller that reconciles Transactions.
+func Setup(mgr ctrl.Manager, o controller.Options) error {
+	name := "pkg/" + strings.ToLower(v1alpha1.TransactionGroupKind)
+
+	r := NewReconciler(mgr, o.Client,
+		WithLogger(o.Logger.WithValues("controller", name)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
+
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		For(&v1alpha1.Transaction{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(&v1beta1.Lock{}, EnqueueIncompleteTransactionsForLock(mgr.GetClient(), o.Logger)).
+		WithOptions(o.ForControllerRuntime()).
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
