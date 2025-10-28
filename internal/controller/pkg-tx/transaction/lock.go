@@ -20,6 +20,7 @@ package transaction
 import (
 	"context"
 	"strconv"
+	"time"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,6 +35,11 @@ import (
 const (
 	// We have a singleton Lock - it's always named 'lock'.
 	lockName = "lock"
+
+	// lockTimeout is how long a lock can be held before it's considered
+	// orphaned and can be taken over by another transaction. This should be
+	// longer than the reconcile timeout to allow transactions to complete.
+	lockTimeout = 10 * time.Minute
 )
 
 var (
@@ -84,13 +90,21 @@ func (m *AtomicLockManager) Acquire(ctx context.Context, tx *v1alpha1.Transactio
 	}
 
 	if current != "" {
-		existing := &v1alpha1.Transaction{}
-		err := m.client.Get(ctx, types.NamespacedName{Name: current}, existing)
-		if err == nil {
+		// Check if lock has expired based on timestamp
+		if acquiredAt := lock.GetAnnotations()[v1beta1.AnnotationLockAcquiredAt]; acquiredAt != "" {
+			t, err := time.Parse(time.RFC3339, acquiredAt)
+			if err != nil {
+				return nil, errors.Wrap(err, "cannot parse lock acquired timestamp")
+			}
+			if time.Since(t) < lockTimeout {
+				// Lock is still valid
+				return nil, ErrLockHeldByAnotherTransaction
+			}
+			// Lock has expired, allow takeover
+		} else {
+			// No timestamp means old lock format or corrupted - be conservative
+			// and don't allow takeover
 			return nil, ErrLockHeldByAnotherTransaction
-		}
-		if !kerrors.IsNotFound(err) {
-			return nil, errors.Wrap(err, "cannot check if lock holder still exists")
 		}
 	}
 
@@ -98,6 +112,7 @@ func (m *AtomicLockManager) Acquire(ctx context.Context, tx *v1alpha1.Transactio
 		lock.Annotations = make(map[string]string)
 	}
 	lock.Annotations[v1beta1.AnnotationCurrentTransaction] = tx.Name
+	lock.Annotations[v1beta1.AnnotationLockAcquiredAt] = time.Now().Format(time.RFC3339)
 
 	nextTxNum := int64(1)
 	if numStr := lock.Annotations[v1beta1.AnnotationNextTransactionNumber]; numStr != "" {
@@ -135,6 +150,7 @@ func (m *AtomicLockManager) Commit(ctx context.Context, tx *v1alpha1.Transaction
 
 	lock.Packages = packages
 	delete(lock.Annotations, v1beta1.AnnotationCurrentTransaction)
+	delete(lock.Annotations, v1beta1.AnnotationLockAcquiredAt)
 
 	if err := m.client.Update(ctx, lock); err != nil {
 		return errors.Wrap(err, "cannot release lock")
@@ -158,6 +174,7 @@ func (m *AtomicLockManager) Release(ctx context.Context, tx *v1alpha1.Transactio
 	}
 
 	delete(lock.Annotations, v1beta1.AnnotationCurrentTransaction)
+	delete(lock.Annotations, v1beta1.AnnotationLockAcquiredAt)
 
 	if err := m.client.Update(ctx, lock); err != nil {
 		return errors.Wrap(err, "cannot release lock")

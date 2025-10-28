@@ -53,6 +53,7 @@ const (
 
 	// Transaction reasons.
 	ReasonTransactionRunning  xpv1.ConditionReason = "TransactionRunning"
+	ReasonTransactionBlocked  xpv1.ConditionReason = "TransactionBlocked"
 	ReasonTransactionComplete xpv1.ConditionReason = "TransactionComplete"
 	ReasonTransactionFailed   xpv1.ConditionReason = "TransactionFailed"
 )
@@ -126,6 +127,17 @@ func TransactionRunning() xpv1.Condition {
 		Status:             corev1.ConditionUnknown,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonTransactionRunning,
+	}
+}
+
+// TransactionBlocked indicates that a transaction is waiting for a lock.
+func TransactionBlocked(message string) xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeSucceeded,
+		Status:             corev1.ConditionUnknown,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonTransactionBlocked,
+		Message:            message,
 	}
 }
 

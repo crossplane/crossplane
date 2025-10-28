@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	timeout = 5 * time.Minute
+	timeout = 10 * time.Minute
 
 	defaultRetryLimit = 5
 )
@@ -116,11 +116,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if tx.Status.Failures >= limit {
 		log.Debug("Transaction failure limit reached", "limit", limit)
 
-		// Release the lock if we're holding it - retry if this fails
-		if err := r.lock.Release(ctx, tx); err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "cannot release lock after hitting failure limit")
-		}
-
 		status.MarkConditions(
 			xpv1.ReconcileSuccess(),
 			v1alpha1.TransactionFailed("failure limit reached"),
@@ -136,11 +131,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	currentPackages, err := r.lock.Acquire(ctx, tx)
 	if err != nil {
 		if errors.Is(err, ErrLockHeldByAnotherTransaction) {
-			log.Debug("Lock is held by another transaction, will retry when lock is released")
+			log.Debug("Lock is held by another transaction")
+			status.MarkConditions(v1alpha1.TransactionBlocked("waiting for lock held by another transaction"))
+			if err := r.client.Status().Update(ctx, tx); err != nil {
+				return reconcile.Result{}, errors.Wrap(err, "cannot update Transaction status")
+			}
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, errors.Wrap(err, "cannot acquire lock")
 	}
+
+	// Always release lock before returning, even on success. Release is
+	// idempotent - if we committed, the annotation is already gone so this
+	// is a no-op.
+	defer func() {
+		_ = r.lock.Release(ctx, tx)
+	}()
 
 	if err := r.client.Status().Update(ctx, tx); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "cannot update Transaction status with transaction number")

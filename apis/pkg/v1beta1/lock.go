@@ -32,6 +32,10 @@ const (
 	// to mutate this Lock. Only one Transaction can execute at a time.
 	AnnotationCurrentTransaction = "pkg.crossplane.io/current-transaction"
 
+	// AnnotationLockAcquiredAt stores the RFC3339 timestamp when the lock was acquired.
+	// Used to detect and recover from orphaned locks.
+	AnnotationLockAcquiredAt = "pkg.crossplane.io/lock-acquired-at"
+
 	// AnnotationNextTransactionNumber stores the next available transaction number.
 	// Incremented by each Transaction when it releases the Lock.
 	AnnotationNextTransactionNumber = "pkg.crossplane.io/next-transaction-number"
