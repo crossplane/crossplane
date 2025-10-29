@@ -115,6 +115,10 @@ func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 
 // PrintList gets all the nodes and then return the graph as a dot format string to the Writer.
 func (p *DotPrinter) PrintList(w io.Writer, roots *resource.ResourceList) error {
+	if roots == nil || len(roots.Items) == 0 {
+		return errors.New("resource list is empty")
+	}
+
 	g := dot.NewGraph(dot.Undirected)
 	queue := make([]*queueItem, 0, len(roots.Items))
 
