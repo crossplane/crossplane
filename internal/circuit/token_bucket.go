@@ -137,7 +137,7 @@ func NewTokenBucketBreaker(controller string, opts ...Option) *TokenBucketBreake
 }
 
 // RecordEvent records a reconciliation event for the target resource.
-func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.NamespacedName, source EventSource) {
+func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.NamespacedName, es EventSource, et EventType) {
 	b.mu.Lock()
 
 	now := time.Now()
@@ -171,12 +171,18 @@ func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.Namespa
 	state.lastRefill = now
 
 	// Add source to ring buffer
-	state.recentSources[state.recentIdx] = source.String()
+	state.recentSources[state.recentIdx] = es.String()
 	state.recentIdx = (state.recentIdx + 1) % len(state.recentSources)
 
 	if state.isOpen {
+		// Update half-open cadence while open.
+		if et == EventHalfOpenAllowed {
+			state.lastAllowed = now
+		}
+
 		// Circuit is open and cooldown time hasn't expired yet.
 		if now.Sub(state.openedAt) < b.config.cooldownTime {
+			b.metrics.IncEvent(b.controller, string(et))
 			return
 		}
 
@@ -194,6 +200,7 @@ func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.Namespa
 	// If there's a token available, consume it.
 	if state.tokens >= 1.0 {
 		state.tokens -= 1.0
+		b.metrics.IncEvent(b.controller, string(et))
 		return
 	}
 
@@ -218,6 +225,8 @@ func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.Namespa
 		maxEvents = events[src]
 		state.triggerSource = src
 	}
+
+	b.metrics.IncEvent(b.controller, string(et))
 }
 
 // GetState returns the current circuit breaker state for the target resource.
@@ -242,20 +251,4 @@ func (b *TokenBucketBreaker) GetState(_ context.Context, target types.Namespaced
 		TriggeredBy:   state.triggerSource,
 		NextAllowedAt: state.lastAllowed.Add(b.config.halfOpenInterval),
 	}
-}
-
-// RecordAllowed updates the last reconcile time for half-open state tracking.
-func (b *TokenBucketBreaker) RecordAllowed(_ context.Context, target types.NamespacedName) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-
-	state := b.targets[target]
-	if state == nil {
-		return
-	}
-
-	state.mu.Lock()
-	defer state.mu.Unlock()
-
-	state.lastAllowed = time.Now()
 }

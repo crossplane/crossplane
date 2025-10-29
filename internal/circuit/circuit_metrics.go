@@ -20,20 +20,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const (
-	// CircuitBreakerResultAllowed indicates the event was processed while the circuit
-	// was closed.
-	CircuitBreakerResultAllowed = "allowed"
-
-	// CircuitBreakerResultDropped indicates the event was dropped while the circuit
-	// was open.
-	CircuitBreakerResultDropped = "dropped"
-
-	// CircuitBreakerResultHalfOpenAllowed indicates the event was processed while
-	// probing a half-open circuit.
-	CircuitBreakerResultHalfOpenAllowed = "halfopen_allowed"
-)
-
 var (
 	_ Metrics              = &NopMetrics{}
 	_ Metrics              = &PrometheusMetrics{}

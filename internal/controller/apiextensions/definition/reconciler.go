@@ -570,7 +570,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		cmf := CompositeResourcesMapFunc(d.GetCompositeGroupVersionKind(), r.engine.GetCached(), r.log)
-		h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(cmf, cb, r.options.CircuitBreakerMetrics, controllerName))
+		h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(cmf, cb))
 		ro = append(ro,
 			composite.WithWatchStarter(controllerName, h, r.engine),
 			composite.WithPollInterval(0), // Disable polling.
@@ -619,9 +619,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xr.SetGroupVersionKind(gvk)
 
 	crmf := CompositionRevisionMapFunc(gvk, schema, r.engine.GetCached(), log)
-	crh := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(crmf, cb, r.options.CircuitBreakerMetrics, controllerName))
+	crh := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(crmf, cb))
 
-	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(SelfMapFunc(), cb, r.options.CircuitBreakerMetrics, controllerName))
+	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(SelfMapFunc(), cb))
 
 	if err := r.engine.StartWatches(ctx, name,
 		engine.WatchFor(xr, engine.WatchTypeCompositeResource, h),

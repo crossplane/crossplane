@@ -85,8 +85,8 @@ func TestTokenBucketBreakerRecordEvent(t *testing.T) {
 				ctx := context.Background()
 
 				// Consume all tokens
-				b.RecordEvent(ctx, target, source)
-				b.RecordEvent(ctx, target, source)
+				b.RecordEvent(ctx, target, source, EventAllowed)
+				b.RecordEvent(ctx, target, source, EventAllowed)
 			},
 			args: args{
 				ctx:    context.Background(),
@@ -113,9 +113,9 @@ func TestTokenBucketBreakerRecordEvent(t *testing.T) {
 			setup: func(b *TokenBucketBreaker) {
 				ctx := context.Background()
 				// Consume tokens and open circuit
-				b.RecordEvent(ctx, target, source)
-				b.RecordEvent(ctx, target, source)
-				b.RecordEvent(ctx, target, source) // This opens the circuit
+				b.RecordEvent(ctx, target, source, EventAllowed)
+				b.RecordEvent(ctx, target, source, EventAllowed)
+				b.RecordEvent(ctx, target, source, EventAllowed) // This opens the circuit
 				// Wait for cooldown and token refill
 				time.Sleep(150 * time.Millisecond)
 			},
@@ -138,7 +138,7 @@ func TestTokenBucketBreakerRecordEvent(t *testing.T) {
 				tc.setup(tc.breaker)
 			}
 
-			tc.breaker.RecordEvent(tc.args.ctx, tc.args.target, tc.args.source)
+			tc.breaker.RecordEvent(tc.args.ctx, tc.args.target, tc.args.source, EventAllowed)
 			got := tc.breaker.GetState(tc.args.ctx, tc.args.target)
 
 			if diff := cmp.Diff(tc.want.state, got, cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
@@ -204,7 +204,7 @@ func TestTokenBucketBreakerGetState(t *testing.T) {
 			),
 			setup: func(b *TokenBucketBreaker) {
 				ctx := context.Background()
-				b.RecordEvent(ctx, target, source)
+				b.RecordEvent(ctx, target, source, EventAllowed)
 			},
 			args: args{
 				ctx:    context.Background(),
@@ -227,8 +227,8 @@ func TestTokenBucketBreakerGetState(t *testing.T) {
 			setup: func(b *TokenBucketBreaker) {
 				ctx := context.Background()
 				// Open circuit
-				b.RecordEvent(ctx, target, source)
-				b.RecordEvent(ctx, target, source)
+				b.RecordEvent(ctx, target, source, EventAllowed)
+				b.RecordEvent(ctx, target, source, EventAllowed)
 			},
 			args: args{
 				ctx:    context.Background(),
@@ -239,6 +239,34 @@ func TestTokenBucketBreakerGetState(t *testing.T) {
 					IsOpen:        true,
 					TriggeredBy:   source.String(),
 					NextAllowedAt: time.Now().Add(30 * time.Second),
+				},
+			},
+		},
+		"HalfOpenUpdatesNextAllowedAt": {
+			reason: "Recording half-open allowed event should update NextAllowedAt forward",
+			breaker: NewTokenBucketBreaker(
+				"test-controller",
+				WithBurst(1),
+				WithRefillRatePerSecond(0.1),
+				WithHalfOpenInterval(10*time.Second),
+			),
+			setup: func(b *TokenBucketBreaker) {
+				ctx := context.Background()
+				// Open circuit by exhausting tokens
+				b.RecordEvent(ctx, target, source, EventAllowed)
+				b.RecordEvent(ctx, target, source, EventAllowed)
+				// Call RecordEvent with EventHalfOpenAllowed - updates lastAllowed to "now"
+				b.RecordEvent(ctx, target, source, EventHalfOpenAllowed)
+			},
+			args: args{
+				ctx:    context.Background(),
+				target: target,
+			},
+			want: want{
+				state: State{
+					IsOpen:        true,
+					TriggeredBy:   source.String(),
+					NextAllowedAt: time.Now().Add(10 * time.Second),
 				},
 			},
 		},
@@ -254,87 +282,6 @@ func TestTokenBucketBreakerGetState(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.state, got, cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 				t.Errorf("%s\nTokenBucketBreaker.GetState(...): -want, +got:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestTokenBucketBreakerRecordAllowed(t *testing.T) {
-	target := types.NamespacedName{Name: "test-xr", Namespace: "default"}
-	source := EventSource{
-		GVK:  schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Bucket"},
-		Name: "test-bucket",
-	}
-
-	type args struct {
-		ctx    context.Context
-		target types.NamespacedName
-	}
-
-	type want struct {
-		state State
-	}
-
-	cases := map[string]struct {
-		reason  string
-		breaker *TokenBucketBreaker
-		setup   func(*TokenBucketBreaker)
-		args    args
-		want    want
-	}{
-		"UnknownTarget": {
-			reason: "Recording allowed for unknown target should not panic",
-			breaker: NewTokenBucketBreaker(
-				"test-controller",
-				WithBurst(50.0),
-				WithRefillRatePerSecond(0.5),
-				WithOpenDuration(5*time.Minute),
-				WithHalfOpenInterval(30*time.Second),
-				WithGarbageCollectTargetsAfter(24*time.Hour),
-			),
-			args: args{
-				ctx:    context.Background(),
-				target: types.NamespacedName{Name: "unknown", Namespace: "default"},
-			},
-			want: want{
-				state: State{
-					IsOpen: false,
-				},
-			},
-		},
-		"KnownTarget": {
-			reason: "Recording allowed for known target should update last allowed time",
-			breaker: NewTokenBucketBreaker(
-				"test-controller",
-				WithHalfOpenInterval(1*time.Second),
-			),
-			setup: func(b *TokenBucketBreaker) {
-				ctx := context.Background()
-				b.RecordEvent(ctx, target, source)
-			},
-			args: args{
-				ctx:    context.Background(),
-				target: target,
-			},
-			want: want{
-				state: State{
-					IsOpen: false,
-				},
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			if tc.setup != nil {
-				tc.setup(tc.breaker)
-			}
-
-			tc.breaker.RecordAllowed(tc.args.ctx, tc.args.target)
-			got := tc.breaker.GetState(tc.args.ctx, tc.args.target)
-
-			if diff := cmp.Diff(tc.want.state, got, cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
-				t.Errorf("%s\nTokenBucketBreaker.RecordAllowed(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -371,11 +318,11 @@ func TestTokenBucketBreakerSourceTracking(t *testing.T) {
 	}
 
 	// Consume token
-	breaker.RecordEvent(ctx, target, sources[0])
+	breaker.RecordEvent(ctx, target, sources[0], EventAllowed)
 
 	// Record events to fill ring buffer and trigger circuit
 	for _, source := range sources {
-		breaker.RecordEvent(ctx, target, source)
+		breaker.RecordEvent(ctx, target, source, EventAllowed)
 	}
 
 	state := breaker.GetState(ctx, target)
@@ -407,11 +354,11 @@ func TestTokenBucketBreakerTokenRefill(t *testing.T) {
 	}
 
 	// Consume all tokens
-	breaker.RecordEvent(ctx, target, source)
-	breaker.RecordEvent(ctx, target, source)
+	breaker.RecordEvent(ctx, target, source, EventAllowed)
+	breaker.RecordEvent(ctx, target, source, EventAllowed)
 
 	// This should open the circuit
-	breaker.RecordEvent(ctx, target, source)
+	breaker.RecordEvent(ctx, target, source, EventAllowed)
 	state := breaker.GetState(ctx, target)
 	wantOpen := State{
 		IsOpen:        true,
@@ -435,7 +382,7 @@ func TestTokenBucketBreakerTokenRefill(t *testing.T) {
 	time.Sleep(150 * time.Millisecond)
 
 	// Record another event - tokens should have refilled enough to allow it
-	breaker.RecordEvent(ctx, target, source)
+	breaker.RecordEvent(ctx, target, source, EventAllowed)
 	state = breaker.GetState(ctx, target)
 	want := State{IsOpen: false}
 	if diff := cmp.Diff(want, state, cmpopts.EquateApproxTime(50*time.Millisecond)); diff != "" {
@@ -465,9 +412,9 @@ func TestTokenBucketBreakerConcurrency(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range 10 {
-				breaker.RecordEvent(ctx, target, source)
+				breaker.RecordEvent(ctx, target, source, EventAllowed)
 				breaker.GetState(ctx, target)
-				breaker.RecordAllowed(ctx, target)
+				breaker.RecordEvent(ctx, target, source, EventHalfOpenAllowed)
 			}
 		}()
 	}
@@ -509,21 +456,21 @@ func ExampleTokenBucketBreaker() {
 
 	// Record events within capacity - circuit stays closed
 	for range 3 {
-		breaker.RecordEvent(ctx, target, source)
+		breaker.RecordEvent(ctx, target, source, EventAllowed)
 	}
 
 	state := breaker.GetState(ctx, target)
 	fmt.Printf("After 3 events - Open: %v\n", state.IsOpen)
 
 	// This event will exhaust tokens and open the circuit
-	breaker.RecordEvent(ctx, target, source)
+	breaker.RecordEvent(ctx, target, source, EventAllowed)
 
 	state = breaker.GetState(ctx, target)
 	fmt.Printf("After 4th event - Open: %v, TriggeredBy: %s\n", state.IsOpen, state.TriggeredBy)
 
 	// When circuit is open, RecordAllowed tracks when we allow requests through
 	// (this would typically be called by the controller when it allows a reconcile)
-	breaker.RecordAllowed(ctx, target)
+	breaker.RecordEvent(ctx, target, source, EventHalfOpenAllowed)
 
 	state = breaker.GetState(ctx, target)
 	fmt.Printf("Half-open behavior - NextAllowed set: %v\n", !state.NextAllowedAt.IsZero())
