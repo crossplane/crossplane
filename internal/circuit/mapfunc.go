@@ -28,10 +28,18 @@ import (
 // NewMapFunc wraps a handler.MapFunc with circuit breaker functionality.
 // It records events for each target resource and filters out requests when the
 // circuit breaker is open, allowing occasional requests through in half-open state.
-func NewMapFunc(wrapped handler.MapFunc, breaker Breaker) handler.MapFunc {
+func NewMapFunc(wrapped handler.MapFunc, breaker Breaker, m Metrics, controller string) handler.MapFunc {
+	if m == nil {
+		m = &NopMetrics{}
+	}
+
 	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		// Get the original requests
 		requests := wrapped(ctx, obj)
+
+		recordEvent := func(result string) {
+			m.IncEvent(controller, result)
+		}
 
 		// Record events for each target resource
 		source := EventSource{
@@ -49,6 +57,7 @@ func NewMapFunc(wrapped handler.MapFunc, breaker Breaker) handler.MapFunc {
 			// MODIFIED events with deletionTimestamp set) can reach
 			// the reconciler to remove finalizers.
 			if obj.GetDeletionTimestamp() != nil {
+				recordEvent(CircuitBreakerResultAllowed)
 				keep = append(keep, req)
 				continue
 			}
@@ -62,6 +71,7 @@ func NewMapFunc(wrapped handler.MapFunc, breaker Breaker) handler.MapFunc {
 			// If breaker is closed, allow the request
 			if !state.IsOpen {
 				keep = append(keep, req)
+				recordEvent(CircuitBreakerResultAllowed)
 				continue
 			}
 
@@ -69,8 +79,11 @@ func NewMapFunc(wrapped handler.MapFunc, breaker Breaker) handler.MapFunc {
 			if time.Now().After(state.NextAllowedAt) {
 				keep = append(keep, req)
 				breaker.RecordAllowed(ctx, req.NamespacedName)
+				recordEvent(CircuitBreakerResultHalfOpenAllowed)
+				continue
 			}
 			// Otherwise filter out - fully open state
+			recordEvent(CircuitBreakerResultDropped)
 		}
 
 		return keep

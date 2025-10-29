@@ -525,8 +525,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		composite.WithCompositeConnectionDetailsFetcher(fetcher),
 	)
 
-	// Create circuit breaker for this XR controller
-	cb := circuit.NewTokenBucketBreaker()
+	cb := circuit.NewTokenBucketBreaker(r.options.CircuitBreakerMetrics, composite.ControllerName(d.GetName()))
 
 	// All XRs have modern schema unless their XRD's scope is LegacyCluster.
 	schema := ucomposite.SchemaModern
@@ -570,7 +569,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		cmf := CompositeResourcesMapFunc(d.GetCompositeGroupVersionKind(), r.engine.GetCached(), r.log)
-		h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(cmf, cb))
+		h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(cmf, cb, r.options.CircuitBreakerMetrics, composite.ControllerName(d.GetName())))
 		ro = append(ro,
 			composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine),
 			composite.WithPollInterval(0), // Disable polling.
@@ -619,9 +618,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xr.SetGroupVersionKind(gvk)
 
 	crmf := CompositionRevisionMapFunc(gvk, schema, r.engine.GetCached(), log)
-	crh := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(crmf, cb))
+	crh := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(crmf, cb, r.options.CircuitBreakerMetrics, composite.ControllerName(d.GetName())))
 
-	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(SelfMapFunc(), cb))
+	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(SelfMapFunc(), cb, r.options.CircuitBreakerMetrics, composite.ControllerName(d.GetName())))
 
 	if err := r.engine.StartWatches(ctx, name,
 		engine.WatchFor(xr, engine.WatchTypeCompositeResource, h),

@@ -20,6 +20,7 @@ package controller
 import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 
+	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 )
@@ -33,4 +34,7 @@ type Options struct {
 
 	// FunctionRunner used to run Composition Functions.
 	FunctionRunner xfn.FunctionRunner
+
+	// CircuitBreakerMetrics records XR circuit breaker activity.
+	CircuitBreakerMetrics *circuit.PrometheusMetrics
 }

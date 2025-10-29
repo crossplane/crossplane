@@ -50,6 +50,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
 
 	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions"
 	apiextensionscontroller "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/v2/internal/controller/ops"
@@ -424,10 +425,14 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	// Automatically fetch required resources.
 	runner = xfn.NewFetchingFunctionRunner(runner, xfn.NewExistingRequiredResourcesFetcher(cached))
 
+	cbm := circuit.NewPrometheusMetrics()
+	metrics.Registry.MustRegister(cbm)
+
 	ao := apiextensionscontroller.Options{
-		Options:          o,
-		ControllerEngine: ce,
-		FunctionRunner:   runner,
+		Options:               o,
+		ControllerEngine:      ce,
+		FunctionRunner:        runner,
+		CircuitBreakerMetrics: cbm,
 	}
 
 	if err := apiextensions.Setup(mgr, ao); err != nil {

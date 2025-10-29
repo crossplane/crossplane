@@ -76,9 +76,11 @@ func WithGarbageCollectTargetsAfter(d time.Duration) Option {
 // TokenBucketBreaker is a concrete implementation of the Breaker interface that uses
 // a token bucket approach to rate limit reconciliation events.
 type TokenBucketBreaker struct {
-	config  Config
-	mu      sync.RWMutex
-	targets map[types.NamespacedName]*state
+	config     Config
+	mu         sync.RWMutex
+	targets    map[types.NamespacedName]*state
+	controller string
+	metrics    Metrics
 }
 
 // state tracks the circuit breaker state for a single target resource.
@@ -101,7 +103,7 @@ type state struct {
 }
 
 // NewTokenBucketBreaker creates a new token bucket-based circuit breaker.
-func NewTokenBucketBreaker(opts ...Option) *TokenBucketBreaker {
+func NewTokenBucketBreaker(m Metrics, controller string, opts ...Option) *TokenBucketBreaker {
 	config := Config{
 		capacity:            50.0,             // Allow 50-event burst.
 		refillRatePerSecond: 0.5,              // Allow 1 every 2s sustained.
@@ -114,9 +116,15 @@ func NewTokenBucketBreaker(opts ...Option) *TokenBucketBreaker {
 		opt(&config)
 	}
 
+	if m == nil {
+		m = &NopMetrics{}
+	}
+
 	b := &TokenBucketBreaker{
-		config:  config,
-		targets: make(map[types.NamespacedName]*state),
+		config:     config,
+		targets:    make(map[types.NamespacedName]*state),
+		metrics:    m,
+		controller: controller,
 	}
 
 	return b
@@ -168,6 +176,7 @@ func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.Namespa
 
 		// Cooldown period has expired. Close the circuit.
 		state.isOpen = false
+		b.observeClose()
 
 		// Clear ring buffer on close
 		for i := range state.recentSources {
@@ -186,6 +195,7 @@ func (b *TokenBucketBreaker) RecordEvent(_ context.Context, target types.Namespa
 	state.isOpen = true
 	state.openedAt = now
 	state.lastAllowed = now
+	b.observeOpen()
 
 	// Analyze ring buffer to find most frequent source
 	events := make(map[string]int)
@@ -242,4 +252,12 @@ func (b *TokenBucketBreaker) RecordAllowed(_ context.Context, target types.Names
 	defer state.mu.Unlock()
 
 	state.lastAllowed = time.Now()
+}
+
+func (b *TokenBucketBreaker) observeOpen() {
+	b.metrics.IncOpen(b.controller)
+}
+
+func (b *TokenBucketBreaker) observeClose() {
+	b.metrics.IncClose(b.controller)
 }

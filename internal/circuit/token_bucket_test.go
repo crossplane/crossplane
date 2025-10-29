@@ -59,6 +59,7 @@ func TestTokenBucketBreakerRecordEvent(t *testing.T) {
 		"EventWithinCapacity": {
 			reason: "Recording an event within token capacity should keep circuit closed",
 			breaker: NewTokenBucketBreaker(
+				&NopMetrics{}, "test-controller",
 				WithBurst(5),
 				WithRefillRatePerSecond(1.0),
 			),
@@ -75,6 +76,7 @@ func TestTokenBucketBreakerRecordEvent(t *testing.T) {
 		"EventExceedsCapacity": {
 			reason: "Recording events that exceed token capacity should open circuit",
 			breaker: NewTokenBucketBreaker(
+				&NopMetrics{}, "test-controller",
 				WithBurst(2),
 				WithRefillRatePerSecond(0.1),
 				WithHalfOpenInterval(30*time.Second), // Explicit for test stability
@@ -102,6 +104,7 @@ func TestTokenBucketBreakerRecordEvent(t *testing.T) {
 		"EventAfterCooldownWithTokens": {
 			reason: "Recording an event after cooldown period with sufficient tokens should keep circuit closed",
 			breaker: NewTokenBucketBreaker(
+				&NopMetrics{}, "test-controller",
 				WithBurst(2),
 				WithRefillRatePerSecond(10), // Fast refill to ensure tokens are available
 				WithOpenDuration(100*time.Millisecond),
@@ -172,6 +175,7 @@ func TestTokenBucketBreakerGetState(t *testing.T) {
 		"UnknownTarget": {
 			reason: "Getting state for unknown target should return closed circuit",
 			breaker: NewTokenBucketBreaker(
+				&NopMetrics{}, "test-controller",
 				WithBurst(50.0),
 				WithRefillRatePerSecond(0.5),
 				WithOpenDuration(5*time.Minute),
@@ -191,6 +195,7 @@ func TestTokenBucketBreakerGetState(t *testing.T) {
 		"ClosedCircuit": {
 			reason: "Getting state for target with closed circuit should return correct state",
 			breaker: NewTokenBucketBreaker(
+				&NopMetrics{}, "test-controller",
 				WithBurst(50.0),
 				WithRefillRatePerSecond(0.5),
 				WithOpenDuration(5*time.Minute),
@@ -214,6 +219,7 @@ func TestTokenBucketBreakerGetState(t *testing.T) {
 		"OpenCircuit": {
 			reason: "Getting state for target with open circuit should return correct state",
 			breaker: NewTokenBucketBreaker(
+				&NopMetrics{}, "test-controller",
 				WithBurst(1),
 				WithRefillRatePerSecond(0.1),
 				WithHalfOpenInterval(30*time.Second), // Explicit for test stability
@@ -279,6 +285,7 @@ func TestTokenBucketBreakerRecordAllowed(t *testing.T) {
 		"UnknownTarget": {
 			reason: "Recording allowed for unknown target should not panic",
 			breaker: NewTokenBucketBreaker(
+				&NopMetrics{}, "test-controller",
 				WithBurst(50.0),
 				WithRefillRatePerSecond(0.5),
 				WithOpenDuration(5*time.Minute),
@@ -298,7 +305,8 @@ func TestTokenBucketBreakerRecordAllowed(t *testing.T) {
 		"KnownTarget": {
 			reason: "Recording allowed for known target should update last allowed time",
 			breaker: NewTokenBucketBreaker(
-				WithHalfOpenInterval(1 * time.Second),
+				&NopMetrics{}, "test-controller",
+				WithHalfOpenInterval(1*time.Second),
 			),
 			setup: func(b *TokenBucketBreaker) {
 				ctx := context.Background()
@@ -334,6 +342,7 @@ func TestTokenBucketBreakerRecordAllowed(t *testing.T) {
 
 func TestTokenBucketBreakerSourceTracking(t *testing.T) {
 	breaker := NewTokenBucketBreaker(
+		&NopMetrics{}, "test-controller",
 		WithBurst(1),
 		WithRefillRatePerSecond(0.1),
 		WithHalfOpenInterval(30*time.Second), // Explicit for test stability
@@ -383,6 +392,7 @@ func TestTokenBucketBreakerSourceTracking(t *testing.T) {
 
 func TestTokenBucketBreakerTokenRefill(t *testing.T) {
 	breaker := NewTokenBucketBreaker(
+		&NopMetrics{}, "test-controller",
 		WithBurst(2),
 		WithRefillRatePerSecond(10),            // Fast refill for test
 		WithOpenDuration(200*time.Millisecond), // Longer cooldown
@@ -435,6 +445,7 @@ func TestTokenBucketBreakerTokenRefill(t *testing.T) {
 
 func TestTokenBucketBreakerConcurrency(t *testing.T) {
 	breaker := NewTokenBucketBreaker(
+		&NopMetrics{}, "test-controller",
 		WithBurst(95), // Not quite enough for 10 goroutines making 10 requests in parallel.
 		WithRefillRatePerSecond(1),
 		WithHalfOpenInterval(30*time.Second), // Explicit for test stability
@@ -481,6 +492,7 @@ func TestTokenBucketBreakerConcurrency(t *testing.T) {
 func ExampleTokenBucketBreaker() {
 	// Create a circuit breaker with small capacity to easily trigger it
 	breaker := NewTokenBucketBreaker(
+		&NopMetrics{}, "test-controller",
 		WithBurst(3),                    // Small capacity for demo
 		WithRefillRatePerSecond(0.1),    // Slow refill
 		WithOpenDuration(1*time.Minute), // Short cooldown for demo

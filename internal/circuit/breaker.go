@@ -39,6 +39,18 @@ type Breaker interface {
 	RecordAllowed(ctx context.Context, target types.NamespacedName)
 }
 
+// Metrics records circuit breaker transitions and event outcomes.
+type Metrics interface {
+	// IncOpen records that the circuit opened for the supplied controller.
+	IncOpen(controller string)
+
+	// IncClose records that the circuit closed for the supplied controller.
+	IncClose(controller string)
+
+	// IncEvent records the outcome of a circuit-controlled event.
+	IncEvent(controller, result string)
+}
+
 // EventSource identifies the watched resource that triggered a reconciliation.
 type EventSource struct {
 	// GVK is the GroupVersionKind of the watched resource that triggered the event.
