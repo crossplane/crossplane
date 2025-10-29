@@ -114,12 +114,12 @@ func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 }
 
 // PrintList gets all the nodes and then return the graph as a dot format string to the Writer.
-func (p *DotPrinter) PrintList(w io.Writer, root *resource.ResourceList) error {
+func (p *DotPrinter) PrintList(w io.Writer, roots *resource.ResourceList) error {
 	g := dot.NewGraph(dot.Undirected)
-	queue := make([]*queueItem, 0, len(root.Items))
+	queue := make([]*queueItem, 0, len(roots.Items))
 
 	// Initialize the queue with all items in the resource list
-	for _, r := range root.Items {
+	for _, r := range roots.Items {
 		queue = append(queue, &queueItem{r, nil})
 	}
 

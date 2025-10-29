@@ -162,14 +162,14 @@ func (p *DefaultPrinter) Print(w io.Writer, root *resource.Resource) error {
 
 // PrintList implements the Printer interface by prints the resource tree of a list of resources in a
 // human-readable format.
-func (p *DefaultPrinter) PrintList(w io.Writer, root *resource.ResourceList) error {
+func (p *DefaultPrinter) PrintList(w io.Writer, roots *resource.ResourceList) error {
 	tw := printers.GetNewTabWriter(w)
 
-	if root == nil || len(root.Items) == 0 {
+	if roots == nil || len(roots.Items) == 0 {
 		return errors.New("cannot print resource tree: resource list is empty")
 	}
 
-	firstResource := root.Items[0]
+	firstResource := roots.Items[0]
 
 	headers, isPackageOrRevision := getHeaders(firstResource.Unstructured.GroupVersionKind().GroupKind(), p.wide)
 
@@ -178,7 +178,7 @@ func (p *DefaultPrinter) PrintList(w io.Writer, root *resource.ResourceList) err
 	}
 
 	// Print each resource in the list
-	for _, r := range root.Items {
+	for _, r := range roots.Items {
 		if err := p.printResourceTree(tw, r, isPackageOrRevision); err != nil {
 			return errors.Wrap(err, "cannot print resource tree")
 		}
