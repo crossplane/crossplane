@@ -27,6 +27,15 @@ import (
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 )
 
+const (
+	// LabelTransactionName records which Transaction last handled this Package.
+	LabelTransactionName = "pkg.crossplane.io/transaction-name"
+
+	// LabelTransactionGeneration records which Package generation was handled
+	// by the Transaction named in LabelTransactionName.
+	LabelTransactionGeneration = "pkg.crossplane.io/transaction-generation"
+)
+
 // Transaction represents a complete proposed state of the package system
 // and validates the entire operation before making changes.
 //

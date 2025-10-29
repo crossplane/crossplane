@@ -20,6 +20,7 @@ import (
 	"cmp"
 	"context"
 	"slices"
+	"strconv"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,10 +40,6 @@ import (
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
 	"github.com/crossplane/crossplane/v2/internal/xpkg/dependency"
-)
-
-const (
-	labelTransaction = "pkg.crossplane.io/transaction"
 )
 
 // Establisher establishes control or ownership of a set of resources in the
@@ -121,7 +118,8 @@ func (i *PackageInstaller) InstallPackage(ctx context.Context, tx *v1alpha1.Tran
 	_, err = ctrl.CreateOrUpdate(ctx, i.kube, pkg, func() error {
 		pkg.SetSource(xp.Source + "@" + xp.Digest) // TODO(negz): Use tag.
 		meta.AddLabels(pkg, map[string]string{
-			labelTransaction: tx.GetName(),
+			v1alpha1.LabelTransactionName:       tx.GetName(),
+			v1alpha1.LabelTransactionGeneration: strconv.FormatInt(pkg.GetGeneration(), 10),
 		})
 
 		return nil
@@ -194,8 +192,9 @@ func (i *PackageInstaller) InstallPackageRevision(ctx context.Context, tx *v1alp
 		meta.AddOwnerReference(rev, meta.AsOwner(meta.TypedReferenceTo(pkg, pkg.GetObjectKind().GroupVersionKind())))
 
 		meta.AddLabels(rev, map[string]string{
-			v1.LabelParentPackage: pkg.GetName(),
-			labelTransaction:      tx.GetName(),
+			v1.LabelParentPackage:               pkg.GetName(),
+			v1alpha1.LabelTransactionName:       tx.GetName(),
+			v1alpha1.LabelTransactionGeneration: strconv.FormatInt(pkg.GetGeneration(), 10),
 		})
 
 		// Propagate package configuration to revision.
@@ -257,7 +256,7 @@ func (i *PackageInstaller) InstallObjects(ctx context.Context, tx *v1alpha1.Tran
 	for _, obj := range objs {
 		if mo, ok := obj.(metav1.Object); ok {
 			meta.AddLabels(mo, map[string]string{
-				labelTransaction: tx.GetName(),
+				v1alpha1.LabelTransactionName: tx.GetName(),
 			})
 		}
 	}

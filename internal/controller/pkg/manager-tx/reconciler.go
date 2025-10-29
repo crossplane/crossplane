@@ -19,6 +19,7 @@ package manager
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -99,6 +100,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	log = log.WithValues("package", pkg.GetName(), "source", pkg.GetSource(), "changeType", changeType)
 
+	// Check if this Package generation has already been handled by a Transaction.
+	// If the transaction-generation label matches the current generation, we skip
+	// creating a new Transaction and just reflect the existing Transaction's status.
+	handled := pkg.GetLabels()[v1alpha1.LabelTransactionGeneration]
+	current := strconv.FormatInt(pkg.GetGeneration(), 10)
+
 	// Create or get existing Transaction for this package change
 	name := TransactionName(pkg)
 
@@ -110,13 +117,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// Create new Transaction if it doesn't exist
-	if kerrors.IsNotFound(err) {
+	if kerrors.IsNotFound(err) && handled != current {
 		tx = NewTransaction(pkg, changeType)
 		if err := r.client.Create(ctx, tx); err != nil {
 			err = errors.Wrap(err, "cannot create transaction")
 			r.record.Event(pkg, event.Warning(reasonCreateTransaction, err))
 			return reconcile.Result{}, err
+		}
+
+		// Label the package to indicate we've created a Transaction for this generation
+		meta.AddLabels(pkg, map[string]string{
+			v1alpha1.LabelTransactionName:       tx.GetName(),
+			v1alpha1.LabelTransactionGeneration: current,
+		})
+		if err := r.client.Update(ctx, pkg); err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "cannot update package labels")
 		}
 	}
 
@@ -154,12 +169,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Transaction still in progress
 	}
 
-	// Update package status
-	if err := r.client.Status().Update(ctx, pkg); err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "cannot update package status")
-	}
-
-	return reconcile.Result{}, nil
+	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pkg), "cannot update package status")
 }
 
 // TransactionComplete returns true if the Transaction has completed (successfully or with failure).

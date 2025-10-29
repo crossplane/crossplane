@@ -562,7 +562,7 @@ func TestInstallObjects(t *testing.T) {
 			args: args{
 				establisher: &MockEstablisher{
 					MockEstablish: func(_ context.Context, objs []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
-						wantLabels := map[string]string{labelTransaction: "tx-test"}
+						wantLabels := map[string]string{v1alpha1.LabelTransactionName: "tx-test"}
 						for _, obj := range objs {
 							if mo, ok := obj.(metav1.Object); ok {
 								if diff := cmp.Diff(wantLabels, mo.GetLabels()); diff != "" {
