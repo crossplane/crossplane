@@ -37,10 +37,6 @@ func NewMapFunc(wrapped handler.MapFunc, breaker Breaker, m Metrics, controller 
 		// Get the original requests
 		requests := wrapped(ctx, obj)
 
-		recordEvent := func(result string) {
-			m.IncEvent(controller, result)
-		}
-
 		// Record events for each target resource
 		source := EventSource{
 			GVK:       obj.GetObjectKind().GroupVersionKind(),
@@ -57,7 +53,7 @@ func NewMapFunc(wrapped handler.MapFunc, breaker Breaker, m Metrics, controller 
 			// MODIFIED events with deletionTimestamp set) can reach
 			// the reconciler to remove finalizers.
 			if obj.GetDeletionTimestamp() != nil {
-				recordEvent(CircuitBreakerResultAllowed)
+				m.IncEvent(controller, CircuitBreakerResultAllowed)
 				keep = append(keep, req)
 				continue
 			}
@@ -71,7 +67,7 @@ func NewMapFunc(wrapped handler.MapFunc, breaker Breaker, m Metrics, controller 
 			// If breaker is closed, allow the request
 			if !state.IsOpen {
 				keep = append(keep, req)
-				recordEvent(CircuitBreakerResultAllowed)
+				m.IncEvent(controller, CircuitBreakerResultAllowed)
 				continue
 			}
 
@@ -79,11 +75,11 @@ func NewMapFunc(wrapped handler.MapFunc, breaker Breaker, m Metrics, controller 
 			if time.Now().After(state.NextAllowedAt) {
 				keep = append(keep, req)
 				breaker.RecordAllowed(ctx, req.NamespacedName)
-				recordEvent(CircuitBreakerResultHalfOpenAllowed)
+				m.IncEvent(controller, CircuitBreakerResultHalfOpenAllowed)
 				continue
 			}
 			// Otherwise filter out - fully open state
-			recordEvent(CircuitBreakerResultDropped)
+			m.IncEvent(controller, CircuitBreakerResultDropped)
 		}
 
 		return keep
