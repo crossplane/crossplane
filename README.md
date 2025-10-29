@@ -34,6 +34,8 @@ documentation].
 You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
 
+The release process is fully documented in the [`crossplane/release`] repo.
+
 ## Roadmap
 
 The public roadmap for Crossplane is published as a GitHub project board. Issues
@@ -87,8 +89,18 @@ encouraged to join.
 
 ### Special Interest Groups (SIG)
 
-Each SIG collaborates in Slack and some groups have regular meetings, you can
-find the meetings in the [Community Calendar][community calendar].
+The Crossplane project supports SIGs as discussion groups that bring together
+community members with shared interests. SIGs have no decision making authority
+or ownership responsibilities. They serve purely as collaborative forums for
+community discussion.
+
+If you're interested in any of the areas below, consider joining the discussion
+in their Slack channels. To propose a new SIG that isn't represented, reach out
+through any of the contact methods in the [get involved] section.
+
+Each SIG collaborates primarily in Slack, and some groups hold regular meetings
+that you can find in the [Community Calendar][community calendar].
+
 - [#sig-cli][sig-cli]
 - [#sig-composition-environments][sig-composition-environments-slack]
 - [#sig-composition-functions][sig-composition-functions-slack]
@@ -134,9 +146,11 @@ Crossplane is under the Apache 2.0 license.
 [Get Started Docs]: https://docs.crossplane.io/latest/get-started/get-started-with-composition
 [community calendar]: https://zoom-lfx.platform.linuxfoundation.org/meetings/crossplane?view=month
 [releases]: https://github.com/crossplane/crossplane/releases
+[`crossplane/release`]: https://github.com/crossplane/release
 [ADOPTERS.md]: ADOPTERS.md
 [regular community meetings]: https://github.com/crossplane/crossplane/blob/main/README.md#get-involved
 [Crossplane Roadmap]: https://github.com/orgs/crossplane/projects/20/views/9?pane=info
+[get involved]: https://github.com/crossplane/crossplane/blob/main/README.md#get-involved
 [sig-cli]: https://crossplane.slack.com/archives/C08V9PMLRQA
 [sig-composition-environments-slack]: https://crossplane.slack.com/archives/C05BP6QFLUW
 [sig-composition-functions-slack]: https://crossplane.slack.com/archives/C031Y29CSAE

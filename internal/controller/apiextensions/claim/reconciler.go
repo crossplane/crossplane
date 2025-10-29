@@ -339,8 +339,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			err = errors.Wrap(err, errGetComposite)
 			record.Event(cm, event.Warning(reasonBind, err))
 			status.MarkConditions(xpv1.ReconcileError(err))
+			_ = r.client.Status().Update(ctx, cm)
 
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -359,8 +360,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err := errors.Errorf(errFmtUnbound, xr.GetName(), ref.Name)
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(ctx, cm)
 
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		// Returning nil is intentional - see comment above.
+		return reconcile.Result{}, nil
 	}
 
 	// TODO(negz): Remove this call to Upgrade once no supported version of
@@ -376,8 +379,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errUpgradeManagedFields)
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(ctx, cm)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{}, err
 	}
 
 	if meta.WasDeleted(cm) {
@@ -405,8 +409,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				err = errors.Wrap(err, errDeleteComposite)
 				record.Event(cm, event.Warning(reasonDelete, err))
 				status.MarkConditions(xpv1.ReconcileError(err))
+				_ = r.client.Status().Update(ctx, cm)
 
-				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+				return reconcile.Result{}, err
 			}
 
 			if requiresForegroundDeletion {
@@ -421,8 +426,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			err = errors.Wrap(err, errRemoveFinalizer)
 			record.Event(cm, event.Warning(reasonDelete, err))
 			status.MarkConditions(xpv1.ReconcileError(err))
+			_ = r.client.Status().Update(ctx, cm)
 
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+			return reconcile.Result{}, err
 		}
 
 		log.Debug("Successfully deleted claim")
@@ -439,8 +445,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errAddFinalizer)
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(ctx, cm)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{}, err
 	}
 
 	// The XR's claim reference before syncing. Used to determine if we bind it.
@@ -455,8 +462,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errSync)
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(ctx, cm)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{}, err
 	}
 
 	// The XR didn't reference the claim before the sync, but does now.
@@ -487,8 +495,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errPropagateCDs)
 		record.Event(cm, event.Warning(reasonPropagate, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(ctx, cm)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{}, err
 	}
 
 	if propagated {

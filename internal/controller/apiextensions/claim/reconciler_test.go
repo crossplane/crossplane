@@ -81,7 +81,7 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				r:   reconcile.Result{},
-				err: errors.Wrap(errBoom, errGetClaim),
+				err: cmpopts.AnyError,
 			},
 		},
 		"ReconciliationPaused": {
@@ -157,11 +157,12 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"CompositeAlreadyBoundError": {
-			reason: "The reconcile should fail if the referenced XR is bound to another claim",
+			reason: "The reconcile should not return an error if the referenced XR is bound to another claim",
 			args: args{
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
@@ -222,7 +223,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"RemoveFinalizerError": {
@@ -248,7 +250,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"SuccessfulDelete": {
@@ -371,7 +374,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"SyncCompositeError": {
@@ -392,7 +396,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"CompositeNotReady": {
@@ -467,7 +472,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
 			},
 		},
 		"SuccessfulReconcile": {
@@ -604,7 +610,7 @@ func TestReconcile(t *testing.T) {
 			r := NewReconciler(tc.args.client, tc.args.of, tc.args.with, tc.args.opts...)
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 

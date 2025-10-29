@@ -29,7 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/v2/internal/xfn/cached/proto/v1alpha1"
+	"github.com/crossplane/crossplane/v2/internal/proto/fn/v1alpha1"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 

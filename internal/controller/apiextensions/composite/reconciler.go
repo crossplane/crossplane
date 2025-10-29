@@ -47,6 +47,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
 	"github.com/crossplane/crossplane/v2/internal/xerrors"
@@ -380,6 +381,13 @@ func WithCompositeSchema(s composite.Schema) ReconcilerOption {
 	}
 }
 
+// WithCircuitBreaker specifies the circuit breaker to use for rate limiting.
+func WithCircuitBreaker(cb circuit.Breaker) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.circuit = cb
+	}
+}
+
 type revision struct {
 	CompositionRevisionFetcher
 }
@@ -428,7 +436,7 @@ func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...Rec
 		gvk: of,
 
 		revision: revision{
-			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: cached, Applicator: resource.NewAPIPatchingApplicator(cached)}),
+			CompositionRevisionFetcher: NewAPIRevisionFetcher(cached),
 		},
 
 		composite: compositeResource{
@@ -453,6 +461,8 @@ func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...Rec
 
 		// Dynamic watches are disabled by default.
 		engine: &NopWatchStarter{},
+
+		circuit: &circuit.NopBreaker{},
 
 		log:        logging.NewNopLogger(),
 		record:     event.NewNopRecorder(),
@@ -488,6 +498,8 @@ type Reconciler struct {
 	// Used to validate errors based on API issues.
 	authorizer Authorizer
 
+	circuit circuit.Breaker
+
 	log        logging.Logger
 	record     event.Recorder
 	conditions conditions.Manager
@@ -512,13 +524,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
 	}
 
-	status := r.conditions.For(xr)
-
 	log = log.WithValues(
 		"uid", xr.GetUID(),
 		"version", xr.GetResourceVersion(),
 		"name", xr.GetName(),
 	)
+
+	status := r.conditions.For(xr)
+
+	// Check circuit breaker state and set condition accordingly.
+	condition := v1.WatchCircuitClosed()
+	if s := r.circuit.GetState(ctx, req.NamespacedName); s.IsOpen {
+		condition = v1.WatchCircuitOpen(s.TriggeredBy)
+		log.Info("Circuit breaker is open", "triggered-by", s.TriggeredBy, "next-allowed-at", s.NextAllowedAt)
+	}
+	status.MarkConditions(condition)
 
 	// Check the pause annotation and return if it has the value "true"
 	// after logging, publishing an event and updating the SYNC status condition
@@ -543,8 +563,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			err = errors.Wrap(err, errRemoveFinalizer)
 			r.record.Event(xr, event.Warning(reasonDelete, err))
 			status.MarkConditions(xpv1.ReconcileError(err))
+			_ = r.client.Status().Update(updateCtx, xr)
 
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+			return reconcile.Result{}, err
 		}
 
 		log.Debug("Successfully deleted composite resource")
@@ -561,8 +582,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(xr, event.Warning(reasonInit, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(ctx, xr)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{}, err
 	}
 
 	orig := xr.GetCompositionReference()
@@ -574,8 +596,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errSelectComp)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		return reconcile.Result{}, err
 	}
 
 	if compRef := xr.GetCompositionReference(); compRef != nil && (orig == nil || *compRef != *orig) {
@@ -596,8 +619,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errFetchComp)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		return reconcile.Result{}, err
 	}
 
 	if rev := xr.GetCompositionRevisionReference(); rev != nil && (origRev == nil || *rev != *origRev) {
@@ -616,8 +640,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(ctx, xr)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{}, err
 	}
 
 	if err := r.composite.Configure(ctx, xr, rev); err != nil {
@@ -630,8 +655,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errConfigure)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		return reconcile.Result{}, err
 	}
 
 	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Revision: rev})
@@ -669,7 +695,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// We encountered a fatal error. For any custom status conditions that were
 		// not received due to the fatal error, mark them as unknown.
 		for _, c := range xr.GetConditions() {
-			if xpv1.IsSystemConditionType(c.Type) {
+			if v1.IsSystemConditionType(c.Type) {
 				continue
 			}
 			if !resultMeta.conditionTypesSeen[c.Type] {
@@ -679,7 +705,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				status.MarkConditions(c)
 			}
 		}
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		_ = r.client.Status().Update(updateCtx, xr)
+		return reconcile.Result{}, err
 	}
 
 	ws := make([]engine.Watch, len(xr.GetResourceReferences()))
@@ -695,8 +722,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errWatch)
 		r.record.Event(xr, event.Warning(reasonWatch, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		return reconcile.Result{}, err
 	}
 
 	published, err := r.composite.PublishConnection(ctx, xr, res.ConnectionDetails)
@@ -710,8 +738,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errPublish)
 		r.record.Event(xr, event.Warning(reasonPublish, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		return reconcile.Result{}, err
 	}
 
 	if published {
@@ -832,7 +861,7 @@ func (r *Reconciler) handleCommonCompositionResult(ctx context.Context, res Comp
 
 	conditionTypesSeen := make(map[xpv1.ConditionType]bool)
 	for _, c := range res.Conditions {
-		if xpv1.IsSystemConditionType(c.Type) {
+		if v1.IsSystemConditionType(c.Type) {
 			// Do not let users update system conditions.
 			continue
 		}

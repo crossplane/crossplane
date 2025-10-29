@@ -50,6 +50,7 @@ import (
 	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/watch"
 	apiextensionscontroller "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
@@ -91,6 +92,7 @@ const (
 	reasonRenderCRD   event.Reason = "RenderCRD"
 	reasonEstablishXR event.Reason = "EstablishComposite"
 	reasonTerminateXR event.Reason = "TerminateComposite"
+	reasonRestartXR   event.Reason = "RestartComposite"
 )
 
 // A ControllerEngine can start and stop Kubernetes controllers on demand.
@@ -257,7 +259,7 @@ func NewReconciler(ca resource.ClientApplicator, opts ...ReconcilerOption) *Reco
 
 		composite: definition{
 			CRDRenderer: CRDRenderFn(xcrd.ForCompositeResource),
-			Finalizer:   resource.NewAPIFinalizer(ca, finalizer),
+			Finalizer:   resource.NewAPIFinalizer(ca.Client, finalizer),
 		},
 
 		engine: &NopEngine{},
@@ -470,7 +472,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	origRV := ""
-	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID()), resource.StoreCurrentRV(&origRV)); err != nil {
+	if err := r.client.Applicator.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID()), resource.StoreCurrentRV(&origRV)); err != nil {
 		log.Debug(errApplyCRD, "error", err)
 
 		if kerrors.IsConflict(err) {
@@ -494,20 +496,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, nil
 	}
 
-	observed := d.Status.Controllers.CompositeResourceTypeRef
+	// Check if XRD has changed since controller was last started
+	if ControllerNeedsRestart(d) {
+		r.record.Event(d, event.Normal(reasonRestartXR, "XRD specification changed; restarting controller to apply updates"))
 
-	desired := v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
-	if observed.APIVersion != "" && observed != desired {
 		if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
 			err = errors.Wrap(err, errStopController)
-			r.record.Event(d, event.Warning(reasonEstablishXR, err))
+			r.record.Event(d, event.Warning(reasonRestartXR, err))
 
 			return reconcile.Result{}, err
 		}
 
-		log.Debug("Referenceable version changed; stopped composite resource controller",
-			"observed-version", observed.APIVersion,
-			"desired-version", desired.APIVersion)
+		log.Debug("XRD generation changed; stopped composite resource controller",
+			"observed-generation", d.GetCondition(v1.TypeEstablished).ObservedGeneration,
+			"current-generation", d.GetGeneration())
 	}
 
 	if r.engine.IsRunning(composite.ControllerName(d.GetName())) {
@@ -523,6 +525,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		composite.WithCompositeConnectionDetailsFetcher(fetcher),
 	)
 
+	cb := circuit.NewTokenBucketBreaker(r.options.CircuitBreakerMetrics, composite.ControllerName(d.GetName()))
+
 	// All XRs have modern schema unless their XRD's scope is LegacyCluster.
 	schema := ucomposite.SchemaModern
 	if ptr.Deref(d.Spec.Scope, v1.CompositeResourceScopeLegacyCluster) == v1.CompositeResourceScopeLegacyCluster {
@@ -532,13 +536,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ro := []composite.ReconcilerOption{
 		composite.WithCompositeSchema(schema),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
-			composite.NewEnforcedCompositionSelector(r.client, corev1.ObjectReference{Name: d.Name}, r.record),
+			composite.NewEnforcedCompositionSelector(r.client.Client, corev1.ObjectReference{Name: d.Name}, r.record),
 			composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record),
 			composite.NewAPILabelSelectorResolver(r.engine.GetCached()),
 		)),
 		composite.WithLogger(r.log.WithValues("controller", composite.ControllerName(d.GetName()))),
 		composite.WithRecorder(r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
 		composite.WithPollInterval(r.options.PollInterval),
+		composite.WithCircuitBreaker(cb),
+		composite.WithAuthorizer(r.engine),
 		composite.WithComposer(fc),
 		composite.WithFeatures(r.options.Features),
 	}
@@ -562,13 +568,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			r.log.Debug(errAddIndex, "error", err)
 		}
 
-		h := EnqueueCompositeResources(d.GetCompositeGroupVersionKind(), r.engine.GetCached(), r.log)
+		cmf := CompositeResourcesMapFunc(d.GetCompositeGroupVersionKind(), r.engine.GetCached(), r.log)
+		h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(cmf, cb, r.options.CircuitBreakerMetrics, composite.ControllerName(d.GetName())))
 		ro = append(ro,
 			composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine),
 			composite.WithPollInterval(0), // Disable polling.
 		)
 	}
-	ro = append(ro, composite.WithAuthorizer(r.engine))
 
 	cr := composite.NewReconciler(r.engine.GetCached(), d.GetCompositeGroupVersionKind(), ro...)
 	ko := r.options.ForControllerRuntime()
@@ -611,9 +617,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xr := &kunstructured.Unstructured{}
 	xr.SetGroupVersionKind(gvk)
 
-	crh := EnqueueForCompositionRevision(gvk, schema, r.engine.GetCached(), log)
+	crmf := CompositionRevisionMapFunc(gvk, schema, r.engine.GetCached(), log)
+	crh := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(crmf, cb, r.options.CircuitBreakerMetrics, composite.ControllerName(d.GetName())))
+
+	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(SelfMapFunc(), cb, r.options.CircuitBreakerMetrics, composite.ControllerName(d.GetName())))
+
 	if err := r.engine.StartWatches(ctx, name,
-		engine.WatchFor(xr, engine.WatchTypeCompositeResource, &handler.EnqueueRequestForObject{}),
+		engine.WatchFor(xr, engine.WatchTypeCompositeResource, h),
 		engine.WatchFor(&v1.CompositionRevision{}, engine.WatchTypeCompositionRevision, crh),
 	); err != nil {
 		log.Debug(errStartWatches, "error", err)
@@ -629,4 +639,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	status.MarkConditions(v1.WatchingComposite())
 
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+}
+
+// ControllerNeedsRestart returns true if the composite resource controller
+// needs to be restarted based on the XRD's current generation compared to
+// when the controller was last started.
+func ControllerNeedsRestart(d *v1.CompositeResourceDefinition) bool {
+	c := d.GetCondition(v1.TypeEstablished)
+
+	// Only check if we have a WatchingComposite condition
+	if c.Reason != v1.ReasonWatchingComposite {
+		return false
+	}
+
+	// If observedGeneration is 0, the condition was never properly set
+	if c.ObservedGeneration == 0 {
+		return false
+	}
+
+	// Restart needed if the XRD has changed since the controller was started
+	return c.ObservedGeneration != d.GetGeneration()
 }

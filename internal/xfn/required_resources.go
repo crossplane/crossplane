@@ -18,6 +18,7 @@ package xfn
 import (
 	"context"
 	"maps"
+	"sort"
 
 	"google.golang.org/protobuf/proto"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -181,7 +182,13 @@ func (e *ExistingRequiredResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.R
 			return nil, errors.Wrap(err, "cannot list required resources")
 		}
 
+		// Sort items by resource name so that the order is stable across calls.
+		sort.Slice(list.Items, func(i, j int) bool {
+			return list.Items[i].GetName() < list.Items[j].GetName()
+		})
+
 		resources := make([]*fnv1.Resource, len(list.Items))
+
 		for i, r := range list.Items {
 			o, err := AsStruct(&r)
 			if err != nil {

@@ -38,11 +38,6 @@ import (
 
 const (
 	timeout = 2 * time.Minute
-
-	errGetMRAP              = "cannot get ManagedResourceActivationPolicy"
-	errListMRD              = "cannot list ManagedResourceDefinition"
-	errUpdateStatus         = "cannot update status of ManagedResourceDefinition"
-	errFailedToActivateMRDs = "failed to activate %d of %d ManagedResourceDefinitions"
 )
 
 // Event reasons.
@@ -55,7 +50,7 @@ const (
 	reconcileActivateSuccessMsg = "Successfully activated ManagedResourceDefinition"
 )
 
-// A Reconciler reconciles CompositeResourceDefinitions.
+// A Reconciler reconciles ManagedResourceActivationPolicies.
 type Reconciler struct {
 	client.Client
 
@@ -77,8 +72,8 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		// In case object is not found, most likely the object was deleted and
 		// then disappeared while the event was in the processing queue. We
 		// don't need to take any action in that case.
-		log.Debug(errGetMRAP, "error", err)
-		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetMRAP)
+		log.Debug("cannot get ManagedResourceActivationPolicy", "error", err)
+		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get ManagedResourceActivationPolicy")
 	}
 
 	status := r.conditions.For(mrap)
@@ -92,12 +87,11 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	if meta.WasDeleted(mrap) {
 		status.MarkConditions(v1alpha1.TerminatingActivationPolicy())
 		if err := r.Status().Update(ogctx, mrap); err != nil {
-			log.Debug(errUpdateStatus, "error", err)
+			log.Debug("cannot update status of ManagedResourceActivationPolicy", "error", err)
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
-			err = errors.Wrap(err, errUpdateStatus)
-			return reconcile.Result{}, err
+			return reconcile.Result{}, errors.Wrap(err, "cannot update status of ManagedResourceActivationPolicy")
 		}
 
 		return reconcile.Result{}, nil
@@ -112,19 +106,12 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	// List all MRDs
 	mrds := &v1alpha1.ManagedResourceDefinitionList{}
 	if err := r.List(ctx, mrds); err != nil {
-		log.Debug(errListMRD, "error", err)
+		log.Debug("cannot list ManagedResourceDefinition", "error", err)
 
-		status.MarkConditions(v1alpha1.BlockedActivationPolicy().WithMessage(errListMRD))
-		if err := r.Status().Update(ogctx, mrap); err != nil {
-			log.Debug(errUpdateStatus, "error", err)
-			if kerrors.IsConflict(err) {
-				return reconcile.Result{Requeue: true}, nil
-			}
-			err = errors.Wrap(err, errUpdateStatus)
-			return reconcile.Result{}, err
-		}
+		status.MarkConditions(v1alpha1.BlockedActivationPolicy().WithMessage("cannot list ManagedResourceDefinition"))
+		_ = r.Status().Update(ogctx, mrap)
 
-		return reconcile.Result{}, errors.Wrap(err, errListMRD)
+		return reconcile.Result{}, errors.Wrap(err, "cannot list ManagedResourceDefinition")
 	}
 
 	// Start fresh.
@@ -151,11 +138,11 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	}
 	if errs != nil {
 		status.MarkConditions(v1alpha1.Unhealthy().WithMessage(
-			fmt.Sprintf(errFailedToActivateMRDs, len(errs), len(mrap.Status.Activated))))
+			fmt.Sprintf("failed to activate %d of %d ManagedResourceDefinitions", len(errs), len(mrap.Status.Activated))))
 	} else {
 		status.MarkConditions(v1alpha1.Healthy())
 	}
 
 	// TODO: we should really do a diff of the status to see if we should update or not.
-	return reconcile.Result{}, errors.Wrap(r.Status().Update(ogctx, mrap), errUpdateStatus)
+	return reconcile.Result{}, errors.Wrap(r.Status().Update(ogctx, mrap), "cannot update status of ManagedResourceActivationPolicy")
 }

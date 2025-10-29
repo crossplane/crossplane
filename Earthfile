@@ -40,9 +40,15 @@ multiplatform-build:
 # the build target. It's important to run it explicitly when code needs to be
 # generated, for example when you update an API type.
 generate:
-  BUILD +go-modules-tidy
   BUILD +go-generate
   BUILD +helm-generate
+
+# tidy runs go mod tidy to clean up module dependencies. This is separated from
+# generate to avoid unnecessary downloads during development when source files
+# change but dependencies don't.
+tidy:
+  BUILD +go-modules-tidy
+  BUILD +go-modules-tools-tidy
 
 # e2e runs end-to-end tests. See test/e2e/README.md for details.
 e2e:
@@ -77,10 +83,11 @@ e2e:
         --no-color=false \
         --format ${GOTESTSUM_FORMAT} \
         --junitfile e2e-tests.xml \
-        --raw-command go tool test2json -t -p E2E ./e2e -test.v ${FLAGS}
+        --raw-command go tool test2json -t -p E2E ./e2e -test.v -kind-logs-location=./kind-logs ${FLAGS}
     END
   FINALLY
     SAVE ARTIFACT --if-exists e2e-tests.xml AS LOCAL _output/tests/e2e-tests.xml
+    SAVE ARTIFACT --if-exists kind-logs/ AS LOCAL _output/tests/kind-logs
   END
 
 # hack builds Crossplane, and deploys it to a kind cluster. It runs in your
@@ -119,12 +126,24 @@ unhack:
   RUN .hack/kind delete cluster --name crossplane-hack
   RUN rm -rf .hack
 
-# go-modules downloads Crossplane's go modules. It's the base target of most Go
-# related target (go-build, etc).
-go-modules:
+# go-modules-tools downloads tools module dependencies. This is the base layer
+# since tools change less frequently than main dependencies.
+go-modules-tools:
   ARG NATIVEPLATFORM
   FROM --platform=${NATIVEPLATFORM} golang:${GO_VERSION}
   WORKDIR /crossplane
+  CACHE --id go-build --sharing shared /root/.cache/go-build
+  # Copy tools module files maintaining directory structure for generate.go
+  COPY tools/go.mod tools/go.sum ./tools/
+  # -C tools changes to tools directory before running go mod download
+  RUN go mod download -C tools
+  SAVE ARTIFACT tools/go.mod AS LOCAL tools/go.mod
+  SAVE ARTIFACT tools/go.sum AS LOCAL tools/go.sum
+
+# go-modules downloads Crossplane's go modules. It inherits from go-modules-tools
+# since main dependencies change more frequently than tools.
+go-modules:
+  FROM +go-modules-tools
   CACHE --id go-build --sharing shared /root/.cache/go-build
   COPY go.mod go.sum ./
   RUN go mod download
@@ -141,6 +160,16 @@ go-modules-tidy:
   RUN go mod verify
   SAVE ARTIFACT go.mod AS LOCAL go.mod
   SAVE ARTIFACT go.sum AS LOCAL go.sum
+
+# go-modules-tools-tidy tidies and verifies tools/go.mod and tools/go.sum.
+go-modules-tools-tidy:
+  FROM +go-modules-tools
+  CACHE --id go-build --sharing shared /root/.cache/go-build
+  # -C tools changes to tools directory before running go mod tidy
+  RUN go mod tidy -C tools
+  RUN go mod verify -C tools
+  SAVE ARTIFACT tools/go.mod AS LOCAL tools/go.mod
+  SAVE ARTIFACT tools/go.sum AS LOCAL tools/go.sum
 
 # go-generate runs Go code generation.
 go-generate:
@@ -460,7 +489,7 @@ ci-push-build-artifacts:
   ARG --required CROSSPLANE_VERSION
   ARG --required BUILD_DIR
   ARG ARTIFACTS_DIR=_output
-  ARG BUCKET_RELEASES=crossplane.releases
+  ARG BUCKET_RELEASES=crossplane-releases
   ARG AWS_DEFAULT_REGION
   FROM amazon/aws-cli:2.15.61
   COPY --dir ${ARTIFACTS_DIR} artifacts
@@ -474,8 +503,8 @@ ci-promote-build-artifacts:
   ARG --required BUILD_DIR
   ARG --required CHANNEL
   ARG HELM_REPO_URL=https://charts.crossplane.io
-  ARG BUCKET_RELEASES=crossplane.releases
-  ARG BUCKET_CHARTS=crossplane.charts
+  ARG BUCKET_RELEASES=crossplane-releases
+  ARG BUCKET_CHARTS=crossplane-helm-charts
   ARG PRERELEASE=false
   ARG AWS_DEFAULT_REGION
   FROM amazon/aws-cli:2.15.61

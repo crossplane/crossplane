@@ -400,6 +400,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	xr.SetAPIVersion(in.CompositeResource.GetAPIVersion())
 	xr.SetKind(in.CompositeResource.GetKind())
 	xr.SetName(in.CompositeResource.GetName())
+	xr.SetNamespace(in.CompositeResource.GetNamespace())
 
 	xrCond := xpv1.Available()
 	if d.GetComposite().GetReady() == fnv1.Ready_READY_FALSE {
@@ -448,6 +449,13 @@ func SetComposedResourceMetadata(cd resource.Object, xr resource.LegacyComposite
 		cd.SetGenerateName(xr.GetName() + "-")
 	}
 
+	// If the XR is namespaced it can only create composed resources in its own
+	// namespace. Cluster scoped XRs can compose cluster scoped resources, or
+	// resources in any namespace.
+	if xr.GetNamespace() != "" {
+		cd.SetNamespace(xr.GetNamespace())
+	}
+
 	meta.AddAnnotations(cd, map[string]string{AnnotationKeyCompositionResourceName: name})
 	meta.AddLabels(cd, map[string]string{AnnotationKeyCompositeName: xr.GetName()})
 
@@ -480,6 +488,11 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 	if len(f.resources) == 0 || rs == nil {
 		return nil, nil
 	}
+
+	// Sort resources by name to ensure a stable order.
+	sort.Slice(f.resources, func(i, j int) bool {
+		return f.resources[i].GetName() < f.resources[j].GetName()
+	})
 
 	out := &fnv1.Resources{}
 
