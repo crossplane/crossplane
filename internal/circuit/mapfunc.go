@@ -28,18 +28,10 @@ import (
 // NewMapFunc wraps a handler.MapFunc with circuit breaker functionality.
 // It records events for each target resource and filters out requests when the
 // circuit breaker is open, allowing occasional requests through in half-open state.
-func NewMapFunc(wrapped handler.MapFunc, breaker Breaker, m Metrics, controller string) handler.MapFunc {
-	if m == nil {
-		m = &NopMetrics{}
-	}
-
+func NewMapFunc(wrapped handler.MapFunc, b Breaker) handler.MapFunc {
 	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		// Get the original requests
 		requests := wrapped(ctx, obj)
-
-		recordEvent := func(result string) {
-			m.IncEvent(controller, result)
-		}
 
 		// Record events for each target resource
 		source := EventSource{
@@ -51,39 +43,40 @@ func NewMapFunc(wrapped handler.MapFunc, breaker Breaker, m Metrics, controller 
 		// Filter out requests for resources with open circuit breakers
 		keep := make([]reconcile.Request, 0, len(requests))
 		for _, req := range requests {
-			// If object is marked for deletion, always allow the
-			// event through without affecting circuit breaker
-			// timing. This ensures deletion events (which are
-			// MODIFIED events with deletionTimestamp set) can reach
-			// the reconciler to remove finalizers.
+			// If object is marked for deletion, always allow the event through
+			// without any circuit breaker interaction. This ensures deletion
+			// events (which are MODIFIED events with deletionTimestamp set) can
+			// reach the reconciler to remove finalizers. Unlike normal events,
+			// deletion is a one-way operation - if we drop this event the
+			// resource will be stuck until the next cache resync (default 1
+			// hour), since no further updates will occur once deletionTimestamp
+			// is set. We don't record these events in circuit breaker state or
+			// metrics since they bypass circuit breaker logic entirely for
+			// correctness, not as a circuit breaker decision.
 			if obj.GetDeletionTimestamp() != nil {
-				recordEvent(CircuitBreakerResultAllowed)
 				keep = append(keep, req)
 				continue
 			}
 
-			// Always record the event for tracking
-			breaker.RecordEvent(ctx, req.NamespacedName, source)
-
 			// Get current state
-			state := breaker.GetState(ctx, req.NamespacedName)
+			state := b.GetState(ctx, req.NamespacedName)
 
 			// If breaker is closed, allow the request
 			if !state.IsOpen {
+				b.RecordEvent(ctx, req.NamespacedName, source, EventAllowed)
 				keep = append(keep, req)
-				recordEvent(CircuitBreakerResultAllowed)
 				continue
 			}
 
 			// Breaker is open - check if we should allow in half-open state
 			if time.Now().After(state.NextAllowedAt) {
+				b.RecordEvent(ctx, req.NamespacedName, source, EventHalfOpenAllowed)
 				keep = append(keep, req)
-				breaker.RecordAllowed(ctx, req.NamespacedName)
-				recordEvent(CircuitBreakerResultHalfOpenAllowed)
 				continue
 			}
+
 			// Otherwise filter out - fully open state
-			recordEvent(CircuitBreakerResultDropped)
+			b.RecordEvent(ctx, req.NamespacedName, source, EventDropped)
 		}
 
 		return keep

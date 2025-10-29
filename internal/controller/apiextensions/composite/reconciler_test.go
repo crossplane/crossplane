@@ -1357,9 +1357,8 @@ func TestReconcile(t *testing.T) {
 
 // MockCircuitBreaker is a mock implementation of circuit.Breaker for testing.
 type MockCircuitBreaker struct {
-	MockGetState      func(ctx context.Context, target types.NamespacedName) circuit.State
-	MockRecordEvent   func(ctx context.Context, target types.NamespacedName, source circuit.EventSource)
-	MockRecordAllowed func(ctx context.Context, target types.NamespacedName)
+	MockGetState    func(ctx context.Context, target types.NamespacedName) circuit.State
+	MockRecordEvent func(ctx context.Context, target types.NamespacedName, es circuit.EventSource, et circuit.EventType)
 }
 
 // GetState calls MockGetState if set, otherwise returns a closed circuit.
@@ -1371,16 +1370,9 @@ func (m *MockCircuitBreaker) GetState(ctx context.Context, target types.Namespac
 }
 
 // RecordEvent calls MockRecordEvent if set.
-func (m *MockCircuitBreaker) RecordEvent(ctx context.Context, target types.NamespacedName, source circuit.EventSource) {
+func (m *MockCircuitBreaker) RecordEvent(ctx context.Context, target types.NamespacedName, es circuit.EventSource, et circuit.EventType) {
 	if m.MockRecordEvent != nil {
-		m.MockRecordEvent(ctx, target, source)
-	}
-}
-
-// RecordAllowed calls MockRecordAllowed if set.
-func (m *MockCircuitBreaker) RecordAllowed(ctx context.Context, target types.NamespacedName) {
-	if m.MockRecordAllowed != nil {
-		m.MockRecordAllowed(ctx, target)
+		m.MockRecordEvent(ctx, target, es, et)
 	}
 }
 

@@ -20,20 +20,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const (
-	// CircuitBreakerResultAllowed indicates the event was processed while the circuit
-	// was closed.
-	CircuitBreakerResultAllowed = "allowed"
-
-	// CircuitBreakerResultDropped indicates the event was dropped while the circuit
-	// was open.
-	CircuitBreakerResultDropped = "dropped"
-
-	// CircuitBreakerResultHalfOpenAllowed indicates the event was processed while
-	// probing a half-open circuit.
-	CircuitBreakerResultHalfOpenAllowed = "halfopen_allowed"
-)
-
 var (
 	_ Metrics              = &NopMetrics{}
 	_ Metrics              = &PrometheusMetrics{}
@@ -63,20 +49,20 @@ type PrometheusMetrics struct {
 func NewPrometheusMetrics() *PrometheusMetrics {
 	return &PrometheusMetrics{
 		opens: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: "crossplane",
-			Name:      "circuit_breaker_opens_total",
+			Subsystem: "circuit_breaker",
+			Name:      "opens_total",
 			Help:      "Number of times the XR circuit breaker transitioned from closed to open.",
 		}, []string{"controller"}),
 
 		closes: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: "crossplane",
-			Name:      "circuit_breaker_closes_total",
+			Subsystem: "circuit_breaker",
+			Name:      "closes_total",
 			Help:      "Number of times the XR circuit breaker transitioned from open to closed.",
 		}, []string{"controller"}),
 
 		events: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: "crossplane",
-			Name:      "circuit_breaker_events_total",
+			Subsystem: "circuit_breaker",
+			Name:      "events_total",
 			Help:      "Number of XR watch events handled by the circuit breaker, labelled by outcome.",
 		}, []string{"controller", "result"}),
 	}

@@ -27,16 +27,29 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+// EventType indicates how a circuit breaker handled an event.
+type EventType string
+
+const (
+	// EventAllowed indicates the event was processed while the circuit was closed.
+	EventAllowed EventType = "Allowed"
+
+	// EventDropped indicates the event was dropped while the circuit was open.
+	EventDropped EventType = "Dropped"
+
+	// EventHalfOpenAllowed indicates the event was processed while probing a
+	// half-open circuit.
+	EventHalfOpenAllowed EventType = "HalfOpenAllowed"
+)
+
 // Breaker tracks reconciliation events and opens when thresholds are exceeded.
 type Breaker interface {
 	// GetState returns the current circuit breaker state for a target resource.
 	GetState(ctx context.Context, target types.NamespacedName) State
 
 	// RecordEvent records a reconciliation event triggered by a watched resource.
-	RecordEvent(ctx context.Context, target types.NamespacedName, source EventSource)
-
-	// RecordAllowed updates the last allowed time for half-open state tracking.
-	RecordAllowed(ctx context.Context, target types.NamespacedName)
+	// The eventType indicates how the circuit breaker handled the event.
+	RecordEvent(ctx context.Context, target types.NamespacedName, es EventSource, et EventType)
 }
 
 // Metrics records circuit breaker transitions and event outcomes.
@@ -93,7 +106,5 @@ func (n *NopBreaker) GetState(_ context.Context, _ types.NamespacedName) State {
 }
 
 // RecordEvent does nothing.
-func (n *NopBreaker) RecordEvent(_ context.Context, _ types.NamespacedName, _ EventSource) {}
-
-// RecordAllowed does nothing.
-func (n *NopBreaker) RecordAllowed(_ context.Context, _ types.NamespacedName) {}
+func (n *NopBreaker) RecordEvent(_ context.Context, _ types.NamespacedName, _ EventSource, _ EventType) {
+}
