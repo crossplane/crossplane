@@ -165,8 +165,8 @@ func (p *DefaultPrinter) Print(w io.Writer, root *resource.Resource) error {
 func (p *DefaultPrinter) PrintList(w io.Writer, root *resource.ResourceList) error {
 	tw := printers.GetNewTabWriter(w)
 
-	if len(root.Items) == 0 {
-		return nil
+	if root == nil || len(root.Items) == 0 {
+		return errors.New("cannot print resource tree: resource list is empty")
 	}
 
 	firstResource := root.Items[0]
