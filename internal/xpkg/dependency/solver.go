@@ -22,240 +22,466 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver"
+	"github.com/google/go-containerregistry/pkg/name"
+	conregv1 "github.com/google/go-containerregistry/pkg/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
 	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
-// Constraints map package sources to their version constraints. Multiple
-// constraints for the same package are ANDed together.
-type Constraints map[string][]string
-
-// A Graph maps package sources to their dependencies.
-type Graph map[string][]v1beta1.Dependency
-
-// Constraints computes the constraint set from the dependency graph.
-// It aggregates all version constraints that apply to each package by
-// iterating through all dependencies in the graph.
-func (g Graph) Constraints() Constraints {
-	constraints := make(Constraints)
-	for _, deps := range g {
-		for _, dep := range deps {
-			constraints[dep.Package] = append(constraints[dep.Package], dep.Constraints)
-		}
-	}
-	return constraints
-}
-
-// ResolvedVersion represents a resolved package version.
-type ResolvedVersion struct {
-	// Tag is the semantic version tag (e.g., "v1.2.3").
-	Tag string
-
-	// Digest is the immutable OCI digest (e.g., "sha256:abc123...").
-	Digest string
-}
-
-// TwoPassSolver implements dependency resolution using a two-pass algorithm:
-// Pass 1: Build the dependency graph by fetching and parsing packages
-// Pass 2: Select versions using Minimum Version Selection (MVS).
-//
-// This approach ensures complete dependency graph knowledge before selecting
-// versions, enabling optimal version selection and clear error messages when
-// constraints cannot be satisfied.
-type TwoPassSolver struct {
+// TighteningConstraintSolver resolves package dependencies using iterative
+// constraint tightening. It traverses the dependency graph, selecting minimum
+// versions that satisfy accumulated constraints, then prunes unreachable
+// packages.
+type TighteningConstraintSolver struct {
 	client xpkg.Client
 }
 
-// NewTwoPassSolver creates a new TwoPassSolver.
-func NewTwoPassSolver(c xpkg.Client) *TwoPassSolver {
-	return &TwoPassSolver{
+// NewTighteningConstraintSolver creates a new TighteningConstraintSolver.
+func NewTighteningConstraintSolver(c xpkg.Client) *TighteningConstraintSolver {
+	return &TighteningConstraintSolver{
 		client: c,
 	}
 }
 
-// Solve resolves all dependencies in two passes.
-func (s *TwoPassSolver) Solve(ctx context.Context, source string, current []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
-	graph, err := s.BuildGraph(ctx, source, current)
-	if err != nil {
-		return nil, err
-	}
+// Package represents a package in various stages of resolution. It embeds
+// LockPackage to hold the final Lock state, plus additional fields needed
+// during resolution.
+type Package struct {
+	v1beta1.LockPackage
 
-	resolved, err := s.SelectVersions(ctx, graph, current)
-	if err != nil {
-		return nil, err
-	}
+	// Digest is the OCI image digest (e.g., "sha256:abc123...") returned by the
+	// registry during resolution. Used for computing Name.
+	Digest string
 
-	return resolved, nil
+	// Constraints are the accumulated version constraints for this package
+	// from all dependents.
+	Constraints []string
 }
 
-// BuildGraph fetches all packages and builds the dependency graph.
-//
-// This is Pass 1 of the two-pass algorithm. It recursively fetches and parses
-// all packages to build a complete dependency graph. Version constraints are
-// derived from the graph on-demand via Graph.Constraints().
-func (s *TwoPassSolver) BuildGraph(ctx context.Context, source string, current []v1beta1.LockPackage) (Graph, error) {
-	// Initialize graph from current Lock. Packages already in the Lock are
-	// marked as visited to avoid re-fetching them.
-	graph := make(Graph)
-	visited := make(map[string]bool)
-	inProgress := make(map[string]bool)
+// NewPackage creates a solver Package from a fetched xpkg.Package.
+func NewPackage(xp *xpkg.Package, version string, constraints []string) (*Package, error) {
+	hash, err := conregv1.NewHash(xp.Digest)
+	if err != nil {
+		return nil, errors.Wrapf(err, "invalid digest %s", xp.Digest)
+	}
 
+	pkg := &Package{
+		LockPackage: v1beta1.LockPackage{
+			Name:         xpkg.FriendlyID(xp.Source, hash.Hex),
+			Source:       xp.Source,
+			Version:      version,
+			Dependencies: ConvertDependencies(xp.GetDependencies()),
+		},
+		Digest:      xp.Digest,
+		Constraints: constraints,
+	}
+
+	// Extract type information from package metadata and map to pkg.crossplane.io/v1.
+	// The metadata may be from meta.pkg.crossplane.io/v1alpha1, v1beta1, or v1,
+	// but we always store Package types (Provider, Configuration, Function) not
+	// Revision types in the Lock.
+	if meta := xp.GetMeta(); meta != nil {
+		gvk := meta.GetObjectKind().GroupVersionKind()
+
+		// Map metadata package type to pkg.crossplane.io/v1 Package type.
+		// Keep the Kind (Provider, Configuration, Function) from metadata.
+		pkg.APIVersion = ptr.To(v1.SchemeGroupVersion.String())
+		pkg.Kind = ptr.To(gvk.Kind)
+	}
+
+	return pkg, nil
+}
+
+// Packages is a map of package sources to their resolution state.
+type Packages map[string]*Package
+
+// NewPackagesFrom creates a Packages map initialized from current Lock state.
+func NewPackagesFrom(current []v1beta1.LockPackage) Packages {
+	p := make(Packages, len(current))
 	for _, pkg := range current {
-		visited[pkg.Source] = true
-		graph[pkg.Source] = pkg.Dependencies
+		p[pkg.Source] = &Package{LockPackage: pkg}
 	}
-
-	// Start recursive traversal from the requested package.
-	if err := s.build(ctx, source, graph, visited, inProgress); err != nil {
-		return nil, err
-	}
-
-	return graph, nil
+	return p
 }
 
-// build recursively builds the dependency graph by fetching a
-// package and its dependencies. It detects cycles and avoids re-fetching
-// packages that are already in the graph.
-func (s *TwoPassSolver) build(ctx context.Context, source string, g Graph, visited, inProgress map[string]bool) error {
-	// Detect cycles: if we're already processing this package in our call
-	// stack, we've found a circular dependency.
-	if inProgress[source] {
-		return errors.Errorf("circular dependency detected: %s", source)
+// AddConstraints adds version constraints for a package source.
+func (p Packages) AddConstraints(source string, constraints ...string) {
+	pkg, exists := p[source]
+	if !exists {
+		p[source] = &Package{Constraints: constraints}
+		return
+	}
+	pkg.Constraints = append(pkg.Constraints, constraints...)
+}
+
+// UnsatisfiedConstraints returns the constraints that need to be satisfied for
+// a package. Returns empty slice if package is already resolved and satisfies
+// all constraints. Returns wildcard constraint if package has never been seen.
+// Returns error if constraints conflict with current package state (e.g.,
+// semver constraints on digest-pinned package).
+func (p Packages) UnsatisfiedConstraints(source string) ([]string, error) {
+	pkg, exists := p[source]
+	if !exists {
+		// Never seen this package - resolve with wildcard.
+		return []string{"*"}, nil
 	}
 
-	// Skip packages we've already processed (either from current Lock or
-	// earlier in this traversal).
-	if visited[source] {
-		return nil
+	// No constraints at all - handle based on whether resolved.
+	if len(pkg.Constraints) == 0 {
+		if pkg.Version == "" {
+			// No version, no constraints - resolve with wildcard.
+			return []string{"*"}, nil
+		}
+		// Has version, no constraints - already satisfied.
+		return nil, nil
 	}
 
-	// Mark as in-progress for cycle detection, remove when done.
-	inProgress[source] = true
-	defer delete(inProgress, source)
+	// Has constraints - separate by type (digest vs semver) and validate.
+	digests := []string{}
+	semvers := make([]string, 0, len(pkg.Constraints)) // Most likely all semvers.
+	for _, c := range pkg.Constraints {
+		if _, err := conregv1.NewHash(c); err == nil {
+			digests = append(digests, c)
+			continue
+		}
+		semvers = append(semvers, c)
+	}
 
-	pkg, err := s.client.Get(ctx, source)
+	// Cannot mix digest and semver constraints.
+	if len(digests) > 0 && len(semvers) > 0 {
+		return nil, errors.Errorf("package %s has conflicting constraint types: cannot mix digest constraints %v with semver constraints %v", source, digests, semvers)
+	}
+
+	// All constraints are digests.
+	if len(digests) > 0 {
+		// Verify all digest constraints are identical.
+		first := digests[0]
+		for _, d := range digests[1:] {
+			if d != first {
+				return nil, errors.Errorf("package %s has conflicting digest constraints: %v", source, digests)
+			}
+		}
+
+		// Not yet resolved - need to resolve to this digest.
+		if pkg.Version == "" {
+			return []string{first}, nil
+		}
+
+		// Already resolved to required digest - satisfied.
+		if pkg.Version == first {
+			return nil, nil
+		}
+
+		// Resolved to different digest - need to re-resolve.
+		return []string{first}, nil
+	}
+
+	// All constraints are semver.
+	// Not yet resolved - return semver constraints.
+	if pkg.Version == "" {
+		return semvers, nil
+	}
+
+	// Resolved, but version is a digest (can't evaluate semver against digest).
+	if _, err := conregv1.NewHash(pkg.Version); err == nil {
+		return nil, errors.Errorf("package %s is pinned to digest %s but has semver constraints %v; cannot evaluate semver constraints against digest-pinned packages", source, pkg.Version, semvers)
+	}
+
+	// Happy path: Resolved to semver tag, all constraints are semver - check satisfaction.
+	combined, err := semver.NewConstraint(strings.Join(semvers, ", "))
 	if err != nil {
-		return errors.Wrapf(err, "cannot fetch package %s", source)
+		return nil, errors.Wrapf(err, "invalid semver constraints %v for package %s", semvers, source)
 	}
 
-	deps := ConvertDependencies(pkg.GetDependencies())
-	g[source] = deps
-	visited[source] = true
+	current, err := semver.NewVersion(pkg.Version)
+	if err != nil {
+		return nil, errors.Wrapf(err, "invalid semver version %s for package %s", pkg.Version, source)
+	}
 
-	// Recursively process dependencies.
-	for _, dep := range deps {
-		if err := s.build(ctx, dep.Package, g, visited, inProgress); err != nil {
-			return err
+	// Current version satisfies constraints - already satisfied.
+	if combined.Check(current) {
+		return nil, nil
+	}
+
+	// Current version doesn't satisfy - need to re-resolve.
+	return semvers, nil
+}
+
+// ValidateVersion checks if a specific version of a package can be installed
+// given existing constraints from other packages. Returns error if the version
+// conflicts with any existing package's dependency constraints.
+func (p Packages) ValidateVersion(source string, version string) error {
+	for src, pkg := range p {
+		for _, dep := range pkg.Dependencies {
+			if dep.Package != source || dep.Constraints == "" {
+				continue
+			}
+
+			// Check if version satisfies this existing constraint.
+			if _, err := conregv1.NewHash(version); err == nil {
+				// Version is a digest - can only satisfy digest constraints.
+				if version != dep.Constraints {
+					return errors.Errorf("cannot install %s at digest %s: package %s requires %s", source, version, src, dep.Constraints)
+				}
+				continue
+			}
+
+			// Version is a tag - check semver constraints.
+			constraint, err := semver.NewConstraint(dep.Constraints)
+			if err != nil {
+				return errors.Wrapf(err, "invalid constraint %s from package %s", dep.Constraints, src)
+			}
+			sv, err := semver.NewVersion(version)
+			if err != nil {
+				return errors.Wrapf(err, "cannot parse version %s as semver", version)
+			}
+
+			if !constraint.Check(sv) {
+				return errors.Errorf("cannot install %s %s: package %s requires %s %s", source, version, src, source, dep.Constraints)
+			}
 		}
 	}
-
 	return nil
 }
 
-// SelectVersions selects specific versions for all packages using MVS.
-//
-// This is Pass 2 of the two-pass algorithm. With the complete dependency graph
-// from Pass 1, it computes constraints and selects the minimum (oldest) version
-// that satisfies all constraints for each package, following Go's Minimum
-// Version Selection strategy for stability and reproducibility.
-func (s *TwoPassSolver) SelectVersions(ctx context.Context, g Graph, current []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
-	// Compute constraints from the dependency graph.
-	constraints := g.Constraints()
+// FindReachable performs a depth-first search from the root package to find
+// all reachable packages and returns them as a filtered Packages map.
+func (p Packages) FindReachable(root string) Packages {
+	seen := make(map[string]bool)
+	reachable := make(Packages)
 
-	result := make([]v1beta1.LockPackage, 0, len(current)+len(constraints))
+	var visit func(string)
+	visit = func(src string) {
+		if seen[src] {
+			return
+		}
+		seen[src] = true
 
-	// Preserve packages from current Lock that have no new constraints.
-	// If a package has no entry in constraints, it means no package
-	// in the new dependency tree depends on it, so we keep it unchanged.
-	// Packages that DO have constraints (even if they're in current Lock)
-	// will be re-resolved below to satisfy the new constraints.
-	for _, pkg := range current {
-		if _, hasConstraints := constraints[pkg.Source]; !hasConstraints {
-			result = append(result, pkg)
+		pkg, exists := p[src]
+		if !exists {
+			return
+		}
+
+		// Add package to reachable set.
+		reachable[src] = pkg
+
+		for _, dep := range pkg.Dependencies {
+			visit(dep.Package)
 		}
 	}
 
-	// Resolve versions for packages that need it. These are packages that
-	// appear in the new dependency tree (have constraints).
-	for source, pkgConstraints := range constraints {
-		// Find the minimum version satisfying all accumulated constraints.
-		// This is the core of MVS: pick the oldest version that works.
-		ver, err := s.FindMinimumCompatibleVersion(ctx, source, pkgConstraints)
-		if err != nil {
-			return nil, errors.Wrapf(err, "cannot find version of %s satisfying constraints %v", source, pkgConstraints)
-		}
-
-		// Store resolved version with its digest (immutable reference) and
-		// dependencies from the graph.
-		result = append(result, v1beta1.LockPackage{
-			Name:         xpkg.FriendlyID(source, ver.Digest),
-			Source:       source,
-			Version:      ver.Digest,
-			Dependencies: g[source],
-		})
-	}
-
-	return result, nil
+	visit(root)
+	return reachable
 }
 
-// FindMinimumCompatibleVersion finds the minimum (oldest) version that
-// satisfies all constraints. This implements Minimum Version Selection (MVS)
-// for stability and reproducibility.
-//
-// The algorithm:
-// 1. Combines all constraints using AND logic
-// 2. Lists all available versions from the registry
-// 3. Filters to versions satisfying the combined constraint
-// 4. Returns the minimum (oldest) satisfying version
-// 5. Resolves the tag to an immutable digest.
-func (s *TwoPassSolver) FindMinimumCompatibleVersion(ctx context.Context, source string, constraints []string) (*ResolvedVersion, error) {
-	// Combine constraints using AND logic. Empty constraints match any version.
-	if len(constraints) == 0 {
-		constraints = []string{"*"}
+// ToLockPackages converts the resolution state to LockPackages for storage.
+// It prunes packages orphaned by constraint tightening during resolution, and
+// preserves packages from other dependency trees (other roots in the Lock).
+func (p Packages) ToLockPackages(root string, current []v1beta1.LockPackage) []v1beta1.LockPackage {
+	// Find packages reachable from root. This excludes:
+	// 1. Packages added during resolution but later orphaned when constraints
+	//    tightened (e.g., provider-c v1.1 depended on provider-x, but after
+	//    re-resolving to v2.0 it no longer does - provider-x gets dropped).
+	// 2. Packages from other roots (e.g., provider-b when resolving
+	//    provider-a).
+	reachable := p.FindReachable(root)
+
+	result := make([]v1beta1.LockPackage, 0, len(reachable))
+
+	// Add reachable packages from this resolution.
+	for _, pkg := range reachable {
+		result = append(result, pkg.LockPackage)
 	}
-	combined, err := semver.NewConstraint(strings.Join(constraints, ", "))
+
+	// Preserve packages from other roots. We add them back because they're
+	// separate installed packages we didn't touch. We check current (not
+	// the Packages map) so orphaned packages that were never installed get
+	// dropped, while installed packages get preserved.
+	for _, lp := range current {
+		if _, exists := reachable[lp.Source]; !exists {
+			result = append(result, lp)
+		}
+	}
+
+	return result
+}
+
+// Solve resolves all dependencies starting from the given root package
+// reference. The root package is installed at the exact version specified in
+// the reference, while dependencies are resolved using iterative constraint
+// tightening to find minimum versions that satisfy all accumulated constraints.
+//
+// The ref parameter must be a complete OCI reference including version or
+// digest (e.g., "registry.io/org/package:v1.0.0" or
+// "registry.io/org/package@sha256:...").
+func (s *TighteningConstraintSolver) Solve(ctx context.Context, ref string, current []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
+	// Parse root reference to extract source and version.
+	r, err := name.ParseReference(ref)
 	if err != nil {
+		return nil, errors.Wrapf(err, "cannot parse package reference %s", ref)
+	}
+
+	source := xpkg.ParsePackageSourceFromReference(r)
+	version := r.Identifier()
+
+	// Initialize packages from current Lock.
+	packages := NewPackagesFrom(current)
+
+	// Validate root version against existing constraints.
+	if err := packages.ValidateVersion(source, version); err != nil {
 		return nil, err
 	}
 
+	// Fetch root package to discover its dependencies.
+	xpkg, err := s.client.Get(ctx, ref)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot fetch root package %s", ref)
+	}
+
+	// Add root as already resolved (user's explicit choice, no resolution needed).
+	rootPkg, err := NewPackage(xpkg, version, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create root package")
+	}
+	packages[source] = rootPkg
+
+	queue := make([]string, 0, len(rootPkg.Dependencies))
+
+	// Queue root's dependencies for resolution.
+	for _, dep := range rootPkg.Dependencies {
+		if dep.Constraints != "" {
+			packages.AddConstraints(dep.Package, dep.Constraints)
+		}
+		queue = append(queue, dep.Package)
+	}
+
+	// Process dependency queue using iterative constraint tightening.
+	for len(queue) > 0 {
+		src := queue[0]
+		queue = queue[1:]
+
+		// Check what constraints need to be satisfied.
+		constraints, err := packages.UnsatisfiedConstraints(src)
+		if err != nil {
+			return nil, err
+		}
+		if len(constraints) == 0 {
+			// All constraints satisfied, skip.
+			continue
+		}
+
+		// Select version and fetch to discover dependencies.
+		resolvedPkg, err := s.SelectVersion(ctx, src, constraints)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot resolve package %s", src)
+		}
+
+		// Store resolved package.
+		packages[src] = resolvedPkg
+
+		// Add dependencies to queue with their constraints.
+		for _, dep := range resolvedPkg.Dependencies {
+			if dep.Constraints != "" {
+				packages.AddConstraints(dep.Package, dep.Constraints)
+			}
+			queue = append(queue, dep.Package)
+		}
+	}
+
+	return packages.ToLockPackages(source, current), nil
+}
+
+// SelectVersion selects the minimum (oldest) version satisfying all
+// constraints and fetches it to discover dependencies.
+//
+// For digest constraints, fetches the exact digest. For semver constraints,
+// implements the "minimum version preference" strategy: when multiple versions
+// satisfy the constraints, the oldest is chosen to minimize upgrade risk.
+//
+// Returns a fully populated Package ready to be stored in the Packages map.
+func (s *TighteningConstraintSolver) SelectVersion(ctx context.Context, source string, constraints []string) (*Package, error) {
+	// Separate constraints by type and validate.
+	digests := []string{}
+	semvers := make([]string, 0, len(constraints)) // Most likely all semvers.
+	for _, c := range constraints {
+		if _, err := conregv1.NewHash(c); err == nil {
+			digests = append(digests, c)
+			continue
+		}
+		semvers = append(semvers, c)
+	}
+
+	// Cannot mix digest and semver constraints.
+	if len(digests) > 0 && len(semvers) > 0 {
+		return nil, errors.Errorf("cannot mix digest constraints %v with semver constraints %v", digests, semvers)
+	}
+
+	// Handle digest constraints.
+	if len(digests) > 0 {
+		// Verify all digest constraints are identical.
+		first := digests[0]
+		for _, d := range digests[1:] {
+			if d != first {
+				return nil, errors.Errorf("conflicting digest constraints: %v", digests)
+			}
+		}
+
+		// Fetch the digest.
+		ref := source + "@" + first
+		pkg, err := s.client.Get(ctx, ref)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot fetch %s", ref)
+		}
+		return NewPackage(pkg, first, constraints)
+	}
+
+	// Handle semver constraints.
+	combined, err := semver.NewConstraint(strings.Join(semvers, ", "))
+	if err != nil {
+		return nil, errors.Wrapf(err, "invalid constraints %v", semvers)
+	}
+
+	// List available versions.
 	versions, err := s.client.ListVersions(ctx, source)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot list versions for %s", source)
 	}
 
-	// Find first (minimum) version satisfying constraints. This is MVS:
-	// we iterate oldest to newest and return the first match.
+	// Find minimum (oldest) version satisfying constraints.
 	for _, v := range versions {
 		sv, err := semver.NewVersion(v)
 		if err != nil {
-			continue
+			continue // Skip invalid semver.
 		}
 
-		// Doesn't satisfy our combined constraints.
 		if !combined.Check(sv) {
-			continue
+			continue // Doesn't satisfy constraints.
 		}
 
-		// Fetch the package to get its digest.
-		pkg, err := s.client.Get(ctx, source+":"+v)
+		// Fetch this version to get dependencies.
+		ref := source + ":" + v
+		pkg, err := s.client.Get(ctx, ref)
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot fetch %s:%s", source, v)
+			return nil, errors.Wrapf(err, "cannot fetch %s", ref)
 		}
 
-		return &ResolvedVersion{Tag: v, Digest: pkg.Digest}, nil
+		return NewPackage(pkg, v, constraints)
 	}
 
-	return nil, errors.Errorf("no version of %s satisfies constraints %v", source, constraints)
+	return nil, errors.Errorf("no version of %s satisfies constraints %v", source, semvers)
 }
 
-// ConvertDependencies converts package metadata dependencies to Lock dependencies.
+// ConvertDependencies converts package metadata dependencies to Lock
+// dependencies.
 //
-// This handles the conversion from the package.yaml format (which uses different
-// fields for different package types) to the unified Lock format.
+// This handles the conversion from the package.yaml format (which uses
+// different fields for different package types) to the unified Lock format.
 func ConvertDependencies(deps []pkgmetav1.Dependency) []v1beta1.Dependency {
 	result := make([]v1beta1.Dependency, 0, len(deps))
 

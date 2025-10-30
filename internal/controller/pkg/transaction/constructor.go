@@ -111,7 +111,7 @@ func NewReconciler(mgr manager.Manager, pkg xpkg.Client, opts ...ReconcilerOptio
 		record:     event.NewNopRecorder(),
 		conditions: conditions.ObservedGenerationPropagationManager{},
 		lock:       NewAtomicLockManager(c),
-		solver:     dependency.NewTwoPassSolver(pkg),
+		solver:     dependency.NewTighteningConstraintSolver(pkg),
 		validator: ValidatorChain{
 			// TODO(negz): Validate RBAC, etc.
 			NewSchemaValidator(c, pkg),
