@@ -42,11 +42,12 @@ import (
 )
 
 type MockEngine struct {
-	MockStart        func(name string, o ...engine.ControllerOption) error
-	MockStop         func(ctx context.Context, name string) error
-	MockIsRunning    func(name string) bool
-	MockStartWatches func(ctx context.Context, name string, ws ...engine.Watch) error
-	MockGetClient    func() client.Client
+	MockStart           func(name string, o ...engine.ControllerOption) error
+	MockStop            func(ctx context.Context, name string) error
+	MockIsRunning       func(name string) bool
+	MockStartWatches    func(ctx context.Context, name string, ws ...engine.Watch) error
+	MockGetClient       func() client.Client
+	MockGetFieldIndexer func() client.FieldIndexer
 }
 
 var (
@@ -72,6 +73,10 @@ func (m *MockEngine) StartWatches(ctx context.Context, name string, ws ...engine
 
 func (m *MockEngine) GetCached() client.Client {
 	return m.MockGetClient()
+}
+
+func (m *MockEngine) GetFieldIndexer() client.FieldIndexer {
+	return m.MockGetFieldIndexer()
 }
 
 func TestReconcile(t *testing.T) {
@@ -215,6 +220,7 @@ func TestReconcile(t *testing.T) {
 						MockStop: func(_ context.Context, _ string) error {
 							return errBoom
 						},
+						MockGetFieldIndexer: func() client.FieldIndexer { return nil },
 					}),
 				},
 			},
@@ -243,7 +249,8 @@ func TestReconcile(t *testing.T) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 					WithControllerEngine(&MockEngine{
-						MockStop: func(_ context.Context, _ string) error { return nil },
+						MockStop:            func(_ context.Context, _ string) error { return nil },
+						MockGetFieldIndexer: func() client.FieldIndexer { return nil },
 					}),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return errBoom
@@ -275,7 +282,8 @@ func TestReconcile(t *testing.T) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 					WithControllerEngine(&MockEngine{
-						MockStop: func(_ context.Context, _ string) error { return nil },
+						MockStop:            func(_ context.Context, _ string) error { return nil },
+						MockGetFieldIndexer: func() client.FieldIndexer { return nil },
 					}),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
@@ -435,6 +443,7 @@ func TestReconcile(t *testing.T) {
 						MockStop: func(_ context.Context, _ string) error {
 							return errBoom
 						},
+						MockGetFieldIndexer: func() client.FieldIndexer { return nil },
 					}),
 				},
 			},
@@ -474,7 +483,8 @@ func TestReconcile(t *testing.T) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 					WithControllerEngine(&MockEngine{
-						MockStop: func(_ context.Context, _ string) error { return nil },
+						MockStop:            func(_ context.Context, _ string) error { return nil },
+						MockGetFieldIndexer: func() client.FieldIndexer { return nil },
 					}),
 				},
 			},
@@ -523,7 +533,8 @@ func TestReconcile(t *testing.T) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 					WithControllerEngine(&MockEngine{
-						MockStop: func(_ context.Context, _ string) error { return nil },
+						MockStop:            func(_ context.Context, _ string) error { return nil },
+						MockGetFieldIndexer: func() client.FieldIndexer { return nil },
 					}),
 				},
 			},
@@ -691,9 +702,10 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithControllerEngine(&MockEngine{
-						MockIsRunning: func(_ string) bool { return false },
-						MockStart:     func(_ string, _ ...engine.ControllerOption) error { return errBoom },
-						MockGetClient: func() client.Client { return test.NewMockClient() },
+						MockIsRunning:       func(_ string) bool { return false },
+						MockStart:           func(_ string, _ ...engine.ControllerOption) error { return errBoom },
+						MockGetClient:       func() client.Client { return test.NewMockClient() },
+						MockGetFieldIndexer: func() client.FieldIndexer { return nil },
 					}),
 				},
 			},
@@ -733,7 +745,8 @@ func TestReconcile(t *testing.T) {
 						MockStartWatches: func(_ context.Context, _ string, _ ...engine.Watch) error {
 							return errBoom
 						},
-						MockGetClient: func() client.Client { return test.NewMockClient() },
+						MockGetClient:       func() client.Client { return test.NewMockClient() },
+						MockGetFieldIndexer: func() client.FieldIndexer { return nil },
 					}),
 				},
 			},
@@ -776,10 +789,11 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithControllerEngine(&MockEngine{
-						MockIsRunning:    func(_ string) bool { return false },
-						MockStart:        func(_ string, _ ...engine.ControllerOption) error { return nil },
-						MockStartWatches: func(_ context.Context, _ string, _ ...engine.Watch) error { return nil },
-						MockGetClient:    func() client.Client { return test.NewMockClient() },
+						MockIsRunning:       func(_ string) bool { return false },
+						MockStart:           func(_ string, _ ...engine.ControllerOption) error { return nil },
+						MockStartWatches:    func(_ context.Context, _ string, _ ...engine.Watch) error { return nil },
+						MockGetClient:       func() client.Client { return test.NewMockClient() },
+						MockGetFieldIndexer: func() client.FieldIndexer { return nil },
 					},
 					),
 				},
@@ -837,11 +851,12 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithControllerEngine(&MockEngine{
-						MockStart:        func(_ string, _ ...engine.ControllerOption) error { return nil },
-						MockStop:         func(_ context.Context, _ string) error { return nil },
-						MockIsRunning:    func(_ string) bool { return false },
-						MockStartWatches: func(_ context.Context, _ string, _ ...engine.Watch) error { return nil },
-						MockGetClient:    func() client.Client { return test.NewMockClient() },
+						MockStart:           func(_ string, _ ...engine.ControllerOption) error { return nil },
+						MockStop:            func(_ context.Context, _ string) error { return nil },
+						MockIsRunning:       func(_ string) bool { return false },
+						MockStartWatches:    func(_ context.Context, _ string, _ ...engine.Watch) error { return nil },
+						MockGetClient:       func() client.Client { return test.NewMockClient() },
+						MockGetFieldIndexer: func() client.FieldIndexer { return nil },
 					}),
 				},
 			},

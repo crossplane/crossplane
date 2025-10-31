@@ -396,7 +396,7 @@ func TestClientSideSync(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			s := NewClientSideCompositeSyncer(tc.params.c, tc.params.ng)
-			err := s.Sync(tc.args.ctx, tc.args.cm, tc.args.xr)
+			err := s.Sync(tc.args.ctx, tc.args.cm, tc.args.xr, false)
 
 			if diff := cmp.Diff(tc.want.cm, tc.args.cm); diff != "" {
 				t.Errorf("\n%s\ns.Sync(...): -want, +got:\n%s", tc.reason, diff)
