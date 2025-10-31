@@ -160,9 +160,7 @@ func NewServerSideCompositeSyncer(c client.Client, ng names.NameGenerator) *Serv
 
 // Sync the supplied claim with the supplied composite resource (XR). Syncing
 // may involve creating and binding the XR.
-func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error {
-	// First we sync claim -> XR.
-
+func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured, hasEnforcedComposition bool) error { // First we sync claim -> XR.
 	// Create an empty XR patch object. We'll use this object to ensure we only
 	// SSA our desired state, not the state we previously read from the API
 	// server.
@@ -218,6 +216,10 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// 3. Using the resulting map keys to filter the claim's spec.
 	wellKnownClaimFields := xcrd.CompositeResourceClaimSpecProps()
 	for _, field := range xcrd.PropagateSpecProps {
+		// Skip propagating compositionRef if enforcedCompositionRef is set
+		if field == "compositionRef" && hasEnforcedComposition {
+			continue
+		}
 		delete(wellKnownClaimFields, field)
 	}
 
@@ -268,7 +270,11 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	//
 	// When a claim sets a composition ref, it supercedes selectors. It should
 	// only be propagated claim -> XR.
-	if ref := xr.GetCompositionReference(); ref != nil && cm.GetCompositionReference() == nil {
+	//
+	// EXCEPTION: When enforcedCompositionRef is set, we ALWAYS propagate
+	// XR -> claim, overriding whatever the claim has. The enforced composition
+	// takes precedence over any claim preference.
+	if ref := xr.GetCompositionReference(); ref != nil && (cm.GetCompositionReference() == nil || hasEnforcedComposition) {
 		cm.SetCompositionReference(ref)
 	}
 

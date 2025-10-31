@@ -330,7 +330,7 @@ func (s *EnforcedCompositionSelector) SelectComposition(ctx context.Context, cp 
 	cp.SetCompositionReference(&corev1.ObjectReference{Name: def.Spec.EnforcedCompositionRef.Name})
 
 	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Enforced composition has been selected"))
-	return nil
+	return errors.Wrap(s.client.Update(ctx, cp), errUpdateComposite)
 }
 
 // NewConfiguratorChain returns a new *ConfiguratorChain.

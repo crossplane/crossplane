@@ -871,6 +871,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 						def.DeepCopyInto(obj.(*v1.CompositeResourceDefinition))
 						return nil
 					}),
+					MockUpdate: test.NewMockUpdateFn(nil),
 				},
 				def: v1.CompositeResourceDefinition{},
 				cp:  &fake.Composite{},
@@ -915,6 +916,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 						def.DeepCopyInto(obj.(*v1.CompositeResourceDefinition))
 						return nil
 					}),
+					MockUpdate: test.NewMockUpdateFn(nil),
 				},
 				def: v1.CompositeResourceDefinition{
 					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
@@ -931,6 +933,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 			reason: "Successfully set the default composition reference even if another one was set",
 			args: args{
 				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						def := &v1.CompositeResourceDefinition{
 							Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
