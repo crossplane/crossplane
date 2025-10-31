@@ -469,12 +469,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			"desired-version", desired.APIVersion)
 	}
 
-	if r.engine.IsRunning(composite.ControllerName(d.GetName())) {
-		log.Debug("Composite resource controller is running")
-		d.Status.SetConditions(v1.WatchingComposite())
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
-	}
-
 	ro := r.CompositeReconcilerOptions(ctx, d)
 	ck := resource.CompositeKind(d.GetCompositeGroupVersionKind())
 
@@ -505,6 +499,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		co = append(co, engine.WithWatchGarbageCollector(gc))
 	}
 
+	// Start is idempotent - it's a no-op if the controller is already running.
+	// We call it every reconcile to ensure the controller is started, even after
+	// transient failures.
+	if !r.engine.IsRunning(name) {
+		log.Debug("Starting composite resource controller")
+	}
 	if err := r.engine.Start(name, co...); err != nil {
 		log.Debug(errStartController, "error", err)
 		err = errors.Wrap(err, errStartController)
@@ -519,6 +519,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xr.SetGroupVersionKind(xrGVK)
 
 	crh := EnqueueForCompositionRevision(resource.CompositeKind(xrGVK), r.engine.GetCached(), log)
+
+	// StartWatches is idempotent - it only starts watches that don't already
+	// exist. We call it every reconcile to ensure watches are started, even if
+	// they failed transiently on a previous attempt.
 	if err := r.engine.StartWatches(ctx, name,
 		engine.WatchFor(xr, engine.WatchTypeCompositeResource, &handler.EnqueueRequestForObject{}),
 		engine.WatchFor(&v1.CompositionRevision{}, engine.WatchTypeCompositionRevision, crh),
@@ -529,9 +533,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	log.Debug("Started composite resource controller")
-
-	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
+	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(xrGVK)
 	d.Status.SetConditions(v1.WatchingComposite())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }
