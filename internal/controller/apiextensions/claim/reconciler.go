@@ -40,6 +40,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/v2/internal/names"
 )
 
@@ -91,16 +92,16 @@ type ManagedFieldsUpgrader interface {
 // A CompositeSyncer binds and syncs the supplied claim with the supplied
 // composite resource (XR).
 type CompositeSyncer interface {
-	Sync(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error
+	Sync(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured, hasEnforcedComposition bool) error
 }
 
 // A CompositeSyncerFn binds and syncs the supplied claim with the supplied
 // composite resource (XR).
-type CompositeSyncerFn func(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error
+type CompositeSyncerFn func(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured, hasEnforcedComposition bool) error
 
 // Sync the supplied claim with the supplied composite resource.
-func (fn CompositeSyncerFn) Sync(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error {
-	return fn(ctx, cm, xr)
+func (fn CompositeSyncerFn) Sync(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured, hasEnforcedComposition bool) error {
+	return fn(ctx, cm, xr, hasEnforcedComposition)
 }
 
 // A ConnectionSecretOwner may create and manage a connection secret in any
@@ -446,8 +447,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// The XR's claim reference before syncing. Used to determine if we bind it.
 	before := xr.GetClaimReference()
 
+	// Check if enforcedCompositionRef is set in the XRD.
+	hasEnforcedComposition := false
+	xrdList := &v1.CompositeResourceDefinitionList{}
+	if err := r.client.List(ctx, xrdList); err == nil {
+		for _, xrd := range xrdList.Items {
+			if xrd.Spec.Group == r.gvkXR.Group && xrd.GetCompositeGroupVersionKind().Kind == r.gvkXR.Kind {
+				if xrd.Spec.EnforcedCompositionRef != nil {
+					hasEnforcedComposition = true
+					break
+				}
+			}
+		}
+	}
+
 	// Create (if necessary), bind, and sync an XR with the claim.
-	if err := r.composite.Sync(ctx, cm, xr); err != nil {
+	if err := r.composite.Sync(ctx, cm, xr, hasEnforcedComposition); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}

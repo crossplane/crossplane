@@ -932,6 +932,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 						def.DeepCopyInto(obj.(*v1.CompositeResourceDefinition))
 						return nil
 					}),
+					MockUpdate: test.NewMockUpdateFn(nil),
 				},
 				def: v1.CompositeResourceDefinition{
 					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
@@ -955,6 +956,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 						def.DeepCopyInto(obj.(*v1.CompositeResourceDefinition))
 						return nil
 					}),
+					MockUpdate: test.NewMockUpdateFn(nil),
 				},
 				def: v1.CompositeResourceDefinition{
 					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
