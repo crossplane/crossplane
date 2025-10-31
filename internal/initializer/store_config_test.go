@@ -73,7 +73,7 @@ func TestStoreConfigObject(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := NewStoreConfigObject("crossplane-system").Run(context.TODO(), tc.args.kube)
+			err := NewStoreConfigObject("crossplane-system").Run(t.Context(), tc.args.kube)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRun(...): -want err, +got err:\n%s", name, diff)
 			}

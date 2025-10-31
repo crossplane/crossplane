@@ -17,7 +17,6 @@ limitations under the License.
 package manager
 
 import (
-	"context"
 	"testing"
 
 	fuzz "github.com/AdaLogics/go-fuzz-headers"
@@ -38,7 +37,7 @@ func FuzzPackageRevision(f *testing.F) {
 			MockHead: fake.NewMockHeadFn(nil, errors.New("boom")),
 		}
 		r := NewPackageRevisioner(fetcher)
-		_, _ = r.Revision(context.Background(), pkg, "")
+		_, _ = r.Revision(t.Context(), pkg, "")
 		n, err := ff.GetString()
 		if err != nil {
 			t.Skip()

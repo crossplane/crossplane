@@ -1,7 +1,6 @@
 package composition
 
 import (
-	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -363,7 +362,7 @@ func TestValidatorValidate(t *testing.T) {
 				t.Errorf("NewValidator(...) = %v", err)
 				return
 			}
-			_, got := v.Validate(context.TODO(), tc.args.comp)
+			_, got := v.Validate(t.Context(), tc.args.comp)
 			if diff := cmp.Diff(tc.want.errs, got, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
 				t.Errorf("%s\nValidate(...) = -want, +got\n%s", tc.reason, diff)
 			}

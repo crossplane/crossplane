@@ -83,7 +83,7 @@ func TestStartSource(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				q:   nil, // Not called, just plumbed down to the event handler.
 			},
 			want: want{
@@ -100,7 +100,7 @@ func TestStartSource(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				q:   nil, // Not called, just plumbed down to the event handler.
 			},
 			want: want{
@@ -161,7 +161,7 @@ func TestStopSource(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				q:   nil, // Not called, just plumbed down to the event handler.
 			},
 			want: want{
@@ -182,7 +182,7 @@ func TestStopSource(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				q:   nil, // Not called, just plumbed down to the event handler.
 			},
 			want: want{

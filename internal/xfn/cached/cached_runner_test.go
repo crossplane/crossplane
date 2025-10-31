@@ -344,7 +344,7 @@ func TestRunFunction(t *testing.T) {
 				}),
 				o: []FileBackedRunnerOption{
 					WithLogger(&TestLogger{t: t}),
-					//WithFilesystem(afero.NewMemMapFs()),
+					// WithFilesystem(afero.NewMemMapFs()),
 					WithFilesystem(MockFs(map[string][]byte{
 						"coolfn/hello": func() []byte {
 							msg, _ := proto.Marshal(&v1alpha1.CachedRunFunctionResponse{
@@ -417,7 +417,7 @@ func TestCacheFunction(t *testing.T) {
 		WithFilesystem(fs))
 
 	// Populate the cache.
-	got, err := r.CacheFunction(context.TODO(), "coolfn", &fnv1.RunFunctionRequest{Meta: &fnv1.RequestMeta{Tag: "req"}})
+	got, err := r.CacheFunction(t.Context(), "coolfn", &fnv1.RunFunctionRequest{Meta: &fnv1.RequestMeta{Tag: "req"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -433,7 +433,7 @@ func TestCacheFunction(t *testing.T) {
 		WithFilesystem(fs))
 
 	// Make sure we can read back what we just wrote.
-	got, err = r.RunFunction(context.TODO(), "coolfn", &fnv1.RunFunctionRequest{Meta: &fnv1.RequestMeta{Tag: "req"}})
+	got, err = r.RunFunction(t.Context(), "coolfn", &fnv1.RunFunctionRequest{Meta: &fnv1.RequestMeta{Tag: "req"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -443,7 +443,7 @@ func TestCacheFunction(t *testing.T) {
 	}
 }
 
-// Make sure the Global TTL is used when a Function Response TTL is greater
+// Make sure the Global TTL is used when a Function Response TTL is greater.
 func TestCacheFunctionWithMaxTTL(t *testing.T) {
 	maxTTL := 5 * time.Minute
 	requestedTTL := 30 * time.Minute
@@ -469,7 +469,7 @@ func TestCacheFunctionWithMaxTTL(t *testing.T) {
 	startTime := time.Now().UTC()
 
 	// Populate the cache with a response that has a TTL greater than maxTTL.
-	got, err := r.CacheFunction(context.TODO(), "coolfn", &fnv1.RunFunctionRequest{Meta: &fnv1.RequestMeta{Tag: "req"}})
+	got, err := r.CacheFunction(t.Context(), "coolfn", &fnv1.RunFunctionRequest{Meta: &fnv1.RequestMeta{Tag: "req"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -521,7 +521,7 @@ func TestGarbageCollectFilesNow(t *testing.T) {
 		WithLogger(&TestLogger{t: t}),
 		WithFilesystem(fs))
 
-	collected, err := r.GarbageCollectFilesNow(context.TODO())
+	collected, err := r.GarbageCollectFilesNow(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

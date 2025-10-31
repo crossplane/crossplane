@@ -230,7 +230,7 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			fns := EnqueueForCompositionRevision(resource.CompositeKind(tc.args.of), tc.args.reader, logging.NewNopLogger())
 			q := rateLimitingQueueMock{}
-			fns.Create(context.TODO(), tc.args.event, &q)
+			fns.Create(t.Context(), tc.args.event, &q)
 
 			if diff := cmp.Diff(tc.want.added, q.added); diff != "" {
 				t.Errorf("\n%s\nfns.Create(...): -want, +got:\n%s", tc.reason, diff)

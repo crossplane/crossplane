@@ -226,7 +226,7 @@ func TestStartController(t *testing.T) {
 			}
 
 			// Stop the controller. Will be a no-op if it never started.
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
 			err = e.Stop(ctx, tc.args.name)
 			if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
@@ -342,7 +342,7 @@ func TestIsRunning(t *testing.T) {
 			}
 
 			// Stop the controller. Will be a no-op if it never started.
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
 			_ = e.Stop(ctx, tc.args.name)
 
@@ -397,7 +397,7 @@ func TestStopController(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				name: "cool-controller",
 			},
 			want: want{
@@ -661,7 +661,7 @@ func TestStartWatches(t *testing.T) {
 			}
 
 			// Stop the controller. Will be a no-op if it never started.
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
 			err = e.Stop(ctx, tc.args.name)
 			if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
@@ -716,7 +716,7 @@ func TestStopWatches(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				name: "cool-controller",
 				ws: []WatchID{
 					{
@@ -773,7 +773,7 @@ func TestStopWatches(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				name: "cool-controller",
 				ws: []WatchID{
 					{
@@ -822,7 +822,7 @@ func TestStopWatches(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				name: "cool-controller",
 				ws: []WatchID{
 					{

@@ -121,7 +121,7 @@ func TestRender(t *testing.T) {
 		},
 		"UnknownFunction": {
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				in: Inputs{
 					CompositeResource: ucomposite.New(),
 					Composition: &apiextensionsv1.Composition{
@@ -143,7 +143,7 @@ func TestRender(t *testing.T) {
 		},
 		"FatalResult": {
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				in: Inputs{
 					CompositeResource: ucomposite.New(),
 					Composition: &apiextensionsv1.Composition{
@@ -187,7 +187,7 @@ func TestRender(t *testing.T) {
 		},
 		"Success": {
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				in: Inputs{
 					CompositeResource: &ucomposite.Unstructured{
 						Unstructured: unstructured.Unstructured{
@@ -373,7 +373,7 @@ func TestRender(t *testing.T) {
 		},
 		"SuccessReady": {
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				in: Inputs{
 					CompositeResource: &ucomposite.Unstructured{
 						Unstructured: unstructured.Unstructured{
@@ -542,7 +542,7 @@ func TestRender(t *testing.T) {
 		},
 		"SuccessWithExtraResources": {
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				in: Inputs{
 					CompositeResource: &ucomposite.Unstructured{
 						Unstructured: unstructured.Unstructured{

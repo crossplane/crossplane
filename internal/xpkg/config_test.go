@@ -426,7 +426,7 @@ func TestImageConfigStoreBestMatch(t *testing.T) {
 			s := &ImageConfigStore{
 				client: tc.args.client,
 			}
-			got, err := s.bestMatch(context.Background(), tc.args.image, tc.args.isValid)
+			got, err := s.bestMatch(t.Context(), tc.args.image, tc.args.isValid)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("bestMatch() error -want +got: %s", diff)
 			}

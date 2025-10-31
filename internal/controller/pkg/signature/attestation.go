@@ -100,7 +100,11 @@ func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 
 	var decodedPayload []byte
 	if val, ok := payloadData["payload"]; ok {
-		decodedPayload, err = base64.StdEncoding.DecodeString(val.(string))
+		strVal, ok := val.(string)
+		if !ok {
+			return nil, "", fmt.Errorf("payload is not a string")
+		}
+		decodedPayload, err = base64.StdEncoding.DecodeString(strVal)
 		if err != nil {
 			return nil, "", fmt.Errorf("decoding payload: %w", err)
 		}

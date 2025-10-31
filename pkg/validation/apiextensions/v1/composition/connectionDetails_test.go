@@ -14,7 +14,6 @@ limitations under the License.
 package composition
 
 import (
-	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -123,7 +122,7 @@ func TestValidateConnectionDetails(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewValidator() error = %v", err)
 			}
-			got := v.validateConnectionDetailsWithSchemas(context.TODO(), tt.args.comp)
+			got := v.validateConnectionDetailsWithSchemas(t.Context(), tt.args.comp)
 			if diff := cmp.Diff(got, tt.want.errs, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail")); diff != "" {
 				t.Errorf("validateConnectionDetailsWithSchemas(...) = -want, +got\n%s\n", diff)
 			}

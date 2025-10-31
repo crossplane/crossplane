@@ -432,7 +432,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			refs, err := tc.args.est.Establish(context.TODO(), tc.args.objs, tc.args.parent, tc.args.control)
+			refs, err := tc.args.est.Establish(t.Context(), tc.args.objs, tc.args.parent, tc.args.control)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors(), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -755,7 +755,7 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := tc.args.est.ReleaseObjects(context.TODO(), tc.args.parent)
+			err := tc.args.est.ReleaseObjects(t.Context(), tc.args.parent)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)

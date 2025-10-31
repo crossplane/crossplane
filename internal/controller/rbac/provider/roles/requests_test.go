@@ -184,7 +184,7 @@ func TestExpand(t *testing.T) {
 					Verbs:           []string{"get"},
 				}},
 				ctx: func() context.Context {
-					ctx, cancel := context.WithCancel(context.Background())
+					ctx, cancel := context.WithCancel(t.Context())
 					cancel()
 					return ctx
 				}(),
@@ -199,7 +199,7 @@ func TestExpand(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctx := tc.args.ctx
 			if ctx == nil {
-				ctx = context.Background()
+				ctx = t.Context()
 			}
 			got, err := Expand(ctx, tc.rs...)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -279,7 +279,7 @@ func TestValidatePermissionRequests(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				requests: []rbacv1.PolicyRule{
 					// Allowed - we allow * on secrets.
 					{
@@ -355,7 +355,7 @@ func TestValidatePermissionRequests(t *testing.T) {
 			},
 			args: args{
 				ctx: func() context.Context {
-					ctx, cancel := context.WithCancel(context.Background())
+					ctx, cancel := context.WithCancel(t.Context())
 					cancel()
 					return ctx
 				}(),

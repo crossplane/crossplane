@@ -767,7 +767,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 				tc.args.opts...)
 			e.certificate = tc.args.certificate
 
-			err := e.Run(context.Background(), tc.args.kube)
+			err := e.Run(t.Context(), tc.args.kube)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%sch\nRun(...): -want err, +got err:\n%s", tc.reason, diff)
 			}

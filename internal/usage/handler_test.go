@@ -344,7 +344,7 @@ func TestHandle(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			h := NewHandler(tc.args.client, WithLogger(logging.NewNopLogger()))
-			got := h.Handle(context.Background(), tc.args.request)
+			got := h.Handle(t.Context(), tc.args.request)
 			if diff := cmp.Diff(tc.want.resp, got); diff != "" {
 				t.Errorf("%s\nHandle(...): -want response, +got:\n%s", tc.reason, diff)
 			}
