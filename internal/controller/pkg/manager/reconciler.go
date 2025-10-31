@@ -39,7 +39,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
@@ -218,7 +217,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		Owns(&v1.ProviderRevision{}).
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackagesForImageConfig(mgr.GetClient(), &v1.ProviderList{}, log)).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, opts...)), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(NewReconciler(mgr, opts...)))
 }
 
 // SetupConfiguration adds a controller that reconciles Configurations.
@@ -255,7 +254,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		Owns(&v1.ConfigurationRevision{}).
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackagesForImageConfig(mgr.GetClient(), &v1.ConfigurationList{}, log)).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }
 
 // SetupFunction adds a controller that reconciles Functions.
@@ -296,7 +295,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		Owns(&v1.FunctionRevision{}).
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackagesForImageConfig(mgr.GetClient(), &v1.FunctionList{}, log)).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, opts...)), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(NewReconciler(mgr, opts...)))
 }
 
 // NewReconciler creates a new package reconciler.

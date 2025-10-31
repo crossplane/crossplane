@@ -33,7 +33,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
@@ -67,7 +66,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1.CompositionRevision{}).
 		Watches(&pkgv1.FunctionRevision{}, EnqueueCompositionRevisionsForFunctionRevision(mgr.GetClient(), o.Logger)).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }
 
 // ReconcilerOption is used to configure the Reconciler.

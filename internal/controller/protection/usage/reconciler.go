@@ -40,7 +40,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 	xpresource "github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
@@ -112,7 +111,7 @@ func SetupUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 		Named(name).
 		For(&v1beta1.Usage{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }
 
 // SetupClusterUsage adds a controller that reconciles ClusterUsages.
@@ -127,7 +126,7 @@ func SetupClusterUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 		Named(name).
 		For(&v1beta1.ClusterUsage{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }
 
 // SetupLegacyUsage adds a controller that reconciles legacy Usages, i.e. those
@@ -143,7 +142,7 @@ func SetupLegacyUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 		Named(name).
 		For(&legacy.Usage{}). //nolint:staticcheck // It's deprecated, but we still need to support it.
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }
 
 // ReconcilerOption is used to configure the Reconciler.

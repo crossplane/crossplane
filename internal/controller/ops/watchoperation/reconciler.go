@@ -34,7 +34,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
@@ -193,7 +192,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		watched.WithRecorder(r.record.WithAnnotations("controller", WatchedControllerName(wo.GetName()))))
 
 	ko := r.options.ForControllerRuntime()
-	ko.Reconciler = ratelimiter.NewReconciler(WatchedControllerName(wo.GetName()), errors.WithSilentRequeueOnConflict(wr), r.options.GlobalRateLimiter)
+	ko.Reconciler = errors.WithSilentRequeueOnConflict(wr)
 
 	name := WatchedControllerName(wo.GetName())
 	co := []engine.ControllerOption{engine.WithRuntimeOptions(ko)}
