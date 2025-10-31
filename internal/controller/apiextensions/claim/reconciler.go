@@ -448,16 +448,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	before := xr.GetClaimReference()
 
 	// Check if enforcedCompositionRef is set in the XRD.
+	// We use an index to efficiently look up the XRD for this composite GVK.
 	hasEnforcedComposition := false
 	xrdList := &v1.CompositeResourceDefinitionList{}
-	if err := r.client.List(ctx, xrdList); err == nil {
-		for _, xrd := range xrdList.Items {
-			if xrd.Spec.Group == r.gvkXR.Group && xrd.GetCompositeGroupVersionKind().Kind == r.gvkXR.Kind {
-				if xrd.Spec.EnforcedCompositionRef != nil {
-					hasEnforcedComposition = true
-					break
-				}
-			}
+	if err := r.client.List(ctx, xrdList, client.MatchingFields{XRDByCompositeGVKIndex(): compositeGVKKeyFor(r.gvkXR)}); err == nil && len(xrdList.Items) > 0 {
+		// There should only be one XRD for a given composite GVK
+		if xrdList.Items[0].Spec.EnforcedCompositionRef != nil {
+			hasEnforcedComposition = true
 		}
 	}
 

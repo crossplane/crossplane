@@ -203,7 +203,7 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// 2. XR controller uses selectors to set XR's composition ref.
 	// 3. Claim controller propagates ref XR -> claim.
 	//
-	// When a claim sets a composition ref, it supercedes selectors. It should
+	// When a claim sets a composition ref, it supersedes selectors. It should
 	// only be propagated claim -> XR.
 	//
 	// EXCEPTION: When enforcedCompositionRef is set, we ALWAYS propagate
