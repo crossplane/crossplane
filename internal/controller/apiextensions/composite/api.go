@@ -357,7 +357,7 @@ func (s *EnforcedCompositionSelector) SelectComposition(ctx context.Context, cp 
 
 	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Enforced composition has been selected"))
 
-	return nil
+	return errors.Wrap(s.client.Update(ctx, cp), errUpdateComposite)
 }
 
 // NewConfiguratorChain returns a new *ConfiguratorChain.
