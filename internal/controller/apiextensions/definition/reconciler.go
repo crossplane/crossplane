@@ -511,13 +511,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			"current-generation", d.GetGeneration())
 	}
 
-	if r.engine.IsRunning(composite.ControllerName(d.GetName())) {
-		log.Debug("Composite resource controller is running")
-		status.MarkConditions(v1.WatchingComposite())
-
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
-	}
-
 	fetcher := composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached())
 	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), r.options.FunctionRunner,
 		composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.engine.GetCached(), r.engine.GetUncached(), fetcher)),
@@ -526,6 +519,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	controllerName := composite.ControllerName(d.GetName())
 	cb := circuit.NewTokenBucketBreaker(controllerName, circuit.WithMetrics(r.options.CircuitBreakerMetrics))
+	gvk := d.GetCompositeGroupVersionKind()
 
 	// All XRs have modern schema unless their XRD's scope is LegacyCluster.
 	schema := ucomposite.SchemaModern
@@ -576,7 +570,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		)
 	}
 
-	cr := composite.NewReconciler(r.engine.GetCached(), d.GetCompositeGroupVersionKind(), ro...)
+	cr := composite.NewReconciler(r.engine.GetCached(), gvk, ro...)
 	ko := r.options.ForControllerRuntime()
 
 	// Most controllers use this type of rate limiter to backoff requeues from 1
@@ -588,9 +582,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ko.RateLimiter = workqueue.NewTypedItemExponentialFailureRateLimiter[reconcile.Request](1*time.Second, 30*time.Second)
 	ko.Reconciler = errors.WithSilentRequeueOnConflict(cr)
 
-	gvk := d.GetCompositeGroupVersionKind()
-	name := controllerName
-
 	// TODO(negz): Update CompositeReconcilerOptions to produce
 	// ControllerOptions instead? It bothers me that this is the only feature
 	// flagged block outside that method.
@@ -599,11 +590,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// If realtime composition is enabled we'll start watches dynamically,
 		// so we want to garbage collect watches for composed resource kinds
 		// that aren't used anymore.
-		gc := watch.NewGarbageCollector(name, gvk, r.engine, watch.WithCompositeSchema(schema), watch.WithLogger(log))
+		gc := watch.NewGarbageCollector(controllerName, gvk, r.engine, watch.WithCompositeSchema(schema), watch.WithLogger(log))
 		co = append(co, engine.WithWatchGarbageCollector(gc))
 	}
 
-	if err := r.engine.Start(name, co...); err != nil {
+	// Start is idempotent - it's a no-op if the controller is already running.
+	// We call it every reconcile to ensure the controller is started, even after
+	// transient failures.
+	if !r.engine.IsRunning(controllerName) {
+		log.Debug("Starting composite resource controller")
+	}
+	if err := r.engine.Start(controllerName, co...); err != nil {
 		log.Debug(errStartController, "error", err)
 		err = errors.Wrap(err, errStartController)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
@@ -622,7 +619,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(SelfMapFunc(), cb))
 
-	if err := r.engine.StartWatches(ctx, name,
+	// StartWatches is idempotent - it only starts watches that don't already
+	// exist. We call it every reconcile to ensure watches are started, even if
+	// they failed transiently on a previous attempt.
+	if err := r.engine.StartWatches(ctx, controllerName,
 		engine.WatchFor(xr, engine.WatchTypeCompositeResource, h),
 		engine.WatchFor(&v1.CompositionRevision{}, engine.WatchTypeCompositionRevision, crh),
 	); err != nil {
@@ -632,8 +632,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		return reconcile.Result{}, err
 	}
-
-	log.Debug("Started composite resource controller")
 
 	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	status.MarkConditions(v1.WatchingComposite())
