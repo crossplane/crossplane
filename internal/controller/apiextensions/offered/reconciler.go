@@ -69,6 +69,7 @@ const (
 	errStartController = "cannot start composite resource claim controller"
 	errStopController  = "cannot stop composite resource claim controller"
 	errStartWatches    = "cannot start composite resource claim controller watches"
+	errAddIndex        = "cannot add composite resource claim index"
 	errAddFinalizer    = "cannot add composite resource claim finalizer"
 	errRemoveFinalizer = "cannot remove composite resource claim finalizer"
 	errDeleteCRD       = "cannot delete composite resource claim CustomResourceDefinition"
@@ -90,12 +91,15 @@ const (
 )
 
 // A ControllerEngine can start and stop Kubernetes controllers on demand.
+//
+//nolint:interfacebloat // This interface is internal and the methods are all necessary for controller management
 type ControllerEngine interface {
 	Start(name string, o ...engine.ControllerOption) error
 	Stop(ctx context.Context, name string) error
 	IsRunning(name string) bool
 	StartWatches(ctx context.Context, name string, ws ...engine.Watch) error
 	GetCached() client.Client
+	GetFieldIndexer() client.FieldIndexer
 }
 
 // A NopEngine does nothing.
@@ -474,6 +478,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Composite resource claim controller is running")
 		d.Status.SetConditions(v1.WatchingClaim())
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+	}
+
+	// Add an index to the controller engine's client.
+	if indexer := r.engine.GetFieldIndexer(); indexer != nil {
+		if err := indexer.IndexField(ctx, &v1.CompositeResourceDefinition{}, claim.XRDByCompositeGVKIndex(), claim.IndexXRDByCompositeGVK()); err != nil {
+			log.Debug(errAddIndex, "error", err)
+		}
 	}
 
 	cr := claim.NewReconciler(r.engine.GetCached(),
