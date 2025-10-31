@@ -129,7 +129,7 @@ func TestChildName(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := ChildName(tc.args.parentName, tc.args.parentUID, tc.args.childName)
+			got := ChildName(tc.parentName, tc.parentUID, tc.childName)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\n%s\nChildName(...): -want, +got:\n%s", tc.reason, diff)
 			}
