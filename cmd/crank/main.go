@@ -57,9 +57,9 @@ type cli struct {
 	// order they're specified here. Keep them in alphabetical order.
 
 	// Subcommands.
-	Plugin plugin.Cmd  `cmd:"" help:"Manage crossplane CLI plugins."`
-	Render render.Cmd  `cmd:"" help:"Render a composite resource (XR)."`
-	XPKG   xpkg.Cmd    `cmd:"" help:"Manage Crossplane packages."`
+	Plugin plugin.Cmd `cmd:"" help:"Manage crossplane CLI plugins."`
+	Render render.Cmd `cmd:"" help:"Render a composite resource (XR)."`
+	XPKG   xpkg.Cmd   `cmd:"" help:"Manage Crossplane packages."`
 
 	// The alpha and beta subcommands are intentionally in a separate block. We
 	// want them to appear after all other subcommands.
@@ -138,7 +138,7 @@ func isBuiltinCommand(cmd string) bool {
 	c := &cli{}
 	t := reflect.TypeOf(*c)
 
-	for i := 0; i < t.NumField(); i++ {
+	for i := range make([]struct{}, t.NumField()) {
 		field := t.Field(i)
 
 		// Check if field has a cmd tag (indicating it's a command)

@@ -52,27 +52,37 @@ func (c *ListCmd) Run(ctx *kong.Context) error {
 	}
 
 	if len(plugins) == 0 {
-		fmt.Fprintln(ctx.Stdout, "No plugins found in PATH.")
+		if _, err := fmt.Fprintln(ctx.Stdout, "No plugins found in PATH."); err != nil {
+			return err
+		}
 		return nil
 	}
 
 	// Print header
 	if !c.NameOnly {
-		fmt.Fprintln(ctx.Stdout, "The following plugins are available:")
-		fmt.Fprintln(ctx.Stdout)
+		if _, err := fmt.Fprintln(ctx.Stdout, "The following plugins are available:"); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintln(ctx.Stdout); err != nil {
+			return err
+		}
 	}
 
 	// Print each plugin
 	for _, plugin := range plugins {
 		if c.NameOnly {
-			fmt.Fprintln(ctx.Stdout, plugin)
+			if _, err := fmt.Fprintln(ctx.Stdout, plugin); err != nil {
+				return err
+			}
 		} else {
 			// Find full path for display
 			pluginPath, err := FindPlugin(plugin)
 			if err != nil {
 				continue
 			}
-			fmt.Fprintf(ctx.Stdout, "  %s\n    %s\n", plugin, pluginPath)
+			if _, err := fmt.Fprintf(ctx.Stdout, "  %s\n    %s\n", plugin, pluginPath); err != nil {
+				return err
+			}
 		}
 	}
 
