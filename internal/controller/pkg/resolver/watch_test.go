@@ -17,7 +17,6 @@ limitations under the License.
 package resolver
 
 import (
-	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -115,7 +114,7 @@ func TestForName(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := ForName(tc.args.name, tc.args.fns...)(context.Background(), &fake.Object{})
+			got := ForName(tc.args.name, tc.args.fns...)(t.Context(), &fake.Object{})
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\n%s\nForName(): -want, +got:\n%s", tc.reason, diff)

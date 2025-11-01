@@ -80,7 +80,7 @@ func TestActiveInformers(t *testing.T) {
 
 	itc := TrackInformers(c, runtime.NewScheme())
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// We intentionally call methods twice to cover the code paths where we
 	// don't start tracking an informer because we already track it (and vice

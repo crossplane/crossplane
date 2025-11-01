@@ -106,7 +106,7 @@ func FuzzRevisionControllerPackageHandling(f *testing.F) {
 		ff := fuzz.NewConsumer(revisionData)
 		p := parser.New(metaScheme, objScheme)
 		r := io.NopCloser(bytes.NewReader(data))
-		pkg, err := p.Parse(context.Background(), r)
+		pkg, err := p.Parse(context.Background(), r) //nolint:usetesting // https://github.com/AdamKorcz/go-118-fuzz-build/blob/main/testing/t.go doesn't support t.Context()
 		if err != nil {
 			return
 		}
@@ -137,6 +137,6 @@ func FuzzRevisionControllerPackageHandling(f *testing.F) {
 			client: c,
 			newDag: fd,
 		}
-		_, _, _, _ = pm.Resolve(context.Background(), pkgMeta, pr)
+		_, _, _, _ = pm.Resolve(context.Background(), pkgMeta, pr) //nolint:usetesting // https://github.com/AdamKorcz/go-118-fuzz-build/blob/main/testing/t.go doesn't support t.Context()
 	})
 }

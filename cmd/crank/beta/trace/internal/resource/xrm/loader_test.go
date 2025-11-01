@@ -171,7 +171,7 @@ func TestLoader(t *testing.T) {
 			rootRef := sg.createRefAtDepth(0)
 			root := sg.createResourceFromRef(&rootRef)
 			l := newLoader(root, sg, channelCapacity)
-			l.load(context.Background(), concurrency)
+			l.load(t.Context(), concurrency)
 			n := countItems(root)
 			if test.want.expectedResources != n {
 				t.Errorf("resource count mismatch: want %d, got %d", test.want.expectedResources, n)

@@ -1,7 +1,6 @@
 package xpkg
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -176,7 +175,7 @@ func TestGetDependencyRef(t *testing.T) {
 			kc := &Client{
 				client: tc.client,
 			}
-			got, err := kc.getDependencyRef(context.Background(), tc.args.d, tc.args.pkgs)
+			got, err := kc.getDependencyRef(t.Context(), tc.args.d, tc.args.pkgs)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("getDependencyRef(...) error = %v, wantErr %v", err, tc.want.err)
 			}
@@ -335,7 +334,7 @@ func TestGetPackageDeps(t *testing.T) {
 				client:           tc.args.client,
 				dependencyOutput: tc.args.dependencyOutput,
 			}
-			got, err := kc.getPackageDeps(context.Background(), tc.args.node, tc.args.lock, tc.args.uniqueDeps)
+			got, err := kc.getPackageDeps(t.Context(), tc.args.node, tc.args.lock, tc.args.uniqueDeps)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("getPackageDeps(...) error = %v, wantErr %v", err, tc.want.err)
 			}

@@ -229,7 +229,7 @@ func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			g := NewExistingExtraResourcesFetcher(tc.args.c)
-			res, err := g.Fetch(context.Background(), tc.args.rs)
+			res, err := g.Fetch(t.Context(), tc.args.rs)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nGet(...): -want, +got:\n%s", tc.reason, diff)
 			}

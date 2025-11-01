@@ -71,7 +71,7 @@ func TestRunFunction(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				name: "cool-fn",
 			},
 			want: want{
@@ -97,7 +97,7 @@ func TestRunFunction(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				name: "cool-fn",
 			},
 			want: want{
@@ -129,7 +129,7 @@ func TestRunFunction(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				name: "cool-fn",
 			},
 			want: want{
@@ -173,7 +173,7 @@ func TestRunFunction(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				name: "cool-fn",
 				req:  &fnv1.RunFunctionRequest{},
 			},
@@ -220,7 +220,7 @@ func TestRunFunction(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				name: "cool-fn",
 				req:  &fnv1.RunFunctionRequest{},
 			},
@@ -245,7 +245,7 @@ func TestRunFunction(t *testing.T) {
 			}
 
 			// Close any gRPC clients.
-			if _, err := r.GarbageCollectConnectionsNow(context.Background()); err != nil {
+			if _, err := r.GarbageCollectConnectionsNow(t.Context()); err != nil {
 				t.Logf("Error closing client connections: %s", err)
 			}
 		})
@@ -281,7 +281,7 @@ func TestGetClientConn(t *testing.T) {
 
 	// We should be able to create a new connection.
 	t.Run("CreateNewConnection", func(t *testing.T) {
-		conn, err := r.getClientConn(context.Background(), "cool-fn")
+		conn, err := r.getClientConn(t.Context(), "cool-fn")
 
 		if diff := cmp.Diff(target, conn.Target()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want, +got:\n%s", diff)
@@ -294,7 +294,7 @@ func TestGetClientConn(t *testing.T) {
 	// If we're called again and our FunctionRevision's endpoint hasn't changed,
 	// we should return our cached connection.
 	t.Run("ReuseExistingConnection", func(t *testing.T) {
-		conn, err := r.getClientConn(context.Background(), "cool-fn")
+		conn, err := r.getClientConn(t.Context(), "cool-fn")
 
 		if diff := cmp.Diff(target, conn.Target()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want, +got:\n%s", diff)
@@ -316,7 +316,7 @@ func TestGetClientConn(t *testing.T) {
 	// If we're called again and our FunctionRevision's endpoint _has_ changed,
 	// we should close our cached connection and create a new one.
 	t.Run("ReplaceExistingConnection", func(t *testing.T) {
-		conn, err := r.getClientConn(context.Background(), "cool-fn")
+		conn, err := r.getClientConn(t.Context(), "cool-fn")
 
 		if diff := cmp.Diff(target, conn.Target()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want, +got:\n%s", diff)
@@ -327,7 +327,7 @@ func TestGetClientConn(t *testing.T) {
 	})
 
 	// Close any gRPC clients.
-	if _, err := r.GarbageCollectConnectionsNow(context.Background()); err != nil {
+	if _, err := r.GarbageCollectConnectionsNow(t.Context()); err != nil {
 		t.Logf("Error closing client connections: %s", err)
 	}
 }
@@ -358,7 +358,7 @@ func TestGarbageCollectConnectionsNow(t *testing.T) {
 	r.conns["cool-fn"] = conn
 	r.connsMx.Unlock()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("FunctionStillExistsDoNotGarbageCollect", func(t *testing.T) {
 		c.MockList = test.NewMockListFn(nil, func(obj client.ObjectList) error {

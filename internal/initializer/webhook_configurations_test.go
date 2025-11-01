@@ -185,7 +185,7 @@ func TestWebhookConfigurations(t *testing.T) {
 				sch,
 				types.NamespacedName{},
 				tc.args.svc,
-				tc.opts...).Run(context.TODO(), tc.kube)
+				tc.opts...).Run(t.Context(), tc.kube)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%sch\nRun(...): -want err, +got err:\n%s", tc.reason, diff)
 			}

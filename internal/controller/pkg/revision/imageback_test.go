@@ -17,7 +17,6 @@ limitations under the License.
 package revision
 
 import (
-	"context"
 	"io"
 	"testing"
 
@@ -193,7 +192,7 @@ func TestImageBackend(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			b := NewImageBackend(tc.args.f)
-			rc, err := b.Init(context.TODO(), tc.args.opts...)
+			rc, err := b.Init(t.Context(), tc.args.opts...)
 			if err == nil && rc != nil {
 				_, err = io.ReadAll(rc)
 			}

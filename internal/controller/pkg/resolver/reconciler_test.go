@@ -1090,7 +1090,7 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog))...)
-			got, err := r.Reconcile(context.Background(), reconcile.Request{})
+			got, err := r.Reconcile(t.Context(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -1376,7 +1376,7 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog))...)
 			ref, _ := pkgName.ParseReference(tc.args.dep.Identifier())
-			got, err := r.findDependencyVersionToUpdate(context.Background(), ref, tc.args.insVer, tc.args.dep, testLog)
+			got, err := r.findDependencyVersionToUpdate(t.Context(), ref, tc.args.insVer, tc.args.dep, testLog)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.findDependencyVersionToUpdate(...): -want error, +got error:\n%s", tc.reason, diff)

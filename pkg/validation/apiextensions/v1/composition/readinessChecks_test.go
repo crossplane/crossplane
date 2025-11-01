@@ -14,7 +14,6 @@ limitations under the License.
 package composition
 
 import (
-	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -299,7 +298,7 @@ func TestValidateReadinessCheck(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewValidator() error = %v", err)
 			}
-			got := v.validateReadinessChecksWithSchemas(context.TODO(), tt.args.comp)
+			got := v.validateReadinessChecksWithSchemas(t.Context(), tt.args.comp)
 			if diff := cmp.Diff(tt.want.errs, got, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail")); diff != "" {
 				t.Errorf("validateReadinessChecksWithSchemas(...) = -want, +got\n%s\n", diff)
 			}

@@ -125,7 +125,7 @@ func TestBuild(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			builder := New(tc.args.be, tc.args.ex, tc.args.p, tc.args.e)
 
-			_, _, err := builder.Build(context.TODO())
+			_, _, err := builder.Build(t.Context())
 
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nBuild(...): -want err, +got err:\n%s", tc.reason, diff)
@@ -255,7 +255,7 @@ func TestBuildExamples(t *testing.T) {
 
 			builder := New(pkgBe, pkgEx, pkgp, examples.New())
 
-			img, _, err := builder.Build(context.TODO())
+			img, _, err := builder.Build(t.Context())
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nBuildExamples(...): -want err, +got err:\n%s", tc.reason, diff)

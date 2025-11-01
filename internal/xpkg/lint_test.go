@@ -18,7 +18,6 @@ package xpkg
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"testing"
@@ -119,11 +118,11 @@ metadata:
 
 func TestOneMeta(t *testing.T) {
 	oneR := bytes.NewReader(bytes.Join([][]byte{v1beta1CRDBytes, v1alpha1ProvBytes}, []byte("\n---\n")))
-	oneMeta, _ := p.Parse(context.TODO(), io.NopCloser(oneR))
+	oneMeta, _ := p.Parse(t.Context(), io.NopCloser(oneR))
 	noneR := bytes.NewReader(v1beta1CRDBytes)
-	noneMeta, _ := p.Parse(context.TODO(), io.NopCloser(noneR))
+	noneMeta, _ := p.Parse(t.Context(), io.NopCloser(noneR))
 	multiR := bytes.NewReader(bytes.Join([][]byte{v1alpha1ProvBytes, v1alpha1ProvBytes}, []byte("\n---\n")))
-	multiMeta, _ := p.Parse(context.TODO(), io.NopCloser(multiR))
+	multiMeta, _ := p.Parse(t.Context(), io.NopCloser(multiR))
 
 	cases := map[string]struct {
 		reason string

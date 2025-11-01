@@ -612,7 +612,7 @@ func TestResolve(t *testing.T) {
 	for name, tc := range cases {
 		mockUpdateCallCount = 0
 		t.Run(name, func(t *testing.T) {
-			total, installed, invalid, err := tc.args.dep.Resolve(context.TODO(), tc.args.meta, tc.args.pr)
+			total, installed, invalid, err := tc.args.dep.Resolve(t.Context(), tc.args.meta, tc.args.pr)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\np.Resolve(...): -want error, +got error:\n%s", tc.reason, diff)

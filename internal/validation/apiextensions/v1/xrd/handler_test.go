@@ -17,7 +17,6 @@ limitations under the License.
 package xrd
 
 import (
-	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -452,7 +451,7 @@ func TestValidateUpdate(t *testing.T) {
 			handler := &validator{
 				client: tc.client,
 			}
-			warns, err := handler.ValidateUpdate(context.TODO(), tc.old, tc.new)
+			warns, err := handler.ValidateUpdate(t.Context(), tc.old, tc.new)
 			if diff := cmp.Diff(tc.warns, warns); diff != "" {
 				t.Errorf("ValidateUpdate(): -want warnings, +got warnings:\n%s", diff)
 			}
@@ -598,7 +597,7 @@ func TestValidateCreate(t *testing.T) {
 			handler := &validator{
 				client: tc.client,
 			}
-			warns, err := handler.ValidateCreate(context.TODO(), tc.obj)
+			warns, err := handler.ValidateCreate(t.Context(), tc.obj)
 			if diff := cmp.Diff(tc.warns, warns); diff != "" {
 				t.Errorf("ValidateUpdate(): -want warnings, +got warnings:\n%s", diff)
 			}

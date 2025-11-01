@@ -524,7 +524,7 @@ func TestResolveSelectors(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := newAPISelectorResolver(tc.args.client)
-			err := r.resolveSelectors(context.Background(), tc.args.u)
+			err := r.resolveSelectors(t.Context(), tc.args.u)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nr.resolveSelectors(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

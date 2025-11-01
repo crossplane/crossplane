@@ -117,7 +117,7 @@ func TestFunctionPreHook(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			h := NewFunctionHooks(tc.args.client, xpkg.DefaultRegistry)
-			err := h.Pre(context.TODO(), tc.args.pkg, tc.args.rev, tc.args.manifests)
+			err := h.Pre(t.Context(), tc.args.pkg, tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -587,7 +587,7 @@ func TestFunctionPostHook(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			h := NewFunctionHooks(tc.args.client, xpkg.DefaultRegistry)
-			err := h.Post(context.TODO(), tc.args.pkg, tc.args.rev, tc.args.manifests)
+			err := h.Post(t.Context(), tc.args.pkg, tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -691,7 +691,7 @@ func TestFunctionDeactivateHook(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			h := NewFunctionHooks(tc.args.client, xpkg.DefaultRegistry)
-			err := h.Deactivate(context.TODO(), tc.args.rev, tc.args.manifests)
+			err := h.Deactivate(t.Context(), tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
