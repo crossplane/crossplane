@@ -29,7 +29,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
@@ -139,5 +138,5 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1alpha1.Transaction{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(&v1beta1.Lock{}, EnqueueIncompleteTransactionsForLock(mgr.GetClient(), o.Logger)).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }

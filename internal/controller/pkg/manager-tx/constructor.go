@@ -29,7 +29,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1alpha1"
@@ -51,7 +50,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		Watches(&v1alpha1.Transaction{}, EnqueuePackageForTransaction(mgr.GetClient(), &v1.ProviderList{})).
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackagesForImageConfig(mgr.GetClient(), &v1.ProviderList{})).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }
 
 // SetupConfiguration adds a controller that reconciles Configurations by creating Transactions.
@@ -68,7 +67,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		Watches(&v1alpha1.Transaction{}, EnqueuePackageForTransaction(mgr.GetClient(), &v1.ConfigurationList{})).
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackagesForImageConfig(mgr.GetClient(), &v1.ConfigurationList{})).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }
 
 // SetupFunction adds a controller that reconciles Functions by creating Transactions.
@@ -85,7 +84,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		Watches(&v1alpha1.Transaction{}, EnqueuePackageForTransaction(mgr.GetClient(), &v1.FunctionList{})).
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackagesForImageConfig(mgr.GetClient(), &v1.FunctionList{})).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+		Complete(errors.WithSilentRequeueOnConflict(r))
 }
 
 // ReconcilerOption is used to configure the Reconciler.
