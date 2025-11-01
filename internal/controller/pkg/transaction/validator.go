@@ -59,7 +59,7 @@ func NewSchemaValidator(kc client.Client, pc xpkg.Client) *SchemaValidator {
 // Validate checks that proposed package CRDs don't introduce breaking schema changes.
 func (v *SchemaValidator) Validate(ctx context.Context, tx *v1alpha1.Transaction) error {
 	for _, lockPkg := range tx.Status.ProposedLockPackages {
-		ref := lockPkg.Source + "@" + lockPkg.Version
+		ref := xpkg.BuildReference(lockPkg.Source, lockPkg.Version)
 
 		pkg, err := v.pkg.Get(ctx, ref)
 		if err != nil {

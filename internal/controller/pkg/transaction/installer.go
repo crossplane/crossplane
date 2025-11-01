@@ -86,7 +86,7 @@ func (i *PackageInstaller) InstallPackages(ctx context.Context, tx *v1alpha1.Tra
 	}
 
 	for _, lockPkg := range sorted {
-		xp, err := i.pkg.Get(ctx, lockPkg.Source+"@"+lockPkg.Version)
+		xp, err := i.pkg.Get(ctx, xpkg.BuildReference(lockPkg.Source, lockPkg.Version))
 		if err != nil {
 			return errors.Wrapf(err, "cannot fetch package %s", lockPkg.Source)
 		}
@@ -116,7 +116,7 @@ func (i *PackageInstaller) InstallPackage(ctx context.Context, tx *v1alpha1.Tran
 	}
 
 	_, err = ctrl.CreateOrUpdate(ctx, i.kube, pkg, func() error {
-		pkg.SetSource(xp.Source + "@" + xp.Digest) // TODO(negz): Use tag.
+		pkg.SetSource(xpkg.BuildReference(xp.Source, xp.Digest)) // TODO(negz): Use tag.
 		meta.AddLabels(pkg, map[string]string{
 			v1alpha1.LabelTransactionName:       tx.GetName(),
 			v1alpha1.LabelTransactionGeneration: strconv.FormatInt(pkg.GetGeneration(), 10),
@@ -198,7 +198,7 @@ func (i *PackageInstaller) InstallPackageRevision(ctx context.Context, tx *v1alp
 		})
 
 		// Propagate package configuration to revision.
-		rev.SetSource(xp.Source + "@" + xp.Digest) // TODO(negz): Use tag?
+		rev.SetSource(xpkg.BuildReference(xp.Source, xp.Digest)) // TODO(negz): Use tag?
 		rev.SetPackagePullPolicy(pkg.GetPackagePullPolicy())
 		rev.SetPackagePullSecrets(pkg.GetPackagePullSecrets())
 		rev.SetIgnoreCrossplaneConstraints(pkg.GetIgnoreCrossplaneConstraints())

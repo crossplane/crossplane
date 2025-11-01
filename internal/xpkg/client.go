@@ -336,3 +336,18 @@ func FilterAndSortVersions(tags []string) []string {
 
 	return result
 }
+
+// BuildReference constructs an OCI reference from a source (without tag/digest)
+// and a version string (either a tag like "v1.0.0" or digest like
+// "sha256:abc123"). Returns a reference string suitable for parsing with
+// name.ParseReference.
+//
+// Tags use colon separator (source:tag), digests use at separator
+// (source@digest).
+func BuildReference(source, version string) string {
+	// Check if version is a digest by attempting to parse it as a hash.
+	if _, err := v1.NewHash(version); err == nil {
+		return source + "@" + version
+	}
+	return source + ":" + version
+}
