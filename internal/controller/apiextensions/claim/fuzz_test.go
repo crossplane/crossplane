@@ -31,7 +31,7 @@ import (
 )
 
 func FuzzPropagateConnection(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		f := fuzz.NewConsumer(data)
 		cp := &fake.Composite{}
 		cm := &fake.CompositeClaim{}
@@ -67,6 +67,6 @@ func FuzzPropagateConnection(f *testing.F) {
 			}),
 		}
 		api := &APIConnectionPropagator{client: c}
-		_, _ = api.PropagateConnection(t.Context(), cm, cp)
+		_, _ = api.PropagateConnection(context.Background(), cm, cp) //nolint:usetesting // https://github.com/AdamKorcz/go-118-fuzz-build/blob/main/testing/t.go doesn't support t.Context()
 	})
 }

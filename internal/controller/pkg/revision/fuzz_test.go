@@ -18,6 +18,7 @@ package revision
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"testing"
@@ -101,11 +102,11 @@ func getFuzzMockClient(ff *fuzz.ConsumeFuzzer) (*test.MockClient, error) {
 }
 
 func FuzzRevisionControllerPackageHandling(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data, revisionData []byte) {
+	f.Fuzz(func(_ *testing.T, data, revisionData []byte) {
 		ff := fuzz.NewConsumer(revisionData)
 		p := parser.New(metaScheme, objScheme)
 		r := io.NopCloser(bytes.NewReader(data))
-		pkg, err := p.Parse(t.Context(), r)
+		pkg, err := p.Parse(context.Background(), r) //nolint:usetesting // https://github.com/AdamKorcz/go-118-fuzz-build/blob/main/testing/t.go doesn't support t.Context()
 		if err != nil {
 			return
 		}
@@ -136,6 +137,6 @@ func FuzzRevisionControllerPackageHandling(f *testing.F) {
 			client: c,
 			newDag: fd,
 		}
-		_, _, _, _ = pm.Resolve(t.Context(), pkgMeta, pr)
+		_, _, _, _ = pm.Resolve(context.Background(), pkgMeta, pr) //nolint:usetesting // https://github.com/AdamKorcz/go-118-fuzz-build/blob/main/testing/t.go doesn't support t.Context()
 	})
 }
