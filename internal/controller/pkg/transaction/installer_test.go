@@ -31,7 +31,6 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
@@ -75,10 +74,6 @@ func TestNewPackageAndRevision(t *testing.T) {
 			},
 			want: want{
 				pkg: &v1.Provider{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: v1.SchemeGroupVersion.String(),
-						Kind:       v1.ProviderKind,
-					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: testPackageName,
 					},
@@ -86,17 +81,6 @@ func TestNewPackageAndRevision(t *testing.T) {
 				rev: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: xpkg.FriendlyID(testPackageName, testDigest),
-						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.TypedReferenceTo(&v1.Provider{
-								TypeMeta: metav1.TypeMeta{
-									APIVersion: v1.SchemeGroupVersion.String(),
-									Kind:       v1.ProviderKind,
-								},
-								ObjectMeta: metav1.ObjectMeta{
-									Name: testPackageName,
-								},
-							}, v1.SchemeGroupVersion.WithKind(v1.ProviderKind))),
-						},
 					},
 				},
 				err: nil,
@@ -113,10 +97,6 @@ func TestNewPackageAndRevision(t *testing.T) {
 			},
 			want: want{
 				pkg: &v1.Configuration{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: v1.SchemeGroupVersion.String(),
-						Kind:       v1.ConfigurationKind,
-					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: testPackageName,
 					},
@@ -124,17 +104,6 @@ func TestNewPackageAndRevision(t *testing.T) {
 				rev: &v1.ConfigurationRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: xpkg.FriendlyID(testPackageName, testDigest),
-						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.TypedReferenceTo(&v1.Configuration{
-								TypeMeta: metav1.TypeMeta{
-									APIVersion: v1.SchemeGroupVersion.String(),
-									Kind:       v1.ConfigurationKind,
-								},
-								ObjectMeta: metav1.ObjectMeta{
-									Name: testPackageName,
-								},
-							}, v1.SchemeGroupVersion.WithKind(v1.ConfigurationKind))),
-						},
 					},
 				},
 				err: nil,
@@ -151,10 +120,6 @@ func TestNewPackageAndRevision(t *testing.T) {
 			},
 			want: want{
 				pkg: &v1.Function{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: v1.SchemeGroupVersion.String(),
-						Kind:       v1.FunctionKind,
-					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: testPackageName,
 					},
@@ -162,17 +127,6 @@ func TestNewPackageAndRevision(t *testing.T) {
 				rev: &v1.FunctionRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: xpkg.FriendlyID(testPackageName, testDigest),
-						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.TypedReferenceTo(&v1.Function{
-								TypeMeta: metav1.TypeMeta{
-									APIVersion: v1.SchemeGroupVersion.String(),
-									Kind:       v1.FunctionKind,
-								},
-								ObjectMeta: metav1.ObjectMeta{
-									Name: testPackageName,
-								},
-							}, v1.SchemeGroupVersion.WithKind(v1.FunctionKind))),
-						},
 					},
 				},
 				err: nil,

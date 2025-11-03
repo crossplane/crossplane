@@ -188,8 +188,7 @@ func (i *PackageInstaller) InstallPackageRevision(ctx context.Context, tx *v1alp
 			rev.SetRevision(maxRevision + 1)
 		}
 
-		// Package owns the revision for lifecycle management.
-		meta.AddOwnerReference(rev, meta.AsOwner(meta.TypedReferenceTo(pkg, pkg.GetObjectKind().GroupVersionKind())))
+		meta.AddOwnerReference(rev, meta.AsController(meta.TypedReferenceTo(pkg, pkg.GetObjectKind().GroupVersionKind())))
 
 		meta.AddLabels(rev, map[string]string{
 			v1.LabelParentPackage:               pkg.GetName(),
@@ -273,31 +272,15 @@ func NewPackageAndRevision(xp *xpkg.Package) (v1.Package, v1.PackageRevision, er
 	var pkg v1.Package
 	var rev v1.PackageRevision
 
-	// Packages need TypeMeta because we call GetObjectKind below.
 	switch xp.GetMeta().(type) {
 	case *pkgmetav1.Provider:
-		pkg = &v1.Provider{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: v1.SchemeGroupVersion.String(),
-				Kind:       v1.ProviderKind,
-			},
-		}
+		pkg = &v1.Provider{}
 		rev = &v1.ProviderRevision{}
 	case *pkgmetav1.Configuration:
-		pkg = &v1.Configuration{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: v1.SchemeGroupVersion.String(),
-				Kind:       v1.ConfigurationKind,
-			},
-		}
+		pkg = &v1.Configuration{}
 		rev = &v1.ConfigurationRevision{}
 	case *pkgmetav1.Function:
-		pkg = &v1.Function{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: v1.SchemeGroupVersion.String(),
-				Kind:       v1.FunctionKind,
-			},
-		}
+		pkg = &v1.Function{}
 		rev = &v1.FunctionRevision{}
 	default:
 		return nil, nil, errors.Errorf("unknown package type %T", xp.GetMeta())
@@ -312,7 +295,6 @@ func NewPackageAndRevision(xp *xpkg.Package) (v1.Package, v1.PackageRevision, er
 	name := xpkg.ToDNSLabel(ref.Context().RepositoryStr())
 	pkg.SetName(name)
 	rev.SetName(xpkg.FriendlyID(name, xp.Digest))
-	meta.AddOwnerReference(rev, meta.AsOwner(meta.TypedReferenceTo(pkg, pkg.GetObjectKind().GroupVersionKind())))
 
 	return pkg, rev, nil
 }
