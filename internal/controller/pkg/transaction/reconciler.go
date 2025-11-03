@@ -158,6 +158,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, tx), "cannot update Transaction status")
 	}
 	if err != nil {
+		log.Debug("cannot acquire lock", "error", err)
+		r.record.Event(tx, event.Warning(reasonLockAcquisition, errors.Wrap(err, "cannot acquire lock")))
+		tx.Status.Failures++
+		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "cannot acquire lock")))
+		_ = r.client.Status().Update(ctx, tx)
+
 		return reconcile.Result{}, errors.Wrap(err, "cannot acquire lock")
 	}
 
@@ -187,7 +193,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("cannot solve dependencies", "error", err)
 		r.record.Event(tx, event.Warning(reasonDependencySolve, errors.Wrap(err, "cannot solve dependencies")))
 		tx.Status.Failures++
-		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "cannot solve dependencies")), v1alpha1.TransactionFailed("cannot solve dependencies"))
+		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "cannot solve dependencies")))
 		_ = r.client.Status().Update(ctx, tx)
 
 		return reconcile.Result{}, errors.Wrap(err, "cannot solve dependencies")
@@ -207,7 +213,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("validation failed", "error", err)
 		r.record.Event(tx, event.Warning(reasonValidation, errors.Wrap(err, "validation failed")))
 		tx.Status.Failures++
-		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "validation failed")), v1alpha1.TransactionFailed("validation failed"))
+		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "validation failed")))
 		_ = r.client.Status().Update(ctx, tx)
 
 		return reconcile.Result{}, errors.Wrap(err, "validation failed")
@@ -222,7 +228,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("cannot install packages", "error", err)
 		r.record.Event(tx, event.Warning(reasonInstallation, errors.Wrap(err, "cannot install packages")))
 		tx.Status.Failures++
-		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "cannot install packages")), v1alpha1.TransactionFailed("cannot install packages"))
+		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "cannot install packages")))
 		_ = r.client.Status().Update(ctx, tx)
 
 		return reconcile.Result{}, errors.Wrap(err, "cannot install packages")
@@ -237,7 +243,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("cannot commit lock", "error", err)
 		r.record.Event(tx, event.Warning(reasonLockAcquisition, errors.Wrap(err, "cannot commit lock")))
 		tx.Status.Failures++
-		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "cannot commit lock")), v1alpha1.TransactionFailed("cannot commit lock"))
+		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "cannot commit lock")))
 		_ = r.client.Status().Update(ctx, tx)
 
 		return reconcile.Result{}, errors.Wrap(err, "cannot commit lock")
