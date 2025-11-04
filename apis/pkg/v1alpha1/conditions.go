@@ -25,6 +25,9 @@ import (
 
 // Condition types.
 const (
+	// TypeResolved indicates the transaction has completed dependency resolution.
+	TypeResolved xpv1.ConditionType = "Resolved"
+
 	// TypeValidated indicates the transaction has completed pre-flight validation.
 	TypeValidated xpv1.ConditionType = "Validated"
 
@@ -37,19 +40,17 @@ const (
 
 // Condition reasons.
 const (
+	// Resolution reasons.
+	ReasonResolved         xpv1.ConditionReason = "Resolved"
+	ReasonResolutionFailed xpv1.ConditionReason = "ResolutionFailed"
+
 	// Validation reasons.
-	ReasonValidationPassed   xpv1.ConditionReason = "ValidationPassed"
-	ReasonMissingDependency  xpv1.ConditionReason = "MissingDependency"
-	ReasonVersionConflict    xpv1.ConditionReason = "VersionConflict"
-	ReasonCircularDependency xpv1.ConditionReason = "CircularDependency"
-	ReasonCRDConflict        xpv1.ConditionReason = "CRDConflict"
-	ReasonSchemaIncompatible xpv1.ConditionReason = "SchemaIncompatible"
+	ReasonValidated        xpv1.ConditionReason = "Validated"
+	ReasonValidationFailed xpv1.ConditionReason = "ValidationFailed"
 
 	// Installation reasons.
-	ReasonInstallationComplete   xpv1.ConditionReason = "InstallationComplete"
-	ReasonInstallationInProgress xpv1.ConditionReason = "InstallationInProgress"
-	ReasonInstallationPending    xpv1.ConditionReason = "InstallationPending"
-	ReasonCRDInstallationFailed  xpv1.ConditionReason = "CRDInstallationFailed"
+	ReasonInstalled          xpv1.ConditionReason = "Installed"
+	ReasonInstallationFailed xpv1.ConditionReason = "InstallationFailed"
 
 	// Transaction reasons.
 	ReasonTransactionRunning  xpv1.ConditionReason = "TransactionRunning"
@@ -58,64 +59,65 @@ const (
 	ReasonTransactionFailed   xpv1.ConditionReason = "TransactionFailed"
 )
 
-// ValidationPassed indicates that pre-flight validation succeeded.
-func ValidationPassed() xpv1.Condition {
+// ResolutionSuccess indicates that dependency resolution succeeded.
+func ResolutionSuccess() xpv1.Condition {
 	return xpv1.Condition{
-		Type:               TypeValidated,
+		Type:               TypeResolved,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonValidationPassed,
+		Reason:             ReasonResolved,
 	}
 }
 
-// ValidationFailed indicates that pre-flight validation failed.
-func ValidationFailed(reason xpv1.ConditionReason, message string) xpv1.Condition {
+// ResolutionError indicates that dependency resolution failed.
+func ResolutionError(message string) xpv1.Condition {
 	return xpv1.Condition{
-		Type:               TypeValidated,
+		Type:               TypeResolved,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             reason,
+		Reason:             ReasonResolutionFailed,
 		Message:            message,
 	}
 }
 
-// InstallationPending indicates that installation is pending validation.
-func InstallationPending() xpv1.Condition {
+// ValidationSuccess indicates that pre-flight validation succeeded.
+func ValidationSuccess() xpv1.Condition {
 	return xpv1.Condition{
-		Type:               TypeInstalled,
-		Status:             corev1.ConditionUnknown,
+		Type:               TypeValidated,
+		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonInstallationPending,
+		Reason:             ReasonValidated,
 	}
 }
 
-// InstallationInProgress indicates that package installation is in progress.
-func InstallationInProgress() xpv1.Condition {
+// ValidationError indicates that pre-flight validation failed.
+func ValidationError(message string) xpv1.Condition {
 	return xpv1.Condition{
-		Type:               TypeInstalled,
-		Status:             corev1.ConditionUnknown,
+		Type:               TypeValidated,
+		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonInstallationInProgress,
+		Reason:             ReasonValidationFailed,
+		Message:            message,
 	}
 }
 
-// InstallationComplete indicates that package installation completed successfully.
-func InstallationComplete() xpv1.Condition {
+// InstallationSuccess indicates that package installation completed successfully.
+func InstallationSuccess() xpv1.Condition {
 	return xpv1.Condition{
 		Type:               TypeInstalled,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonInstallationComplete,
+		Reason:             ReasonInstalled,
 	}
 }
 
-// InstallationFailed indicates that package installation failed.
-func InstallationFailed(reason xpv1.ConditionReason, message string) xpv1.Condition {
+// InstallationError indicates that package installation failed.
+func InstallationError(message string) xpv1.Condition {
 	return xpv1.Condition{
 		Type:               TypeInstalled,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             reason,
+		Reason:             ReasonInstallationFailed,
 		Message:            message,
 	}
 }

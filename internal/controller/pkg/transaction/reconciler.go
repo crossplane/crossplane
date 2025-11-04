@@ -18,6 +18,7 @@ package transaction
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"k8s.io/utils/ptr"
@@ -131,7 +132,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if tx.Status.Failures >= limit {
 		log.Debug("Transaction failure limit reached", "limit", limit)
 
-		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.TransactionFailed("failure limit reached"))
+		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.TransactionFailed(fmt.Sprintf("failure limit of %d reached", limit)))
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, tx), "cannot update Transaction status")
 	}
 
@@ -193,51 +194,48 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("cannot solve dependencies", "error", err)
 		r.record.Event(tx, event.Warning(reasonDependencySolve, errors.Wrap(err, "cannot solve dependencies")))
 		tx.Status.Failures++
-		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "cannot solve dependencies")))
+		status.MarkConditions(
+			xpv1.ReconcileError(errors.Wrap(err, "cannot solve dependencies")),
+			v1alpha1.ResolutionError(err.Error()),
+		)
 		_ = r.client.Status().Update(ctx, tx)
 
 		return reconcile.Result{}, errors.Wrap(err, "cannot solve dependencies")
 	}
+	status.MarkConditions(v1alpha1.ResolutionSuccess())
 
 	tx.Status.ProposedLockPackages = proposedPackages
 	if err := r.client.Status().Update(ctx, tx); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "cannot update Transaction status with proposed packages")
 	}
 
-	status.MarkConditions(v1alpha1.ValidationPassed())
-	if err := r.client.Status().Update(ctx, tx); err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "cannot update Transaction status")
-	}
-
 	if err := r.validator.Validate(ctx, tx); err != nil {
 		log.Debug("validation failed", "error", err)
 		r.record.Event(tx, event.Warning(reasonValidation, errors.Wrap(err, "validation failed")))
 		tx.Status.Failures++
-		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "validation failed")))
+		status.MarkConditions(
+			xpv1.ReconcileError(errors.Wrap(err, "validation failed")),
+			v1alpha1.ValidationError(err.Error()),
+		)
 		_ = r.client.Status().Update(ctx, tx)
 
 		return reconcile.Result{}, errors.Wrap(err, "validation failed")
 	}
-
-	status.MarkConditions(v1alpha1.InstallationInProgress())
-	if err := r.client.Status().Update(ctx, tx); err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "cannot update Transaction status")
-	}
+	status.MarkConditions(v1alpha1.ValidationSuccess())
 
 	if err := r.installer.InstallPackages(ctx, tx); err != nil {
 		log.Debug("cannot install packages", "error", err)
 		r.record.Event(tx, event.Warning(reasonInstallation, errors.Wrap(err, "cannot install packages")))
 		tx.Status.Failures++
-		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "cannot install packages")))
+		status.MarkConditions(
+			xpv1.ReconcileError(errors.Wrap(err, "cannot install packages")),
+			v1alpha1.InstallationError(err.Error()),
+		)
 		_ = r.client.Status().Update(ctx, tx)
 
 		return reconcile.Result{}, errors.Wrap(err, "cannot install packages")
 	}
-
-	status.MarkConditions(v1alpha1.InstallationComplete())
-	if err := r.client.Status().Update(ctx, tx); err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "cannot update Transaction status")
-	}
+	status.MarkConditions(v1alpha1.InstallationSuccess())
 
 	if err := r.lock.Commit(ctx, tx, proposedPackages); err != nil {
 		log.Debug("cannot commit lock", "error", err)
