@@ -97,17 +97,22 @@ func (m *AtomicLockManager) Acquire(ctx context.Context, tx *v1alpha1.Transactio
 	lock.Annotations[v1beta1.AnnotationCurrentTransaction] = tx.Name
 	lock.Annotations[v1beta1.AnnotationLockAcquiredAt] = time.Now().Format(time.RFC3339)
 
-	nextTxNum := int64(1)
-	if numStr := lock.Annotations[v1beta1.AnnotationNextTransactionNumber]; numStr != "" {
-		var err error
-		nextTxNum, err = strconv.ParseInt(numStr, 10, 64)
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot parse next transaction number")
+	// Only assign a new transaction number if this transaction doesn't have
+	// one yet. This ensures retrying transactions keep their original number
+	// instead of incrementing the counter on each retry.
+	if tx.Status.TransactionNumber == 0 {
+		nextTxNum := int64(1)
+		if numStr := lock.Annotations[v1beta1.AnnotationNextTransactionNumber]; numStr != "" {
+			var err error
+			nextTxNum, err = strconv.ParseInt(numStr, 10, 64)
+			if err != nil {
+				return nil, errors.Wrap(err, "cannot parse next transaction number")
+			}
 		}
-	}
 
-	tx.Status.TransactionNumber = nextTxNum
-	lock.Annotations[v1beta1.AnnotationNextTransactionNumber] = strconv.FormatInt(nextTxNum+1, 10)
+		tx.Status.TransactionNumber = nextTxNum
+		lock.Annotations[v1beta1.AnnotationNextTransactionNumber] = strconv.FormatInt(nextTxNum+1, 10)
+	}
 
 	if err := m.client.Update(ctx, lock); err != nil {
 		if kerrors.IsConflict(err) {
