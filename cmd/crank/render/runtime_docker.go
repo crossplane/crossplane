@@ -264,7 +264,7 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 		PortBindings: nat.PortMap{
 			port: []nat.PortBinding{{
 				HostIP:   r.BindAddress,
-				HostPort: "", // empty => engine allocates an ephemeral port
+				HostPort: "0", // "0" => engine allocates an ephemeral port
 			}},
 		},
 	}
