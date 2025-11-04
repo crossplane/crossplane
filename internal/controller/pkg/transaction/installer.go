@@ -117,9 +117,18 @@ func (i *PackageInstaller) InstallPackage(ctx context.Context, tx *v1alpha1.Tran
 
 	_, err = ctrl.CreateOrUpdate(ctx, i.kube, pkg, func() error {
 		pkg.SetSource(xpkg.BuildReference(xp.Source, xp.Digest)) // TODO(negz): Use tag.
+
+		// For new packages, generation is 0 on the client side but will be 1
+		// after the API server creates them. For existing packages, use their
+		// current generation.
+		generation := pkg.GetGeneration()
+		if generation == 0 {
+			generation = 1
+		}
+
 		meta.AddLabels(pkg, map[string]string{
 			v1alpha1.LabelTransactionName:       tx.GetName(),
-			v1alpha1.LabelTransactionGeneration: strconv.FormatInt(pkg.GetGeneration(), 10),
+			v1alpha1.LabelTransactionGeneration: strconv.FormatInt(generation, 10),
 		})
 
 		return nil
@@ -191,9 +200,8 @@ func (i *PackageInstaller) InstallPackageRevision(ctx context.Context, tx *v1alp
 		meta.AddOwnerReference(rev, meta.AsController(meta.TypedReferenceTo(pkg, pkg.GetObjectKind().GroupVersionKind())))
 
 		meta.AddLabels(rev, map[string]string{
-			v1.LabelParentPackage:               pkg.GetName(),
-			v1alpha1.LabelTransactionName:       tx.GetName(),
-			v1alpha1.LabelTransactionGeneration: strconv.FormatInt(pkg.GetGeneration(), 10),
+			v1.LabelParentPackage:         pkg.GetName(),
+			v1alpha1.LabelTransactionName: tx.GetName(),
 		})
 
 		// Propagate package configuration to revision.
