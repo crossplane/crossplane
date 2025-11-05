@@ -59,7 +59,8 @@ type Reconciler struct {
 	log        logging.Logger
 	record     event.Recorder
 	conditions conditions.Manager
-	pkg        v1.Package // Template package to deep copy for each reconcile
+	pkg        v1.Package             // Template package to deep copy for each reconcile
+	list       v1.PackageRevisionList // Template revision list to deep copy for each reconcile
 }
 
 // Reconcile a package by creating Transactions and reflecting Transaction status.
@@ -87,7 +88,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pkg), "cannot update package status")
 	}
 
-	if c := pkg.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
+	if c := pkg.GetCondition(xpv1.TypeSynced); c.Reason == xpv1.ReasonReconcilePaused {
 		pkg.CleanConditions()
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pkg), "cannot update package status")
 	}
@@ -107,7 +108,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	current := strconv.FormatInt(pkg.GetGeneration(), 10)
 
 	// Create or get existing Transaction for this package change
-	name := TransactionName(pkg)
+	name := pkg.GetLabels()[v1alpha1.LabelTransactionName]
+	if name == "" {
+		name = TransactionName(pkg)
+	}
 
 	tx := &v1alpha1.Transaction{}
 	err := r.client.Get(ctx, types.NamespacedName{Name: name}, tx)
@@ -148,26 +152,42 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
-	// TODO(negz): We probably want to derive the healthy condition from the
-	// active revision (if any), not the transaction.
+	// Update package status based on the active PackageRevision, not the
+	// Transaction. The transaction handles installation, but package health
+	// and status should reflect the actual running revision.
+	revs := r.list.DeepCopyObject().(v1.PackageRevisionList) //nolint:forcetypeassert // Will always be a package revision list.
 
-	// Update package status based on Transaction status and emit event on
-	// first completion.
-	succeeded := tx.Status.GetCondition(v1alpha1.TypeSucceeded)
-	switch succeeded.Status {
-	case corev1.ConditionTrue:
-		// Emit event only when transaction first completes
-		if pkg.GetCondition(v1.TypeInstalled).Status != corev1.ConditionTrue {
-			r.record.Event(pkg, event.Normal(reasonTransactionStatus, "Successfully installed package"))
-		}
-		pkg.SetConditions(v1.Active())
-		pkg.SetConditions(v1.Healthy())
-	case corev1.ConditionFalse:
-		pkg.SetConditions(v1.Inactive().WithMessage(succeeded.Message))
-		pkg.SetConditions(v1.Unhealthy().WithMessage(succeeded.Message))
-	case corev1.ConditionUnknown, "":
-		// Transaction still in progress
+	if err := r.client.List(ctx, revs, client.MatchingLabels{v1.LabelParentPackage: pkg.GetName()}); err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "cannot list package revisions")
 	}
+
+	// Find the active revision if one exists
+	var active v1.PackageRevision
+	for _, rev := range revs.GetRevisions() {
+		if rev.GetDesiredState() == v1.PackageRevisionActive {
+			active = rev
+			break
+		}
+	}
+
+	if active == nil {
+		status.MarkConditions(v1.Inactive())
+		status.MarkConditions(v1alpha1.PackageTransacted(tx))
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pkg), "cannot update package status")
+	}
+
+	// Set Installed condition based on whether an active revision exists
+	status.MarkConditions(v1.Active())
+
+	// Set health from the active revision (if one exists)
+	health := v1.PackageHealth(active)
+	if health.Status == corev1.ConditionTrue && pkg.GetCondition(v1.TypeHealthy).Status != corev1.ConditionTrue {
+		r.record.Event(pkg, event.Normal(reasonTransactionStatus, "Successfully installed package revision"))
+	}
+	status.MarkConditions(health)
+
+	// Set Transacted condition based on the transaction status
+	status.MarkConditions(v1alpha1.PackageTransacted(tx))
 
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pkg), "cannot update package status")
 }

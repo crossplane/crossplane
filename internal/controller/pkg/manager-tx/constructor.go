@@ -112,6 +112,7 @@ func NewProviderReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Recon
 		record:     event.NewNopRecorder(),
 		conditions: conditions.ObservedGenerationPropagationManager{},
 		pkg:        &v1.Provider{},
+		list:       &v1.ProviderRevisionList{},
 	}
 
 	for _, f := range opts {
@@ -129,6 +130,7 @@ func NewConfigurationReconciler(mgr manager.Manager, opts ...ReconcilerOption) *
 		record:     event.NewNopRecorder(),
 		conditions: conditions.ObservedGenerationPropagationManager{},
 		pkg:        &v1.Configuration{},
+		list:       &v1.ConfigurationRevisionList{},
 	}
 
 	for _, f := range opts {
@@ -146,6 +148,7 @@ func NewFunctionReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Recon
 		record:     event.NewNopRecorder(),
 		conditions: conditions.ObservedGenerationPropagationManager{},
 		pkg:        &v1.Function{},
+		list:       &v1.FunctionRevisionList{},
 	}
 
 	for _, f := range opts {

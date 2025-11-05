@@ -21,6 +21,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+
+	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
 
 // Condition types.
@@ -161,5 +163,36 @@ func TransactionFailed(message string) xpv1.Condition {
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonTransactionFailed,
 		Message:            message,
+	}
+}
+
+// PackageTransacted returns the transacted condition of a Package based on
+// the provided Transaction. It checks the transaction's Succeeded condition
+// and returns the appropriate Transacted condition for the Package.
+func PackageTransacted(tx *Transaction) xpv1.Condition {
+	succeeded := tx.GetCondition(TypeSucceeded)
+
+	switch succeeded.Status {
+	case corev1.ConditionTrue:
+		return v1.TransactionSucceeded()
+	case corev1.ConditionFalse:
+		c := v1.TransactionFailed()
+		if succeeded.Message != "" {
+			c = c.WithMessage(succeeded.Message)
+		}
+		return c
+	case corev1.ConditionUnknown:
+		// Empty reason means condition was never set (transaction not started)
+		if succeeded.Reason == "" {
+			return v1.TransactionCreated()
+		}
+		fallthrough
+	default:
+		// Unknown status or not set - transaction is in progress
+		c := v1.TransactionRunning()
+		if succeeded.Message != "" {
+			c = c.WithMessage(succeeded.Message)
+		}
+		return c
 	}
 }
