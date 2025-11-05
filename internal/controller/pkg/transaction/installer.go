@@ -231,7 +231,8 @@ func (i *PackageInstaller) InstallPackageRevision(ctx context.Context, tx *v1alp
 			rev.SetRevision(maxRevision + 1)
 		}
 
-		meta.AddOwnerReference(rev, meta.AsController(meta.TypedReferenceTo(pkg, pkg.GetObjectKind().GroupVersionKind())))
+		meta.AddOwnerReference(rev, meta.AsOwner(meta.TypedReferenceTo(pkg, pkg.GetObjectKind().GroupVersionKind())))
+		meta.AddOwnerReference(rev, meta.AsOwner(meta.TypedReferenceTo(tx, tx.GetObjectKind().GroupVersionKind())))
 
 		meta.AddLabels(rev, map[string]string{
 			v1.LabelParentPackage:         pkg.GetName(),

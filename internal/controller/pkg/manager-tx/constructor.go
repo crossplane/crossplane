@@ -47,6 +47,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.Provider{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(&v1.ProviderRevision{}, EnqueuePackageForRevision()).
 		Watches(&v1alpha1.Transaction{}, EnqueuePackageForTransaction(mgr.GetClient(), &v1.ProviderList{})).
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackagesForImageConfig(mgr.GetClient(), &v1.ProviderList{})).
 		WithOptions(o.ForControllerRuntime()).
@@ -64,6 +65,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.Configuration{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(&v1.ConfigurationRevision{}, EnqueuePackageForRevision()).
 		Watches(&v1alpha1.Transaction{}, EnqueuePackageForTransaction(mgr.GetClient(), &v1.ConfigurationList{})).
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackagesForImageConfig(mgr.GetClient(), &v1.ConfigurationList{})).
 		WithOptions(o.ForControllerRuntime()).
@@ -81,6 +83,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.Function{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(&v1.FunctionRevision{}, EnqueuePackageForRevision()).
 		Watches(&v1alpha1.Transaction{}, EnqueuePackageForTransaction(mgr.GetClient(), &v1.FunctionList{})).
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackagesForImageConfig(mgr.GetClient(), &v1.FunctionList{})).
 		WithOptions(o.ForControllerRuntime()).

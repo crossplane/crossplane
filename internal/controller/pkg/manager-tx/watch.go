@@ -79,23 +79,55 @@ func EnqueuePackagesForImageConfig(kube client.Client, l v1.PackageList) handler
 	})
 }
 
-// EnqueuePackageForTransaction enqueues a reconcile for the package that owns a Transaction.
-func EnqueuePackageForTransaction(_ client.Client, _ v1.PackageList) handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []reconcile.Request {
+// EnqueuePackageForTransaction enqueues a reconcile for packages related to a Transaction.
+// This includes both the package that owns the Transaction and any packages created by it.
+func EnqueuePackageForTransaction(kube client.Client, l v1.PackageList) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
 		tx, ok := o.(*v1alpha1.Transaction)
 		if !ok {
 			return nil
 		}
 
-		// Find the package that owns this Transaction by looking at labels
-		packageName := tx.Labels["pkg.crossplane.io/package"]
-		if packageName == "" {
+		var requests []reconcile.Request
+
+		// Enqueue the package that owns/created this Transaction
+		parent := tx.GetLabels()[v1.LabelParentPackage]
+		if parent != "" {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: parent},
+			})
+		}
+
+		// Enqueue all packages of this type that were created/labeled by this Transaction
+		// This handles child packages (e.g., Provider dependencies of Configuration)
+		pl := l.DeepCopyObject().(v1.PackageList) //nolint:forcetypeassert // Guaranteed to be PackageList.
+		if err := kube.List(ctx, pl, client.MatchingLabels{v1alpha1.LabelTransactionName: tx.GetName()}); err != nil {
+			// Nothing we can do if we can't list packages.
+			return requests
+		}
+
+		for _, pkg := range pl.GetPackages() {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: pkg.GetName()},
+			})
+		}
+
+		return requests
+	})
+}
+
+// EnqueuePackageForRevision enqueues the parent Package when a PackageRevision changes.
+// Uses the LabelParentPackage label since revisions don't have controller owner references.
+func EnqueuePackageForRevision() handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []reconcile.Request {
+		// Get parent package name from label
+		parent := o.GetLabels()[v1.LabelParentPackage]
+		if parent == "" {
 			return nil
 		}
 
-		// Enqueue the owning package for reconciliation
 		return []reconcile.Request{
-			{NamespacedName: types.NamespacedName{Name: packageName}},
+			{NamespacedName: types.NamespacedName{Name: parent}},
 		}
 	})
 }
