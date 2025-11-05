@@ -47,7 +47,7 @@ const (
 // +kubebuilder:printcolumn:name="INSTALLED",type="string",JSONPath=".status.conditions[?(@.type=='Installed')].status"
 // +kubebuilder:printcolumn:name="SUCCEEDED",type="string",JSONPath=".status.conditions[?(@.type=='Succeeded')].status"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:scope=Cluster,categories={crossplane,pkg}
+// +kubebuilder:resource:scope=Cluster,categories={crossplane},shortName=tx
 type Transaction struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

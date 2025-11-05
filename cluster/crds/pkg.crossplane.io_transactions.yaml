@@ -10,10 +10,11 @@ spec:
   names:
     categories:
     - crossplane
-    - pkg
     kind: Transaction
     listKind: TransactionList
     plural: transactions
+    shortNames:
+    - tx
     singular: transaction
   scope: Cluster
   versions:
