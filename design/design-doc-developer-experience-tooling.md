@@ -1,0 +1,498 @@
+# Developer Experience (DevEx) Tooling for Crossplane
+
+* Owner: Adam Wolfe Gordon (@adamwg)
+* Reviewers: Crossplane Maintainers
+* Status: Draft
+
+## Background
+
+Crossplane is a powerful tool for building platforms, but building a platform on
+top of Crossplane is non-trivial. A major contributing factor to this difficulty
+is the lack of a coherent, opinionated platform developer experience
+(DevEx). Each team building on top of Crossplane is left to determine for
+themselves how they will build, test, and package the definitions, compositions,
+functions, and operations that make up their platform.
+
+This document proposes a set of DevEx tools built around the concept of a
+project, which is an opinionated on-disk format for building platforms on top of
+Crossplane. The project defines a standard way to organize files containing
+Crossplane resources (XRDs, Compositions, Operations, etc.) and function source
+code. A project must be built into a set of Crossplane packages before being
+installed into a running Crossplane instance. The DevEx tooling implements this
+build step, along with other development lifecycle activities: scaffolding
+projects and resources, testing compositions and operations, and pushing
+packages to registries.
+
+## Goals
+
+* Define a standard developer experience for building platforms on top of
+  Crossplane.
+* Make it simple to build composition and operation functions alongside the
+  compositions and operations that consume them, and to test them together,
+  avoiding the need to embed source code in YAML manifests.
+* Support functions built in any language (including general purpose languages
+  and templating/configuration languages) and using any SDK or framework.
+* Enable authors to take advantage of IDE features such as tab completion and
+  syntax highlighting when building functions.
+* Design with extensibility in mind, such that we can enable users to plug in
+  their own implementations of individual parts of the DevEx in the future
+  without an architectural overhaul.
+
+## Prior Art and Related Work
+
+This design is based on the [Upbound developer experience], which has already
+been implemented as a proprietary tool. Upbound intends to contribute code from
+their proprietary tooling to the Crossplane community to implement this design.
+
+This design includes a section on testing. A number of tools have been built for
+testing Crossplane configurations, and may be integrated with this
+design. Examples include [xprin] and [`crossplane beta test`].
+
+[function-pythonic] offers a Python-based developer experience for building
+composition functions, and could be integrated into this design as a builder
+(see the section on functions below).
+
+## Proposal
+
+### Overview
+
+A project will have a directory layout similar to the following:
+
+```text
+project.yaml
+apis
+├── cluster
+│───├── definition.yaml
+│───├── composition.yaml
+examples
+├── cluster
+├───├── xr.yaml
+functions
+├── compose-cluster
+├───├── main.k
+├───├── helpers.k
+├── propagate-status
+├───├── go.mod
+├───├── go.sum
+├───├── main.go
+├── recycle-nodes
+├───├── main.py
+operations
+├── recycle-nodes
+│───├── operation.yaml
+tests
+├── e2etest-cluster-api
+├───├── test.yaml.gotmpl
+├── test-cluster-api
+├───├── main.py
+├── test-recycle-nodes
+├───├── go.mod
+├───├── go.sum
+├───├── main.go
+```
+
+This example project contains one composite type (`cluster`) supported by two
+functions (`compose-cluster` and `propagate-status`). The `compose-cluster`
+function is built in KCL, while `propagate-status` is built in Go. The project
+also contains one operation (`recycle-nodes`) that runs an operation function of
+the same name, built in Python. The `tests` directory contains tests for the
+composition and operation. We call the functions built as part of a project
+"embedded functions", since they sit alongside configuration rather than in
+their own repositories.
+
+The `project.yaml` file contains metadata and configuration for the project. It
+configures the build tooling and lists the project's dependencies (other
+Crossplane packages such as Providers).
+
+When a user runs `crossplane project build`, four Crossplane packages will be
+produced: a Configuration and three Functions. The Configuration will include
+automatically generated dependencies on the functions, as well as any additional
+dependencies specified in `project.yaml`. Automated tests can be executed with
+`crossplane project test run`, and the project can be installed on a local
+development control plane for manual testing with `crossplane project
+run`. Running `crossplane project push` will push all four packages to a
+registry.
+
+### The Project File
+
+The project configuration file (`project.yaml` by default, overridable with a
+CLI argument) looks like this:
+
+```yaml
+apiVersion: dev.crossplane.io/v1alpha1
+kind: Project
+metadata:
+  name: my-platform
+spec:
+  # These optional fields are converted to Configuration annotations.
+  maintainer: "Platform Team <platform@example.com>"
+  source: github.com/examplecom/my-platform
+  license: Apache-2.0
+  description: An example configuration using functions.
+  readme: This is just an example.
+
+  # OCI repository where the project will be pushed. This is used as part of the
+  # build process to construct dependencies on the embedded functions.
+  repository: ghcr.io/examplecom/my-platform
+
+  # Crossplane version constraints (optional).
+  crossplane:
+    version: ">=v1.17.0-0"
+
+  # External dependencies (optional).
+  dependsOn:
+    - provider: xpkg.crossplane.io/crossplane-contrib/provider-nop
+      version: ">=v0.2.1"
+    - function: xpkg.crossplane.io/crossplane-contrib/function-auto-ready
+      version: ">=v0.2.1"
+
+  # Dependencies that are used only for authoring functions, but do not need to
+  # be installed as dependencies of the configuration (optional).
+  apiDependencies:
+    - type: k8s
+      k8s:
+        version: v1.33.0
+    - type: crd
+      git:
+        repository: github.com/kubernetes-sigs/cluster-api
+        ref: v1.11.3
+        path: config/crd/bases
+
+  # Where the build tooling should look for various parts of the configuration,
+  # relative to the location of the metadata file. (optional).
+  paths:
+    apis: apis
+    examples: examples
+    functions: functions
+    operations: operations
+    tests: tests
+
+  # Architectures for which to build functions (optional).
+  architectures:
+    - amd64
+    - arm64
+
+  # Optional image configs to rewrite package locations during development, for
+  # example to enable use of the DevEx tools in network restricted environments.
+  imageConfigs:
+    - matchImages:
+        - type: prefix
+          prefix: xpkg.crossplane.io/crossplane-contrib
+      rewriteImage:
+        prefix: internal-registsry.example.com/mirror/crossplane-contrib
+```
+
+Note that we are intentionally using an API group distinct from the existing
+Crossplane package manager group (`pkg.crossplane.io`). This makes it clear that
+a project is not itself a Crossplane package, but a development artifact that
+can be built into a set of packages. As described in subsequent sections, valid
+Crossplane package metadata is generated based partly on the contents of the
+project metadata file during `crossplane project build`.
+
+The tooling will include helper commands for managing dependencies. These
+commands not only mutate the `dependsOn` in the project metadata, but also
+download language bindings for dependency packages (see the Langauge Bindings
+section below) so they can be used when writing functions in the project.
+
+### Embedded Functions
+
+A project can include an arbitrary number of embedded functions, which by
+convention will live in subdirectories of `functions/` (this path can be
+configured). Functions can, theoretically, be built in any language and using
+any SDK or framework; Go, Python, KCL, and go-templating will be the initial
+supported languages.
+
+The `crossplane project build` command builds each embedded function into its
+own Crossplane Function package. This involves first building a runtime image,
+then generating and adding a package metadata layer as required by the XPKG
+specification. The details of how the runtime image are built vary depending on
+the langauge used for the function:
+
+* **Go:** [`ko`] is invoked as a library to build an image.
+* **go-templating:** Template files are added to the
+  [crossplane-contrib/function-go-templating] image and add an environment
+  variable to make the embedded templates the default source (see
+  [function-go-templating#397] for the function changes needed to make this
+  work).
+* **KCL:** Similar to go-templating, add KCL files to
+  [crossplane-contrib/function-kcl] and set an environment variable setting the
+  default source.
+* **Python:** Source files are added to a Python interpreter function that
+  invokes them, similar to [crossplane-contrib/function-python].
+
+Function packages are named by appending the function name to the project's
+top-level package name with an underscore. For example, if the project metadata
+file configures `repository: ghcr.io/examplecom/my-platform`, the
+`compose-cluster` function package will be called
+`ghcr.io/examplecom/my-platform_compose-cluster`.
+
+The tooling will include helper commands for scaffolding functions.
+
+#### Extensibility
+
+As described above, functions are built differently depending on the language
+used. To make the tooling extensible, builders for specific languages can
+implemented outside of the core `crossplane project build` code.
+
+A builder must be able to do two things:
+
+1. Detect whether it can build a given function, based on the contents of the
+   function's directory.
+2. Build the function into a multi-architecture container image and write it to
+   a given location as an [OCI layout].
+
+For each function, the core of `crossplane project build` finds the relevant
+builder (by running each known builder's detect step), then uses the builder to
+create an image.
+
+Initially, all supported builders can be built as part of the DevEx tooling,
+ensuring that we provide an experience that works out of the box. In the future,
+we may expose builders as an extension point, allowing external builder
+implementations to be configured. The design of builders is inspired by [Cloud
+Native Buildpacks], which could themselves be used as a builder implementation.
+
+### XRDs, Compositions, and Operations
+
+XRDs, Compositions, and Operations in a project are regular Crossplane
+resources. To invoke an embedded function in a composition or operation
+pipeline, the user refers to it by package name, just like any other function.
+
+Note that the package name for an embedded function is constructed in the same
+manner used by the Crossplane package manager when resolving dependencies, based
+on the repository naming scheme described above.
+
+Example:
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xexample.example.org
+spec:
+  mode: Pipeline
+  pipeline:
+    - step: compose
+      functionRef:
+        name: examplecom-my-platformcompose-cluster
+    - step: propagate-status
+      functionRef:
+        name: examplecom-my-platformpropagate-status
+    - step: function-auto-ready
+      functionRef:
+        name: crossplane-contrib-function-auto-ready
+```
+
+The tooling will include helper commands for building XRDs, compositions, and
+operations. For example, we can generate an XRD from an example XR (inferring
+the OpenAPI spec), convert other API specification formats (e.g., kro's [Simple
+Schema]) to XRDs, scaffold a composition for an XRD, and add steps to pipelines.
+
+### Language Bindings (Schemas)
+
+To make it easier to build functions, we will provide tools to generate language
+bindings (also referred to as schemas) for XRDs and CRDs. The mechanism used to
+generate language bindings varies by language; current implementations in the
+Upbound tooling are:
+
+* **Go:** [oapi-codegen], with some custom mutation to produce better code.
+* **go-templating:** Direct conversion of OpenAPI specs to [JSONSchema], with
+  some custom mutation to produce better schemas.
+* **KCL:** `kcl import` to convert CRDs to KCL schemas.
+* **Python:** [datamodel-code-generator], producing [Pydantic] models.
+
+The generated language bindings provide two advantages when authoring functions:
+
+1. Type safety and schema validation, to varying degrees depending on the
+   language.
+2. IDE integration via standard tooling, providing features like autocomplete,
+   inline documentation, linting, etc.
+
+Language bindings can be generated for any Crossplane package that contains CRDs
+or XRDs. Generation can run client-side (as part of pulling a dependency package
+or manually via a command), but the bindings can also be packaged as part of a
+Crossplane package to avoid the need to generate them on download.
+
+`crossplane project build` builds language bindings for the XRDs in a project
+and adds a separate image layer for each language to the resulting Configuration
+package. The layers are annotated with `io.crossplane.xpkg: schema.<language>`
+in conformance with the [XPKG specification]. When pulling dependency packages
+that include such layers, the tooling will automatically save the bindings in
+the project to be used in embedded functions. The layout of the saved bindings
+varies by language.
+
+#### Extensibility
+
+Similar to function builders, schema generation is designed to be extensible. A
+schema generator implementation is given a directory of CRDs and outputs a
+directory of language bindings. The output directory can have an arbitrary
+layout, since every language expects files to be organized differently.
+
+### Testing
+
+Testing is another key facet of software development facilitated by
+projects. Projects allow for three layers of testing:
+
+1. Language-specific tests for embedded functions (e.g., Go or Python unit
+   tests).
+2. Composition tests, which use `crossplane render` to run compositions
+   (including embedded functions) and check assertions on the output.
+3. E2E tests, which install a project's packages into a real control plane,
+   apply resources, and wait for them to have certain conditions. E2E tests are
+   executed using [uptest].
+
+Language-specific tests may use the language bindings described above, but
+otherwise are built using language-specific tools outside the scope of this
+design.
+
+Composition tests and E2E tests are written as YAML manifests describing the
+test to run. The tooling will include the ability to generate test manifests
+from code on-the-fly (in the same languages supported for embedded functions),
+so that extensive test suites can be built easily without duplicating many lines
+of YAML. Multiple tests can be specified at once, and will be run in sequence.
+
+The composition test API looks like this:
+
+```yaml
+apiVersion: dev.crossplane.io/v1alpha1
+kind: CompositionTest
+metadata:
+  name: test-cluster
+spec:
+  # The XR to render as input to the test.
+  xrPath: examples/cluster/xr.yaml
+  # The XRD, for schema validation.
+  xrdPath: apis/cluster/definition.yaml
+  # The composition to execute for the test.
+  compositionPath: apis/cluster/composition.yaml
+  # Optional observed resources for the composition pipeline, e.g. to test
+  # conditional logic.
+  observedResources: []
+  # Assertions on the resources rendered by the test, which can include any
+  # expected updates to the XR as well as composed resources.
+  assertions:
+    # Use chainsaw to compare resources.
+    - type: chainsaw
+      chainsaw:
+        resources:
+          - apiVersion: platform.example.com/v1alpha1
+            kind: Cluster
+            metadata:
+              name: example
+            spec:
+              version: 1.33
+              region: us-west1
+          - apiVersion: container.gcp.upbound.io/v1beta1
+            kind: Cluster
+            metadata:
+              annotations:
+                crossplane.io/composition-resource-name: cluster
+            spec:
+              forProvider:
+                location: us-west1
+                minMasterVersion: 1.33
+                nodeVersion: 1.33
+  # Timeout for the test.
+  timeoutSeconds: 120
+  # Whether to validate the output of the render.
+  validate: false
+```
+
+The test specifies an XR to render, and some [chainsaw] assertions on the output
+of the render. This test runs entirely locally, not using a real control
+plane. Necessary functions (including embedded functions from the project, which
+are built on-the-fly) are run in containers.
+
+The E2E test API is similar:
+
+```yaml
+apiVersion: dev.crossplane.io/v1alpha1
+kind: E2ETest
+metadata:
+  name: e2e-test-cluster
+spec:
+  # Crossplane version to test against when using an ephemeral test cluster.
+  crossplane:
+    version: 2.1.0
+  # Manifests to apply as part of the test.
+  manifests:
+    - apiVersion: platform.example.com/v1alpha1
+      kind: Cluster
+      metadata:
+        name: test-cluster
+      spec:
+        version: 1.33
+        region: us-west1
+  # Extra resources that should be installed in the cluster before the test is
+  # executed. This allows for configuration of provider credentials, for example.
+  extraResources:
+    - apiVersion: gcp.upbound.io/v1beta1
+      kind: ProviderConfig
+      metadata:
+        name: default
+      spec:
+        credentials:
+          secretRef:
+            key: credentials
+            name: gcp-credentials
+            namespace: crossplane-system
+          source: Secret
+        projectID: example-dot-com-testing
+    - apiVersion: v1
+      data:
+        credentials: c3VwZXIgc2VjcmV0IHBhc3N3b3JkIGluc2lkZQo=
+      kind: Secret
+      metadata:
+        name: gcp-credentials
+        namespace: crossplane-system
+  # Conditions the test will wait for the applied resources to have.
+  defaultConditions:
+    - Ready
+  # Whether to skip deletion of applied resources.
+  skipDelete: false
+  # Timeout for the test.
+  timeoutSeconds: 300
+  # Timeout for post-test cleanup, which tries to ensure no resources are left behind.
+  cleanupTimeoutSeconds: 600
+```
+
+The tooling can either create a local, ephemeral test cluster (using `kind`) in
+which to run e2e tests, or run them against an arbitrary kubeconfig
+context. Either way, the test is converted into an `uptest` test case and
+executed against the test cluster. The tooling takes care of cleaning up
+resources after the test runs, to try and avoid potentially leaving behind any
+cloud resources that were created.
+
+#### Extensibility
+
+Composition tests have two phases: render and assertion. The render phase is a
+core part of the tooling, but assertion could be open to extension. The API
+above includes a `type` field for assertions, allowing for other assertion
+frameworks to be added. A new type could be introduced that runs an arbitrary
+command and provides the results of the render on standard input, allowing for
+assertions to be written using any tool the user prefers.
+
+E2E tests are less extensible, since they are executed using uptest. Given the
+comparatively higher complexity of e2e tests (which deal with actual clusters
+and potentially real cloud resources), it is likely more appropriate to
+introduce extensibility points in uptest rather than the wrapper provided by the
+DevEx tooling.
+
+[OCI layout]: https://specs.opencontainers.org/image-spec/image-layout/
+[crossplane-contrib/function-python]: https://github.com/crossplane-contrib/function-python
+[`ko`]: https://ko.build
+[Cloud Native Buildpacks]: https://buildpacks.io/
+[crossplane-contrib/function-go-templating]: https://github.com/crossplane-contrib/function-go-templating
+[function-go-templating#397]: https://github.com/crossplane-contrib/function-go-templating/pull/397
+[crossplane-contrib/function-kcl]: https://github.com/crossplane-contrib/function-kcl
+[Upbound developer experience]: https://docs.upbound.io/manuals/cli/howtos/project/
+[function-pythonic]: https://github.com/fortra/function-pythonic/
+[`crossplane beta test`]: https://github.com/crossplane/crossplane/issues/6810
+[xprin]: https://github.com/crossplane-contrib/xprin
+[Simple Schema]: https://kro.run/docs/concepts/simple-schema/
+[oapi-codegen]: https://github.com/oapi-codegen/oapi-codegen/
+[JSONSchema]: https://json-schema.org/
+[datamodel-code-generator]: https://github.com/koxudaxi/datamodel-code-generator
+[Pydantic]: https://pydantic.dev/
+[XPKG specification]: https://github.com/crossplane/crossplane/blob/main/contributing/specifications/xpkg.md#manifests
+[chainsaw]: https://github.com/kyverno/chainsaw
+[uptest]: https://github.com/crossplane/uptest
