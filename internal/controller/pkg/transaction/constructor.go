@@ -129,9 +129,13 @@ func NewReconciler(mgr manager.Manager, pkg xpkg.Client, opts ...ReconcilerOptio
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "pkg/" + strings.ToLower(v1alpha1.TransactionGroupKind)
 
+	e := revision.NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers)
+
 	r := NewReconciler(mgr, o.Client,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithInstaller(NewPackageInstaller(mgr.GetClient(), o.Client, e, o.Namespace)),
+	)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).

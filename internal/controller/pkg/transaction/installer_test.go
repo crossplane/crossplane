@@ -498,6 +498,7 @@ func TestInstallObjects(t *testing.T) {
 	}`
 
 	type args struct {
+		kube        client.Client
 		establisher Establisher
 		tx          *v1alpha1.Transaction
 		xp          *xpkg.Package
@@ -514,6 +515,16 @@ func TestInstallObjects(t *testing.T) {
 		"SuccessfulEstablish": {
 			reason: "Should establish control of package objects",
 			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if pr, ok := obj.(*v1.ProviderRevision); ok {
+							pr.SetName(xpkg.FriendlyID(testPackageName, testDigest))
+							pr.SetObservedTLSServerSecretName(ptr.To("test-server-secret"))
+							pr.SetObservedTLSClientSecretName(ptr.To("test-client-secret"))
+						}
+						return nil
+					},
+				},
 				establisher: &MockEstablisher{
 					MockEstablish: func(_ context.Context, objs []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
 						wantLabels := map[string]string{v1alpha1.LabelTransactionName: "tx-test"}
@@ -545,6 +556,9 @@ func TestInstallObjects(t *testing.T) {
 		"EstablishError": {
 			reason: "Should return error when establish fails",
 			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+				},
 				establisher: &MockEstablisher{
 					MockEstablish: func(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
 						return nil, errBoom
@@ -568,6 +582,9 @@ func TestInstallObjects(t *testing.T) {
 		"NoObjects": {
 			reason: "Should succeed when package has no objects",
 			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+				},
 				establisher: &MockEstablisher{
 					MockEstablish: func(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
 						return nil, nil
@@ -593,6 +610,7 @@ func TestInstallObjects(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			i := &PackageInstaller{
+				kube:    tc.args.kube,
 				objects: tc.args.establisher,
 			}
 
@@ -648,7 +666,8 @@ func TestBootstrapRuntime(t *testing.T) {
 							return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 						}
 					},
-					MockCreate: test.NewMockCreateFn(nil),
+					MockCreate:       test.NewMockCreateFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				namespace: "test-namespace",
 				xp: &xpkg.Package{
@@ -678,7 +697,8 @@ func TestBootstrapRuntime(t *testing.T) {
 							return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 						}
 					},
-					MockCreate: test.NewMockCreateFn(nil),
+					MockCreate:       test.NewMockCreateFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				namespace: "test-namespace",
 				xp: &xpkg.Package{

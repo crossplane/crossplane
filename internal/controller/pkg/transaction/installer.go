@@ -292,6 +292,12 @@ func (i *PackageInstaller) InstallObjects(ctx context.Context, tx *v1alpha1.Tran
 		return err
 	}
 
+	// Fetch the revision from the API server to get its current status,
+	// including the TLS secret names set by BootstrapRuntime.
+	if err := i.kube.Get(ctx, types.NamespacedName{Name: rev.GetName()}, rev); err != nil {
+		return errors.Wrap(err, "cannot get package revision")
+	}
+
 	// Label all objs with the transaction for traceability.
 	objs := xp.GetObjects()
 	for _, obj := range objs {
@@ -389,6 +395,11 @@ func (i *PackageInstaller) BootstrapProviderRuntime(ctx context.Context, pr *v1.
 		return errors.Wrapf(err, "cannot generate TLS certificates for %q", pr.GetLabels()[v1.LabelParentPackage])
 	}
 
+	// Update revision status to indicate secrets are ready
+	if err := i.kube.Status().Update(ctx, pr); err != nil {
+		return errors.Wrap(err, "cannot update provider revision status")
+	}
+
 	return nil
 }
 
@@ -438,6 +449,11 @@ func (i *PackageInstaller) BootstrapFunctionRuntime(ctx context.Context, fr *v1.
 		initializer.TLSCertificateGeneratorWithServerSecretName(secServer.GetName(), initializer.DNSNamesForService(svc.Name, svc.Namespace)),
 	).Run(ctx, i.kube); err != nil {
 		return errors.Wrapf(err, "cannot generate TLS certificates for %q", fr.GetLabels()[v1.LabelParentPackage])
+	}
+
+	// Update revision status to indicate secrets are ready
+	if err := i.kube.Status().Update(ctx, fr); err != nil {
+		return errors.Wrap(err, "cannot update function revision status")
 	}
 
 	return nil
