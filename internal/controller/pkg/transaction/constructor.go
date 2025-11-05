@@ -22,7 +22,7 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
@@ -36,14 +36,6 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
 	"github.com/crossplane/crossplane/v2/internal/xpkg/dependency"
-)
-
-const (
-	// Default namespace for package operations.
-	defaultNamespace = "crossplane-system"
-
-	// Default maximum concurrent package establishers.
-	defaultMaxConcurrentEstablishers = 10
 )
 
 // ReconcilerOption configures a Reconciler.
@@ -100,22 +92,20 @@ func WithInstaller(i Installer) ReconcilerOption {
 }
 
 // NewReconciler returns a Reconciler of Transactions.
-func NewReconciler(mgr manager.Manager, pkg xpkg.Client, opts ...ReconcilerOption) *Reconciler {
-	c := mgr.GetClient()
-	e := revision.NewAPIEstablisher(c, defaultNamespace, defaultMaxConcurrentEstablishers)
-
+func NewReconciler(kube client.Client, pkg xpkg.Client, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		client:     c,
+		kube:       kube,
+		pkg:        pkg,
 		log:        logging.NewNopLogger(),
 		record:     event.NewNopRecorder(),
 		conditions: conditions.ObservedGenerationPropagationManager{},
-		lock:       NewAtomicLockManager(c),
+		lock:       NewAtomicLockManager(kube),
 		solver:     dependency.NewTighteningConstraintSolver(pkg),
 		validator: ValidatorChain{
 			// TODO(negz): Validate RBAC, etc.
-			NewSchemaValidator(c, pkg),
+			NewSchemaValidator(kube, pkg),
 		},
-		installer: NewPackageInstaller(c, pkg, e, defaultNamespace),
+		// installer will be set via WithInstaller option
 	}
 
 	for _, f := range opts {
@@ -131,10 +121,15 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	e := revision.NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers)
 
-	r := NewReconciler(mgr, o.Client,
+	r := NewReconciler(mgr.GetClient(), o.Client,
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		WithInstaller(NewPackageInstaller(mgr.GetClient(), o.Client, e, o.Namespace)),
+		WithInstaller(InstallerPipeline{
+			NewPackageCreator(mgr.GetClient()),
+			NewRevisionCreator(mgr.GetClient()),
+			NewRuntimeBootstrapper(mgr.GetClient(), o.Namespace),
+			NewObjectInstaller(mgr.GetClient(), e),
+		}),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).

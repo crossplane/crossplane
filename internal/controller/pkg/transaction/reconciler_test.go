@@ -37,6 +37,7 @@ import (
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 type MockLockManager struct {
@@ -74,16 +75,29 @@ func (m *MockValidator) Validate(ctx context.Context, tx *v1alpha1.Transaction) 
 }
 
 type MockInstaller struct {
-	MockInstallPackages func(ctx context.Context, tx *v1alpha1.Transaction) error
+	MockInstall func(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package, version string) error
 }
 
-func (m *MockInstaller) InstallPackages(ctx context.Context, tx *v1alpha1.Transaction) error {
-	return m.MockInstallPackages(ctx, tx)
+func (m *MockInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package, version string) error {
+	return m.MockInstall(ctx, tx, xp, version)
+}
+
+type MockXpkgClient struct {
+	MockGet func(ctx context.Context, ref string, opts ...xpkg.GetOption) (*xpkg.Package, error)
+}
+
+func (m *MockXpkgClient) Get(ctx context.Context, ref string, opts ...xpkg.GetOption) (*xpkg.Package, error) {
+	return m.MockGet(ctx, ref, opts...)
+}
+
+func (m *MockXpkgClient) ListVersions(_ context.Context, _ string, _ ...xpkg.GetOption) ([]string, error) {
+	return nil, errors.New("not implemented")
 }
 
 func TestReconcile(t *testing.T) {
 	type params struct {
 		mgr  manager.Manager
+		pkg  xpkg.Client
 		opts []ReconcilerOption
 	}
 
@@ -421,11 +435,22 @@ func TestReconcile(t *testing.T) {
 										},
 									},
 								},
+								Status: v1alpha1.TransactionStatus{
+									ProposedLockPackages: []v1beta1.LockPackage{{
+										Source:  "xpkg.io/test/pkg",
+										Version: "v1.0.0",
+									}},
+								},
 							}
 							tx.DeepCopyInto(obj.(*v1alpha1.Transaction))
 							return nil
 						}),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
+				pkg: &MockXpkgClient{
+					MockGet: func(_ context.Context, _ string, _ ...xpkg.GetOption) (*xpkg.Package, error) {
+						return &xpkg.Package{}, nil
 					},
 				},
 				opts: []ReconcilerOption{
@@ -439,7 +464,10 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithDependencySolver(&MockDependencySolver{
 						MockSolve: func(_ context.Context, _ string, _ []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
-							return []v1beta1.LockPackage{}, nil
+							return []v1beta1.LockPackage{{
+								Source:  "xpkg.io/test/pkg",
+								Version: "v1.0.0",
+							}}, nil
 						},
 					}),
 					WithValidator(&MockValidator{
@@ -448,7 +476,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithInstaller(&MockInstaller{
-						MockInstallPackages: func(_ context.Context, _ *v1alpha1.Transaction) error {
+						MockInstall: func(_ context.Context, _ *v1alpha1.Transaction, _ *xpkg.Package, _ string) error {
 							return errors.New("boom")
 						},
 					}),
@@ -508,7 +536,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithInstaller(&MockInstaller{
-						MockInstallPackages: func(_ context.Context, _ *v1alpha1.Transaction) error {
+						MockInstall: func(_ context.Context, _ *v1alpha1.Transaction, _ *xpkg.Package, _ string) error {
 							return nil
 						},
 					}),
@@ -538,11 +566,22 @@ func TestReconcile(t *testing.T) {
 										},
 									},
 								},
+								Status: v1alpha1.TransactionStatus{
+									ProposedLockPackages: []v1beta1.LockPackage{{
+										Source:  "xpkg.io/test/pkg",
+										Version: "v1.0.0",
+									}},
+								},
 							}
 							tx.DeepCopyInto(obj.(*v1alpha1.Transaction))
 							return nil
 						}),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
+				pkg: &MockXpkgClient{
+					MockGet: func(_ context.Context, _ string, _ ...xpkg.GetOption) (*xpkg.Package, error) {
+						return &xpkg.Package{}, nil
 					},
 				},
 				opts: []ReconcilerOption{
@@ -559,7 +598,10 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithDependencySolver(&MockDependencySolver{
 						MockSolve: func(_ context.Context, _ string, _ []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
-							return []v1beta1.LockPackage{}, nil
+							return []v1beta1.LockPackage{{
+								Source:  "xpkg.io/test/pkg",
+								Version: "v1.0.0",
+							}}, nil
 						},
 					}),
 					WithValidator(&MockValidator{
@@ -568,7 +610,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithInstaller(&MockInstaller{
-						MockInstallPackages: func(_ context.Context, _ *v1alpha1.Transaction) error {
+						MockInstall: func(_ context.Context, _ *v1alpha1.Transaction, _ *xpkg.Package, _ string) error {
 							return nil
 						},
 					}),
@@ -582,7 +624,15 @@ func TestReconcile(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.params.mgr, nil, tc.params.opts...)
+			pkg := tc.params.pkg
+			if pkg == nil {
+				pkg = &MockXpkgClient{
+					MockGet: func(_ context.Context, _ string, _ ...xpkg.GetOption) (*xpkg.Package, error) {
+						return nil, errors.New("not implemented")
+					},
+				}
+			}
+			r := NewReconciler(tc.params.mgr.GetClient(), pkg, tc.params.opts...)
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {

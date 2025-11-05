@@ -45,13 +45,31 @@ import (
 	pkgruntime "github.com/crossplane/crossplane/v2/internal/controller/pkg/runtime"
 	"github.com/crossplane/crossplane/v2/internal/initializer"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
-	"github.com/crossplane/crossplane/v2/internal/xpkg/dependency"
 )
 
 const (
 	// WebhookPortName is the name of the webhook port.
 	WebhookPortName = "webhook"
 )
+
+// Installer installs one aspect of a package (the Package resource, the
+// PackageRevision, runtime components, or objects like CRDs).
+type Installer interface {
+	Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package, version string) error
+}
+
+// InstallerPipeline is a slice of Installers that are called in order.
+type InstallerPipeline []Installer
+
+// Install runs all installers in the pipeline in order.
+func (p InstallerPipeline) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package, version string) error {
+	for _, installer := range p {
+		if err := installer.Install(ctx, tx, xp, version); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // Establisher establishes control or ownership of a set of resources in the
 // API server by checking that control or ownership can be established for all
@@ -73,84 +91,25 @@ func (*NopEstablisher) Establish(_ context.Context, _ []runtime.Object, _ v1.Pac
 	return nil, nil
 }
 
-// PackageInstaller installs packages in dependency order.
-type PackageInstaller struct {
-	kube      client.Client
-	pkg       xpkg.Client
-	objects   Establisher
-	namespace string
+// PackageCreator creates or updates Package resources.
+type PackageCreator struct {
+	kube client.Client
 }
 
-// NewPackageInstaller creates a new PackageInstaller.
-func NewPackageInstaller(kube client.Client, pkg xpkg.Client, e Establisher, namespace string) *PackageInstaller {
-	return &PackageInstaller{
-		kube:      kube,
-		pkg:       pkg,
-		objects:   e,
-		namespace: namespace,
-	}
+// NewPackageCreator returns a new PackageCreator.
+func NewPackageCreator(kube client.Client) *PackageCreator {
+	return &PackageCreator{kube: kube}
 }
 
-// InstallPackages installs all packages in the transaction in dependency order.
-func (i *PackageInstaller) InstallPackages(ctx context.Context, tx *v1alpha1.Transaction) error {
-	sorted, err := dependency.SortLockPackages(tx.Status.ProposedLockPackages)
-	if err != nil {
-		return errors.Wrap(err, "cannot sort packages by dependency order")
-	}
-
-	for _, lockPkg := range sorted {
-		xp, err := i.pkg.Get(ctx, xpkg.BuildReference(lockPkg.Source, lockPkg.Version))
-		if err != nil {
-			return errors.Wrapf(err, "cannot fetch package %s", lockPkg.Source)
-		}
-
-		if err := i.InstallPackage(ctx, tx, xp); err != nil {
-			return errors.Wrapf(err, "cannot install package %s", lockPkg.Source)
-		}
-
-		if err := i.InstallPackageRevision(ctx, tx, xp); err != nil {
-			return errors.Wrapf(err, "cannot install package revision %s", lockPkg.Source)
-		}
-
-		// TODO(negz): We shouldn't do this if using an external
-		// package runtime. In the legacy package manager two
-		// controllers collaborate to install a package revision:
-		//
-		// 1. Revision controller creates e.g. ProviderRevision
-		// 2. Runtime controller creates, TLS secrets, Service
-		// 3. Revision controller creates CRDs, XRDs, etc
-		//
-		// CRDs with conversion webhooks need to be configured with the
-		// runtime's service and secrets. So there's a dependency
-		// between the two controllers. This doesn't work well with
-		// Transactions, which run to completion. The Transaction will
-		// hit its retry limit and fail permanently before the runtime
-		// controller creates the service and secrets. So for now we
-		// workaround this by duplicating what the runtime controller
-		// does here. We only create them; we let the runtime controller
-		// handle them after creation.
-		if err := i.BootstrapRuntime(ctx, xp); err != nil {
-			return errors.Wrapf(err, "cannot bootstrap runtime for package %s", lockPkg.Source)
-		}
-
-		if err := i.InstallObjects(ctx, tx, xp); err != nil {
-			return errors.Wrapf(err, "cannot install objects for package %s", lockPkg.Source)
-		}
-	}
-
-	return nil
-}
-
-// InstallPackage creates or updates the Package resource. Uses CreateOrUpdate
-// so it's idempotent for both new packages and existing ones.
-func (i *PackageInstaller) InstallPackage(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package) error {
+// Install creates or updates the Package resource.
+func (i *PackageCreator) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package, version string) error {
 	pkg, _, err := NewPackageAndRevision(xp)
 	if err != nil {
 		return err
 	}
 
 	_, err = ctrl.CreateOrUpdate(ctx, i.kube, pkg, func() error {
-		pkg.SetSource(xpkg.BuildReference(xp.Source, xp.Digest)) // TODO(negz): Use tag.
+		pkg.SetSource(xpkg.BuildReference(xp.Source, version))
 
 		// For new packages, generation is 0 on the client side but will be 1
 		// after the API server creates them. For existing packages, use their
@@ -171,13 +130,23 @@ func (i *PackageInstaller) InstallPackage(ctx context.Context, tx *v1alpha1.Tran
 	return errors.Wrap(err, "cannot create or update package")
 }
 
-// InstallPackageRevision installs a PackageRevision by creating or updating it,
+// RevisionCreator creates or updates PackageRevision resources.
+type RevisionCreator struct {
+	kube client.Client
+}
+
+// NewRevisionCreator returns a new RevisionCreator.
+func NewRevisionCreator(kube client.Client) *RevisionCreator {
+	return &RevisionCreator{kube: kube}
+}
+
+// Install installs a PackageRevision by creating or updating it,
 // deactivating other revisions, and garbage collecting old revisions.
 //
 // The package manager maintains at most one active revision per package at any
 // time. When a new revision is installed, all other revisions are deactivated.
 // This ensures a clean transition between package versions.
-func (i *PackageInstaller) InstallPackageRevision(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package) error {
+func (i *RevisionCreator) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package, version string) error {
 	pkg, rev, err := NewPackageAndRevision(xp)
 	if err != nil {
 		return err
@@ -240,7 +209,7 @@ func (i *PackageInstaller) InstallPackageRevision(ctx context.Context, tx *v1alp
 		})
 
 		// Propagate package configuration to revision.
-		rev.SetSource(xpkg.BuildReference(xp.Source, xp.Digest)) // TODO(negz): Use tag?
+		rev.SetSource(xpkg.BuildReference(xp.Source, version))
 		rev.SetPackagePullPolicy(pkg.GetPackagePullPolicy())
 		rev.SetPackagePullSecrets(pkg.GetPackagePullSecrets())
 		rev.SetIgnoreCrossplaneConstraints(pkg.GetIgnoreCrossplaneConstraints())
@@ -285,9 +254,36 @@ func (i *PackageInstaller) InstallPackageRevision(ctx context.Context, tx *v1alp
 	return errors.Wrapf(err, "cannot garbage collect revision %s", revs[0].GetName())
 }
 
-// InstallObjects installs the package's objects (CRDs, XRDs, Compositions,
-// webhooks, etc.) by establishing control of them in the API server.
-func (i *PackageInstaller) InstallObjects(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package) error {
+// RuntimeBootstrapper creates runtime prerequisites for packages.
+type RuntimeBootstrapper struct {
+	kube      client.Client
+	namespace string
+}
+
+// NewRuntimeBootstrapper returns a new RuntimeBootstrapper.
+func NewRuntimeBootstrapper(kube client.Client, namespace string) *RuntimeBootstrapper {
+	return &RuntimeBootstrapper{
+		kube:      kube,
+		namespace: namespace,
+	}
+}
+
+// ObjectInstaller installs package objects (CRDs, XRDs, Compositions, webhooks, etc.).
+type ObjectInstaller struct {
+	kube    client.Client
+	objects Establisher
+}
+
+// NewObjectInstaller returns a new ObjectInstaller.
+func NewObjectInstaller(kube client.Client, e Establisher) *ObjectInstaller {
+	return &ObjectInstaller{
+		kube:    kube,
+		objects: e,
+	}
+}
+
+// Install installs the package's objects by establishing control of them.
+func (i *ObjectInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package, _ string) error {
 	_, rev, err := NewPackageAndRevision(xp)
 	if err != nil {
 		return err
@@ -315,11 +311,11 @@ func (i *PackageInstaller) InstallObjects(ctx context.Context, tx *v1alpha1.Tran
 	return errors.Wrap(err, "cannot establish control of package objects")
 }
 
-// BootstrapRuntime creates runtime prerequisites for packages that need them
+// Install bootstraps runtime prerequisites for packages that need them
 // (Providers and Functions). This is needed for the establisher to inject
 // webhook configurations into CRDs. Configurations don't have runtimes so this
 // is a no-op for them.
-func (i *PackageInstaller) BootstrapRuntime(ctx context.Context, xp *xpkg.Package) error {
+func (i *RuntimeBootstrapper) Install(ctx context.Context, _ *v1alpha1.Transaction, xp *xpkg.Package, _ string) error {
 	_, rev, err := NewPackageAndRevision(xp)
 	if err != nil {
 		return err
@@ -345,7 +341,7 @@ func (i *PackageInstaller) BootstrapRuntime(ctx context.Context, xp *xpkg.Packag
 
 // BootstrapProviderRuntime creates runtime prerequisites (service and TLS secrets)
 // for a ProviderRevision.
-func (i *PackageInstaller) BootstrapProviderRuntime(ctx context.Context, pr *v1.ProviderRevision) error {
+func (i *RuntimeBootstrapper) BootstrapProviderRuntime(ctx context.Context, pr *v1.ProviderRevision) error {
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
 		return nil
 	}
@@ -406,7 +402,7 @@ func (i *PackageInstaller) BootstrapProviderRuntime(ctx context.Context, pr *v1.
 
 // BootstrapFunctionRuntime creates runtime prerequisites (service and TLS secrets)
 // for a FunctionRevision.
-func (i *PackageInstaller) BootstrapFunctionRuntime(ctx context.Context, fr *v1.FunctionRevision) error {
+func (i *RuntimeBootstrapper) BootstrapFunctionRuntime(ctx context.Context, fr *v1.FunctionRevision) error {
 	if fr.GetDesiredState() != v1.PackageRevisionActive {
 		return nil
 	}

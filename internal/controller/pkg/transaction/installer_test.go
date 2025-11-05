@@ -42,6 +42,7 @@ const (
 	testDigest      = "sha256:abc123def456"
 	testSource      = "xpkg.io/test/provider-test"
 	testPackageName = "test-provider-test" // DNS label from xpkg.ToDNSLabel(testSource repository)
+	testVersion     = "v0.1.0"
 
 	testProviderMeta      = `{"apiVersion":"meta.pkg.crossplane.io/v1","kind":"Provider","metadata":{"name":"test"}}`
 	testConfigurationMeta = `{"apiVersion":"meta.pkg.crossplane.io/v1","kind":"Configuration","metadata":{"name":"test"}}`
@@ -300,14 +301,14 @@ func TestInstallPackage(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			i := &PackageInstaller{
+			i := &PackageCreator{
 				kube: tc.args.kube,
 			}
 
-			err := i.InstallPackage(context.Background(), tc.args.tx, tc.args.xp)
+			err := i.Install(context.Background(), tc.args.tx, tc.args.xp, testVersion)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
-				t.Errorf("%s\nInstallPackage(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("%s\nInstall(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -466,14 +467,14 @@ func TestInstallPackageRevision(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			i := &PackageInstaller{
+			i := &RevisionCreator{
 				kube: tc.args.kube,
 			}
 
-			err := i.InstallPackageRevision(context.Background(), tc.args.tx, tc.args.xp)
+			err := i.Install(context.Background(), tc.args.tx, tc.args.xp, testVersion)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
-				t.Errorf("%s\nInstallPackageRevision(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("%s\nInstall(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -609,15 +610,15 @@ func TestInstallObjects(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			i := &PackageInstaller{
+			i := &ObjectInstaller{
 				kube:    tc.args.kube,
 				objects: tc.args.establisher,
 			}
 
-			err := i.InstallObjects(context.Background(), tc.args.tx, tc.args.xp)
+			err := i.Install(context.Background(), tc.args.tx, tc.args.xp, testVersion)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
-				t.Errorf("%s\nInstallObjects(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("%s\nInstall(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -637,6 +638,7 @@ func TestBootstrapRuntime(t *testing.T) {
 	type args struct {
 		kube      client.Client
 		namespace string
+		tx        *v1alpha1.Transaction
 		xp        *xpkg.Package
 	}
 	type want struct {
@@ -670,6 +672,11 @@ func TestBootstrapRuntime(t *testing.T) {
 					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				namespace: "test-namespace",
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-test",
+					},
+				},
 				xp: &xpkg.Package{
 					Package: NewTestPackage(t, testProviderMeta),
 					Digest:  testDigest,
@@ -701,6 +708,11 @@ func TestBootstrapRuntime(t *testing.T) {
 					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				namespace: "test-namespace",
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-test",
+					},
+				},
 				xp: &xpkg.Package{
 					Package: NewTestPackage(t, testFunctionMeta),
 					Digest:  testDigest,
@@ -812,15 +824,15 @@ func TestBootstrapRuntime(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			i := &PackageInstaller{
+			i := &RuntimeBootstrapper{
 				kube:      tc.args.kube,
 				namespace: tc.args.namespace,
 			}
 
-			err := i.BootstrapRuntime(context.Background(), tc.args.xp)
+			err := i.Install(context.Background(), tc.args.tx, tc.args.xp, testVersion)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
-				t.Errorf("%s\nBootstrapRuntime(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("%s\nInstall(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
