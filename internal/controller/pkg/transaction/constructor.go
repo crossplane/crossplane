@@ -115,7 +115,7 @@ func NewReconciler(mgr manager.Manager, pkg xpkg.Client, opts ...ReconcilerOptio
 			// TODO(negz): Validate RBAC, etc.
 			NewSchemaValidator(c, pkg),
 		},
-		installer: NewPackageInstaller(c, pkg, e),
+		installer: NewPackageInstaller(c, pkg, e, defaultNamespace),
 	}
 
 	for _, f := range opts {

@@ -23,9 +23,12 @@ import (
 	"strconv"
 
 	"github.com/google/go-containerregistry/pkg/name"
+	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,8 +41,16 @@ import (
 	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
+	pkgruntime "github.com/crossplane/crossplane/v2/internal/controller/pkg/runtime"
+	"github.com/crossplane/crossplane/v2/internal/initializer"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
 	"github.com/crossplane/crossplane/v2/internal/xpkg/dependency"
+)
+
+const (
+	// WebhookPortName is the name of the webhook port.
+	WebhookPortName = "webhook"
 )
 
 // Establisher establishes control or ownership of a set of resources in the
@@ -64,17 +75,19 @@ func (*NopEstablisher) Establish(_ context.Context, _ []runtime.Object, _ v1.Pac
 
 // PackageInstaller installs packages in dependency order.
 type PackageInstaller struct {
-	kube    client.Client
-	pkg     xpkg.Client
-	objects Establisher
+	kube      client.Client
+	pkg       xpkg.Client
+	objects   Establisher
+	namespace string
 }
 
 // NewPackageInstaller creates a new PackageInstaller.
-func NewPackageInstaller(kube client.Client, pkg xpkg.Client, e Establisher) *PackageInstaller {
+func NewPackageInstaller(kube client.Client, pkg xpkg.Client, e Establisher, namespace string) *PackageInstaller {
 	return &PackageInstaller{
-		kube:    kube,
-		pkg:     pkg,
-		objects: e,
+		kube:      kube,
+		pkg:       pkg,
+		objects:   e,
+		namespace: namespace,
 	}
 }
 
@@ -97,6 +110,27 @@ func (i *PackageInstaller) InstallPackages(ctx context.Context, tx *v1alpha1.Tra
 
 		if err := i.InstallPackageRevision(ctx, tx, xp); err != nil {
 			return errors.Wrapf(err, "cannot install package revision %s", lockPkg.Source)
+		}
+
+		// TODO(negz): We shouldn't do this if using an external
+		// package runtime. In the legacy package manager two
+		// controllers collaborate to install a package revision:
+		//
+		// 1. Revision controller creates e.g. ProviderRevision
+		// 2. Runtime controller creates, TLS secrets, Service
+		// 3. Revision controller creates CRDs, XRDs, etc
+		//
+		// CRDs with conversion webhooks need to be configured with the
+		// runtime's service and secrets. So there's a dependency
+		// between the two controllers. This doesn't work well with
+		// Transactions, which run to completion. The Transaction will
+		// hit its retry limit and fail permanently before the runtime
+		// controller creates the service and secrets. So for now we
+		// workaround this by duplicating what the runtime controller
+		// does here. We only create them; we let the runtime controller
+		// handle them after creation.
+		if err := i.BootstrapRuntime(ctx, xp); err != nil {
+			return errors.Wrapf(err, "cannot bootstrap runtime for package %s", lockPkg.Source)
 		}
 
 		if err := i.InstallObjects(ctx, tx, xp); err != nil {
@@ -272,6 +306,141 @@ func (i *PackageInstaller) InstallObjects(ctx context.Context, tx *v1alpha1.Tran
 	// CRDs, webhooks, and other Kubernetes objects.
 	_, err = i.objects.Establish(ctx, objs, rev, true)
 	return errors.Wrap(err, "cannot establish control of package objects")
+}
+
+// BootstrapRuntime creates runtime prerequisites for packages that need them
+// (Providers and Functions). This is needed for the establisher to inject
+// webhook configurations into CRDs. Configurations don't have runtimes so this
+// is a no-op for them.
+func (i *PackageInstaller) BootstrapRuntime(ctx context.Context, xp *xpkg.Package) error {
+	_, rev, err := NewPackageAndRevision(xp)
+	if err != nil {
+		return err
+	}
+
+	// Get the revision we just created to have the full object
+	if err := i.kube.Get(ctx, types.NamespacedName{Name: rev.GetName()}, rev); err != nil {
+		return errors.Wrap(err, "cannot get package revision")
+	}
+
+	switch r := rev.(type) {
+	case *v1.ProviderRevision:
+		return i.BootstrapProviderRuntime(ctx, r)
+	case *v1.FunctionRevision:
+		return i.BootstrapFunctionRuntime(ctx, r)
+	case *v1.ConfigurationRevision:
+		// Configurations don't have runtimes
+		return nil
+	default:
+		return errors.Errorf("unknown package revision type %T", rev)
+	}
+}
+
+// BootstrapProviderRuntime creates runtime prerequisites (service and TLS secrets)
+// for a ProviderRevision.
+func (i *PackageInstaller) BootstrapProviderRuntime(ctx context.Context, pr *v1.ProviderRevision) error {
+	if pr.GetDesiredState() != v1.PackageRevisionActive {
+		return nil
+	}
+
+	pr.SetObservedTLSServerSecretName(pr.GetTLSServerSecretName())
+	pr.SetObservedTLSClientSecretName(pr.GetTLSClientSecretName())
+
+	builder := pkgruntime.NewDeploymentRuntimeBuilder(pr, i.namespace)
+
+	// Create service. We only Create (not Update) - the runtime controller's
+	// Pre hook handles updates via Applicator.Apply.
+	svc := builder.Service(pkgruntime.ServiceWithAdditionalPorts([]corev1.ServicePort{
+		{
+			Name:       WebhookPortName,
+			Protocol:   corev1.ProtocolTCP,
+			Port:       revision.ServicePort,
+			TargetPort: intstr.FromString(WebhookPortName),
+		},
+	}))
+	if err := i.kube.Create(ctx, svc); err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "cannot create service")
+	}
+
+	// Create TLS secrets
+	secClient := builder.TLSClientSecret()
+	secServer := builder.TLSServerSecret()
+
+	if secClient == nil || secServer == nil {
+		return errors.New("TLS secret names not set on provider revision")
+	}
+
+	if err := i.kube.Create(ctx, secClient); err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "cannot create TLS client secret")
+	}
+
+	if err := i.kube.Create(ctx, secServer); err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "cannot create TLS server secret")
+	}
+
+	// Generate TLS certificates (idempotent - safe to call multiple times)
+	if err := initializer.NewTLSCertificateGenerator(
+		secClient.Namespace,
+		initializer.RootCACertSecretName,
+		initializer.TLSCertificateGeneratorWithOwner(pr.GetOwnerReferences()),
+		initializer.TLSCertificateGeneratorWithServerSecretName(secServer.GetName(), initializer.DNSNamesForService(svc.Name, svc.Namespace)),
+		initializer.TLSCertificateGeneratorWithClientSecretName(secClient.GetName(), []string{pr.GetName()}),
+	).Run(ctx, i.kube); err != nil {
+		return errors.Wrapf(err, "cannot generate TLS certificates for %q", pr.GetLabels()[v1.LabelParentPackage])
+	}
+
+	return nil
+}
+
+// BootstrapFunctionRuntime creates runtime prerequisites (service and TLS secrets)
+// for a FunctionRevision.
+func (i *PackageInstaller) BootstrapFunctionRuntime(ctx context.Context, fr *v1.FunctionRevision) error {
+	if fr.GetDesiredState() != v1.PackageRevisionActive {
+		return nil
+	}
+
+	fr.SetObservedTLSServerSecretName(fr.GetTLSServerSecretName())
+
+	builder := pkgruntime.NewDeploymentRuntimeBuilder(fr, i.namespace)
+
+	// Create service (headless for functions). We only Create (not Update) -
+	// the runtime controller's Pre hook handles updates via Applicator.Apply.
+	svc := builder.Service(
+		pkgruntime.ServiceWithClusterIP(corev1.ClusterIPNone),
+		pkgruntime.ServiceWithAdditionalPorts([]corev1.ServicePort{
+			{
+				Name:       pkgruntime.GRPCPortName,
+				Protocol:   corev1.ProtocolTCP,
+				Port:       pkgruntime.GRPCPort,
+				TargetPort: intstr.FromString(pkgruntime.GRPCPortName),
+			},
+		}))
+	if err := i.kube.Create(ctx, svc); err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "cannot create service")
+	}
+
+	// Create TLS server secret (functions don't have client secret)
+	secServer := builder.TLSServerSecret()
+
+	if secServer == nil {
+		return errors.New("TLS server secret name not set on function revision")
+	}
+
+	if err := i.kube.Create(ctx, secServer); err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "cannot create TLS server secret")
+	}
+
+	// Generate TLS certificates (idempotent - safe to call multiple times)
+	if err := initializer.NewTLSCertificateGenerator(
+		secServer.Namespace,
+		initializer.RootCACertSecretName,
+		initializer.TLSCertificateGeneratorWithOwner(fr.GetOwnerReferences()),
+		initializer.TLSCertificateGeneratorWithServerSecretName(secServer.GetName(), initializer.DNSNamesForService(svc.Name, svc.Namespace)),
+	).Run(ctx, i.kube); err != nil {
+		return errors.Wrapf(err, "cannot generate TLS certificates for %q", fr.GetLabels()[v1.LabelParentPackage])
+	}
+
+	return nil
 }
 
 // NewPackageAndRevision creates template Package and PackageRevision resources

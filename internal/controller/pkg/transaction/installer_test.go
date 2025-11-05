@@ -612,3 +612,196 @@ type MockEstablisher struct {
 func (m *MockEstablisher) Establish(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) {
 	return m.MockEstablish(ctx, objects, parent, control)
 }
+
+func TestBootstrapRuntime(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	type args struct {
+		kube      client.Client
+		namespace string
+		xp        *xpkg.Package
+	}
+	type want struct {
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ProviderSuccess": {
+			reason: "Should bootstrap provider runtime successfully",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						switch obj := obj.(type) {
+						case *v1.ProviderRevision:
+							obj.SetName(xpkg.FriendlyID(testPackageName, testDigest))
+							obj.SetDesiredState(v1.PackageRevisionActive)
+							obj.SetTLSServerSecretName(ptr.To("test-server-secret"))
+							obj.SetTLSClientSecretName(ptr.To("test-client-secret"))
+							obj.SetOwnerReferences([]metav1.OwnerReference{{Name: testPackageName}})
+							obj.SetLabels(map[string]string{v1.LabelParentPackage: testPackageName})
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+						}
+					},
+					MockCreate: test.NewMockCreateFn(nil),
+				},
+				namespace: "test-namespace",
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"FunctionSuccess": {
+			reason: "Should bootstrap function runtime successfully",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						switch obj := obj.(type) {
+						case *v1.FunctionRevision:
+							obj.SetName(xpkg.FriendlyID(testPackageName, testDigest))
+							obj.SetDesiredState(v1.PackageRevisionActive)
+							obj.SetTLSServerSecretName(ptr.To("test-server-secret"))
+							obj.SetOwnerReferences([]metav1.OwnerReference{{Name: testPackageName}})
+							obj.SetLabels(map[string]string{v1.LabelParentPackage: testPackageName})
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+						}
+					},
+					MockCreate: test.NewMockCreateFn(nil),
+				},
+				namespace: "test-namespace",
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testFunctionMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"ConfigurationNoOp": {
+			reason: "Should be no-op for configuration (no runtime)",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						switch obj := obj.(type) {
+						case *v1.ConfigurationRevision:
+							obj.SetName(xpkg.FriendlyID(testPackageName, testDigest))
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+						}
+					},
+				},
+				namespace: "test-namespace",
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testConfigurationMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"InactiveRevision": {
+			reason: "Should skip bootstrap for inactive revision",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						switch obj := obj.(type) {
+						case *v1.ProviderRevision:
+							obj.SetName(xpkg.FriendlyID(testPackageName, testDigest))
+							obj.SetDesiredState(v1.PackageRevisionInactive)
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+						}
+					},
+				},
+				namespace: "test-namespace",
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"RevisionNotFound": {
+			reason: "Should return error when revision doesn't exist",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+				},
+				namespace: "test-namespace",
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"CreateServiceError": {
+			reason: "Should return error when service creation fails",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						switch obj := obj.(type) {
+						case *v1.ProviderRevision:
+							obj.SetName(xpkg.FriendlyID(testPackageName, testDigest))
+							obj.SetDesiredState(v1.PackageRevisionActive)
+							obj.SetTLSServerSecretName(ptr.To("test-server-secret"))
+							obj.SetTLSClientSecretName(ptr.To("test-client-secret"))
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+						}
+					},
+					MockCreate: test.NewMockCreateFn(errBoom),
+				},
+				namespace: "test-namespace",
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			i := &PackageInstaller{
+				kube:      tc.args.kube,
+				namespace: tc.args.namespace,
+			}
+
+			err := i.BootstrapRuntime(context.Background(), tc.args.xp)
+
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("%s\nBootstrapRuntime(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
