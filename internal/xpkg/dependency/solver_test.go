@@ -1218,8 +1218,8 @@ func TestSolve(t *testing.T) {
 						return NewTestPackage(t, "pkg-a", "v1.0.0", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"), nil
 					},
 				},
-				name:    "library-pkg-a",
-				ref: "pkg-a:v1.0.0",
+				name: "library-pkg-a",
+				ref:  "pkg-a:v1.0.0",
 				current: []v1beta1.LockPackage{
 					{Source: "pkg-other-root", Version: "v2.0.0"},
 				},
@@ -1346,7 +1346,7 @@ func TestSolve(t *testing.T) {
 			reason: "Root version conflicting with existing constraints should return error",
 			args: args{
 				client: &MockPackageClient{},
-				name:    "library-pkg-a",
+				name:   "library-pkg-a",
 				ref:    "pkg-a:v0.5.0",
 				current: []v1beta1.LockPackage{
 					{

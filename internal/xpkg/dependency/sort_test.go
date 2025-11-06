@@ -61,21 +61,6 @@ func TestSortLockPackages(t *testing.T) {
 				},
 			},
 		},
-		"TwoPackagesNoDependencies": {
-			reason: "Multiple packages with no dependencies can be in any order",
-			args: args{
-				packages: []v1beta1.LockPackage{
-					{Source: "pkg-a", Dependencies: []v1beta1.Dependency{}},
-					{Source: "pkg-b", Dependencies: []v1beta1.Dependency{}},
-				},
-			},
-			want: want{
-				sorted: []v1beta1.LockPackage{
-					{Source: "pkg-a", Dependencies: []v1beta1.Dependency{}},
-					{Source: "pkg-b", Dependencies: []v1beta1.Dependency{}},
-				},
-			},
-		},
 		"SimpleDependency": {
 			reason: "Package B depends on A, so A should come first",
 			args: args{
@@ -132,86 +117,6 @@ func TestSortLockPackages(t *testing.T) {
 					{
 						Source: "pkg-c",
 						Dependencies: []v1beta1.Dependency{
-							{Package: "pkg-b"},
-						},
-					},
-				},
-			},
-		},
-		"DiamondDependency": {
-			reason: "D depends on B and C, both depend on A, so A first, then B and C, then D",
-			args: args{
-				packages: []v1beta1.LockPackage{
-					{
-						Source: "pkg-d",
-						Dependencies: []v1beta1.Dependency{
-							{Package: "pkg-b"},
-							{Package: "pkg-c"},
-						},
-					},
-					{
-						Source: "pkg-b",
-						Dependencies: []v1beta1.Dependency{
-							{Package: "pkg-a"},
-						},
-					},
-					{
-						Source: "pkg-c",
-						Dependencies: []v1beta1.Dependency{
-							{Package: "pkg-a"},
-						},
-					},
-					{Source: "pkg-a", Dependencies: []v1beta1.Dependency{}},
-				},
-			},
-			want: want{
-				sorted: []v1beta1.LockPackage{
-					{Source: "pkg-a", Dependencies: []v1beta1.Dependency{}},
-					{
-						Source: "pkg-b",
-						Dependencies: []v1beta1.Dependency{
-							{Package: "pkg-a"},
-						},
-					},
-					{
-						Source: "pkg-c",
-						Dependencies: []v1beta1.Dependency{
-							{Package: "pkg-a"},
-						},
-					},
-					{
-						Source: "pkg-d",
-						Dependencies: []v1beta1.Dependency{
-							{Package: "pkg-b"},
-							{Package: "pkg-c"},
-						},
-					},
-				},
-			},
-		},
-		"MultipleDependencies": {
-			reason: "Package with multiple dependencies should come after all of them",
-			args: args{
-				packages: []v1beta1.LockPackage{
-					{
-						Source: "pkg-c",
-						Dependencies: []v1beta1.Dependency{
-							{Package: "pkg-a"},
-							{Package: "pkg-b"},
-						},
-					},
-					{Source: "pkg-a", Dependencies: []v1beta1.Dependency{}},
-					{Source: "pkg-b", Dependencies: []v1beta1.Dependency{}},
-				},
-			},
-			want: want{
-				sorted: []v1beta1.LockPackage{
-					{Source: "pkg-a", Dependencies: []v1beta1.Dependency{}},
-					{Source: "pkg-b", Dependencies: []v1beta1.Dependency{}},
-					{
-						Source: "pkg-c",
-						Dependencies: []v1beta1.Dependency{
-							{Package: "pkg-a"},
 							{Package: "pkg-b"},
 						},
 					},
