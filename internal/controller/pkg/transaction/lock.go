@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1alpha1"
@@ -51,12 +52,13 @@ var (
 
 // AtomicLockManager implements LockManager using the Kubernetes API.
 type AtomicLockManager struct {
-	client client.Client
+	client     client.Client
+	conditions conditions.Manager
 }
 
 // NewAtomicLockManager creates a new APILockManager.
 func NewAtomicLockManager(c client.Client) *AtomicLockManager {
-	return &AtomicLockManager{client: c}
+	return &AtomicLockManager{client: c, conditions: conditions.ObservedGenerationPropagationManager{}}
 }
 
 // Acquire attempts to gain exclusive access to the Lock for a Transaction.
@@ -142,6 +144,11 @@ func (m *AtomicLockManager) Commit(ctx context.Context, tx *v1alpha1.Transaction
 
 	if err := m.client.Update(ctx, lock); err != nil {
 		return errors.Wrap(err, "cannot release lock")
+	}
+
+	m.conditions.For(lock).MarkConditions(v1beta1.ResolutionSucceeded())
+	if err := m.client.Status().Update(ctx, lock); err != nil {
+		return errors.Wrap(err, "cannot update lock status")
 	}
 
 	return nil

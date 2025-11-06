@@ -333,7 +333,7 @@ func TestAcquire(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := &AtomicLockManager{client: tc.args.kube}
+			m := NewAtomicLockManager(tc.args.kube)
 			packages, err := m.Acquire(context.Background(), tc.args.tx)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
@@ -393,6 +393,7 @@ func TestCommit(t *testing.T) {
 						}
 						return nil
 					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				tx: &v1alpha1.Transaction{
 					ObjectMeta: metav1.ObjectMeta{
@@ -473,11 +474,37 @@ func TestCommit(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
+		"StatusUpdateError": {
+			reason: "Should return error when lock status update fails",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						lock := obj.(*v1beta1.Lock)
+						lock.SetName(lockName)
+						lock.SetAnnotations(map[string]string{
+							v1beta1.AnnotationCurrentTransaction: "tx-1",
+						})
+						return nil
+					}),
+					MockUpdate:       test.NewMockUpdateFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
+				},
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-1",
+					},
+				},
+				packages: []v1beta1.LockPackage{},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := &AtomicLockManager{client: tc.args.kube}
+			m := NewAtomicLockManager(tc.args.kube)
 			err := m.Commit(context.Background(), tc.args.tx, tc.args.packages)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
@@ -600,7 +627,7 @@ func TestRelease(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := &AtomicLockManager{client: tc.args.kube}
+			m := NewAtomicLockManager(tc.args.kube)
 			err := m.Release(context.Background(), tc.args.tx)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
