@@ -402,7 +402,7 @@ func TestClientGet(t *testing.T) {
 			},
 		},
 		"SuccessWithImageConfigRewrite": {
-			reason: "Should use rewritten path from ImageConfig",
+			reason: "Should use rewritten path from ImageConfig and track which config was applied",
 			client: &CachedClient{
 				fetcher: &MockFetcher{
 					MockHead: func(_ context.Context, _ name.Reference, _ ...string) (*v1.Descriptor, error) {
@@ -445,7 +445,7 @@ func TestClientGet(t *testing.T) {
 				},
 				config: &MockConfigStore{
 					MockRewritePath: func(_ context.Context, _ string) (string, string, error) {
-						return "", "private-registry.io/mirror/provider-aws:v1.0.0", nil
+						return "mirror-config", "private-registry.io/mirror/provider-aws:v1.0.0", nil
 					},
 					MockPullSecretFor: func(_ context.Context, _ string) (string, string, error) {
 						return "", "", nil
@@ -464,6 +464,79 @@ func TestClientGet(t *testing.T) {
 					Digest:         testDigest,
 					Source:         testSource,
 					ResolvedSource: "private-registry.io/mirror/provider-aws",
+					AppliedImageConfigs: []ImageConfig{
+						{Name: "mirror-config", Reason: ImageConfigReasonRewrite},
+					},
+				},
+			},
+		},
+		"SuccessWithImageConfigRewriteAndPullSecret": {
+			reason: "Should track both rewrite and pull secret ImageConfigs when both are applied",
+			client: &CachedClient{
+				fetcher: &MockFetcher{
+					MockHead: func(_ context.Context, _ name.Reference, _ ...string) (*v1.Descriptor, error) {
+						return &v1.Descriptor{
+							Digest: v1.Hash{
+								Algorithm: "sha256",
+								Hex:       "abc123def456789012345678901234567890123456789012345678901234abcd",
+							},
+						}, nil
+					},
+					MockFetch: func(_ context.Context, _ name.Reference, _ ...string) (v1.Image, error) {
+						return &MockImage{
+							MockManifest: func() (*v1.Manifest, error) {
+								return &v1.Manifest{
+									Layers: []v1.Descriptor{
+										{
+											Annotations: map[string]string{
+												AnnotationKey: PackageAnnotation,
+											},
+											Digest: v1.Hash{Algorithm: "sha256", Hex: "layer123"},
+										},
+									},
+								}, nil
+							},
+							MockLayerByDigest: func(_ v1.Hash) (v1.Layer, error) {
+								return NewMockLayer(tarContent), nil
+							},
+						}, nil
+					},
+				},
+				parser: NewTestParser(t),
+				cache: &MockCache{
+					MockGet: func(_ string) (io.ReadCloser, error) {
+						return nil, errors.New("not in cache")
+					},
+					MockStore: func(_ string, rc io.ReadCloser) error {
+						_, _ = io.Copy(io.Discard, rc)
+						return nil
+					},
+				},
+				config: &MockConfigStore{
+					MockRewritePath: func(_ context.Context, _ string) (string, string, error) {
+						return "mirror-config", "private-registry.io/mirror/provider-aws:v1.0.0", nil
+					},
+					MockPullSecretFor: func(_ context.Context, _ string) (string, string, error) {
+						return "secret-config", "registry-secret", nil
+					},
+					MockImageVerificationConfigFor: func(_ context.Context, _ string) (string, *v1beta1.ImageVerification, error) {
+						return "", nil, nil
+					},
+				},
+			},
+			args: args{
+				ref: testSource + ":" + testTag,
+			},
+			want: want{
+				pkg: &Package{
+					Package:        NewTestPackage(t, providerMeta),
+					Digest:         testDigest,
+					Source:         testSource,
+					ResolvedSource: "private-registry.io/mirror/provider-aws",
+					AppliedImageConfigs: []ImageConfig{
+						{Name: "mirror-config", Reason: ImageConfigReasonRewrite},
+						{Name: "secret-config", Reason: ImageConfigReasonSetPullSecret},
+					},
 				},
 			},
 		},
