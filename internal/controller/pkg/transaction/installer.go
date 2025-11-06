@@ -305,6 +305,17 @@ func NewObjectInstaller(kube client.Client, e Establisher) *ObjectInstaller {
 	}
 }
 
+// RevisionStatusUpdater updates PackageRevision status conditions after
+// installation completes.
+type RevisionStatusUpdater struct {
+	kube client.Client
+}
+
+// NewRevisionStatusUpdater returns a new RevisionStatusUpdater.
+func NewRevisionStatusUpdater(kube client.Client) *RevisionStatusUpdater {
+	return &RevisionStatusUpdater{kube: kube}
+}
+
 // Install installs the package's objects by establishing control of them.
 func (i *ObjectInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package, _ string) error {
 	_, rev, err := NewPackageAndRevision(xp)
@@ -332,6 +343,43 @@ func (i *ObjectInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction,
 	// CRDs, webhooks, and other Kubernetes objects.
 	_, err = i.objects.Establish(ctx, objs, rev, true)
 	return errors.Wrap(err, "cannot establish control of package objects")
+}
+
+// Install sets the TypeRevisionHealthy condition on the PackageRevision after
+// successful installation. This runs after ObjectInstaller has established
+// control of all package objects (CRDs, XRDs, Compositions). The revision
+// controller normally sets this condition, but since we don't run the revision
+// controller in transaction mode, we set it here.
+func (i *RevisionStatusUpdater) Install(ctx context.Context, _ *v1alpha1.Transaction, xp *xpkg.Package, _ string) error {
+	pkg, rev, err := NewPackageAndRevision(xp)
+	if err != nil {
+		return err
+	}
+
+	// List packages to find existing one with matching source repository
+	pkgList, _, err := NewPackageAndRevisionList(xp)
+	if err != nil {
+		return err
+	}
+	if err := i.kube.List(ctx, pkgList); err != nil {
+		return errors.Wrap(err, "cannot list packages")
+	}
+
+	// Use existing package name if found, otherwise keep generated name
+	if existingName := FindExistingPackage(pkgList, xp); existingName != "" {
+		pkg.SetName(existingName)
+		rev.SetName(xpkg.FriendlyID(existingName, xp.Digest))
+	}
+
+	// Get the revision to update its status
+	if err := i.kube.Get(ctx, types.NamespacedName{Name: rev.GetName()}, rev); err != nil {
+		return errors.Wrap(err, "cannot get package revision")
+	}
+
+	// Set RevisionHealthy condition after successfully establishing objects
+	rev.SetConditions(v1.RevisionHealthy())
+
+	return errors.Wrap(i.kube.Status().Update(ctx, rev), "cannot update package revision status")
 }
 
 // Install bootstraps runtime prerequisites for packages that need them

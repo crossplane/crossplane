@@ -882,3 +882,119 @@ func TestBootstrapRuntime(t *testing.T) {
 		})
 	}
 }
+
+func TestRevisionStatusUpdater(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	type args struct {
+		kube client.Client
+		tx   *v1alpha1.Transaction
+		xp   *xpkg.Package
+	}
+	type want struct {
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"Success": {
+			reason: "Should set RevisionHealthy condition successfully",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						if pr, ok := obj.(*v1.ProviderRevision); ok {
+							pr.SetName(key.Name)
+							pr.SetDesiredState(v1.PackageRevisionActive)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+					},
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				},
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-test",
+					},
+				},
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"RevisionNotFound": {
+			reason: "Should return error when revision doesn't exist",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
+					MockGet:  test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "test-rev")),
+				},
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-test",
+					},
+				},
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"StatusUpdateError": {
+			reason: "Should return error when status update fails",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						if pr, ok := obj.(*v1.ProviderRevision); ok {
+							pr.SetName(key.Name)
+							pr.SetDesiredState(v1.PackageRevisionActive)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+					},
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
+				},
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-test",
+					},
+				},
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			i := &RevisionStatusUpdater{
+				kube: tc.args.kube,
+			}
+
+			err := i.Install(context.Background(), tc.args.tx, tc.args.xp, testVersion)
+
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("%s\nInstall(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
