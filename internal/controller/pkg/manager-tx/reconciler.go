@@ -93,13 +93,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pkg), "cannot update package status")
 	}
 
-	// Determine change type and create Transaction
-	changeType := v1alpha1.ChangeTypeInstall
-	if meta.WasDeleted(pkg) {
-		changeType = v1alpha1.ChangeTypeDelete
-	}
+	log = log.WithValues("package", pkg.GetName(), "source", pkg.GetSource())
 
-	log = log.WithValues("package", pkg.GetName(), "source", pkg.GetSource(), "changeType", changeType)
+	// TODO(negz): Implement delete transactions.
+	if meta.WasDeleted(pkg) {
+		log.Info("Delete transactions are not yet implemented. Orphaning all revisions and objects.")
+		return reconcile.Result{}, nil
+	}
 
 	// Check if this Package generation has already been handled by a Transaction.
 	// If the transaction-generation label matches the current generation, we skip
@@ -122,7 +122,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if kerrors.IsNotFound(err) && handled != current {
-		tx = NewTransaction(pkg, changeType)
+		tx = NewTransaction(pkg, v1alpha1.ChangeTypeInstall)
 		if err := r.client.Create(ctx, tx); err != nil {
 			err = errors.Wrap(err, "cannot create transaction")
 			r.record.Event(pkg, event.Warning(reasonCreateTransaction, err))
@@ -137,19 +137,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.client.Update(ctx, pkg); err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "cannot update package labels")
 		}
-	}
-
-	// Handle deletion completion
-	if meta.WasDeleted(pkg) {
-		if TransactionComplete(tx) {
-			log.Debug("Delete transaction complete, removing finalizer", "transaction", name)
-			// Note: Finalizer removal logic would go here if we add finalizers
-			return reconcile.Result{}, nil
-		}
-
-		// Transaction not complete - we'll be requeued when it updates
-		log.Debug("Delete transaction not complete, waiting for update", "transaction", name)
-		return reconcile.Result{}, nil
 	}
 
 	// Update package status based on the active PackageRevision, not the
