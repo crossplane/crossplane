@@ -288,6 +288,7 @@ func TestClientGet(t *testing.T) {
 				pkg: &Package{
 					Package:        NewTestPackage(t, providerMeta),
 					Digest:         testDigest,
+					Version:        testTag,
 					Source:         testSource,
 					ResolvedSource: testSource,
 				},
@@ -349,6 +350,7 @@ func TestClientGet(t *testing.T) {
 				pkg: &Package{
 					Package:        NewTestPackage(t, providerMeta),
 					Digest:         testDigest,
+					Version:        testDigest,
 					Source:         testSource,
 					ResolvedSource: testSource,
 				},
@@ -396,6 +398,7 @@ func TestClientGet(t *testing.T) {
 				pkg: &Package{
 					Package:        NewTestPackage(t, providerMeta),
 					Digest:         testDigest,
+					Version:        testTag,
 					Source:         testSource,
 					ResolvedSource: testSource,
 				},
@@ -462,6 +465,7 @@ func TestClientGet(t *testing.T) {
 				pkg: &Package{
 					Package:        NewTestPackage(t, providerMeta),
 					Digest:         testDigest,
+					Version:        testTag,
 					Source:         testSource,
 					ResolvedSource: "private-registry.io/mirror/provider-aws",
 					AppliedImageConfigs: []ImageConfig{
@@ -531,6 +535,7 @@ func TestClientGet(t *testing.T) {
 				pkg: &Package{
 					Package:        NewTestPackage(t, providerMeta),
 					Digest:         testDigest,
+					Version:        testTag,
 					Source:         testSource,
 					ResolvedSource: "private-registry.io/mirror/provider-aws",
 					AppliedImageConfigs: []ImageConfig{
@@ -602,6 +607,7 @@ func TestClientGet(t *testing.T) {
 				pkg: &Package{
 					Package:        NewTestPackage(t, providerMeta),
 					Digest:         testDigest,
+					Version:        testTag,
 					Source:         testSource,
 					ResolvedSource: testSource,
 				},
