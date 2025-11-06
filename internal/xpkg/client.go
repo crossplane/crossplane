@@ -76,6 +76,11 @@ type Package struct {
 	// Digest is the immutable content identifier (sha256 from OCI image).
 	Digest string
 
+	// Version is the package version, either a semver tag (v1.0.0) or digest
+	// (sha256:abc123). This is extracted from the original reference used to
+	// fetch the package.
+	Version string
+
 	// Source is the package source without tag/digest, normalized.
 	// This is the ORIGINAL source before any ImageConfig rewriting.
 	Source string
@@ -211,6 +216,7 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 				return &Package{
 					Package:             pkg,
 					Digest:              digest,
+					Version:             parsedOriginalRef.Identifier(),
 					Source:              ParsePackageSourceFromReference(parsedOriginalRef),
 					ResolvedSource:      ParsePackageSourceFromReference(parsedResolvedRef),
 					AppliedImageConfigs: applied,
@@ -250,6 +256,7 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 	return &Package{
 		Package:             pkg,
 		Digest:              digest,
+		Version:             parsedOriginalRef.Identifier(),
 		Source:              ParsePackageSourceFromReference(parsedOriginalRef),
 		ResolvedSource:      ParsePackageSourceFromReference(parsedResolvedRef),
 		AppliedImageConfigs: applied,
