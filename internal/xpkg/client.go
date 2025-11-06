@@ -52,6 +52,23 @@ type Client interface {
 	ListVersions(ctx context.Context, source string, opts ...GetOption) ([]string, error)
 }
 
+// ImageConfig represents an ImageConfig that was applied during package fetch.
+type ImageConfig struct {
+	Name   string
+	Reason ImageConfigReason
+}
+
+// ImageConfigReason describes why an ImageConfig was applied.
+type ImageConfigReason string
+
+const (
+	// ImageConfigReasonRewrite indicates the ImageConfig rewrote the image path.
+	ImageConfigReasonRewrite ImageConfigReason = "RewriteImage"
+
+	// ImageConfigReasonSetPullSecret indicates the ImageConfig provided a pull secret.
+	ImageConfigReasonSetPullSecret ImageConfigReason = "SetImagePullSecret"
+)
+
 // Package represents a successfully fetched package with all its content.
 type Package struct {
 	*parser.Package
@@ -66,6 +83,9 @@ type Package struct {
 	// ResolvedSource is the source after ImageConfig path rewriting.
 	// May be the same as Source if no rewriting occurred.
 	ResolvedSource string
+
+	// AppliedImageConfigs tracks which ImageConfigs were applied during fetch.
+	AppliedImageConfigs []ImageConfig
 }
 
 // GetMeta returns the package metadata object.
@@ -145,9 +165,11 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 	originalRef := ref
 	resolvedRef := ref
 
-	_, rewritten, err := c.config.RewritePath(ctx, ref)
-	if err == nil && rewritten != "" {
+	var applied []ImageConfig
+
+	if name, rewritten, err := c.config.RewritePath(ctx, ref); err == nil && rewritten != "" {
 		resolvedRef = rewritten
+		applied = append(applied, ImageConfig{Name: name, Reason: ImageConfigReasonRewrite})
 	}
 
 	parsedOriginalRef, err := name.ParseReference(originalRef)
@@ -161,9 +183,10 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 	}
 
 	secrets := cfg.pullSecrets
-	_, secret, err := c.config.PullSecretFor(ctx, ref)
-	if err == nil && secret != "" {
+
+	if name, secret, err := c.config.PullSecretFor(ctx, ref); err == nil && secret != "" {
 		secrets = append(secrets, secret)
+		applied = append(applied, ImageConfig{Name: name, Reason: ImageConfigReasonSetPullSecret})
 	}
 
 	var digest string
@@ -186,10 +209,11 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 			rc.Close() //nolint:errcheck // Only open for reading.
 			if err == nil {
 				return &Package{
-					Package:        pkg,
-					Digest:         digest,
-					Source:         ParsePackageSourceFromReference(parsedOriginalRef),
-					ResolvedSource: ParsePackageSourceFromReference(parsedResolvedRef),
+					Package:             pkg,
+					Digest:              digest,
+					Source:              ParsePackageSourceFromReference(parsedOriginalRef),
+					ResolvedSource:      ParsePackageSourceFromReference(parsedResolvedRef),
+					AppliedImageConfigs: applied,
 				}, nil
 			}
 		}
@@ -224,10 +248,11 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 	}
 
 	return &Package{
-		Package:        pkg,
-		Digest:         digest,
-		Source:         ParsePackageSourceFromReference(parsedOriginalRef),
-		ResolvedSource: ParsePackageSourceFromReference(parsedResolvedRef),
+		Package:             pkg,
+		Digest:              digest,
+		Source:              ParsePackageSourceFromReference(parsedOriginalRef),
+		ResolvedSource:      ParsePackageSourceFromReference(parsedResolvedRef),
+		AppliedImageConfigs: applied,
 	}, nil
 }
 
