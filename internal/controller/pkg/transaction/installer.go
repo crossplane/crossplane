@@ -55,16 +55,16 @@ const (
 // Installer installs one aspect of a package (the Package resource, the
 // PackageRevision, runtime components, or objects like CRDs).
 type Installer interface {
-	Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package, version string) error
+	Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package) error
 }
 
 // InstallerPipeline is a slice of Installers that are called in order.
 type InstallerPipeline []Installer
 
 // Install runs all installers in the pipeline in order.
-func (p InstallerPipeline) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package, version string) error {
+func (p InstallerPipeline) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package) error {
 	for _, installer := range p {
-		if err := installer.Install(ctx, tx, xp, version); err != nil {
+		if err := installer.Install(ctx, tx, xp); err != nil {
 			return err
 		}
 	}
@@ -102,7 +102,7 @@ func NewPackageCreator(kube client.Client) *PackageCreator {
 }
 
 // Install creates or updates the Package resource.
-func (i *PackageCreator) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package, version string) error {
+func (i *PackageCreator) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package) error {
 	pkg, _, err := NewPackageAndRevision(xp)
 	if err != nil {
 		return err
@@ -123,7 +123,7 @@ func (i *PackageCreator) Install(ctx context.Context, tx *v1alpha1.Transaction, 
 	}
 
 	_, err = ctrl.CreateOrUpdate(ctx, i.kube, pkg, func() error {
-		pkg.SetSource(xpkg.BuildReference(xp.Source, version))
+		pkg.SetSource(xpkg.BuildReference(xp.Source, xp.Version))
 
 		// For new packages, generation is 0 on the client side but will be 1
 		// after the API server creates them. For existing packages, use their
@@ -160,7 +160,7 @@ func NewRevisionCreator(kube client.Client) *RevisionCreator {
 // The package manager maintains at most one active revision per package at any
 // time. When a new revision is installed, all other revisions are deactivated.
 // This ensures a clean transition between package versions.
-func (i *RevisionCreator) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package, version string) error {
+func (i *RevisionCreator) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package) error {
 	pkg, rev, err := NewPackageAndRevision(xp)
 	if err != nil {
 		return err
@@ -231,7 +231,7 @@ func (i *RevisionCreator) Install(ctx context.Context, tx *v1alpha1.Transaction,
 		})
 
 		// Propagate package configuration to revision.
-		rev.SetSource(xpkg.BuildReference(xp.Source, version))
+		rev.SetSource(xpkg.BuildReference(xp.Source, xp.Version))
 		rev.SetPackagePullPolicy(pkg.GetPackagePullPolicy())
 		rev.SetPackagePullSecrets(pkg.GetPackagePullSecrets())
 		rev.SetIgnoreCrossplaneConstraints(pkg.GetIgnoreCrossplaneConstraints())
@@ -317,7 +317,7 @@ func NewRevisionStatusUpdater(kube client.Client) *RevisionStatusUpdater {
 }
 
 // Install installs the package's objects by establishing control of them.
-func (i *ObjectInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package, _ string) error {
+func (i *ObjectInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package) error {
 	_, rev, err := NewPackageAndRevision(xp)
 	if err != nil {
 		return err
@@ -350,7 +350,7 @@ func (i *ObjectInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction,
 // control of all package objects (CRDs, XRDs, Compositions). The revision
 // controller normally sets this condition, but since we don't run the revision
 // controller in transaction mode, we set it here.
-func (i *RevisionStatusUpdater) Install(ctx context.Context, _ *v1alpha1.Transaction, xp *xpkg.Package, _ string) error {
+func (i *RevisionStatusUpdater) Install(ctx context.Context, _ *v1alpha1.Transaction, xp *xpkg.Package) error {
 	pkg, rev, err := NewPackageAndRevision(xp)
 	if err != nil {
 		return err
@@ -386,7 +386,7 @@ func (i *RevisionStatusUpdater) Install(ctx context.Context, _ *v1alpha1.Transac
 // (Providers and Functions). This is needed for the establisher to inject
 // webhook configurations into CRDs. Configurations don't have runtimes so this
 // is a no-op for them.
-func (i *RuntimeBootstrapper) Install(ctx context.Context, _ *v1alpha1.Transaction, xp *xpkg.Package, _ string) error {
+func (i *RuntimeBootstrapper) Install(ctx context.Context, _ *v1alpha1.Transaction, xp *xpkg.Package) error {
 	_, rev, err := NewPackageAndRevision(xp)
 	if err != nil {
 		return err

@@ -75,11 +75,11 @@ func (m *MockValidator) Validate(ctx context.Context, tx *v1alpha1.Transaction) 
 }
 
 type MockInstaller struct {
-	MockInstall func(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package, version string) error
+	MockInstall func(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package) error
 }
 
-func (m *MockInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package, version string) error {
-	return m.MockInstall(ctx, tx, xp, version)
+func (m *MockInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package) error {
+	return m.MockInstall(ctx, tx, xp)
 }
 
 type MockXpkgClient struct {
@@ -476,7 +476,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithInstaller(&MockInstaller{
-						MockInstall: func(_ context.Context, _ *v1alpha1.Transaction, _ *xpkg.Package, _ string) error {
+						MockInstall: func(_ context.Context, _ *v1alpha1.Transaction, _ *xpkg.Package) error {
 							return errors.New("boom")
 						},
 					}),
@@ -536,7 +536,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithInstaller(&MockInstaller{
-						MockInstall: func(_ context.Context, _ *v1alpha1.Transaction, _ *xpkg.Package, _ string) error {
+						MockInstall: func(_ context.Context, _ *v1alpha1.Transaction, _ *xpkg.Package) error {
 							return nil
 						},
 					}),
@@ -610,7 +610,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithInstaller(&MockInstaller{
-						MockInstall: func(_ context.Context, _ *v1alpha1.Transaction, _ *xpkg.Package, _ string) error {
+						MockInstall: func(_ context.Context, _ *v1alpha1.Transaction, _ *xpkg.Package) error {
 							return nil
 						},
 					}),

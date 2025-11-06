@@ -250,7 +250,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, errors.Wrapf(err, "cannot fetch package %s", lockPkg.Source)
 		}
 
-		if err := r.installer.Install(ctx, tx, xp, lockPkg.Version); err != nil {
+		if err := r.installer.Install(ctx, tx, xp); err != nil {
 			log.Debug("cannot install package", "error", err, "source", lockPkg.Source)
 			r.record.Event(tx, event.Warning(reasonInstallation, errors.Wrapf(err, "cannot install package %s", lockPkg.Source)))
 			tx.Status.Failures++

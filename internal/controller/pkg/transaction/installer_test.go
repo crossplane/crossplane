@@ -342,7 +342,7 @@ func TestInstallPackage(t *testing.T) {
 				kube: tc.args.kube,
 			}
 
-			err := i.Install(context.Background(), tc.args.tx, tc.args.xp, testVersion)
+			err := i.Install(context.Background(), tc.args.tx, tc.args.xp)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nInstall(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -516,7 +516,7 @@ func TestInstallPackageRevision(t *testing.T) {
 				kube: tc.args.kube,
 			}
 
-			err := i.Install(context.Background(), tc.args.tx, tc.args.xp, testVersion)
+			err := i.Install(context.Background(), tc.args.tx, tc.args.xp)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nInstall(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -660,7 +660,7 @@ func TestInstallObjects(t *testing.T) {
 				objects: tc.args.establisher,
 			}
 
-			err := i.Install(context.Background(), tc.args.tx, tc.args.xp, testVersion)
+			err := i.Install(context.Background(), tc.args.tx, tc.args.xp)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nInstall(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -874,7 +874,7 @@ func TestBootstrapRuntime(t *testing.T) {
 				namespace: tc.args.namespace,
 			}
 
-			err := i.Install(context.Background(), tc.args.tx, tc.args.xp, testVersion)
+			err := i.Install(context.Background(), tc.args.tx, tc.args.xp)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nInstall(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -990,7 +990,7 @@ func TestRevisionStatusUpdater(t *testing.T) {
 				kube: tc.args.kube,
 			}
 
-			err := i.Install(context.Background(), tc.args.tx, tc.args.xp, testVersion)
+			err := i.Install(context.Background(), tc.args.tx, tc.args.xp)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nInstall(...): -want error, +got error:\n%s", tc.reason, diff)
