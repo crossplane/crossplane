@@ -256,6 +256,7 @@ func TestInstallPackage(t *testing.T) {
 			reason: "Should create or update Package successfully",
 			args: args{
 				kube: &test.MockClient{
+					MockList:         test.NewMockListFn(nil),
 					MockGet:          test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, testPackageName)),
 					MockCreate:       test.NewMockCreateFn(nil),
 					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
@@ -279,6 +280,7 @@ func TestInstallPackage(t *testing.T) {
 			reason: "Should return error when CreateOrUpdate fails",
 			args: args{
 				kube: &test.MockClient{
+					MockList:   test.NewMockListFn(nil),
 					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, testPackageName)),
 					MockCreate: test.NewMockCreateFn(errBoom),
 				},
@@ -295,6 +297,41 @@ func TestInstallPackage(t *testing.T) {
 			},
 			want: want{
 				err: cmpopts.AnyError,
+			},
+		},
+		"UseExistingPackage": {
+			reason: "Should use existing package with matching source repository",
+			args: args{
+				kube: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						// Return an existing package with different name but matching source
+						pkgList := list.(*v1.ProviderList)
+						existing := &v1.Provider{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "custom-provider-name",
+							},
+						}
+						existing.Spec.Package = testSource + ":v1.0.0"
+						pkgList.Items = []v1.Provider{*existing}
+						return nil
+					},
+					MockGet:          test.NewMockGetFn(nil),
+					MockUpdate:       test.NewMockUpdateFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				},
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-test",
+					},
+				},
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err: nil,
 			},
 		},
 	}
@@ -382,16 +419,23 @@ func TestInstallPackageRevision(t *testing.T) {
 						}
 					},
 					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
-						revList := list.(*v1.ProviderRevisionList)
-						oldRev := &v1.ProviderRevision{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "old-revision",
-							},
+						switch list := list.(type) {
+						case *v1.ProviderList:
+							// Return empty package list for FindExistingPackage
+							return nil
+						case *v1.ProviderRevisionList:
+							oldRev := &v1.ProviderRevision{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "old-revision",
+								},
+							}
+							oldRev.SetRevision(1)
+							oldRev.SetDesiredState(v1.PackageRevisionActive)
+							list.Items = []v1.ProviderRevision{*oldRev}
+							return nil
+						default:
+							return nil
 						}
-						oldRev.SetRevision(1)
-						oldRev.SetDesiredState(v1.PackageRevisionActive)
-						revList.Items = []v1.ProviderRevision{*oldRev}
-						return nil
 					},
 					MockUpdate:       test.NewMockUpdateFn(nil),
 					MockCreate:       test.NewMockCreateFn(nil),
@@ -416,7 +460,8 @@ func TestInstallPackageRevision(t *testing.T) {
 			reason: "Should return error when package doesn't exist",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, testPackageName)),
+					MockList: test.NewMockListFn(nil),
+					MockGet:  test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, testPackageName)),
 				},
 				tx: &v1alpha1.Transaction{
 					ObjectMeta: metav1.ObjectMeta{

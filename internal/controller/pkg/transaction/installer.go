@@ -108,6 +108,20 @@ func (i *PackageCreator) Install(ctx context.Context, tx *v1alpha1.Transaction, 
 		return err
 	}
 
+	// List packages to find pkgs one with matching source repository
+	pkgs, _, err := NewPackageAndRevisionList(xp)
+	if err != nil {
+		return err
+	}
+	if err := i.kube.List(ctx, pkgs); err != nil {
+		return errors.Wrap(err, "cannot list packages")
+	}
+
+	// Use existing package name if found, otherwise keep generated name
+	if name := FindExistingPackage(pkgs, xp); name != "" {
+		pkg.SetName(name)
+	}
+
 	_, err = ctrl.CreateOrUpdate(ctx, i.kube, pkg, func() error {
 		pkg.SetSource(xpkg.BuildReference(xp.Source, version))
 
@@ -152,25 +166,33 @@ func (i *RevisionCreator) Install(ctx context.Context, tx *v1alpha1.Transaction,
 		return err
 	}
 
+	// List packages to find pkgs one with matching source repository
+	pkgs, revs, err := NewPackageAndRevisionList(xp)
+	if err != nil {
+		return err
+	}
+	if err := i.kube.List(ctx, pkgs); err != nil {
+		return errors.Wrap(err, "cannot list packages")
+	}
+
+	// Use existing package name if found, otherwise keep generated name
+	if name := FindExistingPackage(pkgs, xp); name != "" {
+		pkg.SetName(name)
+		rev.SetName(xpkg.FriendlyID(name, xp.Digest))
+	}
+
 	if err := i.kube.Get(ctx, types.NamespacedName{Name: pkg.GetName()}, pkg); err != nil {
 		return errors.Wrap(err, "cannot get package")
 	}
 
-	_, list, err := NewPackageAndRevisionList(xp)
-	if err != nil {
-		return err
-	}
-
-	if err := i.kube.List(ctx, list, client.MatchingLabels{v1.LabelParentPackage: pkg.GetName()}); err != nil {
+	if err := i.kube.List(ctx, revs, client.MatchingLabels{v1.LabelParentPackage: pkg.GetName()}); err != nil {
 		return errors.Wrap(err, "cannot list package revisions")
 	}
-
-	revs := list.GetRevisions()
 
 	// Find the highest revision number to ensure our new revision gets a
 	// higher number. Revision numbers are monotonically increasing.
 	var maxRevision int64
-	for _, r := range revs {
+	for _, r := range revs.GetRevisions() {
 		if r.GetRevision() > maxRevision {
 			maxRevision = r.GetRevision()
 		}
@@ -179,7 +201,7 @@ func (i *RevisionCreator) Install(ctx context.Context, tx *v1alpha1.Transaction,
 	// Deactivate all other revisions before activating the new one. This
 	// ensures only one revision is active at a time, regardless of the
 	// package's activation policy.
-	for _, r := range revs {
+	for _, r := range revs.GetRevisions() {
 		if r.GetName() == rev.GetName() {
 			continue
 		}
@@ -242,16 +264,17 @@ func (i *RevisionCreator) Install(ctx context.Context, tx *v1alpha1.Transaction,
 	// to 0 disables garbage collection. We check len > limit+1 because the
 	// list includes the revision we just created/updated.
 	limit := ptr.Deref(pkg.GetRevisionHistoryLimit(), 1)
-	if limit == 0 || len(revs) <= int(limit)+1 {
+	if limit == 0 || len(revs.GetRevisions()) <= int(limit)+1 {
 		return nil
 	}
 
-	slices.SortFunc(revs, func(a, b v1.PackageRevision) int {
+	gc := revs.GetRevisions()
+	slices.SortFunc(gc, func(a, b v1.PackageRevision) int {
 		return cmp.Compare(a.GetRevision(), b.GetRevision())
 	})
 
-	err = resource.IgnoreNotFound(i.kube.Delete(ctx, revs[0]))
-	return errors.Wrapf(err, "cannot garbage collect revision %s", revs[0].GetName())
+	err = resource.IgnoreNotFound(i.kube.Delete(ctx, gc[0]))
+	return errors.Wrapf(err, "cannot garbage collect revision %s", gc[0].GetName())
 }
 
 // RuntimeBootstrapper creates runtime prerequisites for packages.
@@ -454,6 +477,31 @@ func (i *RuntimeBootstrapper) BootstrapFunctionRuntime(ctx context.Context, fr *
 	}
 
 	return nil
+}
+
+// FindExistingPackage searches for an existing Package in the list that
+// matches the source repository. Returns the package name if found, or empty
+// string if not found or if an error occurs during parsing.
+func FindExistingPackage(pkgList v1.PackageList, xp *xpkg.Package) string {
+	// Parse the source to get the repository (without tag/digest)
+	ref, err := name.ParseReference(xp.Source)
+	if err != nil {
+		return ""
+	}
+	sourceRepo := xpkg.ParsePackageSourceFromReference(ref)
+
+	// Search for existing package with matching repository
+	for _, p := range pkgList.GetPackages() {
+		existingRef, err := name.ParseReference(p.GetSource())
+		if err != nil {
+			continue // Skip packages with invalid sources
+		}
+		if xpkg.ParsePackageSourceFromReference(existingRef) == sourceRepo {
+			return p.GetName()
+		}
+	}
+
+	return ""
 }
 
 // NewPackageAndRevision creates template Package and PackageRevision resources
