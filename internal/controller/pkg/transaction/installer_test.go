@@ -563,6 +563,7 @@ func TestInstallObjects(t *testing.T) {
 			reason: "Should establish control of package objects",
 			args: args{
 				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
 						if pr, ok := obj.(*v1.ProviderRevision); ok {
 							pr.SetName(xpkg.FriendlyID(testPackageName, testDigestHex))
@@ -604,7 +605,8 @@ func TestInstallObjects(t *testing.T) {
 			reason: "Should return error when establish fails",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil),
+					MockList: test.NewMockListFn(nil),
+					MockGet:  test.NewMockGetFn(nil),
 				},
 				establisher: &MockEstablisher{
 					MockEstablish: func(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
@@ -630,7 +632,8 @@ func TestInstallObjects(t *testing.T) {
 			reason: "Should succeed when package has no objects",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil),
+					MockList: test.NewMockListFn(nil),
+					MockGet:  test.NewMockGetFn(nil),
 				},
 				establisher: &MockEstablisher{
 					MockEstablish: func(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
@@ -700,6 +703,7 @@ func TestBootstrapRuntime(t *testing.T) {
 			reason: "Should bootstrap provider runtime successfully",
 			args: args{
 				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj := obj.(type) {
 						case *v1.ProviderRevision:
@@ -737,6 +741,7 @@ func TestBootstrapRuntime(t *testing.T) {
 			reason: "Should bootstrap function runtime successfully",
 			args: args{
 				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj := obj.(type) {
 						case *v1.FunctionRevision:
@@ -773,6 +778,7 @@ func TestBootstrapRuntime(t *testing.T) {
 			reason: "Should be no-op for configuration (no runtime)",
 			args: args{
 				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj := obj.(type) {
 						case *v1.ConfigurationRevision:
@@ -798,6 +804,7 @@ func TestBootstrapRuntime(t *testing.T) {
 			reason: "Should skip bootstrap for inactive revision",
 			args: args{
 				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj := obj.(type) {
 						case *v1.ProviderRevision:
@@ -824,6 +831,7 @@ func TestBootstrapRuntime(t *testing.T) {
 			reason: "Should return error when revision doesn't exist",
 			args: args{
 				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
 					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				namespace: "test-namespace",
@@ -841,6 +849,7 @@ func TestBootstrapRuntime(t *testing.T) {
 			reason: "Should return error when service creation fails",
 			args: args{
 				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj := obj.(type) {
 						case *v1.ProviderRevision:

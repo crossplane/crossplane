@@ -307,9 +307,24 @@ func NewObjectInstaller(kube client.Client, e Establisher) *ObjectInstaller {
 
 // Install installs the package's objects by establishing control of them.
 func (i *ObjectInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package) error {
-	_, rev, err := NewPackageAndRevision(xp)
+	pkg, rev, err := NewPackageAndRevision(xp)
 	if err != nil {
 		return err
+	}
+
+	// List packages to find existing one with matching source repository
+	pkgList, _, err := NewPackageAndRevisionList(xp)
+	if err != nil {
+		return err
+	}
+	if err := i.kube.List(ctx, pkgList); err != nil {
+		return errors.Wrap(err, "cannot list packages")
+	}
+
+	// Use existing package name if found, otherwise keep generated name
+	if existingName := FindExistingPackage(pkgList, xp); existingName != "" {
+		pkg.SetName(existingName)
+		rev.SetName(xpkg.FriendlyID(existingName, xp.DigestHex()))
 	}
 
 	// Fetch the revision from the API server to get its current status,
@@ -442,9 +457,24 @@ func (i *PackageStatusUpdater) Install(ctx context.Context, _ *v1alpha1.Transact
 // webhook configurations into CRDs. Configurations don't have runtimes so this
 // is a no-op for them.
 func (i *RuntimeBootstrapper) Install(ctx context.Context, _ *v1alpha1.Transaction, xp *xpkg.Package) error {
-	_, rev, err := NewPackageAndRevision(xp)
+	pkg, rev, err := NewPackageAndRevision(xp)
 	if err != nil {
 		return err
+	}
+
+	// List packages to find existing one with matching source repository
+	pkgList, _, err := NewPackageAndRevisionList(xp)
+	if err != nil {
+		return err
+	}
+	if err := i.kube.List(ctx, pkgList); err != nil {
+		return errors.Wrap(err, "cannot list packages")
+	}
+
+	// Use existing package name if found, otherwise keep generated name
+	if existingName := FindExistingPackage(pkgList, xp); existingName != "" {
+		pkg.SetName(existingName)
+		rev.SetName(xpkg.FriendlyID(existingName, xp.DigestHex()))
 	}
 
 	// Get the revision we just created to have the full object
