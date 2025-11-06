@@ -178,7 +178,7 @@ func (i *RevisionCreator) Install(ctx context.Context, tx *v1alpha1.Transaction,
 	// Use existing package name if found, otherwise keep generated name
 	if name := FindExistingPackage(pkgs, xp); name != "" {
 		pkg.SetName(name)
-		rev.SetName(xpkg.FriendlyID(name, xp.Digest))
+		rev.SetName(xpkg.FriendlyID(name, xp.DigestHex()))
 	}
 
 	if err := i.kube.Get(ctx, types.NamespacedName{Name: pkg.GetName()}, pkg); err != nil {
@@ -368,7 +368,7 @@ func (i *RevisionStatusUpdater) Install(ctx context.Context, _ *v1alpha1.Transac
 	// Use existing package name if found, otherwise keep generated name
 	if existingName := FindExistingPackage(pkgList, xp); existingName != "" {
 		pkg.SetName(existingName)
-		rev.SetName(xpkg.FriendlyID(existingName, xp.Digest))
+		rev.SetName(xpkg.FriendlyID(existingName, xp.DigestHex()))
 	}
 
 	// Get the revision to update its status
@@ -651,7 +651,7 @@ func NewPackageAndRevision(xp *xpkg.Package) (v1.Package, v1.PackageRevision, er
 
 	name := xpkg.ToDNSLabel(ref.Context().RepositoryStr())
 	pkg.SetName(name)
-	rev.SetName(xpkg.FriendlyID(name, xp.Digest))
+	rev.SetName(xpkg.FriendlyID(name, xp.DigestHex()))
 
 	return pkg, rev, nil
 }

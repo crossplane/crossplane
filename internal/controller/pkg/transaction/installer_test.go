@@ -39,7 +39,8 @@ import (
 )
 
 const (
-	testDigest      = "sha256:abc123def456"
+	testDigest      = "sha256:abc123def456789012345678901234567890123456789012345678901234abcd"
+	testDigestHex   = "abc123def456789012345678901234567890123456789012345678901234abcd" // Hex part without algorithm prefix
 	testSource      = "xpkg.io/test/provider-test"
 	testPackageName = "test-provider-test" // DNS label from xpkg.ToDNSLabel(testSource repository)
 	testVersion     = "v0.1.0"
@@ -81,7 +82,7 @@ func TestNewPackageAndRevision(t *testing.T) {
 				},
 				rev: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: xpkg.FriendlyID(testPackageName, testDigest),
+						Name: xpkg.FriendlyID(testPackageName, testDigestHex),
 					},
 				},
 				err: nil,
@@ -104,7 +105,7 @@ func TestNewPackageAndRevision(t *testing.T) {
 				},
 				rev: &v1.ConfigurationRevision{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: xpkg.FriendlyID(testPackageName, testDigest),
+						Name: xpkg.FriendlyID(testPackageName, testDigestHex),
 					},
 				},
 				err: nil,
@@ -127,7 +128,7 @@ func TestNewPackageAndRevision(t *testing.T) {
 				},
 				rev: &v1.FunctionRevision{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: xpkg.FriendlyID(testPackageName, testDigest),
+						Name: xpkg.FriendlyID(testPackageName, testDigestHex),
 					},
 				},
 				err: nil,
@@ -564,7 +565,7 @@ func TestInstallObjects(t *testing.T) {
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
 						if pr, ok := obj.(*v1.ProviderRevision); ok {
-							pr.SetName(xpkg.FriendlyID(testPackageName, testDigest))
+							pr.SetName(xpkg.FriendlyID(testPackageName, testDigestHex))
 							pr.SetObservedTLSServerSecretName(ptr.To("test-server-secret"))
 							pr.SetObservedTLSClientSecretName(ptr.To("test-client-secret"))
 						}
@@ -702,7 +703,7 @@ func TestBootstrapRuntime(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj := obj.(type) {
 						case *v1.ProviderRevision:
-							obj.SetName(xpkg.FriendlyID(testPackageName, testDigest))
+							obj.SetName(xpkg.FriendlyID(testPackageName, testDigestHex))
 							obj.SetDesiredState(v1.PackageRevisionActive)
 							obj.SetTLSServerSecretName(ptr.To("test-server-secret"))
 							obj.SetTLSClientSecretName(ptr.To("test-client-secret"))
@@ -739,7 +740,7 @@ func TestBootstrapRuntime(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj := obj.(type) {
 						case *v1.FunctionRevision:
-							obj.SetName(xpkg.FriendlyID(testPackageName, testDigest))
+							obj.SetName(xpkg.FriendlyID(testPackageName, testDigestHex))
 							obj.SetDesiredState(v1.PackageRevisionActive)
 							obj.SetTLSServerSecretName(ptr.To("test-server-secret"))
 							obj.SetOwnerReferences([]metav1.OwnerReference{{Name: testPackageName}})
@@ -775,7 +776,7 @@ func TestBootstrapRuntime(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj := obj.(type) {
 						case *v1.ConfigurationRevision:
-							obj.SetName(xpkg.FriendlyID(testPackageName, testDigest))
+							obj.SetName(xpkg.FriendlyID(testPackageName, testDigestHex))
 							return nil
 						default:
 							return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
@@ -800,7 +801,7 @@ func TestBootstrapRuntime(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj := obj.(type) {
 						case *v1.ProviderRevision:
-							obj.SetName(xpkg.FriendlyID(testPackageName, testDigest))
+							obj.SetName(xpkg.FriendlyID(testPackageName, testDigestHex))
 							obj.SetDesiredState(v1.PackageRevisionInactive)
 							return nil
 						default:
@@ -843,7 +844,7 @@ func TestBootstrapRuntime(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj := obj.(type) {
 						case *v1.ProviderRevision:
-							obj.SetName(xpkg.FriendlyID(testPackageName, testDigest))
+							obj.SetName(xpkg.FriendlyID(testPackageName, testDigestHex))
 							obj.SetDesiredState(v1.PackageRevisionActive)
 							obj.SetTLSServerSecretName(ptr.To("test-server-secret"))
 							obj.SetTLSClientSecretName(ptr.To("test-client-secret"))

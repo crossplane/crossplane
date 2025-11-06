@@ -1176,3 +1176,41 @@ func TestFilterAndSortVersions(t *testing.T) {
 		})
 	}
 }
+
+func TestPackageDigestHex(t *testing.T) {
+	const testHex = "abc123def456789012345678901234567890123456789012345678901234abcd"
+
+	cases := map[string]struct {
+		reason string
+		digest string
+		want   string
+	}{
+		"ValidDigest": {
+			reason: "Should return hex part of valid SHA256 digest",
+			digest: "sha256:" + testHex,
+			want:   testHex,
+		},
+		"InvalidDigest": {
+			reason: "Should return empty string for invalid digest",
+			digest: "invalid-digest",
+			want:   "",
+		},
+		"EmptyDigest": {
+			reason: "Should return empty string for empty digest",
+			digest: "",
+			want:   "",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			pkg := &Package{Digest: tc.digest}
+			got := pkg.DigestHex()
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\nPackage.DigestHex(): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+

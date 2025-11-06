@@ -66,14 +66,9 @@ type Package struct {
 
 // NewPackage creates a solver Package from a fetched xpkg.Package.
 func NewPackage(xp *xpkg.Package, version string, constraints []string) (*Package, error) {
-	hash, err := conregv1.NewHash(xp.Digest)
-	if err != nil {
-		return nil, errors.Wrapf(err, "invalid digest %s", xp.Digest)
-	}
-
 	pkg := &Package{
 		LockPackage: v1beta1.LockPackage{
-			Name:         xpkg.FriendlyID(xp.Source, hash.Hex),
+			Name:         xpkg.FriendlyID(xp.Source, xp.DigestHex()),
 			Source:       xp.Source,
 			Version:      version,
 			Dependencies: ConvertDependencies(xp.GetDependencies()),
