@@ -66,9 +66,16 @@ type Package struct {
 
 // NewPackage creates a solver Package from a fetched xpkg.Package.
 func NewPackage(xp *xpkg.Package, version string, constraints []string) (*Package, error) {
+	// Parse the source to extract repository for naming (without registry).
+	// This matches how Package resources are named in installer.go.
+	ref, err := name.ParseReference(xp.Source)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot parse package source")
+	}
+
 	pkg := &Package{
 		LockPackage: v1beta1.LockPackage{
-			Name:         xpkg.FriendlyID(xp.Source, xp.DigestHex()),
+			Name:         xpkg.FriendlyID(xpkg.ToDNSLabel(ref.Context().RepositoryStr()), xp.DigestHex()),
 			Source:       xp.Source,
 			Version:      version,
 			Dependencies: ConvertDependencies(xp.GetDependencies()),

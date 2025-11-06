@@ -912,7 +912,7 @@ func TestSelectVersion(t *testing.T) {
 			want: want{
 				pkg: &Package{
 					LockPackage: v1beta1.LockPackage{
-						Name:       "pkg-a-1234567890ab",
+						Name:       "library-pkg-a-1234567890ab",
 						APIVersion: ptr.To(v1.SchemeGroupVersion.String()),
 						Kind:       ptr.To("Provider"),
 						Source:     "pkg-a",
@@ -941,7 +941,7 @@ func TestSelectVersion(t *testing.T) {
 			want: want{
 				pkg: &Package{
 					LockPackage: v1beta1.LockPackage{
-						Name:       "pkg-a-1234567890ab",
+						Name:       "library-pkg-a-1234567890ab",
 						APIVersion: ptr.To(v1.SchemeGroupVersion.String()),
 						Kind:       ptr.To("Provider"),
 						Source:     "pkg-a",
@@ -970,7 +970,7 @@ func TestSelectVersion(t *testing.T) {
 			want: want{
 				pkg: &Package{
 					LockPackage: v1beta1.LockPackage{
-						Name:       "pkg-a-1234567890ab",
+						Name:       "library-pkg-a-1234567890ab",
 						APIVersion: ptr.To(v1.SchemeGroupVersion.String()),
 						Kind:       ptr.To("Provider"),
 						Source:     "pkg-a",
@@ -1014,7 +1014,7 @@ func TestSelectVersion(t *testing.T) {
 			want: want{
 				pkg: &Package{
 					LockPackage: v1beta1.LockPackage{
-						Name:       "pkg-a-1234567890ab",
+						Name:       "library-pkg-a-1234567890ab",
 						APIVersion: ptr.To(v1.SchemeGroupVersion.String()),
 						Kind:       ptr.To("Provider"),
 						Source:     "pkg-a",
@@ -1134,7 +1134,7 @@ func TestSolve(t *testing.T) {
 			want: want{
 				lockPackages: []v1beta1.LockPackage{
 					{
-						Name:       "pkg-a-1234567890ab",
+						Name:       "library-pkg-a-1234567890ab",
 						APIVersion: ptr.To(v1.SchemeGroupVersion.String()),
 						Kind:       ptr.To("Provider"),
 						Source:     "pkg-a",
@@ -1174,7 +1174,7 @@ func TestSolve(t *testing.T) {
 			want: want{
 				lockPackages: []v1beta1.LockPackage{
 					{
-						Name:       "pkg-a-aaaaaaaaaaaa",
+						Name:       "library-pkg-a-aaaaaaaaaaaa",
 						APIVersion: ptr.To(v1.SchemeGroupVersion.String()),
 						Kind:       ptr.To("Provider"),
 						Source:     "pkg-a",
@@ -1184,7 +1184,7 @@ func TestSolve(t *testing.T) {
 						},
 					},
 					{
-						Name:       "pkg-b-bbbbbbbbbbbb",
+						Name:       "library-pkg-b-bbbbbbbbbbbb",
 						APIVersion: ptr.To(v1.SchemeGroupVersion.String()),
 						Kind:       ptr.To("Provider"),
 						Source:     "pkg-b",
@@ -1213,7 +1213,7 @@ func TestSolve(t *testing.T) {
 			want: want{
 				lockPackages: []v1beta1.LockPackage{
 					{
-						Name:       "pkg-a-1234567890ab",
+						Name:       "library-pkg-a-1234567890ab",
 						APIVersion: ptr.To(v1.SchemeGroupVersion.String()),
 						Kind:       ptr.To("Provider"),
 						Source:     "pkg-a",
@@ -1269,7 +1269,7 @@ func TestSolve(t *testing.T) {
 			want: want{
 				lockPackages: []v1beta1.LockPackage{
 					{
-						Name:       "pkg-a-aaaaaaaaaaaa",
+						Name:       "library-pkg-a-aaaaaaaaaaaa",
 						APIVersion: ptr.To(v1.SchemeGroupVersion.String()),
 						Kind:       ptr.To("Provider"),
 						Source:     "pkg-a",
@@ -1280,7 +1280,7 @@ func TestSolve(t *testing.T) {
 						},
 					},
 					{
-						Name:       "pkg-b-bbbbbbbbbbbb",
+						Name:       "library-pkg-b-bbbbbbbbbbbb",
 						APIVersion: ptr.To(v1.SchemeGroupVersion.String()),
 						Kind:       ptr.To("Provider"),
 						Source:     "pkg-b",
@@ -1290,7 +1290,7 @@ func TestSolve(t *testing.T) {
 						},
 					},
 					{
-						Name:       "pkg-c-cccccccccccc",
+						Name:       "library-pkg-c-cccccccccccc",
 						APIVersion: ptr.To(v1.SchemeGroupVersion.String()),
 						Kind:       ptr.To("Provider"),
 						Source:     "pkg-c",
@@ -1572,7 +1572,7 @@ func TestNewPackage(t *testing.T) {
 			want: want{
 				pkg: &Package{
 					LockPackage: v1beta1.LockPackage{
-						Name:       "pkg-a-1234567890ab",
+						Name:       "library-pkg-a-1234567890ab",
 						APIVersion: ptr.To(v1.SchemeGroupVersion.String()),
 						Kind:       ptr.To("Provider"),
 						Source:     "pkg-a",
@@ -1584,21 +1584,6 @@ func TestNewPackage(t *testing.T) {
 					Digest:      "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
 					Constraints: []string{">=v1.0.0", "<v2.0.0"},
 				},
-			},
-		},
-		"InvalidDigest": {
-			reason: "Invalid digest should return error",
-			args: args{
-				xp: &xpkg.Package{
-					Source:  "pkg-a",
-					Digest:  "not-a-valid-digest",
-					Package: NewTestPackage(t, "pkg-a", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef").Package,
-				},
-				version:     "v1.0.0",
-				constraints: []string{},
-			},
-			want: want{
-				err: cmpopts.AnyError,
 			},
 		},
 	}

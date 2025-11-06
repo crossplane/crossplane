@@ -832,7 +832,7 @@ func TestBootstrapRuntime(t *testing.T) {
 			args: args{
 				kube: &test.MockClient{
 					MockList: test.NewMockListFn(nil),
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet:  test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				namespace: "test-namespace",
 				xp: &xpkg.Package{

@@ -1213,4 +1213,3 @@ func TestPackageDigestHex(t *testing.T) {
 		})
 	}
 }
-
