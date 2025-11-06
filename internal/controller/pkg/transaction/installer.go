@@ -305,17 +305,6 @@ func NewObjectInstaller(kube client.Client, e Establisher) *ObjectInstaller {
 	}
 }
 
-// RevisionStatusUpdater updates PackageRevision status conditions after
-// installation completes.
-type RevisionStatusUpdater struct {
-	kube client.Client
-}
-
-// NewRevisionStatusUpdater returns a new RevisionStatusUpdater.
-func NewRevisionStatusUpdater(kube client.Client) *RevisionStatusUpdater {
-	return &RevisionStatusUpdater{kube: kube}
-}
-
 // Install installs the package's objects by establishing control of them.
 func (i *ObjectInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction, xp *xpkg.Package) error {
 	_, rev, err := NewPackageAndRevision(xp)
@@ -343,6 +332,17 @@ func (i *ObjectInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction,
 	// CRDs, webhooks, and other Kubernetes objects.
 	_, err = i.objects.Establish(ctx, objs, rev, true)
 	return errors.Wrap(err, "cannot establish control of package objects")
+}
+
+// RevisionStatusUpdater updates PackageRevision status conditions after
+// installation completes.
+type RevisionStatusUpdater struct {
+	kube client.Client
+}
+
+// NewRevisionStatusUpdater returns a new RevisionStatusUpdater.
+func NewRevisionStatusUpdater(kube client.Client) *RevisionStatusUpdater {
+	return &RevisionStatusUpdater{kube: kube}
 }
 
 // Install sets the TypeRevisionHealthy condition on the PackageRevision after
@@ -376,10 +376,65 @@ func (i *RevisionStatusUpdater) Install(ctx context.Context, _ *v1alpha1.Transac
 		return errors.Wrap(err, "cannot get package revision")
 	}
 
+	// Set status fields from the fetched package
+	rev.SetResolvedSource(xpkg.BuildReference(xp.ResolvedSource, xp.Version))
+	rev.SetAppliedImageConfigRefs(AsImageConfigRefs(xp.AppliedImageConfigs)...)
+
 	// Set RevisionHealthy condition after successfully establishing objects
 	rev.SetConditions(v1.RevisionHealthy())
 
 	return errors.Wrap(i.kube.Status().Update(ctx, rev), "cannot update package revision status")
+}
+
+// PackageStatusUpdater updates Package status fields after installation.
+type PackageStatusUpdater struct {
+	kube client.Client
+}
+
+// NewPackageStatusUpdater returns a new PackageStatusUpdater.
+func NewPackageStatusUpdater(kube client.Client) *PackageStatusUpdater {
+	return &PackageStatusUpdater{kube: kube}
+}
+
+// Install sets status fields on the Package that record facts about the
+// installation (resolved source and applied image configs).
+func (i *PackageStatusUpdater) Install(ctx context.Context, _ *v1alpha1.Transaction, xp *xpkg.Package) error {
+	pkg, _, err := NewPackageAndRevision(xp)
+	if err != nil {
+		return err
+	}
+
+	// List packages to find existing one with matching source repository
+	pkgList, _, err := NewPackageAndRevisionList(xp)
+	if err != nil {
+		return err
+	}
+	if err := i.kube.List(ctx, pkgList); err != nil {
+		return errors.Wrap(err, "cannot list packages")
+	}
+
+	// Use existing package name if found, otherwise keep generated name
+	if existingName := FindExistingPackage(pkgList, xp); existingName != "" {
+		pkg.SetName(existingName)
+	}
+
+	// Get the package to update its status
+	if err := i.kube.Get(ctx, types.NamespacedName{Name: pkg.GetName()}, pkg); err != nil {
+		return errors.Wrap(err, "cannot get package")
+	}
+
+	// Set status fields from the fetched package
+	pkg.SetResolvedSource(xpkg.BuildReference(xp.ResolvedSource, xp.Version))
+	pkg.SetAppliedImageConfigRefs(AsImageConfigRefs(xp.AppliedImageConfigs)...)
+
+	// Note: This does NOT set Package conditions. Package conditions
+	// (Active, Healthy) are set by the manager-tx controller which
+	// continuously monitors and derives them from PackageRevision state.
+	// This is necessary because revision conditions are updated
+	// asynchronously by other controllers (e.g., the runtime controller
+	// sets RuntimeHealthy as the Deployment becomes ready).
+
+	return errors.Wrap(i.kube.Status().Update(ctx, pkg), "cannot update package status")
 }
 
 // Install bootstraps runtime prerequisites for packages that need them
@@ -550,6 +605,22 @@ func FindExistingPackage(pkgList v1.PackageList, xp *xpkg.Package) string {
 	}
 
 	return ""
+}
+
+// AsImageConfigRefs converts xpkg.ImageConfig to v1.ImageConfigRef.
+func AsImageConfigRefs(configs []xpkg.ImageConfig) []v1.ImageConfigRef {
+	if len(configs) == 0 {
+		return nil
+	}
+
+	refs := make([]v1.ImageConfigRef, len(configs))
+	for i, cfg := range configs {
+		refs[i] = v1.ImageConfigRef{
+			Name:   cfg.Name,
+			Reason: v1.ImageConfigRefReason(cfg.Reason),
+		}
+	}
+	return refs
 }
 
 // NewPackageAndRevision creates template Package and PackageRevision resources

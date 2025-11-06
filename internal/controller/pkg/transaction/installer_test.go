@@ -998,3 +998,220 @@ func TestRevisionStatusUpdater(t *testing.T) {
 		})
 	}
 }
+
+func TestPackageStatusUpdater(t *testing.T) {
+	errBoom := errors.New("boom")
+	testResolvedSource := "registry.io/test/provider-test@sha256:resolved"
+	testImageConfigs := []xpkg.ImageConfig{
+		{
+			Name:   "test-image-config-1",
+			Reason: xpkg.ImageConfigReasonRewrite,
+		},
+		{
+			Name:   "test-image-config-2",
+			Reason: xpkg.ImageConfigReasonSetPullSecret,
+		},
+	}
+
+	type args struct {
+		kube client.Client
+		tx   *v1alpha1.Transaction
+		xp   *xpkg.Package
+	}
+	type want struct {
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"Success": {
+			reason: "Should set Package status fields successfully",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						if pkg, ok := obj.(*v1.Provider); ok {
+							pkg.SetName(key.Name)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+					},
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				},
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-test",
+					},
+				},
+				xp: &xpkg.Package{
+					Package:             NewTestPackage(t, testProviderMeta),
+					Digest:              testDigest,
+					Source:              testSource,
+					ResolvedSource:      testResolvedSource,
+					AppliedImageConfigs: testImageConfigs,
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"PackageNotFound": {
+			reason: "Should return error when package doesn't exist",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
+					MockGet:  test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, testPackageName)),
+				},
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-test",
+					},
+				},
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"StatusUpdateError": {
+			reason: "Should return error when status update fails",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						if pkg, ok := obj.(*v1.Provider); ok {
+							pkg.SetName(key.Name)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+					},
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
+				},
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-test",
+					},
+				},
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			i := &PackageStatusUpdater{
+				kube: tc.args.kube,
+			}
+
+			err := i.Install(context.Background(), tc.args.tx, tc.args.xp)
+
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("%s\nInstall(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAsImageConfigRefs(t *testing.T) {
+	type args struct {
+		configs []xpkg.ImageConfig
+	}
+	type want struct {
+		refs []v1.ImageConfigRef
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NilConfigs": {
+			reason: "Should return nil for nil input",
+			args: args{
+				configs: nil,
+			},
+			want: want{
+				refs: nil,
+			},
+		},
+		"EmptyConfigs": {
+			reason: "Should return nil for empty input",
+			args: args{
+				configs: []xpkg.ImageConfig{},
+			},
+			want: want{
+				refs: nil,
+			},
+		},
+		"SingleConfig": {
+			reason: "Should convert single config correctly",
+			args: args{
+				configs: []xpkg.ImageConfig{
+					{
+						Name:   "test-config",
+						Reason: xpkg.ImageConfigReasonRewrite,
+					},
+				},
+			},
+			want: want{
+				refs: []v1.ImageConfigRef{
+					{
+						Name:   "test-config",
+						Reason: v1.ImageConfigReasonRewrite,
+					},
+				},
+			},
+		},
+		"MultipleConfigs": {
+			reason: "Should convert multiple configs correctly",
+			args: args{
+				configs: []xpkg.ImageConfig{
+					{
+						Name:   "config-1",
+						Reason: xpkg.ImageConfigReasonRewrite,
+					},
+					{
+						Name:   "config-2",
+						Reason: xpkg.ImageConfigReasonSetPullSecret,
+					},
+				},
+			},
+			want: want{
+				refs: []v1.ImageConfigRef{
+					{
+						Name:   "config-1",
+						Reason: v1.ImageConfigReasonRewrite,
+					},
+					{
+						Name:   "config-2",
+						Reason: v1.ImageConfigReasonSetPullSecret,
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			refs := AsImageConfigRefs(tc.args.configs)
+
+			if diff := cmp.Diff(tc.want.refs, refs); diff != "" {
+				t.Errorf("%s\nAsImageConfigRefs(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}

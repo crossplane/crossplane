@@ -130,6 +130,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 			NewRuntimeBootstrapper(mgr.GetClient(), o.Namespace),
 			NewObjectInstaller(mgr.GetClient(), e),
 			NewRevisionStatusUpdater(mgr.GetClient()),
+			NewPackageStatusUpdater(mgr.GetClient()),
 		}),
 	)
 
