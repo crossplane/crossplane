@@ -996,9 +996,7 @@ func TestRevisionStatusUpdater(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			i := &RevisionStatusUpdater{
-				kube: tc.args.kube,
-			}
+			i := NewRevisionStatusUpdater(tc.args.kube)
 
 			err := i.Install(context.Background(), tc.args.tx, tc.args.xp)
 

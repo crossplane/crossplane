@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -352,12 +353,13 @@ func (i *ObjectInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction,
 // RevisionStatusUpdater updates PackageRevision status conditions after
 // installation completes.
 type RevisionStatusUpdater struct {
-	kube client.Client
+	kube       client.Client
+	conditions conditions.Manager
 }
 
 // NewRevisionStatusUpdater returns a new RevisionStatusUpdater.
 func NewRevisionStatusUpdater(kube client.Client) *RevisionStatusUpdater {
-	return &RevisionStatusUpdater{kube: kube}
+	return &RevisionStatusUpdater{kube: kube, conditions: conditions.ObservedGenerationPropagationManager{}}
 }
 
 // Install sets the TypeRevisionHealthy condition on the PackageRevision after
@@ -396,7 +398,7 @@ func (i *RevisionStatusUpdater) Install(ctx context.Context, _ *v1alpha1.Transac
 	rev.SetAppliedImageConfigRefs(AsImageConfigRefs(xp.AppliedImageConfigs)...)
 
 	// Set RevisionHealthy condition after successfully establishing objects
-	rev.SetConditions(v1.RevisionHealthy())
+	i.conditions.For(rev).MarkConditions(v1.RevisionHealthy())
 
 	return errors.Wrap(i.kube.Status().Update(ctx, rev), "cannot update package revision status")
 }
