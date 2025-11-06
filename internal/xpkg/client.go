@@ -88,6 +88,16 @@ type Package struct {
 	AppliedImageConfigs []ImageConfig
 }
 
+// DigestHex returns the hex string of the digest without the algorithm prefix.
+// Returns empty string if the digest cannot be parsed.
+func (p *Package) DigestHex() string {
+	hash, err := v1.NewHash(p.Digest)
+	if err != nil {
+		return ""
+	}
+	return hash.Hex
+}
+
 // GetMeta returns the package metadata object.
 // Returns nil if the package doesn't contain exactly one metadata object.
 func (p *Package) GetMeta() pkgmetav1.Pkg {
