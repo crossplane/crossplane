@@ -109,7 +109,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Create or get existing Transaction for this package change
 	name := pkg.GetLabels()[v1alpha1.LabelTransactionName]
-	if name == "" {
+	if handled != current || name == "" {
 		name = TransactionName(pkg)
 	}
 
