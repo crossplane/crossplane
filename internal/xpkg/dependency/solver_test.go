@@ -881,6 +881,7 @@ func TestSelectVersion(t *testing.T) {
 
 	type args struct {
 		client      xpkg.Client
+		name        string
 		source      string
 		constraints []string
 	}
@@ -903,9 +904,10 @@ func TestSelectVersion(t *testing.T) {
 					},
 					MockGet: func(_ context.Context, _ string, _ ...xpkg.GetOption) (*xpkg.Package, error) {
 						//nolint:contextcheck // Test helper doesn't need context.
-						return NewTestPackage(t, "pkg-a", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"), nil
+						return NewTestPackage(t, "pkg-a", "v1.0.0", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"), nil
 					},
 				},
+				name:        "library-pkg-a",
 				source:      "pkg-a",
 				constraints: []string{"*"},
 			},
@@ -932,9 +934,10 @@ func TestSelectVersion(t *testing.T) {
 					},
 					MockGet: func(_ context.Context, _ string, _ ...xpkg.GetOption) (*xpkg.Package, error) {
 						//nolint:contextcheck // Test helper doesn't need context.
-						return NewTestPackage(t, "pkg-a", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"), nil
+						return NewTestPackage(t, "pkg-a", "v1.0.0", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"), nil
 					},
 				},
+				name:        "library-pkg-a",
 				source:      "pkg-a",
 				constraints: []string{">=v1.0.0"},
 			},
@@ -961,9 +964,10 @@ func TestSelectVersion(t *testing.T) {
 					},
 					MockGet: func(_ context.Context, _ string, _ ...xpkg.GetOption) (*xpkg.Package, error) {
 						//nolint:contextcheck // Test helper doesn't need context.
-						return NewTestPackage(t, "pkg-a", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"), nil
+						return NewTestPackage(t, "pkg-a", "v1.0.0", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"), nil
 					},
 				},
+				name:        "library-pkg-a",
 				source:      "pkg-a",
 				constraints: []string{">=v1.0.0", "<v2.0.0"},
 			},
@@ -989,6 +993,7 @@ func TestSelectVersion(t *testing.T) {
 						return []string{"v0.5.0", "v0.9.0"}, nil
 					},
 				},
+				name:        "library-pkg-a",
 				source:      "pkg-a",
 				constraints: []string{">=v1.0.0"},
 			},
@@ -1005,9 +1010,10 @@ func TestSelectVersion(t *testing.T) {
 							return nil, errBoom
 						}
 						//nolint:contextcheck // Test helper doesn't need context.
-						return NewTestPackage(t, "pkg-a", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"), nil
+						return NewTestPackage(t, "pkg-a", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"), nil
 					},
 				},
+				name:        "library-pkg-a",
 				source:      "pkg-a",
 				constraints: []string{"sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"},
 			},
@@ -1029,6 +1035,7 @@ func TestSelectVersion(t *testing.T) {
 			reason: "Mixed digest and semver constraints should return error",
 			args: args{
 				client:      &MockPackageClient{},
+				name:        "library-pkg-a",
 				source:      "pkg-a",
 				constraints: []string{"sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", ">=v1.0.0"},
 			},
@@ -1040,6 +1047,7 @@ func TestSelectVersion(t *testing.T) {
 			reason: "Multiple different digest constraints should return error",
 			args: args{
 				client:      &MockPackageClient{},
+				name:        "library-pkg-a",
 				source:      "pkg-a",
 				constraints: []string{"sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", "sha256:fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321"},
 			},
@@ -1055,6 +1063,7 @@ func TestSelectVersion(t *testing.T) {
 						return nil, errBoom
 					},
 				},
+				name:        "library-pkg-a",
 				source:      "pkg-a",
 				constraints: []string{">=v1.0.0"},
 			},
@@ -1073,6 +1082,7 @@ func TestSelectVersion(t *testing.T) {
 						return nil, errBoom
 					},
 				},
+				name:        "library-pkg-a",
 				source:      "pkg-a",
 				constraints: []string{">=v1.0.0"},
 			},
@@ -1085,7 +1095,7 @@ func TestSelectVersion(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			s := NewTighteningConstraintSolver(tc.args.client)
-			pkg, err := s.SelectVersion(context.Background(), tc.args.source, tc.args.constraints)
+			pkg, err := s.SelectVersion(context.Background(), tc.args.name, tc.args.source, tc.args.constraints)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nSelectVersion(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -1103,6 +1113,7 @@ func TestSolve(t *testing.T) {
 
 	type args struct {
 		client  xpkg.Client
+		name    string
 		ref     string
 		current []v1beta1.LockPackage
 	}
@@ -1125,9 +1136,10 @@ func TestSolve(t *testing.T) {
 							return nil, errBoom
 						}
 						//nolint:contextcheck // Test helper doesn't need context.
-						return NewTestPackage(t, "pkg-a", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"), nil
+						return NewTestPackage(t, "pkg-a", "v1.0.0", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"), nil
 					},
 				},
+				name:    "library-pkg-a",
 				ref:     "pkg-a:v1.0.0",
 				current: []v1beta1.LockPackage{},
 			},
@@ -1151,12 +1163,12 @@ func TestSolve(t *testing.T) {
 						switch ref {
 						case "pkg-a:v1.0.0":
 							//nolint:contextcheck // Test helper doesn't need context.
-							return NewTestPackage(t, "pkg-a", "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+							return NewTestPackage(t, "pkg-a", "v1.0.0", "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 								pkgmetav1.Dependency{Provider: ptr.To("pkg-b"), Version: ">=v2.0.0"},
 							), nil
 						case "pkg-b:v2.0.0":
 							//nolint:contextcheck // Test helper doesn't need context.
-							return NewTestPackage(t, "pkg-b", "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"), nil
+							return NewTestPackage(t, "pkg-b", "v2.0.0", "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"), nil
 						default:
 							return nil, errBoom
 						}
@@ -1168,6 +1180,7 @@ func TestSolve(t *testing.T) {
 						return nil, errBoom
 					},
 				},
+				name:    "library-pkg-a",
 				ref:     "pkg-a:v1.0.0",
 				current: []v1beta1.LockPackage{},
 			},
@@ -1202,9 +1215,10 @@ func TestSolve(t *testing.T) {
 							return nil, errBoom
 						}
 						//nolint:contextcheck // Test helper doesn't need context.
-						return NewTestPackage(t, "pkg-a", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"), nil
+						return NewTestPackage(t, "pkg-a", "v1.0.0", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"), nil
 					},
 				},
+				name:    "library-pkg-a",
 				ref: "pkg-a:v1.0.0",
 				current: []v1beta1.LockPackage{
 					{Source: "pkg-other-root", Version: "v2.0.0"},
@@ -1231,23 +1245,23 @@ func TestSolve(t *testing.T) {
 						switch ref {
 						case "pkg-a:v1.0.0":
 							//nolint:contextcheck // Test helper doesn't need context.
-							return NewTestPackage(t, "pkg-a", "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+							return NewTestPackage(t, "pkg-a", "v1.0.0", "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 								pkgmetav1.Dependency{Provider: ptr.To("pkg-c"), Version: ">=v1.0.0"},
 								pkgmetav1.Dependency{Provider: ptr.To("pkg-b"), Version: ">=v1.0.0"},
 							), nil
 						case "pkg-b:v1.0.0":
 							//nolint:contextcheck // Test helper doesn't need context.
-							return NewTestPackage(t, "pkg-b", "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+							return NewTestPackage(t, "pkg-b", "v1.0.0", "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 								pkgmetav1.Dependency{Provider: ptr.To("pkg-c"), Version: ">=v2.0.0"},
 							), nil
 						case "pkg-c:v1.0.0":
 							// First fetch of pkg-c before constraint tightening.
 							//nolint:contextcheck // Test helper doesn't need context.
-							return NewTestPackage(t, "pkg-c", "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"), nil
+							return NewTestPackage(t, "pkg-c", "v2.0.0", "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"), nil
 						case "pkg-c:v2.0.0":
 							// Second fetch after tightening constraint to >=v2.0.0.
 							//nolint:contextcheck // Test helper doesn't need context.
-							return NewTestPackage(t, "pkg-c", "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"), nil
+							return NewTestPackage(t, "pkg-c", "v2.0.0", "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"), nil
 						default:
 							return nil, errBoom
 						}
@@ -1263,6 +1277,7 @@ func TestSolve(t *testing.T) {
 						}
 					},
 				},
+				name:    "library-pkg-a",
 				ref:     "pkg-a:v1.0.0",
 				current: []v1beta1.LockPackage{},
 			},
@@ -1303,6 +1318,7 @@ func TestSolve(t *testing.T) {
 			reason: "Invalid package reference should return error",
 			args: args{
 				client:  &MockPackageClient{},
+				name:    "library-pkg-a",
 				ref:     "not::valid::ref",
 				current: []v1beta1.LockPackage{},
 			},
@@ -1318,6 +1334,7 @@ func TestSolve(t *testing.T) {
 						return nil, errBoom
 					},
 				},
+				name:    "library-pkg-a",
 				ref:     "pkg-a:v1.0.0",
 				current: []v1beta1.LockPackage{},
 			},
@@ -1329,6 +1346,7 @@ func TestSolve(t *testing.T) {
 			reason: "Root version conflicting with existing constraints should return error",
 			args: args{
 				client: &MockPackageClient{},
+				name:    "library-pkg-a",
 				ref:    "pkg-a:v0.5.0",
 				current: []v1beta1.LockPackage{
 					{
@@ -1348,7 +1366,7 @@ func TestSolve(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			s := NewTighteningConstraintSolver(tc.args.client)
-			lockPackages, err := s.Solve(context.Background(), tc.args.ref, tc.args.current)
+			lockPackages, err := s.Solve(context.Background(), tc.args.name, tc.args.ref, tc.args.current)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nSolve(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -1549,7 +1567,7 @@ func TestConvertDependencies(t *testing.T) {
 func TestNewPackage(t *testing.T) {
 	type args struct {
 		xp          *xpkg.Package
-		version     string
+		name        string
 		constraints []string
 	}
 	type want struct {
@@ -1565,8 +1583,8 @@ func TestNewPackage(t *testing.T) {
 		"ValidPackage": {
 			reason: "Valid package should be converted correctly",
 			args: args{
-				xp:          NewTestPackage(t, "pkg-a", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", pkgmetav1.Dependency{Provider: ptr.To("pkg-b"), Version: ">=v1.0.0"}),
-				version:     "v1.0.0",
+				xp:          NewTestPackage(t, "pkg-a", "v1.0.0", "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", pkgmetav1.Dependency{Provider: ptr.To("pkg-b"), Version: ">=v1.0.0"}),
+				name:        "library-pkg-a",
 				constraints: []string{">=v1.0.0", "<v2.0.0"},
 			},
 			want: want{
@@ -1590,7 +1608,7 @@ func TestNewPackage(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			pkg, err := NewPackage(tc.args.xp, tc.args.version, tc.args.constraints)
+			pkg, err := NewPackage(tc.args.xp, tc.args.name, tc.args.constraints...)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nNewPackage(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -1618,7 +1636,7 @@ func (m *MockPackageClient) ListVersions(ctx context.Context, source string, opt
 
 // NewTestPackage creates a simple test package with the given source and digest.
 // Optionally includes dependencies if provided.
-func NewTestPackage(t *testing.T, source, digest string, deps ...pkgmetav1.Dependency) *xpkg.Package {
+func NewTestPackage(t *testing.T, source, version, digest string, deps ...pkgmetav1.Dependency) *xpkg.Package {
 	t.Helper()
 
 	// Build metadata JSON with dependencies if provided
@@ -1661,6 +1679,7 @@ func NewTestPackage(t *testing.T, source, digest string, deps ...pkgmetav1.Depen
 	return &xpkg.Package{
 		Package: pkg,
 		Source:  source,
+		Version: version,
 		Digest:  digest,
 	}
 }

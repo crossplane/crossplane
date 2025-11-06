@@ -59,11 +59,11 @@ func (m *MockLockManager) Release(ctx context.Context, tx *v1alpha1.Transaction)
 }
 
 type MockDependencySolver struct {
-	MockSolve func(ctx context.Context, source string, currentLock []v1beta1.LockPackage) ([]v1beta1.LockPackage, error)
+	MockSolve func(ctx context.Context, name, source string, currentLock []v1beta1.LockPackage) ([]v1beta1.LockPackage, error)
 }
 
-func (m *MockDependencySolver) Solve(ctx context.Context, source string, currentLock []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
-	return m.MockSolve(ctx, source, currentLock)
+func (m *MockDependencySolver) Solve(ctx context.Context, name, source string, currentLock []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
+	return m.MockSolve(ctx, name, source, currentLock)
 }
 
 type MockValidator struct {
@@ -353,7 +353,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithDependencySolver(&MockDependencySolver{
-						MockSolve: func(_ context.Context, _ string, _ []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
+						MockSolve: func(_ context.Context, _, _ string, _ []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
 							return nil, errors.New("boom")
 						},
 					}),
@@ -400,7 +400,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithDependencySolver(&MockDependencySolver{
-						MockSolve: func(_ context.Context, _ string, _ []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
+						MockSolve: func(_ context.Context, _, _ string, _ []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
 							return []v1beta1.LockPackage{}, nil
 						},
 					}),
@@ -463,7 +463,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithDependencySolver(&MockDependencySolver{
-						MockSolve: func(_ context.Context, _ string, _ []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
+						MockSolve: func(_ context.Context, _, _ string, _ []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
 							return []v1beta1.LockPackage{{
 								Source:  "xpkg.io/test/pkg",
 								Version: "v1.0.0",
@@ -526,7 +526,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithDependencySolver(&MockDependencySolver{
-						MockSolve: func(_ context.Context, _ string, _ []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
+						MockSolve: func(_ context.Context, _, _ string, _ []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
 							return []v1beta1.LockPackage{}, nil
 						},
 					}),
@@ -597,7 +597,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithDependencySolver(&MockDependencySolver{
-						MockSolve: func(_ context.Context, _ string, _ []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
+						MockSolve: func(_ context.Context, _, _ string, _ []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
 							return []v1beta1.LockPackage{{
 								Source:  "xpkg.io/test/pkg",
 								Version: "v1.0.0",

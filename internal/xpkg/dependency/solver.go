@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver"
-	"github.com/google/go-containerregistry/pkg/name"
+	gcrname "github.com/google/go-containerregistry/pkg/name"
 	conregv1 "github.com/google/go-containerregistry/pkg/v1"
 	"k8s.io/utils/ptr"
 
@@ -65,19 +65,12 @@ type Package struct {
 }
 
 // NewPackage creates a solver Package from a fetched xpkg.Package.
-func NewPackage(xp *xpkg.Package, version string, constraints []string) (*Package, error) {
-	// Parse the source to extract repository for naming (without registry).
-	// This matches how Package resources are named in installer.go.
-	ref, err := name.ParseReference(xp.Source)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot parse package source")
-	}
-
+func NewPackage(xp *xpkg.Package, name string, constraints ...string) (*Package, error) {
 	pkg := &Package{
 		LockPackage: v1beta1.LockPackage{
-			Name:         xpkg.FriendlyID(xpkg.ToDNSLabel(ref.Context().RepositoryStr()), xp.DigestHex()),
+			Name:         xpkg.FriendlyID(name, xp.DigestHex()),
 			Source:       xp.Source,
-			Version:      version,
+			Version:      xp.Version,
 			Dependencies: ConvertDependencies(xp.GetDependencies()),
 		},
 		Digest:      xp.Digest,
@@ -319,12 +312,13 @@ func (p Packages) ToLockPackages(root string, current []v1beta1.LockPackage) []v
 // the reference, while dependencies are resolved using iterative constraint
 // tightening to find minimum versions that satisfy all accumulated constraints.
 //
+// The name parameter is the name of the root Package resource in the cluster.
 // The ref parameter must be a complete OCI reference including version or
 // digest (e.g., "registry.io/org/package:v1.0.0" or
 // "registry.io/org/package@sha256:...").
-func (s *TighteningConstraintSolver) Solve(ctx context.Context, ref string, current []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
+func (s *TighteningConstraintSolver) Solve(ctx context.Context, name, ref string, current []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
 	// Parse root reference to extract source and version.
-	r, err := name.ParseReference(ref)
+	r, err := gcrname.ParseReference(ref)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot parse package reference %s", ref)
 	}
@@ -341,13 +335,17 @@ func (s *TighteningConstraintSolver) Solve(ctx context.Context, ref string, curr
 	}
 
 	// Fetch root package to discover its dependencies.
-	xpkg, err := s.client.Get(ctx, ref)
+	xp, err := s.client.Get(ctx, ref)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot fetch root package %s", ref)
 	}
 
-	// Add root as already resolved (user's explicit choice, no resolution needed).
-	rootPkg, err := NewPackage(xpkg, version, nil)
+	// Add root as already resolved (user's explicit choice, no resolution
+	// needed). Use the provided package name for the root. This ensures the
+	// lock entry name matches the actual Package resource name, which may
+	// differ from the OCI repository name (e.g., if a human named it
+	// "provider-foo" instead of "crossplane-contrib-provider-foo").
+	rootPkg, err := NewPackage(xp, name)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create root package")
 	}
@@ -378,8 +376,26 @@ func (s *TighteningConstraintSolver) Solve(ctx context.Context, ref string, curr
 			continue
 		}
 
+		// Generate package name for this dependency. If it exists in the Lock,
+		// extract the package name from its revision name by stripping the digest
+		// suffix (last 13 chars: dash + 12 hex chars). Otherwise, derive the
+		// package name from the source repository.
+		ref, err := gcrname.ParseReference(src)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot parse source %s", src)
+		}
+		name := xpkg.ToDNSLabel(ref.Context().RepositoryStr())
+
+		// Override with existing package name if this package is already in the
+		// Lock. This ensures we preserve the package name even if it doesn't
+		// match our convention (e.g., a human named it "provider-foo" instead of
+		// "crossplane-contrib-provider-foo").
+		if p, exists := packages[src]; exists && len(p.Name) > 13 {
+			name = p.Name[:len(p.Name)-13]
+		}
+
 		// Select version and fetch to discover dependencies.
-		resolvedPkg, err := s.SelectVersion(ctx, src, constraints)
+		resolvedPkg, err := s.SelectVersion(ctx, name, src, constraints)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot resolve package %s", src)
 		}
@@ -407,7 +423,7 @@ func (s *TighteningConstraintSolver) Solve(ctx context.Context, ref string, curr
 // satisfy the constraints, the oldest is chosen to minimize upgrade risk.
 //
 // Returns a fully populated Package ready to be stored in the Packages map.
-func (s *TighteningConstraintSolver) SelectVersion(ctx context.Context, source string, constraints []string) (*Package, error) {
+func (s *TighteningConstraintSolver) SelectVersion(ctx context.Context, name, source string, constraints []string) (*Package, error) {
 	// Separate constraints by type and validate.
 	digests := []string{}
 	semvers := make([]string, 0, len(constraints)) // Most likely all semvers.
@@ -435,12 +451,13 @@ func (s *TighteningConstraintSolver) SelectVersion(ctx context.Context, source s
 		}
 
 		// Fetch the digest.
-		ref := source + "@" + first
+		ref := xpkg.BuildReference(source, first)
 		pkg, err := s.client.Get(ctx, ref)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot fetch %s", ref)
 		}
-		return NewPackage(pkg, first, constraints)
+
+		return NewPackage(pkg, name, constraints...)
 	}
 
 	// Handle semver constraints.
@@ -467,13 +484,13 @@ func (s *TighteningConstraintSolver) SelectVersion(ctx context.Context, source s
 		}
 
 		// Fetch this version to get dependencies.
-		ref := source + ":" + v
+		ref := xpkg.BuildReference(source, v)
 		pkg, err := s.client.Get(ctx, ref)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot fetch %s", ref)
 		}
 
-		return NewPackage(pkg, v, constraints)
+		return NewPackage(pkg, name, constraints...)
 	}
 
 	return nil, errors.Errorf("no version of %s satisfies constraints %v", source, semvers)

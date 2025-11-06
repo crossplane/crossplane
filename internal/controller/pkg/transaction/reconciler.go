@@ -71,7 +71,7 @@ type LockManager interface {
 
 // DependencySolver resolves package dependencies to concrete digests.
 type DependencySolver interface {
-	Solve(ctx context.Context, source string, currentLock []v1beta1.LockPackage) ([]v1beta1.LockPackage, error)
+	Solve(ctx context.Context, name, source string, currentLock []v1beta1.LockPackage) ([]v1beta1.LockPackage, error)
 }
 
 // Validator validates a Transaction.
@@ -176,17 +176,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(err, "cannot update Transaction status with transaction number")
 	}
 
-	var source string
+	var name, source string
 	switch tx.Spec.Change {
 	case v1alpha1.ChangeTypeInstall:
+		name = tx.Spec.Install.Package.Metadata.Name
 		source = tx.Spec.Install.Package.Spec.Package
 	case v1alpha1.ChangeTypeDelete:
+		// TODO(negz): We might need to include the package name being
+		// deleted in the spec.
 		source = tx.Spec.Delete.Source
 	case v1alpha1.ChangeTypeReplace:
+		name = tx.Spec.Replace.Package.Metadata.Name
 		source = tx.Spec.Replace.Package.Spec.Package
 	}
 
-	proposedPackages, err := r.solver.Solve(ctx, source, currentPackages)
+	proposedPackages, err := r.solver.Solve(ctx, name, source, currentPackages)
 	if err != nil {
 		log.Debug("cannot solve dependencies", "error", err)
 		r.record.Event(tx, event.Warning(reasonDependencySolve, errors.Wrap(err, "cannot solve dependencies")))
