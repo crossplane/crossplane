@@ -124,21 +124,29 @@ func (i *PackageCreator) Install(ctx context.Context, tx *v1alpha1.Transaction, 
 		return errors.Wrap(err, "cannot list packages")
 	}
 
+	src := xpkg.BuildReference(xp.Source, xp.Version)
+
 	// Use existing package name if found, otherwise keep generated name
-	if name := FindExistingPackage(pkgs, xp); name != "" {
-		pkg.SetName(name)
+	if e := FindExistingPackage(pkgs, xp); e != nil {
+		pkg.SetName(e.GetName())
+
+		// The package exists and already has our desired source. We
+		// avoid calling CreateOrUpdate to avoid bumping the transaction
+		// generation label. Otherwise if this transaction is retried
+		// we'll potentially set the handled generation label too high.
+		if e.GetSource() == src {
+			return nil
+		}
 	}
 
 	_, err = ctrl.CreateOrUpdate(ctx, i.kube, pkg, func() error {
-		pkg.SetSource(xpkg.BuildReference(xp.Source, xp.Version))
+		pkg.SetSource(src)
 
-		// For new packages, generation is 0 on the client side but will be 1
-		// after the API server creates them. For existing packages, use their
-		// current generation.
-		generation := pkg.GetGeneration()
-		if generation == 0 {
-			generation = 1
-		}
+		// Add one to the generation to account for the create (0 + 1)
+		// or update we're about to do. The running transaction is
+		// handling installation of this package, so we don't want to
+		// create a new transaction for it.
+		generation := pkg.GetGeneration() + 1
 
 		meta.AddLabels(pkg, map[string]string{
 			v1alpha1.LabelTransactionName:       tx.GetName(),
@@ -183,9 +191,9 @@ func (i *RevisionCreator) Install(ctx context.Context, tx *v1alpha1.Transaction,
 	}
 
 	// Use existing package name if found, otherwise keep generated name
-	if name := FindExistingPackage(pkgs, xp); name != "" {
-		pkg.SetName(name)
-		rev.SetName(xpkg.FriendlyID(name, xp.DigestHex()))
+	if e := FindExistingPackage(pkgs, xp); e != nil {
+		pkg.SetName(e.GetName())
+		rev.SetName(xpkg.FriendlyID(e.GetName(), xp.DigestHex()))
 	}
 
 	if err := i.kube.Get(ctx, types.NamespacedName{Name: pkg.GetName()}, pkg); err != nil {
@@ -319,8 +327,8 @@ func (i *ObjectReleaser) Install(ctx context.Context, _ *v1alpha1.Transaction, x
 	}
 
 	// Use existing package name if found
-	if existingName := FindExistingPackage(pkgList, xp); existingName != "" {
-		pkg.SetName(existingName)
+	if e := FindExistingPackage(pkgList, xp); e != nil {
+		pkg.SetName(e.GetName())
 	}
 
 	// List all revisions for this package
@@ -392,9 +400,9 @@ func (i *ObjectInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction,
 	}
 
 	// Use existing package name if found, otherwise keep generated name
-	if existingName := FindExistingPackage(pkgList, xp); existingName != "" {
-		pkg.SetName(existingName)
-		rev.SetName(xpkg.FriendlyID(existingName, xp.DigestHex()))
+	if e := FindExistingPackage(pkgList, xp); e != nil {
+		pkg.SetName(e.GetName())
+		rev.SetName(xpkg.FriendlyID(e.GetName(), xp.DigestHex()))
 	}
 
 	// Fetch the revision from the API server to get its current status,
@@ -452,9 +460,9 @@ func (i *RevisionStatusUpdater) Install(ctx context.Context, _ *v1alpha1.Transac
 	}
 
 	// Use existing package name if found, otherwise keep generated name
-	if existingName := FindExistingPackage(pkgList, xp); existingName != "" {
-		pkg.SetName(existingName)
-		rev.SetName(xpkg.FriendlyID(existingName, xp.DigestHex()))
+	if e := FindExistingPackage(pkgList, xp); e != nil {
+		pkg.SetName(e.GetName())
+		rev.SetName(xpkg.FriendlyID(e.GetName(), xp.DigestHex()))
 	}
 
 	// Get the revision to update its status
@@ -500,8 +508,8 @@ func (i *PackageStatusUpdater) Install(ctx context.Context, _ *v1alpha1.Transact
 	}
 
 	// Use existing package name if found, otherwise keep generated name
-	if existingName := FindExistingPackage(pkgList, xp); existingName != "" {
-		pkg.SetName(existingName)
+	if e := FindExistingPackage(pkgList, xp); e != nil {
+		pkg.SetName(e.GetName())
 	}
 
 	// Get the package to update its status
@@ -543,9 +551,9 @@ func (i *RuntimeBootstrapper) Install(ctx context.Context, _ *v1alpha1.Transacti
 	}
 
 	// Use existing package name if found, otherwise keep generated name
-	if existingName := FindExistingPackage(pkgList, xp); existingName != "" {
-		pkg.SetName(existingName)
-		rev.SetName(xpkg.FriendlyID(existingName, xp.DigestHex()))
+	if e := FindExistingPackage(pkgList, xp); e != nil {
+		pkg.SetName(e.GetName())
+		rev.SetName(xpkg.FriendlyID(e.GetName(), xp.DigestHex()))
 	}
 
 	// Get the revision we just created to have the full object
@@ -686,11 +694,11 @@ func (i *RuntimeBootstrapper) BootstrapFunctionRuntime(ctx context.Context, fr *
 // FindExistingPackage searches for an existing Package in the list that
 // matches the source repository. Returns the package name if found, or empty
 // string if not found or if an error occurs during parsing.
-func FindExistingPackage(pkgList v1.PackageList, xp *xpkg.Package) string {
+func FindExistingPackage(pkgList v1.PackageList, xp *xpkg.Package) v1.Package {
 	// Parse the source to get the repository (without tag/digest)
 	ref, err := name.ParseReference(xp.Source)
 	if err != nil {
-		return ""
+		return nil
 	}
 	sourceRepo := xpkg.ParsePackageSourceFromReference(ref)
 
@@ -701,11 +709,11 @@ func FindExistingPackage(pkgList v1.PackageList, xp *xpkg.Package) string {
 			continue // Skip packages with invalid sources
 		}
 		if xpkg.ParsePackageSourceFromReference(existingRef) == sourceRepo {
-			return p.GetName()
+			return p
 		}
 	}
 
-	return ""
+	return nil
 }
 
 // AsImageConfigRefs converts xpkg.ImageConfig to v1.ImageConfigRef.
