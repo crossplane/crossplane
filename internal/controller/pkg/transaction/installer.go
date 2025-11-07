@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -196,8 +197,13 @@ func (i *RevisionCreator) Install(ctx context.Context, tx *v1alpha1.Transaction,
 		rev.SetName(xpkg.FriendlyID(e.GetName(), xp.DigestHex()))
 	}
 
-	if err := i.kube.Get(ctx, types.NamespacedName{Name: pkg.GetName()}, pkg); err != nil {
-		return errors.Wrap(err, "cannot get package")
+	// We potentially just created this resource, and are now reading it
+	// back. If our watch cache is a little slow it might not be here yet.
+	// Retry a few times.
+	if err := retry.OnError(retry.DefaultBackoff, IsRetryable, func() error {
+		return errors.Wrap(i.kube.Get(ctx, types.NamespacedName{Name: pkg.GetName()}, pkg), "cannot get package")
+	}); err != nil {
+		return err
 	}
 
 	if err := i.kube.List(ctx, revs, client.MatchingLabels{v1.LabelParentPackage: pkg.GetName()}); err != nil {
@@ -400,12 +406,6 @@ func (i *ObjectInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction,
 		rev.SetName(xpkg.FriendlyID(e.GetName(), xp.DigestHex()))
 	}
 
-	// Fetch the revision from the API server to get its current status,
-	// including the TLS secret names set by BootstrapRuntime.
-	if err := i.kube.Get(ctx, types.NamespacedName{Name: rev.GetName()}, rev); err != nil {
-		return errors.Wrap(err, "cannot get package revision")
-	}
-
 	// Label all objs with the transaction for traceability.
 	objs := xp.GetObjects()
 	for _, obj := range objs {
@@ -416,21 +416,24 @@ func (i *ObjectInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction,
 		}
 	}
 
-	// Establish control of all objects in the package. The Establisher handles
-	// CRDs, webhooks, and other Kubernetes objects.
-	refs, err := i.objects.Establish(ctx, objs, rev, true)
-	if err != nil {
-		return errors.Wrap(err, "cannot establish control of package objects")
-	}
+	return retry.OnError(retry.DefaultBackoff, IsRetryable, func() error {
+		if err := i.kube.Get(ctx, types.NamespacedName{Name: rev.GetName()}, rev); err != nil {
+			return errors.Wrap(err, "cannot get package revision")
+		}
 
-	// Store the object references on the revision so ObjectReleaser can find
-	// them later to release control when this revision becomes inactive.
-	rev.SetObjects(refs)
-	if err := i.kube.Status().Update(ctx, rev); err != nil {
-		return errors.Wrap(err, "cannot update revision object references")
-	}
+		// Establish control of all objects in the package. The Establisher handles
+		// CRDs, webhooks, and other Kubernetes objects.
+		refs, err := i.objects.Establish(ctx, objs, rev, rev.GetDesiredState() == v1.PackageRevisionActive)
+		if err != nil {
+			return errors.Wrap(err, "cannot establish control of package objects")
+		}
 
-	return nil
+		// Store the object references on the revision so ObjectReleaser can find
+		// them later to release control when this revision becomes inactive.
+		rev.SetObjects(refs)
+
+		return errors.Wrap(i.kube.Status().Update(ctx, rev), "cannot update revision object references")
+	})
 }
 
 // RevisionStatusUpdater updates PackageRevision status conditions after
@@ -471,19 +474,21 @@ func (i *RevisionStatusUpdater) Install(ctx context.Context, _ *v1alpha1.Transac
 		rev.SetName(xpkg.FriendlyID(e.GetName(), xp.DigestHex()))
 	}
 
-	// Get the revision to update its status
-	if err := i.kube.Get(ctx, types.NamespacedName{Name: rev.GetName()}, rev); err != nil {
-		return errors.Wrap(err, "cannot get package revision")
-	}
+	return retry.OnError(retry.DefaultBackoff, IsRetryable, func() error {
+		// Get the revision to update its status
+		if err := i.kube.Get(ctx, types.NamespacedName{Name: rev.GetName()}, rev); err != nil {
+			return errors.Wrap(err, "cannot get package revision")
+		}
 
-	// Set status fields from the fetched package
-	rev.SetResolvedSource(xpkg.BuildReference(xp.ResolvedSource, xp.Version))
-	rev.SetAppliedImageConfigRefs(AsImageConfigRefs(xp.AppliedImageConfigs)...)
+		// Set status fields from the fetched package
+		rev.SetResolvedSource(xpkg.BuildReference(xp.ResolvedSource, xp.Version))
+		rev.SetAppliedImageConfigRefs(AsImageConfigRefs(xp.AppliedImageConfigs)...)
 
-	// Set RevisionHealthy condition after successfully establishing objects
-	i.conditions.For(rev).MarkConditions(v1.RevisionHealthy())
+		// Set RevisionHealthy condition after successfully establishing objects
+		i.conditions.For(rev).MarkConditions(v1.RevisionHealthy())
 
-	return errors.Wrap(i.kube.Status().Update(ctx, rev), "cannot update package revision status")
+		return errors.Wrap(i.kube.Status().Update(ctx, rev), "cannot update package revision status")
+	})
 }
 
 // PackageStatusUpdater updates Package status fields after installation.
@@ -518,23 +523,25 @@ func (i *PackageStatusUpdater) Install(ctx context.Context, _ *v1alpha1.Transact
 		pkg.SetName(e.GetName())
 	}
 
-	// Get the package to update its status
-	if err := i.kube.Get(ctx, types.NamespacedName{Name: pkg.GetName()}, pkg); err != nil {
-		return errors.Wrap(err, "cannot get package")
-	}
+	return retry.OnError(retry.DefaultBackoff, IsRetryable, func() error {
+		// Get the package to update its status
+		if err := i.kube.Get(ctx, types.NamespacedName{Name: pkg.GetName()}, pkg); err != nil {
+			return errors.Wrap(err, "cannot get package")
+		}
 
-	// Set status fields from the fetched package
-	pkg.SetResolvedSource(xpkg.BuildReference(xp.ResolvedSource, xp.Version))
-	pkg.SetAppliedImageConfigRefs(AsImageConfigRefs(xp.AppliedImageConfigs)...)
+		// Set status fields from the fetched package
+		pkg.SetResolvedSource(xpkg.BuildReference(xp.ResolvedSource, xp.Version))
+		pkg.SetAppliedImageConfigRefs(AsImageConfigRefs(xp.AppliedImageConfigs)...)
 
-	// Note: This does NOT set Package conditions. Package conditions
-	// (Active, Healthy) are set by the manager-tx controller which
-	// continuously monitors and derives them from PackageRevision state.
-	// This is necessary because revision conditions are updated
-	// asynchronously by other controllers (e.g., the runtime controller
-	// sets RuntimeHealthy as the Deployment becomes ready).
+		// Note: This does NOT set Package conditions. Package conditions
+		// (Active, Healthy) are set by the manager-tx controller which
+		// continuously monitors and derives them from PackageRevision state.
+		// This is necessary because revision conditions are updated
+		// asynchronously by other controllers (e.g., the runtime controller
+		// sets RuntimeHealthy as the Deployment becomes ready).
 
-	return errors.Wrap(i.kube.Status().Update(ctx, pkg), "cannot update package status")
+		return errors.Wrap(i.kube.Status().Update(ctx, pkg), "cannot update package status")
+	})
 }
 
 // Install bootstraps runtime prerequisites for packages that need them
@@ -562,9 +569,10 @@ func (i *RuntimeBootstrapper) Install(ctx context.Context, _ *v1alpha1.Transacti
 		rev.SetName(xpkg.FriendlyID(e.GetName(), xp.DigestHex()))
 	}
 
-	// Get the revision we just created to have the full object
-	if err := i.kube.Get(ctx, types.NamespacedName{Name: rev.GetName()}, rev); err != nil {
-		return errors.Wrap(err, "cannot get package revision")
+	if err := retry.OnError(retry.DefaultBackoff, IsRetryable, func() error {
+		return errors.Wrap(i.kube.Get(ctx, types.NamespacedName{Name: rev.GetName()}, rev), "cannot get package revision")
+	}); err != nil {
+		return err
 	}
 
 	switch r := rev.(type) {
@@ -622,23 +630,19 @@ func (i *RuntimeBootstrapper) BootstrapProviderRuntime(ctx context.Context, pr *
 		return errors.Wrap(err, "cannot create TLS server secret")
 	}
 
-	// Generate TLS certificates (idempotent - safe to call multiple times)
-	if err := initializer.NewTLSCertificateGenerator(
-		secClient.Namespace,
-		initializer.RootCACertSecretName,
-		initializer.TLSCertificateGeneratorWithOwner(pr.GetOwnerReferences()),
-		initializer.TLSCertificateGeneratorWithServerSecretName(secServer.GetName(), initializer.DNSNamesForService(svc.Name, svc.Namespace)),
-		initializer.TLSCertificateGeneratorWithClientSecretName(secClient.GetName(), []string{pr.GetName()}),
-	).Run(ctx, i.kube); err != nil {
-		return errors.Wrapf(err, "cannot generate TLS certificates for %q", pr.GetLabels()[v1.LabelParentPackage])
-	}
+	return retry.OnError(retry.DefaultBackoff, IsRetryable, func() error {
+		if err := initializer.NewTLSCertificateGenerator(
+			secClient.Namespace,
+			initializer.RootCACertSecretName,
+			initializer.TLSCertificateGeneratorWithOwner(pr.GetOwnerReferences()),
+			initializer.TLSCertificateGeneratorWithServerSecretName(secServer.GetName(), initializer.DNSNamesForService(svc.Name, svc.Namespace)),
+			initializer.TLSCertificateGeneratorWithClientSecretName(secClient.GetName(), []string{pr.GetName()}),
+		).Run(ctx, i.kube); err != nil {
+			return errors.Wrapf(err, "cannot generate TLS certificates for %q", pr.GetLabels()[v1.LabelParentPackage])
+		}
 
-	// Update revision status to indicate secrets are ready
-	if err := i.kube.Status().Update(ctx, pr); err != nil {
-		return errors.Wrap(err, "cannot update provider revision status")
-	}
-
-	return nil
+		return errors.Wrap(i.kube.Status().Update(ctx, pr), "cannot update provider revision status")
+	})
 }
 
 // BootstrapFunctionRuntime creates runtime prerequisites (service and TLS secrets)
@@ -679,22 +683,19 @@ func (i *RuntimeBootstrapper) BootstrapFunctionRuntime(ctx context.Context, fr *
 		return errors.Wrap(err, "cannot create TLS server secret")
 	}
 
-	// Generate TLS certificates (idempotent - safe to call multiple times)
-	if err := initializer.NewTLSCertificateGenerator(
-		secServer.Namespace,
-		initializer.RootCACertSecretName,
-		initializer.TLSCertificateGeneratorWithOwner(fr.GetOwnerReferences()),
-		initializer.TLSCertificateGeneratorWithServerSecretName(secServer.GetName(), initializer.DNSNamesForService(svc.Name, svc.Namespace)),
-	).Run(ctx, i.kube); err != nil {
-		return errors.Wrapf(err, "cannot generate TLS certificates for %q", fr.GetLabels()[v1.LabelParentPackage])
-	}
-
 	// Update revision status to indicate secrets are ready
-	if err := i.kube.Status().Update(ctx, fr); err != nil {
-		return errors.Wrap(err, "cannot update function revision status")
-	}
+	return retry.OnError(retry.DefaultBackoff, IsRetryable, func() error {
+		if err := initializer.NewTLSCertificateGenerator(
+			secServer.Namespace,
+			initializer.RootCACertSecretName,
+			initializer.TLSCertificateGeneratorWithOwner(fr.GetOwnerReferences()),
+			initializer.TLSCertificateGeneratorWithServerSecretName(secServer.GetName(), initializer.DNSNamesForService(svc.Name, svc.Namespace)),
+		).Run(ctx, i.kube); err != nil {
+			return errors.Wrapf(err, "cannot generate TLS certificates for %q", fr.GetLabels()[v1.LabelParentPackage])
+		}
 
-	return nil
+		return errors.Wrap(i.kube.Status().Update(ctx, fr), "cannot update function revision status")
+	})
 }
 
 // FindExistingPackage searches for an existing Package in the list that
@@ -792,4 +793,13 @@ func NewPackageAndRevisionList(xp *xpkg.Package) (v1.PackageList, v1.PackageRevi
 	}
 
 	return pkgList, revList, nil
+}
+
+// IsRetryable returns true if the supplied error can be retried during
+// installation.
+func IsRetryable(err error) bool {
+	if kerrors.IsNotFound(err) {
+		return true
+	}
+	return kerrors.IsConflict(err)
 }
