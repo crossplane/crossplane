@@ -342,11 +342,6 @@ func (i *ObjectReleaser) Install(ctx context.Context, _ *v1alpha1.Transaction, x
 			continue
 		}
 
-		// Only release if the revision has object references
-		if len(rev.GetObjects()) == 0 {
-			continue
-		}
-
 		if err := i.objects.ReleaseObjects(ctx, rev); err != nil {
 			return errors.Wrapf(err, "cannot release objects from revision %s", rev.GetName())
 		}
@@ -423,8 +418,19 @@ func (i *ObjectInstaller) Install(ctx context.Context, tx *v1alpha1.Transaction,
 
 	// Establish control of all objects in the package. The Establisher handles
 	// CRDs, webhooks, and other Kubernetes objects.
-	_, err = i.objects.Establish(ctx, objs, rev, true)
-	return errors.Wrap(err, "cannot establish control of package objects")
+	refs, err := i.objects.Establish(ctx, objs, rev, true)
+	if err != nil {
+		return errors.Wrap(err, "cannot establish control of package objects")
+	}
+
+	// Store the object references on the revision so ObjectReleaser can find
+	// them later to release control when this revision becomes inactive.
+	rev.SetObjects(refs)
+	if err := i.kube.Status().Update(ctx, rev); err != nil {
+		return errors.Wrap(err, "cannot update revision object references")
+	}
+
+	return nil
 }
 
 // RevisionStatusUpdater updates PackageRevision status conditions after

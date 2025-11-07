@@ -572,6 +572,7 @@ func TestInstallObjects(t *testing.T) {
 						}
 						return nil
 					},
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				establisher: &MockEstablisher{
 					MockEstablish: func(_ context.Context, objs []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
@@ -583,7 +584,13 @@ func TestInstallObjects(t *testing.T) {
 								}
 							}
 						}
-						return nil, nil
+						return []xpv1.TypedReference{
+							{
+								APIVersion: "apiextensions.k8s.io/v1",
+								Kind:       "CustomResourceDefinition",
+								Name:       "test.example.com",
+							},
+						}, nil
 					},
 				},
 				tx: &v1alpha1.Transaction{
@@ -632,8 +639,9 @@ func TestInstallObjects(t *testing.T) {
 			reason: "Should succeed when package has no objects",
 			args: args{
 				kube: &test.MockClient{
-					MockList: test.NewMockListFn(nil),
-					MockGet:  test.NewMockGetFn(nil),
+					MockList:         test.NewMockListFn(nil),
+					MockGet:          test.NewMockGetFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				establisher: &MockEstablisher{
 					MockEstablish: func(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
@@ -1244,8 +1252,8 @@ func TestReleaseObjects(t *testing.T) {
 				releaseCount: 1,
 			},
 		},
-		"SkipInactiveRevisionsWithoutObjects": {
-			reason: "Should skip inactive revisions that have no object references",
+		"ReleaseInactiveRevisionsRegardlessOfObjectRefs": {
+			reason: "Should release inactive revisions even if they have no object references, since CRDs may still have controller refs",
 			args: args{
 				kube: &test.MockClient{
 					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
@@ -1283,10 +1291,7 @@ func TestReleaseObjects(t *testing.T) {
 					},
 				},
 				obj: &MockEstablisher{
-					MockReleaseObjects: func(_ context.Context, rev v1.PackageRevision) error {
-						if len(rev.GetObjects()) == 0 {
-							t.Errorf("ReleaseObjects called on revision %s with no objects", rev.GetName())
-						}
+					MockReleaseObjects: func(_ context.Context, _ v1.PackageRevision) error {
 						return nil
 					},
 				},
@@ -1303,7 +1308,7 @@ func TestReleaseObjects(t *testing.T) {
 			},
 			want: want{
 				err:          nil,
-				releaseCount: 1,
+				releaseCount: 2,
 			},
 		},
 		"ListPackagesError": {
