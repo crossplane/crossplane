@@ -99,6 +99,7 @@ type Reconciler struct {
 // validating, installing packages, and committing the lock.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := r.log.WithValues("request", req)
+	log.Info("Reconciling")
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

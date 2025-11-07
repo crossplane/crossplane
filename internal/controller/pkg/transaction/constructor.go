@@ -31,7 +31,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1alpha1"
-	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
@@ -138,7 +137,6 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.Transaction{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Watches(&v1beta1.Lock{}, EnqueueIncompleteTransactionsForLock(mgr.GetClient(), o.Logger)).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(errors.WithSilentRequeueOnConflict(r))
 }
