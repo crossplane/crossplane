@@ -128,6 +128,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 			NewPackageCreator(mgr.GetClient()),
 			NewRevisionCreator(mgr.GetClient()),
 			NewRuntimeBootstrapper(mgr.GetClient(), o.Namespace),
+			NewObjectReleaser(mgr.GetClient(), e),
 			NewObjectInstaller(mgr.GetClient(), e),
 			NewRevisionStatusUpdater(mgr.GetClient()),
 			NewPackageStatusUpdater(mgr.GetClient()),

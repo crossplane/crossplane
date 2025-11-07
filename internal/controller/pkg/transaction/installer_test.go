@@ -674,11 +674,16 @@ func TestInstallObjects(t *testing.T) {
 }
 
 type MockEstablisher struct {
-	MockEstablish func(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error)
+	MockEstablish      func(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error)
+	MockReleaseObjects func(ctx context.Context, parent v1.PackageRevision) error
 }
 
 func (m *MockEstablisher) Establish(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) {
 	return m.MockEstablish(ctx, objects, parent, control)
+}
+
+func (m *MockEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRevision) error {
+	return m.MockReleaseObjects(ctx, parent)
 }
 
 func TestBootstrapRuntime(t *testing.T) {
@@ -1129,6 +1134,305 @@ func TestPackageStatusUpdater(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nInstall(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestReleaseObjects(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	type args struct {
+		kube client.Client
+		obj  Establisher
+		tx   *v1alpha1.Transaction
+		xp   *xpkg.Package
+	}
+	type want struct {
+		err          error
+		releaseCount int
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NoExistingPackage": {
+			reason: "Should succeed when no existing package found",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
+				},
+				obj: &MockEstablisher{},
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-test",
+					},
+				},
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err:          nil,
+				releaseCount: 0,
+			},
+		},
+		"ReleaseInactiveRevisions": {
+			reason: "Should release objects from inactive revisions only",
+			args: args{
+				kube: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						switch list := list.(type) {
+						case *v1.ProviderList:
+							existing := &v1.Provider{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: testPackageName,
+								},
+							}
+							existing.Spec.Package = testSource + ":v1.0.0"
+							list.Items = []v1.Provider{*existing}
+							return nil
+						case *v1.ProviderRevisionList:
+							activeRev := &v1.ProviderRevision{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "active-revision",
+								},
+							}
+							activeRev.SetDesiredState(v1.PackageRevisionActive)
+							activeRev.SetObjects([]xpv1.TypedReference{{Name: "obj1"}})
+
+							inactiveRev := &v1.ProviderRevision{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "inactive-revision",
+								},
+							}
+							inactiveRev.SetDesiredState(v1.PackageRevisionInactive)
+							inactiveRev.SetObjects([]xpv1.TypedReference{{Name: "obj2"}})
+
+							list.Items = []v1.ProviderRevision{*activeRev, *inactiveRev}
+							return nil
+						default:
+							return nil
+						}
+					},
+				},
+				obj: &MockEstablisher{
+					MockReleaseObjects: func(_ context.Context, rev v1.PackageRevision) error {
+						if rev.GetDesiredState() != v1.PackageRevisionInactive {
+							t.Errorf("ReleaseObjects called on active revision %s", rev.GetName())
+						}
+						return nil
+					},
+				},
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-test",
+					},
+				},
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err:          nil,
+				releaseCount: 1,
+			},
+		},
+		"SkipInactiveRevisionsWithoutObjects": {
+			reason: "Should skip inactive revisions that have no object references",
+			args: args{
+				kube: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						switch list := list.(type) {
+						case *v1.ProviderList:
+							existing := &v1.Provider{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: testPackageName,
+								},
+							}
+							existing.Spec.Package = testSource + ":v1.0.0"
+							list.Items = []v1.Provider{*existing}
+							return nil
+						case *v1.ProviderRevisionList:
+							inactiveRevWithObjs := &v1.ProviderRevision{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "inactive-with-objects",
+								},
+							}
+							inactiveRevWithObjs.SetDesiredState(v1.PackageRevisionInactive)
+							inactiveRevWithObjs.SetObjects([]xpv1.TypedReference{{Name: "obj1"}})
+
+							inactiveRevNoObjs := &v1.ProviderRevision{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "inactive-no-objects",
+								},
+							}
+							inactiveRevNoObjs.SetDesiredState(v1.PackageRevisionInactive)
+
+							list.Items = []v1.ProviderRevision{*inactiveRevWithObjs, *inactiveRevNoObjs}
+							return nil
+						default:
+							return nil
+						}
+					},
+				},
+				obj: &MockEstablisher{
+					MockReleaseObjects: func(_ context.Context, rev v1.PackageRevision) error {
+						if len(rev.GetObjects()) == 0 {
+							t.Errorf("ReleaseObjects called on revision %s with no objects", rev.GetName())
+						}
+						return nil
+					},
+				},
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-test",
+					},
+				},
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err:          nil,
+				releaseCount: 1,
+			},
+		},
+		"ListPackagesError": {
+			reason: "Should return error when listing packages fails",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(errBoom),
+				},
+				obj: &MockEstablisher{},
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-test",
+					},
+				},
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"ListRevisionsError": {
+			reason: "Should return error when listing revisions fails",
+			args: args{
+				kube: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						switch list.(type) {
+						case *v1.ProviderList:
+							return nil
+						case *v1.ProviderRevisionList:
+							return errBoom
+						default:
+							return nil
+						}
+					},
+				},
+				obj: &MockEstablisher{},
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-test",
+					},
+				},
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"ReleaseObjectsError": {
+			reason: "Should return error when ReleaseObjects fails",
+			args: args{
+				kube: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						switch list := list.(type) {
+						case *v1.ProviderList:
+							existing := &v1.Provider{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: testPackageName,
+								},
+							}
+							existing.Spec.Package = testSource + ":v1.0.0"
+							list.Items = []v1.Provider{*existing}
+							return nil
+						case *v1.ProviderRevisionList:
+							inactiveRev := &v1.ProviderRevision{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "inactive-revision",
+								},
+							}
+							inactiveRev.SetDesiredState(v1.PackageRevisionInactive)
+							inactiveRev.SetObjects([]xpv1.TypedReference{{Name: "obj1"}})
+							list.Items = []v1.ProviderRevision{*inactiveRev}
+							return nil
+						default:
+							return nil
+						}
+					},
+				},
+				obj: &MockEstablisher{
+					MockReleaseObjects: func(_ context.Context, _ v1.PackageRevision) error {
+						return errBoom
+					},
+				},
+				tx: &v1alpha1.Transaction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tx-test",
+					},
+				},
+				xp: &xpkg.Package{
+					Package: NewTestPackage(t, testProviderMeta),
+					Digest:  testDigest,
+					Source:  testSource,
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			releaseCount := 0
+			if tc.args.obj != nil {
+				if me, ok := tc.args.obj.(*MockEstablisher); ok && me.MockReleaseObjects != nil {
+					origRelease := me.MockReleaseObjects
+					me.MockReleaseObjects = func(ctx context.Context, rev v1.PackageRevision) error {
+						releaseCount++
+						return origRelease(ctx, rev)
+					}
+				}
+			}
+
+			i := NewObjectReleaser(tc.args.kube, tc.args.obj)
+			err := i.Install(context.Background(), tc.args.tx, tc.args.xp)
+
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("%s\nInstall(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			if tc.want.err == nil && releaseCount != tc.want.releaseCount {
+				t.Errorf("%s\nInstall(...): want %d releases, got %d", tc.reason, tc.want.releaseCount, releaseCount)
 			}
 		})
 	}

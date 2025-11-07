@@ -77,6 +77,7 @@ func (p InstallerPipeline) Install(ctx context.Context, tx *v1alpha1.Transaction
 // resources and then establishing it.
 type Establisher interface {
 	Establish(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error)
+	ReleaseObjects(ctx context.Context, parent v1.PackageRevision) error
 }
 
 // NopEstablisher does nothing.
@@ -90,6 +91,11 @@ func NewNopEstablisher() *NopEstablisher {
 // Establish does nothing.
 func (*NopEstablisher) Establish(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
 	return nil, nil
+}
+
+// ReleaseObjects does nothing.
+func (*NopEstablisher) ReleaseObjects(_ context.Context, _ v1.PackageRevision) error {
+	return nil
 }
 
 // PackageCreator creates or updates Package resources.
@@ -276,6 +282,69 @@ func (i *RevisionCreator) Install(ctx context.Context, tx *v1alpha1.Transaction,
 
 	err = resource.IgnoreNotFound(i.kube.Delete(ctx, gc[0]))
 	return errors.Wrapf(err, "cannot garbage collect revision %s", gc[0].GetName())
+}
+
+// ObjectReleaser releases control of objects from old package revisions.
+// Must run after RevisionCreator (which deactivates old revisions) but before
+// ObjectInstaller (which establishes control for the new revision).
+type ObjectReleaser struct {
+	kube    client.Client
+	objects Establisher
+}
+
+// NewObjectReleaser returns a new ObjectReleaser.
+func NewObjectReleaser(kube client.Client, e Establisher) *ObjectReleaser {
+	return &ObjectReleaser{
+		kube:    kube,
+		objects: e,
+	}
+}
+
+// Install releases control of objects from all inactive revisions of this package.
+// This ensures old revisions release their CRD ownership before the new revision
+// tries to take control, preventing "already controlled by" errors.
+func (i *ObjectReleaser) Install(ctx context.Context, _ *v1alpha1.Transaction, xp *xpkg.Package) error {
+	pkg, _, err := NewPackageAndRevision(xp)
+	if err != nil {
+		return err
+	}
+
+	// List packages to find existing one with matching source repository
+	pkgList, revList, err := NewPackageAndRevisionList(xp)
+	if err != nil {
+		return err
+	}
+	if err := i.kube.List(ctx, pkgList); err != nil {
+		return errors.Wrap(err, "cannot list packages")
+	}
+
+	// Use existing package name if found
+	if existingName := FindExistingPackage(pkgList, xp); existingName != "" {
+		pkg.SetName(existingName)
+	}
+
+	// List all revisions for this package
+	if err := i.kube.List(ctx, revList, client.MatchingLabels{v1.LabelParentPackage: pkg.GetName()}); err != nil {
+		return errors.Wrap(err, "cannot list package revisions")
+	}
+
+	// Release objects from all inactive revisions
+	for _, rev := range revList.GetRevisions() {
+		if rev.GetDesiredState() != v1.PackageRevisionInactive {
+			continue
+		}
+
+		// Only release if the revision has object references
+		if len(rev.GetObjects()) == 0 {
+			continue
+		}
+
+		if err := i.objects.ReleaseObjects(ctx, rev); err != nil {
+			return errors.Wrapf(err, "cannot release objects from revision %s", rev.GetName())
+		}
+	}
+
+	return nil
 }
 
 // RuntimeBootstrapper creates runtime prerequisites for packages.
