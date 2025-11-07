@@ -26,6 +26,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -33,6 +34,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
+	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/v2/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
@@ -434,4 +437,99 @@ func NewTestPackage(t *testing.T, metaJSON string, objectsJSON ...string) *parse
 	}
 
 	return pkg
+}
+
+func TestConvertV2ToV1XRD(t *testing.T) {
+	type args struct {
+		xrd *v2.CompositeResourceDefinition
+	}
+	type want struct {
+		xrd *v1.CompositeResourceDefinition
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"BasicConversion": {
+			reason: "Should convert v2 XRD to v1 XRD with all fields",
+			args: args{
+				xrd: &v2.CompositeResourceDefinition{
+					Spec: v2.CompositeResourceDefinitionSpec{
+						Group: "example.org",
+						Names: extv1.CustomResourceDefinitionNames{
+							Kind:   "Example",
+							Plural: "examples",
+						},
+						Scope: v2.CompositeResourceScopeNamespaced,
+						Versions: []v2.CompositeResourceDefinitionVersion{
+							{
+								Name:          "v1beta1",
+								Referenceable: true,
+								Served:        true,
+								Schema: &v2.CompositeResourceValidation{
+									OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(`{"type":"object"}`)},
+								},
+							},
+						},
+						DefaultCompositionRef: &v2.CompositionReference{
+							Name: "default-comp",
+						},
+						EnforcedCompositionRef: &v2.CompositionReference{
+							Name: "enforced-comp",
+						},
+						Metadata: &v2.CompositeResourceDefinitionSpecMetadata{
+							Labels:      map[string]string{"key": "value"},
+							Annotations: map[string]string{"anno": "val"},
+						},
+					},
+				},
+			},
+			want: want{
+				xrd: &v1.CompositeResourceDefinition{
+					Spec: v1.CompositeResourceDefinitionSpec{
+						Group: "example.org",
+						Names: extv1.CustomResourceDefinitionNames{
+							Kind:   "Example",
+							Plural: "examples",
+						},
+						Scope: func() *v1.CompositeResourceScope {
+							s := v1.CompositeResourceScopeNamespaced
+							return &s
+						}(),
+						Versions: []v1.CompositeResourceDefinitionVersion{
+							{
+								Name:          "v1beta1",
+								Referenceable: true,
+								Served:        true,
+								Schema: &v1.CompositeResourceValidation{
+									OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(`{"type":"object"}`)},
+								},
+							},
+						},
+						DefaultCompositionRef: &v1.CompositionReference{
+							Name: "default-comp",
+						},
+						EnforcedCompositionRef: &v1.CompositionReference{
+							Name: "enforced-comp",
+						},
+						Metadata: &v1.CompositeResourceDefinitionSpecMetadata{
+							Labels:      map[string]string{"key": "value"},
+							Annotations: map[string]string{"anno": "val"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := ConvertV2ToV1XRD(tc.args.xrd)
+
+			if diff := cmp.Diff(tc.want.xrd, got); diff != "" {
+				t.Errorf("%s\nConvertV2ToV1XRD(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
 }

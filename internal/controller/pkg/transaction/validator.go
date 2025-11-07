@@ -27,6 +27,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	v2 "github.com/crossplane/crossplane/v2/apis/apiextensions/v2"
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/v2/internal/xcrd"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
@@ -77,6 +78,12 @@ func (v *SchemaValidator) Validate(ctx context.Context, tx *v1alpha1.Transaction
 				if err != nil {
 					return errors.Wrapf(err, "cannot convert XRD %s to CRD", o.GetName())
 				}
+			case *v2.CompositeResourceDefinition:
+				// Convert v2 XRD to v1 XRD, then to CRD.
+				crd, err = xcrd.ForCompositeResource(ConvertV2ToV1XRD(o))
+				if err != nil {
+					return errors.Wrapf(err, "cannot convert XRD %s to CRD", o.GetName())
+				}
 			default:
 				continue
 			}
@@ -98,4 +105,64 @@ func (v *SchemaValidator) Validate(ctx context.Context, tx *v1alpha1.Transaction
 	}
 
 	return nil
+}
+
+// TODO(negz): Move this somewhere more appropriate. Maybe internal/xcrd?
+
+// ConvertV2ToV1XRD converts a v2 XRD to a v1 XRD for CRD generation.
+// v2 XRDs don't support claims or connection secrets, but the conversion
+// is straightforward otherwise.
+func ConvertV2ToV1XRD(xrd *v2.CompositeResourceDefinition) *v1.CompositeResourceDefinition {
+	scope := v1.CompositeResourceScope(xrd.Spec.Scope)
+
+	// Convert versions - the types are structurally identical, just different packages
+	versions := make([]v1.CompositeResourceDefinitionVersion, len(xrd.Spec.Versions))
+	for i, ver := range xrd.Spec.Versions {
+		versions[i] = v1.CompositeResourceDefinitionVersion{
+			Name:                     ver.Name,
+			Referenceable:            ver.Referenceable,
+			Served:                   ver.Served,
+			AdditionalPrinterColumns: ver.AdditionalPrinterColumns,
+			Deprecated:               ver.Deprecated,
+			DeprecationWarning:       ver.DeprecationWarning,
+		}
+		if ver.Schema != nil {
+			versions[i].Schema = &v1.CompositeResourceValidation{
+				OpenAPIV3Schema: ver.Schema.OpenAPIV3Schema,
+			}
+		}
+	}
+
+	out := &v1.CompositeResourceDefinition{
+		ObjectMeta: xrd.ObjectMeta,
+		Spec: v1.CompositeResourceDefinitionSpec{
+			Group:                          xrd.Spec.Group,
+			Names:                          xrd.Spec.Names,
+			Scope:                          &scope,
+			Versions:                       versions,
+			Conversion:                     xrd.Spec.Conversion,
+			DefaultCompositionUpdatePolicy: xrd.Spec.DefaultCompositionUpdatePolicy,
+		},
+	}
+
+	if xrd.Spec.DefaultCompositionRef != nil {
+		out.Spec.DefaultCompositionRef = &v1.CompositionReference{
+			Name: xrd.Spec.DefaultCompositionRef.Name,
+		}
+	}
+
+	if xrd.Spec.EnforcedCompositionRef != nil {
+		out.Spec.EnforcedCompositionRef = &v1.CompositionReference{
+			Name: xrd.Spec.EnforcedCompositionRef.Name,
+		}
+	}
+
+	if xrd.Spec.Metadata != nil {
+		out.Spec.Metadata = &v1.CompositeResourceDefinitionSpecMetadata{
+			Labels:      xrd.Spec.Metadata.Labels,
+			Annotations: xrd.Spec.Metadata.Annotations,
+		}
+	}
+
+	return out
 }
