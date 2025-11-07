@@ -168,11 +168,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(err, "cannot acquire lock")
 	}
 
-	// Always release lock before returning, even on success. Release is
-	// idempotent - if we committed, the annotation is already gone so this
-	// is a no-op.
+	// Release lock only when transaction reaches terminal state (success or
+	// permanent failure). This maintains transaction ordering - lower numbered
+	// transactions must complete before higher numbered ones can proceed.
+	// For transient errors, we keep the lock and rely on exponential backoff.
+	// Release is idempotent - if we committed, the annotation is already gone.
 	defer func() {
-		_ = r.lock.Release(ctx, tx)
+		if tx.IsComplete() {
+			_ = r.lock.Release(ctx, tx)
+		}
 	}()
 
 	var name, source string
