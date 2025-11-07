@@ -277,7 +277,7 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// 2. XR controller uses selectors to set XR's composition ref.
 	// 3. Claim controller propagates ref XR -> claim.
 	//
-	// When a claim sets a composition ref, it supercedes selectors. It should
+	// When a claim sets a composition ref, it supersedes selectors. It should
 	// only be propagated claim -> XR.
 	//
 	// EXCEPTION: When enforcedCompositionRef is set, we ALWAYS propagate
@@ -290,7 +290,7 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// Propagate composition revision ref from the XR if the update policy is
 	// automatic. When the update policy is automatic the XR controller is
 	// authoritative for this field. It will update the XR's ref as new
-	// revisions become available, and we want to propgate the ref XR -> claim.
+	// revisions become available, and we want to propagate the ref XR -> claim.
 	if p := xr.GetCompositionUpdatePolicy(); p != nil && *p == xpv1.UpdateAutomatic && xr.GetCompositionRevisionReference() != nil {
 		cm.SetCompositionRevisionReference(xr.GetCompositionRevisionReference())
 	}

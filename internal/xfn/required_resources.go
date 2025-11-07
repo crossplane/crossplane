@@ -49,7 +49,7 @@ func (fn RequiredResourcesFetcherFn) Fetch(ctx context.Context, rs *fnv1.Resourc
 	return fn(ctx, rs)
 }
 
-// A FetchingFunctionRunner wraps an underlyin FunctionRunner, adding support
+// A FetchingFunctionRunner wraps an underlying FunctionRunner, adding support
 // for fetching any required resources requested by the function it runs.
 type FetchingFunctionRunner struct {
 	wrapped   FunctionRunner

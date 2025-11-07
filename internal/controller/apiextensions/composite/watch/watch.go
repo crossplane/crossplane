@@ -225,7 +225,7 @@ func (gc *GarbageCollector) GarbageCollectWatchesNow(ctx context.Context) error 
 	// watch was started that needs garbage collecting we'll get it eventually
 	// when GC runs again.
 	//
-	// It's also possible we'll stop a watch that's actually in use. This'd
+	// It's also possible we'll stop a watch that's actually in use. This would
 	// happen if an XR started composing its type after we listed XRs using
 	// the uncached client. We'll recover from this the next time the XR is
 	// reconciled, when it'll call StartWatches again. That could take some

@@ -559,7 +559,7 @@ func TestResolve(t *testing.T) {
 								l.Packages = []v1beta1.LockPackage{
 									{
 										Name: "config-nop-a-abc123",
-										// Source mistmatch provider revision package
+										// Source mismatch provider revision package
 										Source: "xpkg.crossplane.io/hasheddan/config-nop-b",
 									},
 								}
