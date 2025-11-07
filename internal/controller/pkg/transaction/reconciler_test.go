@@ -208,23 +208,32 @@ func TestReconcile(t *testing.T) {
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							tx := &v1alpha1.Transaction{
-								Spec: v1alpha1.TransactionSpec{
-									Change: v1alpha1.ChangeTypeInstall,
-									Install: &v1alpha1.InstallSpec{
-										Package: v1alpha1.PackageSnapshot{
-											Spec: v1alpha1.PackageSnapshotSpec{
-												PackageSpec: v1.PackageSpec{
-													Package: "xpkg.io/test/pkg:v1.0.0",
+							switch o := obj.(type) {
+							case *v1alpha1.Transaction:
+								tx := &v1alpha1.Transaction{
+									Spec: v1alpha1.TransactionSpec{
+										Change: v1alpha1.ChangeTypeInstall,
+										Install: &v1alpha1.InstallSpec{
+											Package: v1alpha1.PackageSnapshot{
+												Spec: v1alpha1.PackageSnapshotSpec{
+													PackageSpec: v1.PackageSpec{
+														Package: "xpkg.io/test/pkg:v1.0.0",
+													},
 												},
 											},
 										},
 									},
-								},
+								}
+								tx.DeepCopyInto(o)
+								return nil
+							case *v1beta1.Lock:
+								// Return empty lock for lock manager
+								return nil
+							default:
+								return errors.New("unexpected object type")
 							}
-							tx.DeepCopyInto(obj.(*v1alpha1.Transaction))
-							return nil
 						}),
+						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(errors.New("boom")),
 					},
 				},
