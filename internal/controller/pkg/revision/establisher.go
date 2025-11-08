@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -514,7 +515,24 @@ func (e *APIEstablisher) create(ctx context.Context, obj resource.Object, parent
 	// Overwrite any owner references on the desired object.
 	obj.SetOwnerReferences(refs)
 
-	return e.client.Create(ctx, obj, opts...)
+	// TODO(negz): For some inexplicable reason, Create seems to strip the
+	// GVK from the supplied object. But only here in this one call???
+	var gvk schema.GroupVersionKind
+	if g, ok := obj.(interface {
+		GroupVersionKind() schema.GroupVersionKind
+	}); ok {
+		gvk = g.GroupVersionKind()
+	}
+
+	out := e.client.Create(ctx, obj, opts...)
+
+	if g, ok := obj.(interface {
+		SetGroupVersionKind(gvk schema.GroupVersionKind)
+	}); ok {
+		g.SetGroupVersionKind(gvk)
+	}
+
+	return out
 }
 
 func (e *APIEstablisher) update(ctx context.Context, current, desired resource.Object, parent resource.Object, control bool, opts ...client.UpdateOption) error {
