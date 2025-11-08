@@ -41,7 +41,8 @@ import (
 )
 
 const (
-	timeout = 10 * time.Minute
+	timeout       = 2 * time.Minute
+	statusTimeout = 30 * time.Second
 
 	defaultRetryLimit = 5
 )
@@ -101,6 +102,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	log := r.log.WithValues("request", req)
 	log.Info("Reconciling")
 
+	// We use a separate context for status updates. Otherwise we can't
+	// update status if/when we timeout the main work.
+	sctx, scancel := context.WithTimeout(ctx, statusTimeout)
+	defer scancel()
+
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -132,7 +138,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Transaction failure limit reached", "limit", limit)
 
 		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.TransactionFailed(fmt.Sprintf("failure limit of %d reached", limit)))
-		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, tx), "cannot update Transaction status")
+		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(sctx, tx), "cannot update Transaction status")
 	}
 
 	status.MarkConditions(v1alpha1.TransactionRunning())
@@ -141,21 +147,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// with a clear error message.
 	if tx.Spec.Change == v1alpha1.ChangeTypeDelete {
 		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.TransactionFailed("Delete transactions are not yet implemented"))
-		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, tx), "cannot update Transaction status")
+		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(sctx, tx), "cannot update Transaction status")
 	}
 	if tx.Spec.Change == v1alpha1.ChangeTypeReplace {
 		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.TransactionFailed("Replace transactions are not yet implemented"))
-		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, tx), "cannot update Transaction status")
+		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(sctx, tx), "cannot update Transaction status")
 	}
 
 	currentPackages, err := r.lock.Acquire(ctx, tx)
 	if errors.Is(err, ErrLockHeldByAnotherTransaction) {
 		log.Debug("Lock is held by another transaction")
 		status.MarkConditions(v1alpha1.TransactionBlocked("waiting for lock held by another transaction"))
-		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, tx), "cannot update Transaction status")
+		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(sctx, tx), "cannot update Transaction status")
 	}
 	if err != nil {
 		if kerrors.IsConflict(err) {
+			log.Debug("Conflict error", "error", err)
 			return reconcile.Result{}, err
 		}
 
@@ -163,10 +170,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(tx, event.Warning(reasonLockAcquisition, errors.Wrap(err, "cannot acquire lock")))
 
 		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "cannot acquire lock")))
-		_ = r.kube.Status().Update(ctx, tx)
+		_ = r.kube.Status().Update(sctx, tx)
 
 		return reconcile.Result{}, errors.Wrap(err, "cannot acquire lock")
 	}
+	log.Debug("Transaction has the Lock")
 
 	// Release lock only when transaction reaches terminal state (success or
 	// permanent failure). This maintains transaction ordering - lower numbered
@@ -202,7 +210,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			xpv1.ReconcileError(errors.Wrap(err, "cannot solve dependencies")),
 			v1alpha1.ResolutionError(err.Error()),
 		)
-		_ = r.kube.Status().Update(ctx, tx)
+		_ = r.kube.Status().Update(sctx, tx)
 
 		return reconcile.Result{}, errors.Wrap(err, "cannot solve dependencies")
 	}
@@ -212,6 +220,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.validator.Validate(ctx, tx); err != nil {
 		if kerrors.IsConflict(err) {
+			log.Debug("Conflict error", "error", err)
 			return reconcile.Result{}, err
 		}
 
@@ -222,11 +231,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			xpv1.ReconcileError(errors.Wrap(err, "validation failed")),
 			v1alpha1.ValidationError(err.Error()),
 		)
-		_ = r.kube.Status().Update(ctx, tx)
+		_ = r.kube.Status().Update(sctx, tx)
 
 		return reconcile.Result{}, errors.Wrap(err, "validation failed")
 	}
 	status.MarkConditions(v1alpha1.ValidationSuccess())
+	r.log.Debug("Transaction validated")
 
 	// Install all packages in dependency order.
 	sorted, err := dependency.SortLockPackages(tx.Status.ProposedLockPackages)
@@ -238,7 +248,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			xpv1.ReconcileError(errors.Wrap(err, "cannot sort packages")),
 			v1alpha1.InstallationError(err.Error()),
 		)
-		_ = r.kube.Status().Update(ctx, tx)
+		_ = r.kube.Status().Update(sctx, tx)
 
 		return reconcile.Result{}, errors.Wrap(err, "cannot sort packages")
 	}
@@ -253,13 +263,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				xpv1.ReconcileError(errors.Wrapf(err, "cannot fetch package %s", lockPkg.Source)),
 				v1alpha1.InstallationError(err.Error()),
 			)
-			_ = r.kube.Status().Update(ctx, tx)
+			_ = r.kube.Status().Update(sctx, tx)
 
 			return reconcile.Result{}, errors.Wrapf(err, "cannot fetch package %s", lockPkg.Source)
 		}
 
 		if err := r.installer.Install(ctx, tx, xp); err != nil {
 			if kerrors.IsConflict(err) {
+				log.Debug("Conflict error", "error", err)
 				return reconcile.Result{}, err
 			}
 
@@ -270,7 +281,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				xpv1.ReconcileError(errors.Wrapf(err, "cannot install package %s", lockPkg.Source)),
 				v1alpha1.InstallationError(err.Error()),
 			)
-			_ = r.kube.Status().Update(ctx, tx)
+			_ = r.kube.Status().Update(sctx, tx)
 
 			return reconcile.Result{}, errors.Wrapf(err, "cannot install package %s", lockPkg.Source)
 		}
@@ -279,6 +290,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.lock.Commit(ctx, tx, proposedPackages); err != nil {
 		if kerrors.IsConflict(err) {
+			log.Debug("Conflict error", "error", err)
 			return reconcile.Result{}, err
 		}
 
@@ -286,11 +298,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(tx, event.Warning(reasonLockAcquisition, errors.Wrap(err, "cannot commit lock")))
 		tx.Status.Failures++
 		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(err, "cannot commit lock")))
-		_ = r.kube.Status().Update(ctx, tx)
+		_ = r.kube.Status().Update(sctx, tx)
 
 		return reconcile.Result{}, errors.Wrap(err, "cannot commit lock")
 	}
 
 	status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.TransactionComplete())
-	return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, tx), "cannot update Transaction status")
+	return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(sctx, tx), "cannot update Transaction status")
 }
