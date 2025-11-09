@@ -106,6 +106,10 @@ type startCommand struct {
 	MaxConcurrentReconciles          int           `aliases:"max-reconcile-rate" default:"100"                                                                                            help:"The maximum number of concurrent reconcile operations (worker pool size)."`
 	MaxConcurrentPackageEstablishers int           `default:"10"                 help:"The maximum number of goroutines to use for establishing Providers, Configurations and Functions."`
 
+	CircuitBreakerBurst      float64       `default:"100.0" help:"XR circuit breaker token bucket capacity."`
+	CircuitBreakerRefillRate float64       `default:"1.0"   help:"XR circuit breaker token refill rate (tokens/second)."`
+	CircuitBreakerCooldown   time.Duration `default:"5m"    help:"How long XR circuit breakers stay open after triggering."`
+
 	EnableWebhooks bool `aliases:"webhook-enabled" default:"true" env:"ENABLE_WEBHOOKS,WEBHOOK_ENABLED" help:"Enable webhook configuration."`
 
 	WebhookPort     int `default:"9443" env:"WEBHOOK_PORT"      help:"The port the webhook server listens on."`
@@ -427,10 +431,13 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	metrics.Registry.MustRegister(cbm)
 
 	ao := apiextensionscontroller.Options{
-		Options:               o,
-		ControllerEngine:      ce,
-		FunctionRunner:        runner,
-		CircuitBreakerMetrics: cbm,
+		Options:                  o,
+		ControllerEngine:         ce,
+		FunctionRunner:           runner,
+		CircuitBreakerMetrics:    cbm,
+		CircuitBreakerBurst:      c.CircuitBreakerBurst,
+		CircuitBreakerRefillRate: c.CircuitBreakerRefillRate,
+		CircuitBreakerCooldown:   c.CircuitBreakerCooldown,
 	}
 
 	if err := apiextensions.Setup(mgr, ao); err != nil {

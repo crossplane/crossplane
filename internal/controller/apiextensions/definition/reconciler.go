@@ -518,8 +518,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	)
 
 	controllerName := composite.ControllerName(d.GetName())
-	cb := circuit.NewTokenBucketBreaker(controllerName, circuit.WithMetrics(r.options.CircuitBreakerMetrics))
 	gvk := d.GetCompositeGroupVersionKind()
+	cb := circuit.NewTokenBucketBreaker(controllerName,
+		circuit.WithMetrics(r.options.CircuitBreakerMetrics),
+		circuit.WithBurst(r.options.CircuitBreakerBurst),
+		circuit.WithRefillRatePerSecond(r.options.CircuitBreakerRefillRate),
+		circuit.WithOpenDuration(r.options.CircuitBreakerCooldown),
+	)
 
 	// All XRs have modern schema unless their XRD's scope is LegacyCluster.
 	schema := ucomposite.SchemaModern

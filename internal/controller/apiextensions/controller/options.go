@@ -18,6 +18,8 @@ limitations under the License.
 package controller
 
 import (
+	"time"
+
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 
 	"github.com/crossplane/crossplane/v2/internal/circuit"
@@ -37,4 +39,13 @@ type Options struct {
 
 	// CircuitBreakerMetrics records XR circuit breaker activity.
 	CircuitBreakerMetrics *circuit.PrometheusMetrics
+
+	// CircuitBreakerBurst is the token bucket capacity for XR circuit breakers.
+	CircuitBreakerBurst float64
+
+	// CircuitBreakerRefillRate is the token refill rate (tokens/second) for XR circuit breakers.
+	CircuitBreakerRefillRate float64
+
+	// CircuitBreakerCooldown is how long XR circuit breakers stay open after triggering.
+	CircuitBreakerCooldown time.Duration
 }
