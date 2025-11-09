@@ -113,9 +113,14 @@ type state struct {
 
 // NewTokenBucketBreaker creates a new token bucket-based circuit breaker.
 func NewTokenBucketBreaker(controller string, opts ...Option) *TokenBucketBreaker {
+	// NOTE(negz): The circuit breaker typically wraps MapFuncs, which
+	// controller-runtime invokes twice per Update event (once with old
+	// object, once with new). This means Update events consume 2 tokens.
+	// Capacity and refill rate are set to 2x the effective limits to
+	// account for this (e.g., 100 capacity = 50 Update events).
 	config := Config{
-		capacity:            50.0,             // Allow 50-event burst.
-		refillRatePerSecond: 0.5,              // Allow 1 every 2s sustained.
+		capacity:            100.0,            // Allow 50-event burst.
+		refillRatePerSecond: 1.0,              // Allow 1 every 2s sustained.
 		cooldownTime:        5 * time.Minute,  // Circuit stays open for 5 minutes.
 		halfOpenInterval:    30 * time.Second, // Allow probe every 30s when open.
 		expireAfter:         24 * time.Hour,   // Clean up targets after 24 hours.
