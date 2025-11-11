@@ -104,7 +104,7 @@ func SetupUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 	name := "usage/" + strings.ToLower(v1beta1.UsageGroupKind)
 	r := NewReconciler(mgr, &v1beta1.Usage{}, f,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithPollInterval(o.PollInterval))
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -119,7 +119,7 @@ func SetupClusterUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 	name := "usage/" + strings.ToLower(v1beta1.ClusterUsageGroupKind)
 	r := NewReconciler(mgr, &v1beta1.ClusterUsage{}, f,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithPollInterval(o.PollInterval))
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -135,7 +135,7 @@ func SetupLegacyUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 	name := "usage/" + strings.ToLower(legacy.UsageGroupKind)
 	r := NewReconciler(mgr, &legacy.Usage{}, f, //nolint:staticcheck // It's deprecated, but we still need to support it.
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithPollInterval(o.PollInterval))
 
 	return ctrl.NewControllerManagedBy(mgr).
