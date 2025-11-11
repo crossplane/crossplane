@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -51,8 +52,9 @@ func TestReconcile(t *testing.T) {
 		opts []ReconcilerOption
 	}
 	type want struct {
-		r   reconcile.Result
-		err error
+		r      reconcile.Result
+		err    error
+		events []event.Event
 	}
 
 	cases := map[string]struct {
@@ -501,6 +503,325 @@ func TestReconcile(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
+		"MRDActiveCRDUpdateSuccessOwnerChanged": {
+			reason: "We should update CRD when it exists and spec is unchanged but owners are changed",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						switch o := obj.(type) {
+						case *v1alpha1.ManagedResourceDefinition:
+							return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+								mrd.SetOwnerReferences([]metav1.OwnerReference{
+									{
+										APIVersion: "pkg.crossplane.io/v1",
+										Controller: ptr.To(true),
+										Kind:       "ProviderRevision",
+										Name:       "new-provider-revision",
+										UID:        "new-provider-revision-uid", // MRD has a new controller
+									},
+								})
+								mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
+								mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+									Group: "example.com",
+									Names: extv1.CustomResourceDefinitionNames{
+										Plural: "databases",
+										Kind:   "Database",
+									},
+									Scope: extv1.ClusterScoped,
+									Versions: []v1alpha1.CustomResourceDefinitionVersion{
+										{
+											Name:    "v1",
+											Served:  true,
+											Storage: true,
+											Schema: &v1alpha1.CustomResourceValidation{
+												OpenAPIV3Schema: runtime.RawExtension{
+													Raw: []byte(`{"type": "object", "properties": {"spec": {"type": "object"}}}`),
+												},
+											},
+										},
+									},
+								}
+							}))(ctx, key, o)
+						case *extv1.CustomResourceDefinition:
+							o.SetOwnerReferences([]metav1.OwnerReference{
+								{
+									APIVersion: "apiextensions.crossplane.io/v1alpha1",
+									Kind:       "ManagedResourceDefinition",
+									Name:       "test-mrd",
+									UID:        "test-uid",
+									Controller: ptr.To(false),
+								},
+								{
+									APIVersion: "pkg.crossplane.io/v1",
+									Controller: ptr.To(true),
+									Kind:       "ProviderRevision",
+									Name:       "old-provider-revision",
+									UID:        "old-provider-revision-uid", // CRD is owned by an old provider revision
+								},
+							})
+							o.Name = key.Name
+							o.Spec = extv1.CustomResourceDefinitionSpec{
+								Group: "example.com",
+								Names: extv1.CustomResourceDefinitionNames{
+									Plural: "databases",
+									Kind:   "Database",
+								},
+								Scope: extv1.ClusterScoped,
+								Versions: []extv1.CustomResourceDefinitionVersion{
+									{
+										Name:    "v1",
+										Served:  true,
+										Storage: true,
+										Schema: &extv1.CustomResourceValidation{
+											OpenAPIV3Schema: &extv1.JSONSchemaProps{
+												Type: "object",
+												Properties: map[string]extv1.JSONSchemaProps{
+													"spec": {Type: "object"},
+												},
+											},
+										},
+									},
+								},
+							}
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
+					MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+						switch o := obj.(type) {
+						case *extv1.CustomResourceDefinition:
+							return wantCRD(t, newCRD(func(crd *extv1.CustomResourceDefinition) {
+								crd.Name = obj.GetName()
+								crd.SetOwnerReferences([]metav1.OwnerReference{
+									{
+										APIVersion: "apiextensions.crossplane.io/v1alpha1",
+										Kind:       "ManagedResourceDefinition",
+										Name:       "test-mrd",
+										UID:        "test-uid",
+									},
+									{
+										APIVersion: "pkg.crossplane.io/v1",
+										Controller: ptr.To(false), // old provider revision should not be a controller anymore
+										Kind:       "ProviderRevision",
+										Name:       "old-provider-revision",
+										UID:        "old-provider-revision-uid",
+									},
+									{
+										APIVersion: "pkg.crossplane.io/v1",
+										Controller: ptr.To(true), // new provider revision should be the new controller
+										Kind:       "ProviderRevision",
+										Name:       "new-provider-revision",
+										UID:        "new-provider-revision-uid",
+									},
+								})
+								crd.Spec = extv1.CustomResourceDefinitionSpec{
+									Group: "example.com",
+									Names: extv1.CustomResourceDefinitionNames{
+										Plural: "databases",
+										Kind:   "Database",
+									},
+									Scope: extv1.ClusterScoped,
+									Versions: []extv1.CustomResourceDefinitionVersion{
+										{
+											Name:    "v1",
+											Served:  true,
+											Storage: true,
+											Schema: &extv1.CustomResourceValidation{
+												OpenAPIV3Schema: &extv1.JSONSchemaProps{
+													Type: "object",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"spec": {Type: "object"},
+													},
+												},
+											},
+										},
+									},
+								}
+							}))(ctx, o, opts...)
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
+					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.SetOwnerReferences([]metav1.OwnerReference{
+							{
+								APIVersion: "pkg.crossplane.io/v1",
+								Controller: ptr.To(true),
+								Kind:       "ProviderRevision",
+								Name:       "new-provider-revision",
+								UID:        "new-provider-revision-uid",
+							},
+						})
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
+						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+							Group: "example.com",
+							Names: extv1.CustomResourceDefinitionNames{
+								Plural: "databases",
+								Kind:   "Database",
+							},
+							Scope: extv1.ClusterScoped,
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
+								{
+									Name:    "v1",
+									Served:  true,
+									Storage: true,
+									Schema: &v1alpha1.CustomResourceValidation{
+										OpenAPIV3Schema: runtime.RawExtension{
+											Raw: []byte(`{"type": "object", "properties": {"spec": {"type": "object"}}}`),
+										},
+									},
+								},
+							},
+						}
+						mrd.SetConditions(v1alpha1.PendingManaged())
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithRecorder(&testRecorder{}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+				events: []event.Event{
+					event.Normal(reasonUpdateCRD, "Successfully updated CustomResourceDefinition"),
+				},
+			},
+		},
+		"MRDActiveCRDNoUpdate": {
+			reason: "We should not update CRD when spec and ownerReferences are not changed",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						switch o := obj.(type) {
+						case *v1alpha1.ManagedResourceDefinition:
+							return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+								mrd.SetOwnerReferences([]metav1.OwnerReference{
+									{
+										APIVersion: "pkg.crossplane.io/v1",
+										Controller: ptr.To(true),
+										Kind:       "ProviderRevision",
+										Name:       "some-provider-revision",
+										UID:        "some-provider-revision-uid",
+									},
+								})
+								mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
+								mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+									Group: "example.com",
+									Names: extv1.CustomResourceDefinitionNames{
+										Plural: "databases",
+										Kind:   "Database",
+									},
+									Scope: extv1.ClusterScoped,
+									Versions: []v1alpha1.CustomResourceDefinitionVersion{
+										{
+											Name:    "v1",
+											Served:  true,
+											Storage: true,
+											Schema: &v1alpha1.CustomResourceValidation{
+												OpenAPIV3Schema: runtime.RawExtension{
+													Raw: []byte(`{"type": "object", "properties": {"spec": {"type": "object"}}}`),
+												},
+											},
+										},
+									},
+								}
+							}))(ctx, key, o)
+						case *extv1.CustomResourceDefinition:
+							o.SetOwnerReferences([]metav1.OwnerReference{
+								{
+									APIVersion: "apiextensions.crossplane.io/v1alpha1",
+									Kind:       "ManagedResourceDefinition",
+									Name:       "test-mrd",
+									UID:        "test-uid",
+								},
+								{
+									APIVersion: "pkg.crossplane.io/v1",
+									Controller: ptr.To(true),
+									Kind:       "ProviderRevision",
+									Name:       "some-provider-revision",
+									UID:        "some-provider-revision-uid",
+								},
+							})
+							o.Name = key.Name
+							o.Spec = extv1.CustomResourceDefinitionSpec{
+								Group: "example.com",
+								Names: extv1.CustomResourceDefinitionNames{
+									Plural: "databases",
+									Kind:   "Database",
+								},
+								Scope: extv1.ClusterScoped,
+								Versions: []extv1.CustomResourceDefinitionVersion{
+									{
+										Name:    "v1",
+										Served:  true,
+										Storage: true,
+										Schema: &extv1.CustomResourceValidation{
+											OpenAPIV3Schema: &extv1.JSONSchemaProps{
+												Type: "object",
+												Properties: map[string]extv1.JSONSchemaProps{
+													"spec": {Type: "object"},
+												},
+											},
+										},
+									},
+								},
+							}
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
+					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						switch obj.(type) {
+						case *extv1.CustomResourceDefinition:
+							return errBoom
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
+					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.SetOwnerReferences([]metav1.OwnerReference{
+							{
+								APIVersion: "pkg.crossplane.io/v1",
+								Controller: ptr.To(true),
+								Kind:       "ProviderRevision",
+								Name:       "some-provider-revision",
+								UID:        "some-provider-revision-uid",
+							},
+						})
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
+						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+							Group: "example.com",
+							Names: extv1.CustomResourceDefinitionNames{
+								Plural: "databases",
+								Kind:   "Database",
+							},
+							Scope: extv1.ClusterScoped,
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
+								{
+									Name:    "v1",
+									Served:  true,
+									Storage: true,
+									Schema: &v1alpha1.CustomResourceValidation{
+										OpenAPIV3Schema: runtime.RawExtension{
+											Raw: []byte(`{"type": "object", "properties": {"spec": {"type": "object"}}}`),
+										},
+									},
+								},
+							},
+						}
+						mrd.SetConditions(v1alpha1.PendingManaged())
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithRecorder(&testRecorder{}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
 		"MRDActiveCRDEstablished": {
 			reason: "We should mark MRD as established when CRD is established",
 			args: args{
@@ -532,6 +853,14 @@ func TestReconcile(t *testing.T) {
 								}
 							}))(ctx, key, o)
 						case *extv1.CustomResourceDefinition:
+							o.SetOwnerReferences([]metav1.OwnerReference{
+								{
+									APIVersion: "apiextensions.crossplane.io/v1alpha1",
+									Kind:       "ManagedResourceDefinition",
+									Name:       "test-mrd",
+									UID:        "test-uid",
+								},
+							})
 							o.Name = key.Name
 							o.Spec = extv1.CustomResourceDefinitionSpec{
 								Group: "example.com",
@@ -713,6 +1042,19 @@ func TestReconcile(t *testing.T) {
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
+			if tr, ok := r.record.(*testRecorder); ok && tc.want.events != nil {
+				if diff := cmp.Diff(tc.want.events, tr.events, cmpopts.EquateEmpty(), cmpopts.SortSlices(func(x, y event.Event) bool {
+					if x.Type != y.Type {
+						return x.Type < y.Type
+					}
+					if x.Reason != y.Reason {
+						return x.Reason < y.Reason
+					}
+					return x.Message < y.Message
+				})); diff != "" {
+					t.Errorf("\n%s\nr.Reconcile(...): -want events, +got events:\n%s", tc.reason, diff)
+				}
+			}
 		})
 	}
 }
@@ -754,6 +1096,36 @@ func wantMRD(t *testing.T, want *v1alpha1.ManagedResourceDefinition) func(_ cont
 		t.Helper()
 		if diff := cmp.Diff(want, got, cmpopts.EquateApproxTime(3*time.Second)); diff != "" {
 			t.Errorf("wantMRD(...): -want, +got: %s", diff)
+		}
+		return nil
+	}
+}
+
+type crdModifier func(mrd *extv1.CustomResourceDefinition)
+
+func newCRD(m ...crdModifier) *extv1.CustomResourceDefinition {
+	crd := &extv1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-crd",
+			UID:  types.UID("test-crd-uid"),
+		},
+		Spec: extv1.CustomResourceDefinitionSpec{
+			Group: "testgroup",
+			Scope: extv1.ClusterScoped,
+		},
+	}
+	for _, fn := range m {
+		fn(crd)
+	}
+	return crd
+}
+
+func wantCRD(t *testing.T, want *extv1.CustomResourceDefinition) func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+	t.Helper()
+	return func(_ context.Context, got client.Object, _ ...client.UpdateOption) error {
+		t.Helper()
+		if diff := cmp.Diff(want.GetOwnerReferences(), got.GetOwnerReferences(), cmpopts.EquateEmpty()); diff != "" {
+			t.Errorf("wantCRD(...): -want, +got: %s", diff)
 		}
 		return nil
 	}
