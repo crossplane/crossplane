@@ -549,7 +549,6 @@ func TestReconcile(t *testing.T) {
 									Kind:       "ManagedResourceDefinition",
 									Name:       "test-mrd",
 									UID:        "test-uid",
-									Controller: ptr.To(false),
 								},
 								{
 									APIVersion: "pkg.crossplane.io/v1",
@@ -602,7 +601,7 @@ func TestReconcile(t *testing.T) {
 									},
 									{
 										APIVersion: "pkg.crossplane.io/v1",
-										Controller: ptr.To(false), // old provider revision should not be a controller anymore
+										Controller: nil, // old provider revision should not be a controller anymore
 										Kind:       "ProviderRevision",
 										Name:       "old-provider-revision",
 										UID:        "old-provider-revision-uid",

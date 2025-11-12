@@ -26,7 +26,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -163,7 +162,7 @@ func (r *Reconciler) reconcileCustomResourceDefinition(ctx context.Context, log 
 	meta.AddOwnerReference(want, meta.AsOwner(meta.TypedReferenceTo(mrd, v1alpha1.ManagedResourceDefinitionGroupVersionKind)))
 	// But also propagate our controller as the controller of the CRD.
 	if owner := metav1.GetControllerOf(mrd); owner != nil {
-		// Remove existing controller reference, if we have a new controller
+		// Demote existing controller reference, if we have a new controller
 		// (e.g. the active ProviderRevision has changed).
 		//
 		// In XPv2 with features.EnableBetaCustomToManagedResourceConversion,
@@ -173,7 +172,10 @@ func (r *Reconciler) reconcileCustomResourceDefinition(ctx context.Context, log 
 		refs := want.GetOwnerReferences()
 		for i := range refs {
 			if refs[i].Controller != nil && *refs[i].Controller && refs[i].UID != owner.UID {
-				refs[i].Controller = ptr.To(false)
+				refs[i].Controller = nil
+				if refs[i].BlockOwnerDeletion != nil && *refs[i].BlockOwnerDeletion {
+					refs[i].BlockOwnerDeletion = nil
+				}
 			}
 		}
 		if err := meta.AddControllerReference(want, *owner); err != nil {
