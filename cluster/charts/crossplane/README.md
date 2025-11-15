@@ -125,6 +125,7 @@ and their default values.
 | `resourcesRBACManager.requests.memory` | Memory resource requests for the RBAC Manager pod. | `"256Mi"` |
 | `revisionHistoryLimit` | The number of Crossplane ReplicaSets to retain. | `nil` |
 | `runtimeClassName` | The runtimeClassName name to apply to the Crossplane and RBAC Manager pods. | `""` |
+| `secrets.customAnnotations` | Add custom annotations to Crossplane Secret resources. | `{}` |
 | `securityContextCrossplane.allowPrivilegeEscalation` | Enable `allowPrivilegeEscalation` for the Crossplane pod. | `false` |
 | `securityContextCrossplane.readOnlyRootFilesystem` | Set the Crossplane pod root file system as read-only. | `true` |
 | `securityContextCrossplane.runAsGroup` | The group ID used by the Crossplane pod. | `65532` |
