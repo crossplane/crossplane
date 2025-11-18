@@ -490,13 +490,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			"desired-version", desired.APIVersion)
 	}
 
-	if r.engine.IsRunning(claim.ControllerName(d.GetName())) {
-		log.Debug("Composite resource claim controller is running")
-		status.MarkConditions(v1.WatchingClaim())
-
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
-	}
-
 	// Add an index to the controller engine's client.
 	if indexer := r.engine.GetFieldIndexer(); indexer != nil {
 		if err := indexer.IndexField(ctx, &v1.CompositeResourceDefinition{}, claim.XRDByCompositeGVKIndex(), claim.IndexXRDByCompositeGVK()); err != nil {
@@ -504,30 +497,41 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	cr := claim.NewReconciler(r.engine.GetCached(), d.GetClaimGroupVersionKind(), d.GetCompositeGroupVersionKind(), o...)
+	controllerName := claim.ControllerName(d.GetName())
+	gvkClaim := d.GetClaimGroupVersionKind()
+	gvkXR := d.GetCompositeGroupVersionKind()
+
+	cr := claim.NewReconciler(r.engine.GetCached(), gvkClaim, gvkXR, o...)
 
 	ko := r.options.ForControllerRuntime()
 	ko.Reconciler = ratelimiter.NewReconciler(claim.ControllerName(d.GetName()), errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
 
-	if err := r.engine.Start(claim.ControllerName(d.GetName()), engine.WithRuntimeOptions(ko)); err != nil {
+	// Start is idempotent - it's a no-op if the controller is already running.
+	// We call it every reconcile to ensure the controller is started, even after
+	// transient failures.
+	if !r.engine.IsRunning(controllerName) {
+		log.Debug("Starting composite resource claim controller")
+	}
+	if err := r.engine.Start(controllerName, engine.WithRuntimeOptions(ko)); err != nil {
 		err = errors.Wrap(err, errStartController)
 		r.record.Event(d, event.Warning(reasonOfferXRC, err))
 
 		return reconcile.Result{}, err
 	}
 
-	log.Debug("Started composite resource claim controller")
-
 	// These must be *unstructured.Unstructured, not e.g. *claim.Unstructured.
 	// controller-runtime doesn't support watching types that satisfy the
 	// runtime.Unstructured interface - only *unstructured.Unstructured.
 	cm := &kunstructured.Unstructured{}
-	cm.SetGroupVersionKind(d.GetClaimGroupVersionKind())
+	cm.SetGroupVersionKind(gvkClaim)
 
 	xr := &kunstructured.Unstructured{}
-	xr.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
+	xr.SetGroupVersionKind(gvkXR)
 
-	if err := r.engine.StartWatches(ctx, claim.ControllerName(d.GetName()),
+	// StartWatches is idempotent - it only starts watches that don't already
+	// exist. We call it every reconcile to ensure watches are started, even if
+	// they failed transiently on a previous attempt.
+	if err := r.engine.StartWatches(ctx, controllerName,
 		engine.WatchFor(cm, engine.WatchTypeClaim, &handler.EnqueueRequestForObject{}),
 		engine.WatchFor(xr, engine.WatchTypeCompositeResource, &EnqueueRequestForClaim{}),
 	); err != nil {
@@ -537,7 +541,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	d.Status.Controllers.CompositeResourceClaimTypeRef = v1.TypeReferenceTo(d.GetClaimGroupVersionKind())
+	d.Status.Controllers.CompositeResourceClaimTypeRef = v1.TypeReferenceTo(gvkClaim)
 	status.MarkConditions(v1.WatchingClaim())
 
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
