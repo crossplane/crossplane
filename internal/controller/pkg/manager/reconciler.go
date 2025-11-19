@@ -204,7 +204,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithRevisioner(NewPackageRevisioner(f)),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 	}
 
 	if o.PackageRuntime.For(v1.ProviderKind) == controller.PackageRuntimeDeployment {
@@ -245,7 +245,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		WithRevisioner(NewPackageRevisioner(fetcher)),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -282,7 +282,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		WithRevisioner(NewPackageRevisioner(f)),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 	}
 
 	if o.PackageRuntime.For(v1.FunctionKind) == controller.PackageRuntimeDeployment {

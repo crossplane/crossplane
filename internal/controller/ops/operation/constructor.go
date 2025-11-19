@@ -42,7 +42,7 @@ func Setup(mgr ctrl.Manager, o opscontroller.Options) error {
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithFunctionRunner(o.FunctionRunner))
 
 	return ctrl.NewControllerManagedBy(mgr).
