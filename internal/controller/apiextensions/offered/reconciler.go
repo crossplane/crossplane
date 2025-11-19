@@ -49,6 +49,7 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
 	"github.com/crossplane/crossplane/v2/internal/names"
+	"github.com/crossplane/crossplane/v2/internal/ssa"
 	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
@@ -469,7 +470,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if r.options.Features.Enabled(features.EnableBetaClaimSSA) {
 		o = append(o,
 			claim.WithCompositeSyncer(claim.NewServerSideCompositeSyncer(r.engine.GetCached(), names.NewNameGenerator(r.engine.GetCached()))),
-			claim.WithManagedFieldsUpgrader(claim.NewPatchingManagedFieldsUpgrader(r.engine.GetCached())),
+			claim.WithManagedFieldsUpgrader(ssa.NewPatchingManagedFieldsUpgrader(
+				r.engine.GetCached(),
+				ssa.ExactMatch(claim.FieldOwnerXR),
+			)),
 		)
 	}
 
