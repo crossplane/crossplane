@@ -162,7 +162,25 @@ func (r *Reconciler) reconcileCustomResourceDefinition(ctx context.Context, log 
 	meta.AddOwnerReference(want, meta.AsOwner(meta.TypedReferenceTo(mrd, v1alpha1.ManagedResourceDefinitionGroupVersionKind)))
 	// But also propagate our controller as the controller of the CRD.
 	if owner := metav1.GetControllerOf(mrd); owner != nil {
-		meta.AddOwnerReference(want, *owner)
+		// Demote existing controller reference, if we have a new controller
+		// (e.g. the active ProviderRevision has changed).
+		//
+		// In XPv2 with features.EnableBetaCustomToManagedResourceConversion,
+		// a ProviderRevision has object refs to converted MRDs of CRDs.
+		// Therefore, deactivation of a ProviderRevision releases control
+		// of MRD, but not the corresponding CRD.
+		refs := want.GetOwnerReferences()
+		for i := range refs {
+			if refs[i].Controller != nil && *refs[i].Controller && refs[i].UID != owner.UID {
+				refs[i].Controller = nil
+				if refs[i].BlockOwnerDeletion != nil && *refs[i].BlockOwnerDeletion {
+					refs[i].BlockOwnerDeletion = nil
+				}
+			}
+		}
+		if err := meta.AddControllerReference(want, *owner); err != nil {
+			return nil, errors.Wrap(err, "cannot add controller reference to the CustomResourceDefinition")
+		}
 	}
 
 	// Stage changes.
@@ -178,7 +196,9 @@ func (r *Reconciler) reconcileCustomResourceDefinition(ctx context.Context, log 
 		}
 		r.record.Event(mrd, event.Normal(reasonCreateCRD, "Successfully created CustomResourceDefinition"))
 	case actionUpdate:
-		if !equality.Semantic.DeepEqual(existing.Spec, want.Spec) {
+		// Ensure that we update the CRD when ownerReferences change,
+		// in addition to the spec changes.
+		if !equality.Semantic.DeepEqual(existing.Spec, want.Spec) || !equality.Semantic.DeepEqual(existing.GetOwnerReferences(), want.GetOwnerReferences()) {
 			if err := r.Update(ctx, want); err != nil {
 				return nil, r.handleErrorWithEvent(log, mrd, err, "cannot update CustomResourceDefinition", reasonUpdateCRD)
 			}
