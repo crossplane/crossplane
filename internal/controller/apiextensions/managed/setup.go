@@ -31,6 +31,7 @@ import (
 
 	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
 	apiextensionscontroller "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
+	"github.com/crossplane/crossplane/v2/internal/ssa"
 )
 
 // Setup adds a controller that reconciles CompositeResourceDefinitions by
@@ -40,7 +41,11 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithManagedFieldsUpgrader(ssa.NewPatchingManagedFieldsUpgrader(
+			mgr.GetClient(),
+			ssa.ExactMatch(FieldOwnerMRD),
+		)),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -68,10 +73,20 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
-// NewReconciler returns a Reconciler of CompositeResourceDefinitions.
+// WithManagedFieldsUpgrader specifies how the Reconciler should upgrade CRD
+// managed fields from client-side apply to server-side apply.
+func WithManagedFieldsUpgrader(u ssa.ManagedFieldsUpgrader) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.managedFields = u
+	}
+}
+
+// NewReconciler returns a Reconciler of ManagedResourceDefinitions.
 func NewReconciler(mgr ctrl.Manager, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		Client: mgr.GetClient(),
+		client: mgr.GetClient(),
+
+		managedFields: &ssa.NopManagedFieldsUpgrader{},
 
 		log:        logging.NewNopLogger(),
 		record:     event.NewNopRecorder(),
