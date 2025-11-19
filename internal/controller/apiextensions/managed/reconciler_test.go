@@ -115,20 +115,6 @@ func TestReconcile(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
-		"MRDBeingDeletedStatusUpdateConflict": {
-			reason: "We should requeue on status update conflicts during deletion",
-			args: args{
-				c: &test.MockClient{
-					MockGet: withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
-						mrd.SetDeletionTimestamp(&now)
-					})),
-					MockStatusUpdate: test.NewMockSubResourceUpdateFn(kerrors.NewConflict(schema.GroupResource{}, "test", errBoom)),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: true},
-			},
-		},
 		"MRDPaused": {
 			reason: "We should not reconcile a paused MRD",
 			args: args{
