@@ -22,7 +22,6 @@ import (
 	"time"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -93,16 +92,7 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 
 	if meta.WasDeleted(mrd) {
 		status.MarkConditions(v1alpha1.TerminatingManaged())
-		if err := r.client.Status().Update(ogctx, mrd); err != nil {
-			log.Debug("cannot update status of ManagedResourceDefinition", "error", err)
-			if kerrors.IsConflict(err) {
-				return reconcile.Result{Requeue: true}, nil
-			}
-			err = errors.Wrap(err, "cannot update status of ManagedResourceDefinition")
-			return reconcile.Result{}, err
-		}
-
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
 	}
 	// Check for pause annotation
 	if meta.IsPaused(mrd) {
