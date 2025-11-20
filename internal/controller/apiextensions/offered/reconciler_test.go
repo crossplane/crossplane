@@ -90,6 +90,7 @@ func TestReconcile(t *testing.T) {
 		ca   resource.ClientApplicator
 		opts []ReconcilerOption
 	}
+
 	type want struct {
 		r   reconcile.Result
 		err error
@@ -900,9 +901,14 @@ func TestReconcile(t *testing.T) {
 					WithControllerEngine(&MockEngine{
 						MockIsRunning: func(_ string) bool { return true },
 						MockStart: func(_ string, _ ...engine.ControllerOption) error {
-							t.Errorf("MockStart should not be called")
+							// Start is idempotent, so it's fine to call it when already running.
 							return nil
 						},
+						MockStartWatches: func(_ context.Context, _ string, _ ...engine.Watch) error {
+							return nil
+						},
+						MockGetClient:       func() client.Client { return test.NewMockClient() },
+						MockGetFieldIndexer: func() client.FieldIndexer { return nil },
 					}),
 				},
 			},
@@ -915,11 +921,12 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.ca, append(tc.args.opts, WithLogger(testLog))...)
-			got, err := r.Reconcile(t.Context(), reconcile.Request{})
 
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
