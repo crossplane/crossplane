@@ -887,7 +887,16 @@ func TestReconcile(t *testing.T) {
 					WithControllerEngine(&MockEngine{
 						MockIsRunning: func(_ string) bool { return true },
 						MockStart: func(_ string, _ ...engine.ControllerOption) error {
-							t.Errorf("MockStart should not be called")
+							// Start is idempotent, so it's fine to call it when already running.
+							return nil
+						},
+						MockGetCached: func() client.Client {
+							return &test.MockClient{}
+						},
+						MockGetUncached: func() client.Client {
+							return &test.MockClient{}
+						},
+						MockStartWatches: func(_ context.Context, _ string, _ ...engine.Watch) error {
 							return nil
 						},
 					}),
