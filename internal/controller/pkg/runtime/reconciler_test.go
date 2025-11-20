@@ -27,6 +27,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -43,6 +44,7 @@ import (
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/features"
+	fakexpkg "github.com/crossplane/crossplane/v2/internal/xpkg/fake"
 )
 
 const (
@@ -486,6 +488,54 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errors.New(errNoRuntimeConfig), errManifestBuilderOptions),
 			},
 		},
+		"ErrGetImageConfig": {
+			reason: "Should return error when image config cannot be looked up.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							obj := o.(*v1.ProviderRevision)
+							obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+							obj.SetDesiredState(v1.PackageRevisionActive)
+							obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+							obj.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
+							obj.SetResolvedSource("example.com/provider:v1.0.0")
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+							want.SetDesiredState(v1.PackageRevisionActive)
+							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+							want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
+							want.SetResolvedSource("example.com/provider:v1.0.0")
+							want.SetConditions(v1.RuntimeUnhealthy().WithMessage("cannot prepare runtime manifest builder options: failed to look up runtime ImageConfig for example.com/provider:v1.0.0: boom"))
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{}),
+					WithFeatureFlags(flagsWithFeatures(features.EnableBetaDeploymentRuntimeConfigs)),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+					WithConfigStore(&fakexpkg.MockConfigStore{
+						MockRuntimeConfigFor: fakexpkg.NewMockRuntimeConfigForFn("", nil, errBoom),
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.New("failed to look up runtime ImageConfig for example.com/provider:v1.0.0: boom"), errManifestBuilderOptions),
+			},
+		},
 		"ErrGetRuntimeConfig": {
 			reason: "Should return error when runtime config cannot be retrieved.",
 			args: args{
@@ -528,6 +578,9 @@ func TestReconcile(t *testing.T) {
 					WithRuntimeHooks(&MockHooks{}),
 					WithFeatureFlags(flagsWithFeatures(features.EnableBetaDeploymentRuntimeConfigs)),
 					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+					WithConfigStore(&fakexpkg.MockConfigStore{
+						MockRuntimeConfigFor: fakexpkg.NewMockRuntimeConfigForFn("", nil, nil),
+					}),
 				},
 			},
 			want: want{
@@ -778,6 +831,101 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"SuccessfulHealthyRevisionWithImageConfigRuntimeConfig": {
+			reason: "Builder should use DeploymentRuntimeConfig from ImageConfig when configured.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								obj.SetDesiredState(v1.PackageRevisionActive)
+								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+								obj.SetConditions(v1.RevisionHealthy())
+								obj.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default-runtime-config"})
+								obj.SetResolvedSource("example.com/test-provider:v1.0.0")
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							case *v1beta1.DeploymentRuntimeConfig:
+								obj.SetGroupVersionKind(v1beta1.DeploymentRuntimeConfigGroupVersionKind)
+								obj.Spec.DeploymentTemplate = &v1beta1.DeploymentTemplate{
+									Metadata: &v1beta1.ObjectMeta{
+										Name: ptr.To("deployment-name-override"),
+									},
+								}
+								return nil
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+							want.SetDesiredState(v1.PackageRevisionActive)
+							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+							want.SetConditions(v1.RevisionHealthy())
+							want.SetConditions(v1.RuntimeHealthy())
+							want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default-runtime-config"})
+							want.SetResolvedSource("example.com/test-provider:v1.0.0")
+							want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+								Name:   "test-image-config",
+								Reason: v1.ImageConfigReasonRuntime,
+							})
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{
+						MockPre: func(_ context.Context, _ v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+							// Validate that the deployment runtime config was
+							// used by generating a deployment and checking for
+							// the name set above.
+							dpy := b.Deployment("")
+							if dpy.GetName() != "deployment-name-override" {
+								return errors.Errorf("got unexpected deployment name %q; deployment runtime config was not applied", dpy.GetName())
+							}
+							return nil
+						},
+						MockPost: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
+							return nil
+						},
+					}),
+					WithFeatureFlags(flagsWithFeatures(features.EnableBetaDeploymentRuntimeConfigs)),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+					WithConfigStore(&fakexpkg.MockConfigStore{
+						MockRuntimeConfigFor: func() func(context.Context, string) (string, *v1beta1.ImageRuntime, error) {
+							return fakexpkg.NewMockRuntimeConfigForFn(
+								"test-image-config",
+								&v1beta1.ImageRuntime{
+									ConfigReference: &v1beta1.RuntimeConfigReference{
+										APIVersion: ptr.To(v1beta1.SchemeGroupVersion.String()),
+										Kind:       &v1beta1.DeploymentRuntimeConfigKind,
+										Name:       "image-runtime-config",
+									},
+								},
+								nil,
+							)
+						}(),
+					}),
 				},
 			},
 			want: want{

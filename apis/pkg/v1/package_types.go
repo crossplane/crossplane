@@ -125,4 +125,7 @@ const (
 	// ImageConfigReasonRewrite indicates an image config was used to rewrite
 	// the image's path.
 	ImageConfigReasonRewrite ImageConfigRefReason = "RewriteImage"
+	// ImageConfigReasonRuntime indicates an image config was used to configure
+	// the package's runtime.
+	ImageConfigReasonRuntime ImageConfigRefReason = "ConfigureRuntime"
 )

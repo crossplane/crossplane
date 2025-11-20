@@ -14,6 +14,7 @@ type MockConfigStore struct {
 	MockPullSecretFor              func(ctx context.Context, image string) (imageConfig string, pullSecret string, err error)
 	MockImageVerificationConfigFor func(ctx context.Context, image string) (imageConfig string, verificationConfig *v1beta1.ImageVerification, err error)
 	MockRewritePath                func(ctx context.Context, image string) (imageConfig, newPath string, err error)
+	MockRuntimeConfigFor           func(ctx context.Context, image string) (imageConfig string, runtimeConfig *v1beta1.ImageRuntime, err error)
 }
 
 // PullSecretFor calls the underlying MockPullSecretFor.
@@ -29,6 +30,11 @@ func (s *MockConfigStore) ImageVerificationConfigFor(ctx context.Context, image 
 // RewritePath calls the underlying MockRewritePath.
 func (s *MockConfigStore) RewritePath(ctx context.Context, image string) (imageConfig, newPath string, err error) {
 	return s.MockRewritePath(ctx, image)
+}
+
+// RuntimeConfigFor calls the underlying MockRuntimeConfigFor.
+func (s *MockConfigStore) RuntimeConfigFor(ctx context.Context, image string) (imageConfig string, runtimeConfig *v1beta1.ImageRuntime, err error) {
+	return s.MockRuntimeConfigFor(ctx, image)
 }
 
 // NewMockConfigStorePullSecretForFn creates a new MockPullSecretFor function for MockConfigStore.
@@ -50,5 +56,13 @@ func NewMockConfigStoreImageVerificationConfigForFn(imageConfig string, verifica
 func NewMockRewritePathFn(imageConfig, newPath string, err error) func(context.Context, string) (string, string, error) {
 	return func(_ context.Context, _ string) (string, string, error) {
 		return imageConfig, newPath, err
+	}
+}
+
+// NewMockRuntimeConfigForFn creates a new MockRewritePath function for
+// MockConfigStore.
+func NewMockRuntimeConfigForFn(imageConfig string, runtimeConfig *v1beta1.ImageRuntime, err error) func(context.Context, string) (string, *v1beta1.ImageRuntime, error) {
+	return func(_ context.Context, _ string) (string, *v1beta1.ImageRuntime, error) {
+		return imageConfig, runtimeConfig, err
 	}
 }

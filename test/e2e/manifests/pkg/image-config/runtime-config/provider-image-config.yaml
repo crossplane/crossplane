@@ -1,0 +1,11 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: ImageConfig
+metadata:
+  name: provider-nop-image-config
+spec:
+  matchImages:
+    - type: Prefix
+      prefix: xpkg.upbound.io/crossplane-contrib/provider-nop
+  runtime:
+    configRef:
+      name: image-config-rc
