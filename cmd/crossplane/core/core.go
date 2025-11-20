@@ -139,6 +139,7 @@ type startCommand struct {
 	EnableCustomToManagedResourceConversion bool `default:"true" group:"Beta Features:" help:"Enable support CRD to MRD conversion when installing a package."`
 
 	RestrictNamespacedEvents bool `default:"false" help:"Prevent events from being produced on resources that are not namespaced. Useful when crossplane does not have permissions in the default namespace."`
+	WatchCacheNamespaced     bool `default:"false" help:"Restrict resource caching to Crossplane's namespace only. Use this when Crossplane lacks cluster-wide permissions."`
 
 	// These are features that we've removed support for. Crossplane returns an
 	// error when you enable them. This ensures you'll see an explicit and
@@ -182,11 +183,21 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	// They use their own. They're setup later in this method.
 	eb := record.NewBroadcaster()
 
+	cacheOptions := cache.Options{
+		SyncPeriod: &c.SyncInterval,
+	}
+	if c.WatchCacheNamespaced {
+		// This makes the cache controller watch resources only in crossplane's namespace.
+		// Otherwise, it tries to watch resources in all namespaces, and crashes if the
+		// crossplane ServiceAccount doesn't have enough permissions.
+		cacheOptions.DefaultNamespaces = map[string]cache.Config{
+			c.Namespace: {},
+		}
+	}
+
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: s,
-		Cache: cache.Options{
-			SyncPeriod: &c.SyncInterval,
-		},
+		Cache:  cacheOptions,
 		WebhookServer: webhook.NewServer(webhook.Options{
 			CertDir: c.TLSServerCertsDir,
 			TLSOpts: []func(*tls.Config){
