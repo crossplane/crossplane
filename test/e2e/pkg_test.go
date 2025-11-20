@@ -24,6 +24,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8sapiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
@@ -748,6 +750,122 @@ func TestImageConfigRewrite(t *testing.T) {
 				// sufficient to ensure the provider completely deleted
 				// including all revisions.
 				funcs.ResourceDeletedWithin(2*time.Minute, &k8sapiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}}),
+			)).Feature(),
+	)
+}
+
+// TestActivationPolicyAutomatic tests that the automatic revision activation
+// policy works correctly.
+func TestActivationPolicyAutomatic(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/activation/automatic"
+	revision1 := &pkgv1.ConfigurationRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-activation-f0d15148f701"}}
+	revision2 := &pkgv1.ConfigurationRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-activation-b36b1d61b93b"}}
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that the automatic revision activation policy works correctly.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			Assess("InstallConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration-1.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-1.yaml", pkgv1.Healthy(), pkgv1.Active()),
+
+				funcs.ResourceCreatedWithin(2*time.Minute, revision1),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, revision1, "spec.revision", int64(1)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, revision1, "spec.desiredState", "Active"),
+				// Check that the composition in the configuration was created.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &apiextensionsv1.Composition{ObjectMeta: metav1.ObjectMeta{Name: "xnopresources.nop.example.org"}}, "metadata.labels[e2eTestRevision]", "one"),
+			)).
+			Assess("UpdateConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration-2.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-2.yaml", pkgv1.Healthy(), pkgv1.Active()),
+
+				funcs.ResourceCreatedWithin(2*time.Minute, revision2),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, revision2, "spec.revision", int64(2)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, revision2, "spec.desiredState", "Active"),
+				// Check that the old revision was deactivated.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, revision1, "spec.desiredState", "Inactive"),
+				// Check that the composition in the configuration was updated.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &apiextensionsv1.Composition{ObjectMeta: metav1.ObjectMeta{Name: "xnopresources.nop.example.org"}}, "metadata.labels[e2eTestRevision]", "two"),
+			)).
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration-2.yaml"),
+				funcs.ResourceDeletedWithin(2*time.Minute, revision1),
+				funcs.ResourceDeletedWithin(2*time.Minute, revision2),
+				funcs.ResourceDeletedWithin(2*time.Minute, &apiextensionsv1.Composition{ObjectMeta: metav1.ObjectMeta{Name: "xnopresources.nop.example.org"}}),
+			)).Feature(),
+	)
+}
+
+// TestActivationPolicyManual tests that the manual revision activation
+// policy works correctly.
+func TestActivationPolicyManual(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/activation/manual"
+	revision1 := &pkgv1.ConfigurationRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-activation-f0d15148f701"}}
+	revision2 := &pkgv1.ConfigurationRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-activation-b36b1d61b93b"}}
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that the manual revision activation policy works correctly.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			Assess("InstallConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration-1.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-1.yaml", pkgv1.Healthy(), pkgv1.Inactive()),
+
+				funcs.ResourceCreatedWithin(2*time.Minute, revision1),
+				funcs.ResourceHasConditionWithin(2*time.Minute, revision1, pkgv1.RevisionHealthy()),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, revision1, "spec.revision", int64(1)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, revision1, "spec.desiredState", "Inactive"),
+				// Check that the composition in the configuration was not created.
+				funcs.ResourceDeletedWithin(2*time.Minute, &apiextensionsv1.Composition{ObjectMeta: metav1.ObjectMeta{Name: "xnopresources.nop.example.org"}}),
+			)).
+			Assess("ActivateFirstRevision", funcs.AllOf(
+				funcs.ListedResourcesModifiedWith(&pkgv1.ConfigurationRevisionList{}, 1, func(o k8s.Object) {
+					rev := o.(*pkgv1.ConfigurationRevision)
+					rev.Spec.DesiredState = pkgv1.PackageRevisionActive
+				}, resources.WithFieldSelector("metadata.name=e2e-activation-f0d15148f701")),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, revision1, "spec.desiredState", "Active"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-1.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				// Check that the composition in the configuration was created.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &apiextensionsv1.Composition{ObjectMeta: metav1.ObjectMeta{Name: "xnopresources.nop.example.org"}}, "metadata.labels[e2eTestRevision]", "one"),
+			)).
+			Assess("UpdateConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration-2.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-2.yaml", pkgv1.Healthy(), pkgv1.Active()),
+
+				funcs.ResourceCreatedWithin(2*time.Minute, revision2),
+				funcs.ResourceHasConditionWithin(2*time.Minute, revision2, pkgv1.RevisionHealthy()),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, revision2, "spec.revision", int64(2)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, revision2, "spec.desiredState", "Inactive"),
+				// Check that the old revision is still active.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, revision1, "spec.desiredState", "Active"),
+				// Check that the composition in the configuration was not updated.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &apiextensionsv1.Composition{ObjectMeta: metav1.ObjectMeta{Name: "xnopresources.nop.example.org"}}, "metadata.labels[e2eTestRevision]", "one"),
+			)).
+			Assess("DeactivateFirstRevision", funcs.AllOf(
+				funcs.ListedResourcesModifiedWith(&pkgv1.ConfigurationRevisionList{}, 1, func(o k8s.Object) {
+					rev := o.(*pkgv1.ConfigurationRevision)
+					rev.Spec.DesiredState = pkgv1.PackageRevisionInactive
+				}, resources.WithFieldSelector("metadata.name=e2e-activation-f0d15148f701")),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, revision1, "spec.desiredState", "Inactive"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-1.yaml", pkgv1.Healthy(), pkgv1.Inactive()),
+			)).
+			Assess("ActivateSecondRevision", funcs.AllOf(
+				funcs.ListedResourcesModifiedWith(&pkgv1.ConfigurationRevisionList{}, 1, func(o k8s.Object) {
+					rev := o.(*pkgv1.ConfigurationRevision)
+					rev.Spec.DesiredState = pkgv1.PackageRevisionActive
+				}, resources.WithFieldSelector("metadata.name=e2e-activation-b36b1d61b93b")),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, revision2, "spec.desiredState", "Active"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-1.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				// Check that the composition in the configuration was updated.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &apiextensionsv1.Composition{ObjectMeta: metav1.ObjectMeta{Name: "xnopresources.nop.example.org"}}, "metadata.labels[e2eTestRevision]", "two"),
+			)).
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration-2.yaml"),
+				funcs.ResourceDeletedWithin(2*time.Minute, revision1),
+				funcs.ResourceDeletedWithin(2*time.Minute, revision2),
+				funcs.ResourceDeletedWithin(2*time.Minute, &apiextensionsv1.Composition{ObjectMeta: metav1.ObjectMeta{Name: "xnopresources.nop.example.org"}}),
 			)).Feature(),
 	)
 }
