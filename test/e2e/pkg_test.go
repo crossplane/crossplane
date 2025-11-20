@@ -17,13 +17,17 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sapiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
@@ -126,6 +130,8 @@ func TestConfigurationWithDependency(t *testing.T) {
 func TestProviderUpgrade(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/provider"
 
+	var controller *metav1.OwnerReference
+
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests that we can upgrade a provider to a new version, even when a managed resource has been created.").
 			WithLabel(LabelArea, LabelAreaPkg).
@@ -140,10 +146,43 @@ func TestProviderUpgrade(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "mr-initial.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "mr-initial.yaml"),
 			)).
+			Assess("RecordInitialCRDController", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+				t.Helper()
+
+				crd := &k8sapiextensionsv1.CustomResourceDefinition{}
+				if err := c.Client().Resources().Get(ctx, "nopresources.nop.crossplane.io", "", crd); err != nil {
+					t.Errorf("failed to get CRD: %v", err)
+					return ctx
+				}
+
+				controller = metav1.GetControllerOf(crd)
+				return ctx
+			}).
 			Assess("UpgradeProvider", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-upgrade.yaml"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-upgrade.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
+			// Regression test for the following issues:
+			// https://github.com/crossplane/crossplane/issues/6761
+			// https://github.com/crossplane/crossplane/issues/6804
+			Assess("CRDOwnerReferencesUpdated",
+				funcs.ResourceValidatedWithin(1*time.Minute,
+					&k8sapiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}},
+					func(obj k8s.Object) bool {
+						crd := obj.(*k8sapiextensionsv1.CustomResourceDefinition)
+
+						diff := cmp.Diff(controller, metav1.GetControllerOf(crd))
+
+						// We want the controller to change.
+						if diff == "" {
+							return false
+						}
+
+						t.Logf("NopResource CRD controller reference changed:\n%v", diff)
+						return true
+					},
+				),
+			).
 			Assess("UpgradeManagedResource", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "mr-upgrade.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mr-upgrade.yaml", xpv1.Available()),
