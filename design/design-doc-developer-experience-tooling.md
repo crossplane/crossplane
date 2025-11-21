@@ -491,6 +491,43 @@ and potentially real cloud resources), it is likely more appropriate to
 introduce extensibility points in uptest rather than the wrapper provided by the
 DevEx tooling.
 
+## Appendix: Proposed New Commands
+
+For clarity, this is the full tree of commands this design proposes adding to
+the `crossplane` CLI:
+
+* `crossplane project`
+  * `init` - Initialize a new project.
+  * `build` - Build a project into a set of Crossplane packages.
+  * `push` - Push packages built from a project to an OCI registry.
+  * `run` - Build a project and install it into a control plane for testing; by
+    default, create and use a local control plane with `kind`.
+  * `stop` - Tear down the control plane started by `run`.
+* `crossplane generate`
+  * `example` - Interactively generate an example XR.
+  * `xrd` - Scaffold an XRD, optionally using an example to determine the
+    schema.
+  * `composition` - Scaffold a composition pipeline for an XRD.
+  * `operation` - Scaffold an operation pipeline.
+  * `function` - Scaffold an embedded composition or operation function within a
+    project. Optionally add the new function to a pipeline.
+  * `test` - Scaffold a composition, operation, or e2e test.
+  * `schemas` - Generate language bindings for an existing Crossplane package
+    and add them as new package layers.
+* `crossplane test` - Execute one or more composition, operation, or e2e
+  tests. For e2e tests, optionally create a local control plane and use it (like
+  `crossplane project run`).
+* `crossplane dependency`
+  * `add` - Add a dependency to a project and generate or cache language
+    bindings for its resource types.
+  * `update-cache` - Update the dependency cache, re-generating or caching
+    language bindings as needed.
+
+Additionally, the `crossplane render` command will be updated to work in project
+contexts. Specifically, when run in a project with embedded functions, the
+functions will automatically be built and run as part of the render operation,
+avoiding the need to build and/or push them separately.
+
 ## Appendix: API Definitions
 
 The APIs described above for projects and tests are Kubernetes-like, but are
