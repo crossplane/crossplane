@@ -179,7 +179,7 @@ spec:
         - type: prefix
           prefix: xpkg.crossplane.io/crossplane-contrib
       rewriteImage:
-        prefix: internal-registsry.example.com/mirror/crossplane-contrib
+        prefix: internal-registry.example.com/mirror/crossplane-contrib
 ```
 
 Note that we are intentionally using an API group distinct from the existing
@@ -231,7 +231,7 @@ The tooling will include helper commands for scaffolding functions.
 #### Extensibility
 
 As described above, functions are built differently depending on the language
-used. To make the tooling extensible, builders for specific languages can
+used. To make the tooling extensible, builders for specific languages can be
 implemented outside of the core `crossplane project build` code.
 
 A builder must be able to do two things:
