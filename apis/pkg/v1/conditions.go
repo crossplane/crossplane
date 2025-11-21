@@ -42,6 +42,10 @@ const (
 	// A TypeVerified indicates whether a package's signature is verified.
 	// It could be either successful or skipped to be marked as complete.
 	TypeVerified xpv1.ConditionType = "Verified"
+
+	// A TypeTransacted indicates whether transaction-based installation
+	// succeeded.
+	TypeTransacted xpv1.ConditionType = "Transacted"
 )
 
 // Reasons a package is or is not installed.
@@ -53,6 +57,14 @@ const (
 	ReasonUnhealthy            xpv1.ConditionReason = "UnhealthyPackageRevision"
 	ReasonHealthy              xpv1.ConditionReason = "HealthyPackageRevision"
 	ReasonUnknownHealth        xpv1.ConditionReason = "UnknownPackageRevisionHealth"
+)
+
+// Reasons a package transaction is or is not complete.
+const (
+	ReasonTransactionCreated   xpv1.ConditionReason = "TransactionCreated"
+	ReasonTransactionRunning   xpv1.ConditionReason = "TransactionRunning"
+	ReasonTransactionSucceeded xpv1.ConditionReason = "TransactionSucceeded"
+	ReasonTransactionFailed    xpv1.ConditionReason = "TransactionFailed"
 )
 
 // Reasons a package's signature is or is not verified.
@@ -250,6 +262,46 @@ func VerificationIncomplete(err error) xpv1.Condition {
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonVerificationIncomplete,
 		Message:            fmt.Sprintf("Error occurred during signature verification %s", err),
+	}
+}
+
+// TransactionCreated indicates that a package has created a transaction.
+func TransactionCreated() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeTransacted,
+		Status:             corev1.ConditionUnknown,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonTransactionCreated,
+	}
+}
+
+// TransactionRunning indicates that a transaction is in progress.
+func TransactionRunning() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeTransacted,
+		Status:             corev1.ConditionUnknown,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonTransactionRunning,
+	}
+}
+
+// TransactionSucceeded indicates that a transaction completed successfully.
+func TransactionSucceeded() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeTransacted,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonTransactionSucceeded,
+	}
+}
+
+// TransactionFailed indicates that a transaction failed.
+func TransactionFailed() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeTransacted,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonTransactionFailed,
 	}
 }
 
