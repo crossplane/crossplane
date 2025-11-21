@@ -491,6 +491,460 @@ and potentially real cloud resources), it is likely more appropriate to
 introduce extensibility points in uptest rather than the wrapper provided by the
 DevEx tooling.
 
+## Appendix: API Definitions
+
+The APIs described above for projects and tests are Kubernetes-like, but are
+never actually installed into a Kubernetes cluster. Nonetheless, their specs are
+provided below as kubebuilder Go structs to show the available fields.
+
+<details>
+
+<summary>Project Metadata</summary>
+
+```go
+package v1alpha1
+
+import (
+	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+// Project defines a Crossplane development project, which can be built into a
+// set of installable Crossplane packages.
+//
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type Project struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec *ProjectSpec `json:"spec,omitempty"`
+}
+
+// ProjectSpec is the spec for a Project.
+//
+// +k8s:deepcopy-gen=true
+type ProjectSpec struct {
+	ProjectPackageMetadata `json:",inline"`
+
+	// Repository is the OCI repository where the project will be pushed. This
+	// is used as part of the build process to construct dependencies on the
+	// embedded functions.
+	Repository string `json:"repository"`
+	// Crossplane version constraints (optional).
+	Crossplane *pkgmetav1.CrossplaneConstraints `json:"crossplane,omitempty"`
+	// DependsOn contains external Crossplane package dependencies
+	// (optional). These will be copied to the Crossplane package metadata as
+	// part of the build process.
+	DependsOn []pkgmetav1.Dependency `json:"dependsOn,omitempty"`
+	// APIDependencies are used only for authoring functions, but do not need to
+	// be installed as dependencies of the built packages (optional). For
+	// example, this can be used to get language bindings for external
+	// controllers' CRDs.
+	// +optional
+	APIDependencies []APIDependency `json:"apiDependencies,omitempty"`
+	// Paths defines where the build tooling should look for various parts of
+	// the configuration, relative to the location of the metadata
+	// file. (optional).
+	Paths *ProjectPaths `json:"paths,omitempty"`
+	// Architectures for which to build functions (optional).
+	Architectures []string `json:"architectures,omitempty"`
+	// ImageConfig allows rewriting of package locations during development, for
+	// example to enable use of the DevEx tools in network restricted
+	// environments. Note that only a subset of Crossplane's ImageConfig
+	// functionality is supported here.
+	ImageConfigs []ImageConfig `json:"imageConfigs,omitempty"`
+}
+
+// ProjectPackageMetadata holds metadata about the project, which will become
+// package metadata when a project is built into a Crossplane package.
+type ProjectPackageMetadata struct {
+	Maintainer  string `json:"maintainer,omitempty"`
+	Source      string `json:"source,omitempty"`
+	License     string `json:"license,omitempty"`
+	Description string `json:"description,omitempty"`
+	Readme      string `json:"readme,omitempty"`
+}
+
+// ProjectPaths configures the locations of various parts of the project, for
+// use at build time.
+type ProjectPaths struct {
+	// APIs is the directory holding the project's apis. If not
+	// specified, it defaults to `apis/`.
+	APIs string `json:"apis,omitempty"`
+	// Functions is the directory holding the project's functions. If not
+	// specified, it defaults to `functions/`.
+	Functions string `json:"functions,omitempty"`
+	// Examples is the directory holding the project's examples. If not
+	// specified, it defaults to `examples/`.
+	Examples string `json:"examples,omitempty"`
+	// Tests is the directory holding the project's tests. If not
+	// specified, it defaults to `tests/`.
+	Tests string `json:"tests,omitempty"`
+	// Operations is the directory holding the project's operations. If not
+	// specified, it defaults to `operations/`.
+	Operations string `json:"operations,omitempty"`
+}
+
+// ImageMatch defines a rule for matching image.
+type ImageMatch struct {
+	// Type is the type of match.
+	// +optional
+	// +kubebuilder:validation:Enum=Prefix
+	// +kubebuilder:default=Prefix
+	Type string `json:"type"`
+
+	// Prefix is the prefix that should be matched.
+	Prefix string `json:"prefix"`
+}
+
+// ImageRewrite defines how a matched image should be rewritten.
+type ImageRewrite struct {
+	// Prefix is the prefix to use when rewriting the image.
+	Prefix string `json:"prefix"`
+}
+
+// ImageConfig defines a set of rules for matching and rewriting images.
+type ImageConfig struct {
+	// MatchImages is a list of image matching rules that should be satisfied.
+	// +kubebuilder:validation:XValidation:rule="size(self) > 0",message="matchImages should have at least one element."
+	MatchImages []ImageMatch `json:"matchImages"`
+
+	// RewriteImage defines how a matched image should be rewritten.
+	RewriteImage ImageRewrite `json:"rewriteImage"`
+}
+
+// API dependency type constants.
+const (
+	// APIDependencyTypeK8s represents Kubernetes API dependencies.
+	APIDependencyTypeK8s = "k8s"
+	// APIDependencyTypeCRD represents Custom Resource Definition dependencies.
+	APIDependencyTypeCRD = "crd"
+)
+
+// APIDependency defines a reference to an external API dependency.
+type APIDependency struct {
+	// Type defines the type of API dependency.
+	// +kubebuilder:validation:Enum=k8s;crd
+	Type string `json:"type"`
+
+	// Git defines the git repository source for the API dependency.
+	// +optional
+	Git *APIGitReference `json:"git,omitempty"`
+
+	// HTTP defines the HTTP source for the API dependency.
+	// +optional
+	HTTP *APIHTTPReference `json:"http,omitempty"`
+
+	// K8s defines the Kubernetes API version for the dependency.
+	// +optional
+	K8s *APIK8sReference `json:"k8s,omitempty"`
+}
+
+// APIGitReference defines a git repository source for an API dependency.
+type APIGitReference struct {
+	// Repository is the git repository URL.
+	Repository string `json:"repository"`
+
+	// Ref is the git reference (branch, tag, or commit SHA).
+	// +optional
+	Ref string `json:"ref,omitempty"`
+
+	// Path is the path within the repository to the API definition.
+	// +optional
+	Path string `json:"path,omitempty"`
+}
+
+// APIHTTPReference defines an HTTP source for an API dependency.
+type APIHTTPReference struct {
+	// URL is the HTTP/HTTPS URL to fetch the API dependency from.
+	URL string `json:"url"`
+}
+
+// APIK8sReference defines a Kubernetes API version reference.
+type APIK8sReference struct {
+	// Version is the Kubernetes API version (e.g., "v1.33.0").
+	Version string `json:"version"`
+}
+```
+
+</details>
+
+<details>
+
+<summary>Composition Tests</summary>
+
+```go
+package v1alpha1
+
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
+)
+
+// CompositionTest defines a test that runs a composition pipeline and
+// executes assertions on the resulting resources.
+//
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Namespaced,shortName=comptest,categories=meta
+type CompositionTest struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec CompositionTestSpec `json:"spec"`
+}
+
+// CompositionTestSpec defines the specification for the CompositionTest.
+//
+// +k8s:deepcopy-gen=true
+type CompositionTestSpec struct {
+	// Timeout for the test in seconds
+	// Required. Default is 30s.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default=30
+	TimeoutSeconds int `json:"timeoutSeconds"`
+
+	// Validate indicates whether to validate managed resources against schemas.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	Validate *bool `json:"validate,omitempty"`
+
+	// XR specifies the composite resource (XR) inline.
+	// Mutually exclusive with XRPath. At least one of XR or XRPath must be specified.
+	XR runtime.RawExtension `json:"xr,omitempty"`
+
+	// XRPath specifies the composite resource (XR) path.
+	// Mutually exclusive with XR. At least one of XR or XRPath must be specified.
+	XRPath string `json:"xrPath,omitempty"`
+
+	// XRD specifies the XRD definition inline.
+	// Optional.
+	XRD runtime.RawExtension `json:"xrd,omitempty"`
+
+	// XRD specifies the XRD definition path.
+	// Optional.
+	XRDPath string `json:"xrdPath,omitempty"`
+
+	// Composition specifies the composition definition inline.
+	// Optional.
+	Composition runtime.RawExtension `json:"composition,omitempty"`
+
+	// Composition specifies the composition definition path.
+	// Optional.
+	CompositionPath string `json:"compositionPath,omitempty"`
+
+	// ObservedResources specifies additional observed resources inline.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	ObservedResources []runtime.RawExtension `json:"observedResources,omitempty"`
+
+	// ExtraResources specifies additional resources inline.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	ExtraResources []runtime.RawExtension `json:"extraResources,omitempty"`
+
+	// FunctionCredentialsPath specifies a path to a credentials file to be passed to tests.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	FunctionCredentialsPath string `json:"functionCredentialsPath,omitempty"`
+
+	// Context specifies context for the Function Pipeline inline as key-value pairs.
+	// Keys are context keys, values are JSON data.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	Context map[string]runtime.RawExtension `json:"context,omitempty"`
+
+	// AssertResources defines assertions to validate resources after test completion.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	AssertResources []runtime.RawExtension `json:"assertResources,omitempty"`
+}
+```
+
+</details>
+
+<details>
+
+<summary>Operation Tests</summary>
+
+```go
+package v1alpha1
+
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
+)
+
+// OperationTest defines a test that runs an operation pipeline and executes
+// assertions on the resulting resources.
+//
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Namespaced,shortName=optest,categories=meta
+type OperationTest struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec OperationTestSpec `json:"spec"`
+}
+
+// OperationTestSpec defines the specification for the OperationTest.
+//
+// +k8s:deepcopy-gen=true
+type OperationTestSpec struct {
+	// Timeout for the test in seconds
+	// Required. Default is 30s.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default=30
+	TimeoutSeconds int `json:"timeoutSeconds"`
+
+	// Operation specifies the Operation definition inline.
+	// Optional.
+	Operation runtime.RawExtension `json:"operation,omitempty"`
+
+	// OperationPath specifies the XRD definition path.
+	// Optional.
+	OperationPath string `json:"operationPath,omitempty"`
+
+	// RequiredResources specifies additional required resources inline.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	RequiredResources []runtime.RawExtension `json:"requiredResources,omitempty"`
+
+	// RequiredResourcesPath specifies a path to required resources file.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	RequiredResourcesPath string `json:"requiredResourcesPath,omitempty"`
+
+	// FunctionCredentialsPath specifies a path to a credentials file to be passed to tests.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	FunctionCredentialsPath string `json:"functionCredentialsPath,omitempty"`
+
+	// Context specifies context for the Function Pipeline inline as key-value pairs.
+	// Keys are context keys, values are JSON data.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	Context map[string]runtime.RawExtension `json:"context,omitempty"`
+
+	// AssertResources defines assertions to validate resources after test completion.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	AssertResources []runtime.RawExtension `json:"assertResources,omitempty"`
+}
+```
+
+</details>
+
+<details>
+
+<summary>E2E Tests</summary>
+
+```go
+package v1alpha1
+
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
+)
+
+// E2ETest defines an end-to-end test where packages are installed into a real
+// control plane instance, resources are applied, and assertions are executed
+// against the resulting state. E2E tests are executed using the uptest tool.
+//
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Namespaced,shortName=e2e,categories=meta
+type E2ETest struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec E2ETestSpec `json:"spec"`
+}
+
+// E2ETestSpec defines the specification for e2e testing of Crossplane
+// configurations. It orchestrates the complete test lifecycle including setting
+// up controlplane, applying test resources in the correct order (InitResources
+// → Configuration → ExtraResources → Manifests), validating conditions, and
+// handling cleanup. This spec allows you to define e2e tests that verify your
+// Crossplane compositions, providers, and managed resources work correctly
+// together in a real controlplane environment.
+//
+// +k8s:deepcopy-gen=true
+// +kubebuilder:validation:Required
+type E2ETestSpec struct {
+	// CrossplaneVersion specifies the Crossplane version required for this
+	// test.
+	// +kubebuilder:validation:Required
+	CrossplaneVersion string `json:"crossplaneVersion,omitempty"`
+
+	// TimeoutSeconds defines the maximum duration in seconds that the test is
+	// allowed to run before being marked as failed. This includes time for
+	// resource creation, condition checks, and any reconciliation processes. If
+	// not specified, a default timeout will be used. Consider setting higher
+	// values for tests involving complex resources or those requiring multiple
+	// reconciliation cycles.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Minimum=1
+	TimeoutSeconds *int `json:"timeoutSeconds,omitempty"`
+
+	// CleanupTimeoutSeconds defines the maximum duration in seconds for cleanup
+	// operations after the test completes. This timeout applies to the deletion
+	// of test resources and any associated managed resources. If not specified,
+	// defaults to 600 seconds (10 minutes). Consider increasing this value for
+	// tests with many resources or complex deletion dependencies.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default=600
+	CleanupTimeoutSeconds *int `json:"cleanupTimeoutSeconds,omitempty"`
+
+	// If true, skip resource deletion after test
+	// +kubebuilder:validation:Optional
+	SkipDelete *bool `json:"skipDelete,omitempty"`
+
+	// DefaultConditions specifies the expected conditions that should be met
+	// after the manifests are applied. These are validation checks that verify
+	// the resources are functioning correctly. Each condition is a string
+	// expression that will be evaluated against the deployed resources. Common
+	// conditions include checking resource status for readiness
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MinItems=1
+	DefaultConditions []string `json:"defaultConditions,omitempty"`
+
+	// Manifests contains the Kubernetes resources that will be applied as part
+	// of this e2e test. These are the primary resources being tested - they
+	// will be created in the controlplane and then validated against the
+	// conditions specified in DefaultConditions. Each manifest must be a valid
+	// Kubernetes object. At least one manifest is required. Examples include
+	// Claims, Composite Resources or any Kubernetes resource you want to test.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinItems=1
+	Manifests []runtime.RawExtension `json:"manifests"`
+
+	// ExtraResources specifies additional Kubernetes resources that should be
+	// created or updated after the configuration has been successfully applied.
+	// These resources may depend on the primary configuration being in place.
+	// Common use cases include ConfigMaps, Secrets, providerConfigs. Each
+	// resource must be a valid Kubernetes object.
+	// +kubebuilder:validation:Optional
+	ExtraResources []runtime.RawExtension `json:"extraResources,omitempty"`
+
+	// InitResources specifies Kubernetes resources that must be created or
+	// updated before the configuration is applied. These are typically
+	// prerequisite resources that the configuration depends on. Common use
+	// cases include ImageConfigs, DeploymentRuntimeConfigs, or any foundational
+	// resources required for the configuration to work. Each resource must be a
+	// valid Kubernetes object.
+	// +kubebuilder:validation:Optional
+	InitResources []runtime.RawExtension `json:"initResources,omitempty"`
+}
+```
+
+</details>
+
 [OCI layout]: https://specs.opencontainers.org/image-spec/image-layout/
 [crossplane-contrib/function-python]: https://github.com/crossplane-contrib/function-python
 [`ko`]: https://ko.build
