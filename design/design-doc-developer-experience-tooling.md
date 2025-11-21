@@ -203,7 +203,7 @@ project metadata file during `crossplane project build`.
 
 The tooling will include helper commands for managing dependencies. These
 commands not only mutate the `dependsOn` in the project metadata, but also
-download language bindings for dependency packages (see the Langauge Bindings
+download language bindings for dependency packages (see the Language Bindings
 section below) so they can be used when writing functions in the project.
 
 ### Embedded Functions
@@ -218,7 +218,7 @@ The `crossplane project build` command builds each embedded function into its
 own Crossplane Function package. This involves first building a runtime image,
 then generating and adding a package metadata layer as required by the XPKG
 specification. The details of how the runtime image are built vary depending on
-the langauge used for the function:
+the details of how the runtime image are built vary depending on the language used for the function:
 
 * **Go:** [`ko`] is invoked as a library to build an image.
 * **go-templating:** Template files are added to the
