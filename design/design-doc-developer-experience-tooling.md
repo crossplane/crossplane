@@ -44,9 +44,10 @@ This design is based on the [Upbound developer experience], which has already
 been implemented as a proprietary tool. Upbound intends to contribute code from
 their proprietary tooling to the Crossplane community to implement this design.
 
-This design includes a section on testing. A number of tools have been built for
-testing Crossplane configurations, and may be integrated with this
-design. Examples include [xprin] and [`crossplane beta test`].
+This design includes a section on testing. A number of tools have been built or
+proposed for testing Crossplane configurations, and may be integrated with this
+design. Examples include [xprin] (pending open-sourcing) and the proposed
+[`crossplane beta test`] tool.
 
 [function-pythonic] offers a Python-based developer experience for building
 composition functions, and could be integrated into this design as a builder
@@ -55,6 +56,13 @@ composition functions, and could be integrated into this design as a builder
 ## Proposal
 
 ### Overview
+
+> [!NOTE]
+> This document proposes a tree of commands for the `crossplane` CLI. These
+> commands will likely start out as `beta` commands, but are written in this
+> design without the `beta` prefix to demonstrate the ultimate future state. For
+> example, `crossplane project build` will initially be `crossplane beta project
+> build`.
 
 A project will have a directory layout similar to the following:
 
@@ -102,7 +110,11 @@ their own repositories.
 
 The `project.yaml` file contains metadata and configuration for the project. It
 configures the build tooling and lists the project's dependencies (other
-Crossplane packages such as Providers).
+Crossplane packages such as Providers). When building with projects, the
+`project.yaml` file replaces the `crossplane.yaml` file found in non-project
+Crossplane package source trees. As described below, the build tooling
+constructs a `crossplane.yaml` for each package it produces based on the
+contents of the project, including the `project.yaml`.
 
 When a user runs `crossplane project build`, four Crossplane packages will be
 produced: a Configuration and three Functions. The Configuration will include
@@ -334,8 +346,9 @@ projects. Projects allow for three layers of testing:
 
 1. Language-specific tests for embedded functions (e.g., Go or Python unit
    tests).
-2. Composition tests, which use `crossplane render` to run compositions
-   (including embedded functions) and check assertions on the output.
+2. Composition tests and operation tests, which use `crossplane render` to run
+   composition or operation pipelines (including embedded functions from the
+   project) and check assertions on the output.
 3. E2E tests, which install a project's packages into a real control plane,
    apply resources, and wait for them to have certain conditions. E2E tests are
    executed using [uptest].
@@ -344,11 +357,12 @@ Language-specific tests may use the language bindings described above, but
 otherwise are built using language-specific tools outside the scope of this
 design.
 
-Composition tests and E2E tests are written as YAML manifests describing the
-test to run. The tooling will include the ability to generate test manifests
-from code on-the-fly (in the same languages supported for embedded functions),
-so that extensive test suites can be built easily without duplicating many lines
-of YAML. Multiple tests can be specified at once, and will be run in sequence.
+Composition tests, operation tests, and E2E tests are written as YAML manifests
+describing the test to run. The tooling will include the ability to generate
+test manifests from code on-the-fly (in the same languages supported for
+embedded functions), so that extensive test suites can be built easily without
+duplicating many lines of YAML. Multiple tests can be specified in a single
+file, and will be run in sequence.
 
 The composition test API looks like this:
 
