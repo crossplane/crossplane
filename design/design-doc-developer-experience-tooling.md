@@ -367,7 +367,7 @@ file, and will be run in sequence.
 The composition test API looks like this:
 
 ```yaml
-apiVersion: dev.crossplane.io/v1alpha1
+apiVersion: test.crossplane.io/v1alpha1
 kind: CompositionTest
 metadata:
   name: test-cluster
@@ -419,7 +419,7 @@ are built on-the-fly) are run in containers.
 The E2E test API is similar:
 
 ```yaml
-apiVersion: dev.crossplane.io/v1alpha1
+apiVersion: test.crossplane.io/v1alpha1
 kind: E2ETest
 metadata:
   name: e2e-test-cluster
