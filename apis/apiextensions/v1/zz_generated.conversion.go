@@ -42,16 +42,12 @@ func (c *GeneratedRevisionSpecConverter) ToRevisionSpec(source CompositionSpec) 
 	}
 	return v1CompositionRevisionSpec
 }
-func (c *GeneratedRevisionSpecConverter) commonSecretReferenceToCommonSecretReference(source common.SecretReference) common.SecretReference {
-	var commonSecretReference common.SecretReference
-	commonSecretReference.Name = source.Name
-	commonSecretReference.Namespace = source.Namespace
-	return commonSecretReference
-}
 func (c *GeneratedRevisionSpecConverter) pCommonSecretReferenceToPCommonSecretReference(source *common.SecretReference) *common.SecretReference {
 	var pCommonSecretReference *common.SecretReference
 	if source != nil {
-		commonSecretReference := c.commonSecretReferenceToCommonSecretReference((*source))
+		var commonSecretReference common.SecretReference
+		commonSecretReference.Name = (*source).Name
+		commonSecretReference.Namespace = (*source).Namespace
 		pCommonSecretReference = &commonSecretReference
 	}
 	return pCommonSecretReference
