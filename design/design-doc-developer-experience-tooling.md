@@ -372,43 +372,51 @@ kind: CompositionTest
 metadata:
   name: test-cluster
 spec:
-  # The XR to render as input to the test.
-  xrPath: examples/cluster/xr.yaml
-  # The XRD, for schema validation.
-  xrdPath: apis/cluster/definition.yaml
-  # The composition to execute for the test.
-  compositionPath: apis/cluster/composition.yaml
-  # Optional observed resources for the composition pipeline, e.g. to test
-  # conditional logic.
-  observedResources: []
-  # Assertions on the resources rendered by the test, which can include any
-  # expected updates to the XR as well as composed resources.
-  assertions:
-    # Use chainsaw to compare resources.
-    - type: chainsaw
-      chainsaw:
-        resources:
-          - apiVersion: platform.example.com/v1alpha1
-            kind: Cluster
-            metadata:
-              name: example
-            spec:
-              version: 1.33
-              region: us-west1
-          - apiVersion: container.gcp.upbound.io/v1beta1
-            kind: Cluster
-            metadata:
-              annotations:
-                crossplane.io/composition-resource-name: cluster
-            spec:
-              forProvider:
-                location: us-west1
-                minMasterVersion: 1.33
-                nodeVersion: 1.33
-  # Timeout for the test.
-  timeoutSeconds: 120
-  # Whether to validate the output of the render.
-  validate: false
+  tests:
+    - name: "First reconciliation loop"
+      patches:
+        # The XRD, for schema validation.
+        xrdPath: apis/cluster/definition.yaml
+        # Add fields to the input XR
+        addField:
+          "spec.something": "value"
+          "metadata.labels": "mylabel"
+      inputs:
+        # The XR to render as input to the test.
+        xrPath: examples/cluster/xr.yaml
+        # The composition to execute for the test.
+        compositionPath: apis/cluster/composition.yaml
+        # Optional observed resources for the composition pipeline, e.g. to test
+        # conditional logic.
+        observedResources: []
+      # Assertions on the resources rendered by the test, which can include any
+      # expected updates to the XR as well as composed resources.
+      assertions:
+        # Use chainsaw to compare resources.
+        - type: chainsaw
+          chainsaw:
+            resources:
+              - apiVersion: platform.example.com/v1alpha1
+                kind: Cluster
+                metadata:
+                  name: example
+                spec:
+                  version: 1.33
+                  region: us-west1
+              - apiVersion: container.gcp.upbound.io/v1beta1
+                kind: Cluster
+                metadata:
+                annotations:
+                  crossplane.io/composition-resource-name: cluster
+                spec:
+                  forProvider:
+                    location: us-west1
+                    minMasterVersion: 1.33
+                    nodeVersion: 1.33
+      # Timeout for the test.
+      timeoutSeconds: 120
+      # Whether to validate the output of the render.
+      validate: false
 ```
 
 The test specifies an XR to render, and some [chainsaw] assertions on the output
@@ -736,6 +744,39 @@ type CompositionTest struct {
 //
 // +k8s:deepcopy-gen=true
 type CompositionTestSpec struct {
+	Tests [] CompositionTestSpecTestCases `json:"tests"`
+}
+
+// CompositionTestSpecTests defines the specification of a single test case
+//
+// +k8s:deepcopy-gen=true
+type CompositionTestSpecTests struct {
+	Name    string  `yaml:"name"`              // Mandatory descriptive name
+	ID      string  `yaml:"id,omitempty"`      // Optional unique identifier
+	Patches Patches `yaml:"patches,omitempty"` // Optional XR patching configuration
+	Inputs  Inputs  `yaml:"inputs"`            // Inputs of a test case
+}
+
+// CompositionTestSpecPatches defines the patches for a single test case
+//
+// +k8s:deepcopy-gen=true
+type CompositionTestSpecPatches struct {
+	// XRD specifies the XRD definition inline.
+	// Optional.
+	XRD runtime.RawExtension `json:"xrd,omitempty"`
+
+	// XRD specifies the XRD definition path.
+	// Optional.
+	XRDPath string `json:"xrdPath,omitempty"`
+
+	AddField    string `json:"addField,omitempty"`
+	RemoveField string `json:"removeField,omitempty"`
+}
+
+// CompositionTestSpecInputs defines the inputs for a single test case
+//
+// +k8s:deepcopy-gen=true
+type CompositionTestSpecInputs struct {
 	// Timeout for the test in seconds
 	// Required. Default is 30s.
 	// +kubebuilder:validation:Minimum=1
@@ -755,14 +796,6 @@ type CompositionTestSpec struct {
 	// Mutually exclusive with XR. At least one of XR or XRPath must be specified.
 	XRPath string `json:"xrPath,omitempty"`
 
-	// XRD specifies the XRD definition inline.
-	// Optional.
-	XRD runtime.RawExtension `json:"xrd,omitempty"`
-
-	// XRD specifies the XRD definition path.
-	// Optional.
-	XRDPath string `json:"xrdPath,omitempty"`
-
 	// Composition specifies the composition definition inline.
 	// Optional.
 	Composition runtime.RawExtension `json:"composition,omitempty"`
@@ -770,6 +803,10 @@ type CompositionTestSpec struct {
 	// Composition specifies the composition definition path.
 	// Optional.
 	CompositionPath string `json:"compositionPath,omitempty"`
+
+	// FunctionsPath specifies the functions path.
+	// Optional.
+	FunctionsPath string `json:"functionsPath,omitempty"`
 
 	// ObservedResources specifies additional observed resources inline.
 	// Optional.
