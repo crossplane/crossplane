@@ -81,6 +81,10 @@ service:
   # -- Configure annotations on the service object. Only enabled when webhooks.enabled = true
   customAnnotations: {}
 
+secrets:
+  # -- Add custom annotations to Crossplane Secret resources.
+  customAnnotations: {}
+
 webhooks:
   # -- Enable webhooks for Crossplane and installed Provider packages.
   enabled: true
