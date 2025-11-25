@@ -17,7 +17,7 @@ limitations under the License.
 package render
 
 import (
-	"bytes"
+	//"bytes"
 	"context"
 	"fmt"
 	"sort"
@@ -238,8 +238,9 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	for k, data := range in.Context {
 		var jv any
 
-		if err := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(data), 4096).Decode(&jv); err != nil {
-			return Outputs{}, errors.Wrapf(err, "cannot decode YAML/JSON value for context key %q", k)
+		err := yaml.Unmarshal(data, &jv)
+		if err != nil {
+			return Outputs{}, errors.Wrapf(err, "cannot unmarshal YAML/JSON for context key %q", k)
 		}
 
 		v, err := structpb.NewValue(jv)
