@@ -106,7 +106,7 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
 	}
 
-	// Read the crd CRD to upgrade its managed fields if needed.
+	// Read the CRD to upgrade its managed fields if needed.
 	crd := &extv1.CustomResourceDefinition{}
 	if err := r.client.Get(ctx, types.NamespacedName{Name: mrd.GetName()}, crd); resource.IgnoreNotFound(err) != nil {
 		log.Debug("cannot get CustomResourceDefinition", "error", err)
