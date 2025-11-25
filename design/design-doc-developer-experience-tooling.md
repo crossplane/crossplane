@@ -432,49 +432,50 @@ kind: E2ETest
 metadata:
   name: e2e-test-cluster
 spec:
-  # Crossplane version to test against when using an ephemeral test cluster.
-  crossplane:
-    version: 2.1.0
-  # Manifests to apply as part of the test.
-  manifests:
-    - apiVersion: platform.example.com/v1alpha1
-      kind: Cluster
-      metadata:
-        name: test-cluster
-      spec:
-        version: 1.33
-        region: us-west1
-  # Extra resources that should be installed in the cluster before the test is
-  # executed. This allows for configuration of provider credentials, for example.
-  extraResources:
-    - apiVersion: gcp.upbound.io/v1beta1
-      kind: ProviderConfig
-      metadata:
-        name: default
-      spec:
-        credentials:
-          secretRef:
-            key: credentials
+  tests:
+    - crossplane:
+        # Crossplane version to test against when using an ephemeral test cluster.
+        version: 2.1.0
+      # Manifests to apply as part of the test.
+      manifests:
+        - apiVersion: platform.example.com/v1alpha1
+          kind: Cluster
+          metadata:
+            name: test-cluster
+          spec:
+            version: 1.33
+            region: us-west1
+      # Extra resources that should be installed in the cluster before the test is
+      # executed. This allows for configuration of provider credentials, for example.
+      extraResources:
+        - apiVersion: gcp.upbound.io/v1beta1
+          kind: ProviderConfig
+          metadata:
+            name: default
+          spec:
+            credentials:
+              secretRef:
+                key: credentials
+                name: gcp-credentials
+                namespace: crossplane-system
+              source: Secret
+            projectID: example-dot-com-testing
+        - apiVersion: v1
+          data:
+            credentials: c3VwZXIgc2VjcmV0IHBhc3N3b3JkIGluc2lkZQo=
+          kind: Secret
+          metadata:
             name: gcp-credentials
             namespace: crossplane-system
-          source: Secret
-        projectID: example-dot-com-testing
-    - apiVersion: v1
-      data:
-        credentials: c3VwZXIgc2VjcmV0IHBhc3N3b3JkIGluc2lkZQo=
-      kind: Secret
-      metadata:
-        name: gcp-credentials
-        namespace: crossplane-system
-  # Conditions the test will wait for the applied resources to have.
-  defaultConditions:
-    - Ready
-  # Whether to skip deletion of applied resources.
-  skipDelete: false
-  # Timeout for the test.
-  timeoutSeconds: 300
-  # Timeout for post-test cleanup, which tries to ensure no resources are left behind.
-  cleanupTimeoutSeconds: 600
+      # Conditions the test will wait for the applied resources to have.
+      defaultConditions:
+        - Ready
+      # Whether to skip deletion of applied resources.
+      skipDelete: false
+      # Timeout for the test.
+      timeoutSeconds: 300
+      # Timeout for post-test cleanup, which tries to ensure no resources are left behind.
+      cleanupTimeoutSeconds: 600
 ```
 
 The tooling can either create a local, ephemeral test cluster (using `kind`) in
@@ -744,23 +745,23 @@ type CompositionTest struct {
 //
 // +k8s:deepcopy-gen=true
 type CompositionTestSpec struct {
-	Tests [] CompositionTestSpecTestCases `json:"tests"`
+	Tests []CompositionTestCase `json:"tests"`
 }
 
-// CompositionTestSpecTests defines the specification of a single test case
+// CompositionTestCase defines the specification of a single test case
 //
 // +k8s:deepcopy-gen=true
-type CompositionTestSpecTests struct {
-	Name    string  `yaml:"name"`              // Mandatory descriptive name
-	ID      string  `yaml:"id,omitempty"`      // Optional unique identifier
-	Patches Patches `yaml:"patches,omitempty"` // Optional XR patching configuration
-	Inputs  Inputs  `yaml:"inputs"`            // Inputs of a test case
+type CompositionTestCase struct {
+	Name    string                 `yaml:"name"`              // Mandatory descriptive name
+	ID      string                 `yaml:"id,omitempty"`      // Optional unique identifier
+	Patches CompositionTestPatches `yaml:"patches,omitempty"` // Optional XR patching configuration
+	Inputs  CompositionTestInputs  `yaml:"inputs"`            // Inputs of a test case
 }
 
-// CompositionTestSpecPatches defines the patches for a single test case
+// CompositionTestPatches defines the patches for a single test case
 //
 // +k8s:deepcopy-gen=true
-type CompositionTestSpecPatches struct {
+type CompositionTestPatches struct {
 	// XRD specifies the XRD definition inline.
 	// Optional.
 	XRD runtime.RawExtension `json:"xrd,omitempty"`
@@ -773,10 +774,10 @@ type CompositionTestSpecPatches struct {
 	RemoveField string `json:"removeField,omitempty"`
 }
 
-// CompositionTestSpecInputs defines the inputs for a single test case
+// CompositionTestInputs defines the inputs for a single test case
 //
 // +k8s:deepcopy-gen=true
-type CompositionTestSpecInputs struct {
+type CompositionTestInputs struct {
 	// Timeout for the test in seconds
 	// Required. Default is 30s.
 	// +kubebuilder:validation:Minimum=1
@@ -829,10 +830,10 @@ type CompositionTestSpecInputs struct {
 	// +kubebuilder:validation:Optional
 	Context map[string]runtime.RawExtension `json:"context,omitempty"`
 
-	// AssertResources defines assertions to validate resources after test completion.
+	// Assertions defines assertions to validate resources after test completion.
 	// Optional.
 	// +kubebuilder:validation:Optional
-	AssertResources []runtime.RawExtension `json:"assertResources,omitempty"`
+	Assertions []runtime.RawExtension `json:"assertions,omitempty"`
 }
 ```
 
@@ -868,6 +869,22 @@ type OperationTest struct {
 //
 // +k8s:deepcopy-gen=true
 type OperationTestSpec struct {
+	Tests []OperationTestCase `json:"tests"`
+}
+
+// OperationTestCase defines the specification of a single test case
+//
+// +k8s:deepcopy-gen=true
+type OperationTestCase struct {
+	Name    string               `yaml:"name"`              // Mandatory descriptive name
+	ID      string               `yaml:"id,omitempty"`      // Optional unique identifier
+	Inputs  OperationTestInputs  `yaml:"inputs"`            // Inputs of a test case
+}
+
+// OperationTestInputs defines the inputs for a single test case
+//
+// +k8s:deepcopy-gen=true
+type OperationTestInputs struct {
 	// Timeout for the test in seconds
 	// Required. Default is 30s.
 	// +kubebuilder:validation:Minimum=1
@@ -903,10 +920,10 @@ type OperationTestSpec struct {
 	// +kubebuilder:validation:Optional
 	Context map[string]runtime.RawExtension `json:"context,omitempty"`
 
-	// AssertResources defines assertions to validate resources after test completion.
+	// Assertions defines assertions to validate resources after test completion.
 	// Optional.
 	// +kubebuilder:validation:Optional
-	AssertResources []runtime.RawExtension `json:"assertResources,omitempty"`
+	Assertions []runtime.RawExtension `json:"assertions,omitempty"`
 }
 ```
 
@@ -950,6 +967,22 @@ type E2ETest struct {
 // +k8s:deepcopy-gen=true
 // +kubebuilder:validation:Required
 type E2ETestSpec struct {
+	Tests []E2ETestCase `json:"tests"`
+}
+
+// E2ETestCase defines the specification of a single test case
+//
+// +k8s:deepcopy-gen=true
+type E2ETestCase struct {
+	Name    string         `yaml:"name"`              // Mandatory descriptive name
+	ID      string         `yaml:"id,omitempty"`      // Optional unique identifier
+	Inputs  E2ETestInputs  `yaml:"inputs"`            // Inputs of a test case
+}
+
+// E2ETestInputs defines the inputs for a test case.
+//
+// +k8s:deepcopy-gen=true
+type E2ETestInputs struct {
 	// CrossplaneVersion specifies the Crossplane version required for this
 	// test.
 	// +kubebuilder:validation:Required
