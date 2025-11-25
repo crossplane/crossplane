@@ -21,7 +21,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -44,6 +43,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/v2/internal/names"
+	"github.com/crossplane/crossplane/v2/internal/ssa"
 	"github.com/crossplane/crossplane/v2/internal/xcrd"
 	"github.com/crossplane/crossplane/v2/internal/xerrors"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
@@ -177,9 +177,7 @@ func (fn ComposedResourceGarbageCollectorFn) GarbageCollectComposedResources(ctx
 // apply to server-side apply. This is necessary when an object was previously
 // managed using client-side apply, but should now be managed using server-side
 // apply. See https://github.com/kubernetes/kubernetes/issues/99003 for details.
-type ManagedFieldsUpgrader interface {
-	Upgrade(ctx context.Context, obj client.Object) error
-}
+type ManagedFieldsUpgrader = ssa.ManagedFieldsUpgrader
 
 // A FunctionComposerOption is used to configure a FunctionComposer.
 type FunctionComposerOption func(*FunctionComposer)
@@ -238,7 +236,7 @@ func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...
 			ComposedResourceObserver:         NewExistingComposedResourceObserver(cached, uncached, f),
 			ComposedResourceGarbageCollector: NewDeletingComposedResourceGarbageCollector(cached),
 			NameGenerator:                    names.NewNameGenerator(cached),
-			ManagedFieldsUpgrader:            NewPatchingManagedFieldsUpgrader(cached),
+			ManagedFieldsUpgrader:            ssa.NewPatchingManagedFieldsUpgrader(cached, ssa.PrefixMatch(FieldOwnerComposedPrefix)),
 		},
 
 		pipeline:  r,
@@ -870,91 +868,6 @@ func UpdateResourceRefs(xr resource.Composite, desired ComposedResourceStates) {
 	})
 
 	xr.SetResourceReferences(refs)
-}
-
-// A PatchingManagedFieldsUpgrader uses a JSON patch to upgrade an object's
-// managed fields from client-side to server-side apply. The upgrade is a no-op
-// if the object does not need upgrading.
-type PatchingManagedFieldsUpgrader struct {
-	client client.Writer
-}
-
-// NewPatchingManagedFieldsUpgrader returns a ManagedFieldsUpgrader that uses a
-// JSON patch to upgrade and object's managed fields from client-side to
-// server-side apply.
-func NewPatchingManagedFieldsUpgrader(w client.Writer) *PatchingManagedFieldsUpgrader {
-	return &PatchingManagedFieldsUpgrader{client: w}
-}
-
-// Upgrade the supplied composed object's field managers from client-side to server-side
-// apply.
-//
-// This is a multi-step process.
-//
-// Step 1: All fields are owned by manager 'crossplane' operation 'Update'. This
-// represents all fields set by the XR controller up to this point.
-//
-// Step 2: Upgrade is called for the first time. We clear all field managers.
-//
-// Step 3: The XR controller server-side applies its fully specified intent
-// as field manager with prefix 'apiextensions.crossplane.io/composed/'. This becomes the
-// manager of all the fields that are part of the XR controller's fully
-// specified intent. All existing fields the XR controller didn't specify
-// become owned by a special manager - 'before-first-apply', operation 'Update'.
-//
-// Step 4: Upgrade is called for the second time. It deletes the
-// 'before-first-apply' field manager entry. Only the XR composed field manager
-// remains.
-func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.Object) error {
-	// The composed resource doesn't exist, nothing to upgrade.
-	if !meta.WasCreated(obj) {
-		return nil
-	}
-
-	foundSSA := false
-	foundBFA := false
-	idxBFA := -1
-
-	for i, e := range obj.GetManagedFields() {
-		if strings.HasPrefix(e.Manager, FieldOwnerComposedPrefix) {
-			foundSSA = true
-		}
-
-		if e.Manager == "before-first-apply" {
-			foundBFA = true
-			idxBFA = i
-		}
-	}
-
-	switch {
-	// If our SSA field manager exists and the before-first-apply field manager
-	// doesn't, we've already done the upgrade. Don't do it again.
-	case foundSSA && !foundBFA:
-		return nil
-
-	// We found our SSA field manager but also before-first-apply. It should now
-	// be safe to delete before-first-apply.
-	case foundSSA && foundBFA:
-		p := []byte(fmt.Sprintf(`[
-			{"op": "remove", "path": "/metadata/managedFields/%d"},
-			{"op": "replace", "path": "/metadata/resourceVersion", "value": "%s"}
-		]`, idxBFA, obj.GetResourceVersion()))
-
-		return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), "cannot remove before-first-apply from field managers")
-
-	// We didn't find our SSA field manager. This means we haven't started the
-	// upgrade. The first thing we want to do is clear all managed fields.
-	// After we do this we'll let our SSA field manager apply the fields it
-	// cares about. The result will be that our SSA field manager shares
-	// ownership with a new manager named 'before-first-apply'.
-	default:
-		p := []byte(fmt.Sprintf(`[
-			{"op": "replace", "path": "/metadata/managedFields", "value": [{}]},
-			{"op": "replace", "path": "/metadata/resourceVersion", "value": "%s"}
-		]`, obj.GetResourceVersion()))
-
-		return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), "cannot clear field managers")
-	}
 }
 
 func convertTarget(t fnv1.Target) CompositionTarget {

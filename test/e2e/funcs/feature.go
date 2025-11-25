@@ -652,6 +652,30 @@ func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, wan
 	}
 }
 
+// ResourceValidatedWithin fails a test if the supplied resource does not pass
+// the supplied validation function within the supplied duration. The validation
+// function receives the entire object and returns true if validation passes.
+func ResourceValidatedWithin(d time.Duration, o k8s.Object, validate func(k8s.Object) bool) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		t.Logf("Waiting %s for %s to pass validation...", d, identifier(o))
+
+		start := time.Now()
+
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(o, validate), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+			y, _ := yaml.Marshal(o)
+			t.Errorf("resource did not pass validation: %v:\n\n%s\n\n", err, y)
+
+			return ctx
+		}
+
+		t.Logf("%s passed validation after %s", identifier(o), since(start))
+
+		return ctx
+	}
+}
+
 // ApplyResources applies all manifests under the supplied directory that match
 // the supplied glob pattern (e.g. *.yaml). It uses server-side apply - fields
 // are managed by the supplied field manager. It fails the test if any supplied
