@@ -17,7 +17,6 @@ limitations under the License.
 package render
 
 import (
-	//"bytes"
 	"context"
 	"fmt"
 	"sort"
