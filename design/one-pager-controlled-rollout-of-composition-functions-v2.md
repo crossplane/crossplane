@@ -13,6 +13,15 @@ possible for multiple revisions of a function to be active at once. The
 background section of the original design describes the problem we wish to
 solve.
 
+Though it's not called out explicitly in the original design doc, the underlying
+problem that prevents controlled rollout of composition functions is that both
+compositions and functions can have revisions, and these revisions interact
+(composition revisions call function revisions), but the coupling is loose
+(composition revisions don't refer directly to function revisions). The previous
+design solved the problem by tightening the coupling (allowing composition
+revisions to refer to function revisions explicitly), while this design instead
+removes the coupling altogether (removing the need for function revisions).
+
 This document proposes a new, simpler design to solve the problem, based on the
 following observations:
 
