@@ -65,8 +65,9 @@ simplifications in this design are applicable.
 
 ### Composition Changes
 
-We will add a `package` field to the `functionRef` field in pipeline steps such
-that functions can be referenced by OCI reference rather than name:
+We will add a `function` field alongside the `functionRef` field in pipeline
+steps such that functions can be called by supplying an OCI reference rather
+than a reference to an installed `Function` resource:
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1
@@ -80,19 +81,18 @@ spec:
   mode: Pipeline
   pipeline:
   - step: patch-and-transform
-    functionRef:
-      package: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.8.2
+    function: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.8.2
     input:
       # Removed for brevity
 ```
 
-The `package` field, if given, must contain a fully-qualified OCI reference
+The `function` field, if given, must contain a fully-qualified OCI reference
 (i.e., include a registry, repository, and tag or digest). It is invalid to
-provide both `name` and `package`.
+provide both `function` and `functionRef`.
 
-When `package` is provided, the composition revision controller will ensure that
-the specified function is running by creating a `FunctionRuntime` resource for
-it (see the package manager section below). If a `FunctionRuntime` already
+When `function` is provided, the composition revision controller will ensure
+that the specified function is running by creating a `FunctionRuntime` resource
+for it (see the package manager section below). If a `FunctionRuntime` already
 exists, the composition revision will be added as an owner reference.
 
 A user wishing to roll out a new version of `function-patch-and-transform`
@@ -162,12 +162,11 @@ with the `pkg.crossplane.io/package` label set to the function's name, then
 finding the single active revision in the list. This logic will change as
 follows:
 
-1. If `functionRef.package` is specified, the relevant `FunctionRuntime`
-   resource will be looked up directly using the `pkg.crossplane.io/source`
-   label.
-2. If `functionRef.name` is specified, the existing logic to find the active
-   revision is unchanged, but the endpoint will be read from the
-   `FunctionRuntime`'s status.
+1. If `function` is specified, the relevant `FunctionRuntime` resource will be
+   looked up directly using the `pkg.crossplane.io/source` label.
+2. If `functionRef` is specified, the existing logic to find the active revision
+   is unchanged, but the endpoint will be read from the `FunctionRuntime`'s
+   status.
 
 The signature of the `FunctionRunner` in `internal/xfn` will change such that
 functions are called by their OCI ref, since there is no longer always a
