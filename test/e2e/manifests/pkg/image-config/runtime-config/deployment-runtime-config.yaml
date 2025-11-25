@@ -1,0 +1,89 @@
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: default-rc
+spec:
+  deploymentTemplate:
+    metadata:
+      name: default-deployment
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: image-config-rc
+spec:
+  serviceAccountTemplate:
+    metadata:
+      name: image-config-sa
+      labels:
+        image-config: "true"
+  serviceTemplate:
+    metadata:
+      name: image-config-service
+      labels:
+        image-config: "true"
+  deploymentTemplate:
+    metadata:
+      name: image-config-deployment
+      labels:
+        image-config: "true"
+    spec:
+      replicas: 3
+      selector: {}
+      template:
+        metadata:
+          labels:
+            image-config-label: from-image-config
+          annotations:
+            image-config-annotation: applied-via-image-config
+        spec:
+          containers:
+            - name: package-runtime
+              resources:
+                limits:
+                  cpu: 1
+                  memory: 1Gi
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: function-image-config-rc
+spec:
+  serviceAccountTemplate:
+    metadata:
+      name: function-image-config-sa
+      labels:
+        function-image-config: "true"
+  serviceTemplate:
+    metadata:
+      name: function-image-config-service
+      labels:
+        function-image-config: "true"
+  deploymentTemplate:
+    metadata:
+      name: function-image-config-deployment
+      labels:
+        function-image-config: "true"
+    spec:
+      replicas: 2
+      selector: {}
+      template:
+        metadata:
+          labels:
+            function-image-config-label: from-function-image-config
+          annotations:
+            function-image-config-annotation: applied-via-function-image-config
+        spec:
+          containers:
+            - name: package-runtime
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+                requests:
+                  cpu: 25m
+                  memory: 32Mi

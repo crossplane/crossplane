@@ -84,6 +84,9 @@ type ImageConfigSpec struct {
 	// RewriteImage defines how a matched image's path should be rewritten.
 	// +optional
 	RewriteImage *ImageRewrite `json:"rewriteImage,omitempty"`
+	// Runtime allows configuration of runtime options for the image.
+	// +optional
+	Runtime *ImageRuntime `json:"runtime,omitempty"`
 }
 
 // ImageMatch defines a rule for matching image.
@@ -144,4 +147,12 @@ type ImageRewrite struct {
 	// matched by the prefix in the ImageMatch. If multiple prefixes matched,
 	// the longest one will be replaced.
 	Prefix string `json:"prefix"`
+}
+
+// ImageRuntime allows configuration of runtime options for an image.
+type ImageRuntime struct {
+	// ConfigReference references a RuntimeConfig resource that will be
+	// used to configure the package runtime.
+	// +optional
+	ConfigReference *RuntimeConfigReference `json:"configRef,omitempty"`
 }

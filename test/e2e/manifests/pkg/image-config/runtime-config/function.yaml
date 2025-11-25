@@ -1,0 +1,11 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-image-config-runtime
+spec:
+  # This function is directly installed (not as a dependency) and should have
+  # the ImageConfig runtime config applied to it.
+  package: xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.1
+  # The runtimeConfigRef should be overridden by the ImageConfig.
+  runtimeConfigRef:
+    name: default-rc
