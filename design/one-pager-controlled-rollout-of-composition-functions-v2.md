@@ -72,7 +72,7 @@ and package manager changes apply also to operation functions. Operations do not
 have revisions, so controlled rollout of them is not relevant, but the other
 simplifications in this design are applicable.
 
-### Composition Changes
+### Composition and Operation Changes
 
 We will add a `function` field alongside the `functionRef` field in pipeline
 steps such that functions can be called by supplying an OCI reference rather
@@ -102,7 +102,9 @@ provide both `function` and `functionRef`.
 When `function` is provided, the composition revision controller will ensure
 that the specified function is running by creating a `FunctionRuntime` resource
 for it (see the package manager section below). If a `FunctionRuntime` already
-exists, the composition revision will be added as an owner reference.
+exists, the composition revision will be added as an owner reference. The same
+applies to the operation controller (operations execute in a one-shot manner,
+and as such do not have revisions).
 
 A user wishing to roll out a new version of `function-patch-and-transform`
 simply updates their composition to reference the new version, resulting in
