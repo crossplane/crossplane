@@ -18,7 +18,6 @@ package render
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"sync"
@@ -31,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/yaml"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -236,13 +236,15 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	// Load user-supplied context.
 	for k, data := range in.Context {
 		var jv any
-		if err := json.Unmarshal(data, &jv); err != nil {
-			return Outputs{}, errors.Wrapf(err, "cannot unmarshal JSON value for context key %q", k)
+
+		err := yaml.Unmarshal(data, &jv)
+		if err != nil {
+			return Outputs{}, errors.Wrapf(err, "cannot unmarshal YAML/JSON for context key %q", k)
 		}
 
 		v, err := structpb.NewValue(jv)
 		if err != nil {
-			return Outputs{}, errors.Wrapf(err, "cannot store JSON value for context key %q", k)
+			return Outputs{}, errors.Wrapf(err, "cannot store YAML/JSON value for context key %q", k)
 		}
 
 		fctx.Fields[k] = v
