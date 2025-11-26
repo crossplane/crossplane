@@ -378,7 +378,7 @@ spec:
         # The XRD, for schema validation.
         xrdPath: apis/cluster/definition.yaml
         # Add fields to the input XR
-        addField:
+        addFields:
           "spec.something": "value"
           "metadata.labels": "mylabel"
       inputs:
@@ -389,6 +389,10 @@ spec:
         # Optional observed resources for the composition pipeline, e.g. to test
         # conditional logic.
         observedResources: []
+        # Timeout for the test.
+        timeoutSeconds: 120
+        # Whether to validate the output of the render.
+        validate: false
       # Assertions on the resources rendered by the test, which can include any
       # expected updates to the XR as well as composed resources.
       assertions:
@@ -413,10 +417,6 @@ spec:
                     location: us-west1
                     minMasterVersion: 1.33
                     nodeVersion: 1.33
-      # Timeout for the test.
-      timeoutSeconds: 120
-      # Whether to validate the output of the render.
-      validate: false
 ```
 
 The test specifies an XR to render, and some [chainsaw] assertions on the output
@@ -433,49 +433,50 @@ metadata:
   name: e2e-test-cluster
 spec:
   tests:
-    - crossplane:
+    - name: "Test cluster creation"
+      inputs:
         # Crossplane version to test against when using an ephemeral test cluster.
-        version: 2.1.0
-      # Manifests to apply as part of the test.
-      manifests:
-        - apiVersion: platform.example.com/v1alpha1
-          kind: Cluster
-          metadata:
-            name: test-cluster
-          spec:
-            version: 1.33
-            region: us-west1
-      # Extra resources that should be installed in the cluster before the test is
-      # executed. This allows for configuration of provider credentials, for example.
-      extraResources:
-        - apiVersion: gcp.upbound.io/v1beta1
-          kind: ProviderConfig
-          metadata:
-            name: default
-          spec:
-            credentials:
-              secretRef:
-                key: credentials
-                name: gcp-credentials
-                namespace: crossplane-system
-              source: Secret
-            projectID: example-dot-com-testing
-        - apiVersion: v1
-          data:
-            credentials: c3VwZXIgc2VjcmV0IHBhc3N3b3JkIGluc2lkZQo=
-          kind: Secret
-          metadata:
-            name: gcp-credentials
-            namespace: crossplane-system
-      # Conditions the test will wait for the applied resources to have.
-      defaultConditions:
-        - Ready
-      # Whether to skip deletion of applied resources.
-      skipDelete: false
-      # Timeout for the test.
-      timeoutSeconds: 300
-      # Timeout for post-test cleanup, which tries to ensure no resources are left behind.
-      cleanupTimeoutSeconds: 600
+        crossplaneVersion: "2.1.0"
+        # Manifests to apply as part of the test.
+        manifests:
+          - apiVersion: platform.example.com/v1alpha1
+            kind: Cluster
+            metadata:
+              name: test-cluster
+            spec:
+              version: 1.33
+              region: us-west1
+        # Extra resources that should be installed in the cluster before the test is
+        # executed. This allows for configuration of provider credentials, for example.
+        extraResources:
+          - apiVersion: gcp.upbound.io/v1beta1
+            kind: ProviderConfig
+            metadata:
+              name: default
+            spec:
+              credentials:
+                secretRef:
+                  key: credentials
+                  name: gcp-credentials
+                  namespace: crossplane-system
+                source: Secret
+              projectID: example-dot-com-testing
+          - apiVersion: v1
+            data:
+              credentials: c3VwZXIgc2VjcmV0IHBhc3N3b3JkIGluc2lkZQo=
+            kind: Secret
+            metadata:
+              name: gcp-credentials
+              namespace: crossplane-system
+        # Conditions the test will wait for the applied resources to have.
+        defaultConditions:
+          - Ready
+        # Whether to skip deletion of applied resources.
+        skipDelete: false
+        # Timeout for the test.
+        timeoutSeconds: 300
+        # Timeout for post-test cleanup, which tries to ensure no resources are left behind.
+        cleanupTimeoutSeconds: 600
 ```
 
 The tooling can either create a local, ephemeral test cluster (using `kind`) in
@@ -752,10 +753,28 @@ type CompositionTestSpec struct {
 //
 // +k8s:deepcopy-gen=true
 type CompositionTestCase struct {
-	Name    string                 `yaml:"name"`              // Mandatory descriptive name
-	ID      string                 `yaml:"id,omitempty"`      // Optional unique identifier
-	Patches CompositionTestPatches `yaml:"patches,omitempty"` // Optional XR patching configuration
-	Inputs  CompositionTestInputs  `yaml:"inputs"`            // Inputs of a test case
+	// Name of the Test Case, mandatory descriptive.
+	// Required.
+	Name string `json:"name"`
+
+	// ID is an optional unique identifier.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	ID string `json:"id,omitempty"`
+
+	// Patches specifies patching configuration for the input XR.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	Patches CompositionTestPatches `json:"patches,omitempty"`
+
+	// Inputs specifies the inputs paths or inline definitions.
+	// Required.
+	Inputs CompositionTestInputs `json:"inputs"`
+
+	// Assertions defines assertions to validate resources after test completion.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	Assertions []runtime.RawExtension `json:"assertions,omitempty"`
 }
 
 // CompositionTestPatches defines the patches for a single test case
@@ -770,8 +789,13 @@ type CompositionTestPatches struct {
 	// Optional.
 	XRDPath string `json:"xrdPath,omitempty"`
 
-	AddField    string `json:"addField,omitempty"`
-	RemoveField string `json:"removeField,omitempty"`
+	// AddFields specifies a map of fields:value that should be added to the input XR.
+	// Optional.
+	AddFields map[string]string `json:"addFields,omitempty"`
+
+	// RemoveFields specifies an array of fields that should be removed from the input XR.
+	// Optional.
+	RemoveFields []string `json:"removeFields,omitempty"`
 }
 
 // CompositionTestInputs defines the inputs for a single test case
@@ -805,6 +829,10 @@ type CompositionTestInputs struct {
 	// Optional.
 	CompositionPath string `json:"compositionPath,omitempty"`
 
+	// Functions specifies the functions inline.
+	// Optional.
+	Functions []runtime.RawExtension `json:"functions,omitempty"`
+
 	// FunctionsPath specifies the functions path.
 	// Optional.
 	FunctionsPath string `json:"functionsPath,omitempty"`
@@ -829,11 +857,6 @@ type CompositionTestInputs struct {
 	// Optional.
 	// +kubebuilder:validation:Optional
 	Context map[string]runtime.RawExtension `json:"context,omitempty"`
-
-	// Assertions defines assertions to validate resources after test completion.
-	// Optional.
-	// +kubebuilder:validation:Optional
-	Assertions []runtime.RawExtension `json:"assertions,omitempty"`
 }
 ```
 
@@ -876,9 +899,23 @@ type OperationTestSpec struct {
 //
 // +k8s:deepcopy-gen=true
 type OperationTestCase struct {
-	Name    string               `yaml:"name"`              // Mandatory descriptive name
-	ID      string               `yaml:"id,omitempty"`      // Optional unique identifier
-	Inputs  OperationTestInputs  `yaml:"inputs"`            // Inputs of a test case
+	// Name of the Test Case, mandatory descriptive.
+	// Required.
+	Name string `json:"name"`
+
+	// ID is an optional unique identifier.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	ID string `json:"id,omitempty"`
+
+	// Inputs specifies the inputs paths or inline definitions.
+	// Required.
+	Inputs OperationTestInputs `json:"inputs"`
+
+	// Assertions defines assertions to validate resources after test completion.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	Assertions []runtime.RawExtension `json:"assertions,omitempty"`
 }
 
 // OperationTestInputs defines the inputs for a single test case
@@ -919,11 +956,6 @@ type OperationTestInputs struct {
 	// Optional.
 	// +kubebuilder:validation:Optional
 	Context map[string]runtime.RawExtension `json:"context,omitempty"`
-
-	// Assertions defines assertions to validate resources after test completion.
-	// Optional.
-	// +kubebuilder:validation:Optional
-	Assertions []runtime.RawExtension `json:"assertions,omitempty"`
 }
 ```
 
@@ -974,9 +1006,18 @@ type E2ETestSpec struct {
 //
 // +k8s:deepcopy-gen=true
 type E2ETestCase struct {
-	Name    string         `yaml:"name"`              // Mandatory descriptive name
-	ID      string         `yaml:"id,omitempty"`      // Optional unique identifier
-	Inputs  E2ETestInputs  `yaml:"inputs"`            // Inputs of a test case
+	// Name of the Test Case, mandatory descriptive.
+	// Required.
+	Name string `json:"name"`
+
+	// ID is an optional unique identifier.
+	// Optional.
+	// +kubebuilder:validation:Optional
+	ID string `json:"id,omitempty"`
+
+	// Inputs specifies the inputs paths or inline definitions.
+	// Required.
+	Inputs E2ETestInputs `json:"inputs"`
 }
 
 // E2ETestInputs defines the inputs for a test case.
