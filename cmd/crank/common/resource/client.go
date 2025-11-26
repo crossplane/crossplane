@@ -47,3 +47,26 @@ func GetResource(ctx context.Context, client client.Client, ref *v1.ObjectRefere
 
 	return &Resource{Unstructured: result, Error: err}
 }
+
+// ListResources returns requested Resources matching the references, setting any error as Resource.Error.
+func ListResources(ctx context.Context, c client.Client, ref *v1.ObjectReference) *ResourceList {
+	result := unstructured.UnstructuredList{}
+	result.SetGroupVersionKind(ref.GroupVersionKind())
+
+	var listOptions []client.ListOption
+	if ref.Namespace != "" {
+		listOptions = append(listOptions, client.InNamespace(ref.Namespace))
+	}
+	err := c.List(ctx, &result, listOptions...)
+	resources := make([]*Resource, 0, len(result.Items))
+	for i := range result.Items {
+		resources = append(resources, &Resource{
+			Unstructured: result.Items[i],
+		})
+	}
+
+	return &ResourceList{
+		Items: resources,
+		Error: err,
+	}
+}
