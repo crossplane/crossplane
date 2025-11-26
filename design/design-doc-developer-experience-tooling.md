@@ -803,10 +803,11 @@ type CompositionTestPatches struct {
 // +k8s:deepcopy-gen=true
 type CompositionTestInputs struct {
 	// Timeout for the test in seconds
-	// Required. Default is 30s.
+	// Optional. Default is 30s.
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:default=30
-	TimeoutSeconds int `json:"timeoutSeconds"`
+	TimeoutSeconds *int `json:"timeoutSeconds"`
 
 	// Validate indicates whether to validate managed resources against schemas.
 	// Optional.
@@ -923,10 +924,11 @@ type OperationTestCase struct {
 // +k8s:deepcopy-gen=true
 type OperationTestInputs struct {
 	// Timeout for the test in seconds
-	// Required. Default is 30s.
+	// Optional. Default is 30s.
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:default=30
-	TimeoutSeconds int `json:"timeoutSeconds"`
+	TimeoutSeconds *int `json:"timeoutSeconds"`
 
 	// Operation specifies the Operation definition inline.
 	// Optional.
