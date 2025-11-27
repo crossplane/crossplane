@@ -203,10 +203,11 @@ func functionServiceOverrides() []ServiceOverride {
 		ServiceWithClusterIP(corev1.ClusterIPNone),
 		ServiceWithAdditionalPorts([]corev1.ServicePort{
 			{
-				Name:       grpcPortName,
-				Protocol:   corev1.ProtocolTCP,
-				Port:       grpcPort,
-				TargetPort: intstr.FromString(grpcPortName),
+				Name:        grpcPortName,
+				Protocol:    corev1.ProtocolTCP,
+				Port:        grpcPort,
+				TargetPort:  intstr.FromString(grpcPortName),
+				AppProtocol: &appProtocolTLS,
 			},
 		}),
 	}
