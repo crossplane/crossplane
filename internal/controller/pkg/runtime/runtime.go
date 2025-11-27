@@ -84,6 +84,8 @@ var (
 	Privileged = false
 	// RunAsNonRoot indicates whether containers must run as non-root user.
 	RunAsNonRoot = true
+	// AppProtocolTLS is the application protocol for TLS.
+	AppProtocolTLS = "tls"
 )
 
 // ManifestBuilder builds the runtime manifests for a package revision.
