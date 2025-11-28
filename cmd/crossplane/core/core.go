@@ -353,12 +353,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaOperations)
 	}
 
-	// Claim and XR controllers are started and stopped dynamically by the
-	// ControllerEngine below. When realtime compositions are enabled, they also
-	// start and stop their watches (e.g. of composed resources) dynamically. To
-	// do this, the ControllerEngine must have exclusive ownership of a cache.
-	// This allows it to track what controllers are using the cache's informers.
-	ca, err := cache.New(mgr.GetConfig(), cache.Options{
+	cacheOptionsAPIExt := cache.Options{
 		HTTPClient: mgr.GetHTTPClient(),
 		Scheme:     mgr.GetScheme(),
 		Mapper:     mgr.GetRESTMapper(),
@@ -376,7 +371,20 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			}
 			log.Debug("Watch error - probably due to CRD being uninstalled", "error", err)
 		},
-	})
+	}
+
+	if c.WatchCacheNamespaced {
+		cacheOptionsAPIExt.DefaultNamespaces = map[string]cache.Config{
+			c.Namespace: {},
+		}
+	}
+
+	// Claim and XR controllers are started and stopped dynamically by the
+	// ControllerEngine below. When realtime compositions are enabled, they also
+	// start and stop their watches (e.g. of composed resources) dynamically. To
+	// do this, the ControllerEngine must have exclusive ownership of a cache.
+	// This allows it to track what controllers are using the cache's informers.
+	ca, err := cache.New(mgr.GetConfig(), cacheOptionsAPIExt)
 	if err != nil {
 		return errors.Wrap(err, "cannot create cache for API extension controllers")
 	}
