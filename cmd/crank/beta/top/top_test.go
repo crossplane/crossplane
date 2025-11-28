@@ -2,6 +2,8 @@ package top
 
 import (
 	"bytes"
+	"fmt"
+	"io"
 	"strings"
 	"testing"
 
@@ -9,11 +11,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
-
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
+
+type errorWriter struct{}
+
+func (w *errorWriter) Write(p []byte) (n int, err error) {
+    return 0, fmt.Errorf("write error")
+}
 
 func TestGetCrossplanePods(t *testing.T) {
 	type want struct {
@@ -223,19 +228,44 @@ function     crossplane-system   function-123     200m         1024Mi
 				err: nil,
 			},
 		},
+		"WriterError": {
+			reason: "Should return error when writer fails",
+			crossplanePods: []topMetrics{
+				{
+					PodType:      "crossplane",
+					PodName:      "crossplane-123",
+					PodNamespace: "crossplane-system",
+					CPUUsage:     resource.MustParse("100m"),
+					MemoryUsage:  resource.MustParse("512Mi"),
+				},
+			},
+			want: want{
+				results: "",
+				err:     fmt.Errorf("write error"),
+			},
+		},
+
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			b := &bytes.Buffer{}
-			err := printPodsTable(b, tt.crossplanePods)
-			// TODO:(piotr1215) add error test case
-			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("%s\nprintPodsTable(): -want, +got:\n%s", tt.reason, diff)
+			var w io.Writer = &bytes.Buffer{}
+			if name == "WriterError" {
+				w = &errorWriter{}
 			}
 
-			if diff := cmp.Diff(strings.TrimSpace(tt.want.results), strings.TrimSpace(b.String())); diff != "" {
-				t.Errorf("%s\nprintPodsTable(): -want, +got:\n%s", tt.reason, diff)
+			err := printPodsTable(w, tt.crossplanePods)
+			if tt.want.err != nil || err != nil {
+				if (tt.want.err == nil && err != nil) || (tt.want.err != nil && err == nil) || tt.want.err.Error() != err.Error() {
+					t.Errorf("%s\nprintPodsTable(): expected error %v, got %v", tt.reason, tt.want.err, err)
+				}
 			}
+
+			if buf, ok := w.(*bytes.Buffer); ok {
+				if diff := cmp.Diff(strings.TrimSpace(tt.want.results), strings.TrimSpace(buf.String())); diff != "" {
+					t.Errorf("%s\nprintPodsTable(): -want, +got:\n%s", tt.reason, diff)
+				}
+			}
+
 		})
 	}
 }
