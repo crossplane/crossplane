@@ -84,10 +84,11 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 		ServiceWithClusterIP(corev1.ClusterIPNone),
 		ServiceWithAdditionalPorts([]corev1.ServicePort{
 			{
-				Name:       GRPCPortName,
-				Protocol:   corev1.ProtocolTCP,
-				Port:       GRPCPort,
-				TargetPort: intstr.FromString(GRPCPortName),
+				Name:        GRPCPortName,
+				Protocol:    corev1.ProtocolTCP,
+				Port:        GRPCPort,
+				TargetPort:  intstr.FromString(GRPCPortName),
+				AppProtocol: &AppProtocolTLS,
 			},
 		}))
 	if err := h.client.Applicator.Apply(ctx, svc); err != nil {
