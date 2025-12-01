@@ -66,6 +66,7 @@ var (
 	allowPrivilegeEscalation = false
 	privileged               = false
 	runAsNonRoot             = true
+	appProtocolTLS           = "tls"
 )
 
 // ManifestBuilder builds the runtime manifests for a package revision.
