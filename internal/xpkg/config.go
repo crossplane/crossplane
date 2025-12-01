@@ -26,6 +26,9 @@ type ConfigStore interface {
 	// RewritePath returns the name of the selected image config and the
 	// rewritten path of the given image based on that config.
 	RewritePath(ctx context.Context, image string) (imageConfig, newPath string, err error)
+	// RuntimeConfigFor returns the name of the selected image config and the
+	// runtime config for a given image.
+	RuntimeConfigFor(ctx context.Context, image string) (imageConfig string, runtimeConfig *v1beta1.ImageRuntime, err error)
 }
 
 // isValidConfig is a function that determines if an ImageConfig is valid while
@@ -133,6 +136,25 @@ func (s *ImageConfigStore) RewritePath(ctx context.Context, image string) (image
 	}
 
 	return config.Name, rewritePrefix + strings.TrimPrefix(image, matchPrefix), nil
+}
+
+// RuntimeConfigFor returns the name of the selected image config and the
+// runtime config for a given image.
+func (s *ImageConfigStore) RuntimeConfigFor(ctx context.Context, image string) (imageConfig string, runtimeConfig *v1beta1.ImageRuntime, err error) {
+	config, err := s.bestMatch(ctx, image, func(c *v1beta1.ImageConfig) bool {
+		return c.Spec.Runtime != nil
+	})
+	if err != nil {
+		return "", nil, errors.Wrap(err, errFindBestMatch)
+	}
+
+	if config == nil {
+		// No ImageConfig with a runtime config found for this image, this is
+		// not an error.
+		return "", nil, nil
+	}
+
+	return config.Name, config.Spec.Runtime, nil
 }
 
 // bestMatch finds the best matching ImageConfig for an image based on the

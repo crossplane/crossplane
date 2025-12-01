@@ -44,6 +44,7 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
 	"github.com/crossplane/crossplane/v2/internal/features"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 const (
@@ -136,6 +137,13 @@ func WithDeploymentSelectorMigrator(m DeploymentSelectorMigrator) ReconcilerOpti
 	}
 }
 
+// WithConfigStore specifies how the Reconciler should access image config store.
+func WithConfigStore(c xpkg.ConfigStore) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.pkgConfig = c
+	}
+}
+
 // Reconciler reconciles packages.
 type Reconciler struct {
 	client         client.Client
@@ -147,6 +155,7 @@ type Reconciler struct {
 	migrator       DeploymentSelectorMigrator
 	namespace      string
 	serviceAccount string
+	pkgConfig      xpkg.ConfigStore
 
 	newPackageRevisionWithRuntime func() v1.PackageRevisionWithRuntime
 }
@@ -179,6 +188,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithRuntimeHooks(NewProviderHooks(mgr.GetClient())),
 		WithFeatureFlags(o.Features),
 		WithDeploymentSelectorMigrator(NewDeletingDeploymentSelectorMigrator(mgr.GetClient(), log)),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 	)
 
 	return cb.WithOptions(o.ForControllerRuntime()).
@@ -212,6 +222,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithServiceAccount(o.ServiceAccount),
 		WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())),
 		WithFeatureFlags(o.Features),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 	)
 
 	return cb.WithOptions(o.ForControllerRuntime()).
@@ -410,6 +421,30 @@ func (r *Reconciler) builderOptions(ctx context.Context, pwr v1.PackageRevisionW
 		rcRef := pwr.GetRuntimeConfigRef()
 		if rcRef == nil {
 			return nil, errors.New(errNoRuntimeConfig)
+		}
+
+		// Find any ImageConfigs that override the runtime config.
+		configName, runtimeConfig, err := r.pkgConfig.RuntimeConfigFor(ctx, pwr.GetResolvedSource())
+		if err != nil {
+			err = errors.Wrapf(err, "failed to look up runtime ImageConfig for %s", pwr.GetResolvedSource())
+			r.conditions.For(pwr).MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
+			r.record.Event(pwr, event.Warning(reasonImageConfig, err))
+
+			return nil, err
+		}
+		if runtimeConfig != nil && runtimeConfig.ConfigReference != nil {
+			rcRef = &v1.RuntimeConfigReference{
+				APIVersion: runtimeConfig.ConfigReference.APIVersion,
+				Kind:       runtimeConfig.ConfigReference.Kind,
+				Name:       runtimeConfig.ConfigReference.Name,
+			}
+
+			pwr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+				Name:   configName,
+				Reason: v1.ImageConfigReasonRuntime,
+			})
+		} else {
+			pwr.ClearAppliedImageConfigRef(v1.ImageConfigReasonRuntime)
 		}
 
 		if rcRef.Kind != nil && rcRef.APIVersion != nil &&

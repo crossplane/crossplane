@@ -269,6 +269,115 @@ func TestDeploymentRuntimeConfig(t *testing.T) {
 	)
 }
 
+func TestImageConfigRuntimeConfig(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/image-config/runtime-config"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that a DeploymentRuntimeConfig selected via ImageConfig is applied to package deployments, including those installed as dependencies.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "deployment-runtime-config.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "provider-image-config.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "function-image-config.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "deployment-runtime-config.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "provider-image-config.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "function-image-config.yaml"),
+			)).
+			WithSetup("ApplyConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			WithSetup("ApplyFunction", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "function.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "function.yaml"),
+			)).
+			Assess("ProviderDependencyIsHealthy",
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "provider-dependency.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("ConfigurationIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("FunctionIsHealthy",
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "function.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("ServiceAccountNamedFromImageConfig",
+				funcs.ResourceCreatedWithin(10*time.Second, &corev1.ServiceAccount{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "image-config-sa",
+						Namespace: namespace,
+					},
+				})).
+			Assess("ServiceNamedFromImageConfig",
+				funcs.ResourceCreatedWithin(10*time.Second, &corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "image-config-service",
+						Namespace: namespace,
+					},
+				})).
+			Assess("DeploymentNamedFromImageConfig",
+				funcs.ResourceCreatedWithin(10*time.Second, &appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "image-config-deployment",
+						Namespace: namespace,
+					},
+				})).
+			Assess("DeploymentHasSpecFromImageConfigRuntimeConfig", funcs.AllOf(
+				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "image-config-deployment", Namespace: namespace}}, "spec.replicas", int64(3)),
+				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "image-config-deployment", Namespace: namespace}}, "spec.template.metadata.labels.image-config-label", "from-image-config"),
+				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "image-config-deployment", Namespace: namespace}}, "spec.template.metadata.annotations.image-config-annotation", "applied-via-image-config"),
+				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "image-config-deployment", Namespace: namespace}}, "spec.template.spec.containers[0].resources.limits.memory", "1Gi"),
+				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "image-config-deployment", Namespace: namespace}}, "spec.template.spec.containers[0].resources.requests.cpu", "50m"),
+			)).
+			Assess("FunctionServiceAccountNamedFromImageConfig",
+				funcs.ResourceCreatedWithin(10*time.Second, &corev1.ServiceAccount{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "function-image-config-sa",
+						Namespace: namespace,
+					},
+				})).
+			Assess("FunctionServiceNamedFromImageConfig",
+				funcs.ResourceCreatedWithin(10*time.Second, &corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "function-image-config-service",
+						Namespace: namespace,
+					},
+				})).
+			Assess("FunctionDeploymentNamedFromImageConfig",
+				funcs.ResourceCreatedWithin(10*time.Second, &appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "function-image-config-deployment",
+						Namespace: namespace,
+					},
+				})).
+			Assess("FunctionDeploymentHasSpecFromImageConfigRuntimeConfig", funcs.AllOf(
+				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "function-image-config-deployment", Namespace: namespace}}, "spec.replicas", int64(2)),
+				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "function-image-config-deployment", Namespace: namespace}}, "spec.template.metadata.labels.function-image-config-label", "from-function-image-config"),
+				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "function-image-config-deployment", Namespace: namespace}}, "spec.template.metadata.annotations.function-image-config-annotation", "applied-via-function-image-config"),
+				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "function-image-config-deployment", Namespace: namespace}}, "spec.template.spec.containers[0].resources.limits.memory", "512Mi"),
+				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "function-image-config-deployment", Namespace: namespace}}, "spec.template.spec.containers[0].resources.requests.cpu", "25m"),
+			)).
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "configuration.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			WithTeardown("DeleteProvider", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider-dependency.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-dependency.yaml"),
+			)).
+			WithTeardown("DeleteFunction", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "function.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "function.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "deployment-runtime-config.yaml", metav1.DeletePropagationForeground),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider-image-config.yaml", metav1.DeletePropagationForeground),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "function-image-config.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "deployment-runtime-config.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-image-config.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "function-image-config.yaml"),
+			)).
+			Feature(),
+	)
+}
+
 func TestExternallyManagedServiceAccount(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/externally-managed-service-account"
 	environment.Test(t,
