@@ -42,7 +42,6 @@ import (
 
 	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/v2/internal/names"
-	"github.com/crossplane/crossplane/v2/internal/ssa"
 )
 
 const (
@@ -86,7 +85,9 @@ func ControllerName(name string) string {
 // apply to server-side apply. This is necessary when an object was previously
 // managed using client-side apply, but should now be managed using server-side
 // apply. See https://github.com/kubernetes/kubernetes/issues/99003 for details.
-type ManagedFieldsUpgrader = ssa.ManagedFieldsUpgrader
+type ManagedFieldsUpgrader interface {
+	Upgrade(ctx context.Context, obj client.Object, ssaManager string) error
+}
 
 // A CompositeSyncer binds and syncs the supplied claim with the supplied
 // composite resource (XR).
@@ -278,7 +279,7 @@ func NewReconciler(c client.Client, of, with schema.GroupVersionKind, o ...Recon
 		client:        c,
 		gvkClaim:      of,
 		gvkXR:         with,
-		managedFields: &ssa.NopManagedFieldsUpgrader{},
+		managedFields: &NopManagedFieldsUpgrader{},
 		composite:     defaultCRComposite(c),
 		claim:         defaultCRClaim(c),
 		log:           logging.NewNopLogger(),
@@ -368,7 +369,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// to upgrade field managers if _this controller_ might have applied the XR
 	// before using the default client-side apply field manager "crossplane",
 	// but now wants to use server-side apply instead.
-	if err := r.managedFields.Upgrade(ctx, xr); err != nil {
+	if err := r.managedFields.Upgrade(ctx, xr, FieldOwnerXR); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}

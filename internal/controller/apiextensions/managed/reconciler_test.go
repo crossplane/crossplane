@@ -26,7 +26,6 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -41,7 +40,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
-	"github.com/crossplane/crossplane/v2/internal/ssa"
 )
 
 func TestReconcile(t *testing.T) {
@@ -115,6 +113,20 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, "cannot update status of ManagedResourceDefinition"),
 			},
 		},
+		"MRDBeingDeletedStatusUpdateConflict": {
+			reason: "We should requeue on status update conflicts during deletion",
+			args: args{
+				c: &test.MockClient{
+					MockGet: withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.SetDeletionTimestamp(&now)
+					})),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(kerrors.NewConflict(schema.GroupResource{}, "test", errBoom)),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+			},
+		},
 		"MRDPaused": {
 			reason: "We should not reconcile a paused MRD",
 			args: args{
@@ -148,8 +160,8 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{},
 			},
 		},
-		"MRDActiveCRDGetError": {
-			reason: "We should handle errors getting the CRD for managed fields upgrade",
+		"MRDActiveCRDReconcileError": {
+			reason: "We should handle CRD reconcile errors",
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
@@ -166,7 +178,7 @@ func TestReconcile(t *testing.T) {
 					},
 					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
 						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
-						mrd.SetConditions(v1alpha1.BlockedManaged().WithMessage("unable to get CustomResourceDefinition, see events"))
+						mrd.SetConditions(v1alpha1.BlockedManaged().WithMessage("unable to reconcile CustomResourceDefinition, see events"))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -174,11 +186,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, "cannot get CustomResourceDefinition"),
+				err: errors.Wrap(errors.Wrap(errBoom, "cannot get CustomResourceDefinition"), "cannot reconcile CustomResourceDefinition"),
 			},
 		},
-		"MRDActiveCRDPendingNotEstablished": {
-			reason: "We should mark MRD as pending when CRD is not yet established",
+		"MRDActiveCRDCreateSuccess": {
+			reason: "We should create CRD when it doesn't exist",
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
@@ -213,7 +225,7 @@ func TestReconcile(t *testing.T) {
 							return kerrors.NewNotFound(schema.GroupResource{}, "")
 						}
 					},
-					MockPatch: test.NewMockPatchFn(nil),
+					MockCreate: test.NewMockCreateFn(nil),
 					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
 						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
 						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
@@ -247,8 +259,8 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{},
 			},
 		},
-		"MRDActiveCRDApplyError": {
-			reason: "We should handle errors applying the CRD",
+		"MRDActiveCRDCreateError": {
+			reason: "We should handle CRD creation errors",
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
@@ -283,7 +295,7 @@ func TestReconcile(t *testing.T) {
 							return kerrors.NewNotFound(schema.GroupResource{}, "")
 						}
 					},
-					MockPatch: test.NewMockPatchFn(errBoom),
+					MockCreate: test.NewMockCreateFn(errBoom),
 					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
 						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
 						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
@@ -306,7 +318,7 @@ func TestReconcile(t *testing.T) {
 								},
 							},
 						}
-						mrd.SetConditions(v1alpha1.BlockedManaged().WithMessage("unable to apply CustomResourceDefinition, see events"))
+						mrd.SetConditions(v1alpha1.BlockedManaged().WithMessage("unable to reconcile CustomResourceDefinition, see events"))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -314,7 +326,179 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, "cannot apply CustomResourceDefinition"),
+				err: errors.Wrap(errors.Wrap(errBoom, "cannot create CustomResourceDefinition"), "cannot reconcile CustomResourceDefinition"),
+			},
+		},
+		"MRDActiveCRDUpdateSuccess": {
+			reason: "We should update CRD when it exists but is outdated",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						switch o := obj.(type) {
+						case *v1alpha1.ManagedResourceDefinition:
+							return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+								mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
+								mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+									Group: "example.com",
+									Names: extv1.CustomResourceDefinitionNames{
+										Plural: "databases",
+										Kind:   "Database",
+									},
+									Scope: extv1.ClusterScoped,
+									Versions: []v1alpha1.CustomResourceDefinitionVersion{
+										{
+											Name:    "v1",
+											Served:  true,
+											Storage: true,
+											Schema: &v1alpha1.CustomResourceValidation{
+												OpenAPIV3Schema: runtime.RawExtension{
+													Raw: []byte(`{"type": "object", "properties": {"spec": {"type": "object"}}}`),
+												},
+											},
+										},
+									},
+								}
+							}))(ctx, key, o)
+						case *extv1.CustomResourceDefinition:
+							o.Name = key.Name
+							o.Spec = extv1.CustomResourceDefinitionSpec{
+								Group: "oldexample.com", // Different from MRD to force update
+								Names: extv1.CustomResourceDefinitionNames{
+									Plural: "olddatabases",
+									Kind:   "OldDatabase",
+								},
+								Scope: extv1.ClusterScoped,
+								Versions: []extv1.CustomResourceDefinitionVersion{
+									{
+										Name:    "v1beta1",
+										Served:  false,
+										Storage: false,
+									},
+								},
+							}
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
+					MockUpdate: test.NewMockUpdateFn(nil),
+					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
+						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+							Group: "example.com",
+							Names: extv1.CustomResourceDefinitionNames{
+								Plural: "databases",
+								Kind:   "Database",
+							},
+							Scope: extv1.ClusterScoped,
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
+								{
+									Name:    "v1",
+									Served:  true,
+									Storage: true,
+									Schema: &v1alpha1.CustomResourceValidation{
+										OpenAPIV3Schema: runtime.RawExtension{
+											Raw: []byte(`{"type": "object", "properties": {"spec": {"type": "object"}}}`),
+										},
+									},
+								},
+							},
+						}
+						mrd.SetConditions(v1alpha1.PendingManaged())
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithRecorder(&testRecorder{}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"MRDActiveCRDUpdateError": {
+			reason: "We should handle CRD update errors",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						switch o := obj.(type) {
+						case *v1alpha1.ManagedResourceDefinition:
+							return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+								mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
+								mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+									Group: "example.com",
+									Names: extv1.CustomResourceDefinitionNames{
+										Plural: "databases",
+										Kind:   "Database",
+									},
+									Scope: extv1.ClusterScoped,
+									Versions: []v1alpha1.CustomResourceDefinitionVersion{
+										{
+											Name:    "v1",
+											Served:  true,
+											Storage: true,
+											Schema: &v1alpha1.CustomResourceValidation{
+												OpenAPIV3Schema: runtime.RawExtension{
+													Raw: []byte(`{"type": "object", "properties": {"spec": {"type": "object"}}}`),
+												},
+											},
+										},
+									},
+								}
+							}))(ctx, key, o)
+						case *extv1.CustomResourceDefinition:
+							o.Name = key.Name
+							o.Spec = extv1.CustomResourceDefinitionSpec{
+								Group: "oldexample.com", // Different from MRD to force update
+								Names: extv1.CustomResourceDefinitionNames{
+									Plural: "olddatabases",
+									Kind:   "OldDatabase",
+								},
+								Scope: extv1.ClusterScoped,
+								Versions: []extv1.CustomResourceDefinitionVersion{
+									{
+										Name:    "v1beta1",
+										Served:  false,
+										Storage: false,
+									},
+								},
+							}
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
+					MockUpdate: test.NewMockUpdateFn(errBoom),
+					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
+						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+							Group: "example.com",
+							Names: extv1.CustomResourceDefinitionNames{
+								Plural: "databases",
+								Kind:   "Database",
+							},
+							Scope: extv1.ClusterScoped,
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
+								{
+									Name:    "v1",
+									Served:  true,
+									Storage: true,
+									Schema: &v1alpha1.CustomResourceValidation{
+										OpenAPIV3Schema: runtime.RawExtension{
+											Raw: []byte(`{"type": "object", "properties": {"spec": {"type": "object"}}}`),
+										},
+									},
+								},
+							},
+						}
+						mrd.SetConditions(v1alpha1.BlockedManaged().WithMessage("unable to reconcile CustomResourceDefinition, see events"))
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithRecorder(&testRecorder{}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Wrap(errBoom, "cannot update CustomResourceDefinition"), "cannot reconcile CustomResourceDefinition"),
 			},
 		},
 		"MRDActiveCRDEstablished": {
@@ -410,24 +594,6 @@ func TestReconcile(t *testing.T) {
 						}
 						mrd.SetConditions(v1alpha1.EstablishedManaged())
 					})),
-					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
-						// Simulate server response populating the unstructured object with CRD status
-						u, ok := obj.(*unstructured.Unstructured)
-						if !ok {
-							return nil
-						}
-						// Set established status
-						status := map[string]any{
-							"conditions": []any{
-								map[string]any{
-									"type":   string(extv1.Established),
-									"status": string(extv1.ConditionTrue),
-								},
-							},
-						}
-						u.Object["status"] = status
-						return nil
-					},
 				},
 				opts: []ReconcilerOption{
 					WithRecorder(&testRecorder{}),
@@ -437,8 +603,79 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{},
 			},
 		},
-		"MRDInactiveStatusUpdateError": {
-			reason: "We should handle status update errors when marking MRD as inactive",
+		"MRDActiveCRDDeleted": {
+			reason: "We should handle CRD deletion errors",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						switch o := obj.(type) {
+						case *v1alpha1.ManagedResourceDefinition:
+							return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+								mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
+								mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+									Group: "example.com",
+									Names: extv1.CustomResourceDefinitionNames{
+										Plural: "databases",
+										Kind:   "Database",
+									},
+									Scope: extv1.ClusterScoped,
+									Versions: []v1alpha1.CustomResourceDefinitionVersion{
+										{
+											Name:    "v1",
+											Served:  true,
+											Storage: true,
+											Schema: &v1alpha1.CustomResourceValidation{
+												OpenAPIV3Schema: runtime.RawExtension{
+													Raw: []byte(`{"type": "object", "properties": {"spec": {"type": "object"}}}`),
+												},
+											},
+										},
+									},
+								}
+							}))(ctx, key, o)
+						case *extv1.CustomResourceDefinition:
+							o.Name = key.Name
+							o.SetDeletionTimestamp(&now)
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
+					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
+						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+							Group: "example.com",
+							Names: extv1.CustomResourceDefinitionNames{
+								Plural: "databases",
+								Kind:   "Database",
+							},
+							Scope: extv1.ClusterScoped,
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
+								{
+									Name:    "v1",
+									Served:  true,
+									Storage: true,
+									Schema: &v1alpha1.CustomResourceValidation{
+										OpenAPIV3Schema: runtime.RawExtension{
+											Raw: []byte(`{"type": "object", "properties": {"spec": {"type": "object"}}}`),
+										},
+									},
+								},
+							},
+						}
+						mrd.SetConditions(v1alpha1.BlockedManaged().WithMessage("unable to reconcile CustomResourceDefinition, see events"))
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithRecorder(&testRecorder{}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.New("crd was deleted"), "cannot reconcile CustomResourceDefinition"),
+			},
+		},
+		"StatusUpdateError": {
+			reason: "We should handle status update errors",
 			args: args{
 				c: &test.MockClient{
 					MockGet: withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
@@ -456,11 +693,10 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := &Reconciler{
-				client:        tc.args.c,
-				managedFields: &ssa.NopManagedFieldsUpgrader{},
-				log:           logging.NewNopLogger(),
-				record:        event.NewNopRecorder(),
-				conditions:    conditions.ObservedGenerationPropagationManager{},
+				Client:     tc.args.c,
+				log:        logging.NewNopLogger(),
+				record:     event.NewNopRecorder(),
+				conditions: conditions.ObservedGenerationPropagationManager{},
 			}
 
 			for _, opt := range tc.args.opts {
