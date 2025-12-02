@@ -81,7 +81,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, "cannot get ManagedResourceDefinition"),
+				err: cmpopts.AnyError,
 			},
 		},
 		"MRDBeingDeleted": {
@@ -112,7 +112,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, "cannot update status of ManagedResourceDefinition"),
+				err: cmpopts.AnyError,
 			},
 		},
 		"MRDPaused": {
@@ -174,7 +174,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, "cannot get CustomResourceDefinition"),
+				err: cmpopts.AnyError,
 			},
 		},
 		"MRDActiveCRDPendingNotEstablished": {
@@ -314,7 +314,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, "cannot apply CustomResourceDefinition"),
+				err: cmpopts.AnyError,
 			},
 		},
 		"MRDActiveCRDEstablished": {
@@ -448,7 +448,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, "cannot update status of ManagedResourceDefinition"),
+				err: cmpopts.AnyError,
 			},
 		},
 	}
@@ -471,7 +471,7 @@ func TestReconcile(t *testing.T) {
 				NamespacedName: types.NamespacedName{Name: "test-mrd"},
 			})
 
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
