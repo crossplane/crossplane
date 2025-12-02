@@ -23,10 +23,12 @@ import (
 	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/manager"
+	managertx "github.com/crossplane/crossplane/v2/internal/controller/pkg/manager-tx"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/resolver"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/runtime"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/signature"
+	"github.com/crossplane/crossplane/v2/internal/controller/pkg/transaction"
 	"github.com/crossplane/crossplane/v2/internal/features"
 )
 
@@ -40,6 +42,17 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		revision.SetupConfigurationRevision,
 		revision.SetupProviderRevision,
 		revision.SetupFunctionRevision,
+	}
+
+	// If the transaction-based package manager is enabled we use a
+	// different set of primary controllers.
+	if o.Features.Enabled(features.EnableAlphaTransactionPackageManager) {
+		setupFuncs = []func(ctrl.Manager, controller.Options) error{
+			managertx.SetupProvider,
+			managertx.SetupConfiguration,
+			managertx.SetupFunction,
+			transaction.Setup,
+		}
 	}
 
 	if o.PackageRuntime.For(pkgv1.ProviderKind) == controller.PackageRuntimeDeployment {
