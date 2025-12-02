@@ -2252,6 +2252,111 @@ func TestGetSecret(t *testing.T) {
 	}
 }
 
+func TestSetComposedResourceMetadata(t *testing.T) {
+	type args struct {
+		cd   *composed.Unstructured
+		xr   *ucomposite.Unstructured
+		name string
+	}
+	type want struct {
+		generateName   string
+		compositeLabel string
+		claimName      string
+		claimNamespace string
+	}
+
+	tests := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"RootXRUsesOwnName": {
+			reason: "A root XR without composite label should use its own name",
+			args: args{
+				cd: composed.New(),
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New()
+					xr.SetName("root-xr")
+					return xr
+				}(),
+				name: "resource-a",
+			},
+			want: want{
+				generateName:   "root-xr-",
+				compositeLabel: "root-xr",
+			},
+		},
+		"NestedXRPropagatesRootLabel": {
+			reason: "A nested XR with composite label should propagate the root's name",
+			args: args{
+				cd: composed.New(),
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New()
+					xr.SetName("root-xr-child")
+					xr.SetLabels(map[string]string{
+						AnnotationKeyCompositeName: "root-xr",
+					})
+					return xr
+				}(),
+				name: "resource-a",
+			},
+			want: want{
+				generateName:   "root-xr-",
+				compositeLabel: "root-xr",
+			},
+		},
+		"NestedXRPropagatesClaimLabels": {
+			reason: "A nested XR with claim labels should propagate them to composed resources",
+			args: args{
+				cd: composed.New(),
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New()
+					xr.SetName("root-xr-child")
+					xr.SetLabels(map[string]string{
+						AnnotationKeyCompositeName:  "root-xr",
+						AnnotationKeyClaimName:      "my-claim",
+						AnnotationKeyClaimNamespace: "claim-ns",
+					})
+					return xr
+				}(),
+				name: "resource-a",
+			},
+			want: want{
+				generateName:   "root-xr-",
+				compositeLabel: "root-xr",
+				claimName:      "my-claim",
+				claimNamespace: "claim-ns",
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := SetComposedResourceMetadata(tc.args.cd, tc.args.xr, tc.args.name)
+			if err != nil {
+				t.Fatalf("SetComposedResourceMetadata() error = %v", err)
+			}
+
+			if diff := cmp.Diff(tc.want.generateName, tc.args.cd.GetGenerateName()); diff != "" {
+				t.Errorf("%s\nSetComposedResourceMetadata() generateName: -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.compositeLabel, tc.args.cd.GetLabels()[AnnotationKeyCompositeName]); diff != "" {
+				t.Errorf("%s\nSetComposedResourceMetadata() compositeLabel: -want, +got:\n%s", tc.reason, diff)
+			}
+			if tc.want.claimName != "" {
+				if diff := cmp.Diff(tc.want.claimName, tc.args.cd.GetLabels()[AnnotationKeyClaimName]); diff != "" {
+					t.Errorf("%s\nSetComposedResourceMetadata() claimName: -want, +got:\n%s", tc.reason, diff)
+				}
+			}
+			if tc.want.claimNamespace != "" {
+				if diff := cmp.Diff(tc.want.claimNamespace, tc.args.cd.GetLabels()[AnnotationKeyClaimNamespace]); diff != "" {
+					t.Errorf("%s\nSetComposedResourceMetadata() claimNamespace: -want, +got:\n%s", tc.reason, diff)
+				}
+			}
+		})
+	}
+}
+
 func MustStructJSON(j string) *structpb.Struct {
 	s := &structpb.Struct{}
 	if err := protojson.Unmarshal([]byte(j), s); err != nil {
