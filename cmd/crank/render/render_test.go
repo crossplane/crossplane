@@ -37,6 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
@@ -2061,7 +2062,7 @@ func TestSetComposedResourceMetadata(t *testing.T) {
 			args: args{
 				cd: composed.New(),
 				xr: func() *ucomposite.Unstructured {
-					xr := ucomposite.New()
+					xr := ucomposite.New(ucomposite.WithSchema(ucomposite.SchemaLegacy))
 					xr.SetName("root-xr")
 					return xr
 				}(),
@@ -2077,7 +2078,7 @@ func TestSetComposedResourceMetadata(t *testing.T) {
 			args: args{
 				cd: composed.New(),
 				xr: func() *ucomposite.Unstructured {
-					xr := ucomposite.New()
+					xr := ucomposite.New(ucomposite.WithSchema(ucomposite.SchemaLegacy))
 					xr.SetName("root-xr-child")
 					xr.SetLabels(map[string]string{
 						AnnotationKeyCompositeName: "root-xr",
@@ -2096,10 +2097,54 @@ func TestSetComposedResourceMetadata(t *testing.T) {
 			args: args{
 				cd: composed.New(),
 				xr: func() *ucomposite.Unstructured {
-					xr := ucomposite.New()
+					xr := ucomposite.New(ucomposite.WithSchema(ucomposite.SchemaLegacy))
 					xr.SetName("root-xr-child")
 					xr.SetLabels(map[string]string{
 						AnnotationKeyCompositeName:  "root-xr",
+						AnnotationKeyClaimName:      "my-claim",
+						AnnotationKeyClaimNamespace: "claim-ns",
+					})
+					return xr
+				}(),
+				name: "resource-a",
+			},
+			want: want{
+				generateName:   "root-xr-",
+				compositeLabel: "root-xr",
+				claimName:      "my-claim",
+				claimNamespace: "claim-ns",
+			},
+		},
+		"RootXRWithClaimReference": {
+			reason: "A root XR with ClaimReference but no claim labels should use ClaimReference for claim labels",
+			args: args{
+				cd: composed.New(),
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New(ucomposite.WithSchema(ucomposite.SchemaLegacy))
+					xr.SetName("root-xr")
+					xr.SetClaimReference(&reference.Claim{
+						Name:      "my-claim",
+						Namespace: "claim-ns",
+					})
+					return xr
+				}(),
+				name: "resource-a",
+			},
+			want: want{
+				generateName:   "root-xr-",
+				compositeLabel: "root-xr",
+				claimName:      "my-claim",
+				claimNamespace: "claim-ns",
+			},
+		},
+		"XRWithClaimLabelsButNoCompositeLabel": {
+			reason: "An XR with claim labels but no composite label should fall back to XR name and still propagate claim labels",
+			args: args{
+				cd: composed.New(),
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New(ucomposite.WithSchema(ucomposite.SchemaLegacy))
+					xr.SetName("root-xr")
+					xr.SetLabels(map[string]string{
 						AnnotationKeyClaimName:      "my-claim",
 						AnnotationKeyClaimNamespace: "claim-ns",
 					})
