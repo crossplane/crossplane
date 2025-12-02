@@ -82,6 +82,23 @@ func TestRender(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
+		"InvalidYAMLContextValue": {
+			args: args{
+				in: Inputs{
+					CompositeResource: ucomposite.New(),
+					Context: map[string][]byte{
+						"invalid-yaml": []byte(`
+name: test
+  invalid: indentation
+    another: level
+`),
+					},
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
 		"InvalidInput": {
 			args: args{
 				in: Inputs{
@@ -459,6 +476,203 @@ func TestRender(t *testing.T) {
 									Kind:       "Foo",
 									Match: &fnv1.ResourceSelector_MatchName{
 										MatchName: "example-resource",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"SuccessWithYAMLAndJSONContexts": {
+			args: args{
+				ctx: context.Background(),
+				in: Inputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+										"apiVersion": "nop.example.org/v1alpha1",
+										"kind": "XNopResource",
+										"metadata": {
+											"name": "test-render"
+										}
+									}`),
+						},
+					},
+					Composition: &apiextensionsv1.Composition{
+						Spec: apiextensionsv1.CompositionSpec{
+							Mode: apiextensionsv1.CompositionModePipeline,
+							Pipeline: []apiextensionsv1.PipelineStep{
+								{
+									Step:        "test",
+									FunctionRef: apiextensionsv1.FunctionReference{Name: "function-test"},
+								},
+							},
+						},
+					},
+					Functions: []pkgv1.Function{
+						func() pkgv1.Function {
+							lis := NewFunctionWithRunFunc(t, func(_ context.Context, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+								// assert context is passed correctly
+								if req.GetContext() == nil {
+									t.Errorf("expected context to be set")
+									return nil, nil
+								}
+								fctx := req.GetContext().AsMap()
+
+								jsonVal, ok := fctx["crossplane.io/json-context"].(map[string]any)
+								if !ok {
+									t.Errorf("expected json context to be passed to function")
+									return nil, nil
+								}
+								wantJSONContext := map[string]any{
+									"name":   "json-context",
+									"format": "json",
+								}
+								if diff := cmp.Diff(jsonVal, wantJSONContext); diff != "" {
+									t.Errorf("json context passed to function: -want, +got:\n%s", diff)
+									return nil, nil
+								}
+
+								yamlVal, ok := fctx["crossplane.io/yaml-context"].(map[string]any)
+								if !ok {
+									t.Errorf("expected yaml context to be passed to function")
+									return nil, nil
+								}
+								wantYAMLContext := map[string]any{
+									"format": "yaml",
+									"name":   "yaml-context",
+									"object": map[string]any{
+										"name":    "Crossplane",
+										"version": "v2",
+									},
+								}
+								if diff := cmp.Diff(yamlVal, wantYAMLContext); diff != "" {
+									t.Errorf("yaml context passed to function: -want, +got:\n%s", diff)
+									return nil, nil
+								}
+
+								return &fnv1.RunFunctionResponse{
+									Desired: &fnv1.State{
+										Composite: &fnv1.Resource{
+											Resource: MustStructJSON(`{
+													"status": {
+														"widgets": 9001,
+														"conditions": [{
+															"lastTransitionTime": "2024-01-01T00:00:00Z",
+															"type": "Ready",
+															"status": "False",
+															"reason": "Creating",
+															"message": "Unready resources: a-cool-resource"
+														}]
+													}
+												}`),
+										},
+										Resources: map[string]*fnv1.Resource{
+											"a-cool-resource": {
+												Resource: MustStructJSON(`{
+														"apiVersion": "atest.crossplane.io/v1",
+														"kind": "AComposed",
+														"spec": {
+															"widgets": 9002
+														}
+													}`),
+											},
+										},
+									},
+									Conditions: []*fnv1.Condition{
+										{
+											Type:    "ProvisioningSuccess",
+											Status:  fnv1.Status_STATUS_CONDITION_TRUE,
+											Reason:  "Provisioned",
+											Message: ptr.To("Provisioned successfully"),
+											Target:  fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
+										},
+									},
+								}, nil
+							})
+							listeners = append(listeners, lis)
+
+							return pkgv1.Function{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "function-test",
+									Annotations: map[string]string{
+										AnnotationKeyRuntime:                  string(AnnotationValueRuntimeDevelopment),
+										AnnotationKeyRuntimeDevelopmentTarget: lis.Addr().String(),
+									},
+								},
+							}
+						}(),
+					},
+					Context: map[string][]byte{
+						"crossplane.io/json-context": []byte(`{"name":"json-context","format":"json"}`),
+						"crossplane.io/yaml-context": []byte(`
+format: yaml
+name: yaml-context
+object:
+    name: Crossplane
+    version: v2
+`),
+					},
+				},
+			},
+			want: want{
+				out: Outputs{
+					ComposedResources: []composed.Unstructured{
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+                                    "apiVersion": "atest.crossplane.io/v1",
+                                    "metadata": {
+                                        "generateName": "test-render-",
+                                        "labels": {
+                                            "crossplane.io/composite": "test-render"
+                                        },
+                                        "ownerReferences": [{
+                                            "apiVersion": "nop.example.org/v1alpha1",
+                                            "kind": "XNopResource",
+                                            "name": "test-render",
+                                            "blockOwnerDeletion": true,
+                                            "controller": true,
+                                            "uid": ""
+                                        }],
+                                        "annotations": {
+                                            "crossplane.io/composition-resource-name": "a-cool-resource"
+                                        }
+                                    },
+                                    "kind": "AComposed",
+                                    "spec": {
+                                        "widgets": 9002
+                                    }
+                                }`),
+							},
+						},
+					},
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind":       "XNopResource",
+								"metadata": map[string]any{
+									"name": "test-render",
+								},
+								"status": map[string]any{
+									"widgets": float64(9001),
+									"conditions": []any{
+										map[string]any{
+											"lastTransitionTime": "2024-01-01T00:00:00Z",
+											"type":               "Ready",
+											"status":             "False",
+											"reason":             "Creating",
+											"message":            "Unready resources: a-cool-resource",
+										},
+										map[string]any{
+											"lastTransitionTime": "2024-01-01T00:00:00Z",
+											"type":               "ProvisioningSuccess",
+											"status":             "True",
+											"reason":             "Provisioned",
+											"message":            "Provisioned successfully",
+										},
 									},
 								},
 							},

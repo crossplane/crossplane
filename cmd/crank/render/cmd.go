@@ -47,16 +47,16 @@ type Cmd struct {
 	Functions         string `arg:"" help:"A YAML file or directory of YAML files specifying the Composition Functions to use to render the XR." predictor:"yaml_file_or_directory" type:"path"`
 
 	// Flags. Keep them in alphabetical order.
-	ContextFiles           map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be files containing JSON."                           mapsep:""               predictor:"file"`
-	ContextValues          map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be JSON. Keys take precedence over --context-files." mapsep:""`
-	IncludeFunctionResults bool              `help:"Include informational and warning messages from Functions in the rendered output as resources of kind: Result."                            short:"r"`
-	IncludeFullXR          bool              `help:"Include a direct copy of the input XR's spec and metadata fields in the rendered output."                                                  short:"x"`
-	ObservedResources      string            `help:"A YAML file or directory of YAML files specifying the observed state of composed resources."                                               placeholder:"PATH"      predictor:"yaml_file_or_directory" short:"o"   type:"path"`
-	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying required resources (deprecated, use --required-resources)."                              placeholder:"PATH"      predictor:"yaml_file_or_directory" type:"path"`
-	RequiredResources      string            `help:"A YAML file or directory of YAML files specifying required resources to pass to the Function pipeline."                                    placeholder:"PATH"      predictor:"yaml_file_or_directory" short:"e"   type:"path"`
-	IncludeContext         bool              `help:"Include the context in the rendered output as a resource of kind: Context."                                                                short:"c"`
-	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                      placeholder:"PATH"      predictor:"yaml_file_or_directory" type:"path"`
-	FunctionAnnotations    []string          `help:"Override function annotations for all functions. Can be repeated."                                                                         placeholder:"KEY=VALUE" short:"a"`
+	ContextFiles           map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be files containing JSON/YAML."                           mapsep:""               predictor:"file"`
+	ContextValues          map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be JSON/YAML. Keys take precedence over --context-files." mapsep:""`
+	IncludeFunctionResults bool              `help:"Include informational and warning messages from Functions in the rendered output as resources of kind: Result."                                 short:"r"`
+	IncludeFullXR          bool              `help:"Include a direct copy of the input XR's spec and metadata fields in the rendered output."                                                       short:"x"`
+	ObservedResources      string            `help:"A YAML file or directory of YAML files specifying the observed state of composed resources."                                                    placeholder:"PATH"      predictor:"yaml_file_or_directory" short:"o"   type:"path"`
+	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying required resources (deprecated, use --required-resources)."                                   placeholder:"PATH"      predictor:"yaml_file_or_directory" type:"path"`
+	RequiredResources      string            `help:"A YAML file or directory of YAML files specifying required resources to pass to the Function pipeline."                                         placeholder:"PATH"      predictor:"yaml_file_or_directory" short:"e"   type:"path"`
+	IncludeContext         bool              `help:"Include the context in the rendered output as a resource of kind: Context."                                                                     short:"c"`
+	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                           placeholder:"PATH"      predictor:"yaml_file_or_directory" type:"path"`
+	FunctionAnnotations    []string          `help:"Override function annotations for all functions. Can be repeated."                                                                              placeholder:"KEY=VALUE" short:"a"`
 
 	Timeout time.Duration `default:"1m"                                                                                                     help:"How long to run before timing out."`
 	XRD     string        `help:"A YAML file specifying the CompositeResourceDefinition (XRD) that defines the XR's schema and properties." optional:""                               placeholder:"PATH" type:"existingfile"`
