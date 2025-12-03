@@ -565,9 +565,9 @@ func TestUnfulfilledRequirementsDoesNotCache(t *testing.T) {
 	}
 }
 
-// TestFulfilledRequirementsDoesCach verifies that responses with fulfilled
+// TestFulfilledRequirementsDoesCache verifies that responses with fulfilled
 // requirements ARE cached. The wrapped function should only be called once.
-func TestFulfilledRequirementsDoesCach(t *testing.T) {
+func TestFulfilledRequirementsDoesCache(t *testing.T) {
 	callCount := 0
 
 	wrapped := FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
