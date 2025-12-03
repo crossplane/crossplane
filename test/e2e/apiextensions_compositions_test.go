@@ -412,3 +412,41 @@ func TestCircuitBreaker(t *testing.T) {
 			Feature(),
 	)
 }
+
+func TestCompositionExtraResources(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/extra-resources"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that composition functions can request extra resources and Crossplane provides them in subsequent function calls.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithLabel(config.LabelTestSuite, SuiteFunctionResponseCache).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRIsReady",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess())).
+			Assess("XRHasProcessedExtraResource",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.configMapData", "processed-extra-resource-value"),
+			).
+			Assess("ComposedSecretCreatedFromExtraResource",
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "composed-secret.yaml"),
+			).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
