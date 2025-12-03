@@ -504,6 +504,129 @@ func TestCacheFunctionWithMaxTTL(t *testing.T) {
 	}
 }
 
+// TestUnfulfilledRequirementsDoesNotCache verifies that responses with
+// unfulfilled requirements are NOT cached. The wrapped function should be
+// called multiple times.
+func TestUnfulfilledRequirementsDoesNotCache(t *testing.T) {
+	callCount := 0
+
+	wrapped := FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+		callCount++
+		return &fnv1.RunFunctionResponse{
+			Meta: &fnv1.ResponseMeta{
+				Tag: "response",
+				Ttl: durationpb.New(10 * time.Minute),
+			},
+			Requirements: &fnv1.Requirements{
+				Resources: map[string]*fnv1.ResourceSelector{
+					"my-resource": {},
+				},
+			},
+		}, nil
+	})
+
+	fs := afero.NewMemMapFs()
+	r := NewFileBackedRunner(wrapped, "/cache",
+		WithLogger(&TestLogger{t: t}),
+		WithFilesystem(fs))
+
+	req := &fnv1.RunFunctionRequest{
+		Meta: &fnv1.RequestMeta{Tag: "req"},
+		// No RequiredResources - requirements are unfulfilled
+	}
+
+	// First call
+	_, err := r.RunFunction(context.TODO(), "coolfn", req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if callCount != 1 {
+		t.Errorf("Expected wrapped function called once after first call, got %d", callCount)
+	}
+
+	// Verify cache file does NOT exist
+	exists, err := afero.Exists(fs, "coolfn/req")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exists {
+		t.Error("Cache file should NOT exist for unfulfilled requirements")
+	}
+
+	// Second call - should call wrapped function again (not cached)
+	_, err = r.RunFunction(context.TODO(), "coolfn", req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if callCount != 2 {
+		t.Errorf("Expected wrapped function called twice (not cached), got %d", callCount)
+	}
+}
+
+// TestFulfilledRequirementsDoesCach verifies that responses with fulfilled
+// requirements ARE cached. The wrapped function should only be called once.
+func TestFulfilledRequirementsDoesCach(t *testing.T) {
+	callCount := 0
+
+	wrapped := FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+		callCount++
+		return &fnv1.RunFunctionResponse{
+			Meta: &fnv1.ResponseMeta{
+				Tag: "response",
+				Ttl: durationpb.New(10 * time.Minute),
+			},
+			Requirements: &fnv1.Requirements{
+				Resources: map[string]*fnv1.ResourceSelector{
+					"my-resource": {},
+				},
+			},
+		}, nil
+	})
+
+	fs := afero.NewMemMapFs()
+	r := NewFileBackedRunner(wrapped, "/cache",
+		WithLogger(&TestLogger{t: t}),
+		WithFilesystem(fs))
+
+	req := &fnv1.RunFunctionRequest{
+		Meta: &fnv1.RequestMeta{Tag: "req"},
+		RequiredResources: map[string]*fnv1.Resources{
+			"my-resource": {}, // Requirements are fulfilled
+		},
+	}
+
+	// First call - should cache
+	_, err := r.RunFunction(context.TODO(), "coolfn", req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if callCount != 1 {
+		t.Errorf("Expected wrapped function called once after first call, got %d", callCount)
+	}
+
+	// Verify cache file EXISTS
+	exists, err := afero.Exists(fs, "coolfn/req")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exists {
+		t.Error("Cache file SHOULD exist for fulfilled requirements")
+	}
+
+	// Second call - should use cache (not call wrapped function)
+	_, err = r.RunFunction(context.TODO(), "coolfn", req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if callCount != 1 {
+		t.Errorf("Expected wrapped function still called only once (cached), got %d", callCount)
+	}
+}
+
 func TestGarbageCollectFilesNow(t *testing.T) {
 	// Deadline in the past.
 	past, _ := proto.Marshal(&v1alpha1.CachedRunFunctionResponse{Deadline: timestamppb.New(time.Now().Add(-1 * time.Minute))})
