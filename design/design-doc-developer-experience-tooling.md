@@ -376,16 +376,19 @@ spec:
     - name: "First reconciliation loop"
       patches:
         # The XRD, for schema validation.
-        xrdPath: apis/cluster/definition.yaml
+        xrd:
+          path: apis/cluster/definition.yaml
         # Add fields to the input XR
         addFields:
           "spec.something": "value"
           "metadata.labels": "mylabel"
       inputs:
         # The XR to render as input to the test.
-        xrPath: examples/cluster/xr.yaml
+        xr:
+          path: examples/cluster/xr.yaml
         # The composition to execute for the test.
-        compositionPath: apis/cluster/composition.yaml
+        composition:
+          path: apis/cluster/composition.yaml
         # Optional observed resources for the composition pipeline, e.g. to test
         # conditional logic.
         observedResources: []
@@ -781,13 +784,8 @@ type CompositionTestCase struct {
 //
 // +k8s:deepcopy-gen=true
 type CompositionTestPatches struct {
-	// XRD specifies the XRD definition inline.
-	// Optional.
-	XRD runtime.RawExtension `json:"xrd,omitempty"`
-
-	// XRD specifies the XRD definition path.
-	// Optional.
-	XRDPath string `json:"xrdPath,omitempty"`
+	// XRD specifies the XRD.
+	XRD Resource `json:"xrd,omitempty"`
 
 	// AddFields specifies a map of fields:value that should be added to the input XR.
 	// Optional.
@@ -798,9 +796,6 @@ type CompositionTestPatches struct {
 	RemoveFields []string `json:"removeFields,omitempty"`
 }
 
-// CompositionTestInputs defines the inputs for a single test case
-//
-// +k8s:deepcopy-gen=true
 type CompositionTestInputs struct {
 	// Timeout for the test in seconds
 	// Optional. Default is 30s.
@@ -814,39 +809,24 @@ type CompositionTestInputs struct {
 	// +kubebuilder:validation:Optional
 	Validate *bool `json:"validate,omitempty"`
 
-	// XR specifies the composite resource (XR) inline.
-	// Mutually exclusive with XRPath. At least one of XR or XRPath must be specified.
-	XR runtime.RawExtension `json:"xr,omitempty"`
+	// XR specifies the composite resource.
+	XR Resource `json:"xr,omitempty"`
 
-	// XRPath specifies the composite resource (XR) path.
-	// Mutually exclusive with XR. At least one of XR or XRPath must be specified.
-	XRPath string `json:"xrPath,omitempty"`
+	// Composition specifies the composition.
+	Composition Resource `json:"composition,omitempty"`
 
-	// Composition specifies the composition definition inline.
-	// Optional.
-	Composition runtime.RawExtension `json:"composition,omitempty"`
+	// Functions specifies the functions.
+	Functions []Resource `json:"functions,omitempty"`
 
-	// Composition specifies the composition definition path.
-	// Optional.
-	CompositionPath string `json:"compositionPath,omitempty"`
-
-	// Functions specifies the functions inline.
-	// Optional.
-	Functions []runtime.RawExtension `json:"functions,omitempty"`
-
-	// FunctionsPath specifies the functions path.
-	// Optional.
-	FunctionsPath string `json:"functionsPath,omitempty"`
-
-	// ObservedResources specifies additional observed resources inline.
+	// ObservedResources specifies additional observed resources.
 	// Optional.
 	// +kubebuilder:validation:Optional
-	ObservedResources []runtime.RawExtension `json:"observedResources,omitempty"`
+	ObservedResources []Resource `json:"observedResources,omitempty"`
 
-	// ExtraResources specifies additional resources inline.
+	// ExtraResources specifies additional resources.
 	// Optional.
 	// +kubebuilder:validation:Optional
-	ExtraResources []runtime.RawExtension `json:"extraResources,omitempty"`
+	ExtraResources []Resource `json:"extraResources,omitempty"`
 
 	// FunctionCredentialsPath specifies a path to a credentials file to be passed to tests.
 	// Optional.
@@ -858,6 +838,17 @@ type CompositionTestInputs struct {
 	// Optional.
 	// +kubebuilder:validation:Optional
 	Context map[string]runtime.RawExtension `json:"context,omitempty"`
+}
+
+// Resource specifies a resource either as a manifest file or inline. Exactly
+// one field must be filled in (they are mutually exclusive).
+type Resource struct {
+	// Raw is an inline represesntation of the resource.
+	// +kubebuilder:validation:Optional
+	Raw runtime.RawExtension `json:"raw,omitempty"`
+	// Path is the path to a resource manifest.
+	// +kubebuilder:validation:Optional
+	Path string `json:"path,omitempty"`
 }
 ```
 
@@ -930,23 +921,16 @@ type OperationTestInputs struct {
 	// +kubebuilder:default=30
 	TimeoutSeconds *int `json:"timeoutSeconds"`
 
-	// Operation specifies the Operation definition inline.
-	// Optional.
-	Operation runtime.RawExtension `json:"operation,omitempty"`
-
-	// OperationPath specifies the XRD definition path.
-	// Optional.
-	OperationPath string `json:"operationPath,omitempty"`
+	// Operation specifies the Operation definition.
+	Operation Resource `json:"operation,omitempty"`
 
 	// RequiredResources specifies additional required resources inline.
 	// Optional.
 	// +kubebuilder:validation:Optional
-	RequiredResources []runtime.RawExtension `json:"requiredResources,omitempty"`
+	RequiredResources []Resource `json:"requiredResources,omitempty"`
 
-	// RequiredResourcesPath specifies a path to required resources file.
-	// Optional.
-	// +kubebuilder:validation:Optional
-	RequiredResourcesPath string `json:"requiredResourcesPath,omitempty"`
+	// Functions specifies the functions.
+	Functions []Resource `json:"functions,omitempty"`
 
 	// FunctionCredentialsPath specifies a path to a credentials file to be passed to tests.
 	// Optional.
@@ -958,6 +942,17 @@ type OperationTestInputs struct {
 	// Optional.
 	// +kubebuilder:validation:Optional
 	Context map[string]runtime.RawExtension `json:"context,omitempty"`
+}
+
+// Resource specifies a resource either as a manifest file or inline. Exactly
+// one field must be filled in (they are mutually exclusive).
+type Resource struct {
+	// Raw is an inline represesntation of the resource.
+	// +kubebuilder:validation:Optional
+	Raw runtime.RawExtension `json:"raw,omitempty"`
+	// Path is the path to a resource manifest.
+	// +kubebuilder:validation:Optional
+	Path string `json:"path,omitempty"`
 }
 ```
 
