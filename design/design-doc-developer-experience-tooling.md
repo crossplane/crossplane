@@ -796,6 +796,9 @@ type CompositionTestPatches struct {
 	RemoveFields []string `json:"removeFields,omitempty"`
 }
 
+// CompositionTestInputs defines the inputs for a single test case
+//
+// +k8s:deepcopy-gen=true
 type CompositionTestInputs struct {
 	// Timeout for the test in seconds
 	// Optional. Default is 30s.
@@ -810,23 +813,29 @@ type CompositionTestInputs struct {
 	Validate *bool `json:"validate,omitempty"`
 
 	// XR specifies the composite resource.
+    //
+    // +kubebuilder:validation:Required
 	XR Resource `json:"xr,omitempty"`
 
 	// Composition specifies the composition.
+    //
+    // +kubebuilder:validation:Required
 	Composition Resource `json:"composition,omitempty"`
 
 	// Functions specifies the functions.
-	Functions []Resource `json:"functions,omitempty"`
+    //
+    // +kubebuilder:validation:Required
+	Functions Resources `json:"functions,omitempty"`
 
 	// ObservedResources specifies additional observed resources.
 	// Optional.
 	// +kubebuilder:validation:Optional
-	ObservedResources []Resource `json:"observedResources,omitempty"`
+	ObservedResources Resources `json:"observedResources,omitempty"`
 
 	// ExtraResources specifies additional resources.
 	// Optional.
 	// +kubebuilder:validation:Optional
-	ExtraResources []Resource `json:"extraResources,omitempty"`
+	ExtraResources Resources `json:"extraResources,omitempty"`
 
 	// FunctionCredentialsPath specifies a path to a credentials file to be passed to tests.
 	// Optional.
@@ -850,6 +859,16 @@ type Resource struct {
 	// +kubebuilder:validation:Optional
 	Path string `json:"path,omitempty"`
 }
+
+// Resources specifies a list of resources as a manifest or inline. Exactly
+// one field must be filled in (they are mutually exclusive).
+type Resources struct {
+    // Raw is an inline list of resources.
+    // +kubebuilder:validation:Optional
+	Raw []runtime.RawExtension `json:"raw,omitempty"`
+    // Path is the path to a resource manifest or directory of manifests.
+    // +kubebuilder:validation:Optional
+	Path string `json:"path,omitempty"`
 ```
 
 </details>
@@ -927,10 +946,10 @@ type OperationTestInputs struct {
 	// RequiredResources specifies additional required resources inline.
 	// Optional.
 	// +kubebuilder:validation:Optional
-	RequiredResources []Resource `json:"requiredResources,omitempty"`
+	RequiredResources Resources `json:"requiredResources,omitempty"`
 
 	// Functions specifies the functions.
-	Functions []Resource `json:"functions,omitempty"`
+	Functions Resources `json:"functions,omitempty"`
 
 	// FunctionCredentialsPath specifies a path to a credentials file to be passed to tests.
 	// Optional.
@@ -952,6 +971,17 @@ type Resource struct {
 	Raw runtime.RawExtension `json:"raw,omitempty"`
 	// Path is the path to a resource manifest.
 	// +kubebuilder:validation:Optional
+	Path string `json:"path,omitempty"`
+}
+
+// Resources specifies a list of resources as a manifest or inline. Exactly
+// one field must be filled in (they are mutually exclusive).
+type Resources struct {
+    // Raw is an inline list of resources.
+    // +kubebuilder:validation:Optional
+	Raw []runtime.RawExtension `json:"raw,omitempty"`
+    // Path is the path to a resource manifest or directory of manifests.
+    // +kubebuilder:validation:Optional
 	Path string `json:"path,omitempty"`
 }
 ```
