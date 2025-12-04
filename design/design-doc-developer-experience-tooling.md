@@ -815,17 +815,17 @@ type CompositionTestInputs struct {
 	// XR specifies the composite resource.
     //
     // +kubebuilder:validation:Required
-	XR Resource `json:"xr,omitempty"`
+	XR Resource `json:"xr"`
 
 	// Composition specifies the composition.
     //
     // +kubebuilder:validation:Required
-	Composition Resource `json:"composition,omitempty"`
+	Composition Resource `json:"composition"`
 
 	// Functions specifies the functions.
     //
     // +kubebuilder:validation:Required
-	Functions Resources `json:"functions,omitempty"`
+	Functions Resources `json:"functions"`
 
 	// ObservedResources specifies additional observed resources.
 	// Optional.
@@ -941,7 +941,9 @@ type OperationTestInputs struct {
 	TimeoutSeconds *int `json:"timeoutSeconds"`
 
 	// Operation specifies the Operation definition.
-	Operation Resource `json:"operation,omitempty"`
+    //
+    // +kubebuilder:validation:Required
+	Operation Resource `json:"operation"`
 
 	// RequiredResources specifies additional required resources inline.
 	// Optional.
@@ -949,7 +951,9 @@ type OperationTestInputs struct {
 	RequiredResources Resources `json:"requiredResources,omitempty"`
 
 	// Functions specifies the functions.
-	Functions Resources `json:"functions,omitempty"`
+    //
+    // +kubebuilder:validation:Required
+	Functions Resources `json:"functions"`
 
 	// FunctionCredentialsPath specifies a path to a credentials file to be passed to tests.
 	// Optional.
