@@ -46,8 +46,7 @@ their proprietary tooling to the Crossplane community to implement this design.
 
 This design includes a section on testing. A number of tools have been built or
 proposed for testing Crossplane configurations, and may be integrated with this
-design. Examples include [xprin] (pending open-sourcing) and the proposed
-[`crossplane beta test`] tool.
+design. Examples include [xprin] and the proposed [`crossplane beta test`] tool.
 
 [function-pythonic] offers a Python-based developer experience for building
 composition functions, and could be integrated into this design as a builder
