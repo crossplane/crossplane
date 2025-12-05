@@ -534,6 +534,8 @@ the `crossplane` CLI:
     bindings for its resource types.
   * `update-cache` - Update the dependency cache, re-generating or caching
     language bindings as needed.
+* `crossplane utils` - Helper commands that don't fit elsewhere in the tree
+  (e.g., `crossplane utils xrd-to-crd` to convert an XRD to a CRD).
 
 Additionally, the `crossplane render` command will be updated to work in project
 contexts. Specifically, when run in a project with embedded functions, the
