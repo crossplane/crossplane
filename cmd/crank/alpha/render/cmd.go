@@ -19,6 +19,7 @@ package render
 
 import (
 	"github.com/crossplane/crossplane/v2/cmd/crank/alpha/render/op"
+	"github.com/crossplane/crossplane/v2/cmd/crank/alpha/render/test"
 	"github.com/crossplane/crossplane/v2/cmd/crank/alpha/render/xr"
 )
 
@@ -26,8 +27,9 @@ import (
 type Cmd struct {
 	// Subcommands and flags will appear in the CLI help output in the same
 	// order they're specified here. Keep them in alphabetical order.
-	Op op.Cmd `cmd:"" help:"Render an operation."`
-	XR xr.Cmd `cmd:"" help:"Render a composite resource (XR)."`
+	Op   op.Cmd   `cmd:"" help:"Render an operation."`
+	Test test.Cmd `cmd:"" help:"Render composite resources (XRs) and assert results."`
+	XR   xr.Cmd   `cmd:"" help:"Render a composite resource (XR)."`
 }
 
 // Help output for crossplane alpha render.
