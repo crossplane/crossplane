@@ -436,17 +436,27 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 }
 
 // SetComposedResourceMetadata sets standard, required composed resource
-// metadata. It's a simplified version of the same function used by Crossplane.
-// Notably it doesn't handle 'nested' XRs - it assumes the supplied XR should be
-// treated as the top-level XR for setting the crossplane.io/composite,
-// crossplane.io/claim-namespace, and crossplane.io/claim-name annotations.
+// metadata. It mirrors the behavior of RenderComposedResourceMetadata in
+// Crossplane's composition controller.
+//
+// For nested XRs (XRs that are themselves composed resources), this function
+// propagates the root composite's name via the crossplane.io/composite label,
+// and claim labels if present. This ensures all resources in a tree share the
+// same root identity, matching Crossplane's actual behavior.
 //
 // https://github.com/crossplane/crossplane/blob/0965f0/internal/controller/apiextensions/composite/composition_render.go#L117
 func SetComposedResourceMetadata(cd resource.Object, xr resource.LegacyComposite, name string) error {
+	// Use the XR's composite label for generateName prefix if present (for
+	// nested XRs), otherwise fall back to the XR's name.
+	namePrefix := xr.GetLabels()[AnnotationKeyCompositeName]
+	if namePrefix == "" {
+		namePrefix = xr.GetName()
+	}
+
 	// We recommend composed resources let us generate a name for them. They're
 	// allowed to explicitly specify a name if they want though.
 	if cd.GetName() == "" && cd.GetGenerateName() == "" {
-		cd.SetGenerateName(xr.GetName() + "-")
+		cd.SetGenerateName(namePrefix + "-")
 	}
 
 	// If the XR is namespaced it can only create composed resources in its own
@@ -457,9 +467,18 @@ func SetComposedResourceMetadata(cd resource.Object, xr resource.LegacyComposite
 	}
 
 	meta.AddAnnotations(cd, map[string]string{AnnotationKeyCompositionResourceName: name})
-	meta.AddLabels(cd, map[string]string{AnnotationKeyCompositeName: xr.GetName()})
+	meta.AddLabels(cd, map[string]string{AnnotationKeyCompositeName: namePrefix})
 
-	if ref := xr.GetClaimReference(); ref != nil {
+	// Propagate claim labels from the XR if present. For nested XRs, these
+	// labels are inherited from the parent rather than from a claim reference.
+	// This matches the behavior in composition_render.go.
+	if xr.GetLabels()[AnnotationKeyClaimName] != "" && xr.GetLabels()[AnnotationKeyClaimNamespace] != "" {
+		meta.AddLabels(cd, map[string]string{
+			AnnotationKeyClaimNamespace: xr.GetLabels()[AnnotationKeyClaimNamespace],
+			AnnotationKeyClaimName:      xr.GetLabels()[AnnotationKeyClaimName],
+		})
+	} else if ref := xr.GetClaimReference(); ref != nil {
+		// Fall back to claim reference for root XRs that don't have labels yet.
 		meta.AddLabels(cd, map[string]string{
 			AnnotationKeyClaimNamespace: ref.Namespace,
 			AnnotationKeyClaimName:      ref.Name,
