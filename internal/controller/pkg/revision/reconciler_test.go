@@ -36,6 +36,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
@@ -753,8 +754,8 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errParsePackage),
 			},
 		},
-		"ErrLint": {
-			reason: "We should return an error if fail to lint the package.",
+		"ErrValidate": {
+			reason: "We should return an error if validation fails.",
 			args: args{
 				mgr: &fake.Manager{},
 				rec: []ReconcilerOption{
@@ -771,7 +772,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(v1.RevisionUnhealthy().WithMessage("linting package contents failed: boom"))
+								want.SetConditions(v1.RevisionUnhealthy().WithMessage("validating package contents failed: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -785,7 +786,8 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(&MockLinter{MockLint: NewMockLintFn(errBoom)}),
+					WithValidator(&MockLinter{MockLint: NewMockLintFn(errBoom)}),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
 						MockStore: func(_ string, rc io.ReadCloser) error {
@@ -800,7 +802,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errLintPackage),
+				err: errors.Wrap(errBoom, errValidatePackage),
 			},
 		},
 		"ErrCrossplaneConstraints": {
@@ -853,6 +855,7 @@ func TestReconcile(t *testing.T) {
 							return err
 						},
 					}),
+					WithValidator(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{
 						MockInConstraints:    verfake.NewMockInConstraintsFn(false, errBoom),
@@ -904,6 +907,7 @@ func TestReconcile(t *testing.T) {
 						MockHas:   xpkgfake.NewMockCacheHasFn(false),
 						MockStore: xpkgfake.NewMockCacheStoreFn(nil),
 					}),
+					WithValidator(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithConfigStore(&xpkgfake.MockConfigStore{
 						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
@@ -956,6 +960,7 @@ func TestReconcile(t *testing.T) {
 							return err
 						},
 					}),
+					WithValidator(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithConfigStore(&xpkgfake.MockConfigStore{
 						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
@@ -1023,6 +1028,7 @@ func TestReconcile(t *testing.T) {
 							return err
 						},
 					}),
+					WithValidator(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 					WithConfigStore(&xpkgfake.MockConfigStore{
@@ -1033,6 +1039,76 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errResolveDeps),
+			},
+		},
+		"SuccessfulWithLintErrors": {
+			reason: "We should record an event but successfully install the package if linting fails.",
+			args: args{
+				mgr: &fake.Manager{},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ProviderRevision)
+								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ProviderRevision{}
+								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetConditions(v1.RevisionHealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ProviderRevision{}
+								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+
+							MockDelete: test.NewMockDeleteFn(nil),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithEstablisher(NewMockEstablisher()),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithValidator(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(errBoom)}),
+					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(_ string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
+					}),
+					WithRecorder(newTestRecorder(
+						event.Warning(reasonLint, errors.Wrap(errBoom, errLintPackage)),
+						event.Normal(reasonSync, "Successfully reconciled package revision"),
+					)),
+				},
+			},
+			want: want{
+				err: nil,
 			},
 		},
 		"SuccessfulActiveRevision": {
@@ -1088,6 +1164,7 @@ func TestReconcile(t *testing.T) {
 							return err
 						},
 					}),
+					WithValidator(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 					WithConfigStore(&xpkgfake.MockConfigStore{
@@ -1145,6 +1222,7 @@ func TestReconcile(t *testing.T) {
 							return err
 						},
 					}),
+					WithValidator(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 					WithConfigStore(&xpkgfake.MockConfigStore{
@@ -1226,6 +1304,7 @@ func TestReconcile(t *testing.T) {
 							return err
 						},
 					}),
+					WithValidator(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 					WithConfigStore(&xpkgfake.MockConfigStore{
@@ -1295,6 +1374,7 @@ func TestReconcile(t *testing.T) {
 							return err
 						},
 					}),
+					WithValidator(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(false, nil)}),
 					WithConfigStore(&xpkgfake.MockConfigStore{
@@ -1361,6 +1441,7 @@ func TestReconcile(t *testing.T) {
 							return err
 						},
 					}),
+					WithValidator(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 					WithConfigStore(&xpkgfake.MockConfigStore{
@@ -1503,6 +1584,7 @@ func TestReconcile(t *testing.T) {
 							return err
 						},
 					}),
+					WithValidator(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 					WithConfigStore(&xpkgfake.MockConfigStore{
@@ -1631,6 +1713,7 @@ func TestReconcile(t *testing.T) {
 							return err
 						},
 					}),
+					WithValidator(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 				},
@@ -1693,6 +1776,7 @@ func TestReconcile(t *testing.T) {
 							return err
 						},
 					}),
+					WithValidator(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 					WithConfigStore(&xpkgfake.MockConfigStore{
@@ -1855,6 +1939,7 @@ func TestReconcile(t *testing.T) {
 							return err
 						},
 					}),
+					WithValidator(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 					WithConfigStore(&xpkgfake.MockConfigStore{
@@ -1924,6 +2009,12 @@ func TestReconcile(t *testing.T) {
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
+			if tr, ok := r.record.(*testRecorder); ok {
+				if diff := cmp.Diff(tr.Want, tr.Got); diff != "" {
+					t.Errorf("\n%s\nr.Reconcile(...): -want events, +got events:\n%s", tc.reason, diff)
+				}
+			}
 		})
 	}
 }
@@ -1933,4 +2024,24 @@ func signatureVerificationEnabled() *feature.Flags {
 	f.Enable(features.EnableAlphaSignatureVerification)
 
 	return f
+}
+
+// testRecorder allows asserting event creation.
+type testRecorder struct {
+	Want []event.Event
+	Got  []event.Event
+}
+
+func (r *testRecorder) Event(_ runtime.Object, e event.Event) {
+	r.Got = append(r.Got, e)
+}
+
+func (r *testRecorder) WithAnnotations(_ ...string) event.Recorder {
+	return r
+}
+
+func newTestRecorder(expected ...event.Event) *testRecorder {
+	return &testRecorder{
+		Want: expected,
+	}
 }

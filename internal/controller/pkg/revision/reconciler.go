@@ -82,6 +82,7 @@ const (
 	errInitParserBackend = "cannot initialize parser backend"
 	errParsePackage      = "cannot parse package contents"
 	errLintPackage       = "linting package contents failed"
+	errValidatePackage   = "validating package contents failed"
 	errNotOneMeta        = "cannot install package with multiple meta types"
 	errIncompatible      = "incompatible Crossplane version"
 
@@ -108,6 +109,7 @@ const (
 	reasonImageConfig  event.Reason = "ImageConfigSelection"
 	reasonParse        event.Reason = "ParsePackage"
 	reasonLint         event.Reason = "LintPackage"
+	reasonValidate     event.Reason = "ValidatePackage"
 	reasonDependencies event.Reason = "ResolveDependencies"
 	reasonConvertCRD   event.Reason = "ConvertCRDToMRD"
 	reasonSync         event.Reason = "SyncPackage"
@@ -204,6 +206,13 @@ func WithLinter(l parser.Linter) ReconcilerOption {
 	}
 }
 
+// WithValidator specifies how the Reconciler should validate a package.
+func WithValidator(v xpkg.Validator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.validator = v
+	}
+}
+
 // WithVersioner specifies how the Reconciler should fetch the current
 // Crossplane version.
 func WithVersioner(v version.Operations) ReconcilerOption {
@@ -243,6 +252,7 @@ type Reconciler struct {
 	objects        Establisher
 	parser         parser.Parser
 	linter         parser.Linter
+	validator      xpkg.Validator
 	versioner      version.Operations
 	backend        parser.Backend
 	config         xpkg.ConfigStore
@@ -298,6 +308,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithParserBackend(NewImageBackend(fetcher)),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLinter(xpkg.NewProviderLinter()),
+		WithValidator(xpkg.NewProviderValidator()),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithNamespace(o.Namespace),
@@ -344,6 +355,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithParserBackend(NewImageBackend(f)),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLinter(xpkg.NewConfigurationLinter()),
+		WithValidator(xpkg.NewConfigurationValidator()),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithNamespace(o.Namespace),
@@ -402,6 +414,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithParserBackend(NewImageBackend(fetcher)),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLinter(xpkg.NewFunctionLinter()),
+		WithValidator(xpkg.NewFunctionValidator()),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithNamespace(o.Namespace),
@@ -784,20 +797,27 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// Lint package using package-specific linter.
-	if err := r.linter.Lint(pkg); err != nil {
-		err = errors.Wrap(err, errLintPackage)
+	// Validate the package using a package-specific validator. If validation
+	// fails, we won't try to install the package.
+	if err := r.validator.Lint(pkg); err != nil {
+		err = errors.Wrap(err, errValidatePackage)
 		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 
 		_ = r.client.Status().Update(ctx, pr)
 
-		r.record.Event(pr, event.Warning(reasonLint, err))
+		r.record.Event(pr, event.Warning(reasonValidate, err))
 
-		// NOTE(hasheddan): a failed lint typically will require manual
-		// intervention, but on the off chance that we read pod logs
-		// early, which caused a linting failure, we will requeue by
-		// returning an error.
 		return reconcile.Result{}, err
+	}
+
+	// Lint package using package-specific linter. We can proceed with
+	// installation even there are lint errors; we just record them in an event
+	// for the user's information since they may cause unexpected behavior.
+	if err := r.linter.Lint(pkg); err != nil {
+		err = errors.Wrap(err, errLintPackage)
+		r.record.Event(pr, event.Warning(reasonLint, err))
+		// TODO(adamwg): Should we also record lint errors in the status for
+		// posterity? Events are ephemeral.
 	}
 
 	// NOTE(hasheddan): the linter should check this property already, but
