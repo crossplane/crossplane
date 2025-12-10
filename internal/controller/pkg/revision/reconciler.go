@@ -25,8 +25,11 @@ import (
 	"strings"
 	"time"
 
+	admv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8sextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,6 +46,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
+	extv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	extv1alpha1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
+	extv2 "github.com/crossplane/crossplane/v2/apis/apiextensions/v2"
+	opsv1alpha1 "github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
 	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
@@ -299,10 +306,18 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		Watches(&v1beta1.Lock{}, EnqueuePackageRevisionsForLock(mgr.GetClient(), &v1.ProviderRevisionList{}, log)).
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackageRevisionsForImageConfig(mgr.GetClient(), &v1.ProviderRevisionList{}, log))
 
+	est := NewFilteringEstablisher(
+		NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers),
+		extv1alpha1.ManagedResourceDefinitionGroupVersionKind.GroupKind(),
+		schema.GroupKind{Group: k8sextv1.SchemeGroupVersion.Group, Kind: "CustomResourceDefinition"},
+		schema.GroupKind{Group: admv1.SchemeGroupVersion.Group, Kind: "ValidatingWebhookConfiguration"},
+		schema.GroupKind{Group: admv1.SchemeGroupVersion.Group, Kind: "MutatingWebhookConfiguration"},
+	)
+
 	r := NewReconciler(mgr,
 		WithCache(o.Cache),
 		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1.ProviderGroupVersionKind, log)),
-		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers)),
+		WithEstablisher(est),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
 		WithParserBackend(NewImageBackend(fetcher)),
@@ -345,12 +360,22 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
+	est := NewFilteringEstablisher(
+		NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers),
+		extv2.CompositeResourceDefinitionGroupVersionKind.GroupKind(),
+		extv1.CompositionGroupVersionKind.GroupKind(),
+		extv1alpha1.ManagedResourceActivationPolicyGroupVersionKind.GroupKind(),
+		opsv1alpha1.OperationGroupVersionKind.GroupKind(),
+		opsv1alpha1.CronOperationGroupVersionKind.GroupKind(),
+		opsv1alpha1.WatchOperationGroupVersionKind.GroupKind(),
+	)
+
 	log := o.Logger.WithValues("controller", name)
 	r := NewReconciler(mgr,
 		WithCache(o.Cache),
 		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1.ConfigurationGroupVersionKind, log)),
 		WithNewPackageRevisionFn(nr),
-		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers)),
+		WithEstablisher(est),
 		WithParser(parser.New(metaScheme, objScheme)),
 		WithParserBackend(NewImageBackend(f)),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
@@ -405,10 +430,18 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		Watches(&v1beta1.Lock{}, EnqueuePackageRevisionsForLock(mgr.GetClient(), &v1.FunctionRevisionList{}, log)).
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackageRevisionsForImageConfig(mgr.GetClient(), &v1.FunctionRevisionList{}, log))
 
+	// The xpkg spec allows for CRDs to be included in function packages, but
+	// states that they will not be installed. This means we shouldn't install
+	// any objects from function packages. Create an empty filtering establisher
+	// to filter them all out.
+	est := NewFilteringEstablisher(
+		NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers),
+	)
+
 	r := NewReconciler(mgr,
 		WithCache(o.Cache),
 		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1.FunctionGroupVersionKind, log)),
-		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers)),
+		WithEstablisher(est),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
 		WithParserBackend(NewImageBackend(fetcher)),

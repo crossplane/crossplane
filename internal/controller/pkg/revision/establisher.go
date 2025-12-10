@@ -19,6 +19,7 @@ package revision
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"golang.org/x/sync/errgroup"
@@ -29,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -578,4 +580,37 @@ func GetPackageOwnerReference(rev resource.Object) (metav1.OwnerReference, bool)
 	}
 
 	return metav1.OwnerReference{}, false
+}
+
+// FilteringEstablisher wraps another establisher, but filters the objects that
+// get passed to it so that only certain kinds are allowed.
+type FilteringEstablisher struct {
+	wrap Establisher
+	gks  []schema.GroupKind
+}
+
+// NewFilteringEstablisher creates a new FilteringEstablisher.
+func NewFilteringEstablisher(wrap Establisher, gks ...schema.GroupKind) *FilteringEstablisher {
+	return &FilteringEstablisher{
+		wrap: wrap,
+		gks:  gks,
+	}
+}
+
+// Establish filters objects, then uses the wrapped establisher to establish
+// them.
+func (e *FilteringEstablisher) Establish(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) {
+	filtered := make([]runtime.Object, 0, len(objects))
+	for _, obj := range objects {
+		if slices.Contains(e.gks, obj.GetObjectKind().GroupVersionKind().GroupKind()) {
+			filtered = append(filtered, obj)
+		}
+	}
+
+	return e.wrap.Establish(ctx, filtered, parent, control)
+}
+
+// ReleaseObjects uses the wrapped establisher to release objects.
+func (e *FilteringEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRevision) error {
+	return e.wrap.ReleaseObjects(ctx, parent)
 }

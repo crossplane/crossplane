@@ -64,7 +64,7 @@ func (e *ErrBackend) Init(_ context.Context, _ ...parser.BackendOption) (io.Read
 var _ Establisher = &MockEstablisher{}
 
 type MockEstablisher struct {
-	MockEstablish  func() ([]xpv1.TypedReference, error)
+	MockEstablish  func(context.Context, []runtime.Object, v1.PackageRevision, bool) ([]xpv1.TypedReference, error)
 	MockRelinquish func() error
 }
 
@@ -75,16 +75,18 @@ func NewMockEstablisher() *MockEstablisher {
 	}
 }
 
-func NewMockEstablishFn(refs []xpv1.TypedReference, err error) func() ([]xpv1.TypedReference, error) {
-	return func() ([]xpv1.TypedReference, error) { return refs, err }
+func NewMockEstablishFn(refs []xpv1.TypedReference, err error) func(context.Context, []runtime.Object, v1.PackageRevision, bool) ([]xpv1.TypedReference, error) {
+	return func(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+		return refs, err
+	}
 }
 
 func NewMockRelinquishFn(err error) func() error {
 	return func() error { return err }
 }
 
-func (e *MockEstablisher) Establish(context.Context, []runtime.Object, v1.PackageRevision, bool) ([]xpv1.TypedReference, error) {
-	return e.MockEstablish()
+func (e *MockEstablisher) Establish(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) {
+	return e.MockEstablish(ctx, objects, parent, control)
 }
 
 func (e *MockEstablisher) ReleaseObjects(context.Context, v1.PackageRevision) error {
