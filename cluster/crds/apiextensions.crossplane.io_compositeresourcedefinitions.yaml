@@ -117,8 +117,14 @@ spec:
                 - plural
                 type: object
                 x-kubernetes-validations:
-                - message: Value is immutable
-                  rule: self == oldSelf
+                - message: plural is immutable
+                  rule: self.plural == oldSelf.plural
+                - message: singular is immutable
+                  rule: self.singular == oldSelf.singular
+                - message: kind is immutable
+                  rule: self.kind == oldSelf.kind
+                - message: listKind is immutable
+                  rule: self.listKind == oldSelf.listKind
                 - message: Plural name must be lowercase
                   rule: self.plural == self.plural.lowerAscii()
                 - message: Singular name must be lowercase
@@ -281,9 +287,6 @@ spec:
                 required:
                 - name
                 type: object
-                x-kubernetes-validations:
-                - message: Value is immutable
-                  rule: self == oldSelf
               group:
                 description: |-
                   Group specifies the API group of the defined composite resource.
@@ -366,8 +369,14 @@ spec:
                 - plural
                 type: object
                 x-kubernetes-validations:
-                - message: Value is immutable
-                  rule: self == oldSelf
+                - message: plural is immutable
+                  rule: self.plural == oldSelf.plural
+                - message: singular is immutable
+                  rule: self.singular == oldSelf.singular
+                - message: kind is immutable
+                  rule: self.kind == oldSelf.kind
+                - message: listKind is immutable
+                  rule: self.listKind == oldSelf.listKind
                 - message: Plural name must be lowercase
                   rule: self.plural == self.plural.lowerAscii()
                 - message: Singular name must be lowercase
