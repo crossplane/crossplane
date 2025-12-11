@@ -1,6 +1,0 @@
-apiVersion: test.crossplane.io/v1alpha1
-kind: XExtraResource
-metadata:
-  name: test-extra-resource
-spec:
-  configMapName: extra-resource-data

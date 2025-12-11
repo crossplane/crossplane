@@ -1,0 +1,6 @@
+apiVersion: test.crossplane.io/v1alpha1
+kind: XRequiredResource
+metadata:
+  name: test-required-resource
+spec:
+  configMapName: required-resource-data

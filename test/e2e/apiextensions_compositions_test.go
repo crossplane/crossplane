@@ -413,10 +413,10 @@ func TestCircuitBreaker(t *testing.T) {
 	)
 }
 
-func TestCompositionExtraResources(t *testing.T) {
-	manifests := "test/e2e/manifests/apiextensions/composition/extra-resources"
+func TestCompositionRequiredResources(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/required-resources"
 	environment.Test(t,
-		features.NewWithDescription(t.Name(), "Tests that composition functions can request extra resources and Crossplane provides them in subsequent function calls.").
+		features.NewWithDescription(t.Name(), "Tests that composition functions can request required resources and Crossplane provides them in subsequent function calls.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -433,10 +433,10 @@ func TestCompositionExtraResources(t *testing.T) {
 			)).
 			Assess("XRIsReady",
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess())).
-			Assess("XRHasProcessedExtraResource",
-				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.configMapData", "processed-extra-resource-value"),
+			Assess("XRHasProcessedRequiredResource",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.configMapData", "required-resource-value"),
 			).
-			Assess("ComposedSecretCreatedFromExtraResource",
+			Assess("ComposedSecretCreatedFromRequiredResource",
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "composed-secret.yaml"),
 			).
 			WithTeardown("DeleteXR", funcs.AllOf(
