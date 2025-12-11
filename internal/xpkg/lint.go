@@ -54,6 +54,36 @@ const (
 	errFmtCrossplaneIncompatible         = "package is not compatible with Crossplane version (%s)"
 )
 
+// Validator validates packages before installation is attempted.
+type Validator parser.Linter
+
+// NewProviderValidator is a convenience function for creating a package
+// validator for providers.
+func NewProviderValidator() Validator {
+	return parser.NewPackageLinter(
+		parser.PackageLinterFns(OneMeta),
+		parser.ObjectLinterFns(IsProvider, PackageValidSemver),
+		parser.ObjectLinterFns())
+}
+
+// NewConfigurationValidator is a convenience function for creating a package
+// validator for configurations.
+func NewConfigurationValidator() Validator {
+	return parser.NewPackageLinter(
+		parser.PackageLinterFns(OneMeta),
+		parser.ObjectLinterFns(IsConfiguration, PackageValidSemver),
+		parser.ObjectLinterFns())
+}
+
+// NewFunctionValidator is a convenience function for creating a package
+// validator for functions.
+func NewFunctionValidator() Validator {
+	return parser.NewPackageLinter(
+		parser.PackageLinterFns(OneMeta),
+		parser.ObjectLinterFns(IsFunction, PackageValidSemver),
+		parser.ObjectLinterFns())
+}
+
 // NewProviderLinter is a convenience function for creating a package linter for
 // providers.
 func NewProviderLinter() parser.Linter {
@@ -82,7 +112,7 @@ func NewFunctionLinter() parser.Linter {
 	return parser.NewPackageLinter(
 		parser.PackageLinterFns(OneMeta),
 		parser.ObjectLinterFns(IsFunction, PackageValidSemver),
-		parser.ObjectLinterFns())
+		parser.ObjectLinterFns(IsCRD))
 }
 
 // OneMeta checks that there is only one meta object in the package.

@@ -1230,3 +1230,155 @@ func newAPIEstablisher(client client.Client) *APIEstablisher {
 		MaxConcurrentPackageEstablishers: 10, // Use the current default
 	}
 }
+
+func TestFilteringEstablisherEstablish(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	crd := &extv1.CustomResourceDefinition{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: extv1.SchemeGroupVersion.String(),
+			Kind:       "CustomResourceDefinition",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-crd",
+		},
+	}
+
+	sa := &corev1.ServiceAccount{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: corev1.SchemeGroupVersion.String(),
+			Kind:       "ServiceAccount",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-sa",
+		},
+	}
+
+	type args struct {
+		wrap Establisher
+		gks  []schema.GroupKind
+		objs []runtime.Object
+	}
+
+	type want struct {
+		refs []xpv1.TypedReference
+		err  error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"FilterPartialMatch": {
+			reason: "Should only pass objects matching the filter to the wrapped establisher",
+			args: args{
+				wrap: &MockEstablisher{
+					MockEstablish: func(_ context.Context, objects []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+						if diff := cmp.Diff([]runtime.Object{crd}, objects); diff != "" {
+							t.Errorf("\n%s\nMockEstablish(...): -want error, +got error:\n%s", "incorrect objects passed to wrapped establisher", diff)
+							return nil, errBoom
+						}
+
+						return []xpv1.TypedReference{{Name: "test-crd"}}, nil
+					},
+				},
+				gks:  []schema.GroupKind{crd.GroupVersionKind().GroupKind()},
+				objs: []runtime.Object{crd, sa},
+			},
+			want: want{
+				refs: []xpv1.TypedReference{{Name: "test-crd"}},
+			},
+		},
+		"FilterFullMatch": {
+			reason: "Should pass all objects matching any of the filters to the wrapped establisher",
+			args: args{
+				wrap: &MockEstablisher{
+					MockEstablish: func(_ context.Context, objects []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+						if diff := cmp.Diff([]runtime.Object{crd, sa}, objects); diff != "" {
+							t.Errorf("\n%s\nMockEstablish(...): -want error, +got error:\n%s", "incorrect objects passed to wrapped establisher", diff)
+							return nil, errBoom
+						}
+
+						return []xpv1.TypedReference{{Name: "test-crd"}, {Name: "test-sa"}}, nil
+					},
+				},
+				gks:  []schema.GroupKind{crd.GroupVersionKind().GroupKind(), sa.GroupVersionKind().GroupKind()},
+				objs: []runtime.Object{crd, sa},
+			},
+			want: want{
+				refs: []xpv1.TypedReference{{Name: "test-crd"}, {Name: "test-sa"}},
+			},
+		},
+		"FilterNoMatches": {
+			reason: "Should pass no objects to the wrapped establisher if none match the filter",
+			args: args{
+				wrap: &MockEstablisher{
+					MockEstablish: func(_ context.Context, objects []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+						if diff := cmp.Diff([]runtime.Object{}, objects); diff != "" {
+							t.Errorf("\n%s\nMockEstablish(...): -want error, +got error:\n%s", "incorrect objects passed to wrapped establisher", diff)
+							return nil, errBoom
+						}
+
+						return []xpv1.TypedReference{}, nil
+					},
+				},
+				gks:  []schema.GroupKind{{Group: "example.com", Kind: "CustomKind"}},
+				objs: []runtime.Object{crd, sa},
+			},
+			want: want{
+				refs: []xpv1.TypedReference{},
+			},
+		},
+		"FilterEmpty": {
+			reason: "Should pass no objects to the wrapped establisher if empty filter is specified",
+			args: args{
+				wrap: &MockEstablisher{
+					MockEstablish: func(_ context.Context, objects []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+						if diff := cmp.Diff([]runtime.Object{}, objects); diff != "" {
+							t.Errorf("\n%s\nMockEstablish(...): -want error, +got error:\n%s", "incorrect objects passed to wrapped establisher", diff)
+							return nil, errBoom
+						}
+
+						return []xpv1.TypedReference{}, nil
+					},
+				},
+				gks:  []schema.GroupKind{},
+				objs: []runtime.Object{crd, sa},
+			},
+			want: want{
+				refs: []xpv1.TypedReference{},
+			},
+		},
+		"ErrorFromWrappedEstablisher": {
+			reason: "Should propagate errors from the wrapped establisher",
+			args: args{
+				wrap: &MockEstablisher{
+					MockEstablish: func(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+						return nil, errBoom
+					},
+				},
+				gks:  []schema.GroupKind{crd.GroupVersionKind().GroupKind()},
+				objs: []runtime.Object{crd},
+			},
+			want: want{
+				err: errBoom,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			est := NewFilteringEstablisher(tc.args.wrap, tc.args.gks...)
+			refs, err := est.Establish(context.Background(), tc.args.objs, &v1.ProviderRevision{}, true)
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nest.Establish(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.refs, refs); diff != "" {
+				t.Errorf("\n%s\nest.Establish(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
