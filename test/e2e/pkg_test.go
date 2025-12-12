@@ -52,6 +52,10 @@ const (
 	// label to be assigned to tests that should be part of the Signature
 	// Verification test suite.
 	SuitePackageSignatureVerification = "package-signature-verification"
+	// SuitePackageTransactionManager is the value for the config.LabelTestSuite
+	// label to be assigned to tests that should be part of the Transaction
+	// Package Manager test suite.
+	SuitePackageTransactionManager = "package-transaction-manager"
 )
 
 func init() {
@@ -70,6 +74,15 @@ func init() {
 		),
 		config.WithLabelsToSelect(features.Labels{
 			config.LabelTestSuite: []string{SuitePackageSignatureVerification, config.TestSuiteDefault},
+		}),
+	)
+
+	environment.AddTestSuite(SuitePackageTransactionManager,
+		config.WithHelmInstallOpts(
+			helm.WithArgs("--set args={--debug,--enable-transaction-package-manager}"),
+		),
+		config.WithLabelsToSelect(features.Labels{
+			config.LabelTestSuite: []string{SuitePackageTransactionManager},
 		}),
 	)
 }

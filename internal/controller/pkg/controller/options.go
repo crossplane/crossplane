@@ -30,6 +30,9 @@ type Options struct {
 	// Cache for package OCI images.
 	Cache xpkg.PackageCache
 
+	// Client for fetching and parsing packages.
+	Client xpkg.Client
+
 	// Namespace used to unpack and run packages.
 	Namespace string
 

@@ -45,7 +45,7 @@ limitations under the License.
 // generate them all together in one command.
 
 // Generate deepcopy methodsets and CRD manifests
-//go:generate go tool -modfile=tools/go.mod controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/pkg/v1beta1;./apis/pkg/v1 crd:crdVersions=v1,generateEmbeddedObjectMeta=true output:artifacts:config=./cluster/crds
+//go:generate go tool -modfile=tools/go.mod controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/pkg/v1alpha1;./apis/pkg/v1beta1;./apis/pkg/v1 crd:crdVersions=v1,generateEmbeddedObjectMeta=true output:artifacts:config=./cluster/crds
 //go:generate go tool -modfile=tools/go.mod controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/apiextensions/v1alpha1;./apis/apiextensions/v1beta1;./apis/apiextensions/v1;./apis/apiextensions/v2 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
 //go:generate go tool -modfile=tools/go.mod controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/protection/v1beta1 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
 //go:generate go tool -modfile=tools/go.mod controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/ops/v1alpha1 crd:crdVersions=v1 output:artifacts:config=./cluster/crds

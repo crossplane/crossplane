@@ -42,6 +42,11 @@ const (
 	// EnableAlphaOperations enables alpha support for Operations, including
 	// CronOperations and WatchOperations.
 	EnableAlphaOperations feature.Flag = "EnableAlphaOperations"
+
+	// EnableAlphaTransactionPackageManager enables alpha support for the
+	// transaction-based package manager that provides pre-flight validation
+	// and coordinated package installation.
+	EnableAlphaTransactionPackageManager feature.Flag = "EnableAlphaTransactionPackageManager"
 )
 
 // Beta Feature Flags.
