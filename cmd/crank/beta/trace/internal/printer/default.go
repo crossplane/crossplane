@@ -21,10 +21,11 @@ import (
 	"io"
 	"strings"
 
+	"text/tabwriter"
+
 	gcrname "github.com/google/go-containerregistry/pkg/name"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/cli-runtime/pkg/printers"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -40,6 +41,11 @@ const (
 	errWriteHeader    = "cannot write header"
 	errWriteRow       = "cannot write row"
 	errFlushTabWriter = "cannot flush tab writer"
+
+	tabwriterMinWidth = 6
+	tabwriterWidth    = 4
+	tabwriterPadding  = 3
+	tabwriterPadChar  = ' '
 )
 
 // DefaultPrinter defines the DefaultPrinter configuration.
@@ -136,10 +142,14 @@ func getHeaders(gk schema.GroupKind, wide bool) (headers fmt.Stringer, isPackage
 	}, false
 }
 
+func getNewTabWriter(output io.Writer) *tabwriter.Writer {
+	return tabwriter.NewWriter(output, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, 0)
+}
+
 // Print implements the Printer interface by prints the resource tree in a
 // human-readable format.
 func (p *DefaultPrinter) Print(w io.Writer, root *resource.Resource) error {
-	tw := printers.GetNewTabWriter(w)
+	tw := getNewTabWriter(w)
 
 	headers, isPackageOrRevision := getHeaders(root.Unstructured.GroupVersionKind().GroupKind(), p.wide)
 
@@ -147,6 +157,50 @@ func (p *DefaultPrinter) Print(w io.Writer, root *resource.Resource) error {
 		return errors.Wrap(err, errWriteHeader)
 	}
 
+	err := p.printResourceTree(tw, root, isPackageOrRevision)
+	if err != nil {
+		return errors.Wrap(err, "cannot print resource tree")
+	}
+
+	if err := tw.Flush(); err != nil {
+		return errors.Wrap(err, errFlushTabWriter)
+	}
+
+	return nil
+}
+
+// PrintList implements the Printer interface by prints the resource tree of a list of resources in a
+// human-readable format.
+func (p *DefaultPrinter) PrintList(w io.Writer, roots *resource.ResourceList) error {
+	tw := getNewTabWriter(w)
+
+	if roots == nil || len(roots.Items) == 0 {
+		return errors.New("cannot print resource tree: resource list is empty")
+	}
+
+	firstResource := roots.Items[0]
+
+	headers, isPackageOrRevision := getHeaders(firstResource.Unstructured.GroupVersionKind().GroupKind(), p.wide)
+
+	if _, err := fmt.Fprintln(tw, headers.String()); err != nil {
+		return errors.Wrap(err, errWriteHeader)
+	}
+
+	// Print each resource in the list
+	for _, r := range roots.Items {
+		if err := p.printResourceTree(tw, r, isPackageOrRevision); err != nil {
+			return errors.Wrap(err, "cannot print resource tree")
+		}
+	}
+
+	if err := tw.Flush(); err != nil {
+		return errors.Wrap(err, errFlushTabWriter)
+	}
+
+	return nil
+}
+
+func (p *DefaultPrinter) printResourceTree(tw *tabwriter.Writer, root *resource.Resource, isPackageOrRevision bool) error {
 	type queueItem struct {
 		resource *resource.Resource
 		depth    int
@@ -210,11 +264,6 @@ func (p *DefaultPrinter) Print(w io.Writer, root *resource.Resource) error {
 			queue = append(queue, &queueItem{resource: item.resource.Children[idx], depth: item.depth + 1, isLast: isLast, prefix: childPrefix})
 		}
 	}
-
-	if err := tw.Flush(); err != nil {
-		return errors.Wrap(err, errFlushTabWriter)
-	}
-
 	return nil
 }
 

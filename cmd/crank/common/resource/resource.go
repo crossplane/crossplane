@@ -32,6 +32,13 @@ type Resource struct {
 	Children     []*Resource               `json:"children,omitempty"`
 }
 
+// ResourceList struct represents a list of kubernetes resources.
+// revive:disable-next-line:exported For consistency with Resource.
+type ResourceList struct {
+	Items []*Resource `json:"items"`
+	Error error       `json:"error,omitempty"`
+}
+
 // GetCondition of this resource.
 func (r *Resource) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	conditioned := xpv1.ConditionedStatus{}
