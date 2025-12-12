@@ -230,6 +230,16 @@ func (r *FileBackedRunner) CacheFunction(ctx context.Context, name string, req *
 		return rsp, nil
 	}
 
+	// Don't cache responses that have unfulfilled requirements.
+	// Functions that request extra resources need to be called again once
+	// those resources are available. If we cache the response before the
+	// resources are provided, subsequent calls will get the cached response
+	// without the function ever processing the extra resources.
+	if hasUnfulfilledRequirements(req, rsp) {
+		log.Debug("RunFunctionResponse has unfulfilled requirements, not caching")
+		return rsp, nil
+	}
+
 	// Clamp the TTL to the allowed maximum, if set.
 	if r.maxTTL > 0 && ttl > r.maxTTL {
 		log.Debug("RunFunctionResponse cache clamped response TTL", "requested-ttl", ttl, "clamped-ttl", r.maxTTL)
@@ -417,4 +427,32 @@ func (r *FileBackedRunner) GarbageCollectFilesNow(ctx context.Context) (int, err
 	})
 
 	return collected, err
+}
+
+// hasUnfulfilledRequirements returns true if the response contains requirements
+// that are not yet fulfilled in the request. This indicates that the function
+// needs to be called again once the requirements are satisfied.
+func hasUnfulfilledRequirements(req *fnv1.RunFunctionRequest, rsp *fnv1.RunFunctionResponse) bool {
+	requirements := rsp.GetRequirements()
+	if requirements == nil {
+		return false
+	}
+
+	// Check if the response has requested resources
+	if len(requirements.GetResources()) > 0 {
+		// If the request doesn't have those resources populated yet,
+		// the requirements are unfulfilled
+		if req.GetRequiredResources() == nil || len(req.GetRequiredResources()) == 0 {
+			return true
+		}
+
+		// Check if all requested resources are present in the request
+		for name := range requirements.GetResources() {
+			if _, ok := req.GetRequiredResources()[name]; !ok {
+				return true
+			}
+		}
+	}
+
+	return false
 }
