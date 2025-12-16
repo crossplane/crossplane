@@ -66,7 +66,7 @@ composition functions, and could be integrated into this design as a builder
 A project will have a directory layout similar to the following:
 
 ```text
-project.yaml
+crossplane-project.yaml
 apis
 ├── cluster
 │───├── definition.yaml
@@ -107,27 +107,27 @@ composition and operation. We call the functions built as part of a project
 "embedded functions", since they sit alongside configuration rather than in
 their own repositories.
 
-The `project.yaml` file contains metadata and configuration for the project. It
-configures the build tooling and lists the project's dependencies (other
-Crossplane packages such as Providers). When building with projects, the
-`project.yaml` file replaces the `crossplane.yaml` file found in non-project
-Crossplane package source trees. As described below, the build tooling
-constructs a `crossplane.yaml` for each package it produces based on the
-contents of the project, including the `project.yaml`.
+The `crossplane-project.yaml` file contains metadata and configuration for the
+project. It configures the build tooling and lists the project's dependencies
+(other Crossplane packages such as Providers). When building with projects, the
+`crossplane-project.yaml` file replaces the `crossplane.yaml` file found in
+non-project Crossplane package source trees. As described below, the build
+tooling constructs a `crossplane.yaml` for each package it produces based on the
+contents of the project, including the `crossplane-project.yaml`.
 
 When a user runs `crossplane project build`, four Crossplane packages will be
 produced: a Configuration and three Functions. The Configuration will include
 automatically generated dependencies on the functions, as well as any additional
-dependencies specified in `project.yaml`. Automated tests can be executed with
-`crossplane project test run`, and the project can be installed on a local
-development control plane for manual testing with `crossplane project
+dependencies specified in `crossplane-project.yaml`. Automated tests can be
+executed with `crossplane project test run`, and the project can be installed on
+a local development control plane for manual testing with `crossplane project
 run`. Running `crossplane project push` will push all four packages to a
 registry.
 
 ### The Project File
 
-The project configuration file (`project.yaml` by default, overridable with a
-CLI argument) looks like this:
+The project configuration file (`crossplane-project.yaml` by default,
+overridable with a CLI argument) looks like this:
 
 ```yaml
 apiVersion: dev.crossplane.io/v1alpha1
