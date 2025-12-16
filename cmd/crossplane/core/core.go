@@ -31,6 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	kcache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -48,6 +49,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
 
 	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
@@ -491,14 +493,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	log.Info("Package Runtime for Provider: " + string(pr.For(pkgv1.ProviderKind)))
 	log.Info("Package Runtime for Function: " + string(pr.For(pkgv1.FunctionKind)))
 
-	po := pkgcontroller.Options{
-		Options:                          o,
-		Cache:                            xpkg.NewFsPackageCache(c.XpkgCacheDir, afero.NewOsFs()),
-		Namespace:                        c.Namespace,
-		ServiceAccount:                   c.ServiceAccount,
-		FetcherOptions:                   []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
-		PackageRuntime:                   pr,
-		MaxConcurrentPackageEstablishers: c.MaxConcurrentPackageEstablishers,
+	fetcherOpts := []xpkg.FetcherOpt{
+		xpkg.WithNamespace(c.Namespace),
+		xpkg.WithServiceAccount(c.ServiceAccount),
+		xpkg.WithUserAgent(c.UserAgent),
 	}
 
 	// We need to set the TUF_ROOT environment variable so that the TUF client
@@ -519,7 +517,41 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			return errors.Wrap(err, "cannot parse CA bundle")
 		}
 
-		po.FetcherOptions = append(po.FetcherOptions, xpkg.WithCustomCA(rootCAs))
+		fetcherOpts = append(fetcherOpts, xpkg.WithCustomCA(rootCAs))
+	}
+
+	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		return errors.Wrap(err, "cannot create kubernetes clientset")
+	}
+
+	fetcher, err := xpkg.NewK8sFetcher(cs, fetcherOpts...)
+	if err != nil {
+		return errors.Wrap(err, "cannot build package fetcher")
+	}
+
+	metaScheme, err := xpkg.BuildMetaScheme()
+	if err != nil {
+		return errors.Wrap(err, "cannot build package meta scheme")
+	}
+
+	objScheme, err := xpkg.BuildObjectScheme()
+	if err != nil {
+		return errors.Wrap(err, "cannot build package object scheme")
+	}
+
+	pkgCache := xpkg.NewFsPackageCache(c.XpkgCacheDir, afero.NewOsFs())
+	po := pkgcontroller.Options{
+		Options:                          o,
+		Client:                           xpkg.NewCachedClient(fetcher, parser.New(metaScheme, objScheme), pkgCache, xpkg.NewImageConfigStore(mgr.GetClient(), c.Namespace)),
+		Namespace:                        c.Namespace,
+		ServiceAccount:                   c.ServiceAccount,
+		PackageRuntime:                   pr,
+		MaxConcurrentPackageEstablishers: c.MaxConcurrentPackageEstablishers,
+
+		// TODO(negz): Drop these once everything is using xpkg.Client.
+		Cache:          pkgCache,
+		FetcherOptions: fetcherOpts,
 	}
 
 	if err := pkg.Setup(mgr, po); err != nil {

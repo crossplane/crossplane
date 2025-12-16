@@ -46,6 +46,7 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/dag"
 	fakedag "github.com/crossplane/crossplane/v2/internal/dag/fake"
 	"github.com/crossplane/crossplane/v2/internal/features"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 	fakexpkg "github.com/crossplane/crossplane/v2/internal/xpkg/fake"
 )
 
@@ -361,8 +362,8 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errors.Wrap(errors.New("improper constraint: "), errInvalidConstraint), errFindDependency),
 			},
 		},
-		"ErrorGetPullSecretFromImageConfig": {
-			reason: "We should return an error if fail to get pull secret from configs.",
+		"ErrorListVersions": {
+			reason: "We should return an error if fail to list package versions.",
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
@@ -400,121 +401,13 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn(nil, errBoom),
-					}),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", errBoom),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", nil),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn(nil, errBoom),
 					}),
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, errGetPullConfig), errFindDependency),
-			},
-		},
-		"ErrorRewriteImageWithImageConfig": {
-			reason: "We should return an error if fail to rewrite the image path via configs.",
-			args: args{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
-						MockUpdate:       test.NewMockUpdateFn(nil),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
-				},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: []ReconcilerOption{
-					WithNewDagFn(func() dag.DAG {
-						return &fakedag.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return []dag.Node{
-									&v1beta1.Dependency{
-										Package:     "registry1.com/acme-co/configuration-foo",
-										Constraints: "v0.0.1",
-									},
-								}, nil
-							},
-							MockSort: func() ([]string, error) {
-								return nil, nil
-							},
-						}
-					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn(nil, errBoom),
-					}),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", errBoom),
-					}),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, errRewriteImage), errFindDependency),
-			},
-		},
-		"ErrorInvalidRewriteWithImageConfig": {
-			reason: "We should return an error if an image config rewrites and image to an invalid path.",
-			args: args{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
-						MockUpdate:       test.NewMockUpdateFn(nil),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
-				},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: []ReconcilerOption{
-					WithNewDagFn(func() dag.DAG {
-						return &fakedag.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return []dag.Node{
-									&v1beta1.Dependency{
-										Package:     "registry1.com/acme-co/configuration-foo",
-										Constraints: "v0.0.1",
-									},
-								}, nil
-							},
-							MockSort: func() ([]string, error) {
-								return nil, nil
-							},
-						}
-					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn(nil, errBoom),
-					}),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("imageConfigName", "0", nil),
-					}),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errors.Wrap(errors.New("could not parse reference: 0"), errInvalidRewrite), errFindDependency),
+				err: errors.Wrap(errors.Wrap(errBoom, errFetchTags), errFindDependency),
 			},
 		},
 		"ErrorFetchTags": {
@@ -556,12 +449,8 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn(nil, errBoom),
-					}),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", nil),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn(nil, errBoom),
 					}),
 				},
 			},
@@ -608,12 +497,8 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0"}, nil),
-					}),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", nil),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0"}, nil),
 					}),
 				},
 			},
@@ -662,12 +547,8 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
-					}),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", nil),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
 					}),
 				},
 			},
@@ -716,12 +597,8 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
-					}),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", nil),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
 					}),
 				},
 			},
@@ -770,12 +647,8 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
-					}),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", nil),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
 					}),
 				},
 			},
@@ -837,12 +710,8 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v1", "v1.0", "v1.0.1", "v2.0.0", "v2"}, nil),
-					}),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", nil),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v1.0.0", "v1", "v1.0", "v1.0.1", "v2.0.0", "v2"}, nil),
 					}),
 				},
 			},
@@ -891,17 +760,12 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: func(ref pkgName.Reference) ([]string, error) {
-							if ref.Context().String() != "registry.acme.co/hasheddan/config-nop-c" {
-								return nil, errors.Errorf("wrong ref %q passed to Tags", ref)
-							}
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: func(_ context.Context, _ string, _ ...xpkg.GetOption) ([]string, error) {
+							// Client handles ImageConfig rewriting internally.
+							// This test verifies versions are returned correctly.
 							return []string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil
 						},
-					}),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("imageConfigName", "registry.acme.co/hasheddan/config-nop-c", nil),
 					}),
 				},
 			},
@@ -985,12 +849,8 @@ func TestReconcile(t *testing.T) {
 				},
 				rec: []ReconcilerOption{
 					WithFeatures(upgradesEnabled),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", nil),
-					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.0.1", "v1.0.0", "v1.0.1", "v2.0.0"}, nil),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v0.0.1", "v1.0.0", "v1.0.1", "v2.0.0"}, nil),
 					}),
 					WithNewDagFn(func() dag.DAG {
 						return &fakedag.MockDag{
@@ -1049,15 +909,10 @@ func TestReconcile(t *testing.T) {
 				},
 				rec: []ReconcilerOption{
 					WithFeatures(upgradesEnabled),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("imageConfigName", "registry.acme.co/cool-repo/cool-image", nil),
-					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: func(ref pkgName.Reference) ([]string, error) {
-							if ref.Context().String() != "registry.acme.co/cool-repo/cool-image" {
-								return nil, errors.Errorf("wrong ref %q passed to Tags", ref)
-							}
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: func(_ context.Context, _ string, _ ...xpkg.GetOption) ([]string, error) {
+							// Client handles ImageConfig rewriting internally.
+							// This test verifies versions are returned correctly.
 							return []string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil
 						},
 					}),
@@ -1118,12 +973,8 @@ func TestReconcile(t *testing.T) {
 				},
 				rec: []ReconcilerOption{
 					WithFeatures(upgradesEnabled),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", nil),
-					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.0.1", "v1.0.0", "v1.0.1", "v2.0.0"}, nil),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v0.0.1", "v1.0.0", "v1.0.1", "v2.0.0"}, nil),
 					}),
 					WithNewDagFn(func() dag.DAG {
 						return &fakedag.MockDag{
@@ -1326,12 +1177,8 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 					},
 				},
 				rec: []ReconcilerOption{
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v1.0.1", "v2.0.0", "v3.0.0"}, nil),
-					}),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", nil),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v1.0.0", "v1.0.1", "v2.0.0", "v3.0.0"}, nil),
 					}),
 				},
 			},
@@ -1352,12 +1199,8 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 					},
 				},
 				rec: []ReconcilerOption{
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v1.0.1"}, nil),
-					}),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", nil),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v1.0.0", "v1.0.1"}, nil),
 					}),
 				},
 			},
@@ -1378,12 +1221,8 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 					},
 				},
 				rec: []ReconcilerOption{
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.0.1", "v1.0.0"}, nil),
-					}),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", nil),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v0.0.1", "v1.0.0"}, nil),
 					}),
 				},
 			},
@@ -1404,12 +1243,8 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 					},
 				},
 				rec: []ReconcilerOption{
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v2.0.0", "v2.1.0", "v3.0.0"}, nil),
-					}),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", nil),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v1.0.0", "v2.0.0", "v2.1.0", "v3.0.0"}, nil),
 					}),
 					WithDowngradesEnabled(),
 				},
@@ -1431,12 +1266,8 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 					},
 				},
 				rec: []ReconcilerOption{
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.0.1", "v1.0.0", "v2.0.0", "v3.0.0"}, nil),
-					}),
-					WithConfigStore(&fakexpkg.MockConfigStore{
-						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   fakexpkg.NewMockRewritePathFn("", "", nil),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v0.0.1", "v1.0.0", "v2.0.0", "v3.0.0"}, nil),
 					}),
 					WithDowngradesEnabled(),
 				},

@@ -115,3 +115,31 @@ func NewMockTagsFn(tags []string, err error) func(name.Reference) ([]string, err
 func (m *MockFetcher) Tags(_ context.Context, ref name.Reference, _ ...string) ([]string, error) {
 	return m.MockTags(ref)
 }
+
+var _ xpkg.Client = &MockClient{}
+
+// MockClient is a mock xpkg.Client.
+type MockClient struct {
+	MockGet          func(ctx context.Context, ref string, opts ...xpkg.GetOption) (*xpkg.Package, error)
+	MockListVersions func(ctx context.Context, source string, opts ...xpkg.GetOption) ([]string, error)
+}
+
+// Get calls the underlying MockGet.
+func (c *MockClient) Get(ctx context.Context, ref string, opts ...xpkg.GetOption) (*xpkg.Package, error) {
+	return c.MockGet(ctx, ref, opts...)
+}
+
+// ListVersions calls the underlying MockListVersions.
+func (c *MockClient) ListVersions(ctx context.Context, source string, opts ...xpkg.GetOption) ([]string, error) {
+	return c.MockListVersions(ctx, source, opts...)
+}
+
+// NewMockGetFn creates a new MockGet function for MockClient.
+func NewMockGetFn(pkg *xpkg.Package, err error) func(context.Context, string, ...xpkg.GetOption) (*xpkg.Package, error) {
+	return func(context.Context, string, ...xpkg.GetOption) (*xpkg.Package, error) { return pkg, err }
+}
+
+// NewMockListVersionsFn creates a new MockListVersions function for MockClient.
+func NewMockListVersionsFn(versions []string, err error) func(context.Context, string, ...xpkg.GetOption) ([]string, error) {
+	return func(context.Context, string, ...xpkg.GetOption) ([]string, error) { return versions, err }
+}
