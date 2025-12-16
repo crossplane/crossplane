@@ -437,8 +437,13 @@ spec:
   tests:
     - name: "Test cluster creation"
       inputs:
-        # Crossplane version to test against when using an ephemeral test cluster.
-        crossplaneVersion: "2.1.0"
+        # Configuration for the ephemeral test cluster.
+        cluster:
+          # Crossplane version to use.
+          crossplane:
+            version: "2.1.0"
+            flags:
+              - "--enable-dependency-version-upgrades"
         # Manifests to apply as part of the test.
         manifests:
           - apiVersion: platform.example.com/v1alpha1
@@ -1056,6 +1061,11 @@ type E2ETestCase struct {
 //
 // +k8s:deepcopy-gen=true
 type E2ETestInputs struct {
+	// Cluster specifies paramters for the ephemeral test cluster.
+	//
+	// +kubebuilder:validation:Optional
+	Cluster *ClusterConfig
+
 	// CrossplaneVersion specifies the Crossplane version required for this
 	// test.
 	// +kubebuilder:validation:Required
@@ -1120,6 +1130,23 @@ type E2ETestInputs struct {
 	// valid Kubernetes object.
 	// +kubebuilder:validation:Optional
 	InitResources []runtime.RawExtension `json:"initResources,omitempty"`
+}
+
+// ClusterConfig holds test cluster configuration.
+type ClusterConfig struct {
+	// Crossplane configures Crossplane for tests.
+	// +kubebuilder:validation:Optional
+	Crossplane *CrossplaneConfig
+}
+
+// CrossplaneConfig holds Crossplane configuration for test clusters.
+type CrossplaneConfig struct {
+	// Version is the version of Crossplane to use. If not specified, the latest
+	// version will be used.
+	Version string
+	// Flags specifies flags to pass to Crossplane. If not specified, the default
+	// flags for the relevant version will be used.
+	Flags []string
 }
 ```
 
