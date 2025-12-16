@@ -158,9 +158,8 @@ type CachedClient struct {
 	config  ConfigStore
 }
 
-// NewClient creates a new package client.
-// The configStore is optional - pass nil to disable ImageConfig support.
-func NewClient(f Fetcher, p parser.Parser, c PackageCache, s ConfigStore) *CachedClient {
+// NewCachedClient creates a new package client.
+func NewCachedClient(f Fetcher, p parser.Parser, c PackageCache, s ConfigStore) *CachedClient {
 	return &CachedClient{
 		fetcher: f,
 		parser:  p,

@@ -93,6 +93,7 @@ type MockConfigStore struct {
 	MockRewritePath                func(context.Context, string) (string, string, error)
 	MockPullSecretFor              func(context.Context, string) (string, string, error)
 	MockImageVerificationConfigFor func(context.Context, string) (string, *v1beta1.ImageVerification, error)
+	MockRuntimeConfigFor           func(context.Context, string) (string, *v1beta1.ImageRuntime, error)
 }
 
 func (m *MockConfigStore) RewritePath(ctx context.Context, ref string) (string, string, error) {
@@ -105,6 +106,10 @@ func (m *MockConfigStore) PullSecretFor(ctx context.Context, ref string) (string
 
 func (m *MockConfigStore) ImageVerificationConfigFor(ctx context.Context, ref string) (string, *v1beta1.ImageVerification, error) {
 	return m.MockImageVerificationConfigFor(ctx, ref)
+}
+
+func (m *MockConfigStore) RuntimeConfigFor(ctx context.Context, ref string) (string, *v1beta1.ImageRuntime, error) {
+	return m.MockRuntimeConfigFor(ctx, ref)
 }
 
 type MockImage struct {
