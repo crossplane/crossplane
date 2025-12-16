@@ -217,7 +217,7 @@ The `crossplane project build` command builds each embedded function into its
 own Crossplane Function package. This involves first building a runtime image,
 then generating and adding a package metadata layer as required by the XPKG
 specification. The details of how the runtime image are built vary depending on
-the details of how the runtime image are built vary depending on the language used for the function:
+the language used for the function:
 
 * **Go:** [`ko`] is invoked as a library to build an image.
 * **go-templating:** Template files are added to the
