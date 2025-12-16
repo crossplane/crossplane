@@ -19,7 +19,6 @@ package manager
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"reflect"
 	"strings"
@@ -27,7 +26,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -72,14 +70,9 @@ const (
 	errUnpack               = "cannot unpack package"
 	errApplyPackageRevision = "cannot apply package revision"
 	errGCPackageRevision    = "cannot garbage collect old package revision"
-	errGetPullConfig        = "cannot get image pull secret from config"
-	errRewriteImage         = "cannot rewrite image path using config"
 
 	errUpdateStatus                  = "cannot update package status"
 	errUpdateInactivePackageRevision = "cannot update inactive package revision"
-
-	errCreateK8sClient = "failed to initialize clientset"
-	errBuildFetcher    = "cannot build fetcher"
 )
 
 // Event reasons.
@@ -90,7 +83,6 @@ const (
 	reasonGarbageCollect     event.Reason = "GarbageCollect"
 	reasonInstall            event.Reason = "InstallPackageRevision"
 	reasonPaused             event.Reason = "ReconciliationPaused"
-	reasonImageConfig        event.Reason = "ImageConfigSelection"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -117,18 +109,10 @@ func WithNewPackageRevisionListFn(f func() v1.PackageRevisionList) ReconcilerOpt
 	}
 }
 
-// WithRevisioner specifies how the Reconciler should acquire a package image's
-// revision name.
-func WithRevisioner(d Revisioner) ReconcilerOption {
+// WithClient specifies the package client to use.
+func WithClient(c xpkg.Client) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.pkg = d
-	}
-}
-
-// WithConfigStore specifies the image config store to use.
-func WithConfigStore(c xpkg.ConfigStore) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.config = c
+		r.pkg = c
 	}
 }
 
@@ -165,9 +149,8 @@ func WithManagingRevisionRuntimeSpec() ReconcilerOption {
 
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client     resource.ClientApplicator
-	pkg        Revisioner
-	config     xpkg.ConfigStore
+	kube       resource.ClientApplicator
+	pkg        xpkg.Client
 	log        logging.Logger
 	record     event.Recorder
 	conditions conditions.Manager
@@ -186,23 +169,12 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 	nr := func() v1.PackageRevision { return &v1.ProviderRevision{} }
 	nrl := func() v1.PackageRevisionList { return &v1.ProviderRevisionList{} }
 
-	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
-	if err != nil {
-		return errors.Wrap(err, errCreateK8sClient)
-	}
-
-	f, err := xpkg.NewK8sFetcher(cs, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
-	if err != nil {
-		return errors.Wrap(err, errBuildFetcher)
-	}
-
 	log := o.Logger.WithValues("controller", name)
 	opts := []ReconcilerOption{
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
-		WithRevisioner(NewPackageRevisioner(f)),
-		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
+		WithClient(o.Client),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 	}
@@ -227,23 +199,12 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 	nr := func() v1.PackageRevision { return &v1.ConfigurationRevision{} }
 	nrl := func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} }
 
-	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
-	if err != nil {
-		return errors.Wrap(err, "failed to initialize clientset")
-	}
-
-	fetcher, err := xpkg.NewK8sFetcher(clientset, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
-	if err != nil {
-		return errors.Wrap(err, "cannot build fetcher")
-	}
-
 	log := o.Logger.WithValues("controller", name)
 	r := NewReconciler(mgr,
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
-		WithRevisioner(NewPackageRevisioner(fetcher)),
-		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
+		WithClient(o.Client),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 	)
@@ -264,23 +225,12 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 	nr := func() v1.PackageRevision { return &v1.FunctionRevision{} }
 	nrl := func() v1.PackageRevisionList { return &v1.FunctionRevisionList{} }
 
-	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
-	if err != nil {
-		return errors.Wrap(err, errCreateK8sClient)
-	}
-
-	f, err := xpkg.NewK8sFetcher(cs, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
-	if err != nil {
-		return errors.Wrap(err, errBuildFetcher)
-	}
-
 	log := o.Logger.WithValues("controller", name)
 	opts := []ReconcilerOption{
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
-		WithRevisioner(NewPackageRevisioner(f)),
-		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
+		WithClient(o.Client),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 	}
@@ -301,11 +251,10 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 // NewReconciler creates a new package reconciler.
 func NewReconciler(mgr ctrl.Manager, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		client: resource.ClientApplicator{
+		kube: resource.ClientApplicator{
 			Client:     mgr.GetClient(),
 			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
 		},
-		pkg:        NewNopRevisioner(),
 		log:        logging.NewNopLogger(),
 		record:     event.NewNopRecorder(),
 		conditions: conditions.ObservedGenerationPropagationManager{},
@@ -327,7 +276,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	defer cancel()
 
 	p := r.newPackage()
-	if err := r.client.Get(ctx, req.NamespacedName, p); err != nil {
+	if err := r.kube.Get(ctx, req.NamespacedName, p); err != nil {
 		// There's no need to requeue if we no longer exist. Otherwise
 		// we'll be requeued implicitly because we return an error.
 		log.Debug(errGetPackage, "error", err)
@@ -343,97 +292,56 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		status.MarkConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
 		// and if status update fails, we will reconcile again to retry to update the status
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, p), errUpdateStatus)
 	}
 
 	if c := p.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
 		p.CleanConditions()
 		// Persist the removal of conditions and return. We'll be requeued
 		// with the updated status and resume reconciliation.
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, p), errUpdateStatus)
 	}
 
 	// Get existing package revisions.
 	prs := r.newPackageRevisionList()
-	if err := r.client.List(ctx, prs, client.MatchingLabels(map[string]string{v1.LabelParentPackage: p.GetName()})); resource.IgnoreNotFound(err) != nil {
+	if err := r.kube.List(ctx, prs, client.MatchingLabels(map[string]string{v1.LabelParentPackage: p.GetName()})); resource.IgnoreNotFound(err) != nil {
 		err = errors.Wrap(err, errListRevisions)
 		r.record.Event(p, event.Warning(reasonList, err))
 
 		return reconcile.Result{}, err
 	}
 
-	// Rewrite the image path if necessary. We need to do this before looking
-	// for pull secrets, since the rewritten path may use different secrets than
-	// the original.
-	imagePath := p.GetSource()
-
-	rewriteConfigName, newPath, err := r.config.RewritePath(ctx, imagePath)
-	if err != nil {
-		err = errors.Wrap(err, errRewriteImage)
-		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
-		_ = r.client.Status().Update(ctx, p)
-
-		r.record.Event(p, event.Warning(reasonImageConfig, err))
-
-		return reconcile.Result{}, err
-	}
-
-	if newPath != "" {
-		imagePath = newPath
-
-		p.SetAppliedImageConfigRefs(v1.ImageConfigRef{
-			Name:   rewriteConfigName,
-			Reason: v1.ImageConfigReasonRewrite,
-		})
-	} else {
-		p.ClearAppliedImageConfigRef(v1.ImageConfigReasonRewrite)
-	}
-
-	p.SetResolvedSource(imagePath)
-
-	pullSecretConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, p.GetResolvedSource())
-	if err != nil {
-		err = errors.Wrap(err, errGetPullConfig)
-		status.MarkConditions(v1.Unpacking().WithMessage(err.Error()))
-
-		_ = r.client.Status().Update(ctx, p)
-
-		r.record.Event(p, event.Warning(reasonImageConfig, err))
-
-		return reconcile.Result{}, err
-	}
-
-	var secrets []string
-	if pullSecretFromConfig != "" {
-		secrets = append(secrets, pullSecretFromConfig)
-
-		p.SetAppliedImageConfigRefs(v1.ImageConfigRef{
-			Name:   pullSecretConfig,
-			Reason: v1.ImageConfigReasonSetPullSecret,
-		})
-	} else {
-		p.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
-	}
-
-	revisionName, err := r.pkg.Revision(ctx, p, secrets...)
+	// Fetch the package to get its digest and any applied ImageConfigs.
+	pkg, err := r.pkg.Get(ctx, p.GetSource(),
+		xpkg.WithPullSecrets(v1.RefNames(p.GetPackagePullSecrets())...),
+		xpkg.WithPullPolicy(ptr.Deref(p.GetPackagePullPolicy(), corev1.PullIfNotPresent)),
+	)
 	if err != nil {
 		err = errors.Wrap(err, errUnpack)
 		status.MarkConditions(v1.Unpacking().WithMessage(err.Error()))
 		r.record.Event(p, event.Warning(reasonUnpack, err))
 
-		if updateErr := r.client.Status().Update(ctx, p); updateErr != nil {
+		if updateErr := r.kube.Status().Update(ctx, p); updateErr != nil {
 			return reconcile.Result{}, errors.Wrap(updateErr, errUpdateStatus)
 		}
 
 		return reconcile.Result{}, err
 	}
 
-	if revisionName == "" {
-		status.MarkConditions(v1.Unpacking().WithMessage("Waiting for unpack to complete"))
-		r.record.Event(p, event.Normal(reasonUnpack, "Waiting for unpack to complete"))
+	// Clear previous ImageConfig refs and set the ones that were applied.
+	p.ClearAppliedImageConfigRef(v1.ImageConfigReasonRewrite)
+	p.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+	for _, cfg := range pkg.AppliedImageConfigs {
+		p.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+			Name:   cfg.Name,
+			Reason: v1.ImageConfigRefReason(cfg.Reason),
+		})
 	}
+
+	p.SetResolvedSource(pkg.ResolvedSource)
+
+	revisionName := xpkg.FriendlyID(p.GetName(), pkg.DigestHex())
 
 	// Set the current revision and identifier.
 	p.SetCurrentRevision(revisionName)
@@ -479,7 +387,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// the package's revision activation policy.
 			rev.SetDesiredState(v1.PackageRevisionInactive)
 
-			if err := r.client.Applicator.Apply(ctx, rev, resource.MustBeControllableBy(p.GetUID())); err != nil {
+			if err := r.kube.Applicator.Apply(ctx, rev, resource.MustBeControllableBy(p.GetUID())); err != nil {
 				if kerrors.IsConflict(err) {
 					return reconcile.Result{Requeue: true}, nil
 				}
@@ -503,7 +411,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		len(revisions) > (int(*p.GetRevisionHistoryLimit())+1) {
 		gcRev := revisions[oldestRevisionIndex]
 		// Find the oldest revision and delete it.
-		if err := r.client.Delete(ctx, gcRev); err != nil {
+		if err := r.kube.Delete(ctx, gcRev); err != nil {
 			err = errors.Wrap(err, errGCPackageRevision)
 			r.record.Event(p, event.Warning(reasonGarbageCollect, err))
 
@@ -519,13 +427,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	status.MarkConditions(health)
-
-	if pr.GetUID() == "" && pullSecretConfig != "" {
-		// We only record this event if the revision is new, as we don't want to
-		// spam the user with events if the revision already exists.
-		log.Debug("Selected pull secret from image config store", "image", p.GetResolvedSource(), "pullSecretConfig", pullSecretConfig, "pullSecret", pullSecretFromConfig, "rewriteConfig", rewriteConfigName)
-		r.record.Event(p, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, pullSecretConfig)))
-	}
 
 	// Create the non-existent package revision.
 	pr.SetName(revisionName)
@@ -555,7 +456,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	controlRef.BlockOwnerDeletion = ptr.To(true)
 	meta.AddOwnerReference(pr, controlRef)
 
-	if err := r.client.Applicator.Apply(ctx, pr, resource.MustBeControllableBy(p.GetUID())); err != nil {
+	if err := r.kube.Applicator.Apply(ctx, pr, resource.MustBeControllableBy(p.GetUID())); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -571,7 +472,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if !same {
 		pr.SetCommonLabels(p.GetCommonLabels())
 
-		if err := r.client.Update(ctx, pr); err != nil {
+		if err := r.kube.Update(ctx, pr); err != nil {
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
@@ -594,5 +495,5 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// package, the health of the package is not set until the revision reports
 	// its health. If updating from an existing revision, the package health
 	// will match the health of the old revision until the next reconcile.
-	return pullBasedRequeue(p.GetPackagePullPolicy()), errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+	return pullBasedRequeue(p.GetPackagePullPolicy()), errors.Wrap(r.kube.Status().Update(ctx, p), errUpdateStatus)
 }
