@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The Crossplane Authors.
+Copyright 2025 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ import (
 func FuzzRenderClusterRoles(f *testing.F) {
 	f.Fuzz(func(_ *testing.T, data []byte) {
 		ff := fuzz.NewConsumer(data)
-		pr := &v1.ProviderRevision{}
-		ff.GenerateStruct(pr)
+		fr := &v1.FunctionRevision{}
+		ff.GenerateStruct(fr)
 
 		rs := make([]roles.Resource, 0)
 		ff.CreateSlice(&rs)
@@ -38,6 +38,6 @@ func FuzzRenderClusterRoles(f *testing.F) {
 			return
 		}
 
-		_ = RenderClusterRoles(pr, rs)
+		_ = RenderClusterRoles(fr, rs)
 	})
 }

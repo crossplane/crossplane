@@ -22,8 +22,9 @@ import (
 
 	"github.com/crossplane/crossplane/v2/internal/controller/rbac/controller"
 	"github.com/crossplane/crossplane/v2/internal/controller/rbac/definition"
+	functionroles "github.com/crossplane/crossplane/v2/internal/controller/rbac/function/roles"
 	"github.com/crossplane/crossplane/v2/internal/controller/rbac/provider/binding"
-	"github.com/crossplane/crossplane/v2/internal/controller/rbac/provider/roles"
+	providerroles "github.com/crossplane/crossplane/v2/internal/controller/rbac/provider/roles"
 )
 
 // Setup RBAC manager controllers.
@@ -31,7 +32,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	for _, setup := range []func(ctrl.Manager, controller.Options) error{
 		definition.Setup,
 		binding.Setup,
-		roles.Setup,
+		providerroles.Setup,
+		functionroles.Setup,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err
