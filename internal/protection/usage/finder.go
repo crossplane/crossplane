@@ -120,7 +120,7 @@ func (f *Finder) FindUsageOf(ctx context.Context, o Object) ([]protection.Usage,
 	}
 
 	for _, u := range ul.Items {
-		usages = append(usages, &u)
+		usages = append(usages, &protection.InternalUsage{Usage: u})
 	}
 
 	cul := &v1beta1.ClusterUsageList{}
@@ -129,7 +129,7 @@ func (f *Finder) FindUsageOf(ctx context.Context, o Object) ([]protection.Usage,
 	}
 
 	for _, u := range cul.Items {
-		usages = append(usages, &u)
+		usages = append(usages, &protection.InternalClusterUsage{ClusterUsage: u})
 	}
 
 	lul := &legacy.UsageList{} //nolint:staticcheck // It's deprecated but we still need to support it.
@@ -138,7 +138,7 @@ func (f *Finder) FindUsageOf(ctx context.Context, o Object) ([]protection.Usage,
 	}
 
 	for _, u := range lul.Items {
-		usages = append(usages, &u)
+		usages = append(usages, &protection.InternalLegacyUsage{Usage: u})
 	}
 
 	return usages, nil

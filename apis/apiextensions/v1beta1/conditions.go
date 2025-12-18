@@ -16,6 +16,16 @@ limitations under the License.
 
 package v1beta1
 
-import "github.com/crossplane/crossplane/v2/internal/protection"
+import (
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+)
 
-var _ protection.Usage = &ClusterUsage{}
+// GetCondition of this Usage.
+func (u *Usage) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return u.Status.GetCondition(ct)
+}
+
+// SetConditions of this Usage.
+func (u *Usage) SetConditions(c ...xpv1.Condition) {
+	u.Status.SetConditions(c...)
+}

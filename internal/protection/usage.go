@@ -18,7 +18,7 @@ limitations under the License.
 package protection
 
 import (
-	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 )
 
 // AnnotationKeyDeletionAttempt is the annotation key used to record whether
@@ -93,13 +93,12 @@ type Reasoned interface {
 }
 
 // A Usage represents that a resource is in use.
-type Usage interface { //nolint:interfacebloat // This represents an API type - it has to be large.
-	resource.Object
-
+type Usage interface {
 	User
 	Used
 	Reasoned
 	DeletionReplayer
 
-	resource.Conditioned
+	// Unwrap returns the original API object for the usage.
+	Unwrap() conditions.ObjectWithConditions
 }

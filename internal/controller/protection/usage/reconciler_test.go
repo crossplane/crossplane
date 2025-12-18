@@ -64,7 +64,7 @@ func TestReconcile(t *testing.T) {
 
 	type args struct {
 		mgr  manager.Manager
-		u    protection.Usage
+		u    func() protection.Usage
 		f    Finder
 		opts []ReconcilerOption
 	}
@@ -83,7 +83,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not return an error if the Usage was not found.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -100,7 +100,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot parse APIVersion of used resource.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -122,7 +122,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot resolve selectors.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -148,7 +148,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot add finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -177,7 +177,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot add details annotation.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -207,7 +207,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot get used resource.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -243,7 +243,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot update used resource with in-use label",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -282,7 +282,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot get using resource.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -321,7 +321,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot add owner reference to the Usage.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -371,7 +371,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return no error once we have successfully reconciled the usage resource.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -431,7 +431,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return no error once we have successfully reconciled the usage resource.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -481,7 +481,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot remove the finalizer on delete.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -516,7 +516,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot get used resource on delete.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -551,7 +551,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot get using resource on delete.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -595,7 +595,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not get using resource on delete if the usage is not composed.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
 					return nil, nil
 				}),
@@ -639,7 +639,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot find usages on delete.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
 					return nil, errBoom
 				}),
@@ -678,7 +678,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot remove in use label on delete.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
 					return nil, nil
 				}),
@@ -720,7 +720,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return no error once we have successfully deleted the usage resource.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -755,7 +755,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return no error once we have successfully deleted the usage resource by removing in use label.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
 					return nil, nil
 				}),
@@ -803,7 +803,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should replay deletion after usage is gone and replayDeletion is true.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
 					return nil, nil
 				}),
@@ -856,7 +856,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should wait until the using resource is deleted.",
 			args: args{
 				mgr: &fake.Manager{},
-				u:   &v1beta1.Usage{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
 				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
 					return nil, nil
 				}),

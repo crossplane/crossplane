@@ -155,9 +155,15 @@ func TestFindUsageOf(t *testing.T) {
 			},
 			want: want{
 				u: []protection.Usage{
-					&v1beta1.Usage{ObjectMeta: metav1.ObjectMeta{Name: "usage"}},
-					&v1beta1.ClusterUsage{ObjectMeta: metav1.ObjectMeta{Name: "cluster-usage"}},
-					&legacy.Usage{ObjectMeta: metav1.ObjectMeta{Name: "legacy-usage"}}, //nolint:staticcheck // Deprecated but still supported.
+					&protection.InternalUsage{
+						Usage: v1beta1.Usage{ObjectMeta: metav1.ObjectMeta{Name: "usage"}},
+					},
+					&protection.InternalClusterUsage{
+						ClusterUsage: v1beta1.ClusterUsage{ObjectMeta: metav1.ObjectMeta{Name: "cluster-usage"}},
+					},
+					&protection.InternalLegacyUsage{
+						Usage: legacy.Usage{ObjectMeta: metav1.ObjectMeta{Name: "legacy-usage"}}, //nolint:staticcheck // Deprecated but still supported.
+					},
 				},
 			},
 		},
