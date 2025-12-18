@@ -145,19 +145,23 @@ func parsePackage(yaml []byte) *parser.Package {
 
 func mockPackage() *xpkg.Package {
 	return &xpkg.Package{
-		Package:        parsePackage(providerYAML),
-		Digest:         "sha256:1234567890123456789012345678901234567890123456789012345678901234",
-		Source:         "test",
-		ResolvedSource: "test",
+		Package:         parsePackage(providerYAML),
+		Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+		Version:         "v1.0.0",
+		Source:          "xpkg.crossplane.io/test",
+		ResolvedVersion: "v1.0.0",
+		ResolvedSource:  "xpkg.crossplane.io/test",
 	}
 }
 
 func mockEmptyPackage() *xpkg.Package {
 	return &xpkg.Package{
-		Package:        parser.NewPackage(),
-		Digest:         "sha256:1234567890123456789012345678901234567890123456789012345678901234",
-		Source:         "test",
-		ResolvedSource: "test",
+		Package:         parser.NewPackage(),
+		Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+		Version:         "v1.0.0",
+		Source:          "xpkg.crossplane.io/test",
+		ResolvedVersion: "v1.0.0",
+		ResolvedSource:  "xpkg.crossplane.io/test",
 	}
 }
 
@@ -374,7 +378,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetResolvedSource("test")
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionUnhealthy().WithMessage("validating package contents failed: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -416,7 +420,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetResolvedSource("test")
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionUnhealthy().WithMessage("incompatible Crossplane version: package is not compatible with Crossplane version (v0.11.0): boom"))
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 
@@ -430,7 +434,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetResolvedSource("test")
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -473,7 +477,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetResolvedSource("test")
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionUnhealthy().WithMessage("cannot install package with multiple meta types"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -516,7 +520,7 @@ func TestReconcile(t *testing.T) {
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetResolvedSource("test")
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionUnhealthy().WithMessage("cannot update package revision object metadata: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -563,7 +567,7 @@ func TestReconcile(t *testing.T) {
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetSkipDependencyResolution(ptr.To(false))
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetResolvedSource("test")
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionUnhealthy().WithMessage("cannot resolve package dependencies: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -576,7 +580,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetResolvedSource("test")
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetSkipDependencyResolution(ptr.To(false))
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -618,7 +622,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetResolvedSource("test")
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionHealthy())
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -631,7 +635,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetResolvedSource("test")
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -676,7 +680,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetResolvedSource("test")
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionHealthy())
 								want.SetIgnoreCrossplaneConstraints(&trueVal)
 
@@ -690,7 +694,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetResolvedSource("test")
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetIgnoreCrossplaneConstraints(&trueVal)
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -736,7 +740,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetResolvedSource("test")
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionUnhealthy().WithMessage("cannot establish control of object: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -750,7 +754,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetResolvedSource("test")
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -996,7 +1000,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetResolvedSource("test")
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.VerificationSucceeded("foo"))
 								want.SetConditions(v1.RevisionHealthy())
 
@@ -1010,7 +1014,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetResolvedSource("test")
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.VerificationSucceeded("foo"))
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)

@@ -22,6 +22,7 @@ import (
 	"io"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/Masterminds/semver"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -85,6 +86,10 @@ type Package struct {
 	// This is the ORIGINAL source before any ImageConfig rewriting.
 	Source string
 
+	// ResolvedVersion is the package version after ImageConfig rewriting.
+	// May differ from Version if an ImageConfig rewrote the tag/digest.
+	ResolvedVersion string
+
 	// ResolvedSource is the source after ImageConfig path rewriting.
 	// May be the same as Source if no rewriting occurred.
 	ResolvedSource string
@@ -123,6 +128,26 @@ func (p *Package) GetDependencies() []pkgmetav1.Dependency {
 		return nil
 	}
 	return meta.GetDependencies()
+}
+
+// Ref returns the full original package reference (Source + Version).
+func (p *Package) Ref() string {
+	return BuildPackageRef(p.Source, p.Version)
+}
+
+// ResolvedRef returns the full resolved package reference after ImageConfig
+// rewriting (ResolvedSource + ResolvedVersion).
+func (p *Package) ResolvedRef() string {
+	return BuildPackageRef(p.ResolvedSource, p.ResolvedVersion)
+}
+
+// BuildPackageRef combines a source and version into a full package reference.
+// Uses "@" for digests (version contains ":") and ":" for tags.
+func BuildPackageRef(source, version string) string {
+	if strings.Contains(version, ":") {
+		return source + "@" + version
+	}
+	return source + ":" + version
 }
 
 // GetOption configures per-request package fetching behavior.
@@ -228,6 +253,7 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 					Digest:              digest,
 					Version:             parsedOriginalRef.Identifier(),
 					Source:              ParsePackageSourceFromReference(parsedOriginalRef),
+					ResolvedVersion:     parsedResolvedRef.Identifier(),
 					ResolvedSource:      ParsePackageSourceFromReference(parsedResolvedRef),
 					AppliedImageConfigs: applied,
 				}, nil
@@ -268,6 +294,7 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 		Digest:              digest,
 		Version:             parsedOriginalRef.Identifier(),
 		Source:              ParsePackageSourceFromReference(parsedOriginalRef),
+		ResolvedVersion:     parsedResolvedRef.Identifier(),
 		ResolvedSource:      ParsePackageSourceFromReference(parsedResolvedRef),
 		AppliedImageConfigs: applied,
 	}, nil

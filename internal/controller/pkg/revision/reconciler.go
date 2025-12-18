@@ -534,7 +534,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// NOTE: We set these early so error paths below can report them. We'll set
 	// them again after r.kube.Update() because Update() overwrites pr with the
 	// server's response, which would wipe these in-memory status changes.
-	pr.SetResolvedSource(pkg.ResolvedSource)
+	pr.SetResolvedSource(pkg.ResolvedRef())
 
 	pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonRewrite)
 	pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
@@ -604,7 +604,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Re-apply status changes that were wiped by r.kube.Update() above. Update()
 	// overwrites pr with the server's response, which doesn't include status.
-	pr.SetResolvedSource(pkg.ResolvedSource)
+	pr.SetResolvedSource(pkg.ResolvedRef())
 
 	pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonRewrite)
 	pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)

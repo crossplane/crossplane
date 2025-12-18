@@ -339,7 +339,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		})
 	}
 
-	p.SetResolvedSource(pkg.ResolvedSource)
+	p.SetResolvedSource(pkg.ResolvedRef())
 
 	revisionName := xpkg.FriendlyID(p.GetName(), pkg.DigestHex())
 

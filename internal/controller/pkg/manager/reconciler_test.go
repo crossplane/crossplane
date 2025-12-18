@@ -185,7 +185,7 @@ func TestReconcile(t *testing.T) {
 								want.SetActivationPolicy(&v1.AutomaticActivation)
 								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
 								want.SetConditions(v1.Active())
-								want.SetResolvedSource("new/image/path")
+								want.SetResolvedSource("gcr.io/new/image/path:v1.0.0")
 								want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 									Name:   "imageConfigName",
 									Reason: v1.ImageConfigReasonRewrite,
@@ -202,8 +202,9 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &fake.MockClient{
 						MockGet: fake.NewMockGetFn(&xpkg.Package{
-							Digest:         "sha256:1234567890123456789012345678901234567890123456789012345678901234",
-							ResolvedSource: "new/image/path",
+							Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							ResolvedVersion: "v1.0.0",
+							ResolvedSource:  "gcr.io/new/image/path",
 							AppliedImageConfigs: []xpkg.ImageConfig{
 								{Name: "imageConfigName", Reason: xpkg.ImageConfigReasonRewrite},
 							},
@@ -244,6 +245,7 @@ func TestReconcile(t *testing.T) {
 								want.SetActivationPolicy(&v1.AutomaticActivation)
 								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
 								want.SetConditions(v1.Active())
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -256,7 +258,11 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &fake.MockClient{
 						MockGet: fake.NewMockGetFn(&xpkg.Package{
-							Digest: "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Version:         "v1.0.0",
+							Source:          "xpkg.crossplane.io/test",
+							ResolvedVersion: "v1.0.0",
+							ResolvedSource:  "xpkg.crossplane.io/test",
 						}, nil),
 					},
 					log:        testLog,
@@ -296,6 +302,7 @@ func TestReconcile(t *testing.T) {
 								want.SetPackagePullPolicy(&pullAlways)
 								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
 								want.SetConditions(v1.Active())
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -308,7 +315,11 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &fake.MockClient{
 						MockGet: fake.NewMockGetFn(&xpkg.Package{
-							Digest: "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Version:         "v1.0.0",
+							Source:          "xpkg.crossplane.io/test",
+							ResolvedVersion: "v1.0.0",
+							ResolvedSource:  "xpkg.crossplane.io/test",
 						}, nil),
 					},
 					log:        testLog,
@@ -346,6 +357,7 @@ func TestReconcile(t *testing.T) {
 								want.SetCurrentRevision("test-123456789012")
 								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
 								want.SetConditions(v1.Inactive().WithMessage("Package is inactive"))
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -358,7 +370,11 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &fake.MockClient{
 						MockGet: fake.NewMockGetFn(&xpkg.Package{
-							Digest: "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Version:         "v1.0.0",
+							Source:          "xpkg.crossplane.io/test",
+							ResolvedVersion: "v1.0.0",
+							ResolvedSource:  "xpkg.crossplane.io/test",
 						}, nil),
 					},
 					log:        testLog,
@@ -407,6 +423,7 @@ func TestReconcile(t *testing.T) {
 								want.SetCurrentRevision("test-123456789012")
 								want.SetConditions(v1.Healthy())
 								want.SetConditions(v1.Active())
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -419,7 +436,11 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &fake.MockClient{
 						MockGet: fake.NewMockGetFn(&xpkg.Package{
-							Digest: "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Version:         "v1.0.0",
+							Source:          "xpkg.crossplane.io/test",
+							ResolvedVersion: "v1.0.0",
+							ResolvedSource:  "xpkg.crossplane.io/test",
 						}, nil),
 					},
 					log:        testLog,
@@ -471,6 +492,7 @@ func TestReconcile(t *testing.T) {
 								want.SetCurrentRevision("test-123456789012")
 								want.SetConditions(v1.Healthy())
 								want.SetConditions(v1.Active())
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -500,7 +522,11 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &fake.MockClient{
 						MockGet: fake.NewMockGetFn(&xpkg.Package{
-							Digest: "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Version:         "v1.0.0",
+							Source:          "xpkg.crossplane.io/test",
+							ResolvedVersion: "v1.0.0",
+							ResolvedSource:  "xpkg.crossplane.io/test",
 						}, nil),
 					},
 					log:        testLog,
@@ -562,7 +588,11 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &fake.MockClient{
 						MockGet: fake.NewMockGetFn(&xpkg.Package{
-							Digest: "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Version:         "v1.0.0",
+							Source:          "xpkg.crossplane.io/test",
+							ResolvedVersion: "v1.0.0",
+							ResolvedSource:  "xpkg.crossplane.io/test",
 						}, nil),
 					},
 					log:        testLog,
@@ -613,6 +643,7 @@ func TestReconcile(t *testing.T) {
 								want.SetCurrentRevision("test-123456789012")
 								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"False\" with message: some message"))
 								want.SetConditions(v1.Active())
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -625,7 +656,11 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &fake.MockClient{
 						MockGet: fake.NewMockGetFn(&xpkg.Package{
-							Digest: "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Version:         "v1.0.0",
+							Source:          "xpkg.crossplane.io/test",
+							ResolvedVersion: "v1.0.0",
+							ResolvedSource:  "xpkg.crossplane.io/test",
 						}, nil),
 					},
 					log:        testLog,
@@ -695,6 +730,7 @@ func TestReconcile(t *testing.T) {
 								want.SetCurrentRevision("test-123456789012")
 								want.SetConditions(v1.Healthy())
 								want.SetConditions(v1.Active())
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -725,7 +761,11 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &fake.MockClient{
 						MockGet: fake.NewMockGetFn(&xpkg.Package{
-							Digest: "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Version:         "v1.0.0",
+							Source:          "xpkg.crossplane.io/test",
+							ResolvedVersion: "v1.0.0",
+							ResolvedSource:  "xpkg.crossplane.io/test",
 						}, nil),
 					},
 					log:        testLog,
@@ -807,7 +847,11 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &fake.MockClient{
 						MockGet: fake.NewMockGetFn(&xpkg.Package{
-							Digest: "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Version:         "v1.0.0",
+							Source:          "xpkg.crossplane.io/test",
+							ResolvedVersion: "v1.0.0",
+							ResolvedSource:  "xpkg.crossplane.io/test",
 						}, nil),
 					},
 					log:        testLog,
@@ -857,7 +901,11 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &fake.MockClient{
 						MockGet: fake.NewMockGetFn(&xpkg.Package{
-							Digest: "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Version:         "v1.0.0",
+							Source:          "xpkg.crossplane.io/test",
+							ResolvedVersion: "v1.0.0",
+							ResolvedSource:  "xpkg.crossplane.io/test",
 						}, nil),
 					},
 					log:        testLog,
@@ -906,7 +954,11 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &fake.MockClient{
 						MockGet: fake.NewMockGetFn(&xpkg.Package{
-							Digest: "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Version:         "v1.0.0",
+							Source:          "xpkg.crossplane.io/test",
+							ResolvedVersion: "v1.0.0",
+							ResolvedSource:  "xpkg.crossplane.io/test",
 						}, nil),
 					},
 					log:        testLog,
