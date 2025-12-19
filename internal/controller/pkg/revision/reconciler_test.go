@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -50,15 +49,8 @@ import (
 	verfake "github.com/crossplane/crossplane/v2/internal/version/fake"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
 	xpkgfake "github.com/crossplane/crossplane/v2/internal/xpkg/fake"
+	xpkgyaml "github.com/crossplane/crossplane/v2/internal/xpkg/parser/yaml"
 )
-
-var _ parser.Backend = &ErrBackend{}
-
-type ErrBackend struct{ err error }
-
-func (e *ErrBackend) Init(_ context.Context, _ ...parser.BackendOption) (io.ReadCloser, error) {
-	return nil, e.err
-}
 
 var _ Establisher = &MockEstablisher{}
 
@@ -104,12 +96,6 @@ func (m *MockLinter) Lint(parser.Lintable) error {
 	return m.MockLint()
 }
 
-type MockParseFn func(context.Context, io.ReadCloser) (*parser.Package, error)
-
-func (fn MockParseFn) Parse(ctx context.Context, r io.ReadCloser) (*parser.Package, error) {
-	return fn(ctx, r)
-}
-
 type MockDependencyManager struct {
 	MockResolve    func() (int, int, int, error)
 	MockRemoveSelf func() error
@@ -131,27 +117,57 @@ func (m *MockDependencyManager) RemoveSelf(_ context.Context, _ v1.PackageRevisi
 	return m.MockRemoveSelf()
 }
 
-var providerBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1
+var providerYAML = []byte(`
+apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: test
   annotations:
     author: crossplane
 spec:
-  controller:
-    image: crossplane/provider-test-controller:v0.0.1
   crossplane:
-    version: ">v0.13.0"`)
+    version: ">v0.13.0"
+`)
+
+func parsePackage(yaml []byte) *parser.Package {
+	p, err := xpkgyaml.New()
+	if err != nil {
+		panic(err)
+	}
+	pkg, err := p.Parse(context.Background(), io.NopCloser(bytes.NewReader(yaml)))
+	if err != nil {
+		panic(err)
+	}
+	return pkg
+}
+
+func mockPackage() *xpkg.Package {
+	return &xpkg.Package{
+		Package:         parsePackage(providerYAML),
+		Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+		Version:         "v1.0.0",
+		Source:          "xpkg.crossplane.io/test",
+		ResolvedVersion: "v1.0.0",
+		ResolvedSource:  "xpkg.crossplane.io/test",
+	}
+}
+
+func mockEmptyPackage() *xpkg.Package {
+	return &xpkg.Package{
+		Package:         parser.NewPackage(),
+		Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+		Version:         "v1.0.0",
+		Source:          "xpkg.crossplane.io/test",
+		ResolvedVersion: "v1.0.0",
+		ResolvedSource:  "xpkg.crossplane.io/test",
+	}
+}
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
 	now := metav1.Now()
-	pullPolicy := corev1.PullNever
 	trueVal := true
-
-	metaScheme, _ := xpkg.BuildMetaScheme()
-	objScheme, _ := xpkg.BuildObjectScheme()
 
 	type args struct {
 		mgr manager.Manager
@@ -196,31 +212,6 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errGetPackageRevision),
-			},
-		},
-		"ErrDeletedClearCache": {
-			reason: "We should return an error if revision is deleted and we fail to clear image cache.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithCache(&xpkgfake.MockCache{
-						MockDelete: xpkgfake.NewMockCacheDeleteFn(errBoom),
-					}),
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDeletionTimestamp(&now)
-								return nil
-							}),
-						},
-					}),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errDeleteCache),
 			},
 		},
 		"ErrDeletedRemoveSelf": {
@@ -322,210 +313,14 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return errBoom
 					}}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
 				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errAddFinalizer),
 			},
 		},
-		"ErrGetFromCacheSuccessfulDelete": {
-			reason: "We should return an error if package content is in cache, we cannot get it, but we remove it successfully.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(_ client.Object) error {
-								t.Errorf("StatusUpdate should not be called")
-								return nil
-							}),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithCache(&xpkgfake.MockCache{
-						MockHas:    xpkgfake.NewMockCacheHasFn(true),
-						MockGet:    xpkgfake.NewMockCacheGetFn(nil, errBoom),
-						MockDelete: xpkgfake.NewMockCacheDeleteFn(nil),
-					}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errGetCache),
-			},
-		},
-		"ErrGetPackagePullSecretFromImageConfigs": {
-			reason: "We should return an error if we cannot get package pull secret from image configs.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(_ client.Object) error {
-								return nil
-							}),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", errBoom),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errGetPullConfig),
-			},
-		},
-		"ErrRewriteImageFromImageConfigs": {
-			reason: "We should return an error if we cannot rewrite the package path using image configs.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(_ client.Object) error {
-								return nil
-							}),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", errBoom),
-					}),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errRewriteImage),
-			},
-		},
-		"ErrGetFromCacheFailedDelete": {
-			reason: "We should return an error if package content is in cache, we cannot get it, and we fail to remove it.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(_ client.Object) error {
-								t.Errorf("StatusUpdate should not be called")
-								return nil
-							}),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithCache(&xpkgfake.MockCache{
-						MockHas:    xpkgfake.NewMockCacheHasFn(true),
-						MockGet:    xpkgfake.NewMockCacheGetFn(nil, errBoom),
-						MockDelete: xpkgfake.NewMockCacheDeleteFn(errBoom),
-					}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errGetCache),
-			},
-		},
-		"ErrNotInCachePullPolicyNever": {
-			reason: "We should return an error if package content is not in cache and pull policy is Never.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision {
-						return &v1.ProviderRevision{
-							Spec: v1.ProviderRevisionSpec{
-								PackageRevisionSpec: v1.PackageRevisionSpec{
-									PackagePullPolicy: &pullPolicy,
-								},
-							},
-						}
-					}),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetPackagePullPolicy(&pullPolicy)
-								want.SetConditions(v1.RevisionUnhealthy().WithMessage("failed to get pre-cached package with pull policy Never"))
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-					}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
-				},
-			},
-			want: want{
-				err: errors.New(errPullPolicyNever),
-			},
-		},
-		"ErrInitParserBackend": {
-			reason: "We should return an error if we fail to initialize parser backend.",
+		"ErrGetPackage": {
+			reason: "We should return an error if we fail to get the package.",
 			args: args{
 				mgr: &fake.Manager{},
 				rec: []ReconcilerOption{
@@ -542,7 +337,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(v1.RevisionUnhealthy().WithMessage("cannot initialize parser backend: boom"))
+								want.SetConditions(v1.RevisionUnhealthy().WithMessage("cannot get package: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -554,203 +349,13 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-					}),
-					WithParserBackend(&ErrBackend{err: errBoom}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
+					WithClient(&xpkgfake.MockClient{
+						MockGet: xpkgfake.NewMockGetFn(nil, errBoom),
 					}),
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errInitParserBackend),
-			},
-		},
-		"ErrParseFromCache": {
-			reason: "We should return an error if fail to parse the package from the cache.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(v1.RevisionUnhealthy().WithMessage("cannot parse package contents: boom"))
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithParser(MockParseFn(func(_ context.Context, _ io.ReadCloser) (*parser.Package, error) { return nil, errBoom })),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(true),
-						MockGet: xpkgfake.NewMockCacheGetFn(io.NopCloser(bytes.NewBuffer(providerBytes)), nil),
-					}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errParsePackage),
-			},
-		},
-		"ErrParseFromImage": {
-			reason: "We should return an error if we fail to parse the package from the image.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(v1.RevisionUnhealthy().WithMessage("cannot parse package contents: boom"))
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithParser(MockParseFn(func(_ context.Context, _ io.ReadCloser) (*parser.Package, error) { return nil, errBoom })),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas:   xpkgfake.NewMockCacheHasFn(false),
-						MockStore: xpkgfake.NewMockCacheStoreFn(nil),
-					}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errParsePackage),
-			},
-		},
-		"ErrParseFromImageFailedCache": {
-			reason: "We should return an error if we fail to parse the package from the image and fail to cache.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(v1.RevisionUnhealthy().WithMessage("cannot parse package contents: boom"))
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithParser(MockParseFn(func(_ context.Context, _ io.ReadCloser) (*parser.Package, error) { return nil, errBoom })),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas:    xpkgfake.NewMockCacheHasFn(false),
-						MockStore:  xpkgfake.NewMockCacheStoreFn(errBoom),
-						MockDelete: xpkgfake.NewMockCacheDeleteFn(nil),
-					}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errParsePackage),
-			},
-		},
-		"ErrParseFromImageFailedCacheFailedDelete": {
-			reason: "We should return an error if we fail to parse the package from the image, fail to cache, and fail to delete from cache.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(v1.RevisionUnhealthy().WithMessage("cannot parse package contents: boom"))
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithParser(MockParseFn(func(_ context.Context, _ io.ReadCloser) (*parser.Package, error) { return nil, errBoom })),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas:    xpkgfake.NewMockCacheHasFn(false),
-						MockStore:  xpkgfake.NewMockCacheStoreFn(errBoom),
-						MockDelete: xpkgfake.NewMockCacheDeleteFn(errBoom),
-					}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errParsePackage),
+				err: errors.Wrap(errBoom, errGetPackage),
 			},
 		},
 		"ErrLint": {
@@ -771,6 +376,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionUnhealthy().WithMessage("linting package contents failed: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -783,20 +389,10 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithClient(&xpkgfake.MockClient{
+						MockGet: xpkgfake.NewMockGetFn(mockPackage(), nil),
+					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(errBoom)}),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(_ string, rc io.ReadCloser) error {
-							_, err := io.ReadAll(rc)
-							return err
-						},
-					}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
 				},
 			},
 			want: want{
@@ -821,6 +417,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionUnhealthy().WithMessage("incompatible Crossplane version: package is not compatible with Crossplane version (v0.11.0): boom"))
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 
@@ -834,6 +431,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -844,23 +442,13 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(_ string, rc io.ReadCloser) error {
-							_, err := io.ReadAll(rc)
-							return err
-						},
+					WithClient(&xpkgfake.MockClient{
+						MockGet: xpkgfake.NewMockGetFn(mockPackage(), nil),
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{
 						MockInConstraints:    verfake.NewMockInConstraintsFn(false, errBoom),
 						MockGetVersionString: verfake.NewMockGetVersionStringFn("v0.11.0"),
-					}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
 					}),
 				},
 			},
@@ -886,6 +474,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionUnhealthy().WithMessage("cannot install package with multiple meta types"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -898,17 +487,10 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend("")),
-					WithCache(&xpkgfake.MockCache{
-						MockHas:   xpkgfake.NewMockCacheHasFn(false),
-						MockStore: xpkgfake.NewMockCacheStoreFn(nil),
+					WithClient(&xpkgfake.MockClient{
+						MockGet: xpkgfake.NewMockGetFn(mockEmptyPackage(), nil),
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
 				},
 			},
 			want: want{
@@ -935,6 +517,7 @@ func TestReconcile(t *testing.T) {
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionUnhealthy().WithMessage("cannot update package revision object metadata: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -947,20 +530,10 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(_ string, rc io.ReadCloser) error {
-							_, err := io.ReadAll(rc)
-							return err
-						},
+					WithClient(&xpkgfake.MockClient{
+						MockGet: xpkgfake.NewMockGetFn(mockPackage(), nil),
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
 				},
 			},
 			want: want{
@@ -991,6 +564,7 @@ func TestReconcile(t *testing.T) {
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetSkipDependencyResolution(ptr.To(false))
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionUnhealthy().WithMessage("cannot resolve package dependencies: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -1003,6 +577,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetSkipDependencyResolution(ptr.To(false))
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1014,21 +589,11 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(_ string, rc io.ReadCloser) error {
-							_, err := io.ReadAll(rc)
-							return err
-						},
+					WithClient(&xpkgfake.MockClient{
+						MockGet: xpkgfake.NewMockGetFn(mockPackage(), nil),
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
 				},
 			},
 			want: want{
@@ -1054,6 +619,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionHealthy())
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -1066,6 +632,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -1079,159 +646,11 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithEstablisher(NewMockEstablisher()),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(_ string, rc io.ReadCloser) error {
-							_, err := io.ReadAll(rc)
-							return err
-						},
+					WithClient(&xpkgfake.MockClient{
+						MockGet: xpkgfake.NewMockGetFn(mockPackage(), nil),
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: false},
-			},
-		},
-		"SuccessfulActiveRevisionImageConfigRewrite": {
-			reason: "An active revision should be updated when its image is rewritten by an image config.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetResolvedSource("new/image/path")
-								want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
-									Name:   "imageConfigName",
-									Reason: v1.ImageConfigReasonRewrite,
-								})
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-							MockDelete: test.NewMockDeleteFn(nil),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithEstablisher(NewMockEstablisher()),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(_ string, rc io.ReadCloser) error {
-							_, err := io.ReadAll(rc)
-							return err
-						},
-					}),
-					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
-					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("imageConfigName", "new/image/path", nil),
-					}),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: true},
-			},
-		},
-		"SuccessfulActiveRevisionImageConfigRewritten": {
-			reason: "An active revision should install when its image has been rewritten by an image config on a previous reconcile.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
-								pr.SetResolvedSource("new/image/path")
-								pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
-									Name:   "imageConfigName",
-									Reason: v1.ImageConfigReasonRewrite,
-								})
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetConditions(v1.RevisionHealthy())
-								want.SetResolvedSource("new/image/path")
-								want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
-									Name:   "imageConfigName",
-									Reason: v1.ImageConfigReasonRewrite,
-								})
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetResolvedSource("new/image/path")
-								want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
-									Name:   "imageConfigName",
-									Reason: v1.ImageConfigReasonRewrite,
-								})
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-
-							MockDelete: test.NewMockDeleteFn(nil),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithEstablisher(NewMockEstablisher()),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(_ string, rc io.ReadCloser) error {
-							_, err := io.ReadAll(rc)
-							return err
-						},
-					}),
-					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
-					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("imageConfigName", "new/image/path", nil),
-					}),
 				},
 			},
 			want: want{
@@ -1258,6 +677,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionHealthy())
 								want.SetIgnoreCrossplaneConstraints(&trueVal)
 
@@ -1271,6 +691,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetIgnoreCrossplaneConstraints(&trueVal)
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -1286,21 +707,11 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithEstablisher(NewMockEstablisher()),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(_ string, rc io.ReadCloser) error {
-							_, err := io.ReadAll(rc)
-							return err
-						},
+					WithClient(&xpkgfake.MockClient{
+						MockGet: xpkgfake.NewMockGetFn(mockPackage(), nil),
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(false, nil)}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
 				},
 			},
 			want: want{
@@ -1326,6 +737,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionUnhealthy().WithMessage("cannot establish control of object: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -1339,6 +751,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -1352,21 +765,11 @@ func TestReconcile(t *testing.T) {
 					WithEstablisher(&MockEstablisher{
 						MockEstablish: NewMockEstablishFn(nil, errBoom),
 					}),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(_ string, rc io.ReadCloser) error {
-							_, err := io.ReadAll(rc)
-							return err
-						},
+					WithClient(&xpkgfake.MockClient{
+						MockGet: xpkgfake.NewMockGetFn(mockPackage(), nil),
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
 				},
 			},
 			want: want{
@@ -1437,82 +840,10 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						},
 					}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
 				},
 			},
 			want: want{
 				err: errors.Wrap(errors.Wrap(errBoom, errReleaseObjects), errDeactivateRevision),
-			},
-		},
-		"SuccessfulInactiveRevisionWithoutObjectRefs": {
-			reason: "An inactive revision without ObjectRefs should be deactivated successfully by pulling/parsing the package again.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithDependencyManager(&MockDependencyManager{
-						MockRemoveSelf: NewMockRemoveSelfFn(nil),
-					}),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionInactive)
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionInactive)
-								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetConditions(v1.RevisionHealthy())
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionInactive)
-								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-
-							MockDelete: test.NewMockDeleteFn(nil),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithEstablisher(NewMockEstablisher()),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(_ string, rc io.ReadCloser) error {
-							_, err := io.ReadAll(rc)
-							return err
-						},
-					}),
-					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
-					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"SuccessfulInactiveRevisionWithObjectRefs": {
@@ -1575,10 +906,6 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithEstablisher(NewMockEstablisher()),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
 				},
 			},
 			want: want{
@@ -1618,87 +945,6 @@ func TestReconcile(t *testing.T) {
 							}),
 						},
 					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithEstablisher(NewMockEstablisher()),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(_ string, rc io.ReadCloser) error {
-							_, err := io.ReadAll(rc)
-							return err
-						},
-					}),
-					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
-					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: false},
-			},
-		},
-		"ResumeReconcile": {
-			reason: "An active revision should establish control of all of its resources.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
-								pr.SetConditions(xpv1.ReconcilePaused())
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.Status.Conditions = []xpv1.Condition{}
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.CleanConditions()
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-
-							MockDelete: test.NewMockDeleteFn(nil),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithEstablisher(NewMockEstablisher()),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(_ string, rc io.ReadCloser) error {
-							_, err := io.ReadAll(rc)
-							return err
-						},
-					}),
-					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
-					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
 				},
 			},
 			want: want{
@@ -1714,43 +960,17 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(_ client.Object) error {
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetConditions(v1.AwaitingVerification())
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-						},
-					}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
-				},
-			},
-		},
-		"WaitForSignatureVerifiedConditionIfFailed": {
-			reason: "We should keep waiting if signature verification failed and communicate this with the Healthy condition.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithFeatureFlags(signatureVerificationEnabled()),
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								pr := o.(*v1.ProviderRevision)
-								pr.SetConditions(v1.VerificationFailed("foo", errBoom))
+								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ProviderRevision{}
-								want.SetConditions(v1.VerificationFailed("foo", errBoom))
+								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.AwaitingVerification())
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1759,41 +979,11 @@ func TestReconcile(t *testing.T) {
 							}),
 						},
 					}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
-				},
-			},
-		},
-		"WaitForSignatureVerifiedConditionIfIncomplete": {
-			reason: "We should keep waiting if signature verification incomplete and communicate this with the Healthy condition.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithFeatureFlags(signatureVerificationEnabled()),
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetConditions(v1.VerificationIncomplete(errBoom))
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetConditions(v1.VerificationIncomplete(errBoom))
-								want.SetConditions(v1.AwaitingVerification())
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-						},
-					}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithClient(&xpkgfake.MockClient{
+						MockGet: xpkgfake.NewMockGetFn(mockPackage(), nil),
 					}),
 				},
 			},
@@ -1819,6 +1009,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.VerificationSucceeded("foo"))
 								want.SetConditions(v1.RevisionHealthy())
 
@@ -1832,6 +1023,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.VerificationSucceeded("foo"))
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1846,68 +1038,15 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithEstablisher(NewMockEstablisher()),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(_ string, rc io.ReadCloser) error {
-							_, err := io.ReadAll(rc)
-							return err
-						},
+					WithClient(&xpkgfake.MockClient{
+						MockGet: xpkgfake.NewMockGetFn(mockPackage(), nil),
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
 				},
 			},
 			want: want{
 				r: reconcile.Result{Requeue: false},
-			},
-		},
-		"PullSecretConfigChangedRequeue": {
-			reason: "Should requeue when pull secret config changes to persist the status immediately.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
-								// Start with no applied image config refs to simulate a change
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								// Verify that the pull secret config ref was set
-								refs := pr.GetAppliedImageConfigRefs()
-								if len(refs) != 1 {
-									t.Errorf("Expected 1 applied image config ref, got %d", len(refs))
-									return nil
-								}
-								if refs[0].Name != "test-config" || refs[0].Reason != v1.ImageConfigReasonSetPullSecret {
-									t.Errorf("Expected pull secret config ref with name 'test-config' and reason SetPullSecret, got %+v", refs[0])
-								}
-								return nil
-							}),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("test-config", "test-secret", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: true},
 			},
 		},
 	}
