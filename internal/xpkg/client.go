@@ -70,6 +70,10 @@ const (
 	ImageConfigReasonSetPullSecret ImageConfigReason = "SetImagePullSecret"
 )
 
+// maxPackageSize is the maximum size of a package.yaml file that can be parsed.
+// This limit prevents denial of service attacks via maliciously large packages.
+const maxPackageSize = 200 << 20 // 200 MB
+
 // Package represents a successfully fetched package with all its content.
 type Package struct {
 	*parser.Package
@@ -245,7 +249,13 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 	if cfg.pullPolicy != corev1.PullAlways {
 		rc, err := c.cache.Get(cacheKey)
 		if err == nil {
-			pkg, err := c.parser.Parse(ctx, rc)
+			pkg, err := c.parser.Parse(ctx, struct {
+				io.Reader
+				io.Closer
+			}{
+				Reader: io.LimitReader(rc, maxPackageSize),
+				Closer: rc,
+			})
 			rc.Close() //nolint:errcheck // Only open for reading.
 			if err == nil {
 				return &Package{
@@ -284,7 +294,13 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 		_ = c.cache.Store(cacheKey, pipeR)
 	}()
 
-	pkg, err := c.parser.Parse(ctx, teeRC)
+	pkg, err := c.parser.Parse(ctx, struct {
+		io.Reader
+		io.Closer
+	}{
+		Reader: io.LimitReader(teeRC, maxPackageSize),
+		Closer: teeRC,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot parse package")
 	}
