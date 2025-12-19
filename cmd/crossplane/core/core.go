@@ -548,10 +548,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		ServiceAccount:                   c.ServiceAccount,
 		PackageRuntime:                   pr,
 		MaxConcurrentPackageEstablishers: c.MaxConcurrentPackageEstablishers,
-
-		// TODO(negz): Drop these once everything is using xpkg.Client.
-		Cache:          pkgCache,
-		FetcherOptions: fetcherOpts,
 	}
 
 	if err := pkg.Setup(mgr, po); err != nil {
