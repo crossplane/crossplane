@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package op implements operation rendering using operation functions.
+// Package test implements composite resource rendering and testing.
 package test
 
 import (
@@ -24,16 +24,19 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 )
 
 // Cmd arguments and flags for alpha render test subcommand.
 type Cmd struct {
 	// Arguments.
+	TestDir string `arg:"" default:"tests" help:"Directory containing test cases." type:"path"`
 
 	// Flags. Keep them in alphabetical order.
-
-	Timeout time.Duration `default:"1m" help:"How long to run before timing out."`
+	OutputFile           string        `default:"expected.yaml" help:"Name of the output file (used when not comparing)."`
+	Timeout              time.Duration `default:"1m"            help:"How long to run before timing out."`
+	WriteExpectedOutputs bool          `default:"false"         help:"Write/update expected.yaml files instead of comparing." short:"w"`
 
 	fs afero.Fs
 }
@@ -41,12 +44,24 @@ type Cmd struct {
 // Help prints out the help for the alpha render op command.
 func (c *Cmd) Help() string {
 	return `
-This command renders XRs and asserts the outputs are as expected.
+Render composite resources (XRs) and assert results.
+
+This command renders XRs and compares them with expected outputs by default.
+Use --write-expected-outputs to generate/update expected.yaml files.
 
 Examples:
 
-  # Run a render test.
-  crossplane alpha render test
+    # Compare actual outputs with expected.yaml files (default)
+    crossplane alpha render test
+
+    # Generate/update expected.yaml files
+    crossplane alpha render test --write-expected-outputs
+
+    # Test a specific directory
+    crossplane alpha render test tests/my-test
+
+    # Generate outputs with a different filename
+    crossplane alpha render test --write-expected-outputs --output-file=snapshot.yaml
 `
 }
 
@@ -57,14 +72,23 @@ func (c *Cmd) AfterApply() error {
 }
 
 // Run alpha render test.
-func (c *Cmd) Run(k *kong.Context, log logging.Logger) error {
+func (c *Cmd) Run(_ *kong.Context, log logging.Logger) error {
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
 	// Run the test
-	_, err := Test(ctx, log, Inputs{})
+	result, err := Test(ctx, log, Inputs{
+		TestDir:              c.TestDir,
+		FileSystem:           c.fs,
+		WriteExpectedOutputs: c.WriteExpectedOutputs,
+		OutputFile:           c.OutputFile,
+	})
 	if err != nil {
 		return err
+	}
+
+	if !result.Pass {
+		return errors.New("test failed")
 	}
 
 	return nil
