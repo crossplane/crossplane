@@ -963,11 +963,17 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(_ client.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ProviderRevision)
+								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ProviderRevision{}
+								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.AwaitingVerification())
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -975,6 +981,12 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithClient(&xpkgfake.MockClient{
+						MockGet: xpkgfake.NewMockGetFn(mockPackage(), nil),
 					}),
 				},
 			},

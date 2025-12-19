@@ -434,21 +434,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
-	if r.features.Enabled(features.EnableAlphaSignatureVerification) {
-		// Wait for signature verification to complete before proceeding.
-		if cond := pr.GetCondition(v1.TypeVerified); cond.Status != corev1.ConditionTrue {
-			log.Debug("Waiting for signature verification controller to complete verification.", "condition", cond)
-			// Initialize the revision healthy condition if they are not already
-			// set to communicate the status of the revision.
-			if pr.GetCondition(v1.TypeRevisionHealthy).Status == corev1.ConditionUnknown {
-				status.MarkConditions(v1.AwaitingVerification())
-				return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, pr), "cannot update status with awaiting verification")
-			}
-
-			return reconcile.Result{}, nil
-		}
-	}
-
 	if err := r.revision.AddFinalizer(ctx, pr); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
@@ -543,6 +528,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			Name:   cfg.Name,
 			Reason: v1.ImageConfigRefReason(cfg.Reason),
 		})
+	}
+
+	// Wait for signature verification to complete before proceeding. We do this
+	// after fetching/parsing the package so that ResolvedSource is set, which
+	// the signature verification controller needs to verify the image.
+	if r.features.Enabled(features.EnableAlphaSignatureVerification) {
+		if cond := pr.GetCondition(v1.TypeVerified); cond.Status != corev1.ConditionTrue {
+			log.Debug("Waiting for signature verification controller to complete verification.", "condition", cond)
+			// Set status to communicate we're awaiting verification. This also
+			// persists ResolvedSource so the signature controller can see it.
+			if pr.GetCondition(v1.TypeRevisionHealthy).Status == corev1.ConditionUnknown {
+				status.MarkConditions(v1.AwaitingVerification())
+			}
+			return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, pr), errUpdateStatus)
+		}
 	}
 
 	// Validate the package using a package-specific validator. If validation
