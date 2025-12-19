@@ -27,9 +27,6 @@ import (
 type Options struct {
 	controller.Options
 
-	// Cache for package OCI images.
-	Cache xpkg.PackageCache
-
 	// Client for fetching and parsing packages.
 	Client xpkg.Client
 
@@ -38,10 +35,6 @@ type Options struct {
 
 	// ServiceAccount is the core Crossplane ServiceAccount name.
 	ServiceAccount string
-
-	// FetcherOptions can be used to add optional parameters to
-	// NewK8sFetcher.
-	FetcherOptions []xpkg.FetcherOpt
 
 	// PackageRuntime specifies the runtime to use for package runtime.
 	PackageRuntime ActiveRuntime
