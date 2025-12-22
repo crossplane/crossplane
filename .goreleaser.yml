@@ -1,0 +1,15 @@
+version: 2
+builds:
+  - main: ./cmd/crank/
+    env:
+      - CGO_ENABLED=0
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - '-s -w'
+    goos:
+      - linux
+    goarch:
+      - amd64
+    binary: '{{ .ProjectName }}'
