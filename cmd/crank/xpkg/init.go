@@ -17,6 +17,7 @@ limitations under the License.
 package xpkg
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -249,7 +250,7 @@ func printFile(w io.Writer, path string) error {
 }
 
 func runScript(k *kong.Context, scriptFile string, args ...string) error {
-	cmd := exec.Command(scriptFile, args...)
+	cmd := exec.CommandContext(context.Background(), scriptFile, args...)
 	cmd.Stdout = k.Stdout
 	cmd.Stderr = k.Stderr
 	cmd.Stdin = os.Stdin

@@ -1,6 +1,6 @@
 module github.com/crossplane/crossplane/v2/tools
 
-go 1.24.0
+go 1.25.0
 
 tool (
 	github.com/bufbuild/buf/cmd/buf
