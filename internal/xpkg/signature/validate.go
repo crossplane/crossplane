@@ -10,8 +10,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/sigstore/cosign/v2/pkg/cosign"
-	ociremote "github.com/sigstore/cosign/v2/pkg/oci/remote"
+	"github.com/sigstore/cosign/v3/pkg/cosign"
+	"github.com/sigstore/cosign/v3/pkg/oci"
+	ociremote "github.com/sigstore/cosign/v3/pkg/oci/remote"
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/fulcioroots"
 	"github.com/sigstore/sigstore/pkg/signature"
@@ -113,15 +114,17 @@ func (c *CosignValidator) Validate(ctx context.Context, ref name.Reference, conf
 			continue
 		}
 
-		verify := cosign.VerifyImageSignatures
+		var res []oci.Signature
+		var ok bool
 
 		co.ClaimVerifier = cosign.SimpleClaimVerifier
 		if len(a.Attestations) > 0 {
-			verify = cosign.VerifyImageAttestations
 			co.ClaimVerifier = cosign.IntotoSubjectClaimVerifier
+			res, ok, err = cosign.VerifyImageAttestations(ctx, ref, co)
+		} else {
+			res, ok, err = cosign.VerifyImageSignatures(ctx, ref, co)
 		}
 
-		res, ok, err := verify(ctx, ref, co)
 		if err != nil {
 			errs = append(errs, errors.Errorf("authority %q: signature verification failed with %v", a.Name, err))
 			continue
