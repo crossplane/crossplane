@@ -70,4 +70,10 @@ const (
 	// custom resource definition to managed resource definition conversion.
 	// Conversion happens at provider install time.
 	EnableBetaCustomToManagedResourceConversion feature.Flag = "EnableBetaCustomToManagedResourceConversion"
+
+	// DisableProviderDeletionProtection disables the provider deletion
+	// protection webhook that prevents deletion of providers with active
+	// managed resources. When disabled, deleting a provider may result in
+	// orphaned managed resources.
+	DisableProviderDeletionProtection feature.Flag = "DisableProviderDeletionProtection"
 )
