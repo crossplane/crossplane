@@ -1451,6 +1451,34 @@ func DeletionBlockedByUsageWebhook(dir, pattern string, options ...decoder.Decod
 	}
 }
 
+// DeletionBlockedByProviderWebhook applies (in dry-run mode) a delete
+// operation for resources matching the supplied pattern under the supplied
+// directory and expects that it fails because the provider deletion webhook
+// denied the request.
+func DeletionBlockedByProviderWebhook(dir, pattern string, options ...decoder.DecodeOption) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		dfs := os.DirFS(dir)
+
+		err := decoder.DecodeEachFile(ctx, dfs, pattern, decoder.DeleteHandler(c.Client().Resources()), options...)
+		if err == nil {
+			t.Fatal("expected the provider deletion webhook to deny the request but deletion succeeded")
+			return ctx
+		}
+
+		if !strings.Contains(err.Error(), "admission webhook") && !strings.Contains(err.Error(), "custom resources still exist") {
+			t.Fatalf("expected the provider deletion webhook to deny the request but it failed with err: %s", err.Error())
+			return ctx
+		}
+
+		files, _ := fs.Glob(dfs, pattern)
+		t.Logf("Provider deletion blocked for resources from %s (matched %d manifests)", filepath.Join(dir, pattern), len(files))
+
+		return ctx
+	}
+}
+
 // ResourcesDeletedAfterListedAreGone will ensure that the resources matching
 // the supplied pattern under the supplied directory are deleted after the
 // supplied list of resources are deleted.
