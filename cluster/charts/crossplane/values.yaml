@@ -48,6 +48,8 @@ serviceAccount:
   name: ""
   # -- Add custom `annotations` to the Crossplane ServiceAccount.
   customAnnotations: {}
+  # -- Enable `automountServiceAccountToken` for the Crossplane ServiceAccount.
+  automountServiceAccountToken: true
 
 # -- Enable [leader election](https://docs.crossplane.io/latest/concepts/pods/#leader-election) for the Crossplane pod.
 leaderElection: true
