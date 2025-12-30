@@ -20,12 +20,14 @@ package examples
 import (
 	"bufio"
 	"context"
-	"errors"
 	"io"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	k8syaml "sigs.k8s.io/yaml"
+
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 )
 
 // Examples is the set of metadata and objects in a package.
@@ -59,7 +61,7 @@ func (p *Parser) Parse(_ context.Context, reader io.ReadCloser) (*Examples, erro
 	for {
 		bytes, err := yr.Read()
 		if err != nil && !errors.Is(err, io.EOF) {
-			return ex, err
+			return ex, annotateErr(err, reader)
 		}
 
 		if errors.Is(err, io.EOF) {
@@ -72,11 +74,19 @@ func (p *Parser) Parse(_ context.Context, reader io.ReadCloser) (*Examples, erro
 
 		var obj unstructured.Unstructured
 		if err := k8syaml.Unmarshal(bytes, &obj); err != nil {
-			return ex, err
+			return ex, annotateErr(err, reader)
 		}
 
 		ex.objects = append(ex.objects, obj)
 	}
 
 	return ex, nil
+}
+
+// annotateErr annotates an error if the reader is a parser.AnnotatedReadCloser.
+func annotateErr(err error, reader io.ReadCloser) error {
+	if anno, ok := reader.(parser.AnnotatedReadCloser); ok {
+		return errors.Wrapf(err, "%+v", anno.Annotate())
+	}
+	return err
 }
