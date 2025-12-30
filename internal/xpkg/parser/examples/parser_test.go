@@ -54,8 +54,9 @@ metadata:
 	}
 
 	type want struct {
-		objCount int
-		err      error
+		objCount    int
+		err         error
+		expectError bool // true when we expect any error (not a specific one)
 	}
 
 	cases := map[string]struct {
@@ -89,8 +90,8 @@ metadata:
 				reader: io.NopCloser(strings.NewReader(invalidYAML)),
 			},
 			want: want{
-				objCount: 0,
-				err:      nil, // We just check that an error is returned
+				objCount:    0,
+				expectError: true,
 			},
 		},
 	}
@@ -100,8 +101,7 @@ metadata:
 			p := New()
 			ex, err := p.Parse(context.Background(), tc.args.reader)
 
-			if name == "InvalidYAMLNoAnnotation" {
-				// For invalid YAML, just check that an error is returned
+			if tc.want.expectError {
 				if err == nil {
 					t.Errorf("\n%s\nParse(...): expected error, got nil", tc.reason)
 				}

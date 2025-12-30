@@ -83,8 +83,12 @@ func (p *Parser) Parse(_ context.Context, reader io.ReadCloser) (*Examples, erro
 	return ex, nil
 }
 
-// annotateErr annotates an error if the reader is a parser.AnnotatedReadCloser.
+// annotateErr annotates an error with context if the reader implements
+// parser.AnnotatedReadCloser. Returns nil if err is nil.
 func annotateErr(err error, reader io.ReadCloser) error {
+	if err == nil {
+		return nil
+	}
 	if anno, ok := reader.(parser.AnnotatedReadCloser); ok {
 		return errors.Wrapf(err, "%+v", anno.Annotate())
 	}
