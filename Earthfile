@@ -289,8 +289,13 @@ image:
   EXPOSE 8080
   USER 65532
   ENTRYPOINT ["crossplane"]
-  SAVE IMAGE --push ${CROSSPLANE_REPO}:${CROSSPLANE_VERSION}
-  SAVE IMAGE --push ${CROSSPLANE_REPO}:${EARTHLY_GIT_BRANCH}
+  IF [ "${PUSH}" = "true" ]
+    SAVE IMAGE --push ${CROSSPLANE_REPO}:${CROSSPLANE_VERSION}
+    SAVE IMAGE --push ${CROSSPLANE_REPO}:${EARTHLY_GIT_BRANCH}
+  ELSE
+    SAVE IMAGE --load ${CROSSPLANE_REPO}:${CROSSPLANE_VERSION}
+    SAVE IMAGE --load ${CROSSPLANE_REPO}:${EARTHLY_GIT_BRANCH}
+  END
 
 # multiplatform-image builds the Crossplane OCI image for all supported
 # architectures.
@@ -300,7 +305,7 @@ multiplatform-image:
     --platform=linux/arm64 \
     --platform=linux/arm \
     --platform=linux/ppc64le \
-    +image
+    +image --PUSH=true
 
 # helm-lint lints the Crossplane Helm chart.
 helm-lint:
