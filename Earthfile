@@ -273,6 +273,7 @@ go-lint:
 
 # image builds the Crossplane OCI image for your native architecture.
 image:
+  ARG PUSH=false
   ARG EARTHLY_GIT_BRANCH
   ARG EARTHLY_GIT_SHORT_HASH
   ARG EARTHLY_GIT_COMMIT_TIMESTAMP
