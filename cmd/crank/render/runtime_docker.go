@@ -22,11 +22,13 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	typesimage "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -51,6 +53,9 @@ const (
 	// used to run the Function. By default render assumes the Function package
 	// (i.e. spec.package) can be used to run the Function.
 	AnnotationKeyRuntimeDockerImage = "render.crossplane.io/runtime-docker-image"
+
+	// AnnotationKeyRuntimeDockerNetwork specifies the Docker network to connect the Function container to.
+	AnnotationKeyRuntimeDockerNetwork = "render.crossplane.io/runtime-docker-network"
 
 	// AnnotationKeyRuntimeNamedContainer sets the Docker container name that will
 	// be used for the container. it will also reuse the same container as long as
@@ -146,6 +151,9 @@ type RuntimeDocker struct {
 	// If empty, it defaults to the published HostIP from Docker inspect.
 	// When published on 0.0.0.0, set this explicitly (e.g. the remote Docker host).
 	Target string
+
+	// Network specifies the Docker network to connect the container to.
+	Network string
 }
 
 // GetDockerPullPolicy extracts PullPolicy configuration from the supplied
@@ -196,6 +204,7 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 		Keychain:    authn.DefaultKeychain,
 		log:         log,
 		BindAddress: "127.0.0.1", // Default to localhost for security
+		Network:     "",
 	}
 
 	if i := fn.GetAnnotations()[AnnotationKeyRuntimeDockerImage]; i != "" {
@@ -224,6 +233,10 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 
 	if i := fn.GetAnnotations()[AnnotationKeyRuntimeDockerTarget]; i != "" {
 		r.Target = i
+	}
+
+	if i := fn.GetAnnotations()[AnnotationKeyRuntimeDockerNetwork]; i != "" {
+		r.Network = i
 	}
 
 	return r, nil
@@ -269,6 +282,16 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 		},
 	}
 
+	// Only configure network if explicitly specified
+	var ncfg *network.NetworkingConfig
+	if r.Network != "" {
+		ncfg = &network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{
+				r.Network: {},
+			},
+		}
+	}
+
 	options, err := r.getPullOptions()
 	if err != nil {
 		// We can continue to pull an image if we don't have the PullOptions with RegistryAuth
@@ -287,7 +310,7 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 
 	r.log.Debug("Creating Docker container", "image", r.Image, "name", r.Name)
 
-	rsp, err := cli.ContainerCreate(ctx, cfg, hcfg, nil, nil, r.Name)
+	rsp, err := cli.ContainerCreate(ctx, cfg, hcfg, ncfg, nil, r.Name)
 	if err != nil {
 		if !errdefs.IsNotFound(err) || r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyNever {
 			return "", errors.Wrap(err, "cannot create Docker container")
@@ -301,7 +324,7 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 			return "", errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
 		}
 
-		rsp, err = cli.ContainerCreate(ctx, cfg, hcfg, nil, nil, r.Name)
+		rsp, err = cli.ContainerCreate(ctx, cfg, hcfg, ncfg, nil, r.Name)
 		if err != nil {
 			return "", errors.Wrap(err, "cannot create Docker container")
 		}
@@ -323,7 +346,17 @@ func (r *RuntimeDocker) startContainer(ctx context.Context, cli *client.Client, 
 		return "", errors.Wrap(err, "cannot inspect Docker container")
 	}
 
-	// Look up the specific function port instead of taking the first one
+	// If using a custom network, connect via container name
+	if r.Network != "" {
+		// Get container name from inspection (removing leading slash if present)
+		// Docker always assigns a name (either user-specified or auto-generated)
+		containerName := strings.TrimPrefix(inspect.Name, "/")
+		address := net.JoinHostPort(containerName, strconv.Itoa(FunctionPort))
+		r.log.Debug("Using container network address", "address", address, "network", r.Network)
+		return address, nil
+	}
+
+	// Default: use port binding
 	p := nat.Port(fmt.Sprintf("%d/tcp", FunctionPort))
 	if len(inspect.NetworkSettings.Ports[p]) == 0 {
 		return "", errors.Errorf("container %q has no published binding for port %s", r.Name, p.Port())
