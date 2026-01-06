@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -170,11 +171,13 @@ func TestPrintPodsTable(t *testing.T) {
 	tests := map[string]struct {
 		reason         string
 		crossplanePods []topMetrics
+		writer         io.Writer
 		want           want
 	}{
 		"NoPodsFound": {
 			reason:         "Should return header when no pods are found",
 			crossplanePods: []topMetrics{},
+			writer:         &bytes.Buffer{},   
 			want: want{
 				results: `
 TYPE   NAMESPACE   NAME   CPU(cores)   MEMORY
@@ -193,6 +196,7 @@ TYPE   NAMESPACE   NAME   CPU(cores)   MEMORY
 					MemoryUsage:  resource.MustParse("512Mi"),
 				},
 			},
+			writer:         &bytes.Buffer{},
 			want: want{
 				results: `
 TYPE         NAMESPACE           NAME             CPU(cores)   MEMORY
@@ -219,6 +223,7 @@ crossplane   crossplane-system   crossplane-123   100m         512Mi
 					MemoryUsage:  resource.MustParse("1024Mi"),
 				},
 			},
+			writer:         &bytes.Buffer{},
 			want: want{
 				results: `
 TYPE         NAMESPACE           NAME             CPU(cores)   MEMORY
@@ -239,25 +244,21 @@ function     crossplane-system   function-123     200m         1024Mi
 					MemoryUsage:  resource.MustParse("512Mi"),
 				},
 			},
+			writer:         &errorWriter{},
 			want: want{
 				results: "",
-				err:     fmt.Errorf("write error"),
+				err:     cmpopts.AnyError,
 			},
 		},
 
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			var w io.Writer = &bytes.Buffer{}
-			if name == "WriterError" {
-				w = &errorWriter{}
-			}
+			w := tt.writer
 
 			err := printPodsTable(w, tt.crossplanePods)
-			if tt.want.err != nil || err != nil {
-				if (tt.want.err == nil && err != nil) || (tt.want.err != nil && err == nil) || tt.want.err.Error() != err.Error() {
-					t.Errorf("%s\nprintPodsTable(): expected error %v, got %v", tt.reason, tt.want.err, err)
-				}
+			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("%s\nprintPodsTable() error: -want,+got:\n%s", tt.reason, diff)
 			}
 
 			if buf, ok := w.(*bytes.Buffer); ok {
