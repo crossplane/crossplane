@@ -19,7 +19,7 @@ package v1
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/crossplane/crossplane/v2/apis/common"
+	"github.com/crossplane/crossplane/apis/v2/common"
 )
 
 const (

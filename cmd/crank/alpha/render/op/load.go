@@ -25,7 +25,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
-	opsv1alpha1 "github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 )
 
 // LoadOperation loads an Operation from a YAML file. If the file contains a

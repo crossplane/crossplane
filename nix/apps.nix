@@ -25,7 +25,8 @@
         inheritPath = false;
         text = ''
           export CGO_ENABLED=0
-          go test -covermode=count ./apis/... ./cmd/... ./internal/... "$@"
+          go test -covermode=count github.com/crossplane/crossplane/apis/v2/... "$@"
+          go test -covermode=count ./cmd/... ./internal/... "$@"
         '';
       }
     );
@@ -68,6 +69,7 @@
 
           echo "Formatting and linting Go..."
           golangci-lint run --fix "$@"
+          cd apis && golangci-lint run --config=../.golangci.yml --fix "$@"
         '';
       }
     );

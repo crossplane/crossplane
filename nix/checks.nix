@@ -28,7 +28,8 @@
       checkPhase = ''
         runHook preCheck
         export HOME=$TMPDIR
-        go test -covermode=count -coverprofile=coverage.txt ./apis/... ./cmd/... ./internal/...
+        go test -covermode=count -coverprofile=coverage.txt github.com/crossplane/crossplane/apis/v2/...
+        go test -covermode=count -coverprofile=coverage.txt ./cmd/... ./internal/...
         runHook postCheck
       '';
 
@@ -59,6 +60,7 @@
         export HOME=$TMPDIR
         export GOLANGCI_LINT_CACHE=$TMPDIR/.cache/golangci-lint
         golangci-lint run
+        cd apis && golangci-lint run --config=../golangci.yml
         runHook postCheck
       '';
 

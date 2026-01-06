@@ -2,6 +2,8 @@ module github.com/crossplane/crossplane/v2
 
 go 1.25.5
 
+replace github.com/crossplane/crossplane/apis/v2 => ./apis
+
 require (
 	dario.cat/mergo v1.0.2
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24
@@ -10,6 +12,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/containerd/errdefs v1.0.0
 	github.com/crossplane/crossplane-runtime/v2 v2.2.0-rc.0.0.20260203080537-a4cdda495567
+	github.com/crossplane/crossplane/apis/v2 v2.0.0-00010101000000-000000000000
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.6.0
 	github.com/emicklei/dot v1.10.0
@@ -21,7 +24,6 @@ require (
 	github.com/in-toto/in-toto-golang v0.10.0
 	github.com/pkg/errors v0.9.1
 	github.com/posener/complete v1.2.3
-	github.com/posener/complete/v2 v2.1.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sigstore/cosign/v3 v3.0.4
 	github.com/sigstore/sigstore v1.10.4
