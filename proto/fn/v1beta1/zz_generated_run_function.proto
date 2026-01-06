@@ -249,7 +249,7 @@ message Resource {
   // the observed connection details of a composite or composed resource.
   //
   // * A function should set this field in a RunFunctionResponse to indicate the
-  // desired connection details of the XR.
+  // desired connection details of legacy XRs. For modern XRs, this will be ignored.
   //
   // * A function should not set this field in a RunFunctionResponse to indicate
   // the desired connection details of a composed resource. This will be
