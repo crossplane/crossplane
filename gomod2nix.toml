@@ -1,0 +1,763 @@
+schema = 3
+cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.cat/mergo", "github.com/AdaLogics/go-fuzz-headers", "github.com/Azure/azure-sdk-for-go/services/preview/containerregistry/runtime/2019-08-15-preview/containerregistry", "github.com/Azure/azure-sdk-for-go/version", "github.com/Azure/go-autorest/autorest", "github.com/Azure/go-autorest/autorest/adal", "github.com/Azure/go-autorest/autorest/azure", "github.com/Azure/go-autorest/autorest/azure/auth", "github.com/Azure/go-autorest/autorest/azure/cli", "github.com/Azure/go-autorest/autorest/date", "github.com/Azure/go-autorest/logger", "github.com/Azure/go-autorest/tracing", "github.com/MakeNowJust/heredoc", "github.com/Masterminds/semver", "github.com/ProtonMail/go-crypto/bitcurves", "github.com/ProtonMail/go-crypto/brainpool", "github.com/ProtonMail/go-crypto/eax", "github.com/ProtonMail/go-crypto/ocb", "github.com/ProtonMail/go-crypto/openpgp", "github.com/ProtonMail/go-crypto/openpgp/aes/keywrap", "github.com/ProtonMail/go-crypto/openpgp/armor", "github.com/ProtonMail/go-crypto/openpgp/ecdh", "github.com/ProtonMail/go-crypto/openpgp/ecdsa", "github.com/ProtonMail/go-crypto/openpgp/ed25519", "github.com/ProtonMail/go-crypto/openpgp/ed448", "github.com/ProtonMail/go-crypto/openpgp/eddsa", "github.com/ProtonMail/go-crypto/openpgp/elgamal", "github.com/ProtonMail/go-crypto/openpgp/errors", "github.com/ProtonMail/go-crypto/openpgp/packet", "github.com/ProtonMail/go-crypto/openpgp/s2k", "github.com/ProtonMail/go-crypto/openpgp/x25519", "github.com/ProtonMail/go-crypto/openpgp/x448", "github.com/alecthomas/kong", "github.com/antlr4-go/antlr/v4", "github.com/asaskevich/govalidator", "github.com/aws/aws-sdk-go-v2/aws", "github.com/aws/aws-sdk-go-v2/aws/defaults", "github.com/aws/aws-sdk-go-v2/aws/middleware", "github.com/aws/aws-sdk-go-v2/aws/middleware/private/metrics", "github.com/aws/aws-sdk-go-v2/aws/protocol/query", "github.com/aws/aws-sdk-go-v2/aws/protocol/restjson", "github.com/aws/aws-sdk-go-v2/aws/protocol/xml", "github.com/aws/aws-sdk-go-v2/aws/ratelimit", "github.com/aws/aws-sdk-go-v2/aws/retry", "github.com/aws/aws-sdk-go-v2/aws/signer/v4", "github.com/aws/aws-sdk-go-v2/aws/transport/http", "github.com/aws/aws-sdk-go-v2/config", "github.com/aws/aws-sdk-go-v2/credentials", "github.com/aws/aws-sdk-go-v2/credentials/ec2rolecreds", "github.com/aws/aws-sdk-go-v2/credentials/endpointcreds", "github.com/aws/aws-sdk-go-v2/credentials/processcreds", "github.com/aws/aws-sdk-go-v2/credentials/ssocreds", "github.com/aws/aws-sdk-go-v2/credentials/stscreds", "github.com/aws/aws-sdk-go-v2/feature/ec2/imds", "github.com/aws/aws-sdk-go-v2/service/ecr", "github.com/aws/aws-sdk-go-v2/service/ecr/types", "github.com/aws/aws-sdk-go-v2/service/ecrpublic", "github.com/aws/aws-sdk-go-v2/service/ecrpublic/types", "github.com/aws/aws-sdk-go-v2/service/sso", "github.com/aws/aws-sdk-go-v2/service/sso/types", "github.com/aws/aws-sdk-go-v2/service/ssooidc", "github.com/aws/aws-sdk-go-v2/service/ssooidc/types", "github.com/aws/aws-sdk-go-v2/service/sts", "github.com/aws/aws-sdk-go-v2/service/sts/types", "github.com/aws/smithy-go", "github.com/aws/smithy-go/auth", "github.com/aws/smithy-go/auth/bearer", "github.com/aws/smithy-go/context", "github.com/aws/smithy-go/document", "github.com/aws/smithy-go/encoding", "github.com/aws/smithy-go/encoding/httpbinding", "github.com/aws/smithy-go/encoding/json", "github.com/aws/smithy-go/encoding/xml", "github.com/aws/smithy-go/endpoints", "github.com/aws/smithy-go/io", "github.com/aws/smithy-go/logging", "github.com/aws/smithy-go/middleware", "github.com/aws/smithy-go/private/requestcompression", "github.com/aws/smithy-go/ptr", "github.com/aws/smithy-go/rand", "github.com/aws/smithy-go/time", "github.com/aws/smithy-go/transport/http", "github.com/aws/smithy-go/waiter", "github.com/awslabs/amazon-ecr-credential-helper/ecr-login", "github.com/awslabs/amazon-ecr-credential-helper/ecr-login/api", "github.com/awslabs/amazon-ecr-credential-helper/ecr-login/cache", "github.com/awslabs/amazon-ecr-credential-helper/ecr-login/config", "github.com/awslabs/amazon-ecr-credential-helper/ecr-login/version", "github.com/beorn7/perks/quantile", "github.com/blang/semver", "github.com/blang/semver/v4", "github.com/cespare/xxhash/v2", "github.com/chai2010/gettext-go", "github.com/chai2010/gettext-go/mo", "github.com/chai2010/gettext-go/plural", "github.com/chai2010/gettext-go/po", "github.com/chrismellard/docker-credential-acr-env/pkg/credhelper", "github.com/chrismellard/docker-credential-acr-env/pkg/registry", "github.com/chrismellard/docker-credential-acr-env/pkg/token", "github.com/cloudflare/circl/dh/x25519", "github.com/cloudflare/circl/dh/x448", "github.com/cloudflare/circl/ecc/goldilocks", "github.com/cloudflare/circl/math", "github.com/cloudflare/circl/math/fp25519", "github.com/cloudflare/circl/math/fp448", "github.com/cloudflare/circl/math/mlsbset", "github.com/cloudflare/circl/sign", "github.com/cloudflare/circl/sign/ed25519", "github.com/cloudflare/circl/sign/ed448", "github.com/containerd/errdefs", "github.com/containerd/errdefs/pkg/errhttp", "github.com/containerd/stargz-snapshotter/estargz", "github.com/containerd/stargz-snapshotter/estargz/errorutil", "github.com/crossplane/crossplane-runtime/v2/apis/changelogs/proto/v1alpha1", "github.com/crossplane/crossplane-runtime/v2/apis/common", "github.com/crossplane/crossplane-runtime/v2/apis/common/v1", "github.com/crossplane/crossplane-runtime/v2/pkg/certificates", "github.com/crossplane/crossplane-runtime/v2/pkg/conditions", "github.com/crossplane/crossplane-runtime/v2/pkg/controller", "github.com/crossplane/crossplane-runtime/v2/pkg/errors", "github.com/crossplane/crossplane-runtime/v2/pkg/event", "github.com/crossplane/crossplane-runtime/v2/pkg/feature", "github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath", "github.com/crossplane/crossplane-runtime/v2/pkg/logging", "github.com/crossplane/crossplane-runtime/v2/pkg/meta", "github.com/crossplane/crossplane-runtime/v2/pkg/parser", "github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter", "github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed", "github.com/crossplane/crossplane-runtime/v2/pkg/resource", "github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake", "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured", "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/claim", "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed", "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite", "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference", "github.com/crossplane/crossplane-runtime/v2/pkg/statemetrics", "github.com/crossplane/crossplane-runtime/v2/pkg/test", "github.com/cyberphone/json-canonicalization/go/src/webpki.org/jsoncanonicalizer", "github.com/cyphar/filepath-securejoin", "github.com/davecgh/go-spew/spew", "github.com/digitorus/pkcs7", "github.com/digitorus/timestamp", "github.com/dimchansky/utfbom", "github.com/distribution/reference", "github.com/docker/cli/cli/config", "github.com/docker/cli/cli/config/configfile", "github.com/docker/cli/cli/config/credentials", "github.com/docker/cli/cli/config/types", "github.com/docker/distribution/registry/client/auth/challenge", "github.com/docker/docker-credential-helpers/client", "github.com/docker/docker-credential-helpers/credentials", "github.com/docker/docker/api", "github.com/docker/docker/api/types", "github.com/docker/docker/api/types/blkiodev", "github.com/docker/docker/api/types/build", "github.com/docker/docker/api/types/checkpoint", "github.com/docker/docker/api/types/common", "github.com/docker/docker/api/types/container", "github.com/docker/docker/api/types/events", "github.com/docker/docker/api/types/filters", "github.com/docker/docker/api/types/image", "github.com/docker/docker/api/types/mount", "github.com/docker/docker/api/types/network", "github.com/docker/docker/api/types/registry", "github.com/docker/docker/api/types/storage", "github.com/docker/docker/api/types/strslice", "github.com/docker/docker/api/types/swarm", "github.com/docker/docker/api/types/swarm/runtime", "github.com/docker/docker/api/types/system", "github.com/docker/docker/api/types/time", "github.com/docker/docker/api/types/versions", "github.com/docker/docker/api/types/volume", "github.com/docker/docker/client", "github.com/docker/go-connections/nat", "github.com/docker/go-connections/sockets", "github.com/docker/go-connections/tlsconfig", "github.com/docker/go-units", "github.com/dustin/go-humanize", "github.com/emicklei/dot", "github.com/emicklei/go-restful/v3", "github.com/emicklei/go-restful/v3/log", "github.com/emirpasic/gods/containers", "github.com/emirpasic/gods/lists", "github.com/emirpasic/gods/lists/arraylist", "github.com/emirpasic/gods/trees", "github.com/emirpasic/gods/trees/binaryheap", "github.com/emirpasic/gods/utils", "github.com/evanphx/json-patch", "github.com/evanphx/json-patch/v5", "github.com/exponent-io/jsonpath", "github.com/felixge/httpsnoop", "github.com/fsnotify/fsnotify", "github.com/fxamacker/cbor/v2", "github.com/go-chi/chi", "github.com/go-chi/chi/middleware", "github.com/go-errors/errors", "github.com/go-git/gcfg", "github.com/go-git/gcfg/scanner", "github.com/go-git/gcfg/token", "github.com/go-git/gcfg/types", "github.com/go-git/go-billy/v5", "github.com/go-git/go-billy/v5/helper/chroot", "github.com/go-git/go-billy/v5/helper/polyfill", "github.com/go-git/go-billy/v5/osfs", "github.com/go-git/go-billy/v5/util", "github.com/go-git/go-git/v5", "github.com/go-git/go-git/v5/config", "github.com/go-git/go-git/v5/plumbing", "github.com/go-git/go-git/v5/plumbing/cache", "github.com/go-git/go-git/v5/plumbing/color", "github.com/go-git/go-git/v5/plumbing/filemode", "github.com/go-git/go-git/v5/plumbing/format/config", "github.com/go-git/go-git/v5/plumbing/format/diff", "github.com/go-git/go-git/v5/plumbing/format/gitignore", "github.com/go-git/go-git/v5/plumbing/format/idxfile", "github.com/go-git/go-git/v5/plumbing/format/index", "github.com/go-git/go-git/v5/plumbing/format/objfile", "github.com/go-git/go-git/v5/plumbing/format/packfile", "github.com/go-git/go-git/v5/plumbing/format/pktline", "github.com/go-git/go-git/v5/plumbing/hash", "github.com/go-git/go-git/v5/plumbing/object", "github.com/go-git/go-git/v5/plumbing/protocol/packp", "github.com/go-git/go-git/v5/plumbing/protocol/packp/capability", "github.com/go-git/go-git/v5/plumbing/protocol/packp/sideband", "github.com/go-git/go-git/v5/plumbing/revlist", "github.com/go-git/go-git/v5/plumbing/storer", "github.com/go-git/go-git/v5/plumbing/transport", "github.com/go-git/go-git/v5/plumbing/transport/client", "github.com/go-git/go-git/v5/plumbing/transport/file", "github.com/go-git/go-git/v5/plumbing/transport/git", "github.com/go-git/go-git/v5/plumbing/transport/http", "github.com/go-git/go-git/v5/plumbing/transport/server", "github.com/go-git/go-git/v5/plumbing/transport/ssh", "github.com/go-git/go-git/v5/storage", "github.com/go-git/go-git/v5/storage/filesystem", "github.com/go-git/go-git/v5/storage/filesystem/dotgit", "github.com/go-git/go-git/v5/storage/memory", "github.com/go-git/go-git/v5/utils/binary", "github.com/go-git/go-git/v5/utils/diff", "github.com/go-git/go-git/v5/utils/ioutil", "github.com/go-git/go-git/v5/utils/merkletrie", "github.com/go-git/go-git/v5/utils/merkletrie/filesystem", "github.com/go-git/go-git/v5/utils/merkletrie/index", "github.com/go-git/go-git/v5/utils/merkletrie/noder", "github.com/go-git/go-git/v5/utils/sync", "github.com/go-git/go-git/v5/utils/trace", "github.com/go-jose/go-jose/v4", "github.com/go-jose/go-jose/v4/cipher", "github.com/go-jose/go-jose/v4/json", "github.com/go-logr/logr", "github.com/go-logr/logr/funcr", "github.com/go-logr/logr/slogr", "github.com/go-logr/stdr", "github.com/go-logr/zapr", "github.com/go-openapi/analysis", "github.com/go-openapi/errors", "github.com/go-openapi/jsonpointer", "github.com/go-openapi/jsonreference", "github.com/go-openapi/loads", "github.com/go-openapi/runtime", "github.com/go-openapi/runtime/client", "github.com/go-openapi/runtime/logger", "github.com/go-openapi/runtime/middleware", "github.com/go-openapi/runtime/middleware/denco", "github.com/go-openapi/runtime/middleware/header", "github.com/go-openapi/runtime/middleware/untyped", "github.com/go-openapi/runtime/security", "github.com/go-openapi/runtime/yamlpc", "github.com/go-openapi/spec", "github.com/go-openapi/strfmt", "github.com/go-openapi/swag", "github.com/go-openapi/validate", "github.com/go-viper/mapstructure/v2", "github.com/gogo/protobuf/proto", "github.com/gogo/protobuf/sortkeys", "github.com/golang-jwt/jwt/v4", "github.com/golang/groupcache/lru", "github.com/golang/snappy", "github.com/google/btree", "github.com/google/cel-go/cel", "github.com/google/cel-go/checker", "github.com/google/cel-go/checker/decls", "github.com/google/cel-go/common", "github.com/google/cel-go/common/ast", "github.com/google/cel-go/common/containers", "github.com/google/cel-go/common/debug", "github.com/google/cel-go/common/decls", "github.com/google/cel-go/common/env", "github.com/google/cel-go/common/functions", "github.com/google/cel-go/common/operators", "github.com/google/cel-go/common/overloads", "github.com/google/cel-go/common/runes", "github.com/google/cel-go/common/stdlib", "github.com/google/cel-go/common/types", "github.com/google/cel-go/common/types/pb", "github.com/google/cel-go/common/types/ref", "github.com/google/cel-go/common/types/traits", "github.com/google/cel-go/ext", "github.com/google/cel-go/interpreter", "github.com/google/cel-go/interpreter/functions", "github.com/google/cel-go/parser", "github.com/google/cel-go/parser/gen", "github.com/google/certificate-transparency-go", "github.com/google/certificate-transparency-go/asn1", "github.com/google/certificate-transparency-go/gossip/minimal/x509ext", "github.com/google/certificate-transparency-go/tls", "github.com/google/certificate-transparency-go/x509", "github.com/google/certificate-transparency-go/x509/pkix", "github.com/google/certificate-transparency-go/x509util", "github.com/google/gnostic-models/compiler", "github.com/google/gnostic-models/extensions", "github.com/google/gnostic-models/jsonschema", "github.com/google/gnostic-models/openapiv2", "github.com/google/gnostic-models/openapiv3", "github.com/google/go-cmp/cmp", "github.com/google/go-cmp/cmp/cmpopts", "github.com/google/go-containerregistry/pkg/authn", "github.com/google/go-containerregistry/pkg/authn/k8schain", "github.com/google/go-containerregistry/pkg/authn/kubernetes", "github.com/google/go-containerregistry/pkg/compression", "github.com/google/go-containerregistry/pkg/crane", "github.com/google/go-containerregistry/pkg/legacy", "github.com/google/go-containerregistry/pkg/legacy/tarball", "github.com/google/go-containerregistry/pkg/logs", "github.com/google/go-containerregistry/pkg/name", "github.com/google/go-containerregistry/pkg/v1", "github.com/google/go-containerregistry/pkg/v1/daemon", "github.com/google/go-containerregistry/pkg/v1/empty", "github.com/google/go-containerregistry/pkg/v1/google", "github.com/google/go-containerregistry/pkg/v1/layout", "github.com/google/go-containerregistry/pkg/v1/match", "github.com/google/go-containerregistry/pkg/v1/mutate", "github.com/google/go-containerregistry/pkg/v1/partial", "github.com/google/go-containerregistry/pkg/v1/random", "github.com/google/go-containerregistry/pkg/v1/remote", "github.com/google/go-containerregistry/pkg/v1/remote/transport", "github.com/google/go-containerregistry/pkg/v1/static", "github.com/google/go-containerregistry/pkg/v1/stream", "github.com/google/go-containerregistry/pkg/v1/tarball", "github.com/google/go-containerregistry/pkg/v1/types", "github.com/google/go-containerregistry/pkg/v1/validate", "github.com/google/uuid", "github.com/gorilla/websocket", "github.com/gregjones/httpcache", "github.com/hashicorp/errwrap", "github.com/hashicorp/go-multierror", "github.com/in-toto/in-toto-golang/in_toto", "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/common", "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.1", "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2", "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v1", "github.com/jbenet/go-context/io", "github.com/jedisct1/go-minisign", "github.com/jmespath/go-jmespath", "github.com/josharian/intern", "github.com/json-iterator/go", "github.com/kevinburke/ssh_config", "github.com/klauspost/compress", "github.com/klauspost/compress/fse", "github.com/klauspost/compress/huff0", "github.com/klauspost/compress/zstd", "github.com/letsencrypt/boulder/core", "github.com/letsencrypt/boulder/goodkey", "github.com/letsencrypt/boulder/identifier", "github.com/letsencrypt/boulder/probs", "github.com/letsencrypt/boulder/revocation", "github.com/letsencrypt/boulder/strictyaml", "github.com/liggitt/tabwriter", "github.com/mailru/easyjson/buffer", "github.com/mailru/easyjson/jlexer", "github.com/mailru/easyjson/jwriter", "github.com/mitchellh/go-homedir", "github.com/mitchellh/go-wordwrap", "github.com/mitchellh/mapstructure", "github.com/moby/docker-image-spec/specs-go/v1", "github.com/moby/spdystream", "github.com/moby/spdystream/spdy", "github.com/moby/term", "github.com/modern-go/concurrent", "github.com/modern-go/reflect2", "github.com/monochromegane/go-gitignore", "github.com/munnerz/goautoneg", "github.com/mxk/go-flowrate/flowrate", "github.com/nozzle/throttler", "github.com/oklog/ulid", "github.com/opencontainers/go-digest", "github.com/opencontainers/image-spec/specs-go", "github.com/opencontainers/image-spec/specs-go/v1", "github.com/opentracing/opentracing-go", "github.com/opentracing/opentracing-go/ext", "github.com/opentracing/opentracing-go/log", "github.com/pelletier/go-toml/v2", "github.com/pelletier/go-toml/v2/unstable", "github.com/peterbourgon/diskv", "github.com/pjbgf/sha1cd", "github.com/pjbgf/sha1cd/ubc", "github.com/pkg/errors", "github.com/pmezard/go-difflib/difflib", "github.com/posener/complete", "github.com/posener/complete/cmd", "github.com/posener/complete/cmd/install", "github.com/prometheus/client_golang/prometheus", "github.com/prometheus/client_golang/prometheus/collectors", "github.com/prometheus/client_golang/prometheus/promhttp", "github.com/prometheus/client_model/go", "github.com/prometheus/common/expfmt", "github.com/prometheus/common/model", "github.com/prometheus/procfs", "github.com/riywo/loginshell", "github.com/robfig/cron/v3", "github.com/russross/blackfriday/v2", "github.com/sagikazarmark/locafero", "github.com/sassoftware/relic/lib/pkcs7", "github.com/sassoftware/relic/lib/x509tools", "github.com/secure-systems-lab/go-securesystemslib/cjson", "github.com/secure-systems-lab/go-securesystemslib/dsse", "github.com/secure-systems-lab/go-securesystemslib/encrypted", "github.com/secure-systems-lab/go-securesystemslib/signerverifier", "github.com/sergi/go-diff/diffmatchpatch", "github.com/shibumi/go-pathspec", "github.com/sigstore/cosign/v2/pkg/blob", "github.com/sigstore/cosign/v2/pkg/cosign", "github.com/sigstore/cosign/v2/pkg/cosign/attestation", "github.com/sigstore/cosign/v2/pkg/cosign/bundle", "github.com/sigstore/cosign/v2/pkg/cosign/env", "github.com/sigstore/cosign/v2/pkg/cosign/fulcioverifier/ctutil", "github.com/sigstore/cosign/v2/pkg/oci", "github.com/sigstore/cosign/v2/pkg/oci/empty", "github.com/sigstore/cosign/v2/pkg/oci/layout", "github.com/sigstore/cosign/v2/pkg/oci/remote", "github.com/sigstore/cosign/v2/pkg/oci/signed", "github.com/sigstore/cosign/v2/pkg/oci/static", "github.com/sigstore/cosign/v2/pkg/types", "github.com/sigstore/protobuf-specs/gen/pb-go/common/v1", "github.com/sigstore/rekor/pkg/generated/client", "github.com/sigstore/rekor/pkg/generated/client/entries", "github.com/sigstore/rekor/pkg/generated/client/index", "github.com/sigstore/rekor/pkg/generated/client/pubkey", "github.com/sigstore/rekor/pkg/generated/client/tlog", "github.com/sigstore/rekor/pkg/generated/models", "github.com/sigstore/rekor/pkg/log", "github.com/sigstore/rekor/pkg/pki", "github.com/sigstore/rekor/pkg/pki/identity", "github.com/sigstore/rekor/pkg/pki/minisign", "github.com/sigstore/rekor/pkg/pki/pgp", "github.com/sigstore/rekor/pkg/pki/pkcs7", "github.com/sigstore/rekor/pkg/pki/ssh", "github.com/sigstore/rekor/pkg/pki/tuf", "github.com/sigstore/rekor/pkg/pki/x509", "github.com/sigstore/rekor/pkg/types", "github.com/sigstore/rekor/pkg/types/dsse", "github.com/sigstore/rekor/pkg/types/dsse/v0.0.1", "github.com/sigstore/rekor/pkg/types/hashedrekord", "github.com/sigstore/rekor/pkg/types/hashedrekord/v0.0.1", "github.com/sigstore/rekor/pkg/types/intoto", "github.com/sigstore/rekor/pkg/types/intoto/v0.0.1", "github.com/sigstore/rekor/pkg/types/intoto/v0.0.2", "github.com/sigstore/rekor/pkg/types/rekord", "github.com/sigstore/rekor/pkg/types/rekord/v0.0.1", "github.com/sigstore/rekor/pkg/util", "github.com/sigstore/sigstore/pkg/cryptoutils", "github.com/sigstore/sigstore/pkg/fulcioroots", "github.com/sigstore/sigstore/pkg/signature", "github.com/sigstore/sigstore/pkg/signature/dsse", "github.com/sigstore/sigstore/pkg/signature/options", "github.com/sigstore/sigstore/pkg/signature/payload", "github.com/sigstore/sigstore/pkg/tuf", "github.com/sigstore/timestamp-authority/pkg/verification", "github.com/sirupsen/logrus", "github.com/skeema/knownhosts", "github.com/sourcegraph/conc", "github.com/sourcegraph/conc/iter", "github.com/sourcegraph/conc/panics", "github.com/spf13/afero", "github.com/spf13/afero/mem", "github.com/spf13/afero/tarfs", "github.com/spf13/cast", "github.com/spf13/cobra", "github.com/spf13/pflag", "github.com/spf13/viper", "github.com/stoewer/go-strcase", "github.com/subosito/gotenv", "github.com/syndtr/goleveldb/leveldb", "github.com/syndtr/goleveldb/leveldb/cache", "github.com/syndtr/goleveldb/leveldb/comparer", "github.com/syndtr/goleveldb/leveldb/errors", "github.com/syndtr/goleveldb/leveldb/filter", "github.com/syndtr/goleveldb/leveldb/iterator", "github.com/syndtr/goleveldb/leveldb/journal", "github.com/syndtr/goleveldb/leveldb/memdb", "github.com/syndtr/goleveldb/leveldb/opt", "github.com/syndtr/goleveldb/leveldb/storage", "github.com/syndtr/goleveldb/leveldb/table", "github.com/syndtr/goleveldb/leveldb/util", "github.com/theupdateframework/go-tuf", "github.com/theupdateframework/go-tuf/client", "github.com/theupdateframework/go-tuf/client/leveldbstore", "github.com/theupdateframework/go-tuf/data", "github.com/theupdateframework/go-tuf/pkg/keys", "github.com/theupdateframework/go-tuf/pkg/targets", "github.com/theupdateframework/go-tuf/sign", "github.com/theupdateframework/go-tuf/util", "github.com/theupdateframework/go-tuf/verify", "github.com/titanous/rocacheck", "github.com/transparency-dev/merkle", "github.com/transparency-dev/merkle/compact", "github.com/transparency-dev/merkle/proof", "github.com/transparency-dev/merkle/rfc6962", "github.com/vbatts/tar-split/archive/tar", "github.com/vladimirvivien/gexe", "github.com/vladimirvivien/gexe/exec", "github.com/vladimirvivien/gexe/fs", "github.com/vladimirvivien/gexe/http", "github.com/vladimirvivien/gexe/net", "github.com/vladimirvivien/gexe/prog", "github.com/vladimirvivien/gexe/str", "github.com/vladimirvivien/gexe/vars", "github.com/willabides/kongplete", "github.com/x448/float16", "github.com/xanzy/ssh-agent", "github.com/xlab/treeprint", "go.mongodb.org/mongo-driver/bson", "go.mongodb.org/mongo-driver/bson/bsoncodec", "go.mongodb.org/mongo-driver/bson/bsonoptions", "go.mongodb.org/mongo-driver/bson/bsonrw", "go.mongodb.org/mongo-driver/bson/bsontype", "go.mongodb.org/mongo-driver/bson/primitive", "go.mongodb.org/mongo-driver/x/bsonx/bsoncore", "go.opentelemetry.io/auto/sdk", "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp", "go.opentelemetry.io/otel", "go.opentelemetry.io/otel/attribute", "go.opentelemetry.io/otel/baggage", "go.opentelemetry.io/otel/codes", "go.opentelemetry.io/otel/metric", "go.opentelemetry.io/otel/metric/embedded", "go.opentelemetry.io/otel/metric/noop", "go.opentelemetry.io/otel/propagation", "go.opentelemetry.io/otel/semconv/v1.17.0", "go.opentelemetry.io/otel/semconv/v1.17.0/httpconv", "go.opentelemetry.io/otel/semconv/v1.20.0", "go.opentelemetry.io/otel/semconv/v1.26.0", "go.opentelemetry.io/otel/trace", "go.opentelemetry.io/otel/trace/embedded", "go.opentelemetry.io/otel/trace/noop", "go.uber.org/multierr", "go.uber.org/zap", "go.uber.org/zap/buffer", "go.uber.org/zap/zapcore", "go.yaml.in/yaml/v2", "go.yaml.in/yaml/v3", "golang.org/x/crypto/argon2", "golang.org/x/crypto/blake2b", "golang.org/x/crypto/blowfish", "golang.org/x/crypto/cast5", "golang.org/x/crypto/chacha20", "golang.org/x/crypto/cryptobyte", "golang.org/x/crypto/cryptobyte/asn1", "golang.org/x/crypto/curve25519", "golang.org/x/crypto/ed25519", "golang.org/x/crypto/hkdf", "golang.org/x/crypto/nacl/secretbox", "golang.org/x/crypto/ocsp", "golang.org/x/crypto/openpgp", "golang.org/x/crypto/openpgp/armor", "golang.org/x/crypto/openpgp/elgamal", "golang.org/x/crypto/openpgp/errors", "golang.org/x/crypto/openpgp/packet", "golang.org/x/crypto/openpgp/s2k", "golang.org/x/crypto/pbkdf2", "golang.org/x/crypto/pkcs12", "golang.org/x/crypto/salsa20/salsa", "golang.org/x/crypto/scrypt", "golang.org/x/crypto/sha3", "golang.org/x/crypto/ssh", "golang.org/x/crypto/ssh/agent", "golang.org/x/crypto/ssh/knownhosts", "golang.org/x/crypto/ssh/terminal", "golang.org/x/exp/constraints", "golang.org/x/exp/slices", "golang.org/x/mod/sumdb/note", "golang.org/x/net/context", "golang.org/x/net/html", "golang.org/x/net/html/atom", "golang.org/x/net/http/httpguts", "golang.org/x/net/http2", "golang.org/x/net/http2/hpack", "golang.org/x/net/idna", "golang.org/x/net/proxy", "golang.org/x/net/trace", "golang.org/x/net/websocket", "golang.org/x/oauth2", "golang.org/x/oauth2/authhandler", "golang.org/x/oauth2/google", "golang.org/x/oauth2/google/externalaccount", "golang.org/x/oauth2/jws", "golang.org/x/oauth2/jwt", "golang.org/x/sync/errgroup", "golang.org/x/sync/singleflight", "golang.org/x/sys/cpu", "golang.org/x/sys/execabs", "golang.org/x/sys/unix", "golang.org/x/term", "golang.org/x/text/encoding", "golang.org/x/text/encoding/unicode", "golang.org/x/text/feature/plural", "golang.org/x/text/language", "golang.org/x/text/message", "golang.org/x/text/message/catalog", "golang.org/x/text/runes", "golang.org/x/text/secure/bidirule", "golang.org/x/text/transform", "golang.org/x/text/unicode/bidi", "golang.org/x/text/unicode/norm", "golang.org/x/time/rate", "gomodules.xyz/jsonpatch/v2", "google.golang.org/genproto/googleapis/api", "google.golang.org/genproto/googleapis/api/annotations", "google.golang.org/genproto/googleapis/api/expr/v1alpha1", "google.golang.org/genproto/googleapis/rpc/status", "google.golang.org/grpc", "google.golang.org/grpc/attributes", "google.golang.org/grpc/backoff", "google.golang.org/grpc/balancer", "google.golang.org/grpc/balancer/base", "google.golang.org/grpc/balancer/endpointsharding", "google.golang.org/grpc/balancer/grpclb/state", "google.golang.org/grpc/balancer/pickfirst", "google.golang.org/grpc/balancer/pickfirst/pickfirstleaf", "google.golang.org/grpc/balancer/roundrobin", "google.golang.org/grpc/binarylog/grpc_binarylog_v1", "google.golang.org/grpc/channelz", "google.golang.org/grpc/codes", "google.golang.org/grpc/connectivity", "google.golang.org/grpc/credentials", "google.golang.org/grpc/credentials/insecure", "google.golang.org/grpc/encoding", "google.golang.org/grpc/encoding/proto", "google.golang.org/grpc/experimental/stats", "google.golang.org/grpc/grpclog", "google.golang.org/grpc/keepalive", "google.golang.org/grpc/mem", "google.golang.org/grpc/metadata", "google.golang.org/grpc/peer", "google.golang.org/grpc/resolver", "google.golang.org/grpc/resolver/dns", "google.golang.org/grpc/serviceconfig", "google.golang.org/grpc/stats", "google.golang.org/grpc/status", "google.golang.org/grpc/tap", "google.golang.org/protobuf/encoding/protodelim", "google.golang.org/protobuf/encoding/protojson", "google.golang.org/protobuf/encoding/prototext", "google.golang.org/protobuf/encoding/protowire", "google.golang.org/protobuf/proto", "google.golang.org/protobuf/protoadapt", "google.golang.org/protobuf/reflect/protodesc", "google.golang.org/protobuf/reflect/protoreflect", "google.golang.org/protobuf/reflect/protoregistry", "google.golang.org/protobuf/runtime/protoiface", "google.golang.org/protobuf/runtime/protoimpl", "google.golang.org/protobuf/testing/protocmp", "google.golang.org/protobuf/types/descriptorpb", "google.golang.org/protobuf/types/dynamicpb", "google.golang.org/protobuf/types/gofeaturespb", "google.golang.org/protobuf/types/known/anypb", "google.golang.org/protobuf/types/known/durationpb", "google.golang.org/protobuf/types/known/emptypb", "google.golang.org/protobuf/types/known/structpb", "google.golang.org/protobuf/types/known/timestamppb", "google.golang.org/protobuf/types/known/wrapperspb", "gopkg.in/evanphx/json-patch.v4", "gopkg.in/inf.v0", "gopkg.in/warnings.v0", "gopkg.in/yaml.v3", "k8s.io/api/admission/v1", "k8s.io/api/admission/v1beta1", "k8s.io/api/admissionregistration/v1", "k8s.io/api/admissionregistration/v1alpha1", "k8s.io/api/admissionregistration/v1beta1", "k8s.io/api/apidiscovery/v2", "k8s.io/api/apidiscovery/v2beta1", "k8s.io/api/apiserverinternal/v1alpha1", "k8s.io/api/apps/v1", "k8s.io/api/apps/v1beta1", "k8s.io/api/apps/v1beta2", "k8s.io/api/authentication/v1", "k8s.io/api/authentication/v1alpha1", "k8s.io/api/authentication/v1beta1", "k8s.io/api/authorization/v1", "k8s.io/api/authorization/v1beta1", "k8s.io/api/autoscaling/v1", "k8s.io/api/autoscaling/v2", "k8s.io/api/autoscaling/v2beta1", "k8s.io/api/autoscaling/v2beta2", "k8s.io/api/batch/v1", "k8s.io/api/batch/v1beta1", "k8s.io/api/certificates/v1", "k8s.io/api/certificates/v1alpha1", "k8s.io/api/certificates/v1beta1", "k8s.io/api/coordination/v1", "k8s.io/api/coordination/v1alpha2", "k8s.io/api/coordination/v1beta1", "k8s.io/api/core/v1", "k8s.io/api/discovery/v1", "k8s.io/api/discovery/v1beta1", "k8s.io/api/events/v1", "k8s.io/api/events/v1beta1", "k8s.io/api/extensions/v1beta1", "k8s.io/api/flowcontrol/v1", "k8s.io/api/flowcontrol/v1beta1", "k8s.io/api/flowcontrol/v1beta2", "k8s.io/api/flowcontrol/v1beta3", "k8s.io/api/imagepolicy/v1alpha1", "k8s.io/api/networking/v1", "k8s.io/api/networking/v1beta1", "k8s.io/api/node/v1", "k8s.io/api/node/v1alpha1", "k8s.io/api/node/v1beta1", "k8s.io/api/policy/v1", "k8s.io/api/policy/v1beta1", "k8s.io/api/rbac/v1", "k8s.io/api/rbac/v1alpha1", "k8s.io/api/rbac/v1beta1", "k8s.io/api/resource/v1", "k8s.io/api/resource/v1alpha3", "k8s.io/api/resource/v1beta1", "k8s.io/api/resource/v1beta2", "k8s.io/api/scheduling/v1", "k8s.io/api/scheduling/v1alpha1", "k8s.io/api/scheduling/v1beta1", "k8s.io/api/storage/v1", "k8s.io/api/storage/v1alpha1", "k8s.io/api/storage/v1beta1", "k8s.io/api/storagemigration/v1alpha1", "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions", "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1", "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1", "k8s.io/apiextensions-apiserver/pkg/apiserver/schema", "k8s.io/apiextensions-apiserver/pkg/apiserver/schema/cel", "k8s.io/apiextensions-apiserver/pkg/apiserver/schema/cel/model", "k8s.io/apiextensions-apiserver/pkg/apiserver/schema/defaulting", "k8s.io/apiextensions-apiserver/pkg/apiserver/schema/objectmeta", "k8s.io/apiextensions-apiserver/pkg/apiserver/schema/pruning", "k8s.io/apiextensions-apiserver/pkg/apiserver/validation", "k8s.io/apiextensions-apiserver/pkg/features", "k8s.io/apimachinery/pkg/api/equality", "k8s.io/apimachinery/pkg/api/errors", "k8s.io/apimachinery/pkg/api/meta", "k8s.io/apimachinery/pkg/api/meta/testrestmapper", "k8s.io/apimachinery/pkg/api/operation", "k8s.io/apimachinery/pkg/api/resource", "k8s.io/apimachinery/pkg/api/safe", "k8s.io/apimachinery/pkg/api/validate", "k8s.io/apimachinery/pkg/api/validate/constraints", "k8s.io/apimachinery/pkg/api/validate/content", "k8s.io/apimachinery/pkg/api/validation", "k8s.io/apimachinery/pkg/api/validation/path", "k8s.io/apimachinery/pkg/apis/meta/v1", "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured", "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured/unstructuredscheme", "k8s.io/apimachinery/pkg/apis/meta/v1/validation", "k8s.io/apimachinery/pkg/apis/meta/v1beta1", "k8s.io/apimachinery/pkg/conversion", "k8s.io/apimachinery/pkg/conversion/queryparams", "k8s.io/apimachinery/pkg/fields", "k8s.io/apimachinery/pkg/labels", "k8s.io/apimachinery/pkg/runtime", "k8s.io/apimachinery/pkg/runtime/schema", "k8s.io/apimachinery/pkg/runtime/serializer", "k8s.io/apimachinery/pkg/runtime/serializer/cbor", "k8s.io/apimachinery/pkg/runtime/serializer/cbor/direct", "k8s.io/apimachinery/pkg/runtime/serializer/json", "k8s.io/apimachinery/pkg/runtime/serializer/protobuf", "k8s.io/apimachinery/pkg/runtime/serializer/recognizer", "k8s.io/apimachinery/pkg/runtime/serializer/streaming", "k8s.io/apimachinery/pkg/runtime/serializer/versioning", "k8s.io/apimachinery/pkg/selection", "k8s.io/apimachinery/pkg/types", "k8s.io/apimachinery/pkg/util/cache", "k8s.io/apimachinery/pkg/util/diff", "k8s.io/apimachinery/pkg/util/dump", "k8s.io/apimachinery/pkg/util/duration", "k8s.io/apimachinery/pkg/util/errors", "k8s.io/apimachinery/pkg/util/framer", "k8s.io/apimachinery/pkg/util/httpstream", "k8s.io/apimachinery/pkg/util/httpstream/spdy", "k8s.io/apimachinery/pkg/util/httpstream/wsstream", "k8s.io/apimachinery/pkg/util/intstr", "k8s.io/apimachinery/pkg/util/json", "k8s.io/apimachinery/pkg/util/managedfields", "k8s.io/apimachinery/pkg/util/mergepatch", "k8s.io/apimachinery/pkg/util/naming", "k8s.io/apimachinery/pkg/util/net", "k8s.io/apimachinery/pkg/util/portforward", "k8s.io/apimachinery/pkg/util/proxy", "k8s.io/apimachinery/pkg/util/rand", "k8s.io/apimachinery/pkg/util/remotecommand", "k8s.io/apimachinery/pkg/util/runtime", "k8s.io/apimachinery/pkg/util/sets", "k8s.io/apimachinery/pkg/util/strategicpatch", "k8s.io/apimachinery/pkg/util/uuid", "k8s.io/apimachinery/pkg/util/validation", "k8s.io/apimachinery/pkg/util/validation/field", "k8s.io/apimachinery/pkg/util/version", "k8s.io/apimachinery/pkg/util/wait", "k8s.io/apimachinery/pkg/util/yaml", "k8s.io/apimachinery/pkg/version", "k8s.io/apimachinery/pkg/watch", "k8s.io/apimachinery/third_party/forked/golang/json", "k8s.io/apimachinery/third_party/forked/golang/netutil", "k8s.io/apimachinery/third_party/forked/golang/reflect", "k8s.io/apiserver/pkg/apis/cel", "k8s.io/apiserver/pkg/authentication/serviceaccount", "k8s.io/apiserver/pkg/authentication/user", "k8s.io/apiserver/pkg/authorization/authorizer", "k8s.io/apiserver/pkg/cel", "k8s.io/apiserver/pkg/cel/common", "k8s.io/apiserver/pkg/cel/environment", "k8s.io/apiserver/pkg/cel/library", "k8s.io/apiserver/pkg/cel/metrics", "k8s.io/apiserver/pkg/cel/openapi", "k8s.io/apiserver/pkg/features", "k8s.io/apiserver/pkg/storage/names", "k8s.io/apiserver/pkg/util/compatibility", "k8s.io/apiserver/pkg/util/feature", "k8s.io/apiserver/pkg/warning", "k8s.io/cli-runtime/pkg/genericclioptions", "k8s.io/cli-runtime/pkg/genericiooptions", "k8s.io/cli-runtime/pkg/printers", "k8s.io/cli-runtime/pkg/resource", "k8s.io/client-go/applyconfigurations/admissionregistration/v1", "k8s.io/client-go/applyconfigurations/admissionregistration/v1alpha1", "k8s.io/client-go/applyconfigurations/admissionregistration/v1beta1", "k8s.io/client-go/applyconfigurations/apiserverinternal/v1alpha1", "k8s.io/client-go/applyconfigurations/apps/v1", "k8s.io/client-go/applyconfigurations/apps/v1beta1", "k8s.io/client-go/applyconfigurations/apps/v1beta2", "k8s.io/client-go/applyconfigurations/autoscaling/v1", "k8s.io/client-go/applyconfigurations/autoscaling/v2", "k8s.io/client-go/applyconfigurations/autoscaling/v2beta1", "k8s.io/client-go/applyconfigurations/autoscaling/v2beta2", "k8s.io/client-go/applyconfigurations/batch/v1", "k8s.io/client-go/applyconfigurations/batch/v1beta1", "k8s.io/client-go/applyconfigurations/certificates/v1", "k8s.io/client-go/applyconfigurations/certificates/v1alpha1", "k8s.io/client-go/applyconfigurations/certificates/v1beta1", "k8s.io/client-go/applyconfigurations/coordination/v1", "k8s.io/client-go/applyconfigurations/coordination/v1alpha2", "k8s.io/client-go/applyconfigurations/coordination/v1beta1", "k8s.io/client-go/applyconfigurations/core/v1", "k8s.io/client-go/applyconfigurations/discovery/v1", "k8s.io/client-go/applyconfigurations/discovery/v1beta1", "k8s.io/client-go/applyconfigurations/events/v1", "k8s.io/client-go/applyconfigurations/events/v1beta1", "k8s.io/client-go/applyconfigurations/extensions/v1beta1", "k8s.io/client-go/applyconfigurations/flowcontrol/v1", "k8s.io/client-go/applyconfigurations/flowcontrol/v1beta1", "k8s.io/client-go/applyconfigurations/flowcontrol/v1beta2", "k8s.io/client-go/applyconfigurations/flowcontrol/v1beta3", "k8s.io/client-go/applyconfigurations/meta/v1", "k8s.io/client-go/applyconfigurations/networking/v1", "k8s.io/client-go/applyconfigurations/networking/v1beta1", "k8s.io/client-go/applyconfigurations/node/v1", "k8s.io/client-go/applyconfigurations/node/v1alpha1", "k8s.io/client-go/applyconfigurations/node/v1beta1", "k8s.io/client-go/applyconfigurations/policy/v1", "k8s.io/client-go/applyconfigurations/policy/v1beta1", "k8s.io/client-go/applyconfigurations/rbac/v1", "k8s.io/client-go/applyconfigurations/rbac/v1alpha1", "k8s.io/client-go/applyconfigurations/rbac/v1beta1", "k8s.io/client-go/applyconfigurations/resource/v1", "k8s.io/client-go/applyconfigurations/resource/v1alpha3", "k8s.io/client-go/applyconfigurations/resource/v1beta1", "k8s.io/client-go/applyconfigurations/resource/v1beta2", "k8s.io/client-go/applyconfigurations/scheduling/v1", "k8s.io/client-go/applyconfigurations/scheduling/v1alpha1", "k8s.io/client-go/applyconfigurations/scheduling/v1beta1", "k8s.io/client-go/applyconfigurations/storage/v1", "k8s.io/client-go/applyconfigurations/storage/v1alpha1", "k8s.io/client-go/applyconfigurations/storage/v1beta1", "k8s.io/client-go/applyconfigurations/storagemigration/v1alpha1", "k8s.io/client-go/discovery", "k8s.io/client-go/discovery/cached/disk", "k8s.io/client-go/discovery/cached/memory", "k8s.io/client-go/dynamic", "k8s.io/client-go/features", "k8s.io/client-go/gentype", "k8s.io/client-go/informers", "k8s.io/client-go/informers/admissionregistration", "k8s.io/client-go/informers/admissionregistration/v1", "k8s.io/client-go/informers/admissionregistration/v1alpha1", "k8s.io/client-go/informers/admissionregistration/v1beta1", "k8s.io/client-go/informers/apiserverinternal", "k8s.io/client-go/informers/apiserverinternal/v1alpha1", "k8s.io/client-go/informers/apps", "k8s.io/client-go/informers/apps/v1", "k8s.io/client-go/informers/apps/v1beta1", "k8s.io/client-go/informers/apps/v1beta2", "k8s.io/client-go/informers/autoscaling", "k8s.io/client-go/informers/autoscaling/v1", "k8s.io/client-go/informers/autoscaling/v2", "k8s.io/client-go/informers/autoscaling/v2beta1", "k8s.io/client-go/informers/autoscaling/v2beta2", "k8s.io/client-go/informers/batch", "k8s.io/client-go/informers/batch/v1", "k8s.io/client-go/informers/batch/v1beta1", "k8s.io/client-go/informers/certificates", "k8s.io/client-go/informers/certificates/v1", "k8s.io/client-go/informers/certificates/v1alpha1", "k8s.io/client-go/informers/certificates/v1beta1", "k8s.io/client-go/informers/coordination", "k8s.io/client-go/informers/coordination/v1", "k8s.io/client-go/informers/coordination/v1alpha2", "k8s.io/client-go/informers/coordination/v1beta1", "k8s.io/client-go/informers/core", "k8s.io/client-go/informers/core/v1", "k8s.io/client-go/informers/discovery", "k8s.io/client-go/informers/discovery/v1", "k8s.io/client-go/informers/discovery/v1beta1", "k8s.io/client-go/informers/events", "k8s.io/client-go/informers/events/v1", "k8s.io/client-go/informers/events/v1beta1", "k8s.io/client-go/informers/extensions", "k8s.io/client-go/informers/extensions/v1beta1", "k8s.io/client-go/informers/flowcontrol", "k8s.io/client-go/informers/flowcontrol/v1", "k8s.io/client-go/informers/flowcontrol/v1beta1", "k8s.io/client-go/informers/flowcontrol/v1beta2", "k8s.io/client-go/informers/flowcontrol/v1beta3", "k8s.io/client-go/informers/networking", "k8s.io/client-go/informers/networking/v1", "k8s.io/client-go/informers/networking/v1beta1", "k8s.io/client-go/informers/node", "k8s.io/client-go/informers/node/v1", "k8s.io/client-go/informers/node/v1alpha1", "k8s.io/client-go/informers/node/v1beta1", "k8s.io/client-go/informers/policy", "k8s.io/client-go/informers/policy/v1", "k8s.io/client-go/informers/policy/v1beta1", "k8s.io/client-go/informers/rbac", "k8s.io/client-go/informers/rbac/v1", "k8s.io/client-go/informers/rbac/v1alpha1", "k8s.io/client-go/informers/rbac/v1beta1", "k8s.io/client-go/informers/resource", "k8s.io/client-go/informers/resource/v1", "k8s.io/client-go/informers/resource/v1alpha3", "k8s.io/client-go/informers/resource/v1beta1", "k8s.io/client-go/informers/resource/v1beta2", "k8s.io/client-go/informers/scheduling", "k8s.io/client-go/informers/scheduling/v1", "k8s.io/client-go/informers/scheduling/v1alpha1", "k8s.io/client-go/informers/scheduling/v1beta1", "k8s.io/client-go/informers/storage", "k8s.io/client-go/informers/storage/v1", "k8s.io/client-go/informers/storage/v1alpha1", "k8s.io/client-go/informers/storage/v1beta1", "k8s.io/client-go/informers/storagemigration", "k8s.io/client-go/informers/storagemigration/v1alpha1", "k8s.io/client-go/kubernetes", "k8s.io/client-go/kubernetes/scheme", "k8s.io/client-go/kubernetes/typed/admissionregistration/v1", "k8s.io/client-go/kubernetes/typed/admissionregistration/v1alpha1", "k8s.io/client-go/kubernetes/typed/admissionregistration/v1beta1", "k8s.io/client-go/kubernetes/typed/apiserverinternal/v1alpha1", "k8s.io/client-go/kubernetes/typed/apps/v1", "k8s.io/client-go/kubernetes/typed/apps/v1beta1", "k8s.io/client-go/kubernetes/typed/apps/v1beta2", "k8s.io/client-go/kubernetes/typed/authentication/v1", "k8s.io/client-go/kubernetes/typed/authentication/v1alpha1", "k8s.io/client-go/kubernetes/typed/authentication/v1beta1", "k8s.io/client-go/kubernetes/typed/authorization/v1", "k8s.io/client-go/kubernetes/typed/authorization/v1beta1", "k8s.io/client-go/kubernetes/typed/autoscaling/v1", "k8s.io/client-go/kubernetes/typed/autoscaling/v2", "k8s.io/client-go/kubernetes/typed/autoscaling/v2beta1", "k8s.io/client-go/kubernetes/typed/autoscaling/v2beta2", "k8s.io/client-go/kubernetes/typed/batch/v1", "k8s.io/client-go/kubernetes/typed/batch/v1beta1", "k8s.io/client-go/kubernetes/typed/certificates/v1", "k8s.io/client-go/kubernetes/typed/certificates/v1alpha1", "k8s.io/client-go/kubernetes/typed/certificates/v1beta1", "k8s.io/client-go/kubernetes/typed/coordination/v1", "k8s.io/client-go/kubernetes/typed/coordination/v1alpha2", "k8s.io/client-go/kubernetes/typed/coordination/v1beta1", "k8s.io/client-go/kubernetes/typed/core/v1", "k8s.io/client-go/kubernetes/typed/discovery/v1", "k8s.io/client-go/kubernetes/typed/discovery/v1beta1", "k8s.io/client-go/kubernetes/typed/events/v1", "k8s.io/client-go/kubernetes/typed/events/v1beta1", "k8s.io/client-go/kubernetes/typed/extensions/v1beta1", "k8s.io/client-go/kubernetes/typed/flowcontrol/v1", "k8s.io/client-go/kubernetes/typed/flowcontrol/v1beta1", "k8s.io/client-go/kubernetes/typed/flowcontrol/v1beta2", "k8s.io/client-go/kubernetes/typed/flowcontrol/v1beta3", "k8s.io/client-go/kubernetes/typed/networking/v1", "k8s.io/client-go/kubernetes/typed/networking/v1beta1", "k8s.io/client-go/kubernetes/typed/node/v1", "k8s.io/client-go/kubernetes/typed/node/v1alpha1", "k8s.io/client-go/kubernetes/typed/node/v1beta1", "k8s.io/client-go/kubernetes/typed/policy/v1", "k8s.io/client-go/kubernetes/typed/policy/v1beta1", "k8s.io/client-go/kubernetes/typed/rbac/v1", "k8s.io/client-go/kubernetes/typed/rbac/v1alpha1", "k8s.io/client-go/kubernetes/typed/rbac/v1beta1", "k8s.io/client-go/kubernetes/typed/resource/v1", "k8s.io/client-go/kubernetes/typed/resource/v1alpha3", "k8s.io/client-go/kubernetes/typed/resource/v1beta1", "k8s.io/client-go/kubernetes/typed/resource/v1beta2", "k8s.io/client-go/kubernetes/typed/scheduling/v1", "k8s.io/client-go/kubernetes/typed/scheduling/v1alpha1", "k8s.io/client-go/kubernetes/typed/scheduling/v1beta1", "k8s.io/client-go/kubernetes/typed/storage/v1", "k8s.io/client-go/kubernetes/typed/storage/v1alpha1", "k8s.io/client-go/kubernetes/typed/storage/v1beta1", "k8s.io/client-go/kubernetes/typed/storagemigration/v1alpha1", "k8s.io/client-go/listers", "k8s.io/client-go/listers/admissionregistration/v1", "k8s.io/client-go/listers/admissionregistration/v1alpha1", "k8s.io/client-go/listers/admissionregistration/v1beta1", "k8s.io/client-go/listers/apiserverinternal/v1alpha1", "k8s.io/client-go/listers/apps/v1", "k8s.io/client-go/listers/apps/v1beta1", "k8s.io/client-go/listers/apps/v1beta2", "k8s.io/client-go/listers/autoscaling/v1", "k8s.io/client-go/listers/autoscaling/v2", "k8s.io/client-go/listers/autoscaling/v2beta1", "k8s.io/client-go/listers/autoscaling/v2beta2", "k8s.io/client-go/listers/batch/v1", "k8s.io/client-go/listers/batch/v1beta1", "k8s.io/client-go/listers/certificates/v1", "k8s.io/client-go/listers/certificates/v1alpha1", "k8s.io/client-go/listers/certificates/v1beta1", "k8s.io/client-go/listers/coordination/v1", "k8s.io/client-go/listers/coordination/v1alpha2", "k8s.io/client-go/listers/coordination/v1beta1", "k8s.io/client-go/listers/core/v1", "k8s.io/client-go/listers/discovery/v1", "k8s.io/client-go/listers/discovery/v1beta1", "k8s.io/client-go/listers/events/v1", "k8s.io/client-go/listers/events/v1beta1", "k8s.io/client-go/listers/extensions/v1beta1", "k8s.io/client-go/listers/flowcontrol/v1", "k8s.io/client-go/listers/flowcontrol/v1beta1", "k8s.io/client-go/listers/flowcontrol/v1beta2", "k8s.io/client-go/listers/flowcontrol/v1beta3", "k8s.io/client-go/listers/networking/v1", "k8s.io/client-go/listers/networking/v1beta1", "k8s.io/client-go/listers/node/v1", "k8s.io/client-go/listers/node/v1alpha1", "k8s.io/client-go/listers/node/v1beta1", "k8s.io/client-go/listers/policy/v1", "k8s.io/client-go/listers/policy/v1beta1", "k8s.io/client-go/listers/rbac/v1", "k8s.io/client-go/listers/rbac/v1alpha1", "k8s.io/client-go/listers/rbac/v1beta1", "k8s.io/client-go/listers/resource/v1", "k8s.io/client-go/listers/resource/v1alpha3", "k8s.io/client-go/listers/resource/v1beta1", "k8s.io/client-go/listers/resource/v1beta2", "k8s.io/client-go/listers/scheduling/v1", "k8s.io/client-go/listers/scheduling/v1alpha1", "k8s.io/client-go/listers/scheduling/v1beta1", "k8s.io/client-go/listers/storage/v1", "k8s.io/client-go/listers/storage/v1alpha1", "k8s.io/client-go/listers/storage/v1beta1", "k8s.io/client-go/listers/storagemigration/v1alpha1", "k8s.io/client-go/metadata", "k8s.io/client-go/openapi", "k8s.io/client-go/openapi/cached", "k8s.io/client-go/openapi3", "k8s.io/client-go/pkg/apis/clientauthentication", "k8s.io/client-go/pkg/apis/clientauthentication/install", "k8s.io/client-go/pkg/apis/clientauthentication/v1", "k8s.io/client-go/pkg/apis/clientauthentication/v1beta1", "k8s.io/client-go/pkg/version", "k8s.io/client-go/plugin/pkg/client/auth", "k8s.io/client-go/plugin/pkg/client/auth/azure", "k8s.io/client-go/plugin/pkg/client/auth/exec", "k8s.io/client-go/plugin/pkg/client/auth/gcp", "k8s.io/client-go/plugin/pkg/client/auth/oidc", "k8s.io/client-go/rest", "k8s.io/client-go/rest/watch", "k8s.io/client-go/restmapper", "k8s.io/client-go/scale", "k8s.io/client-go/scale/scheme", "k8s.io/client-go/scale/scheme/appsint", "k8s.io/client-go/scale/scheme/appsv1beta1", "k8s.io/client-go/scale/scheme/appsv1beta2", "k8s.io/client-go/scale/scheme/autoscalingv1", "k8s.io/client-go/scale/scheme/extensionsint", "k8s.io/client-go/scale/scheme/extensionsv1beta1", "k8s.io/client-go/testing", "k8s.io/client-go/third_party/forked/golang/template", "k8s.io/client-go/tools/auth", "k8s.io/client-go/tools/cache", "k8s.io/client-go/tools/cache/synctrack", "k8s.io/client-go/tools/clientcmd", "k8s.io/client-go/tools/clientcmd/api", "k8s.io/client-go/tools/clientcmd/api/latest", "k8s.io/client-go/tools/clientcmd/api/v1", "k8s.io/client-go/tools/leaderelection", "k8s.io/client-go/tools/leaderelection/resourcelock", "k8s.io/client-go/tools/metrics", "k8s.io/client-go/tools/pager", "k8s.io/client-go/tools/record", "k8s.io/client-go/tools/record/util", "k8s.io/client-go/tools/reference", "k8s.io/client-go/tools/remotecommand", "k8s.io/client-go/tools/watch", "k8s.io/client-go/transport", "k8s.io/client-go/transport/spdy", "k8s.io/client-go/transport/websocket", "k8s.io/client-go/util/apply", "k8s.io/client-go/util/cert", "k8s.io/client-go/util/connrotation", "k8s.io/client-go/util/consistencydetector", "k8s.io/client-go/util/exec", "k8s.io/client-go/util/flowcontrol", "k8s.io/client-go/util/homedir", "k8s.io/client-go/util/jsonpath", "k8s.io/client-go/util/keyutil", "k8s.io/client-go/util/retry", "k8s.io/client-go/util/workqueue", "k8s.io/component-base/cli/flag", "k8s.io/component-base/compatibility", "k8s.io/component-base/featuregate", "k8s.io/component-base/metrics", "k8s.io/component-base/metrics/legacyregistry", "k8s.io/component-base/metrics/prometheus/compatversion", "k8s.io/component-base/metrics/prometheus/feature", "k8s.io/component-base/metrics/prometheusextension", "k8s.io/component-base/version", "k8s.io/component-base/zpages/features", "k8s.io/klog/v2", "k8s.io/kube-openapi/pkg/cached", "k8s.io/kube-openapi/pkg/common", "k8s.io/kube-openapi/pkg/handler3", "k8s.io/kube-openapi/pkg/schemaconv", "k8s.io/kube-openapi/pkg/spec3", "k8s.io/kube-openapi/pkg/util/proto", "k8s.io/kube-openapi/pkg/util/proto/validation", "k8s.io/kube-openapi/pkg/validation/errors", "k8s.io/kube-openapi/pkg/validation/spec", "k8s.io/kube-openapi/pkg/validation/strfmt", "k8s.io/kube-openapi/pkg/validation/strfmt/bson", "k8s.io/kube-openapi/pkg/validation/validate", "k8s.io/kubectl/pkg/cmd/events", "k8s.io/kubectl/pkg/cmd/util", "k8s.io/kubectl/pkg/scheme", "k8s.io/kubectl/pkg/util/i18n", "k8s.io/kubectl/pkg/util/interrupt", "k8s.io/kubectl/pkg/util/openapi", "k8s.io/kubectl/pkg/util/templates", "k8s.io/kubectl/pkg/util/term", "k8s.io/kubectl/pkg/validation", "k8s.io/metrics/pkg/apis/metrics", "k8s.io/metrics/pkg/apis/metrics/v1alpha1", "k8s.io/metrics/pkg/apis/metrics/v1beta1", "k8s.io/metrics/pkg/client/clientset/versioned", "k8s.io/metrics/pkg/client/clientset/versioned/scheme", "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1alpha1", "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1", "k8s.io/utils/buffer", "k8s.io/utils/clock", "k8s.io/utils/exec", "k8s.io/utils/lru", "k8s.io/utils/net", "k8s.io/utils/ptr", "k8s.io/utils/trace", "sigs.k8s.io/controller-runtime", "sigs.k8s.io/controller-runtime/pkg/builder", "sigs.k8s.io/controller-runtime/pkg/cache", "sigs.k8s.io/controller-runtime/pkg/certwatcher", "sigs.k8s.io/controller-runtime/pkg/certwatcher/metrics", "sigs.k8s.io/controller-runtime/pkg/client", "sigs.k8s.io/controller-runtime/pkg/client/apiutil", "sigs.k8s.io/controller-runtime/pkg/client/config", "sigs.k8s.io/controller-runtime/pkg/cluster", "sigs.k8s.io/controller-runtime/pkg/config", "sigs.k8s.io/controller-runtime/pkg/controller", "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil", "sigs.k8s.io/controller-runtime/pkg/controller/priorityqueue", "sigs.k8s.io/controller-runtime/pkg/conversion", "sigs.k8s.io/controller-runtime/pkg/event", "sigs.k8s.io/controller-runtime/pkg/handler", "sigs.k8s.io/controller-runtime/pkg/healthz", "sigs.k8s.io/controller-runtime/pkg/leaderelection", "sigs.k8s.io/controller-runtime/pkg/log", "sigs.k8s.io/controller-runtime/pkg/log/zap", "sigs.k8s.io/controller-runtime/pkg/manager", "sigs.k8s.io/controller-runtime/pkg/manager/signals", "sigs.k8s.io/controller-runtime/pkg/metrics", "sigs.k8s.io/controller-runtime/pkg/metrics/server", "sigs.k8s.io/controller-runtime/pkg/predicate", "sigs.k8s.io/controller-runtime/pkg/reconcile", "sigs.k8s.io/controller-runtime/pkg/recorder", "sigs.k8s.io/controller-runtime/pkg/scheme", "sigs.k8s.io/controller-runtime/pkg/source", "sigs.k8s.io/controller-runtime/pkg/webhook", "sigs.k8s.io/controller-runtime/pkg/webhook/admission", "sigs.k8s.io/controller-runtime/pkg/webhook/admission/metrics", "sigs.k8s.io/controller-runtime/pkg/webhook/conversion", "sigs.k8s.io/controller-runtime/pkg/webhook/conversion/metrics", "sigs.k8s.io/e2e-framework/klient", "sigs.k8s.io/e2e-framework/klient/conf", "sigs.k8s.io/e2e-framework/klient/decoder", "sigs.k8s.io/e2e-framework/klient/k8s", "sigs.k8s.io/e2e-framework/klient/k8s/resources", "sigs.k8s.io/e2e-framework/klient/k8s/watcher", "sigs.k8s.io/e2e-framework/klient/wait", "sigs.k8s.io/e2e-framework/klient/wait/conditions", "sigs.k8s.io/e2e-framework/pkg/env", "sigs.k8s.io/e2e-framework/pkg/envconf", "sigs.k8s.io/e2e-framework/pkg/envfuncs", "sigs.k8s.io/e2e-framework/pkg/featuregate", "sigs.k8s.io/e2e-framework/pkg/features", "sigs.k8s.io/e2e-framework/pkg/flags", "sigs.k8s.io/e2e-framework/pkg/types", "sigs.k8s.io/e2e-framework/pkg/utils", "sigs.k8s.io/e2e-framework/support", "sigs.k8s.io/e2e-framework/support/kind", "sigs.k8s.io/e2e-framework/third_party/helm", "sigs.k8s.io/e2e-framework/third_party/kind", "sigs.k8s.io/json", "sigs.k8s.io/kind/pkg/apis/config/defaults", "sigs.k8s.io/kind/pkg/apis/config/v1alpha4", "sigs.k8s.io/kind/pkg/errors", "sigs.k8s.io/kustomize/api/filters/annotations", "sigs.k8s.io/kustomize/api/filters/fieldspec", "sigs.k8s.io/kustomize/api/filters/filtersutil", "sigs.k8s.io/kustomize/api/filters/fsslice", "sigs.k8s.io/kustomize/api/filters/iampolicygenerator", "sigs.k8s.io/kustomize/api/filters/imagetag", "sigs.k8s.io/kustomize/api/filters/labels", "sigs.k8s.io/kustomize/api/filters/nameref", "sigs.k8s.io/kustomize/api/filters/namespace", "sigs.k8s.io/kustomize/api/filters/patchjson6902", "sigs.k8s.io/kustomize/api/filters/patchstrategicmerge", "sigs.k8s.io/kustomize/api/filters/prefix", "sigs.k8s.io/kustomize/api/filters/refvar", "sigs.k8s.io/kustomize/api/filters/replacement", "sigs.k8s.io/kustomize/api/filters/replicacount", "sigs.k8s.io/kustomize/api/filters/suffix", "sigs.k8s.io/kustomize/api/filters/valueadd", "sigs.k8s.io/kustomize/api/hasher", "sigs.k8s.io/kustomize/api/ifc", "sigs.k8s.io/kustomize/api/konfig", "sigs.k8s.io/kustomize/api/krusty", "sigs.k8s.io/kustomize/api/kv", "sigs.k8s.io/kustomize/api/provenance", "sigs.k8s.io/kustomize/api/provider", "sigs.k8s.io/kustomize/api/resmap", "sigs.k8s.io/kustomize/api/resource", "sigs.k8s.io/kustomize/api/types", "sigs.k8s.io/kustomize/kyaml/comments", "sigs.k8s.io/kustomize/kyaml/errors", "sigs.k8s.io/kustomize/kyaml/ext", "sigs.k8s.io/kustomize/kyaml/fieldmeta", "sigs.k8s.io/kustomize/kyaml/filesys", "sigs.k8s.io/kustomize/kyaml/fn/runtime/container", "sigs.k8s.io/kustomize/kyaml/fn/runtime/exec", "sigs.k8s.io/kustomize/kyaml/fn/runtime/runtimeutil", "sigs.k8s.io/kustomize/kyaml/kio", "sigs.k8s.io/kustomize/kyaml/kio/kioutil", "sigs.k8s.io/kustomize/kyaml/openapi", "sigs.k8s.io/kustomize/kyaml/openapi/kubernetesapi", "sigs.k8s.io/kustomize/kyaml/openapi/kubernetesapi/v1_21_2", "sigs.k8s.io/kustomize/kyaml/openapi/kustomizationapi", "sigs.k8s.io/kustomize/kyaml/order", "sigs.k8s.io/kustomize/kyaml/resid", "sigs.k8s.io/kustomize/kyaml/runfn", "sigs.k8s.io/kustomize/kyaml/sets", "sigs.k8s.io/kustomize/kyaml/sliceutil", "sigs.k8s.io/kustomize/kyaml/utils", "sigs.k8s.io/kustomize/kyaml/yaml", "sigs.k8s.io/kustomize/kyaml/yaml/merge2", "sigs.k8s.io/kustomize/kyaml/yaml/schema", "sigs.k8s.io/kustomize/kyaml/yaml/walk", "sigs.k8s.io/randfill", "sigs.k8s.io/randfill/bytesource", "sigs.k8s.io/structured-merge-diff/v6/fieldpath", "sigs.k8s.io/structured-merge-diff/v6/merge", "sigs.k8s.io/structured-merge-diff/v6/schema", "sigs.k8s.io/structured-merge-diff/v6/typed", "sigs.k8s.io/structured-merge-diff/v6/value", "sigs.k8s.io/yaml", "sigs.k8s.io/yaml/kyaml"]
+
+[mod]
+  [mod."cel.dev/expr"]
+    version = "v0.24.0"
+    hash = "sha256-tg5zUJByc0QtiN3/dVxSH+6K7Bk/tLwzLBd7JjNs3iY="
+  [mod."cloud.google.com/go/compute/metadata"]
+    version = "v0.7.0"
+    hash = "sha256-jJZDW+hibqjMiY8OiJhgJALbGwEq+djLOxfYR7upQyE="
+  [mod."cuelang.org/go"]
+    version = "v0.8.2"
+    hash = "sha256-e81fVX6UIkz0VN3/9o0cl4xaX5Uyyf45oHMACuwx2z4="
+  [mod."dario.cat/mergo"]
+    version = "v1.0.2"
+    hash = "sha256-p6jdiHlLEfZES8vJnDywG4aVzIe16p0CU6iglglIweA="
+  [mod."github.com/AdaLogics/go-fuzz-headers"]
+    version = "v0.0.0-20230811130428-ced1acdcaa24"
+    hash = "sha256-ezetyXdjgEK3A4QsOEfUJNBhd0kxb0s7UbX1ErZ1sAA="
+  [mod."github.com/Azure/azure-sdk-for-go"]
+    version = "v68.0.0+incompatible"
+    hash = "sha256-xaa9LgrrLjgbOh/XM1dZMWH/sZeGMb59gK0CTB6JUUI="
+  [mod."github.com/Azure/go-ansiterm"]
+    version = "v0.0.0-20230124172434-306776ec8161"
+    hash = "sha256-17hCoOE3HBv6cjpcukfBS6/ULgTuoUZ7RNbi5korH2M="
+  [mod."github.com/Azure/go-autorest"]
+    version = "v14.2.0+incompatible"
+    hash = "sha256-dvWOcudtx0NP6U2RDt40hwtELFRdYdLEklRWYterRN0="
+  [mod."github.com/Azure/go-autorest/autorest"]
+    version = "v0.11.29"
+    hash = "sha256-0Xh86TlCitJr6hPB4ql7HuVRmUN3AKLXxLzofH/I5oE="
+  [mod."github.com/Azure/go-autorest/autorest/adal"]
+    version = "v0.9.23"
+    hash = "sha256-nEnjMd+1IJZlV+rJhiof0tJ4+EktcIExc/bLaCR3jAQ="
+  [mod."github.com/Azure/go-autorest/autorest/azure/auth"]
+    version = "v0.5.12"
+    hash = "sha256-qrgVaP2y15JKPzD9ScV2Nve7c58YL8u2xWcE9d4fg2w="
+  [mod."github.com/Azure/go-autorest/autorest/azure/cli"]
+    version = "v0.4.6"
+    hash = "sha256-izyU90Z31h5u1G1DQE48M3ARjTPpDow5MgyYmWh4Vi4="
+  [mod."github.com/Azure/go-autorest/autorest/date"]
+    version = "v0.3.0"
+    hash = "sha256-PWFHUZ9jMJ6gkMCnRpR89s/aI3YdtzskIePj8Ulu4dc="
+  [mod."github.com/Azure/go-autorest/logger"]
+    version = "v0.2.1"
+    hash = "sha256-xGqpcF7fL1MQCN4xXTHpAFDzEA5f4p6kdb9yV1+uB4k="
+  [mod."github.com/Azure/go-autorest/tracing"]
+    version = "v0.6.0"
+    hash = "sha256-CcLYoOyRcMo4aRRYN+TBbaHtJqDra4e0qo3cmGZIB74="
+  [mod."github.com/MakeNowJust/heredoc"]
+    version = "v1.0.0"
+    hash = "sha256-8hKERAVV1Pew84kc9GkW23dcO8uIUx/+tJQLi+oPwqE="
+  [mod."github.com/Masterminds/semver"]
+    version = "v1.5.0"
+    hash = "sha256-3fEInOXFdzCiGdDZ1s9otEes7VXiL8Q1RVB3zXRPJsQ="
+  [mod."github.com/Microsoft/go-winio"]
+    version = "v0.6.2"
+    hash = "sha256-tVNWDUMILZbJvarcl/E7tpSnkn7urqgSHa2Eaka5vSU="
+  [mod."github.com/ProtonMail/go-crypto"]
+    version = "v1.1.3"
+    hash = "sha256-XN/cWNUTZvhe7ni7tIeBpc9J0Gfe+ReEFsUwab/epO0="
+  [mod."github.com/alecthomas/kong"]
+    version = "v1.4.0"
+    hash = "sha256-YaxmB05coootJKPxBuUEcRUSGRdC1RP1ta+4JmOeqcg="
+  [mod."github.com/antlr4-go/antlr/v4"]
+    version = "v4.13.0"
+    hash = "sha256-98nKVlsgv1S7vMvGuKOQINOKkiEvrlX5DCSmyr6Mr+A="
+  [mod."github.com/asaskevich/govalidator"]
+    version = "v0.0.0-20230301143203-a9d515a09cc2"
+    hash = "sha256-UCENzt1c1tFgsAzK2TNq5s2g0tQMQ5PxFaQKe8hTL/A="
+  [mod."github.com/aws/aws-sdk-go"]
+    version = "v1.54.15"
+    hash = "sha256-2ZOclsj6PAFh5f+INXtAv9tRmUWqMg3gi6OCmwbcoJ8="
+  [mod."github.com/aws/aws-sdk-go-v2"]
+    version = "v1.30.0"
+    hash = "sha256-RwSkfSZeAr4XFrVccXP9SP9IChQdKX8c/Fjs7DzvyTQ="
+  [mod."github.com/aws/aws-sdk-go-v2/config"]
+    version = "v1.27.21"
+    hash = "sha256-0Kef3dxYrcxmVYuKu0QOxzPp5Yd4SMqiUXPypOB/53s="
+  [mod."github.com/aws/aws-sdk-go-v2/credentials"]
+    version = "v1.17.21"
+    hash = "sha256-BIdQurCIwwSPcFnLiTKDaDVVqSbAaGN8l0ExtqA/EUE="
+  [mod."github.com/aws/aws-sdk-go-v2/feature/ec2/imds"]
+    version = "v1.16.8"
+    hash = "sha256-4ZLD9RHw7GM4p+ZPt5QQxu//eh8iXyxA1D48Gk9Q51k="
+  [mod."github.com/aws/aws-sdk-go-v2/internal/configsources"]
+    version = "v1.3.12"
+    hash = "sha256-z3RJ6y7vy3No6FyTrkicAdpRhuBRmfT2iXX1Kc2zMZk="
+  [mod."github.com/aws/aws-sdk-go-v2/internal/endpoints/v2"]
+    version = "v2.6.12"
+    hash = "sha256-h/FlffjCzdBYRWVQRcd5Dy9OwWmEhkA1+MmOjIshi/w="
+  [mod."github.com/aws/aws-sdk-go-v2/internal/ini"]
+    version = "v1.8.0"
+    hash = "sha256-v76jTAr4rEgS5en49ikLh6nuvclN+VjpOPj83ZQ3sLo="
+  [mod."github.com/aws/aws-sdk-go-v2/service/ecr"]
+    version = "v1.24.7"
+    hash = "sha256-Pqwf1r3PMzO8TDmvny97vD0b0OrLPrxQPhmscXLefR4="
+  [mod."github.com/aws/aws-sdk-go-v2/service/ecrpublic"]
+    version = "v1.21.6"
+    hash = "sha256-C/mcOtxcuEQdBAAJZLu6+kENISzgLIVor9Mt/90/y2g="
+  [mod."github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding"]
+    version = "v1.11.2"
+    hash = "sha256-82nINVDYCeU1WL7LNHm4qGv+FDKIXPrbBRwFPmnQo9U="
+  [mod."github.com/aws/aws-sdk-go-v2/service/internal/presigned-url"]
+    version = "v1.11.14"
+    hash = "sha256-+02CD+VafFxMv70RLRYAgL4foXJlsfyJFIDnHWUY9A8="
+  [mod."github.com/aws/aws-sdk-go-v2/service/sso"]
+    version = "v1.21.1"
+    hash = "sha256-Ux7omC8nOOCggf9cgMzdpUbSnADRNYoQLn+IeXi7nQY="
+  [mod."github.com/aws/aws-sdk-go-v2/service/ssooidc"]
+    version = "v1.25.1"
+    hash = "sha256-ecGn8g7awnv3gJ+JWrwUILAUxc8xVGzm68lJ0qvZI8U="
+  [mod."github.com/aws/aws-sdk-go-v2/service/sts"]
+    version = "v1.29.1"
+    hash = "sha256-UHExQohrKY6hEoHISZiZWSO7XDekkPaBjPTTuI9n7wk="
+  [mod."github.com/aws/smithy-go"]
+    version = "v1.20.2"
+    hash = "sha256-pK6qZxyTOUE3tyujeUtHL346sSilPs6hwIbDAjswYKk="
+  [mod."github.com/awslabs/amazon-ecr-credential-helper/ecr-login"]
+    version = "v0.0.0-20231024185945-8841054dbdb8"
+    hash = "sha256-sdNVWB3fJ3YyWhdh4f9wITArSuDPDdSjrB4c6u++Cbg="
+  [mod."github.com/beorn7/perks"]
+    version = "v1.0.1"
+    hash = "sha256-h75GUqfwJKngCJQVE5Ao5wnO3cfKD9lSIteoLp/3xJ4="
+  [mod."github.com/blang/semver"]
+    version = "v3.5.1+incompatible"
+    hash = "sha256-vmoIH5J0esVFmLDT2ecwtalvJqRRoLwomysyvlIRmo8="
+  [mod."github.com/blang/semver/v4"]
+    version = "v4.0.0"
+    hash = "sha256-dJC22MjnfT5WqJ7x7Tc3Bvpw9tFnBn9HqfWFiM57JVc="
+  [mod."github.com/cespare/xxhash/v2"]
+    version = "v2.3.0"
+    hash = "sha256-7hRlwSR+fos1kx4VZmJ/7snR7zHh8ZFKX+qqqqGcQpY="
+  [mod."github.com/chai2010/gettext-go"]
+    version = "v1.0.2"
+    hash = "sha256-dwbhL7uAsAWGfX7Qmfa2hm0YClkbbB7ZHqOiPGP/L18="
+  [mod."github.com/chrismellard/docker-credential-acr-env"]
+    version = "v0.0.0-20230304212654-82a0ddb27589"
+    hash = "sha256-EWyO62fm/zhWdo4/96bscr3POG/5tKsWXYqp5mTwP0Y="
+  [mod."github.com/cloudflare/circl"]
+    version = "v1.6.1"
+    hash = "sha256-Dc69V12eIFnJoUNmwg6VKXHfAMijbAeEVSDe8AiOaLo="
+  [mod."github.com/containerd/errdefs"]
+    version = "v1.0.0"
+    hash = "sha256-wMZGoeqvRhuovYCJx0Js4P3qFCNTZ/6Atea/kNYoPMI="
+  [mod."github.com/containerd/errdefs/pkg"]
+    version = "v0.3.0"
+    hash = "sha256-BILJ0Be4cc8xfvLPylc/Pvwwa+w88+Hd0njzetUCeTg="
+  [mod."github.com/containerd/stargz-snapshotter/estargz"]
+    version = "v0.16.3"
+    hash = "sha256-HS4jUMc1whTwc0Cq0vzw9NoKUvrz7Qyjulne2Sayrhg="
+  [mod."github.com/crossplane/crossplane-runtime/v2"]
+    version = "v2.2.0-rc.0"
+    hash = "sha256-sGG61ADp5q+qVAAMu7urY25C+ctK7NRqf4z7+NAO1UA="
+  [mod."github.com/cyberphone/json-canonicalization"]
+    version = "v0.0.0-20231011164504-785e29786b46"
+    hash = "sha256-oqtgihZbj/5D6RVBAjZMin06slhhz8VtkRrP6U/SmwI="
+  [mod."github.com/cyphar/filepath-securejoin"]
+    version = "v0.3.6"
+    hash = "sha256-M1J+wjHnOZ/u2HvR9fry/dpzwGBc23oqEwnD3ym2Z88="
+  [mod."github.com/davecgh/go-spew"]
+    version = "v1.1.2-0.20180830191138-d8f796af33cc"
+    hash = "sha256-fV9oI51xjHdOmEx6+dlq7Ku2Ag+m/bmbzPo6A4Y74qc="
+  [mod."github.com/digitorus/pkcs7"]
+    version = "v0.0.0-20230818184609-3a137a874352"
+    hash = "sha256-zhgLL+kS2vkOhiK3kkI6yMhr71JOYo/uuxDo1dsC2k0="
+  [mod."github.com/digitorus/timestamp"]
+    version = "v0.0.0-20231217203849-220c5c2851b7"
+    hash = "sha256-uNkyMBsdbLN1PiDLHAGWUYf6sZ08ENbxpv9RkNtzaW0="
+  [mod."github.com/dimchansky/utfbom"]
+    version = "v1.1.1"
+    hash = "sha256-w8KEprK54zJkMat78T6zldjDwvhbc/O8s6pVFzfmg1I="
+  [mod."github.com/distribution/reference"]
+    version = "v0.6.0"
+    hash = "sha256-gr4tL+qz4jKyAtl8LINcxMSanztdt+pybj1T+2ulQv4="
+  [mod."github.com/docker/cli"]
+    version = "v28.2.2+incompatible"
+    hash = "sha256-4bMj1wc53Xrwn+MLIhe7TxVlAZlKpeQXaYH0aUt8CBA="
+  [mod."github.com/docker/distribution"]
+    version = "v2.8.3+incompatible"
+    hash = "sha256-XhRURCGNpJC83QZTtgCxHHFL76HaxIxjt70HwUa847E="
+  [mod."github.com/docker/docker"]
+    version = "v28.3.3+incompatible"
+    hash = "sha256-y7TpOJ6XQBtNHxqLNQuz4XNibLVpSniMaMAblgYpvEk="
+  [mod."github.com/docker/docker-credential-helpers"]
+    version = "v0.9.3"
+    hash = "sha256-HkmdB771ekeXa+XUzvmHIIfejS0E5k0zv3LVFuOevt4="
+  [mod."github.com/docker/go-connections"]
+    version = "v0.5.0"
+    hash = "sha256-aGbMRrguh98DupIHgcpLkVUZpwycx1noQXbtTl5Sbms="
+  [mod."github.com/docker/go-units"]
+    version = "v0.5.0"
+    hash = "sha256-iK/V/jJc+borzqMeqLY+38Qcts2KhywpsTk95++hImE="
+  [mod."github.com/dustin/go-humanize"]
+    version = "v1.0.1"
+    hash = "sha256-yuvxYYngpfVkUg9yAmG99IUVmADTQA0tMbBXe0Fq0Mc="
+  [mod."github.com/emicklei/dot"]
+    version = "v1.8.0"
+    hash = "sha256-ps9BTdj9l2MGD8GkwzNSmkI4CZhjsf4b0E8ezgyNQrk="
+  [mod."github.com/emicklei/go-restful/v3"]
+    version = "v3.12.2"
+    hash = "sha256-eQ0qtVH7c5jgqB7F9B17GhZujYelBA2g9KwpPuSS0sE="
+  [mod."github.com/emirpasic/gods"]
+    version = "v1.18.1"
+    hash = "sha256-hGDKddjLj+5dn2woHtXKUdd49/3xdsqnhx7VEdCu1m4="
+  [mod."github.com/evanphx/json-patch"]
+    version = "v5.9.11+incompatible"
+    hash = "sha256-1iyZpBaeBLmNkJ3T4A9fAEXEYB9nk9V02ug4pwl5dy0="
+  [mod."github.com/evanphx/json-patch/v5"]
+    version = "v5.9.11"
+    hash = "sha256-DaWzRi5dIr3U7kJlV3Qm1DWoKh5W+FI2BW/ATXT40J4="
+  [mod."github.com/exponent-io/jsonpath"]
+    version = "v0.0.0-20210407135951-1de76d718b3f"
+    hash = "sha256-2wgJI2pvkaq2MoeUmLRaTBA8dIoEcwzKvw4qKJlhIec="
+  [mod."github.com/fatih/color"]
+    version = "v1.18.0"
+    hash = "sha256-pP5y72FSbi4j/BjyVq/XbAOFjzNjMxZt2R/lFFxGWvY="
+  [mod."github.com/felixge/httpsnoop"]
+    version = "v1.0.4"
+    hash = "sha256-c1JKoRSndwwOyOxq9ddCe+8qn7mG9uRq2o/822x5O/c="
+  [mod."github.com/fsnotify/fsnotify"]
+    version = "v1.9.0"
+    hash = "sha256-WtpE1N6dpHwEvIub7Xp/CrWm0fd6PX7MKA4PV44rp2g="
+  [mod."github.com/fxamacker/cbor/v2"]
+    version = "v2.9.0"
+    hash = "sha256-/IZK76MRCrz9XCiilieH5tKaLnIWyPJhwxDoVKB8dFc="
+  [mod."github.com/go-chi/chi"]
+    version = "v4.1.2+incompatible"
+    hash = "sha256-KpvSwEqRBeUBZae9r7J3sMCpJMqyaKtEn1KKfKTa0O0="
+  [mod."github.com/go-errors/errors"]
+    version = "v1.4.2"
+    hash = "sha256-TkRLJlgaVlNxRD9c0ky+CN99tKL4Gx9W06H5a273gPM="
+  [mod."github.com/go-git/gcfg"]
+    version = "v1.5.1-0.20230307220236-3a3c6141e376"
+    hash = "sha256-f4k0gSYuo0/q3WOoTxl2eFaj7WZpdz29ih6CKc8Ude8="
+  [mod."github.com/go-git/go-billy/v5"]
+    version = "v5.6.2"
+    hash = "sha256-VgbxcLkHjiSyRIfKS7E9Sn8OynCrMGUDkwFz6K2TVL4="
+  [mod."github.com/go-git/go-git/v5"]
+    version = "v5.13.0"
+    hash = "sha256-S/Mh89tfcSvpE3dXDNW9gbLipmSilX7YGW3hC4GqFMw="
+  [mod."github.com/go-jose/go-jose/v4"]
+    version = "v4.0.5"
+    hash = "sha256-xDbwQfxNiH0gdNMCuxa6qKqiAeOhsnWm8MYSM+KISew="
+  [mod."github.com/go-logr/logr"]
+    version = "v1.4.3"
+    hash = "sha256-Nnp/dEVNMxLp3RSPDHZzGbI8BkSNuZMX0I0cjWKXXLA="
+  [mod."github.com/go-logr/stdr"]
+    version = "v1.2.2"
+    hash = "sha256-rRweAP7XIb4egtT1f2gkz4sYOu7LDHmcJ5iNsJUd0sE="
+  [mod."github.com/go-logr/zapr"]
+    version = "v1.3.0"
+    hash = "sha256-ehak315/wxBKtuFhCz+TPsvNzYBv0/oZ3tVIjT52hc0="
+  [mod."github.com/go-openapi/analysis"]
+    version = "v0.23.0"
+    hash = "sha256-IhmB56h2BsbCvKEn7bm7fWw0pOkMZMXglZrC5iKlVjQ="
+  [mod."github.com/go-openapi/errors"]
+    version = "v0.22.0"
+    hash = "sha256-OjXbNmPOlTcpfuHd7OS1cm5GTQLRNUJ8wxbsaef+M1o="
+  [mod."github.com/go-openapi/jsonpointer"]
+    version = "v0.21.0"
+    hash = "sha256-bB8XTzo4hzXemi8Ey3tIXia3mfn38bvwIzKYLJYC650="
+  [mod."github.com/go-openapi/jsonreference"]
+    version = "v0.21.0"
+    hash = "sha256-lkFb/kP0qt8L1jsLYLt+jXTY6jSk5SYJbfgAKKVlQYQ="
+  [mod."github.com/go-openapi/loads"]
+    version = "v0.22.0"
+    hash = "sha256-LSVRctUn05h6El+/MKQ9ZhnE8sZqjJJFTpt4Umm7jGI="
+  [mod."github.com/go-openapi/runtime"]
+    version = "v0.28.0"
+    hash = "sha256-kPIwKPrEr6YuJXWZvJxoXXFXtj3g3ssyoQnTrGzxBxM="
+  [mod."github.com/go-openapi/spec"]
+    version = "v0.21.0"
+    hash = "sha256-TNaIDffo6lw2v9n7mpM+gPgJJOK88PD6sp/LPNU7Fx8="
+  [mod."github.com/go-openapi/strfmt"]
+    version = "v0.23.0"
+    hash = "sha256-OhuDzohJKR49ESRSD7n4YdeKAvLWwXMgKE/4FMBb++c="
+  [mod."github.com/go-openapi/swag"]
+    version = "v0.23.0"
+    hash = "sha256-D5CzsSQ3SYJLwXT6BDahnG66LI8du59Dy1mY4KutA7A="
+  [mod."github.com/go-openapi/validate"]
+    version = "v0.24.0"
+    hash = "sha256-dISwTJag5g8FXXp7CDk4KR3t7FJUn7iM2hATBlKMcJw="
+  [mod."github.com/go-viper/mapstructure/v2"]
+    version = "v2.4.0"
+    hash = "sha256-lLfcV9z4n94hDhgyXJlde4bFB0hfzlbh+polqcJCwGE="
+  [mod."github.com/gobuffalo/flect"]
+    version = "v1.0.3"
+    hash = "sha256-gpA1fe9XTjZ9r+yYCysCgXKo1AmYNuNFwWn7ZQ4Ky1M="
+  [mod."github.com/gogo/protobuf"]
+    version = "v1.3.2"
+    hash = "sha256-pogILFrrk+cAtb0ulqn9+gRZJ7sGnnLLdtqITvxvG6c="
+  [mod."github.com/golang-jwt/jwt/v4"]
+    version = "v4.5.2"
+    hash = "sha256-rTSqYEPooi8Uu4aXMW6k9dynOV+URYTGzVmbG3EQ7uo="
+  [mod."github.com/golang/groupcache"]
+    version = "v0.0.0-20210331224755-41bb18bfe9da"
+    hash = "sha256-7Gs7CS9gEYZkbu5P4hqPGBpeGZWC64VDwraSKFF+VR0="
+  [mod."github.com/golang/snappy"]
+    version = "v0.0.4"
+    hash = "sha256-Umx+5xHAQCN/Gi4HbtMhnDCSPFAXSsjVbXd8n5LhjAA="
+  [mod."github.com/google/btree"]
+    version = "v1.1.3"
+    hash = "sha256-/6Us2eNRFi2IIp7p5uPUXLridilAdk4SmZhcTYR0csw="
+  [mod."github.com/google/cel-go"]
+    version = "v0.26.0"
+    hash = "sha256-SIM9SqhrnfTwAsYZbfWrbF33qa87vej9lUhffjicHj0="
+  [mod."github.com/google/certificate-transparency-go"]
+    version = "v1.2.1"
+    hash = "sha256-hgBi9JjWJhfPU99qT4SNwv5U076Z1cMI1lpKZjxsvuI="
+  [mod."github.com/google/gnostic-models"]
+    version = "v0.7.0"
+    hash = "sha256-sxShRxqOUVlz9IkAz0C/NP/7CmLBW3ffwoZTdh+rIOc="
+  [mod."github.com/google/go-cmp"]
+    version = "v0.7.0"
+    hash = "sha256-JbxZFBFGCh/Rj5XZ1vG94V2x7c18L8XKB0N9ZD5F2rM="
+  [mod."github.com/google/go-containerregistry"]
+    version = "v0.20.6"
+    hash = "sha256-b7qjcl2/tAI7G7tyBJX4AiNL7zBux6cjdE50HOCkqYw="
+  [mod."github.com/google/go-containerregistry/pkg/authn/k8schain"]
+    version = "v0.0.0-20230919002926-dbcd01c402b2"
+    hash = "sha256-y/xHODMYpIsday3XuwTS8bO5+1CMjgazalC2fijnC6c="
+  [mod."github.com/google/go-containerregistry/pkg/authn/kubernetes"]
+    version = "v0.0.0-20230919002926-dbcd01c402b2"
+    hash = "sha256-Ta/vpkASfIewKOvsnVvrOksviulGYnPUbxMxb6QQmxo="
+  [mod."github.com/google/uuid"]
+    version = "v1.6.0"
+    hash = "sha256-VWl9sqUzdOuhW0KzQlv0gwwUQClYkmZwSydHG2sALYw="
+  [mod."github.com/gorilla/websocket"]
+    version = "v1.5.4-0.20250319132907-e064f32e3674"
+    hash = "sha256-a8n6oe20JDpwThClgAyVhJDi6QVaS0qzT4PvRxlQ9to="
+  [mod."github.com/gregjones/httpcache"]
+    version = "v0.0.0-20190611155906-901d90724c79"
+    hash = "sha256-AEfenLNBYwZjwHsMG48bpwUyUtjx1BBiK2W5HQruIBc="
+  [mod."github.com/hashicorp/errwrap"]
+    version = "v1.1.0"
+    hash = "sha256-6lwuMQOfBq+McrViN3maJTIeh4f8jbEqvLy2c9FvvFw="
+  [mod."github.com/hashicorp/go-multierror"]
+    version = "v1.1.1"
+    hash = "sha256-ANzPEUJIZIlToxR89Mn7Db73d9LGI51ssy7eNnUgmlA="
+  [mod."github.com/hashicorp/go-retryablehttp"]
+    version = "v0.7.7"
+    hash = "sha256-XZjxncyLPwy6YBHR3DF5bEl1y72or0JDUncTIsb/eIU="
+  [mod."github.com/hashicorp/go-secure-stdlib/parseutil"]
+    version = "v0.1.8"
+    hash = "sha256-8YRuCvRVyDDnaVFsvqKPTxC5+AIoBYht5eNWV6QezFw="
+  [mod."github.com/hashicorp/go-sockaddr"]
+    version = "v1.0.6"
+    hash = "sha256-AZ2RZJGv3qGbVyPbjq1dRlnHc0orGJkgnh7gdRxkU28="
+  [mod."github.com/in-toto/in-toto-golang"]
+    version = "v0.9.0"
+    hash = "sha256-7PMF1ENUvwYER2vlUMuMYIkiG1GzvCq++jYpN3ICFe8="
+  [mod."github.com/inconshreveable/mousetrap"]
+    version = "v1.1.0"
+    hash = "sha256-XWlYH0c8IcxAwQTnIi6WYqq44nOKUylSWxWO/vi+8pE="
+  [mod."github.com/jbenet/go-context"]
+    version = "v0.0.0-20150711004518-d14ea06fba99"
+    hash = "sha256-VANNCWNNpARH/ILQV9sCQsBWgyL2iFT+4AHZREpxIWE="
+  [mod."github.com/jedisct1/go-minisign"]
+    version = "v0.0.0-20230811132847-661be99b8267"
+    hash = "sha256-tWufMmbfSlJRLsD1/ye5H+9b/uEQnBCQwORLJ1KwRh8="
+  [mod."github.com/jmespath/go-jmespath"]
+    version = "v0.4.0"
+    hash = "sha256-xpT9g2qIXmPq7eeHUXHiDqJeQoHCudh44G/KCSFbcuo="
+  [mod."github.com/josharian/intern"]
+    version = "v1.0.0"
+    hash = "sha256-LJR0QE2vOQ2/2shBbO5Yl8cVPq+NFrE3ers0vu9FRP0="
+  [mod."github.com/json-iterator/go"]
+    version = "v1.1.12"
+    hash = "sha256-To8A0h+lbfZ/6zM+2PpRpY3+L6725OPC66lffq6fUoM="
+  [mod."github.com/kevinburke/ssh_config"]
+    version = "v1.2.0"
+    hash = "sha256-Ta7ZOmyX8gG5tzWbY2oES70EJPfI90U7CIJS9EAce0s="
+  [mod."github.com/klauspost/compress"]
+    version = "v1.18.0"
+    hash = "sha256-jc5pMU/HCBFOShMcngVwNMhz9wolxjOb579868LtOuk="
+  [mod."github.com/letsencrypt/boulder"]
+    version = "v0.0.0-20240620165639-de9c06129bec"
+    hash = "sha256-A9+W5UTUc2vukwzIoXNOzFxxbsrJ/567Y4WvUb2up9Y="
+  [mod."github.com/liggitt/tabwriter"]
+    version = "v0.0.0-20181228230101-89fcab3d43de"
+    hash = "sha256-b6pLitORwgfGpOHpe45ykj00P17utbDv8bv6MCVoCBM="
+  [mod."github.com/mailru/easyjson"]
+    version = "v0.7.7"
+    hash = "sha256-NVCz8MURpxgOjHXqxOZExqV4bnpHggpeAOyZDArjcy4="
+  [mod."github.com/mattn/go-colorable"]
+    version = "v0.1.13"
+    hash = "sha256-qb3Qbo0CELGRIzvw7NVM1g/aayaz4Tguppk9MD2/OI8="
+  [mod."github.com/mattn/go-isatty"]
+    version = "v0.0.20"
+    hash = "sha256-qhw9hWtU5wnyFyuMbKx+7RB8ckQaFQ8D+8GKPkN3HHQ="
+  [mod."github.com/mitchellh/go-homedir"]
+    version = "v1.1.0"
+    hash = "sha256-oduBKXHAQG8X6aqLEpqZHs5DOKe84u6WkBwi4W6cv3k="
+  [mod."github.com/mitchellh/go-wordwrap"]
+    version = "v1.0.1"
+    hash = "sha256-fiD7kh5037BjA0vW6A2El0XArkK+4S5iTBjJB43BNYo="
+  [mod."github.com/mitchellh/mapstructure"]
+    version = "v1.5.0"
+    hash = "sha256-ztVhGQXs67MF8UadVvG72G3ly0ypQW0IRDdOOkjYwoE="
+  [mod."github.com/moby/docker-image-spec"]
+    version = "v1.3.1"
+    hash = "sha256-xwSNLmMagzywdGJIuhrWl1r7cIWBYCOMNYbuDDT6Jhs="
+  [mod."github.com/moby/spdystream"]
+    version = "v0.5.0"
+    hash = "sha256-9gVkh6e3y75zBlCBhnwO3k+TL8jnRYg+hGYSFJRA42Y="
+  [mod."github.com/moby/sys/sequential"]
+    version = "v0.6.0"
+    hash = "sha256-ZNWZuuvn+iDYMsL08IU6wvXC4OfAa7rol4kaCvytZ64="
+  [mod."github.com/moby/term"]
+    version = "v0.5.0"
+    hash = "sha256-jy0kbkeUsr0KoiE33WLxNAgYXZIERKR2O5+saXBwdD8="
+  [mod."github.com/modern-go/concurrent"]
+    version = "v0.0.0-20180306012644-bacd9c7ef1dd"
+    hash = "sha256-OTySieAgPWR4oJnlohaFTeK1tRaVp/b0d1rYY8xKMzo="
+  [mod."github.com/modern-go/reflect2"]
+    version = "v1.0.3-0.20250322232337-35a7c28c31ee"
+    hash = "sha256-0pkWWZRB3lGFyzmlxxrm0KWVQo9HNXNafaUu3k+rE1g="
+  [mod."github.com/monochromegane/go-gitignore"]
+    version = "v0.0.0-20200626010858-205db1a8cc00"
+    hash = "sha256-j1Mgb2TUUIiBcXB+slOkjtvcjmqSMEsG5RZYE7vGXOU="
+  [mod."github.com/munnerz/goautoneg"]
+    version = "v0.0.0-20191010083416-a7dc8b61c822"
+    hash = "sha256-79URDDFenmGc9JZu+5AXHToMrtTREHb3BC84b/gym9Q="
+  [mod."github.com/mxk/go-flowrate"]
+    version = "v0.0.0-20140419014527-cca7078d478f"
+    hash = "sha256-gRTfRfff/LRxC1SXXnQd2tV3UTcTx9qu90DJIVIaGn8="
+  [mod."github.com/nozzle/throttler"]
+    version = "v0.0.0-20180817012639-2ea982251481"
+    hash = "sha256-pufLisYZW//uJXtCkobaU0Etnu+ZPQCqaRzRItx65hk="
+  [mod."github.com/oklog/ulid"]
+    version = "v1.3.1"
+    hash = "sha256-LNn883rYNiaoY9sGEPIzlMRx5UwGThdYTjXqfzeGc9k="
+  [mod."github.com/open-policy-agent/opa"]
+    version = "v1.4.0"
+    hash = "sha256-u1EjCkwaly2j1RnE6cVrGz9WH0aYT6a4vprQ/qxtIYc="
+  [mod."github.com/opencontainers/go-digest"]
+    version = "v1.0.0"
+    hash = "sha256-cfVDjHyWItmUGZ2dzQhCHgmOmou8v7N+itDkLZVkqkQ="
+  [mod."github.com/opencontainers/image-spec"]
+    version = "v1.1.1"
+    hash = "sha256-bxBjtl+6846Ed3QHwdssOrNvlHV6b+Dn17zPISSQGP8="
+  [mod."github.com/opentracing/opentracing-go"]
+    version = "v1.2.0"
+    hash = "sha256-kKTKFGXOsCF6QdVzI++GgaRzv2W+kWq5uDXOJChvLxM="
+  [mod."github.com/pelletier/go-toml/v2"]
+    version = "v2.2.3"
+    hash = "sha256-fE++SVgnCGdnFZoROHWuYjIR7ENl7k9KKxQrRTquv/o="
+  [mod."github.com/peterbourgon/diskv"]
+    version = "v2.0.1+incompatible"
+    hash = "sha256-K4mEVjH0eyxyYHQRxdbmgJT0AJrfucUwGB2BplRRt9c="
+  [mod."github.com/pjbgf/sha1cd"]
+    version = "v0.3.0"
+    hash = "sha256-kX9BdLh2dxtGNaDvc24NORO+C0AZ7JzbrXrtecCdB7w="
+  [mod."github.com/pkg/errors"]
+    version = "v0.9.1"
+    hash = "sha256-mNfQtcrQmu3sNg/7IwiieKWOgFQOVVe2yXgKBpe/wZw="
+  [mod."github.com/pmezard/go-difflib"]
+    version = "v1.0.1-0.20181226105442-5d4384ee4fb2"
+    hash = "sha256-XA4Oj1gdmdV/F/+8kMI+DBxKPthZ768hbKsO3d9Gx90="
+  [mod."github.com/posener/complete"]
+    version = "v1.2.3"
+    hash = "sha256-/17KFHD0SsGALg9iLXNIdvVFcotOO+H6bOOD5SY0MVs="
+  [mod."github.com/prometheus/client_golang"]
+    version = "v1.22.0"
+    hash = "sha256-OJ/9rlWG1DIPQJAZUTzjykkX0o+f+4IKLvW8YityaMQ="
+  [mod."github.com/prometheus/client_model"]
+    version = "v0.6.1"
+    hash = "sha256-rIDyUzNfxRA934PIoySR0EhuBbZVRK/25Jlc/r8WODw="
+  [mod."github.com/prometheus/common"]
+    version = "v0.62.0"
+    hash = "sha256-UFccvzMJaBrUpnqVgZgohRcgk5SKMi/UJnXNtazCnx8="
+  [mod."github.com/prometheus/procfs"]
+    version = "v0.15.1"
+    hash = "sha256-H+WXJemFFwdoglmD6p7JRjrJJZmIVAmJwYmLbZ8Q9sw="
+  [mod."github.com/riywo/loginshell"]
+    version = "v0.0.0-20200815045211-7d26008be1ab"
+    hash = "sha256-keDEue4jkpIVm9GxZYAAIvYlDjk/eilAT/xGanTcHo0="
+  [mod."github.com/robfig/cron/v3"]
+    version = "v3.0.1"
+    hash = "sha256-FUdqNbWYi5biQc/tjCeqzxu4iy4ot1ZvDU1M1wRf/6k="
+  [mod."github.com/russross/blackfriday/v2"]
+    version = "v2.1.0"
+    hash = "sha256-R+84l1si8az5yDqd5CYcFrTyNZ1eSYlpXKq6nFt4OTQ="
+  [mod."github.com/sagikazarmark/locafero"]
+    version = "v0.7.0"
+    hash = "sha256-ZmaGOKHDw18jJqdkwQwSpUT11F9toR6KPs3241TONeY="
+  [mod."github.com/sassoftware/relic"]
+    version = "v7.2.1+incompatible"
+    hash = "sha256-vHyTdLRh6OlfoGzVgvx7I0+E6tpE7V43lCQaHD/e8J4="
+  [mod."github.com/secure-systems-lab/go-securesystemslib"]
+    version = "v0.9.0"
+    hash = "sha256-udx/MagkwWVKMadScl/ucCsjmtipoxIwdeMRVMmfHQY="
+  [mod."github.com/sergi/go-diff"]
+    version = "v1.3.2-0.20230802210424-5b0b94c5c0d3"
+    hash = "sha256-UcLU83CPMbSoKI8RLvLJ7nvGaE2xRSL1RjoHCVkMzUM="
+  [mod."github.com/shibumi/go-pathspec"]
+    version = "v1.3.0"
+    hash = "sha256-ZHLft/o+xyJrUlaCwnCDqbjkPj6iIxlOuA0fFBuwVvM="
+  [mod."github.com/sigstore/cosign/v2"]
+    version = "v2.2.4"
+    hash = "sha256-sWj2cYeSaMcZfEDH1OVqNYtZt36KL+yolxgfkezeiLo="
+  [mod."github.com/sigstore/protobuf-specs"]
+    version = "v0.4.1"
+    hash = "sha256-wMS2AFpZfsSnVQ0N9HAtFjk95hmeePY7z+9pRMy+1Mc="
+  [mod."github.com/sigstore/rekor"]
+    version = "v1.3.6"
+    hash = "sha256-CaebnTyKR0b5BQzRCRxgsdnok3SnUzQhZubLeUV0hKQ="
+  [mod."github.com/sigstore/sigstore"]
+    version = "v1.9.4"
+    hash = "sha256-kyWeSLCnaQroVmxG3eTBcIaFgmHV2nsmgO1JaQCF+Zk="
+  [mod."github.com/sigstore/sigstore/pkg/signature/kms/aws"]
+    version = "v1.8.6"
+    hash = "sha256-bpk1JTy01JEptgO2wtlRj1+os6oN81zH+bhFlTTp5rY="
+  [mod."github.com/sigstore/sigstore/pkg/signature/kms/azure"]
+    version = "v1.8.6"
+    hash = "sha256-6XyyGLemp14hKyCzH81RxT8EWioW0p1evI3L0wXcaOg="
+  [mod."github.com/sigstore/sigstore/pkg/signature/kms/gcp"]
+    version = "v1.8.6"
+    hash = "sha256-SQoXkkBNkilF3AQdYt/TqXDmLnsNapO5u8PaM8cDtEE="
+  [mod."github.com/sigstore/sigstore/pkg/signature/kms/hashivault"]
+    version = "v1.8.6"
+    hash = "sha256-jWLZ5zVZIBN7jNChnOF8KR5Qeh3CL/NbrFE2zYLXAzQ="
+  [mod."github.com/sigstore/timestamp-authority"]
+    version = "v1.2.2"
+    hash = "sha256-GRTJlFnkbKyMhXZIH39RizGt2ya1zT8TZCvh7nL2T1k="
+  [mod."github.com/sirupsen/logrus"]
+    version = "v1.9.3"
+    hash = "sha256-EnxsWdEUPYid+aZ9H4/iMTs1XMvCLbXZRDyvj89Ebms="
+  [mod."github.com/skeema/knownhosts"]
+    version = "v1.3.0"
+    hash = "sha256-piR5IdfqxK9nxyErJ+IRDLnkaeNQwX93ztTFZyPm5MQ="
+  [mod."github.com/sourcegraph/conc"]
+    version = "v0.3.0"
+    hash = "sha256-mIdMs9MLAOBKf3/0quf1iI3v8uNWydy7ae5MFa+F2Ko="
+  [mod."github.com/spf13/afero"]
+    version = "v1.12.0"
+    hash = "sha256-TX3DcyAdrXqf+TxmEz4TilWQo2Y4hcBXOeRY6BjDp+s="
+  [mod."github.com/spf13/cast"]
+    version = "v1.7.1"
+    hash = "sha256-BjX0aY/PC37gIdMc7JhMgvhWFsksGdAcp2FgzpuvkPo="
+  [mod."github.com/spf13/cobra"]
+    version = "v1.9.1"
+    hash = "sha256-dzEqquABE3UqZmJuj99244QjvfojS8cFlsPr/MXQGj0="
+  [mod."github.com/spf13/pflag"]
+    version = "v1.0.6"
+    hash = "sha256-NjrK0FZPIfO/p2xtL1J7fOBQNTZAPZOC6Cb4aMMvhxI="
+  [mod."github.com/spf13/viper"]
+    version = "v1.20.1"
+    hash = "sha256-gbCM0k7RAlvn7jpSuWB2LX5Nip9vgwsPNGbDXTI7JvM="
+  [mod."github.com/stoewer/go-strcase"]
+    version = "v1.3.0"
+    hash = "sha256-X0ilcefeqVQ44B9WT6euCMcigs7oLFypOQaGI33kGr8="
+  [mod."github.com/subosito/gotenv"]
+    version = "v1.6.0"
+    hash = "sha256-LspbjTniiq2xAICSXmgqP7carwlNaLqnCTQfw2pa80A="
+  [mod."github.com/syndtr/goleveldb"]
+    version = "v1.0.1-0.20220721030215-126854af5e6d"
+    hash = "sha256-z7HzuNVmpAJalsebJ+X7jdXq7BykcOyfzhFT8os+euM="
+  [mod."github.com/theupdateframework/go-tuf"]
+    version = "v0.7.0"
+    hash = "sha256-YwQTq6V20iI46KufNAi+1P1qrn0ldZxsFRY7dhXbO1s="
+  [mod."github.com/titanous/rocacheck"]
+    version = "v0.0.0-20171023193734-afe73141d399"
+    hash = "sha256-r5XUB1A/doHNd5pu1cL0J8Jwy5IBtc8gQtG5NmKEYPU="
+  [mod."github.com/transparency-dev/merkle"]
+    version = "v0.0.2"
+    hash = "sha256-4KsqpIqgXlypi1X88PekMRfWJ/Y8tuww6DAuXar2+FY="
+  [mod."github.com/vbatts/tar-split"]
+    version = "v0.12.1"
+    hash = "sha256-LEHXoW+tQ473tc4TD0EjNuKA+cknGSVD5awG+rHzrY0="
+  [mod."github.com/vladimirvivien/gexe"]
+    version = "v0.4.1"
+    hash = "sha256-ndlNBuzhnkXScSjkb/GAFG3QaNNvK6mfaBiy+NaVZZc="
+  [mod."github.com/willabides/kongplete"]
+    version = "v0.4.0"
+    hash = "sha256-PIgYbQo/kbxm5wDBrf2RPZvlfxZK0ndEwrnviISCoxg="
+  [mod."github.com/x448/float16"]
+    version = "v0.8.4"
+    hash = "sha256-VKzMTMS9pIB/cwe17xPftCSK9Mf4Y6EuBEJlB4by5mE="
+  [mod."github.com/xanzy/go-gitlab"]
+    version = "v0.103.0"
+    hash = "sha256-em75KSL/I67W3ZNyT8ky2oLCWpQvFTbok9veoeSPfUE="
+  [mod."github.com/xanzy/ssh-agent"]
+    version = "v0.3.3"
+    hash = "sha256-l3pGB6IdzcPA/HLk93sSN6NM2pKPy+bVOoacR5RC2+c="
+  [mod."github.com/xlab/treeprint"]
+    version = "v1.2.0"
+    hash = "sha256-g85HyWGLZuD/TFXZzmXT+u9TA1xIT5escUVhnofsYQI="
+  [mod."go.mongodb.org/mongo-driver"]
+    version = "v1.14.0"
+    hash = "sha256-nG9fZIdSVExXLgJSrdp3ZU+X2lHhIyJRcvIEMRtnAWA="
+  [mod."go.opentelemetry.io/auto/sdk"]
+    version = "v1.1.0"
+    hash = "sha256-cA9qCCu8P1NSJRxgmpfkfa5rKyn9X+Y/9FSmSd5xjyo="
+  [mod."go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"]
+    version = "v0.61.0"
+    hash = "sha256-4pfXD7ErXhexSynXiEEQSAkWoPwHd7PEDE3M1Zi5gLM="
+  [mod."go.opentelemetry.io/otel"]
+    version = "v1.36.0"
+    hash = "sha256-j8wojdCtKal3LKojanHA8KXXQ0FkbWONpO8tUxpJDko="
+  [mod."go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"]
+    version = "v1.35.0"
+    hash = "sha256-cfB/X9Yeqia6d/AJChf5M0aOEtBte/J2jiKA6VkQlGY="
+  [mod."go.opentelemetry.io/otel/metric"]
+    version = "v1.36.0"
+    hash = "sha256-z6Uqi4HhUljWIYd58svKK5MqcGbpcac+/M8JeTrUtJ8="
+  [mod."go.opentelemetry.io/otel/trace"]
+    version = "v1.36.0"
+    hash = "sha256-owWD9x1lp8aIJqYt058BXPUsIMHdk3RI0escso0BxwA="
+  [mod."go.uber.org/multierr"]
+    version = "v1.11.0"
+    hash = "sha256-Lb6rHHfR62Ozg2j2JZy3MKOMKdsfzd1IYTR57r3Mhp0="
+  [mod."go.uber.org/zap"]
+    version = "v1.27.0"
+    hash = "sha256-8655KDrulc4Das3VRduO9MjCn8ZYD5WkULjCvruaYsU="
+  [mod."go.yaml.in/yaml/v2"]
+    version = "v2.4.2"
+    hash = "sha256-oC8RWdf1zbMYCtmR0ATy/kCkhIwPR9UqFZSMOKLVF/A="
+  [mod."go.yaml.in/yaml/v3"]
+    version = "v3.0.4"
+    hash = "sha256-NkGFiDPoCxbr3LFsI6OCygjjkY0rdmg5ggvVVwpyDQ4="
+  [mod."golang.org/x/crypto"]
+    version = "v0.45.0"
+    hash = "sha256-IpNesJYxFcs2jGvagwJrUD/gsJfA3UiETjQwYByXxSY="
+  [mod."golang.org/x/exp"]
+    version = "v0.0.0-20240808152545-0cdaa3abc0fa"
+    hash = "sha256-1rLGU6YhOS3LeSkrCT40AmdO7uuE3TC6NhSYH99XyL4="
+  [mod."golang.org/x/mod"]
+    version = "v0.29.0"
+    hash = "sha256-UaJLv8CdfUpnT4nArFSt8lLpFVAGHYmT7jaZ6vPGuEQ="
+  [mod."golang.org/x/net"]
+    version = "v0.47.0"
+    hash = "sha256-2qFgCd0YfNCGkLrf+xvnhQtKjSe8CymMdLlN3svUYTg="
+  [mod."golang.org/x/oauth2"]
+    version = "v0.30.0"
+    hash = "sha256-btD7BUtQpOswusZY5qIU90uDo38buVrQ0tmmQ8qNHDg="
+  [mod."golang.org/x/sync"]
+    version = "v0.18.0"
+    hash = "sha256-S8o6y7GOaYWeq+TzT8BB6T+1mg82Mu08V0TL3ukJprg="
+  [mod."golang.org/x/sys"]
+    version = "v0.38.0"
+    hash = "sha256-1+i5EaG3JwH3KMtefzJLG5R6jbOeJM4GK3/LHBVnSy0="
+  [mod."golang.org/x/term"]
+    version = "v0.37.0"
+    hash = "sha256-w7OZlNTd5sAhnDxrl9lKpKc1U/s2+MyZnmQPllJopMQ="
+  [mod."golang.org/x/text"]
+    version = "v0.31.0"
+    hash = "sha256-AT46RrSmV6+/d5FDhs9fPwYzmQ7WSo+YL9tPfhREwLw="
+  [mod."golang.org/x/time"]
+    version = "v0.11.0"
+    hash = "sha256-ImTej/e5iUHbWPZMA4M2GYbsbiiZQxIrgcnYsc7uD68="
+  [mod."golang.org/x/tools"]
+    version = "v0.38.0"
+    hash = "sha256-GeIkpuKtUfxxrOZLikNlZA3lMKhdyO++PVvXppBGmbw="
+  [mod."golang.org/x/tools/go/packages/packagestest"]
+    version = "v0.1.1-deprecated"
+    hash = "sha256-K3ljJg+gzsY/MAvrVSpWTzKlxOnXMCcsPHLQvH7JRbU="
+  [mod."gomodules.xyz/jsonpatch/v2"]
+    version = "v2.4.0"
+    hash = "sha256-2NqdGCsk0DuSvN3BkL8AtkpL+acAzs2qsEeBIOb/jNg="
+  [mod."google.golang.org/genproto/googleapis/api"]
+    version = "v0.0.0-20250303144028-a0af3efb3deb"
+    hash = "sha256-vLaU+mLnJXr5iYsw7canbeEWXyt0s5PvGefLJSUws5w="
+  [mod."google.golang.org/genproto/googleapis/rpc"]
+    version = "v0.0.0-20250303144028-a0af3efb3deb"
+    hash = "sha256-l/2ByVhr10DBqSp5y1d8mtEY3++RUZKg89FCEptT0nQ="
+  [mod."google.golang.org/grpc"]
+    version = "v1.72.1"
+    hash = "sha256-5JczomNvroKWtIYKDgXwaIaEfuNEK//MHPhJQiaxMXs="
+  [mod."google.golang.org/protobuf"]
+    version = "v1.36.11"
+    hash = "sha256-7W+6jntfI/awWL3JP6yQedxqP5S9o3XvPgJ2XxxsIeE="
+  [mod."gopkg.in/evanphx/json-patch.v4"]
+    version = "v4.12.0"
+    hash = "sha256-rUOokb3XW30ftpHp0fsF2WiJln1S0FSt2El7fTHq3CM="
+  [mod."gopkg.in/inf.v0"]
+    version = "v0.9.1"
+    hash = "sha256-z84XlyeWLcoYOvWLxPkPFgLkpjyb2Y4pdeGMyySOZQI="
+  [mod."gopkg.in/warnings.v0"]
+    version = "v0.1.2"
+    hash = "sha256-ATVL9yEmgYbkJ1DkltDGRn/auGAjqGOfjQyBYyUo8s8="
+  [mod."gopkg.in/yaml.v2"]
+    version = "v2.4.0"
+    hash = "sha256-uVEGglIedjOIGZzHW4YwN1VoRSTK8o0eGZqzd+TNdd0="
+  [mod."gopkg.in/yaml.v3"]
+    version = "v3.0.1"
+    hash = "sha256-FqL9TKYJ0XkNwJFnq9j0VvJ5ZUU1RvH/52h/f5bkYAU="
+  [mod."k8s.io/api"]
+    version = "v0.34.1"
+    hash = "sha256-Jf5Cbj4blJlxj3vAU0TKR8joddVquLqoFEg8PSsab+o="
+  [mod."k8s.io/apiextensions-apiserver"]
+    version = "v0.34.1"
+    hash = "sha256-2sAl5WMaNcZX9CvRcVYs8LzhYQovu06JS+yRd1UeZjA="
+  [mod."k8s.io/apimachinery"]
+    version = "v0.34.1"
+    hash = "sha256-y6GVugdaX81lHwVWgDgFoIi/v6K9A3YC2kKlGUritVU="
+  [mod."k8s.io/apiserver"]
+    version = "v0.34.1"
+    hash = "sha256-GLWzaSXF/ko0xr0hJ6eDVRr/GdBbOG0ACcSajZDPmRg="
+  [mod."k8s.io/cli-runtime"]
+    version = "v0.34.1"
+    hash = "sha256-s5yRTk0QmBoV0wSZT5jCJfKTRbBcAjEpCTmm1TxX4jo="
+  [mod."k8s.io/client-go"]
+    version = "v0.34.1"
+    hash = "sha256-WArPoSdqOeKzg1eHw6Ut1mYvoYFZba5eo1FVMn0k1E4="
+  [mod."k8s.io/code-generator"]
+    version = "v0.34.1"
+    hash = "sha256-cbS9Wbs/i36G6ZWvJ1drPhwt7vxDo82CMaw8AG3LD6Y="
+  [mod."k8s.io/component-base"]
+    version = "v0.34.1"
+    hash = "sha256-tVn/bA2JBICMLTdT4kvV/pIHsNsJ3e2SpZXAb8yCDyQ="
+  [mod."k8s.io/gengo/v2"]
+    version = "v2.0.0-20250604051438-85fd79dbfd9f"
+    hash = "sha256-5zImdaVKc5gPuxHA7apyJfGIDoeLE7e/aoWYvrhR4gA="
+  [mod."k8s.io/klog/v2"]
+    version = "v2.130.1"
+    hash = "sha256-n5vls1o1a0V0KYv+3SULq4q3R2Is15K8iDHhFlsSH4o="
+  [mod."k8s.io/kube-openapi"]
+    version = "v0.0.0-20250710124328-f3f2b991d03b"
+    hash = "sha256-0v0MN67pora3UCA8vXSJDgkosx/1RaB2HkjUnwdVLbY="
+  [mod."k8s.io/kubectl"]
+    version = "v0.34.1"
+    hash = "sha256-s8abeAowBpBNA80qqPEAm46fQOBJvpBWI5x8/E6KjuI="
+  [mod."k8s.io/metrics"]
+    version = "v0.34.1"
+    hash = "sha256-vlk5vnjLmB9LNyw98u7hPWn9dqfTKa9b7O+kV9wijCw="
+  [mod."k8s.io/utils"]
+    version = "v0.0.0-20250604170112-4c0f3b243397"
+    hash = "sha256-USPKRYYKfbhQWU0CgT/8V1hdBirWjmhTZvJCuuUlNFo="
+  [mod."sigs.k8s.io/controller-runtime"]
+    version = "v0.22.2"
+    hash = "sha256-4QAYzAmNrlTpoaITuyKx4yWK/DgDIlu/ywvJqar3xGU="
+  [mod."sigs.k8s.io/controller-tools"]
+    version = "v0.18.0"
+    hash = "sha256-p38I5tim3XYHWfO+nCQtymzZ1iy92m3F80HToSK0OoQ="
+  [mod."sigs.k8s.io/e2e-framework"]
+    version = "v0.6.0"
+    hash = "sha256-01RbO8VyfVp0LJHwSElLrhoS76loSeeoMcbgKJa78OI="
+  [mod."sigs.k8s.io/json"]
+    version = "v0.0.0-20241014173422-cfa47c3a1cc8"
+    hash = "sha256-dkegDkyjp/niYirIdhbQrBYt/uttCZQAfsBzKSzOMh0="
+  [mod."sigs.k8s.io/kind"]
+    version = "v0.30.0"
+    hash = "sha256-BHwrJ6qW4KA8UfM99GBHigM+fk+nxbeM7RoHHztU3cE="
+  [mod."sigs.k8s.io/kustomize/api"]
+    version = "v0.20.1"
+    hash = "sha256-kcZREdlFsFC7xaMRzvwkE+93lQJBTanImDJjgYMyzRU="
+  [mod."sigs.k8s.io/kustomize/kyaml"]
+    version = "v0.20.1"
+    hash = "sha256-k87zgSRMFVcph06vqMd4KG9kE1GzllxKu36mWKdSisY="
+  [mod."sigs.k8s.io/randfill"]
+    version = "v1.0.0"
+    hash = "sha256-xldQxDwW84hmlihdSOFfjXyauhxEWV9KmIDLZMTcYNo="
+  [mod."sigs.k8s.io/release-utils"]
+    version = "v0.8.3"
+    hash = "sha256-E7Qd5fk7EkyYzD3IPbhh0cIREMba+5zkRRxs0bzhbiQ="
+  [mod."sigs.k8s.io/structured-merge-diff/v6"]
+    version = "v6.3.0"
+    hash = "sha256-2EqUZSaHUhwTrdjoZuv+Z99tZYrX1E6rxf2ejeKd2BM="
+  [mod."sigs.k8s.io/yaml"]
+    version = "v1.6.0"
+    hash = "sha256-49hg7IVPzwxeovp+HTMiWa/10NMMTSTjAdCmIv6p9dw="
