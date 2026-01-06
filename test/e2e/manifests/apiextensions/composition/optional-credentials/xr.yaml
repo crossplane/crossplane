@@ -1,0 +1,9 @@
+apiVersion: example.org/v1alpha1
+kind: OptionalCredentialTest
+metadata:
+  name: optional-creds-xr
+spec:
+  testField: "test-value"
+  crossplane:
+    compositionRef:
+      name: optional-credentials-composition
