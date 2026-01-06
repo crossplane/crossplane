@@ -876,7 +876,7 @@ func TestForCompositeResource(t *testing.T) {
 												},
 												"compositionUpdatePolicy": {
 													Type:    "string",
-													Default: &extv1.JSON{Raw: []byte(fmt.Sprintf("\"%s\"", defaultCompositionUpdatePolicy))},
+													Default: &extv1.JSON{Raw: fmt.Appendf(nil, "\"%s\"", defaultCompositionUpdatePolicy)},
 													Enum: []extv1.JSON{
 														{Raw: []byte(`"Automatic"`)},
 														{Raw: []byte(`"Manual"`)},
@@ -2576,7 +2576,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 												},
 												"compositeDeletePolicy": {
 													Type:    "string",
-													Default: &extv1.JSON{Raw: []byte(fmt.Sprintf("\"%s\"", defaultPolicy))},
+													Default: &extv1.JSON{Raw: fmt.Appendf(nil, "\"%s\"", defaultPolicy)},
 													Enum: []extv1.JSON{
 														{Raw: []byte(`"Background"`)},
 														{Raw: []byte(`"Foreground"`)},

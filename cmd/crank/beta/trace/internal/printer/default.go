@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-
 	"text/tabwriter"
 
 	gcrname "github.com/google/go-containerregistry/pkg/name"

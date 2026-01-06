@@ -35,7 +35,7 @@ import (
 //
 //nolint:gochecknoglobals // These should be globals.
 var (
-	customResourceDefinition     = reflect.TypeOf(extv1.CustomResourceDefinition{}).Name()
+	customResourceDefinition     = reflect.TypeFor[extv1.CustomResourceDefinition]().Name()
 	customResourceDefinitionKind = extv1.SchemeGroupVersion.WithKind(customResourceDefinition)
 )
 

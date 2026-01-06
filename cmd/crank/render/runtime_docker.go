@@ -207,8 +207,8 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 	}
 
 	if i := fn.GetAnnotations()[AnnotationKeyRuntimeEnvironmentVariables]; i != "" {
-		pairs := strings.Split(i, ",")
-		for _, pair := range pairs {
+		pairs := strings.SplitSeq(i, ",")
+		for pair := range pairs {
 			if !strings.Contains(pair, "=") {
 				r.log.Debug("ignoring invalid environment variable", "pair", pair)
 				continue

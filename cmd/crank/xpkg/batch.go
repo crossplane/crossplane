@@ -21,8 +21,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -232,13 +234,7 @@ func (c *batchCmd) processService(logger logging.Logger, baseImgMap map[string]v
 // Optionally stores the provider package under the configured directory,
 // if the service name exists in the c.StorePackage slice.
 func (c *batchCmd) storePackage(logger logging.Logger, s string, imgs []packageImage) error {
-	found := false
-	for _, pkg := range c.StorePackages {
-		if pkg == s {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(c.StorePackages, s)
 	if !found {
 		return nil
 	}
@@ -509,9 +505,7 @@ func (c *batchCmd) getPackageMetadata(service string) (string, error) {
 	data["Service"] = service
 	data["Name"] = c.getPackageRepo(service)
 	// copy substitutions passed from the command-line
-	for k, v := range c.TemplateVar {
-		data[k] = v
-	}
+	maps.Copy(data, c.TemplateVar)
 
 	buff := &bytes.Buffer{}
 	err = tmpl.Execute(buff, data)
