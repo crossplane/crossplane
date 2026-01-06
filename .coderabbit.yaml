@@ -260,6 +260,15 @@ reviews:
       enabled: false
 
 # =============================================================================
+# ISSUE ENRICHMENT
+# Disable automatic issue enrichment (beta feature) - we only want PR reviews
+# =============================================================================
+
+issue_enrichment:
+  auto_enrich:
+    enabled: false
+
+# =============================================================================
 # CHAT
 # Interactive chat with CodeRabbit in PR comments. You can ask questions like:
 # - @coderabbitai explain this error handling approach
