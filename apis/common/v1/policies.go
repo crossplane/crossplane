@@ -17,7 +17,7 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/crossplane/crossplane/v2/apis/common"
+	"github.com/crossplane/crossplane/apis/v2/common"
 )
 
 // ManagementPolicies determine how should Crossplane controllers manage an

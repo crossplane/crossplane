@@ -17,7 +17,7 @@ limitations under the License.
 package protection
 
 import (
-	v1beta1 "github.com/crossplane/crossplane/v2/apis/protection/v1beta1"
+	v1beta1 "github.com/crossplane/crossplane/apis/v2/protection/v1beta1"
 )
 
 // A ResourceConverter converts a Resource to the internal implementation.

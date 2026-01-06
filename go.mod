@@ -2,6 +2,8 @@ module github.com/crossplane/crossplane/v2
 
 go 1.24.0
 
+replace github.com/crossplane/crossplane/apis/v2 => ./apis
+
 require (
 	dario.cat/mergo v1.0.2
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24
@@ -9,6 +11,7 @@ require (
 	github.com/alecthomas/kong v1.4.0
 	github.com/containerd/errdefs v1.0.0
 	github.com/crossplane/crossplane-runtime/v2 v2.2.0-rc.0
+	github.com/crossplane/crossplane/apis/v2 v2.0.0-00010101000000-000000000000
 	github.com/docker/docker v28.3.3+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/emicklei/dot v1.8.0

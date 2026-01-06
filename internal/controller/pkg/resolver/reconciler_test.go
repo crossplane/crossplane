@@ -42,7 +42,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/dag"
 	fakedag "github.com/crossplane/crossplane/v2/internal/dag/fake"
 	"github.com/crossplane/crossplane/v2/internal/features"

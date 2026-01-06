@@ -60,9 +60,9 @@ limitations under the License.
 //go:generate go tool -modfile=tools/go.mod controller-gen webhook paths=./apis/pkg/v1beta1;./apis/pkg/v1;./apis/apiextensions/v1alpha1;./apis/apiextensions/v1beta1;./apis/apiextensions/v1;./apis/protection/v1beta1 output:artifacts:config=./cluster/webhookconfigurations
 
 // Generate conversion code
-//go:generate go tool -modfile=tools/go.mod goverter gen -build-tags="" ./apis/apiextensions/v1
-//go:generate go tool -modfile=tools/go.mod goverter gen -build-tags="" ./apis/pkg/meta/v1alpha1
-//go:generate go tool -modfile=tools/go.mod goverter gen -build-tags="" ./apis/pkg/meta/v1beta1
+//go:generate go tool -modfile=tools/go.mod goverter gen -cwd=./apis -build-tags="" ./apiextensions/v1
+//go:generate go tool -modfile=tools/go.mod goverter gen -cwd=./apis -build-tags="" ./pkg/meta/v1alpha1
+//go:generate go tool -modfile=tools/go.mod goverter gen -cwd=./apis -build-tags="" ./pkg/meta/v1beta1
 //go:generate go tool -modfile=tools/go.mod goverter gen -build-tags="" ./internal/protection
 
 // Replicate identical gRPC APIs

@@ -146,6 +146,7 @@ go-modules:
   FROM +go-modules-tools
   CACHE --id go-build --sharing shared /root/.cache/go-build
   COPY go.mod go.sum ./
+  COPY --dir apis/ .
   RUN go mod download
   SAVE ARTIFACT go.mod AS LOCAL go.mod
   SAVE ARTIFACT go.sum AS LOCAL go.sum
@@ -251,7 +252,7 @@ go-test:
   FROM +go-modules
   CACHE --id go-build --sharing shared /root/.cache/go-build
   COPY --dir apis/ proto/ cmd/ internal/ .
-  RUN go test -covermode=count -coverprofile=coverage.txt ./...
+  RUN go test -covermode=count -coverprofile=coverage.txt ./... github.com/crossplane/crossplane/apis/v2/...
   SAVE ARTIFACT coverage.txt AS LOCAL _output/tests/coverage.txt
 
 # go-lint lints Go code.
