@@ -99,6 +99,10 @@ func (c *GeneratedRevisionSpecConverter) v1FunctionCredentialsToV1FunctionCreden
 	v1FunctionCredentials.Name = source.Name
 	v1FunctionCredentials.Source = c.v1FunctionCredentialsSourceToV1FunctionCredentialsSource(source.Source)
 	v1FunctionCredentials.SecretRef = c.pCommonSecretReferenceToPCommonSecretReference(source.SecretRef)
+	if source.Optional != nil {
+		xbool := *source.Optional
+		v1FunctionCredentials.Optional = &xbool
+	}
 	return v1FunctionCredentials
 }
 func (c *GeneratedRevisionSpecConverter) v1FunctionReferenceToV1FunctionReference(source FunctionReference) FunctionReference {
