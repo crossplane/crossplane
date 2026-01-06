@@ -36,7 +36,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/v2/apis"
+	"github.com/crossplane/crossplane/apis/v2"
 	"github.com/crossplane/crossplane/v2/cmd/crossplane/core"
 	"github.com/crossplane/crossplane/v2/cmd/crossplane/rbac"
 	"github.com/crossplane/crossplane/v2/internal/version"

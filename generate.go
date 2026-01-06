@@ -21,49 +21,10 @@ limitations under the License.
 // $PATH. Use './nix.sh develop' or './nix.sh run .#generate' to ensure they
 // are.
 
-// Remove existing manifests
-//go:generate rm -rf ./cluster/crds
-//go:generate rm -rf ./cluster/webhookconfigurations/manifests.yaml
-
-// Replicate identical API versions
-
-//go:generate ./hack/duplicate_api_type.sh apis/apiextensions/v1beta1/usage_types.go apis/apiextensions/v1alpha1 true
-
-//go:generate ./hack/duplicate_api_type.sh apis/pkg/v1/package_types.go apis/pkg/v1beta1
-//go:generate ./hack/duplicate_api_type.sh apis/pkg/v1/package_runtime_types.go apis/pkg/v1beta1
-//go:generate ./hack/duplicate_api_type.sh apis/pkg/v1/revision_types.go apis/pkg/v1beta1
-//go:generate ./hack/duplicate_api_type.sh apis/pkg/v1/function_types.go apis/pkg/v1beta1
-
-//go:generate ./hack/duplicate_api_type.sh apis/pkg/meta/v1/configuration_types.go apis/pkg/meta/v1alpha1
-//go:generate ./hack/duplicate_api_type.sh apis/pkg/meta/v1/provider_types.go apis/pkg/meta/v1alpha1
-//go:generate ./hack/duplicate_api_type.sh apis/pkg/meta/v1/function_types.go apis/pkg/meta/v1beta1
-//go:generate ./hack/duplicate_api_type.sh apis/pkg/meta/v1/meta.go apis/pkg/meta/v1alpha1
-//go:generate ./hack/duplicate_api_type.sh apis/pkg/meta/v1/meta.go apis/pkg/meta/v1beta1
-
-// NOTE(negz): We generate deepcopy methods and CRDs for each API group
-// separately because there seems to be an undiagnosed bug in controller-runtime
-// that causes some kubebuilder annotations to be ignored when we try to
-// generate them all together in one command.
-
-// Generate deepcopy methodsets and CRD manifests
-//go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/common/v1;./apis/common/v2
-//go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/pkg/v1beta1;./apis/pkg/v1 crd:crdVersions=v1,generateEmbeddedObjectMeta=true output:artifacts:config=./cluster/crds
-//go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/apiextensions/v1alpha1;./apis/apiextensions/v1beta1;./apis/apiextensions/v1;./apis/apiextensions/v2 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
-//go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/protection/v1beta1 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
-//go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/ops/v1alpha1 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
+// Generate deepcopy methodsets for internal APIs
 //go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./internal/protection
 
-// We generate the meta.pkg.crossplane.io types separately as the generated CRDs
-// are never installed, only used for API documentation.
-//go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/pkg/meta/... crd:crdVersions=v1 output:artifacts:config=./cluster/meta
-
-// Generate webhook manifests
-//go:generate controller-gen webhook paths=./apis/pkg/v1beta1;./apis/pkg/v1;./apis/apiextensions/v1alpha1;./apis/apiextensions/v1beta1;./apis/apiextensions/v1;./apis/protection/v1beta1 output:artifacts:config=./cluster/webhookconfigurations
-
 // Generate conversion code
-//go:generate goverter gen -build-tags="" ./apis/apiextensions/v1
-//go:generate goverter gen -build-tags="" ./apis/pkg/meta/v1alpha1
-//go:generate goverter gen -build-tags="" ./apis/pkg/meta/v1beta1
 //go:generate goverter gen -build-tags="" ./internal/protection
 
 // Replicate identical gRPC APIs

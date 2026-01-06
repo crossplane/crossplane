@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 )
 
 type errorWriter struct{}

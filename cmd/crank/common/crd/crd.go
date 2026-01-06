@@ -9,7 +9,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	// xcrd is the reason this has to live in util and not downstream in contrib; the internal reference here.
 	// TODO:  can we expose it?  should we?
 	"github.com/crossplane/crossplane/v2/internal/xcrd"

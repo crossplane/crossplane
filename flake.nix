@@ -118,8 +118,11 @@
         in
         {
           test = checks.test { inherit version; };
+          test-apis = checks.testAPIs { inherit version; };
           generate = checks.generate { inherit version; };
+          generate-apis = checks.generateAPIs { inherit version; };
           go-lint = checks.goLint { inherit version; };
+          go-lint-apis = checks.goLintAPIs { inherit version; };
           helm-lint = checks.helmLint { };
           shell-lint = checks.shellLint { };
           nix-lint = checks.nixLint { };
