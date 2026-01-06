@@ -34,8 +34,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 )
 
 //go:embed testdata

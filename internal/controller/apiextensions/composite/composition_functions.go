@@ -42,7 +42,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
 	"github.com/crossplane/crossplane/v2/internal/names"
 	"github.com/crossplane/crossplane/v2/internal/ssa"

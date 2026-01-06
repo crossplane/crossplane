@@ -16,7 +16,7 @@ limitations under the License.
 
 package protection
 
-import "github.com/crossplane/crossplane/v2/apis/apiextensions/v1beta1"
+import "github.com/crossplane/crossplane/apis/v2/apiextensions/v1beta1"
 
 // A LegacyResourceConverter converts a Resource to the internal implementation.
 //

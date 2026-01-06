@@ -27,7 +27,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 
-	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 )
 
 func TestLatestCreateTime(t *testing.T) {

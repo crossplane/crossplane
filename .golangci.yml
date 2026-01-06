@@ -125,6 +125,9 @@ linters:
           paramsOnly: true
         rangeValCopy:
           sizeThreshold: 32
+    gomoddirectives:
+      # Allow replace for the local ./apis module.
+      replace-local: true
     govet:
       disable:
         - shadow
