@@ -34,6 +34,7 @@
   labels: [
     'automated',
   ],
+  // customManagers for Earthfile on release branches (main uses Nix)
   customManagers: [
     {
       customType: 'regex',
@@ -174,13 +175,12 @@
       matchDatasources: [
         'go',
       ],
-      // Currently we only have an Earthfile on main and some release branches, so we ignore the ones we know don't have it.
       matchBaseBranches: [
-        '!/release-1\.16/',
+        'main',
       ],
       postUpgradeTasks: {
         commands: [
-          'earthly --strict +go-generate',
+          'nix run .#generate',
         ],
         fileFilters: [
           '**/*',
@@ -193,14 +193,13 @@
       matchDatasources: [
         'go',
       ],
-      // Currently we only have an Earthfile on main and some release branches, so we only run this on older release branches.
+      // Release branches still use Earthly.
       matchBaseBranches: [
-        'release-1.16',
+        '/^release-.*/',
       ],
       postUpgradeTasks: {
-        // Post-upgrade tasks that are executed before a commit is made by Renovate.
         commands: [
-          'make go.generate',
+          'earthly --strict +go-generate',
         ],
         fileFilters: [
           '**/*',
@@ -213,14 +212,12 @@
       matchDepNames: [
         'golangci/golangci-lint',
       ],
-      // Currently we only have an Earthfile on main and some release branches, so we ignore the ones we know don't have it.
       matchBaseBranches: [
-        '!/release-1\.16/',
+        'main',
       ],
       postUpgradeTasks: {
-        // Post-upgrade tasks that are executed before a commit is made by Renovate.
         commands: [
-          'earthly --strict +go-lint',
+          'nix run .#lint',
         ],
         fileFilters: [
           '**/*',
@@ -233,14 +230,13 @@
       matchDepNames: [
         'golangci/golangci-lint',
       ],
-      // Currently we only have an Earthfile on main and some release branches, so we only run this on older release branches.
+      // Release branches still use Earthly.
       matchBaseBranches: [
-        'release-1.16',
+        '/^release-.*/',
       ],
       postUpgradeTasks: {
-        // Post-upgrade tasks that are executed before a commit is made by Renovate.
         commands: [
-          'make go.lint',
+          'earthly --strict +go-lint',
         ],
         fileFilters: [
           '**/*',

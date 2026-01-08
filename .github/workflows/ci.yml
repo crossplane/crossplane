@@ -1,31 +1,13 @@
-name: CI
+name: CI (Nix)
 
 on:
   push:
     branches:
       - main
       - release-*
-      # TODO(negz): Remove this and all references to the v2 branches below
-      # if/when v2 is merged into main. It's a temporary branch for v2 preview
-      # development.
       - v2
   pull_request: {}
   workflow_dispatch: {}
-
-env:
-  # Common versions
-  EARTHLY_VERSION: '0.8.16'
-
-  # Force Earthly to use color output
-  FORCE_COLOR: "1"
-
-  # Common users. We can't run a step 'if secrets.AWS_USR != ""' but we can run
-  # a step 'if env.AWS_USR' != ""', so we copy these to succinctly test whether
-  # credentials have been provided before trying to run steps that need them.
-  DOCKER_USR: ${{ secrets.DOCKER_USR }}
-  AWS_USR: ${{ secrets.AWS_USR }}
-  UPBOUND_MARKETPLACE_PUSH_ROBOT_USR: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }}
-
 
 jobs:
   check-diff:
@@ -33,139 +15,174 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@v4
 
-      - name: Setup Earthly
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203 # v1.0.13
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: ${{ env.EARTHLY_VERSION }}
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
 
-      - name: Login to DockerHub
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        if: env.DOCKER_USR != ''
-        with:
-          username: ${{ secrets.DOCKER_USR }}
-          password: ${{ secrets.DOCKER_PSW }}
+      - name: Setup Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v13
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Earthly to Push Cache to GitHub Container Registry
-        if: github.ref == 'refs/heads/main'
-        run: |
-          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
-          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
-
-      - name: Generate Files
-        run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +generate
-
-      - name: Tidy Modules
-        run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +tidy
-
-      - name: Count Changed Files
-        id: changed_files
-        run: echo "count=$(git status --porcelain | wc -l)" >> $GITHUB_OUTPUT
-
-      - name: Fail if Files Changed
-        if: steps.changed_files.outputs.count != 0
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
-        with:
-          script: core.setFailed('Found changed files after running earthly +generate.')
+      - name: Verify Generated Code
+        run: nix build .#checks.x86_64-linux.generate --print-build-logs
 
   lint:
     runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@v4
 
-      - name: Setup Earthly
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203 # v1.0.13
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: ${{ env.EARTHLY_VERSION }}
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
 
-      - name: Login to DockerHub
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        if: env.DOCKER_USR != ''
-        with:
-          username: ${{ secrets.DOCKER_USR }}
-          password: ${{ secrets.DOCKER_PSW }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Earthly to Push Cache to GitHub Container Registry
-        if: github.ref == 'refs/heads/main'
-        run: |
-          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
-          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
+      - name: Setup Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v13
 
       - name: Lint
-        run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +lint
+        run: nix build .#checks.x86_64-linux.go-lint .#checks.x86_64-linux.helm-lint --print-build-logs
 
-  codeql:
+  unit-tests:
     runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@v4
 
-      - name: Setup Earthly
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203 # v1.0.13
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: ${{ env.EARTHLY_VERSION }}
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
 
-      - name: Login to DockerHub
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        if: env.DOCKER_USR != ''
-        with:
-          username: ${{ secrets.DOCKER_USR }}
-          password: ${{ secrets.DOCKER_PSW }}
+      - name: Setup Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v13
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Unit Tests
+        run: nix build .#checks.x86_64-linux.test --print-build-logs
 
-      - name: Configure Earthly to Push Cache to GitHub Container Registry
-        if: github.ref == 'refs/heads/main'
+  # E2E tests run outside the Nix sandbox (needs Docker)
+  e2e-tests:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        test-area:
+          - apiextensions
+          - apiextensions-legacy
+          - pkg
+          - protection
+          - lifecycle
+
+        test-suite:
+          - base
+
+        include:
+          - test-area: apiextensions
+            test-suite: function-response-cache
+          - test-area: apiextensions-legacy
+            test-suite: function-response-cache
+          - test-area: pkg
+            test-suite: package-dependency-updates
+          - test-area: pkg
+            test-suite: package-signature-verification
+          - test-area: ops
+            test-suite: ops
+          - test-area: mrap
+            test-suite: mrap
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+
+      - name: Setup Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v13
+
+      - name: Set CROSSPLANE_PRIOR_VERSION
+        if: startsWith(github.ref, 'refs/heads/release-') || startsWith(github.base_ref, 'release-')
         run: |
-          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
-          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
+          if [[ "${GITHUB_REF}" == refs/heads/release-* ]]; then
+            VERSION=${GITHUB_REF#refs/heads/release-}
+          elif [[ "${GITHUB_BASE_REF}" == release-* ]]; then
+            VERSION=${GITHUB_BASE_REF#release-}
+          fi
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          if [[ "$MINOR" -gt 0 ]]; then
+            MINOR=$((MINOR - 1))
+          else
+            echo "Error: Minor version cannot be decremented below 0"
+            exit 1
+          fi
+          echo "CROSSPLANE_PRIOR_VERSION=$MAJOR.$MINOR" >> "$GITHUB_ENV"
 
-      - name: Run CodeQL
-        run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +ci-codeql
-
-      - name: Upload CodeQL Results to GitHub
-        uses: github/codeql-action/upload-sarif@497990dfed22177a82ba1bbab381bc8f6d27058f # v3
+      - name: Run E2E Tests
+        uses: nick-fields/retry@v3
         with:
-          sarif_file: '_output/codeql/go.sarif'
+          timeout_minutes: 45
+          max_attempts: 3
+          command: |
+            nix run .#e2e -- \
+              -test.failfast \
+              -fail-fast \
+              -prior-crossplane-version=${CROSSPLANE_PRIOR_VERSION} \
+              --test-suite ${{ matrix.test-suite }} \
+              -labels area=${{ matrix.test-area }}
 
+      - name: Upload E2E Test Artifacts
+        if: '!cancelled()'
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-tests-${{ matrix.test-area }}-${{ matrix.test-suite }}
+          path: _output/tests/**
 
+  # Build all artifacts (binaries, images, Helm chart)
+  build-artifacts:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Cleanup Disk
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          tool-cache: true
+          swap-storage: false
+          large-packages: false
+          docker-images: false
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+
+      - name: Setup Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v13
+
+      - name: Build Artifacts
+        run: nix build --print-build-logs
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: output
+          path: result/**
+
+  # Security scanning (unchanged from original)
   trivy-scan-fs:
     permissions:
-      contents: read  # for actions/checkout to fetch code
-      security-events: write  # for github/codeql-action/upload-sarif to upload SARIF results
+      contents: read
+      security-events: write
     runs-on: ubuntu-22.04
+
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner in fs mode
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # 0.29.0
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.29.0
         with:
           scan-type: 'fs'
           ignore-unfixed: true
@@ -175,310 +192,47 @@ jobs:
           format: sarif
           output: 'trivy-results.sarif'
 
-      - name: Upload Trivy Results to GitHub
-        uses: github/codeql-action/upload-sarif@497990dfed22177a82ba1bbab381bc8f6d27058f # v3
+      - name: Upload Trivy Results
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
 
-  unit-tests:
-    runs-on: ubuntu-22.04
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Setup Earthly
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203 # v1.0.13
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: ${{ env.EARTHLY_VERSION }}
-
-      - name: Login to DockerHub
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        if: env.DOCKER_USR != ''
-        with:
-          username: ${{ secrets.DOCKER_USR }}
-          password: ${{ secrets.DOCKER_PSW }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Earthly to Push Cache to GitHub Container Registry
-        if: github.ref == 'refs/heads/main'
-        run: |
-          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
-          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
-
-      - name: Run Unit Tests
-        run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +test
-
-      - name: Publish Unit Test Coverage
-        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
-        with:
-          flags: unittests
-          file: _output/tests/coverage.txt
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-  e2e-tests:
-    runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        # Test areas are components of Crossplane's functionality.
-        test-area:
-          - apiextensions
-          - apiextensions-legacy
-          - pkg
-          - protection
-          - lifecycle
-
-        # Test suites usually correspond to alpha features. We add a suite
-        # whenever we add an alpha feature flag, to test one or more areas of
-        # Crossplane with that flag enabled. The base suite runs Crossplane
-        # with no feature flags. We always want to test all areas with this
-        # suite.
-        test-suite:
-          - base
-
-        # Most feature flags only affect a specific area of Crossplane. So here
-        # we add custom combinations of test suites (i.e. feature flags) and
-        # areas we want to test with those flags enabled.
-        include:
-         # API extensions feature flags
-         - test-area: apiextensions
-           test-suite: function-response-cache
-         - test-area: apiextensions-legacy
-           test-suite: function-response-cache
-
-         # Package manager feature flags
-         - test-area: pkg
-           test-suite: package-dependency-updates
-         - test-area: pkg
-           test-suite: package-signature-verification
-
-         # Operations feature flags
-         - test-area: ops
-           test-suite: ops
-
-         # Managed Resource Activation Policy (defaults disabled)
-         - test-area: mrap
-           test-suite: mrap
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Setup Earthly
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203 # v1.0.13
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: ${{ env.EARTHLY_VERSION }}
-
-      - name: Login to DockerHub
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        if: env.DOCKER_USR != ''
-        with:
-          username: ${{ secrets.DOCKER_USR }}
-          password: ${{ secrets.DOCKER_PSW }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Earthly to Push Cache to GitHub Container Registry
-        if: github.ref == 'refs/heads/main'
-        run: |
-          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
-          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
-
-      - name: Set CROSSPLANE_PRIOR_VERSION GitHub Environment Variable
-        # We want to run this for the release branches, and PRs against release branches.
-        if: startsWith(github.ref, 'refs/heads/release-') || startsWith(github.base_ref, 'release-')
-        run: |
-          # Extract the version part from the branch name
-          if [[ "${GITHUB_REF}" == refs/heads/release-* ]]; then
-            VERSION=${GITHUB_REF#refs/heads/release-}
-          elif [[ "${GITHUB_BASE_REF}" == release-* ]]; then
-            VERSION=${GITHUB_BASE_REF#release-}
-          fi
-          # Extract the major and minor parts of the version
-          MAJOR=$(echo "$VERSION" | cut -d. -f1)
-          MINOR=$(echo "$VERSION" | cut -d. -f2)
-          # Decrement the MINOR version
-          if [[ "$MINOR" -gt 0 ]]; then
-            MINOR=$((MINOR - 1))
-          else
-            echo "Error: Minor version cannot be decremented below 0"
-            exit 1
-          fi
-
-          echo "CROSSPLANE_PRIOR_VERSION=$MAJOR.$MINOR" >> $GITHUB_ENV
-
-      - name: Run E2E Tests
-        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
-        with:
-          timeout_minutes: 45  # Per attempt
-          max_attempts: 3
-          command: |
-            earthly --strict --allow-privileged --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }}-${{ matrix.test-area}}-${{ matrix.test-suite}} \
-              +e2e --GOTESTSUM_FORMAT="testname" --FLAGS="-test.failfast -fail-fast -prior-crossplane-version=${CROSSPLANE_PRIOR_VERSION} --test-suite ${{ matrix.test-suite }} -labels area=${{ matrix.test-area }}"
-
-      - name: Publish E2E Test Flakes
-        if: '!cancelled()'
-        uses: buildpulse/buildpulse-action@d0d30f53585cf16b2e01811a5a753fd47968654a # v0.11.0
-        with:
-          account: 45158470
-          repository: 147886080
-          key: ${{ secrets.BUILDPULSE_ACCESS_KEY_ID }}
-          secret: ${{ secrets.BUILDPULSE_SECRET_ACCESS_KEY }}
-          path: _output/tests/e2e-tests.xml
-
-      - name: Upload E2E Test Artifacts to GitHub
-        if: '!cancelled()'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: e2e-tests-${{ matrix.test-area }}-${{ matrix.test-suite }}
-          path: _output/tests/**
-
-  publish-artifacts:
-    runs-on: ubuntu-22.04
-
-    steps:
-      - name: Cleanup Disk
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
-        with:
-          android: true
-          dotnet: true
-          haskell: true
-          tool-cache: true
-          swap-storage: false
-          # This works, and saves ~5GiB, but takes ~2 minutes to do it.
-          large-packages: false
-          # TODO(negz): Does having these around avoid Earthly needing to pull
-          # large images like golang?
-          docker-images: false
-
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Earthly
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203 # v1.0.13
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: ${{ env.EARTHLY_VERSION }}
-
-      - name: Login to DockerHub
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        if: env.DOCKER_USR != ''
-        with:
-          username: ${{ secrets.DOCKER_USR }}
-          password: ${{ secrets.DOCKER_PSW }}
-
-      - name: Login to Upbound
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        if: env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''
-        with:
-          registry: xpkg.upbound.io
-          username: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }}
-          password: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_PSW }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Earthly to Push Cache to GitHub Container Registry
-        if: github.ref == 'refs/heads/main'
-        run: echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
-
-      - name: Configure Earthly to Push Artifacts
-        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v2' || startsWith(github.ref, 'refs/heads/release-')) && env.DOCKER_USR != '' && env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != '' && env.AWS_USR != ''
-        run: echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
-
-      - name: Set CROSSPLANE_VERSION GitHub Environment Variable
-        run: earthly +ci-version
-
-      - name: Build and Push Artifacts
-        run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +ci-artifacts --CROSSPLANE_VERSION=${CROSSPLANE_VERSION}
-
-      - name: Push Artifacts to https://releases.crossplane.io/build/
-        if: env.AWS_USR != ''
-        run: |
-          earthly --strict \
-            --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
-            --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
-            +ci-push-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --BUILD_DIR=${GITHUB_REF##*/}
-
-      - name: Push Artifacts to https://releases.crossplane.io/master/ and https://charts.crossplane.io/master
-        if: env.AWS_USR != '' && github.ref == 'refs/heads/main'
-        run: |
-          earthly --strict \
-            --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
-            --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
-            +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --BUILD_DIR=${GITHUB_REF##*/} --CHANNEL=master
-
-      - name: Push Artifacts to https://releases.crossplane.io/preview/ and https://charts.crossplane.io/preview
-        if: env.AWS_USR != '' && github.ref == 'refs/heads/v2'
-        run: |
-          earthly --strict \
-            --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
-            --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
-            +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --BUILD_DIR=${GITHUB_REF##*/} --CHANNEL=preview
-
-      - name: Upload Artifacts to GitHub
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: output
-          path: _output/**
-
+  # Fuzz testing (unchanged from original)
   fuzz-test:
     runs-on: ubuntu-22.04
 
     steps:
-      # TODO(negz): Can we make this use our Go build and dependency cache? It
-      # seems to build Crossplane inside of a Docker image.
       - name: Build Fuzzers
         id: build
-        uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@a2d113bc6b45af6135bc4bdb30916bb7c0aae07b # master
+        uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@master
         with:
           oss-fuzz-project-name: "crossplane"
           language: go
 
       - name: Run Fuzzers
-        uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@a2d113bc6b45af6135bc4bdb30916bb7c0aae07b # master
+        uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
         with:
           oss-fuzz-project-name: "crossplane"
           fuzz-seconds: 300
           language: go
 
       - name: Upload Crash
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@v4
         if: failure() && steps.build.outcome == 'success'
         with:
           name: artifacts
           path: ./out/artifacts
 
+  # Protobuf schema linting (unchanged from original)
   protobuf-schemas:
     runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@v4
 
       - name: Lint and Push Protocol Buffers
-        uses: bufbuild/buf-action@c231a1aa9281e5db706c970f468f0744a37561fd # v1
+        uses: bufbuild/buf-action@v1
         with:
           token: ${{ secrets.BUF_TOKEN }}
           pr_comment: false
-

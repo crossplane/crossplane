@@ -57,7 +57,7 @@ reviews:
     - "**/*.md"
     - "**/*.proto"
     - "**/Dockerfile*"
-    - "**/Earthfile"
+    - "**/flake.nix"
     - "**/*.sh"
     
     # Exclude generated and vendor files
@@ -71,7 +71,6 @@ reviews:
     - "!**/testdata/**"
     - "!**/dist/**"
     - "!**/build/**"
-    - "!**/.tmp-earthly-out/**"
   
   # Path-specific instructions for different areas of the codebase
   path_instructions:

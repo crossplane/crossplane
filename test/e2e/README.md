@@ -17,86 +17,52 @@ All Crossplane features must be exercised by these tests, as well as unit tests.
 
 ## Running Tests
 
-Run `earthly -P +e2e` to run E2E tests.
+Run `nix run .#e2e` to run E2E tests.
 
-This compiles Crossplane and an E2E test binary. It then uses the test binary to
-run the base test suite. Use the `FLAGS` to pass flags to the test binary. For
-example:
+This builds the Crossplane image and loads it into Docker, then runs the E2E
+test binary. Use `--` to pass flags to the test binary. For example:
 
 ```shell
 # Some functions that setup the test environment (e.g. kind) use the klog logger
 # The -v flag controls the verbosity of klog. Use -v=4 for debug logging.
-earthly -P +e2e --FLAGS="-v=4"
+nix run .#e2e -- -v=4
 
 # To run only a specific test, match it by regular expression
-earthly -P +e2e --FLAGS="-test.run ^TestConfiguration"
+nix run .#e2e -- -test.run ^TestConfiguration
 
 # To test features with certain labels, use the labels flag
-earthly -P +e2e --FLAGS="-labels area=apiextensions"
+nix run .#e2e -- -labels area=apiextensions
 
 # To test a specific feature, use the feature flag
-earthly -P +e2e --FLAGS="-feature=ConfigurationWithDependency"
+nix run .#e2e -- -feature=ConfigurationWithDependency
 
 # Stop immediately on first test failure, and leave the kind cluster to debug.
-earthly -i -P +e2e --FLAGS="-test.failfast -fail-fast -destroy-kind-cluster=false"
+nix run .#e2e -- -test.failfast -fail-fast -destroy-kind-cluster=false
 
 # Run a specific test suite.
-earthly -P +e2e --FLAGS="-test.v -test-suite=composition-webhook-schema-validation"
+nix run .#e2e -- -test.v -test-suite=composition-webhook-schema-validation
 ```
 
 ### Accessing the Test Cluster
 
-Earthly runs e2e tests in a buildkit container, which is not directly accessible
-from host via regular `docker ps` and `docker exec` commands. To access the
-cluster, you can use the following commands:
-
-0. Make sure you have started the tests with the `-i` flag. For example:
+E2E tests run directly on your host machine. The test creates a `kind` cluster
+that you can access with `kubectl`:
 
 ```bash
-earthly -i -P +e2e --FLAGS="-v=4"
-```
-
-1. Get the container ID of the buildkit container
-```bash
-$ docker ps | grep earthly/buildkitd
-$ export EARTHLY_CONTAINER_ID=<container_id>
-```
-
-2. Find the id of the runc container running in earthly
-```bash
-$ docker exec $EARTHLY_CONTAINER_ID buildkit-runc list
-# Export the container id of the runc container
-$ export RUNC_CONTAINER_ID=<container_id>
-```
-
-In case you have only one earthly job running, you can use the following
-shortcut to get the runc container id:
-
-```bash
-$ export RUNC_CONTAINER_ID=$(docker exec $EARTHLY_CONTAINER_ID buildkit-runc list -q)
-```
-
-3. Exec into the runc container and access the cluster
-
-```bash
-# Exec into the runc container
-$ docker exec -ti $EARTHLY_CONTAINER_ID buildkit-runc exec -t $RUNC_CONTAINER_ID sh
 # See the kind cluster
-$ kind get clusters
-crossplane-e2e-7eda80e167ed36325
-# Install kubectl
-$ apk add kubectl
-# Now you can use kubectl to access the cluster
+kind get clusters
+
+# Access the cluster (kind automatically configures kubectl context)
+kubectl get pods -A
 ```
+
+If you ran tests with `-destroy-kind-cluster=false`, the cluster remains
+available for debugging after the test completes.
 
 ### Running Tests Directly
 
-The E2E tests are typically run via `earthly` for convenience and consistency.
-However, this introduces additional layers that can make it challenging to debug
-issues (see [Accessing the Test Cluster](#accessing-the-test-cluster) above). An
-alternative is to run the tests more directly by basically manually running a
-couple critical commands that `earthly` would normally run for you inside of its
-build container.
+An alternative to `nix run .#e2e` is to run the tests more directly by
+compiling and running the E2E test binary yourself.
 
 First compile the E2E test binary:
 ```shell
@@ -114,7 +80,7 @@ you'll need to manually delete it when you're done.
 
 ## Test Parallelism
 
-`earthly -P +e2e` runs all defined E2E tests serially. Tests do not run in
+`nix run .#e2e` runs all defined E2E tests serially. Tests do not run in
 parallel. This is because all tests run against the same API server and
 Crossplane has a lot of cluster-scoped state - XRDs, Providers, Compositions,
 etc. It's easier and less error-prone to write tests when you don't have to
