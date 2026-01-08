@@ -414,11 +414,8 @@ func findComposition(filesystem afero.Fs, searchDir, compositionName string) (*v
 		// Try to load as a Composition
 		composition, err := render.LoadComposition(filesystem, path)
 		if err != nil {
-			// Only skip if it's not a composition; other errors should be returned
-			if strings.Contains(err.Error(), "not a composition") {
-				return nil
-			}
-			return err
+			// Not a valid composition file, skip it
+			return nil
 		}
 
 		if composition.Name == compositionName {
