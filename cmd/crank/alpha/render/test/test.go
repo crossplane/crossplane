@@ -382,25 +382,22 @@ func loadContexts(filesystem afero.Fs, dir string, renderInputs *render.Inputs, 
 	return nil
 }
 
-// marshalOutputs converts render outputs to YAML bytes separated by ---.
+// marshalOutputs marshals composite and composed resources to YAML documents.
 func marshalOutputs(outputs render.Outputs) ([]byte, error) {
-	// Pre-allocate slice with known capacity
-	yamlDocs := make([][]byte, 0, len(outputs.ComposedResources)+1)
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
 
-	xrYAML, err := yaml.Marshal(outputs.CompositeResource.Object)
-	if err != nil {
+	buf.Write([]byte("---\n"))
+	if err := enc.Encode(outputs.CompositeResource.Object); err != nil {
 		return nil, errors.Wrap(err, "cannot marshal composite resource to YAML")
 	}
-	yamlDocs = append(yamlDocs, xrYAML)
 
 	for _, composed := range outputs.ComposedResources {
-		composedYAML, err := yaml.Marshal(composed.Object)
-		if err != nil {
+		if err := enc.Encode(composed.Object); err != nil {
 			return nil, errors.Wrap(err, "cannot marshal composed resource to YAML")
 		}
-		yamlDocs = append(yamlDocs, composedYAML)
 	}
 
-	// Join with yaml document separator
-	return bytes.Join(yamlDocs, []byte("---\n")), nil
+	return buf.Bytes(), nil
 }
