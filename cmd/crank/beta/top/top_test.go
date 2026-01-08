@@ -12,13 +12,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
 
 type errorWriter struct{}
 
-func (w *errorWriter) Write(p []byte) (n int, err error) {
-    return 0, fmt.Errorf("write error")
+func (w *errorWriter) Write(_ []byte) (n int, err error) {
+	return 0, fmt.Errorf("write error")
 }
 
 func TestGetCrossplanePods(t *testing.T) {
@@ -177,7 +178,7 @@ func TestPrintPodsTable(t *testing.T) {
 		"NoPodsFound": {
 			reason:         "Should return header when no pods are found",
 			crossplanePods: []topMetrics{},
-			writer:         &bytes.Buffer{},   
+			writer:         &bytes.Buffer{},
 			want: want{
 				results: `
 TYPE   NAMESPACE   NAME   CPU(cores)   MEMORY
@@ -196,7 +197,7 @@ TYPE   NAMESPACE   NAME   CPU(cores)   MEMORY
 					MemoryUsage:  resource.MustParse("512Mi"),
 				},
 			},
-			writer:         &bytes.Buffer{},
+			writer: &bytes.Buffer{},
 			want: want{
 				results: `
 TYPE         NAMESPACE           NAME             CPU(cores)   MEMORY
@@ -223,7 +224,7 @@ crossplane   crossplane-system   crossplane-123   100m         512Mi
 					MemoryUsage:  resource.MustParse("1024Mi"),
 				},
 			},
-			writer:         &bytes.Buffer{},
+			writer: &bytes.Buffer{},
 			want: want{
 				results: `
 TYPE         NAMESPACE           NAME             CPU(cores)   MEMORY
@@ -244,13 +245,12 @@ function     crossplane-system   function-123     200m         1024Mi
 					MemoryUsage:  resource.MustParse("512Mi"),
 				},
 			},
-			writer:         &errorWriter{},
+			writer: &errorWriter{},
 			want: want{
 				results: "",
 				err:     cmpopts.AnyError,
 			},
 		},
-
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -266,7 +266,6 @@ function     crossplane-system   function-123     200m         1024Mi
 					t.Errorf("%s\nprintPodsTable(): -want, +got:\n%s", tt.reason, diff)
 				}
 			}
-
 		})
 	}
 }
