@@ -47,12 +47,12 @@ type initCommand struct {
 
 	EnableWebhooks bool `aliases:"webhook-enabled" default:"true" env:"ENABLE_WEBHOOKS,WEBHOOK_ENABLED" help:"Enable webhook configuration."`
 
-	WebhookServiceName      string `env:"WEBHOOK_SERVICE_NAME"       help:"The name of the Service object that the webhook service will be run."`
-	WebhookServiceNamespace string `env:"WEBHOOK_SERVICE_NAMESPACE"  help:"The namespace of the Service object that the webhook service will be run."`
-	WebhookServicePort      int32  `env:"WEBHOOK_SERVICE_PORT"       help:"The port of the Service that the webhook service will be run."`
-	TLSCASecretName         string `env:"TLS_CA_SECRET_NAME"         help:"The name of the Secret that the initializer will fill with TLS CA certificate."`
-	TLSServerSecretName     string `env:"TLS_SERVER_SECRET_NAME"     help:"The name of the Secret that the initializer will fill with TLS server certificates."`
-	TLSClientSecretName     string `env:"TLS_CLIENT_SECRET_NAME"     help:"The name of the Secret that the initializer will fill with TLS client certificates."`
+	WebhookServiceName      string `env:"WEBHOOK_SERVICE_NAME"      help:"The name of the Service object that the webhook service will be run."`
+	WebhookServiceNamespace string `env:"WEBHOOK_SERVICE_NAMESPACE" help:"The namespace of the Service object that the webhook service will be run."`
+	WebhookServicePort      int32  `env:"WEBHOOK_SERVICE_PORT"      help:"The port of the Service that the webhook service will be run."`
+	TLSCASecretName         string `env:"TLS_CA_SECRET_NAME"        help:"The name of the Secret that the initializer will fill with TLS CA certificate."`
+	TLSServerSecretName     string `env:"TLS_SERVER_SECRET_NAME"    help:"The name of the Secret that the initializer will fill with TLS server certificates."`
+	TLSClientSecretName     string `env:"TLS_CLIENT_SECRET_NAME"    help:"The name of the Secret that the initializer will fill with TLS client certificates."`
 }
 
 // Run starts the initialization process.
@@ -116,9 +116,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		initializer.NewCoreCRDsMigrator("usages.apiextensions.crossplane.io", "v1beta1"),
 		initializer.NewCoreCRDsMigrator("functions.pkg.crossplane.io", "v1beta1"),
 		initializer.NewCoreCRDsMigrator("functionrevisions.pkg.crossplane.io", "v1beta1"),
-	)
-
-	steps = append(steps, initializer.NewLockObject(),
+		initializer.NewLockObject(),
 		initializer.NewPackageInstaller(c.Providers, c.Configurations, c.Functions),
 		initializer.StepFunc(initializer.DefaultDeploymentRuntimeConfig),
 		initializer.DefaultManagedResourceActivationPolicy(c.Activations...),
