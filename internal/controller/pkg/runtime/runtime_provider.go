@@ -235,18 +235,6 @@ func providerDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string)
 
 	do = append(do, DeploymentRuntimeWithOptionalImage(image))
 
-	if pr.GetObservedTLSClientSecretName() != nil {
-		do = append(do, DeploymentRuntimeWithAdditionalEnvironments([]corev1.EnvVar{
-			// for backward compatibility with existing providers, we set the
-			// environment variable ESS_TLS_CERTS_DIR to the same value as
-			// TLS_CLIENT_CERTS_DIR to ease the transition to the new certificates.
-			{
-				Name:  ESSTLSCertDirEnvVar,
-				Value: fmt.Sprintf("$(%s)", TLSClientCertDirEnvVar),
-			},
-		}))
-	}
-
 	if pr.GetObservedTLSServerSecretName() != nil {
 		do = append(do, DeploymentRuntimeWithAdditionalPorts([]corev1.ContainerPort{
 			{

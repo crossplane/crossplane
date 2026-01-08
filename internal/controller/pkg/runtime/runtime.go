@@ -55,9 +55,6 @@ const (
 	// ServiceEndpointFmt is the format string for service endpoints.
 	ServiceEndpointFmt = "dns:///%s.%s:%d"
 
-	// ESSTLSCertDirEnvVar is the environment variable for ESS TLS certificate directory.
-	ESSTLSCertDirEnvVar = "ESS_TLS_CERTS_DIR"
-
 	// TLSServerCertDirEnvVar is the environment variable for TLS server certificate directory.
 	TLSServerCertDirEnvVar = "TLS_SERVER_CERTS_DIR"
 	// TLSServerCertsVolumeName is the name of the TLS server certificates volume.
