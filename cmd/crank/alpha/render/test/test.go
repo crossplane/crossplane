@@ -96,10 +96,10 @@ func Test(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) {
 			return Outputs{}, errors.Wrapf(err, "cannot check if functions file exists")
 		}
 
-        // Check existence rather than just attempt loading, to provide the user with a clearer error message
-        if !functionFileExists {
-            return Outputs{}, errors.Errorf("functions file %q does not exist", in.FunctionsFile)
-        }
+		// Check existence rather than just attempt loading, to provide the user with a clearer error message
+		if !functionFileExists {
+			return Outputs{}, errors.Errorf("functions file %q does not exist", in.FunctionsFile)
+		}
 
 		fileFunctions, err = render.LoadFunctions(in.FileSystem, in.FunctionsFile)
 		if err != nil {
@@ -125,7 +125,7 @@ func Test(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) {
 	log.Debug("Test directory paths", "directories", testDirs)
 
 	// Process tests sequentially
-	results := make(map[string][]byte)
+	results := make(map[string]render.Outputs)
 	for _, dir := range testDirs {
 		output, err := renderTest(ctx, log, in.FileSystem, dir, functions)
 		if err != nil {
@@ -135,75 +135,68 @@ func Test(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) {
 	}
 
 	testFailed := false
-	// Write expected outputs or compare (default is compare)
-	if in.WriteExpectedOutputs {
-		// Write the outputs to files
-		for _, dir := range testDirs {
-			actualOutput := results[dir]
+	for _, dir := range testDirs {
+		yamlResult, err := marshalOutputs(results[dir])
+		if err != nil {
+			return Outputs{}, err
+		}
 
+		if in.WriteExpectedOutputs {
 			outputPath := filepath.Join(dir, in.OutputFile)
-			if err := afero.WriteFile(in.FileSystem, outputPath, actualOutput, 0o644); err != nil {
+			if err := afero.WriteFile(in.FileSystem, outputPath, yamlResult, 0o644); err != nil {
 				return Outputs{}, errors.Wrapf(err, "cannot write output to %q", outputPath)
 			}
-			log.Debug("Wrote output", "path", outputPath)
-		}
-	} else {
-		// Compare expected vs. actual (default behavior)
-		log.Info("Comparing outputs with dyff")
 
-		for _, dir := range testDirs {
-			expectedOutput, err := afero.ReadFile(in.FileSystem, filepath.Join(dir, "expected.yaml"))
-			if err != nil {
-				return Outputs{}, errors.Wrapf(err, "cannot read expected output for test %q", dir)
-			}
-
-			expectedDocs, err := ytbx.LoadDocuments(expectedOutput)
-			if err != nil {
-				return Outputs{}, errors.Wrapf(err, "cannot parse expected YAML for %q", dir)
-			}
-
-			actualDocs, err := ytbx.LoadDocuments(results[dir])
-			if err != nil {
-				return Outputs{}, errors.Wrapf(err, "cannot parse actual YAML for %q", dir)
-			}
-
-			report, err := dyff.CompareInputFiles(
-				ytbx.InputFile{Documents: expectedDocs},
-				ytbx.InputFile{Documents: actualDocs},
-			)
-			if err != nil {
-				return Outputs{}, errors.Wrapf(err, "cannot compare files for %q", dir)
-			}
-
-			if len(report.Diffs) > 0 {
-				testFailed = true
-				log.Debug("Test failed", "directory", dir)
-				_, _ = fmt.Fprintln(os.Stdout, "TEST FAILED", dir)
-
-				reportWriter := &dyff.HumanReport{
-					Report:     report,
-					Indent:     2,
-					OmitHeader: true,
-				}
-
-				var buf bytes.Buffer
-				if err := reportWriter.WriteReport(&buf); err != nil {
-					return Outputs{}, errors.Wrapf(err, "cannot write diff report for %q", dir)
-				}
-
-				// extra diff indent
-				_, _ = fmt.Fprintln(os.Stdout, "  "+strings.ReplaceAll(buf.String(), "\n", "\n  "))
-			} else {
-				log.Debug("Test passed", "directory", dir)
-				_, _ = fmt.Fprintln(os.Stdout, "TEST PASSED", dir)
-			}
+			log.Debug("Wrote expected test output to file", "path", outputPath)
+			continue
 		}
 
-		if testFailed {
-			return Outputs{}, errors.New("test failed: differences found between expected and actual outputs")
+		// Compare expected vs. actual
+		expectedOutput, err := afero.ReadFile(in.FileSystem, filepath.Join(dir, "expected.yaml"))
+		if err != nil {
+			return Outputs{}, errors.Wrapf(err, "cannot read expected output for test %q", dir)
 		}
 
-		log.Info("All tests passed")
+		expectedDocs, err := ytbx.LoadDocuments(expectedOutput)
+		if err != nil {
+			return Outputs{}, errors.Wrapf(err, "cannot parse expected YAML for %q", dir)
+		}
+
+		actualDocs, err := ytbx.LoadDocuments(yamlResult)
+		if err != nil {
+			return Outputs{}, errors.Wrapf(err, "cannot parse actual YAML for %q", dir)
+		}
+
+		report, err := dyff.CompareInputFiles(
+			ytbx.InputFile{Documents: expectedDocs},
+			ytbx.InputFile{Documents: actualDocs},
+		)
+		if err != nil {
+			return Outputs{}, errors.Wrapf(err, "cannot compare files for %q", dir)
+		}
+
+		if len(report.Diffs) > 0 {
+			testFailed = true
+			log.Debug("Test failed", "directory", dir)
+			_, _ = fmt.Fprintln(os.Stdout, "TEST FAILED", dir)
+
+			reportWriter := &dyff.HumanReport{
+				Report:     report,
+				Indent:     2,
+				OmitHeader: true,
+			}
+
+			var buf bytes.Buffer
+			if err := reportWriter.WriteReport(&buf); err != nil {
+				return Outputs{}, errors.Wrapf(err, "cannot write diff report for %q", dir)
+			}
+
+			// extra diff indent
+			_, _ = fmt.Fprintln(os.Stdout, "  "+strings.ReplaceAll(buf.String(), "\n", "\n  "))
+		} else {
+			log.Debug("Test passed", "directory", dir)
+			_, _ = fmt.Fprintln(os.Stdout, "TEST PASSED", dir)
+		}
 	}
 
 	return Outputs{
@@ -337,23 +330,23 @@ func findTestDirectories(filesystem afero.Fs, testDir string) ([]string, error) 
 }
 
 // renderTest renders a single test directory.
-func renderTest(ctx context.Context, log logging.Logger, filesystem afero.Fs, dir string, functions []pkgv1.Function) ([]byte, error) {
+func renderTest(ctx context.Context, log logging.Logger, filesystem afero.Fs, dir string, functions []pkgv1.Function) (render.Outputs, error) {
 	log.Debug("Processing test directory", "directory", dir)
 
 	compositeResource, err := loadCompositeResource(filesystem, dir)
 	if err != nil {
-		return nil, err
+		return render.Outputs{}, err
 	}
 
 	compositionName, err := extractCompositionName(compositeResource, dir)
 	if err != nil {
-		return nil, err
+		return render.Outputs{}, err
 	}
 	log.Debug("Found composition reference", "name", compositionName)
 
 	composition, err := findComposition(filesystem, ".", compositionName)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot find composition for %q", compositionName)
+		return render.Outputs{}, errors.Wrapf(err, "cannot find composition for %q", compositionName)
 	}
 
 	renderInputs := render.Inputs{
@@ -364,15 +357,10 @@ func renderTest(ctx context.Context, log logging.Logger, filesystem afero.Fs, di
 	}
 
 	if err := loadOptionalResources(filesystem, dir, &renderInputs, log); err != nil {
-		return nil, err
+		return render.Outputs{}, err
 	}
 
-	outputs, err := render.Render(ctx, log, renderInputs)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot render for %q", dir)
-	}
-
-	return marshalOutputs(outputs)
+	return render.Render(ctx, log, renderInputs)
 }
 
 // loadCompositeResource loads the composite resource from the test directory.
