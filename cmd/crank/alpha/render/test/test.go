@@ -21,22 +21,33 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/gonvenience/ytbx"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/homeport/dyff/pkg/dyff"
 	"github.com/spf13/afero"
 	"gopkg.in/yaml.v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 	"github.com/crossplane/crossplane/v2/cmd/crank/render"
+	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 const (
@@ -46,8 +57,6 @@ const (
 	ExtraResourcesFileName = "extra-resources.yaml"
 	// ObservedResourcesFileName is the name of the file containing observed resources.
 	ObservedResourcesFileName = "observed-resources.yaml"
-	// FunctionsFileName is the name of the file containing the function configurations.
-	FunctionsFileName = "dev-functions.yaml"
 )
 
 // Inputs contains all inputs to the test process.
@@ -55,7 +64,10 @@ type Inputs struct {
 	TestDir              string
 	FileSystem           afero.Fs
 	OutputFile           string
-	WriteExpectedOutputs bool // If true, write/update expected.yaml files instead of comparing
+	PackageFile          string
+	FunctionsFile        string
+	FunctionAnnotations  []string // Annotations to apply to all functions (KEY=VALUE format)
+	WriteExpectedOutputs bool     // If true, write/update OutputFile for each test instead of comparing
 }
 
 // Outputs contains test results.
@@ -66,6 +78,44 @@ type Outputs struct {
 
 // Test renders composite resources and either compares them with expected outputs or writes new expected outputs.
 func Test(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) {
+	// Resolve functions from package file if provided
+	var resolvedFunctions []pkgv1.Function
+	if in.PackageFile != "" {
+		var err error
+		resolvedFunctions, err = resolveFunctionsFromPackage(in.FileSystem, in.PackageFile, log)
+		if err != nil {
+			return Outputs{}, errors.Wrap(err, "cannot resolve functions from package")
+		}
+	}
+
+	// Load functions from file if specified
+	var fileFunctions []pkgv1.Function
+	if in.FunctionsFile != "" {
+		functionFileExists, err := afero.Exists(in.FileSystem, in.FunctionsFile)
+		if err != nil {
+			return Outputs{}, errors.Wrapf(err, "cannot check if functions file exists")
+		}
+
+        // Check existence rather than just attempt loading, to provide the user with a clearer error message
+        if !functionFileExists {
+            return Outputs{}, errors.Errorf("functions file %q does not exist", in.FunctionsFile)
+        }
+
+		fileFunctions, err = render.LoadFunctions(in.FileSystem, in.FunctionsFile)
+		if err != nil {
+			return Outputs{}, errors.Wrap(err, "cannot load functions from functions file")
+		}
+		log.Debug("Loaded functions from file", "path", in.FunctionsFile, "count", len(fileFunctions))
+	}
+
+	// Merge functions: functions from a functions file take precedence over functions from a package file
+	functions := mergeFunctions(resolvedFunctions, fileFunctions, log)
+
+	// Apply function annotation overrides to all functions
+	if err := render.OverrideFunctionAnnotations(functions, in.FunctionAnnotations); err != nil {
+		return Outputs{}, errors.Wrap(err, "cannot apply function annotation overrides")
+	}
+
 	// Find all directories with a composite-resource.yaml file
 	testDirs, err := findTestDirectories(in.FileSystem, in.TestDir)
 	if err != nil {
@@ -77,7 +127,7 @@ func Test(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) {
 	// Process tests sequentially
 	results := make(map[string][]byte)
 	for _, dir := range testDirs {
-		output, err := renderTest(ctx, log, in.FileSystem, dir)
+		output, err := renderTest(ctx, log, in.FileSystem, dir, functions)
 		if err != nil {
 			return Outputs{}, errors.Wrapf(err, "failed to process %q", dir)
 		}
@@ -90,6 +140,7 @@ func Test(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) {
 		// Write the outputs to files
 		for _, dir := range testDirs {
 			actualOutput := results[dir]
+
 			outputPath := filepath.Join(dir, in.OutputFile)
 			if err := afero.WriteFile(in.FileSystem, outputPath, actualOutput, 0o644); err != nil {
 				return Outputs{}, errors.Wrapf(err, "cannot write output to %q", outputPath)
@@ -161,6 +212,111 @@ func Test(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) {
 	}, nil
 }
 
+// resolveFunctionsFromPackage reads the package file and resolves function versions.
+func resolveFunctionsFromPackage(filesystem afero.Fs, packageFile string, log logging.Logger) ([]pkgv1.Function, error) {
+	packageData, err := afero.ReadFile(filesystem, packageFile)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot read package file %q", packageFile)
+	}
+
+	// Parse as Configuration using JSON-compatible YAML unmarshaling
+	var config pkgmetav1.Configuration
+	if err := k8syaml.Unmarshal(packageData, &config); err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal package file")
+	}
+
+	// Extract functions from dependsOn
+	functions := make([]pkgv1.Function, 0, len(config.Spec.DependsOn))
+	for _, dep := range config.Spec.DependsOn {
+		if dep.Kind != nil && *dep.Kind == "Function" && dep.Package != nil {
+			// Find the newest version within the constraints specified in the package file
+			packageWithVersion, err := resolvePackageVersion(*dep.Package, dep.Version)
+			if err != nil {
+				return nil, errors.Wrapf(err, "cannot resolve version for %s", *dep.Package)
+			}
+
+			// Parse package repository to get DNS-safe name
+			repo, err := name.NewRepository(*dep.Package)
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid package repository: %s", *dep.Package)
+			}
+			functionName := xpkg.ToDNSLabel(repo.RepositoryStr())
+
+			function := pkgv1.Function{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "pkg.crossplane.io/v1beta1",
+					Kind:       "Function",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: functionName,
+					Annotations: map[string]string{
+						"render.crossplane.io/runtime-docker-name": functionName,
+					},
+				},
+				Spec: pkgv1.FunctionSpec{
+					PackageSpec: pkgv1.PackageSpec{
+						Package: packageWithVersion,
+					},
+				},
+			}
+			functions = append(functions, function)
+		}
+	}
+
+	log.Debug("Resolved functions from package", "functionCount", len(functions))
+	return functions, nil
+}
+
+// resolvePackageVersion lists available tags and finds the newest version within the constraints of the package file.
+// This logic is adapted from internal/controller/pkg/resolver/reconciler.go.
+func resolvePackageVersion(packageURL, versionConstraint string) (string, error) {
+	// Parse the repository reference
+	repo, err := name.NewRepository(packageURL)
+	if err != nil {
+		return "", errors.Wrapf(err, "invalid package URL: %s", packageURL)
+	}
+
+	// List all tags from the registry
+	tags, err := remote.List(repo)
+	if err != nil {
+		return "", errors.Wrapf(err, "cannot list tags for %s", packageURL)
+	}
+
+	// Parse version constraint (e.g., ">=v0.9.1, <v1.0.0" or ">=v0.9.1")
+	constraint, err := semver.NewConstraint(versionConstraint)
+	if err != nil {
+		return "", errors.Wrapf(err, "invalid version constraint: %s", versionConstraint)
+	}
+
+	// Convert tags to semver versions and filter by constraint
+	versions := []*semver.Version{}
+	for _, tag := range tags {
+		version, err := semver.NewVersion(tag)
+		if err != nil {
+			// Skip non-semver tags
+			continue
+		}
+
+		versions = append(versions, version)
+	}
+
+	if len(versions) == 0 {
+		return "", errors.Errorf("no valid semantic versions found for %s", packageURL)
+	}
+
+	// Sort versions in ascending order using semver.Collection
+	sort.Sort(semver.Collection(versions))
+
+	// Iterate in reverse order to find the highest version that satisfies the constraint
+	for i := len(versions) - 1; i >= 0; i-- {
+		if constraint.Check(versions[i]) {
+			return fmt.Sprintf("%s:v%s", packageURL, versions[i].String()), nil
+		}
+	}
+
+	return "", errors.Errorf("no version found matching constraint %q for %s", versionConstraint, packageURL)
+}
+
 // findTestDirectories finds all directories containing a composite-resource.yaml file.
 func findTestDirectories(filesystem afero.Fs, testDir string) ([]string, error) {
 	var testDirs []string
@@ -181,7 +337,7 @@ func findTestDirectories(filesystem afero.Fs, testDir string) ([]string, error) 
 }
 
 // renderTest renders a single test directory.
-func renderTest(ctx context.Context, log logging.Logger, filesystem afero.Fs, dir string) ([]byte, error) {
+func renderTest(ctx context.Context, log logging.Logger, filesystem afero.Fs, dir string, functions []pkgv1.Function) ([]byte, error) {
 	log.Debug("Processing test directory", "directory", dir)
 
 	compositeResource, err := loadCompositeResource(filesystem, dir)
@@ -198,11 +354,6 @@ func renderTest(ctx context.Context, log logging.Logger, filesystem afero.Fs, di
 	composition, err := findComposition(filesystem, ".", compositionName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot find composition for %q", compositionName)
-	}
-
-	functions, err := render.LoadFunctions(filesystem, FunctionsFileName)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot load functions from functions file")
 	}
 
 	renderInputs := render.Inputs{
@@ -292,6 +443,27 @@ func findComposition(filesystem afero.Fs, searchDir, compositionName string) (*v
 	}
 
 	return foundComposition, nil
+}
+
+// mergeFunctions merges package functions with file functions, with file functions taking precedence.
+func mergeFunctions(packageFunctions, fileFunctions []pkgv1.Function, log logging.Logger) []pkgv1.Function {
+	// Create a map to hold all functions
+	functions := make(map[string]pkgv1.Function, len(packageFunctions)+len(fileFunctions))
+
+	for _, function := range packageFunctions {
+		functions[function.Name] = function
+	}
+
+	// Overrides function derived from package file if same name is used in function file
+	for _, function := range fileFunctions {
+		if _, exists := functions[function.Name]; exists {
+			log.Debug("Function from package overridden by functions file", "name", function.Name)
+		}
+		functions[function.Name] = function
+	}
+
+	log.Debug("Merged functions", "totalCount", len(functions), "fromFile", len(fileFunctions), "fromPackage", len(packageFunctions))
+	return slices.Collect(maps.Values(functions))
 }
 
 // loadOptionalResources loads optional extra resources, observed resources, and contexts.
