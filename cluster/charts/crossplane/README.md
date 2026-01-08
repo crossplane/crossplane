@@ -88,7 +88,7 @@ and their default values.
 | `image.repository` | Repository for the Crossplane pod image. | `"xpkg.crossplane.io/crossplane/crossplane"` |
 | `image.tag` | The Crossplane image tag. Defaults to the value of `appVersion` in `Chart.yaml`. | `""` |
 | `imagePullSecrets` | The imagePullSecret names to add to the Crossplane ServiceAccount. | `[]` |
-| `leaderElection` | Enable [leader election](https://docs.crossplane.io/latest/concepts/pods/#leader-election) for the Crossplane pod. | `true` |
+| `leaderElection` | Enable [leader election](https://docs.crossplane.io/latest/guides/pods/#leader-election) for the Crossplane pod. | `true` |
 | `metrics.enabled` | Enable Prometheus path, port and scrape annotations and expose port 8080 for both the Crossplane and RBAC Manager pods. | `false` |
 | `metrics.port` | The port the metrics server listens on. | `""` |
 | `nodeSelector` | Add `nodeSelectors` to the Crossplane pod deployment. | `{}` |
@@ -104,7 +104,7 @@ and their default values.
 | `rbacManager.affinity` | Add `affinities` to the RBAC Manager pod deployment. | `{}` |
 | `rbacManager.args` | Add custom arguments to the RBAC Manager pod. | `[]` |
 | `rbacManager.deploy` | Deploy the RBAC Manager pod and its required roles. | `true` |
-| `rbacManager.leaderElection` | Enable [leader election](https://docs.crossplane.io/latest/concepts/pods/#leader-election) for the RBAC Manager pod. | `true` |
+| `rbacManager.leaderElection` | Enable [leader election](https://docs.crossplane.io/latest/guides/pods/#leader-election) for the RBAC Manager pod. | `true` |
 | `rbacManager.nodeSelector` | Add `nodeSelectors` to the RBAC Manager pod deployment. | `{}` |
 | `rbacManager.replicas` | The number of RBAC Manager pod `replicas` to deploy. | `1` |
 | `rbacManager.revisionHistoryLimit` | The number of RBAC Manager ReplicaSets to retain. | `nil` |
