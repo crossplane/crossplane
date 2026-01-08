@@ -104,13 +104,14 @@ type DockerPullPolicy string
 
 // Supported pull policies.
 const (
-	// Always pull the image.
+	// AnnotationValueRuntimeDockerPullPolicyAlways always pulls the image.
 	AnnotationValueRuntimeDockerPullPolicyAlways DockerPullPolicy = "Always"
 
-	// Never pull the image.
+	// AnnotationValueRuntimeDockerPullPolicyNever never pulls the image.
 	AnnotationValueRuntimeDockerPullPolicyNever DockerPullPolicy = "Never"
 
-	// Pull the image if it's not present.
+	// AnnotationValueRuntimeDockerPullPolicyIfNotPresent pulls the image if
+	// it's not present.
 	AnnotationValueRuntimeDockerPullPolicyIfNotPresent DockerPullPolicy = "IfNotPresent"
 
 	AnnotationValueRuntimeDockerPullPolicyDefault DockerPullPolicy = AnnotationValueRuntimeDockerPullPolicyIfNotPresent
