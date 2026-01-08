@@ -82,7 +82,7 @@ func NewFunctionLinter() parser.Linter {
 	return parser.NewPackageLinter(
 		parser.PackageLinterFns(OneMeta),
 		parser.ObjectLinterFns(IsFunction, PackageValidSemver),
-		parser.ObjectLinterFns())
+		parser.ObjectLinterFns(IsCRD))
 }
 
 // OneMeta checks that there is only one meta object in the package.
