@@ -110,6 +110,7 @@
           pname,
           subPackage,
           platform,
+          goCache,
         }:
         let
           ext = if platform.os == "windows" then ".exe" else "";
@@ -127,6 +128,15 @@
           # Disable CGO for cross-compilation
           CGO_ENABLED = "0";
 
+          # Disable the default native-platform cache (we use per-platform caches)
+          disableGoCache = true;
+
+          # Need zstd and tar to extract the cache
+          nativeBuildInputs = [
+            pkgs.zstd
+            pkgs.gnutar
+          ];
+
           ldflags = [
             "-s"
             "-w"
@@ -136,10 +146,18 @@
           # Don't run tests during cross-compilation
           doCheck = false;
 
-          # Set cross-compilation env vars in preBuild
+          # Set cross-compilation env vars and restore platform-specific cache
           preBuild = ''
             export GOOS=${platform.os}
             export GOARCH=${platform.arch}
+
+            # Restore platform-specific Go build cache
+            if [ -f "${goCache}/cache.tar.zst" ]; then
+              echo "Restoring Go build cache for ${platform.os}/${platform.arch}..."
+              mkdir -p "$GOCACHE"
+              ${pkgs.zstd}/bin/zstd -d -c "${goCache}/cache.tar.zst" | ${pkgs.gnutar}/bin/tar -xf - -C "$GOCACHE"
+              chmod -R +w "$GOCACHE"
+            fi
           '';
 
           postInstall = ''
@@ -259,6 +277,12 @@
 
         go = pkgs.go_1_24;
 
+        # Pre-built Go caches for each target platform (workaround for gomod2nix
+        # only building caches for native platform). See nix/cache.nix.
+        goCaches = import ./nix/cache.nix {
+          inherit self pkgs go goPlatforms;
+        };
+
         crossplaneBins = builtins.listToAttrs (
           map (platform: {
             name = "${platform.os}-${platform.arch}";
@@ -266,6 +290,7 @@
               inherit pkgs go platform;
               pname = "crossplane";
               subPackage = "cmd/crossplane";
+              goCache = goCaches."${platform.os}-${platform.arch}";
             };
           }) goPlatforms
         );
@@ -277,6 +302,7 @@
               inherit pkgs go platform;
               pname = "crank";
               subPackage = "cmd/crank";
+              goCache = goCaches."${platform.os}-${platform.arch}";
             };
           }) goPlatforms
         );
