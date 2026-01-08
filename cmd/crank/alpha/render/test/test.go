@@ -57,6 +57,8 @@ const (
 	ExtraResourcesFileName = "extra-resources.yaml"
 	// ObservedResourcesFileName is the name of the file containing observed resources.
 	ObservedResourcesFileName = "observed-resources.yaml"
+	// tmpCleanupAnnotation temporarily stores potential function cleanup annotation during test runs.
+	tmpCleanupAnnotation = "internal." + render.AnnotationKeyRuntimeDockerCleanup
 )
 
 // Inputs contains all inputs to the test process.
@@ -124,6 +126,30 @@ func Test(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) {
 
 	log.Debug("Test directory paths", "directories", testDirs)
 
+	// Orphan all named container inbetween test runs to enable reuse between tests
+	namedFunctions := []pkgv1.Function{}
+	for i := range functions {
+		a := functions[i].GetAnnotations()
+		if _, ok := a[render.AnnotationKeyRuntimeNamedContainer]; ok {
+			if cleanup, ok := a[render.AnnotationKeyRuntimeDockerCleanup]; ok {
+				a[tmpCleanupAnnotation] = cleanup
+			}
+			a[render.AnnotationKeyRuntimeDockerCleanup] = string(render.AnnotationValueRuntimeDockerCleanupOrphan)
+			functions[i].SetAnnotations(a)
+			namedFunctions = append(namedFunctions, functions[i])
+		}
+	}
+
+	// Start all named containers
+	startRuntime, err := render.NewRuntimeFunctionRunner(ctx, log, namedFunctions)
+	log.Debug("named", "count", len(namedFunctions))
+	if err != nil {
+		return Outputs{}, errors.Wrap(err, "cannot start function runtimes")
+	}
+	if err := startRuntime.Stop(context.Background()); err != nil {
+		log.Info("Error stopping function runtimes", "error", err)
+	}
+
 	// Process tests sequentially
 	results := make(map[string]render.Outputs)
 	for _, dir := range testDirs {
@@ -132,6 +158,27 @@ func Test(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) {
 			return Outputs{}, errors.Wrapf(err, "failed to process %q", dir)
 		}
 		results[dir] = output
+	}
+
+	// Revert cleanup annotations to original values
+	for i := range namedFunctions {
+		a := namedFunctions[i].GetAnnotations()
+		if cleanup, ok := a[tmpCleanupAnnotation]; ok {
+			a[render.AnnotationKeyRuntimeDockerCleanup] = cleanup
+			delete(a, tmpCleanupAnnotation)
+		} else {
+			delete(a, render.AnnotationKeyRuntimeDockerCleanup)
+		}
+		namedFunctions[i].SetAnnotations(a)
+	}
+
+	// Stop all named containers
+	stopRuntime, err := render.NewRuntimeFunctionRunner(ctx, log, namedFunctions)
+	if err != nil {
+		return Outputs{}, errors.Wrap(err, "cannot start function runtimes")
+	}
+	if err := stopRuntime.Stop(context.Background()); err != nil {
+		log.Info("Error stopping function runtimes", "error", err)
 	}
 
 	// Write expected outputs or compare (default is compare)
@@ -195,7 +242,7 @@ func resolveFunctionsFromPackage(filesystem afero.Fs, packageFile string, log lo
 				ObjectMeta: metav1.ObjectMeta{
 					Name: functionName,
 					Annotations: map[string]string{
-						"render.crossplane.io/runtime-docker-name": functionName,
+						render.AnnotationKeyRuntimeNamedContainer: functionName,
 					},
 				},
 				Spec: pkgv1.FunctionSpec{
