@@ -167,10 +167,26 @@ golangci-lint" but the same Go compiler, the same protoc, everything.
 ### Caching
 
 Nix uses a content-addressable binary cache. Anything it builds can be uploaded
-to the cache, so that future builds don't need to rebuild it. Notably the
-`buildGoApplication` function builds and caches everything in `go.mod` as a
-distinct artifact. So as long as `go.mod` doesn't change CI (and developers)
-rarely need to build dependencies. They can just pull them from cache.
+to the cache, so that future builds don't need to rebuild it.
+
+Notably the `buildGoApplication` function builds and caches everything in
+`go.mod` as a distinct artifact. So as long as `go.mod` doesn't change CI (and
+developers) rarely need to build dependencies. They can just pull them from
+cache.
+
+The publish-artifacts job runs in GitHub Actions on every PR. It builds
+Crossplane binaries and OCI images for several platforms:
+
+
+| Build System      | publish-artifacts Time |
+|-------------------|------------------------|
+| Earthly           | ~20 min                |
+| Nix (cold cache)  | ~20 min                |
+| Nix (hot cache)   | ~5 min                 |
+
+
+When Nix has a hot cache all dependencies are pre-compiled, saving ~15 mins of
+CI compile time.
 
 Since local development (i.e. `nix develop` or `nix run .#test`) is essentially
 an overlay on your regular development environment, it benefits from the typical
