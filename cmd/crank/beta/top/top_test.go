@@ -2,18 +2,25 @@ package top
 
 import (
 	"bytes"
+	"fmt"
+	"io"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
-
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
+
+type errorWriter struct{}
+
+func (w *errorWriter) Write(_ []byte) (n int, err error) {
+	return 0, fmt.Errorf("write error")
+}
 
 func TestGetCrossplanePods(t *testing.T) {
 	type want struct {
@@ -165,11 +172,13 @@ func TestPrintPodsTable(t *testing.T) {
 	tests := map[string]struct {
 		reason         string
 		crossplanePods []topMetrics
+		writer         io.Writer
 		want           want
 	}{
 		"NoPodsFound": {
 			reason:         "Should return header when no pods are found",
 			crossplanePods: []topMetrics{},
+			writer:         &bytes.Buffer{},
 			want: want{
 				results: `
 TYPE   NAMESPACE   NAME   CPU(cores)   MEMORY
@@ -188,6 +197,7 @@ TYPE   NAMESPACE   NAME   CPU(cores)   MEMORY
 					MemoryUsage:  resource.MustParse("512Mi"),
 				},
 			},
+			writer: &bytes.Buffer{},
 			want: want{
 				results: `
 TYPE         NAMESPACE           NAME             CPU(cores)   MEMORY
@@ -214,6 +224,7 @@ crossplane   crossplane-system   crossplane-123   100m         512Mi
 					MemoryUsage:  resource.MustParse("1024Mi"),
 				},
 			},
+			writer: &bytes.Buffer{},
 			want: want{
 				results: `
 TYPE         NAMESPACE           NAME             CPU(cores)   MEMORY
@@ -223,18 +234,37 @@ function     crossplane-system   function-123     200m         1024Mi
 				err: nil,
 			},
 		},
+		"WriterError": {
+			reason: "Should return error when writer fails",
+			crossplanePods: []topMetrics{
+				{
+					PodType:      "crossplane",
+					PodName:      "crossplane-123",
+					PodNamespace: "crossplane-system",
+					CPUUsage:     resource.MustParse("100m"),
+					MemoryUsage:  resource.MustParse("512Mi"),
+				},
+			},
+			writer: &errorWriter{},
+			want: want{
+				results: "",
+				err:     cmpopts.AnyError,
+			},
+		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			b := &bytes.Buffer{}
-			err := printPodsTable(b, tt.crossplanePods)
-			// TODO:(piotr1215) add error test case
-			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("%s\nprintPodsTable(): -want, +got:\n%s", tt.reason, diff)
+			w := tt.writer
+
+			err := printPodsTable(w, tt.crossplanePods)
+			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("%s\nprintPodsTable() error: -want,+got:\n%s", tt.reason, diff)
 			}
 
-			if diff := cmp.Diff(strings.TrimSpace(tt.want.results), strings.TrimSpace(b.String())); diff != "" {
-				t.Errorf("%s\nprintPodsTable(): -want, +got:\n%s", tt.reason, diff)
+			if buf, ok := w.(*bytes.Buffer); ok {
+				if diff := cmp.Diff(strings.TrimSpace(tt.want.results), strings.TrimSpace(buf.String())); diff != "" {
+					t.Errorf("%s\nprintPodsTable(): -want, +got:\n%s", tt.reason, diff)
+				}
 			}
 		})
 	}
