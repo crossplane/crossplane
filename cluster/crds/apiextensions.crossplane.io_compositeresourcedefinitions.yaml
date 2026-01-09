@@ -544,6 +544,47 @@ spec:
                       description: Served specifies that this version should be served
                         via REST APIs.
                       type: boolean
+                    subresources:
+                      description: |-
+                        Subresources specifies what subresources this version of the defined Composite resource have.
+                        The composition authors have responsibility to implement the logic fullfiling the subresources.
+                      properties:
+                        scale:
+                          description: Scale indicates the CRD should serve a `/scale`
+                            subresource that returns an `autoscaling/v1` Scale object.
+                          properties:
+                            labelSelectorPath:
+                              description: |-
+                                labelSelectorPath defines the JSON path inside of a custom resource that corresponds to Scale `status.selector`.
+                                Only JSON paths without the array notation are allowed.
+                                Must be a JSON Path under `.status` or `.spec`.
+                                Must be set to work with HorizontalPodAutoscaler.
+                                The field pointed by this JSON path must be a string field (not a complex selector struct)
+                                which contains a serialized label selector in string form.
+                                More info: https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions#scale-subresource
+                                If there is no value under the given path in the custom resource, the `status.selector` value in the `/scale`
+                                subresource will default to the empty string.
+                              type: string
+                            specReplicasPath:
+                              description: |-
+                                specReplicasPath defines the JSON path inside of a custom resource that corresponds to Scale `spec.replicas`.
+                                Only JSON paths without the array notation are allowed.
+                                Must be a JSON Path under `.spec`.
+                                If there is no value under the given path in the custom resource, the `/scale` subresource will return an error on GET.
+                              type: string
+                            statusReplicasPath:
+                              description: |-
+                                statusReplicasPath defines the JSON path inside of a custom resource that corresponds to Scale `status.replicas`.
+                                Only JSON paths without the array notation are allowed.
+                                Must be a JSON Path under `.status`.
+                                If there is no value under the given path in the custom resource, the `status.replicas` value in the `/scale` subresource
+                                will default to 0.
+                              type: string
+                          required:
+                          - specReplicasPath
+                          - statusReplicasPath
+                          type: object
+                      type: object
                   required:
                   - name
                   - referenceable
@@ -1172,6 +1213,47 @@ spec:
                       description: Served specifies that this version should be served
                         via REST APIs.
                       type: boolean
+                    subresources:
+                      description: |-
+                        Subresources specifies what subresources this version of the defined Composite resource have.
+                        The composition authors have responsibility to implement the logic fullfiling the subresources.
+                      properties:
+                        scale:
+                          description: Scale indicates the CRD should serve a `/scale`
+                            subresource that returns an `autoscaling/v1` Scale object.
+                          properties:
+                            labelSelectorPath:
+                              description: |-
+                                labelSelectorPath defines the JSON path inside of a custom resource that corresponds to Scale `status.selector`.
+                                Only JSON paths without the array notation are allowed.
+                                Must be a JSON Path under `.status` or `.spec`.
+                                Must be set to work with HorizontalPodAutoscaler.
+                                The field pointed by this JSON path must be a string field (not a complex selector struct)
+                                which contains a serialized label selector in string form.
+                                More info: https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions#scale-subresource
+                                If there is no value under the given path in the custom resource, the `status.selector` value in the `/scale`
+                                subresource will default to the empty string.
+                              type: string
+                            specReplicasPath:
+                              description: |-
+                                specReplicasPath defines the JSON path inside of a custom resource that corresponds to Scale `spec.replicas`.
+                                Only JSON paths without the array notation are allowed.
+                                Must be a JSON Path under `.spec`.
+                                If there is no value under the given path in the custom resource, the `/scale` subresource will return an error on GET.
+                              type: string
+                            statusReplicasPath:
+                              description: |-
+                                statusReplicasPath defines the JSON path inside of a custom resource that corresponds to Scale `status.replicas`.
+                                Only JSON paths without the array notation are allowed.
+                                Must be a JSON Path under `.status`.
+                                If there is no value under the given path in the custom resource, the `status.replicas` value in the `/scale` subresource
+                                will default to 0.
+                              type: string
+                          required:
+                          - specReplicasPath
+                          - statusReplicasPath
+                          type: object
+                      type: object
                   required:
                   - name
                   - referenceable

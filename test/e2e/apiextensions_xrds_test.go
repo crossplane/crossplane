@@ -137,3 +137,33 @@ func TestXRDReferenceableVersionChange(t *testing.T) {
 			Feature(),
 	)
 }
+
+func TestXRDSubresources(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/xrd/subresources"
+
+	environment.Test(t,
+		features.NewWithDescription(
+			"XRDSubresourcesScale",
+			"A XRD with Scale subresource should generate a CRD with Scale subresource.",
+		).
+			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreateXRDWithSubresourcesScale", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/xrd-scale.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/xrd-scale.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/xrd-scale.yaml", apiextensionsv1.WatchingComposite()),
+				// Generated CRD should have a Scale subresource
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "crd-scale.yaml"),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-scale.yaml", "spec.versions[0].subresources.scale.labelSelectorPath", ".status.labelSelector"),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-scale.yaml", "spec.versions[0].subresources.scale.specReplicasPath", ".spec.replicas"),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-scale.yaml", "spec.versions[0].subresources.scale.statusReplicasPath", ".status.replicas"),
+			)).
+			WithTeardown("DeleteValidComposition", funcs.AllOf(
+				funcs.DeleteResources(manifests, "setup/xrd-scale.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "setup/xrd-scale.yaml"),
+			)).
+			Feature(),
+	)
+}
