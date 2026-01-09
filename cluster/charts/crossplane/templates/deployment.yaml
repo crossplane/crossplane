@@ -1,4 +1,3 @@
-{{- $externalSecretStoresEnabled := include "crossplane.externalSecretStoresEnabled" . | eq "true" -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -122,10 +121,6 @@ spec:
           {{- else }}
           - name: "ENABLE_WEBHOOKS"
             value: "false"
-          {{- end }}
-          {{- if $externalSecretStoresEnabled }}
-          - name: "ESS_TLS_SERVER_SECRET_NAME"
-            value: ess-server-certs
           {{- end }}
           - name: "TLS_CA_SECRET_NAME"
             value: crossplane-root-ca

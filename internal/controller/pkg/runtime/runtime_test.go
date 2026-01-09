@@ -531,10 +531,6 @@ func deploymentProvider(provider string, rev string, image string, overrides ...
 									Value: providerRevisionUID,
 								},
 								{
-									Name:  "ESS_TLS_CERTS_DIR",
-									Value: "$(TLS_CLIENT_CERTS_DIR)",
-								},
-								{
 									Name:  "WEBHOOK_TLS_CERT_DIR",
 									Value: "$(TLS_SERVER_CERTS_DIR)",
 								},

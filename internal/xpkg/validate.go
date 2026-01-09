@@ -47,4 +47,3 @@ func NewFunctionValidator() Validator {
 		parser.ObjectLinterFns(IsFunction, PackageValidSemver),
 		parser.ObjectLinterFns())
 }
-
