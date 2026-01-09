@@ -110,10 +110,15 @@
           pname,
           subPackage,
           platform,
-          goCache,
         }:
         let
           ext = if platform.os == "windows" then ".exe" else "";
+          # Override GOOS/GOARCH on the go package for cross-compilation.
+          # buildGoApplication inherits these, including for the build cache.
+          crossGo = go // {
+            GOOS = platform.os;
+            GOARCH = platform.arch;
+          };
         in
         pkgs.buildGoApplication {
           pname = "${pname}-${platform.os}-${platform.arch}";
@@ -123,41 +128,21 @@
           modules = ./gomod2nix.toml;
           subPackages = [ subPackage ];
 
-          inherit go;
+          go = crossGo;
 
           # Disable CGO for cross-compilation
           CGO_ENABLED = "0";
 
-          # Disable the default native-platform cache (we use per-platform caches)
-          disableGoCache = true;
-
-          # Need zstd and tar to extract the cache
-          nativeBuildInputs = [
-            pkgs.zstd
-            pkgs.gnutar
-          ];
-
-          ldflags = [
-            "-s"
-            "-w"
-            "-X=github.com/crossplane/crossplane/v2/internal/version.version=${version}"
-          ];
-
           # Don't run tests during cross-compilation
           doCheck = false;
 
-          # Set cross-compilation env vars and restore platform-specific cache
+          # Set ldflags via shell variable instead of the ldflags attribute. The
+          # ldflags attribute is passed to gomod2nix's mkGoCacheEnv, which would
+          # cause the Go build cache derivation hash to change on every commit
+          # (since ldflags includes the version, which includes the git commit).
+          # The gomod2nix build hook reads the ldflags shell variable directly.
           preBuild = ''
-            export GOOS=${platform.os}
-            export GOARCH=${platform.arch}
-
-            # Restore platform-specific Go build cache
-            if [ -f "${goCache}/cache.tar.zst" ]; then
-              echo "Restoring Go build cache for ${platform.os}/${platform.arch}..."
-              mkdir -p "$GOCACHE"
-              ${pkgs.zstd}/bin/zstd -d -c "${goCache}/cache.tar.zst" | ${pkgs.gnutar}/bin/tar -xf - -C "$GOCACHE"
-              chmod -R +w "$GOCACHE"
-            fi
+            ldflags="-s -w -X=github.com/crossplane/crossplane/v2/internal/version.version=${version}"
           '';
 
           postInstall = ''
@@ -277,12 +262,6 @@
 
         go = pkgs.go_1_24;
 
-        # Pre-built Go caches for each target platform (workaround for gomod2nix
-        # only building caches for native platform). See nix/cache.nix.
-        goCaches = import ./nix/cache.nix {
-          inherit self pkgs go goPlatforms;
-        };
-
         crossplaneBins = builtins.listToAttrs (
           map (platform: {
             name = "${platform.os}-${platform.arch}";
@@ -290,7 +269,6 @@
               inherit pkgs go platform;
               pname = "crossplane";
               subPackage = "cmd/crossplane";
-              goCache = goCaches."${platform.os}-${platform.arch}";
             };
           }) goPlatforms
         );
@@ -302,7 +280,6 @@
               inherit pkgs go platform;
               pname = "crank";
               subPackage = "cmd/crank";
-              goCache = goCaches."${platform.os}-${platform.arch}";
             };
           }) goPlatforms
         );
