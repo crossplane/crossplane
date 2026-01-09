@@ -203,8 +203,8 @@ type CompositeResourceDefinitionVersion struct {
 	// +optional
 	AdditionalPrinterColumns []extv1.CustomResourceColumnDefinition `json:"additionalPrinterColumns,omitempty"`
 
-	// Subresources specifies what subresources this version of the defined Composite resource have.
-	// The composition authors have responsibility to implement the logic fullfiling the subresources.
+	// Subresources specifies what subresources this version of the defined Composite resource has.
+	// The composition authors have responsibility to implement the logic fulfilling the subresources.
 	// +optional
 	Subresources *CompositeResourceDefinitionVersionSubresources `json:"subresources,omitempty"`
 }

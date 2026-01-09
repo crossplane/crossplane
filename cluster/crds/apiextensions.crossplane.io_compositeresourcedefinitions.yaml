@@ -546,8 +546,8 @@ spec:
                       type: boolean
                     subresources:
                       description: |-
-                        Subresources specifies what subresources this version of the defined Composite resource have.
-                        The composition authors have responsibility to implement the logic fullfiling the subresources.
+                        Subresources specifies what subresources this version of the defined Composite resource has.
+                        The composition authors have responsibility to implement the logic fulfilling the subresources.
                       properties:
                         scale:
                           description: Scale indicates the CRD should serve a `/scale`
@@ -1215,8 +1215,8 @@ spec:
                       type: boolean
                     subresources:
                       description: |-
-                        Subresources specifies what subresources this version of the defined Composite resource have.
-                        The composition authors have responsibility to implement the logic fullfiling the subresources.
+                        Subresources specifies what subresources this version of the defined Composite resource has.
+                        The composition authors have responsibility to implement the logic fulfilling the subresources.
                       properties:
                         scale:
                           description: Scale indicates the CRD should serve a `/scale`
