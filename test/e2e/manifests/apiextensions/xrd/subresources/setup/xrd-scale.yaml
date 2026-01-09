@@ -24,7 +24,7 @@ spec:
             description: ExampleSpec defines the desired state of Example.
             properties:
               replicas:
-                type: number
+                type: integer
             type: object
           status:
             description: ExampleStatus defines the observed state of Example.

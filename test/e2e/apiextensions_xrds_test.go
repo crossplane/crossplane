@@ -154,13 +154,15 @@ func TestXRDSubresources(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "setup/xrd-scale.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/xrd-scale.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/xrd-scale.yaml", apiextensionsv1.WatchingComposite()),
-				// Generated CRD should have a Scale subresource
+			)).
+			Assess("CreateCRDWithSubresourcesScale", funcs.AllOf(
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "crd-scale.yaml"),
+				// Generated CRD should have a Scale subresource
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-scale.yaml", "spec.versions[0].subresources.scale.labelSelectorPath", ".status.labelSelector"),
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-scale.yaml", "spec.versions[0].subresources.scale.specReplicasPath", ".spec.replicas"),
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-scale.yaml", "spec.versions[0].subresources.scale.statusReplicasPath", ".status.replicas"),
 			)).
-			WithTeardown("DeleteValidComposition", funcs.AllOf(
+			WithTeardown("DeleteXRDWithSubresources", funcs.AllOf(
 				funcs.DeleteResources(manifests, "setup/xrd-scale.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "setup/xrd-scale.yaml"),
 			)).
