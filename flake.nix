@@ -106,19 +106,12 @@
       mkGoBinary =
         {
           pkgs,
-          go,
           pname,
           subPackage,
           platform,
         }:
         let
           ext = if platform.os == "windows" then ".exe" else "";
-          # Override GOOS/GOARCH on the go package for cross-compilation.
-          # buildGoApplication inherits these, including for the build cache.
-          crossGo = go // {
-            GOOS = platform.os;
-            GOARCH = platform.arch;
-          };
         in
         pkgs.buildGoApplication {
           pname = "${pname}-${platform.os}-${platform.arch}";
@@ -128,7 +121,10 @@
           modules = ./gomod2nix.toml;
           subPackages = [ subPackage ];
 
-          go = crossGo;
+          go = pkgs.go // {
+            GOOS = platform.os;
+            GOARCH = platform.arch;
+          };
 
           # Disable CGO for cross-compilation
           CGO_ENABLED = "0";
@@ -260,13 +256,11 @@
           inherit system overlays;
         };
 
-        go = pkgs.go_1_24;
-
         crossplaneBins = builtins.listToAttrs (
           map (platform: {
             name = "${platform.os}-${platform.arch}";
             value = mkGoBinary {
-              inherit pkgs go platform;
+              inherit pkgs platform;
               pname = "crossplane";
               subPackage = "cmd/crossplane";
             };
@@ -277,7 +271,7 @@
           map (platform: {
             name = "${platform.os}-${platform.arch}";
             value = mkGoBinary {
-              inherit pkgs go platform;
+              inherit pkgs platform;
               pname = "crank";
               subPackage = "cmd/crank";
             };
@@ -326,8 +320,6 @@
           src = self;
           pwd = self;
           modules = ./gomod2nix.toml;
-
-          inherit go;
 
           # Build test binary instead of regular binary
           buildPhase = ''
@@ -396,8 +388,6 @@
             pwd = self;
             modules = ./gomod2nix.toml;
 
-            inherit go;
-
             dontBuild = true;
 
             # Excludes e2e tests
@@ -422,7 +412,6 @@
             pwd = self;
             modules = ./gomod2nix.toml;
 
-            inherit go;
             nativeBuildInputs = [ pkgs.golangci-lint ];
 
             dontBuild = true;
@@ -462,7 +451,6 @@
             pwd = self;
             modules = ./gomod2nix.toml;
 
-            inherit go;
             nativeBuildInputs = codegenTools ++ [ pkgs.kubectl ];
 
             dontBuild = true;
@@ -532,7 +520,7 @@
             program = pkgs.lib.getExe (
               pkgs.writeShellScriptBin "test" ''
                 set -e
-                ${go}/bin/go test -covermode=count ./apis/... ./cmd/... ./internal/... "$@"
+                ${pkgs.go}/bin/go test -covermode=count ./apis/... ./cmd/... ./internal/... "$@"
               ''
             );
             meta.description = "Run unit tests";
@@ -556,7 +544,7 @@
               pkgs.writeShellScriptBin "tidy" ''
                 set -e
                 echo "Running go mod tidy..."
-                ${go}/bin/go mod tidy
+                ${pkgs.go}/bin/go mod tidy
                 echo "Regenerating gomod2nix.toml..."
                 ${gomod2nix.packages.${system}.default}/bin/gomod2nix generate --with-deps
                 echo "Done"
@@ -575,7 +563,7 @@
                   pkgs.lib.makeBinPath (
                     [
                       pkgs.coreutils
-                      go
+                      pkgs.go
                       pkgs.kubectl
                     ]
                     ++ codegenTools
@@ -583,7 +571,7 @@
                 }:$PATH"
 
                 echo "Running go generate..."
-                ${go}/bin/go generate -tags generate .
+                ${pkgs.go}/bin/go generate -tags generate .
 
                 echo "Patching CRDs..."
                 ${pkgs.kubectl}/bin/kubectl patch --local --type=json \
@@ -613,7 +601,7 @@
                 echo "Running e2e tests..."
                 ${pkgs.gotestsum}/bin/gotestsum \
                   --format standard-verbose \
-                  --raw-command -- ${go}/bin/go tool test2json -t -p E2E ${e2e}/bin/e2e -test.v "$@"
+                  --raw-command -- ${pkgs.go}/bin/go tool test2json -t -p E2E ${e2e}/bin/e2e -test.v "$@"
               ''
             );
             meta.description = "Run end-to-end tests";
@@ -622,7 +610,7 @@
 
         devShells.default = pkgs.mkShell {
           buildInputs = [
-            go
+            pkgs.go
             pkgs.golangci-lint
             pkgs.kubectl
             pkgs.kubernetes-helm
