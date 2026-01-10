@@ -38,25 +38,32 @@ func (m *mockAnnotatedReadCloser) Annotate() any {
 }
 
 func TestParse(t *testing.T) {
-	validYAML := `apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: test
-`
 	invalidYAML := `apiVersion: v1
 kind: ConfigMap
 metadata:
   name: test
   invalid: [broken`
+	validYAML := `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test
+`
+
+	type annotation struct {
+		path     string
+		position int
+	}
 
 	type args struct {
-		reader io.ReadCloser
+		reader     io.ReadCloser
+		annotation any
 	}
 
 	type want struct {
-		objCount    int
-		err         error
-		expectError bool // true when we expect any error (not a specific one)
+		objCount       int
+		err            error
+		errContains    string
+		expectAnyError bool
 	}
 
 	cases := map[string]struct {
@@ -90,83 +97,55 @@ metadata:
 				reader: io.NopCloser(strings.NewReader(invalidYAML)),
 			},
 			want: want{
-				objCount:    0,
-				expectError: true,
+				objCount:       0,
+				expectAnyError: true,
 			},
 		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			p := New()
-			ex, err := p.Parse(context.Background(), tc.args.reader)
-
-			if tc.want.expectError {
-				if err == nil {
-					t.Errorf("\n%s\nParse(...): expected error, got nil", tc.reason)
-				}
-				return
-			}
-
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nParse(...): -want err, +got err:\n%s", tc.reason, diff)
-			}
-
-			if diff := cmp.Diff(tc.want.objCount, len(ex.objects)); diff != "" {
-				t.Errorf("\n%s\nParse(...): -want objCount, +got objCount:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestParseWithAnnotation(t *testing.T) {
-	invalidYAML := `apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: test
-  invalid: [broken`
-
-	type annotation struct {
-		path     string
-		position int
-	}
-
-	type args struct {
-		reader     io.ReadCloser
-		annotation any
-	}
-
-	cases := map[string]struct {
-		reason            string
-		args              args
-		wantErrContaining string
-	}{
 		"InvalidYAMLWithAnnotation": {
 			reason: "Should include annotation in error message when reader is AnnotatedReadCloser.",
 			args: args{
 				reader:     io.NopCloser(strings.NewReader(invalidYAML)),
 				annotation: annotation{path: "/examples/test.yaml", position: 42},
 			},
-			wantErrContaining: "/examples/test.yaml",
+			want: want{
+				objCount:       0,
+				expectAnyError: true,
+				errContains:    "/examples/test.yaml",
+			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			p := New()
-			annotatedReader := &mockAnnotatedReadCloser{
-				ReadCloser: tc.args.reader,
-				annotation: tc.args.annotation,
-			}
-			_, err := p.Parse(context.Background(), annotatedReader)
-
-			if err == nil {
-				t.Errorf("\n%s\nParse(...): expected error, got nil", tc.reason)
-				return
+			reader := tc.args.reader
+			if tc.args.annotation != nil {
+				reader = &mockAnnotatedReadCloser{
+					ReadCloser: tc.args.reader,
+					annotation: tc.args.annotation,
+				}
 			}
 
-			if !strings.Contains(err.Error(), tc.wantErrContaining) {
-				t.Errorf("\n%s\nParse(...): expected error to contain %q, got %q", tc.reason, tc.wantErrContaining, err.Error())
+			ex, err := p.Parse(context.Background(), reader)
+
+			if tc.want.expectAnyError {
+				if err == nil {
+					t.Errorf("\n%s\nParse(...): expected error, got nil", tc.reason)
+					return
+				}
+				if tc.want.errContains != "" && !strings.Contains(err.Error(), tc.want.errContains) {
+					t.Errorf("\n%s\nParse(...): expected error to contain %q, got %q", tc.reason, tc.want.errContains, err.Error())
+				}
+			}
+
+			if !tc.want.expectAnyError {
+				if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+					t.Errorf("\n%s\nParse(...): -want err, +got err:\n%s", tc.reason, diff)
+				}
+			}
+
+			if diff := cmp.Diff(tc.want.objCount, len(ex.objects)); diff != "" {
+				t.Errorf("\n%s\nParse(...): -want objCount, +got objCount:\n%s", tc.reason, diff)
 			}
 		})
 	}
