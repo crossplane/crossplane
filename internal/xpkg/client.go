@@ -293,7 +293,7 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 
 	rc, err := ExtractPackageYAML(img)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "cannot extract package content from %s", resolvedRef)
 	}
 
 	pipeR, pipeW := io.Pipe()
@@ -313,7 +313,7 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 		Closer: teeRC,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot parse package")
+		return nil, errors.Wrapf(err, "cannot parse package %s", resolvedRef)
 	}
 
 	return &Package{
@@ -387,6 +387,7 @@ func ExtractPackageYAML(img v1.Image) (io.ReadCloser, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot uncompress layer")
 		}
+		break // Only one annotated layer expected per xpkg spec.
 	}
 
 	if tarc == nil {
@@ -397,8 +398,11 @@ func ExtractPackageYAML(img v1.Image) (io.ReadCloser, error) {
 
 	for {
 		h, err := t.Next()
+		if err == io.EOF {
+			return nil, errors.New("package.yaml not found in package")
+		}
 		if err != nil {
-			return nil, errors.Wrapf(err, "package.yaml not found")
+			return nil, errors.Wrap(err, "cannot read package contents")
 		}
 
 		if filepath.Base(h.Name) == StreamFile {
