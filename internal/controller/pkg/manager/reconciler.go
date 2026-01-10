@@ -329,8 +329,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Clear previous ImageConfig refs and set the ones that were applied.
-	p.ClearAppliedImageConfigRef(v1.ImageConfigReasonRewrite)
-	p.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
+	for _, reason := range xpkg.SupportedImageConfigs() {
+		p.ClearAppliedImageConfigRef(v1.ImageConfigRefReason(reason))
+	}
 
 	for _, cfg := range pkg.AppliedImageConfigs {
 		p.SetAppliedImageConfigRefs(v1.ImageConfigRef{

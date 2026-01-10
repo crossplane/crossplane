@@ -70,6 +70,17 @@ const (
 	ImageConfigReasonSetPullSecret ImageConfigReason = "SetImagePullSecret"
 )
 
+// SupportedImageConfigs returns the ImageConfigReasons that Client may return.
+// Callers tracking applied ImageConfigs should clear all of these before
+// setting the ones returned by Client.Get, to handle the case where a
+// previously-applied ImageConfig no longer matches.
+func SupportedImageConfigs() []ImageConfigReason {
+	return []ImageConfigReason{
+		ImageConfigReasonRewrite,
+		ImageConfigReasonSetPullSecret,
+	}
+}
+
 // maxPackageSize is the maximum size of a package.yaml file that can be parsed.
 // This limit prevents denial of service attacks via maliciously large packages.
 const maxPackageSize = 200 << 20 // 200 MB

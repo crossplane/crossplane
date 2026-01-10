@@ -521,8 +521,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// server's response, which would wipe these in-memory status changes.
 	pr.SetResolvedSource(pkg.ResolvedRef())
 
-	pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonRewrite)
-	pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
+	for _, reason := range xpkg.SupportedImageConfigs() {
+		pr.ClearAppliedImageConfigRef(v1.ImageConfigRefReason(reason))
+	}
 	for _, cfg := range pkg.AppliedImageConfigs {
 		pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 			Name:   cfg.Name,
@@ -606,8 +607,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// overwrites pr with the server's response, which doesn't include status.
 	pr.SetResolvedSource(pkg.ResolvedRef())
 
-	pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonRewrite)
-	pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
+	for _, reason := range xpkg.SupportedImageConfigs() {
+		pr.ClearAppliedImageConfigRef(v1.ImageConfigRefReason(reason))
+	}
 	for _, cfg := range pkg.AppliedImageConfigs {
 		pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 			Name:   cfg.Name,
