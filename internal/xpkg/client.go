@@ -223,7 +223,7 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 
 	parsedResolvedRef, err := name.ParseReference(resolvedRef)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot parse package reference %s", resolvedRef)
+		return nil, errors.Wrapf(err, "cannot parse resolved package reference %s", resolvedRef)
 	}
 
 	secrets := cfg.pullSecrets
