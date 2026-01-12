@@ -61,7 +61,6 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/controller/protection"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
-	"github.com/crossplane/crossplane/v2/internal/initializer"
 	"github.com/crossplane/crossplane/v2/internal/metrics"
 	"github.com/crossplane/crossplane/v2/internal/protection/usage"
 	"github.com/crossplane/crossplane/v2/internal/transport"
@@ -122,6 +121,10 @@ type startCommand struct {
 	TLSServerCertsDir   string `env:"TLS_SERVER_CERTS_DIR"   help:"The path of the folder which will store TLS server certificate of Crossplane."`
 	TLSClientSecretName string `env:"TLS_CLIENT_SECRET_NAME" help:"The name of the TLS Secret that will be store Crossplane's client certificate."`
 	TLSClientCertsDir   string `env:"TLS_CLIENT_CERTS_DIR"   help:"The path of the folder which will store TLS client certificate of Crossplane."`
+
+	TLSClientCACertFileName string `default:"ca.crt"  env:"TLS_CLIENT_CA_CERT_FILENAME"   help:"The filename of the CA certificate in the TLS client certs directory."`
+	TLSClientCertFileName   string `default:"tls.crt" env:"TLS_CLIENT_CERT_FILENAME"      help:"The filename of the client certificate in the TLS client certs directory."`
+	TLSClientKeyFileName    string `default:"tls.key" env:"TLS_CLIENT_KEY_FILENAME"       help:"The filename of the client private key in the TLS client certs directory."`
 
 	EnableDependencyVersionUpgrades   bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when the parent package is updated."`
 	EnableDependencyVersionDowngrades bool `group:"Alpha Features:" help:"Enable support for upgrading and downgrading dependency versions when a dependent package is updated."`
@@ -254,9 +257,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	clienttls, err := certificates.LoadMTLSConfig(
-		filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
-		filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
-		filepath.Join(c.TLSClientCertsDir, corev1.TLSPrivateKeyKey),
+		filepath.Join(c.TLSClientCertsDir, c.TLSClientCACertFileName),
+		filepath.Join(c.TLSClientCertsDir, c.TLSClientCertFileName),
+		filepath.Join(c.TLSClientCertsDir, c.TLSClientKeyFileName),
 		false)
 	if err != nil {
 		return errors.Wrap(err, "cannot load client TLS certificates")
