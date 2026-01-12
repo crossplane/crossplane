@@ -239,6 +239,9 @@ spec:
             name: tls-server-certs
           - mountPath: /tls/client
             name: tls-client-certs
+      {{- with .Values.sidecarsCrossplane }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
       volumes:
       - name: package-cache
         {{- if .Values.packageCache.pvc }}
