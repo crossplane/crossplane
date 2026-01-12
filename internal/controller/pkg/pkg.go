@@ -26,8 +26,6 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/resolver"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/runtime"
-	"github.com/crossplane/crossplane/v2/internal/controller/pkg/signature"
-	"github.com/crossplane/crossplane/v2/internal/features"
 )
 
 // Setup package controllers.
@@ -51,14 +49,6 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	if o.PackageRuntime.For(pkgv1.FunctionKind) == controller.PackageRuntimeDeployment {
 		setupFuncs = append(setupFuncs, []func(c ctrl.Manager, options controller.Options) error{
 			runtime.SetupFunctionRevision,
-		}...)
-	}
-
-	if o.Features.Enabled(features.EnableAlphaSignatureVerification) {
-		setupFuncs = append(setupFuncs, []func(c ctrl.Manager, options controller.Options) error{
-			signature.SetupProviderRevision,
-			signature.SetupConfigurationRevision,
-			signature.SetupFunctionRevision,
 		}...)
 	}
 
