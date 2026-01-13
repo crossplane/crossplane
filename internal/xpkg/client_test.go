@@ -959,6 +959,88 @@ func TestClientGet(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
+		"ErrorRewritePathFails": {
+			reason: "Should return error when RewritePath config lookup fails",
+			client: &CachedClient{
+				config: &MockConfigStore{
+					MockRewritePath: func(_ context.Context, _ string) (string, string, error) {
+						return "", "", errors.New("cannot list ImageConfigs")
+					},
+				},
+			},
+			args: args{
+				ref: testSource + ":" + testTag,
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"ErrorPullSecretForFails": {
+			reason: "Should return error when PullSecretFor config lookup fails",
+			client: &CachedClient{
+				fetcher: &MockFetcher{
+					MockHead: func(_ context.Context, _ name.Reference, _ ...string) (*v1.Descriptor, error) {
+						return &v1.Descriptor{
+							Digest: v1.Hash{
+								Algorithm: "sha256",
+								Hex:       "abc123def456789012345678901234567890123456789012345678901234abcd",
+							},
+						}, nil
+					},
+				},
+				config: &MockConfigStore{
+					MockRewritePath: func(_ context.Context, _ string) (string, string, error) {
+						return "", "", nil
+					},
+					MockPullSecretFor: func(_ context.Context, _ string) (string, string, error) {
+						return "", "", errors.New("cannot list ImageConfigs")
+					},
+				},
+			},
+			args: args{
+				ref: testSource + ":" + testTag,
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"ErrorImageVerificationConfigForFails": {
+			reason: "Should return error when ImageVerificationConfigFor lookup fails",
+			client: &CachedClient{
+				fetcher: &MockFetcher{
+					MockHead: func(_ context.Context, _ name.Reference, _ ...string) (*v1.Descriptor, error) {
+						return &v1.Descriptor{
+							Digest: v1.Hash{
+								Algorithm: "sha256",
+								Hex:       "abc123def456789012345678901234567890123456789012345678901234abcd",
+							},
+						}, nil
+					},
+				},
+				cache: &MockCache{
+					MockGet: func(_ string) (io.ReadCloser, error) {
+						return nil, errors.New("not in cache")
+					},
+				},
+				config: &MockConfigStore{
+					MockRewritePath: func(_ context.Context, _ string) (string, string, error) {
+						return "", "", nil
+					},
+					MockPullSecretFor: func(_ context.Context, _ string) (string, string, error) {
+						return "", "", nil
+					},
+					MockImageVerificationConfigFor: func(_ context.Context, _ string) (string, *v1beta1.ImageVerification, error) {
+						return "", nil, errors.New("cannot list ImageConfigs")
+					},
+				},
+			},
+			args: args{
+				ref: testSource + ":" + testTag,
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -1085,6 +1167,46 @@ func TestClientListVersions(t *testing.T) {
 					},
 					MockImageVerificationConfigFor: func(_ context.Context, _ string) (string, *v1beta1.ImageVerification, error) {
 						return "", nil, nil
+					},
+				},
+			},
+			args: args{
+				source: testSource,
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"ErrorRewritePathFails": {
+			reason: "Should return error when RewritePath config lookup fails",
+			client: &CachedClient{
+				config: &MockConfigStore{
+					MockRewritePath: func(_ context.Context, _ string) (string, string, error) {
+						return "", "", errors.New("cannot list ImageConfigs")
+					},
+				},
+			},
+			args: args{
+				source: testSource,
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"ErrorPullSecretForFails": {
+			reason: "Should return error when PullSecretFor config lookup fails",
+			client: &CachedClient{
+				fetcher: &MockFetcher{
+					MockTags: func(_ context.Context, _ name.Reference, _ ...string) ([]string, error) {
+						return []string{"v1.0.0"}, nil
+					},
+				},
+				config: &MockConfigStore{
+					MockRewritePath: func(_ context.Context, _ string) (string, string, error) {
+						return "", "", nil
+					},
+					MockPullSecretFor: func(_ context.Context, _ string) (string, string, error) {
+						return "", "", errors.New("cannot list ImageConfigs")
 					},
 				},
 			},

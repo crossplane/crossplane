@@ -232,7 +232,11 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 
 	var applied []ImageConfig
 
-	if name, rewritten, err := c.config.RewritePath(ctx, ref); err == nil && rewritten != "" {
+	name, rewritten, err := c.config.RewritePath(ctx, ref)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get image rewrite config")
+	}
+	if rewritten != "" {
 		resolvedRef = rewritten
 		applied = append(applied, ImageConfig{Name: name, Reason: ImageConfigReasonRewrite})
 	}
@@ -249,7 +253,11 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 
 	secrets := cfg.pullSecrets
 
-	if name, secret, err := c.config.PullSecretFor(ctx, ref); err == nil && secret != "" {
+	name, secret, err := c.config.PullSecretFor(ctx, ref)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get image pull secret config")
+	}
+	if secret != "" {
 		secrets = append(secrets, secret)
 		applied = append(applied, ImageConfig{Name: name, Reason: ImageConfigReasonSetPullSecret})
 	}
@@ -306,7 +314,11 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 	// we're making a trade-off here. The only way to guarantee we're using
 	// a verified OCI image on every reconcile would be to disable caching,
 	// or cache the entire OCI image.
-	if name, vc, err := c.config.ImageVerificationConfigFor(ctx, resolvedRef); err == nil && vc != nil {
+	name, vc, err := c.config.ImageVerificationConfigFor(ctx, resolvedRef)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get image verification config")
+	}
+	if vc != nil {
 		ref := parsedResolvedRef.Context().Digest(digest)
 		if err := c.validator.Validate(ctx, ref, vc, secrets...); err != nil {
 			return nil, errors.Wrap(err, "signature verification failed")
@@ -367,7 +379,10 @@ func (c *CachedClient) ListVersions(ctx context.Context, source string, opts ...
 	resolvedSource := source
 
 	_, rewritten, err := c.config.RewritePath(ctx, source)
-	if err == nil && rewritten != "" {
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get image rewrite config")
+	}
+	if rewritten != "" {
 		resolvedSource = rewritten
 	}
 
@@ -378,7 +393,10 @@ func (c *CachedClient) ListVersions(ctx context.Context, source string, opts ...
 
 	secrets := cfg.pullSecrets
 	_, secret, err := c.config.PullSecretFor(ctx, source)
-	if err == nil && secret != "" {
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get image pull secret config")
+	}
+	if secret != "" {
 		secrets = append(secrets, secret)
 	}
 
