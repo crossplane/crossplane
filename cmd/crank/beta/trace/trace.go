@@ -51,7 +51,6 @@ const (
 	errGetDiscoveryClient     = "cannot get discovery client"
 	errGetMapping             = "cannot get mapping for resource"
 	errInitPrinter            = "cannot init new printer"
-	errMissingName            = "missing name, must be provided separately 'TYPE[.VERSION][.GROUP] [NAME]' or in the 'TYPE[.VERSION][.GROUP][/NAME]' format"
 	errNameDoubled            = "name provided twice, must be provided separately 'TYPE[.VERSION][.GROUP] [NAME]' or in the 'TYPE[.VERSION][.GROUP][/NAME]' format"
 	errInvalidResource        = "invalid resource, must be provided in the 'TYPE[.VERSION][.GROUP][/NAME]' format"
 	errInvalidResourceAndName = "invalid resource and name"
@@ -87,7 +86,10 @@ Examples:
   # Trace a MyKind resource (mykinds.example.org/v1alpha1) named 'my-res' in the namespace 'my-ns'
   crossplane beta trace mykind my-res -n my-ns
 
-  # Output wide format, showing full errors and condition messages, and other useful info
+  # Trace all MyKind resources (mykinds.example.org/v1alpha1) in the namespace 'my-ns'
+  crossplane beta trace mykind -n my-ns
+
+  # Output wide format, showing full errors and condition messages, and other useful info 
   # depending on the target type, e.g. composed resources names for composite resources or image used for packages
   crossplane beta trace mykind my-res -n my-ns -o wide
 
@@ -192,51 +194,51 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		rootRef.Namespace = namespace
 	}
 
+	// If no name is provided, we should print a list of resources.
+	shouldPrintAsList := name == ""
+
 	logger.Debug("Getting resource tree", "rootRef", rootRef.String())
-	// Get client for k8s package
-	root := resource.GetResource(ctx, client, rootRef)
+	var resourceList *resource.ResourceList
+	if shouldPrintAsList {
+		// If no name is provided, we list all resources of the kind.
+		logger.Debug("No name provided, listing all resources of the kind")
+		resourceList = resource.ListResources(ctx, client, rootRef)
+	} else {
+		// If a name is provided, we get the specific resource.
+		logger.Debug("Name provided, getting specific resource", "name", name)
+		res := resource.GetResource(ctx, client, rootRef)
+		resourceList = &resource.ResourceList{
+			Items: []*resource.Resource{res},
+			Error: res.Error,
+		}
+	}
+
 	// We should just surface any error getting the root resource immediately.
-	if err := root.Error; err != nil {
+	if err := resourceList.Error; err != nil {
 		return errors.Wrap(err, errGetResource)
 	}
 
-	var treeClient resource.TreeClient
-
-	switch {
-	case xpkg.IsPackageType(mapping.GroupVersionKind.GroupKind()):
-		logger.Debug("Requested resource is an Package")
-
-		treeClient, err = xpkg.NewClient(client,
-			xpkg.WithDependencyOutput(xpkg.DependencyOutput(c.ShowPackageDependencies)),
-			xpkg.WithPackageRuntimeConfigs(c.ShowPackageRuntimeConfigs),
-			xpkg.WithRevisionOutput(xpkg.RevisionOutput(c.ShowPackageRevisions)))
+	for i := range resourceList.Items {
+		root := resourceList.Items[i]
+		root, err = c.getResourceTree(ctx, root, mapping, client, logger)
 		if err != nil {
-			return errors.Wrap(err, errInitKubeClient)
+			logger.Debug(errGetResource, "error", err)
+			return errors.Wrap(err, errGetResource)
 		}
-	default:
-		logger.Debug("Requested resource is not a package, assumed to be an XR, XRC or MR")
 
-		treeClient, err = xrm.NewClient(client,
-			xrm.WithConnectionSecrets(c.ShowConnectionSecrets),
-			xrm.WithConcurrency(c.Concurrency),
-		)
-		if err != nil {
-			return errors.Wrap(err, errInitKubeClient)
-		}
+		logger.Debug("Got resource tree", "root", root)
+
+		resourceList.Items[i] = root
 	}
 
-	logger.Debug("Built client")
-
-	root, err = treeClient.GetResourceTree(ctx, root)
-	if err != nil {
-		logger.Debug(errGetResource, "error", err)
-		return errors.Wrap(err, errGetResource)
+	if shouldPrintAsList {
+		// Print list of resources
+		err = p.PrintList(k.Stdout, resourceList)
+	} else {
+		// Print a single resource
+		err = p.Print(k.Stdout, resourceList.Items[0])
 	}
 
-	logger.Debug("Got resource tree", "root", root)
-
-	// Print resources
-	err = p.Print(k.Stdout, root)
 	if err != nil {
 		return errors.Wrap(err, errCliOutput)
 	}
@@ -256,11 +258,6 @@ func (c *Cmd) getResourceAndName() (string, string, error) {
 	length := len(splittedResource)
 
 	if length == 1 {
-		// If no name is provided, error out
-		if c.Name == "" {
-			return "", "", errors.New(errMissingName)
-		}
-
 		// Resource has only kind and the name is separately provided
 		return splittedResource[0], c.Name, nil
 	}
@@ -277,4 +274,32 @@ func (c *Cmd) getResourceAndName() (string, string, error) {
 
 	// Handle the case when resource format is invalid
 	return "", "", errors.New(errInvalidResource)
+}
+
+func (c *Cmd) getResourceTree(ctx context.Context, root *resource.Resource, mapping *meta.RESTMapping, client client.Client, logger logging.Logger) (*resource.Resource, error) {
+	var treeClient resource.TreeClient
+	var err error
+	switch {
+	case xpkg.IsPackageType(mapping.GroupVersionKind.GroupKind()):
+		logger.Debug("Requested resource is a Package")
+		treeClient, err = xpkg.NewClient(client,
+			xpkg.WithDependencyOutput(xpkg.DependencyOutput(c.ShowPackageDependencies)),
+			xpkg.WithPackageRuntimeConfigs(c.ShowPackageRuntimeConfigs),
+			xpkg.WithRevisionOutput(xpkg.RevisionOutput(c.ShowPackageRevisions)))
+		if err != nil {
+			return nil, errors.Wrap(err, errInitKubeClient)
+		}
+	default:
+		logger.Debug("Requested resource is not a package, assumed to be an XR, XRC or MR")
+		treeClient, err = xrm.NewClient(client,
+			xrm.WithConnectionSecrets(c.ShowConnectionSecrets),
+			xrm.WithConcurrency(c.Concurrency),
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, errInitKubeClient)
+		}
+	}
+	logger.Debug("Built client")
+
+	return treeClient.GetResourceTree(ctx, root)
 }

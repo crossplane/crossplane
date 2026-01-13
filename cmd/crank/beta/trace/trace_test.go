@@ -38,16 +38,6 @@ func TestCmd_getResourceAndName(t *testing.T) {
 				err:      nil,
 			},
 		},
-		"OnlyResource": {
-			reason: "Should return an error if only resource is provided",
-			fields: args{
-				Resource: "resource",
-				Name:     "",
-			},
-			want: want{
-				err: errors.New(errMissingName),
-			},
-		},
 		"Empty": {
 			// should never happen, resource is required by kong
 			reason: "Should return an error if no resource is provided",

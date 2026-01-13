@@ -28,7 +28,7 @@ import (
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
 )
 
-func TestDefaultPrinter(t *testing.T) {
+func TestDefaultPrinterPrint(t *testing.T) {
 	type args struct {
 		resource *resource.Resource
 		wide     bool
@@ -145,6 +145,109 @@ Configuration/platform-ref-aws                                                  
 			var buf bytes.Buffer
 
 			err := p.Print(&buf, tc.args.resource)
+			got := buf.String()
+
+			// Check error
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("%s\nCliTableAddResource(): -want, +got:\n%s", tc.reason, diff)
+			}
+			// Check table
+			if diff := cmp.Diff(strings.TrimSpace(tc.want.output), strings.TrimSpace(got)); diff != "" {
+				t.Errorf("%s\nCliTableAddResource(): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestDefaultPrinterPrintList(t *testing.T) {
+	type args struct {
+		resourceList *resource.ResourceList
+		wide         bool
+	}
+
+	type want struct {
+		output string
+		err    error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		// Test valid resource
+		"ResourceListWithChildren": {
+			reason: "Should print the resource list with children.",
+			args: args{
+				resourceList: &resource.ResourceList{
+					Items: []*resource.Resource{
+						GetComplexResource(),
+						GetSimpleResource(),
+					},
+				},
+				wide: false,
+			},
+			want: want{
+				// Note: Use spaces instead of tabs for indentation
+				//nolint:dupword // False positive for 'True True'
+				output: `
+NAME                                                   SYNCED    READY   STATUS
+ObjectStorage/test-resource (default)                  True      True    
+└─ XObjectStorage/test-resource-hash                   True      True    
+   ├─ Bucket/test-resource-bucket-hash                 True      True    
+   │  ├─ User/test-resource-child-1-bucket-hash        True      False   SomethingWrongHappened: ...rure magna. Non cillum id nulla. Anim culpa do duis consectetur.
+   │  ├─ User/test-resource-child-mid-bucket-hash      False     True    CantSync: Sync error with bucket child mid
+   │  └─ User/test-resource-child-2-bucket-hash        True      False   SomethingWrongHappened: Error with bucket child 2
+   │     └─ User/test-resource-child-2-1-bucket-hash   True      -       
+   └─ User/test-resource-user-hash                     Unknown   True    
+SimpleResource/simple-resource (default)               True      True    
+└─ XSimpleResource/simple-resource-hash                True      True    
+   └─ Something/simple-resource-something-hash         True      True    
+
+`,
+				err: nil,
+			},
+		},
+		"ResourceListWithChildrenWide": {
+			reason: "Should print the resource list with children even in wide.",
+			args: args{
+				resourceList: &resource.ResourceList{
+					Items: []*resource.Resource{
+						GetComplexResource(),
+						GetSimpleResource(),
+					},
+				},
+				wide: true,
+			},
+			want: want{
+				// Note: Use spaces instead of tabs for indentation
+				//nolint:dupword // False positive for 'True True'
+				output: `
+NAME                                                   RESOURCE    SYNCED    READY   STATUS
+ObjectStorage/test-resource (default)                              True      True    
+└─ XObjectStorage/test-resource-hash                               True      True    
+   ├─ Bucket/test-resource-bucket-hash                 one         True      True    
+   │  ├─ User/test-resource-child-1-bucket-hash        two         True      False   SomethingWrongHappened: Error with bucket child 1: Sint eu mollit tempor ad minim do commodo irure. Magna labore irure magna. Non cillum id nulla. Anim culpa do duis consectetur.
+   │  ├─ User/test-resource-child-mid-bucket-hash      three       False     True    CantSync: Sync error with bucket child mid
+   │  └─ User/test-resource-child-2-bucket-hash        four        True      False   SomethingWrongHappened: Error with bucket child 2
+   │     └─ User/test-resource-child-2-1-bucket-hash               True      -       
+   └─ User/test-resource-user-hash                                 Unknown   True    
+SimpleResource/simple-resource (default)                           True      True    
+└─ XSimpleResource/simple-resource-hash                            True      True    
+   └─ Something/simple-resource-something-hash         something   True      True    
+`,
+				err: nil,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			p := DefaultPrinter{
+				wide: tc.args.wide,
+			}
+			var buf bytes.Buffer
+			err := p.PrintList(&buf, tc.args.resourceList)
 			got := buf.String()
 
 			// Check error
