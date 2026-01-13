@@ -126,6 +126,9 @@ type startCommand struct {
 	TLSClientCertFileName   string `default:"tls.crt" env:"TLS_CLIENT_CERT_FILENAME"      help:"The filename of the client certificate in the TLS client certs directory."`
 	TLSClientKeyFileName    string `default:"tls.key" env:"TLS_CLIENT_KEY_FILENAME"       help:"The filename of the client private key in the TLS client certs directory."`
 
+	TLSServerCertFileName string `default:"tls.crt" env:"TLS_SERVER_CERT_FILENAME"      help:"The filename of the client certificate in the TLS client certs directory."`
+	TLSServerKeyFileName  string `default:"tls.key" env:"TLS_SERVER_KEY_FILENAME"       help:"The filename of the client private key in the TLS client certs directory."`
+
 	EnableDependencyVersionUpgrades   bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when the parent package is updated."`
 	EnableDependencyVersionDowngrades bool `group:"Alpha Features:" help:"Enable support for upgrading and downgrading dependency versions when a dependent package is updated."`
 	EnableSignatureVerification       bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
@@ -191,7 +194,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			SyncPeriod: &c.SyncInterval,
 		},
 		WebhookServer: webhook.NewServer(webhook.Options{
-			CertDir: c.TLSServerCertsDir,
+			CertDir:  c.TLSServerCertsDir,
+			CertName: c.TLSServerCertFileName,
+			KeyName:  c.TLSServerKeyFileName,
 			TLSOpts: []func(*tls.Config){
 				func(t *tls.Config) {
 					t.MinVersion = tls.VersionTLS13
