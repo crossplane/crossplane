@@ -259,6 +259,8 @@ jobs:
            test-suite: package-dependency-updates
          - test-area: pkg
            test-suite: package-signature-verification
+         - test-area: pkg
+           test-suite: package-transaction-manager
 
          # Operations feature flags
          - test-area: ops
