@@ -253,7 +253,7 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 
 	secrets := cfg.pullSecrets
 
-	name, secret, err := c.config.PullSecretFor(ctx, ref)
+	name, secret, err := c.config.PullSecretFor(ctx, resolvedRef)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot get image pull secret config")
 	}
@@ -392,7 +392,7 @@ func (c *CachedClient) ListVersions(ctx context.Context, source string, opts ...
 	}
 
 	secrets := cfg.pullSecrets
-	_, secret, err := c.config.PullSecretFor(ctx, source)
+	_, secret, err := c.config.PullSecretFor(ctx, resolvedSource)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot get image pull secret config")
 	}
