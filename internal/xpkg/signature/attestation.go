@@ -88,7 +88,7 @@ func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 		predicateURI = predicateType
 	}
 
-	var payloadData map[string]interface{}
+	var payloadData map[string]any
 
 	p, err := verifiedAttestation.Payload()
 	if err != nil {

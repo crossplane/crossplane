@@ -42,7 +42,7 @@ var (
 
 // CompositeResourceDefinition type metadata.
 var (
-	CompositeResourceDefinitionKind             = reflect.TypeOf(CompositeResourceDefinition{}).Name()
+	CompositeResourceDefinitionKind             = reflect.TypeFor[CompositeResourceDefinition]().Name()
 	CompositeResourceDefinitionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositeResourceDefinitionKind}.String()
 	CompositeResourceDefinitionKindAPIVersion   = CompositeResourceDefinitionKind + "." + SchemeGroupVersion.String()
 	CompositeResourceDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(CompositeResourceDefinitionKind)
