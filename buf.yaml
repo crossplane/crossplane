@@ -1,7 +1,5 @@
 version: v2
 name: buf.build/crossplane/crossplane
-deps:
-  - buf.build/protocolbuffers/wellknowntypes:v24.4
 lint:
   use:
     - STANDARD

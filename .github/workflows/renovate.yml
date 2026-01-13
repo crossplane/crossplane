@@ -12,9 +12,6 @@ on:
     - cron: '0 8 * * *'
 
 env:
-  # Common versions
-  EARTHLY_VERSION: '0.8.16'
-
   LOG_LEVEL: "info"
 
 jobs:
@@ -45,7 +42,7 @@ jobs:
           # Use GitHub API to create commits
           RENOVATE_PLATFORM_COMMIT: "true"
           LOG_LEVEL: ${{ github.event.inputs.logLevel || env.LOG_LEVEL }}
-          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^earthly .+"]'
+          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^nix .+", "^earthly .+"]'
         with:
           configurationFile: .github/renovate.json5
           token: '${{ steps.get-github-app-token.outputs.token }}'
