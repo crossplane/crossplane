@@ -1,0 +1,47 @@
+suite: Test Webhook Service
+templates:
+  - service.yaml
+tests:
+  - it: should create webhook service with correct target port when using default
+    set:
+      webhooks:
+        enabled: true
+        port: ""
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: crossplane-webhooks
+      - equal:
+          path: spec.ports[0].port
+          value: 9443
+      - equal:
+          path: spec.ports[0].targetPort
+          value: 9443
+
+  - it: should create webhook service with correct target port when using custom port
+    set:
+      webhooks:
+        enabled: true
+        port: 8443
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: crossplane-webhooks
+      - equal:
+          path: spec.ports[0].port
+          value: 9443
+      - equal:
+          path: spec.ports[0].targetPort
+          value: 8443
+
+  - it: should not create service when webhooks are disabled
+    set:
+      webhooks:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
