@@ -281,7 +281,7 @@ func (c *Cmd) getResourceTree(ctx context.Context, root *resource.Resource, mapp
 	var err error
 	switch {
 	case xpkg.IsPackageType(mapping.GroupVersionKind.GroupKind()):
-		logger.Debug("Requested resource is an Package")
+		logger.Debug("Requested resource is a Package")
 		treeClient, err = xpkg.NewClient(client,
 			xpkg.WithDependencyOutput(xpkg.DependencyOutput(c.ShowPackageDependencies)),
 			xpkg.WithPackageRuntimeConfigs(c.ShowPackageRuntimeConfigs),
