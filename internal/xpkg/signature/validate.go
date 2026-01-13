@@ -32,6 +32,14 @@ type Validator interface {
 	Validate(ctx context.Context, ref name.Reference, config *v1beta1.ImageVerification, pullSecrets ...string) error
 }
 
+// NopValidator is a Validator that always succeeds.
+type NopValidator struct{}
+
+// Validate always returns nil, skipping signature verification.
+func (NopValidator) Validate(context.Context, name.Reference, *v1beta1.ImageVerification, ...string) error {
+	return nil
+}
+
 // NewCosignValidator returns a new CosignValidator.
 func NewCosignValidator(c client.Reader, k kubernetes.Interface, namespace, serviceAccount string) (*CosignValidator, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), fetchCertTimeout)

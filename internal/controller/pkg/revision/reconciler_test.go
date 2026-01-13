@@ -35,7 +35,6 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
@@ -45,7 +44,6 @@ import (
 
 	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
-	"github.com/crossplane/crossplane/v2/internal/features"
 	verfake "github.com/crossplane/crossplane/v2/internal/version/fake"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
 	xpkgfake "github.com/crossplane/crossplane/v2/internal/xpkg/fake"
@@ -954,104 +952,6 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
-		"WaitForSignatureVerifiedCondition": {
-			reason: "We should wait until signature verification is complete before proceeding and communicate this with the Healthy condition.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithFeatureFlags(signatureVerificationEnabled()),
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
-								want.SetConditions(v1.AwaitingVerification())
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithClient(&xpkgfake.MockClient{
-						MockGet: xpkgfake.NewMockGetFn(mockPackage(), nil),
-					}),
-				},
-			},
-		},
-		"SuccessfulActiveRevisionSuccessfulVerification": {
-			reason: "An active revision should establish control of all of its resources.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithFeatureFlags(signatureVerificationEnabled()),
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
-								pr.SetConditions(v1.VerificationSucceeded("foo"))
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
-								want.SetConditions(v1.VerificationSucceeded("foo"))
-								want.SetConditions(v1.RevisionHealthy())
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
-								want.SetConditions(v1.VerificationSucceeded("foo"))
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-
-							MockDelete: test.NewMockDeleteFn(nil),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithEstablisher(NewMockEstablisher()),
-					WithClient(&xpkgfake.MockClient{
-						MockGet: xpkgfake.NewMockGetFn(mockPackage(), nil),
-					}),
-					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
-					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: false},
-			},
-		},
 	}
 
 	for name, tc := range cases {
@@ -1068,11 +968,4 @@ func TestReconcile(t *testing.T) {
 			}
 		})
 	}
-}
-
-func signatureVerificationEnabled() *feature.Flags {
-	f := &feature.Flags{}
-	f.Enable(features.EnableAlphaSignatureVerification)
-
-	return f
 }

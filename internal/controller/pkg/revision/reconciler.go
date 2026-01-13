@@ -531,21 +531,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		})
 	}
 
-	// Wait for signature verification to complete before proceeding. We do this
-	// after fetching/parsing the package so that ResolvedSource is set, which
-	// the signature verification controller needs to verify the image.
-	if r.features.Enabled(features.EnableAlphaSignatureVerification) {
-		if cond := pr.GetCondition(v1.TypeVerified); cond.Status != corev1.ConditionTrue {
-			log.Debug("Waiting for signature verification controller to complete verification.", "condition", cond)
-			// Set status to communicate we're awaiting verification. This also
-			// persists ResolvedSource so the signature controller can see it.
-			if pr.GetCondition(v1.TypeRevisionHealthy).Status == corev1.ConditionUnknown {
-				status.MarkConditions(v1.AwaitingVerification())
-			}
-			return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, pr), errUpdateStatus)
-		}
-	}
-
 	// Validate the package using a package-specific validator. If validation
 	// fails, we won't try to install the package.
 	if err := r.validator.Lint(pkg.Package); err != nil {

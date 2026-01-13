@@ -318,7 +318,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	)
 	if err != nil {
 		err = errors.Wrap(err, errUnpack)
-		status.MarkConditions(v1.Unpacking().WithMessage(err.Error()))
+		status.MarkConditions(v1.Unpacking().WithMessage(err.Error()), v1.Unhealthy().WithMessage(err.Error()))
 		r.record.Event(p, event.Warning(reasonUnpack, err))
 
 		if updateErr := r.kube.Status().Update(ctx, p); updateErr != nil {

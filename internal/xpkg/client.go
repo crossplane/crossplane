@@ -25,7 +25,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver"
-	"github.com/google/go-containerregistry/pkg/name"
+	ociname "github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	corev1 "k8s.io/api/core/v1"
@@ -34,6 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 
 	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
+	"github.com/crossplane/crossplane/v2/internal/xpkg/signature"
 )
 
 // Client is a client for fetching and parsing Crossplane packages.
@@ -63,11 +64,17 @@ type ImageConfig struct {
 type ImageConfigReason string
 
 const (
-	// ImageConfigReasonRewrite indicates the ImageConfig rewrote the image path.
+	// ImageConfigReasonRewrite indicates the ImageConfig rewrote the image
+	// path.
 	ImageConfigReasonRewrite ImageConfigReason = "RewriteImage"
 
-	// ImageConfigReasonSetPullSecret indicates the ImageConfig provided a pull secret.
+	// ImageConfigReasonSetPullSecret indicates the ImageConfig provided a
+	// pull secret.
 	ImageConfigReasonSetPullSecret ImageConfigReason = "SetImagePullSecret"
+
+	// ImageConfigReasonVerify indicates the ImageConfig provided signature
+	// verification config.
+	ImageConfigReasonVerify ImageConfigReason = "VerifyImage"
 )
 
 // SupportedImageConfigs returns the ImageConfigReasons that Client may return.
@@ -78,6 +85,7 @@ func SupportedImageConfigs() []ImageConfigReason {
 	return []ImageConfigReason{
 		ImageConfigReasonRewrite,
 		ImageConfigReasonSetPullSecret,
+		ImageConfigReasonVerify,
 	}
 }
 
@@ -192,19 +200,21 @@ type GetConfig struct {
 
 // CachedClient implements Client with caching support.
 type CachedClient struct {
-	fetcher Fetcher
-	parser  parser.Parser
-	cache   PackageCache
-	config  ConfigStore
+	fetcher   Fetcher
+	parser    parser.Parser
+	cache     PackageCache
+	config    ConfigStore
+	validator signature.Validator
 }
 
 // NewCachedClient creates a new package client.
-func NewCachedClient(f Fetcher, p parser.Parser, c PackageCache, s ConfigStore) *CachedClient {
+func NewCachedClient(f Fetcher, p parser.Parser, c PackageCache, s ConfigStore, v signature.Validator) *CachedClient {
 	return &CachedClient{
-		fetcher: f,
-		parser:  p,
-		cache:   c,
-		config:  s,
+		fetcher:   f,
+		parser:    p,
+		cache:     c,
+		config:    s,
+		validator: v,
 	}
 }
 
@@ -227,12 +237,12 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 		applied = append(applied, ImageConfig{Name: name, Reason: ImageConfigReasonRewrite})
 	}
 
-	parsedOriginalRef, err := name.ParseReference(originalRef)
+	parsedOriginalRef, err := ociname.ParseReference(originalRef)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot parse package reference %s", originalRef)
 	}
 
-	parsedResolvedRef, err := name.ParseReference(resolvedRef)
+	parsedResolvedRef, err := ociname.ParseReference(resolvedRef)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot parse resolved package reference %s", resolvedRef)
 	}
@@ -245,7 +255,7 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 	}
 
 	var digest string
-	if d, ok := parsedResolvedRef.(name.Digest); ok {
+	if d, ok := parsedResolvedRef.(ociname.Digest); ok {
 		digest = d.Identifier()
 	} else {
 		desc, err := c.fetcher.Head(ctx, parsedResolvedRef, secrets...)
@@ -284,6 +294,24 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 
 	if cfg.pullPolicy == corev1.PullNever {
 		return nil, errors.New("package not in cache and pull policy is Never")
+	}
+
+	// Verification only happens if we don't get a cache hit. This means we
+	// won't verify packages if verification is enabled _after_ the package
+	// was fetched and cached.
+	//
+	// We cache gzipped package.yaml files from the OCI image. We can't
+	// cryptographically guarantee the cached files are the ones from the
+	// verified package - e.g. if someone manually populated the cache. So
+	// we're making a trade-off here. The only way to guarantee we're using
+	// a verified OCI image on every reconcile would be to disable caching,
+	// or cache the entire OCI image.
+	if name, vc, err := c.config.ImageVerificationConfigFor(ctx, resolvedRef); err == nil && vc != nil {
+		ref := parsedResolvedRef.Context().Digest(digest)
+		if err := c.validator.Validate(ctx, ref, vc, secrets...); err != nil {
+			return nil, errors.Wrap(err, "signature verification failed")
+		}
+		applied = append(applied, ImageConfig{Name: name, Reason: ImageConfigReasonVerify})
 	}
 
 	img, err := c.fetcher.Fetch(ctx, parsedResolvedRef, secrets...)
@@ -343,7 +371,7 @@ func (c *CachedClient) ListVersions(ctx context.Context, source string, opts ...
 		resolvedSource = rewritten
 	}
 
-	ref, err := name.ParseReference(resolvedSource)
+	ref, err := ociname.ParseReference(resolvedSource)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot parse package source %s", resolvedSource)
 	}

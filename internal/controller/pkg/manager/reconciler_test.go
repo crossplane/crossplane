@@ -136,7 +136,7 @@ func TestReconcile(t *testing.T) {
 							MockList: test.NewMockListFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
-								want.SetConditions(v1.Unpacking().WithMessage(errors.Wrap(errBoom, errUnpack).Error()))
+								want.SetConditions(v1.Unpacking().WithMessage(errors.Wrap(errBoom, errUnpack).Error()), v1.Unhealthy().WithMessage(errors.Wrap(errBoom, errUnpack).Error()))
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}

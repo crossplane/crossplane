@@ -71,6 +71,7 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	"github.com/crossplane/crossplane/v2/internal/xfn/cached"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
+	"github.com/crossplane/crossplane/v2/internal/xpkg/signature"
 )
 
 // Command runs the core crossplane controllers.
@@ -541,9 +542,18 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	pkgCache := xpkg.NewFsPackageCache(c.XpkgCacheDir, afero.NewOsFs())
+
+	var val signature.Validator = signature.NopValidator{}
+	if o.Features.Enabled(features.EnableAlphaSignatureVerification) {
+		val, err = signature.NewCosignValidator(mgr.GetClient(), cs, c.Namespace, c.ServiceAccount)
+		if err != nil {
+			return errors.Wrap(err, "cannot create cosign signature validator")
+		}
+	}
+
 	po := pkgcontroller.Options{
 		Options:                          o,
-		Client:                           xpkg.NewCachedClient(fetcher, parser.New(metaScheme, objScheme), pkgCache, xpkg.NewImageConfigStore(mgr.GetClient(), c.Namespace)),
+		Client:                           xpkg.NewCachedClient(fetcher, parser.New(metaScheme, objScheme), pkgCache, xpkg.NewImageConfigStore(mgr.GetClient(), c.Namespace), val),
 		Namespace:                        c.Namespace,
 		ServiceAccount:                   c.ServiceAccount,
 		PackageRuntime:                   pr,

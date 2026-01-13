@@ -283,21 +283,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
-	if r.features.Enabled(features.EnableAlphaSignatureVerification) {
-		// Wait for signature verification to complete before proceeding.
-		if cond := pr.GetCondition(v1.TypeVerified); cond.Status != corev1.ConditionTrue {
-			log.Debug("Waiting for signature verification controller to complete verification.", "condition", cond)
-			// Initialize the healthy condition if they are not already set to
-			// communicate the status of the package.
-			if pr.GetCondition(v1.TypeHealthy).Status == corev1.ConditionUnknown {
-				status.MarkConditions(v1.RuntimeUnhealthy().WithMessage("Waiting for signature verification to complete"))
-				return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update status with awaiting verification")
-			}
-
-			return reconcile.Result{}, nil
-		}
-	}
-
 	var pullSecretFromConfig string
 	// Read applied image config for SetImagePullSecret from the package
 	// revision status, so that we can use the same pull secret without having

@@ -750,12 +750,13 @@ func TestImageConfigVerificationWithKey(t *testing.T) {
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration-unsigned.yaml"),
 			)).
 			Assess("SignatureVerificationFailed", funcs.AllOf(
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ConfigurationRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-configuration-signed-with-key-e0adba255c20"}}, pkgv1.AwaitingVerification(), pkgv1.VerificationFailed("", nil).WithMessage("")),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "e2e-configuration-signed-with-key"}}, pkgv1.Active(), pkgv1.Unhealthy()),
+				// Verification fails before the revision is created, so only the
+				// Configuration exists and it's stuck unpacking.
+				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "e2e-configuration-signed-with-key"}}, pkgv1.Unpacking(), pkgv1.Unhealthy()),
 			)).
 			Assess("SignatureVerificationSucceeded", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "configuration-signed.yaml"),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ConfigurationRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-configuration-signed-with-key-1765fb139d01"}}, pkgv1.RevisionHealthy(), pkgv1.VerificationSucceeded("").WithMessage("")),
+				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ConfigurationRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-configuration-signed-with-key-1765fb139d01"}}, pkgv1.RevisionHealthy()),
 				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "e2e-configuration-signed-with-key"}}, pkgv1.Active(), pkgv1.Healthy()),
 			)).
 			WithTeardown("DeletePackageAndImageConfig", funcs.AllOf(
@@ -786,12 +787,13 @@ func TestImageConfigVerificationKeyless(t *testing.T) {
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-unsigned.yaml"),
 			)).
 			Assess("SignatureVerificationFailed", funcs.AllOf(
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-provider-signed-keyless-552a394a8acc"}}, pkgv1.AwaitingVerification(), pkgv1.VerificationFailed("", nil).WithMessage("")),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-provider-signed-keyless"}}, pkgv1.Active(), pkgv1.Unhealthy()),
+				// Verification fails before the revision is created, so only the
+				// Provider exists and it's stuck unpacking.
+				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-provider-signed-keyless"}}, pkgv1.Unpacking(), pkgv1.Unhealthy()),
 			)).
 			Assess("SignatureVerificationSucceeded", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-signed.yaml"),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-provider-signed-keyless-37f3300ebfa7"}}, pkgv1.RevisionHealthy(), pkgv1.VerificationSucceeded("").WithMessage("")),
+				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-provider-signed-keyless-37f3300ebfa7"}}, pkgv1.RevisionHealthy()),
 				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-provider-signed-keyless"}}, pkgv1.Active(), pkgv1.Healthy()),
 			)).
 			WithTeardown("DeletePackageAndImageConfig", funcs.AllOf(
@@ -827,12 +829,13 @@ func TestImageConfigAttestationVerificationPrivateKeyless(t *testing.T) {
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-unsigned.yaml"),
 			)).
 			Assess("SignatureVerificationFailed", funcs.AllOf(
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-552a394a8acc"}}, pkgv1.AwaitingVerification(), pkgv1.VerificationFailed("", nil).WithMessage("")),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless"}}, pkgv1.Active(), pkgv1.Unhealthy()),
+				// Verification fails before the revision is created, so only the
+				// Provider exists and it's stuck unpacking.
+				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless"}}, pkgv1.Unpacking(), pkgv1.Unhealthy()),
 			)).
 			Assess("SignatureVerificationSucceeded", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-signed.yaml"),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-37f3300ebfa7"}}, pkgv1.RevisionHealthy(), pkgv1.VerificationSucceeded("").WithMessage("")),
+				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-37f3300ebfa7"}}, pkgv1.RevisionHealthy()),
 				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless"}}, pkgv1.Active(), pkgv1.Healthy()),
 			)).
 			WithTeardown("DeletePackageAndImageConfig", funcs.AllOf(

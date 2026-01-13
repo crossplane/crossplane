@@ -112,6 +112,14 @@ func (m *MockConfigStore) RuntimeConfigFor(ctx context.Context, ref string) (str
 	return m.MockRuntimeConfigFor(ctx, ref)
 }
 
+type MockValidator struct {
+	MockValidate func(context.Context, name.Reference, *v1beta1.ImageVerification, ...string) error
+}
+
+func (m *MockValidator) Validate(ctx context.Context, ref name.Reference, config *v1beta1.ImageVerification, pullSecrets ...string) error {
+	return m.MockValidate(ctx, ref, config, pullSecrets...)
+}
+
 type MockImage struct {
 	v1.Image
 	MockManifest      func() (*v1.Manifest, error)
@@ -812,6 +820,135 @@ func TestClientGet(t *testing.T) {
 					},
 					MockImageVerificationConfigFor: func(_ context.Context, _ string) (string, *v1beta1.ImageVerification, error) {
 						return "", nil, nil
+					},
+				},
+			},
+			args: args{
+				ref: testSource + ":" + testTag,
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"SuccessWithVerification": {
+			reason: "Should successfully verify and fetch a package when verification config exists",
+			client: &CachedClient{
+				fetcher: &MockFetcher{
+					MockHead: func(_ context.Context, _ name.Reference, _ ...string) (*v1.Descriptor, error) {
+						return &v1.Descriptor{
+							Digest: v1.Hash{
+								Algorithm: "sha256",
+								Hex:       "abc123def456789012345678901234567890123456789012345678901234abcd",
+							},
+						}, nil
+					},
+					MockFetch: func(_ context.Context, _ name.Reference, _ ...string) (v1.Image, error) {
+						return &MockImage{
+							MockManifest: func() (*v1.Manifest, error) {
+								return &v1.Manifest{
+									Layers: []v1.Descriptor{
+										{
+											Annotations: map[string]string{
+												AnnotationKey: PackageAnnotation,
+											},
+											Digest: v1.Hash{Algorithm: "sha256", Hex: "layer123"},
+										},
+									},
+								}, nil
+							},
+							MockLayerByDigest: func(_ v1.Hash) (v1.Layer, error) {
+								return NewMockLayer(tarContent), nil
+							},
+						}, nil
+					},
+				},
+				parser: NewTestParser(t),
+				cache: &MockCache{
+					MockGet: func(_ string) (io.ReadCloser, error) {
+						return nil, errors.New("not in cache")
+					},
+					MockStore: func(_ string, rc io.ReadCloser) error {
+						_, _ = io.Copy(io.Discard, rc)
+						return nil
+					},
+				},
+				config: &MockConfigStore{
+					MockRewritePath: func(_ context.Context, _ string) (string, string, error) {
+						return "", "", nil
+					},
+					MockPullSecretFor: func(_ context.Context, _ string) (string, string, error) {
+						return "", "", nil
+					},
+					MockImageVerificationConfigFor: func(_ context.Context, _ string) (string, *v1beta1.ImageVerification, error) {
+						return "test-verification-config", &v1beta1.ImageVerification{
+							Provider: v1beta1.ImageVerificationProviderCosign,
+						}, nil
+					},
+				},
+				validator: &MockValidator{
+					MockValidate: func(_ context.Context, _ name.Reference, _ *v1beta1.ImageVerification, _ ...string) error {
+						return nil
+					},
+				},
+			},
+			args: args{
+				ref: testSource + ":" + testTag,
+			},
+			want: want{
+				pkg: &Package{
+					Package:         NewTestPackage(t, providerMeta),
+					Digest:          testDigest,
+					Version:         testTag,
+					Source:          testSource,
+					ResolvedVersion: testTag,
+					ResolvedSource:  testSource,
+					AppliedImageConfigs: []ImageConfig{
+						{Name: "test-verification-config", Reason: ImageConfigReasonVerify},
+					},
+				},
+			},
+		},
+		"ErrorVerificationFails": {
+			reason: "Should return error when signature verification fails",
+			client: &CachedClient{
+				fetcher: &MockFetcher{
+					MockHead: func(_ context.Context, _ name.Reference, _ ...string) (*v1.Descriptor, error) {
+						return &v1.Descriptor{
+							Digest: v1.Hash{
+								Algorithm: "sha256",
+								Hex:       "abc123def456789012345678901234567890123456789012345678901234abcd",
+							},
+						}, nil
+					},
+					MockFetch: func(_ context.Context, _ name.Reference, _ ...string) (v1.Image, error) {
+						return nil, errors.New("fetch should not be called")
+					},
+				},
+				parser: NewTestParser(t),
+				cache: &MockCache{
+					MockGet: func(_ string) (io.ReadCloser, error) {
+						return nil, errors.New("not in cache")
+					},
+					MockStore: func(_ string, _ io.ReadCloser) error {
+						return nil
+					},
+				},
+				config: &MockConfigStore{
+					MockRewritePath: func(_ context.Context, _ string) (string, string, error) {
+						return "", "", nil
+					},
+					MockPullSecretFor: func(_ context.Context, _ string) (string, string, error) {
+						return "", "", nil
+					},
+					MockImageVerificationConfigFor: func(_ context.Context, _ string) (string, *v1beta1.ImageVerification, error) {
+						return "test-verification-config", &v1beta1.ImageVerification{
+							Provider: v1beta1.ImageVerificationProviderCosign,
+						}, nil
+					},
+				},
+				validator: &MockValidator{
+					MockValidate: func(_ context.Context, _ name.Reference, _ *v1beta1.ImageVerification, _ ...string) error {
+						return errors.New("signature verification failed")
 					},
 				},
 			},
