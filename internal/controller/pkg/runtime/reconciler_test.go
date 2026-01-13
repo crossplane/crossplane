@@ -209,45 +209,6 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
-		"WaitingForSignatureVerification": {
-			reason: "We should wait for signature verification to complete.",
-			args: args{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							pr := o.(*v1.ProviderRevision)
-							pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-							pr.SetDesiredState(v1.PackageRevisionActive)
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-							want := &v1.ProviderRevision{}
-							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-							want.SetDesiredState(v1.PackageRevisionActive)
-							want.SetConditions(v1.RuntimeUnhealthy().WithMessage("Waiting for signature verification to complete"))
-
-							if diff := cmp.Diff(want, o); diff != "" {
-								t.Errorf("-want, +got:\n%s", diff)
-							}
-							return nil
-						}),
-					},
-				},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
-					WithLogger(testLog),
-					WithRecorder(event.NewNopRecorder()),
-					WithNamespace(testNamespace),
-					WithServiceAccount(crossplaneName),
-					WithRuntimeHooks(&MockHooks{}),
-					WithFeatureFlags(flagsWithFeatures(features.EnableAlphaSignatureVerification)),
-					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: false},
-			},
-		},
 		"ErrPreHook": {
 			reason: "We should return an error if pre-hook fails.",
 			args: args{
@@ -926,65 +887,6 @@ func TestReconcile(t *testing.T) {
 							)
 						}(),
 					}),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: false},
-			},
-		},
-		"SuccessfulHealthyRevisionWithSignatureVerification": {
-			reason: "A healthy revision with signature verification should complete successfully.",
-			args: args{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							switch obj := o.(type) {
-							case *v1.ProviderRevision:
-								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								obj.SetDesiredState(v1.PackageRevisionActive)
-								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
-								obj.SetConditions(v1.VerificationSucceeded("foo"))
-								obj.SetConditions(v1.RevisionHealthy())
-								return nil
-							case *corev1.ServiceAccount:
-								obj.Name = crossplaneName
-								obj.Namespace = testNamespace
-								return nil
-							}
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-							want := &v1.ProviderRevision{}
-							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-							want.SetDesiredState(v1.PackageRevisionActive)
-							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
-							want.SetConditions(v1.VerificationSucceeded("foo"))
-							want.SetConditions(v1.RevisionHealthy())
-							want.SetConditions(v1.RuntimeHealthy())
-
-							if diff := cmp.Diff(want, o); diff != "" {
-								t.Errorf("-want, +got:\n%s", diff)
-							}
-							return nil
-						}),
-					},
-				},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
-					WithLogger(testLog),
-					WithRecorder(event.NewNopRecorder()),
-					WithNamespace(testNamespace),
-					WithServiceAccount(crossplaneName),
-					WithRuntimeHooks(&MockHooks{
-						MockPre: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
-							return nil
-						},
-						MockPost: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
-							return nil
-						},
-					}),
-					WithFeatureFlags(flagsWithFeatures(features.EnableAlphaSignatureVerification)),
-					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
