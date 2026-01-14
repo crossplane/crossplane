@@ -1,0 +1,133 @@
+suite: Test Crossplane Deployment
+templates:
+  - deployment.yaml
+tests:
+  - it: should render default deployment with webhooks enabled
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: crossplane
+
+  - it: should NOT set WEBHOOK_PORT env var when webhooks.port is empty (relies on application default of 9443)
+    set:
+      webhooks:
+        enabled: true
+        port: ""
+    asserts:
+      - isKind:
+          of: Deployment
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: WEBHOOK_PORT
+
+  - it: should set WEBHOOK_PORT env var explicitly when webhooks.port is configured
+    set:
+      webhooks:
+        enabled: true
+        port: 9443
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: WEBHOOK_PORT
+            value: "9443"
+
+  - it: should not set WEBHOOK_PORT env var when webhooks are disabled
+    set:
+      webhooks:
+        enabled: false
+    asserts:
+      - isKind:
+          of: Deployment
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: WEBHOOK_PORT
+
+  - it: should set WEBHOOK_PORT env var with custom port 8443
+    set:
+      webhooks:
+        enabled: true
+        port: 8443
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: WEBHOOK_PORT
+            value: "8443"
+
+  - it: should configure init container with WEBHOOK_SERVICE_PORT as 9443
+    set:
+      webhooks:
+        enabled: true
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: WEBHOOK_SERVICE_PORT
+            value: "9443"
+
+  - it: should expose webhook port in container ports with default value 9443
+    set:
+      webhooks:
+        enabled: true
+        port: ""
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: webhooks
+            containerPort: 9443
+
+  - it: should expose webhook port in container ports with custom value
+    set:
+      webhooks:
+        enabled: true
+        port: 8443
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: webhooks
+            containerPort: 8443
+
+  - it: should not expose webhook port when webhooks are disabled
+    set:
+      webhooks:
+        enabled: false
+    asserts:
+      - isKind:
+          of: Deployment
+      - notContains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: webhooks
+
+  - it: should allow WEBHOOK_PORT override via extraEnvVarsCrossplane (workaround for service discovery env var issues)
+    set:
+      webhooks:
+        enabled: true
+        port: ""
+      extraEnvVarsCrossplane:
+        WEBHOOK_PORT: "9443"
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: WEBHOOK_PORT
+            value: "9443"

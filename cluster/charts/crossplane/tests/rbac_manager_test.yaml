@@ -1,0 +1,64 @@
+suite: Test RBAC Manager Deployment
+templates:
+  - rbac-manager-deployment.yaml
+tests:
+  - it: should render RBAC Manager deployment
+    set:
+      rbacManager:
+        deploy: true
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: crossplane-rbac-manager
+
+  - it: should not have WEBHOOK_PORT env var by default
+    set:
+      rbacManager:
+        deploy: true
+    asserts:
+      - isKind:
+          of: Deployment
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: WEBHOOK_PORT
+
+  - it: should allow custom env vars via extraEnvVarsRBACManager
+    set:
+      rbacManager:
+        deploy: true
+      extraEnvVarsRBACManager:
+        CUSTOM_VAR: "custom_value"
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CUSTOM_VAR
+            value: "custom_value"
+
+  - it: should replace dots with underscores in env var names
+    set:
+      rbacManager:
+        deploy: true
+      extraEnvVarsRBACManager:
+        SAMPLE.KEY: "value1"
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SAMPLE_KEY
+            value: "value1"
+
+  - it: should not render when rbacManager.deploy is false
+    set:
+      rbacManager:
+        deploy: false
+    asserts:
+      - hasDocuments:
+          count: 0

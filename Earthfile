@@ -22,6 +22,7 @@ test:
 lint:
   BUILD +go-lint
   BUILD +helm-lint
+  BUILD +helm-unittest
 
 # build builds Crossplane for your native OS and architecture.
 build:
@@ -309,6 +310,13 @@ helm-lint:
   COPY +helm-setup/helm /usr/local/bin/helm
   COPY cluster/charts/crossplane/ .
   RUN --entrypoint helm lint
+
+# helm-unittest runs unit tests for the Crossplane Helm chart.
+helm-unittest:
+  FROM docker.io/helmunittest/helm-unittest:3.19.0-1.0.3
+  WORKDIR /chart
+  COPY cluster/charts/crossplane/ .
+  RUN helm unittest --color --strict .
 
 # helm-generate runs Helm code generation - specifically helm-docs.
 helm-generate:
