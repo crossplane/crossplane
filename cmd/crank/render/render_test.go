@@ -200,7 +200,7 @@ name: test
 			},
 			want: want{
 				out: Outputs{
-					Requirements: map[string]fnv1.Requirements{},
+					Requirements: map[string]*fnv1.Requirements{},
 				},
 				err: cmpopts.AnyError,
 			},
@@ -258,7 +258,7 @@ name: test
 			},
 			want: want{
 				out: Outputs{
-					Requirements: map[string]fnv1.Requirements{
+					Requirements: map[string]*fnv1.Requirements{
 						"test": {
 							Resources: map[string]*fnv1.ResourceSelector{
 								"required-resource": {
@@ -469,7 +469,7 @@ name: test
 							},
 						},
 					},
-					Requirements: map[string]fnv1.Requirements{
+					Requirements: map[string]*fnv1.Requirements{
 						"test": {
 							Resources: map[string]*fnv1.ResourceSelector{
 								"example-resource": {
@@ -859,7 +859,7 @@ object:
 							},
 						},
 					},
-					Requirements: map[string]fnv1.Requirements{
+					Requirements: map[string]*fnv1.Requirements{
 						"test": {
 							Resources: map[string]*fnv1.ResourceSelector{
 								"ready-resource": {
@@ -1090,7 +1090,7 @@ object:
 							},
 						},
 					},
-					Requirements: map[string]fnv1.Requirements{
+					Requirements: map[string]*fnv1.Requirements{
 						"test": {
 							ExtraResources: map[string]*fnv1.ResourceSelector{
 								"extra-resource-by-name": {
