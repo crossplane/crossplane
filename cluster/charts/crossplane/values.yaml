@@ -90,6 +90,9 @@ webhooks:
   enabled: true
   # -- The port the webhook server listens on.
   port: ""
+  providerDeletionProtection:
+    # -- Enable provider deletion protection webhook that prevents deletion of providers with active managed resources.
+    enabled: true
 
 rbacManager:
   # -- Deploy the RBAC Manager pod and its required roles.

@@ -45,6 +45,18 @@ func WithWebhookConfigurationsFs(fs afero.Fs) WebhookConfigurationsOption {
 	}
 }
 
+// WithWebhookConfigurationsSkipNames is used to skip webhook configurations by name.
+func WithWebhookConfigurationsSkipNames(names ...string) WebhookConfigurationsOption {
+	return func(c *WebhookConfigurations) {
+		if c.skipNames == nil {
+			c.skipNames = make(map[string]bool)
+		}
+		for _, name := range names {
+			c.skipNames[name] = true
+		}
+	}
+}
+
 // WebhookConfigurationsOption configures WebhookConfigurations step.
 type WebhookConfigurationsOption func(*WebhookConfigurations)
 
@@ -72,7 +84,8 @@ type WebhookConfigurations struct {
 	TLSSecretRef     types.NamespacedName
 	ServiceReference admv1.ServiceReference
 
-	fs afero.Fs
+	fs        afero.Fs
+	skipNames map[string]bool
 }
 
 // Run applies all webhook ValidatingWebhookConfigurations and
@@ -113,6 +126,12 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 	pa := resource.NewAPIPatchingApplicator(kube)
 
 	for _, obj := range pkg.GetObjects() {
+		// Check if we should skip this webhook configuration by name
+		objMeta, ok := obj.(client.Object)
+		if ok && c.skipNames[objMeta.GetName()] {
+			continue
+		}
+
 		switch conf := obj.(type) {
 		case *admv1.ValidatingWebhookConfiguration:
 			for i := range conf.Webhooks {

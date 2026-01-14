@@ -142,7 +142,8 @@ type startCommand struct {
 	EnableRealtimeCompositions              bool `default:"true" group:"Beta Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
 	EnableCustomToManagedResourceConversion bool `default:"true" group:"Beta Features:" help:"Enable support CRD to MRD conversion when installing a package."`
 
-	RestrictNamespacedEvents bool `default:"false" help:"Prevent events from being produced on resources that are not namespaced. Useful when crossplane does not have permissions in the default namespace."`
+	DisableProviderDeletionProtection bool `default:"false" help:"Disable provider deletion protection webhook that prevents deletion of providers with active managed resources."`
+	RestrictNamespacedEvents          bool `default:"false" help:"Prevent events from being produced on resources that are not namespaced. Useful when crossplane does not have permissions in the default namespace."`
 
 	// These are features that we've removed support for. Crossplane returns an
 	// error when you enable them. This ensures you'll see an explicit and
@@ -344,6 +345,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableOperations {
 		o.Features.Enable(features.EnableAlphaOperations)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaOperations)
+	}
+
+	if c.DisableProviderDeletionProtection {
+		o.Features.Enable(features.DisableProviderDeletionProtection)
+		log.Info("Provider deletion protection disabled", "flag", features.DisableProviderDeletionProtection)
 	}
 
 	// Claim and XR controllers are started and stopped dynamically by the

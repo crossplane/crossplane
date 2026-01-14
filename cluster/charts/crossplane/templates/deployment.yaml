@@ -82,6 +82,9 @@ spec:
           - --activation
           - "{{ $arg }}"
           {{- end }}
+          {{- if not .Values.webhooks.providerDeletionProtection.enabled }}
+          - --disable-provider-deletion-protection
+          {{- end }}
           resources:
             {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
           {{- with .Values.securityContextCrossplane }}
@@ -144,6 +147,9 @@ spec:
         - start
         {{- range $arg := .Values.args }}
         - {{ $arg }}
+        {{- end }}
+        {{- if not .Values.webhooks.providerDeletionProtection.enabled }}
+        - --disable-provider-deletion-protection
         {{- end }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         resources:
