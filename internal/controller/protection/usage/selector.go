@@ -54,13 +54,13 @@ func (r *apiSelectorResolver) ResolveSelectors(ctx context.Context, u protection
 	by := u.GetUsedBy()
 
 	if of.ResourceRef == nil || len(of.ResourceRef.Name) == 0 {
-		if err := r.resolveSelector(ctx, &of, u); err != nil {
+		if err := r.resolveSelector(ctx, &of, u.Unwrap()); err != nil {
 			return errors.Wrap(err, errResolveSelectorForUsedResource)
 		}
 
 		u.SetUserOf(of)
 
-		if err := r.client.Update(ctx, u); err != nil {
+		if err := r.client.Update(ctx, u.Unwrap()); err != nil {
 			return errors.Wrap(err, errUpdateAfterResolveSelector)
 		}
 	}
@@ -70,13 +70,13 @@ func (r *apiSelectorResolver) ResolveSelectors(ctx context.Context, u protection
 	}
 
 	if by.ResourceRef == nil || len(by.ResourceRef.Name) == 0 {
-		if err := r.resolveSelector(ctx, by, u); err != nil {
+		if err := r.resolveSelector(ctx, by, u.Unwrap()); err != nil {
 			return errors.Wrap(err, errResolveSelectorForUsingResource)
 		}
 
 		u.SetUsedBy(by)
 
-		if err := r.client.Update(ctx, u); err != nil {
+		if err := r.client.Update(ctx, u.Unwrap()); err != nil {
 			return errors.Wrap(err, errUpdateAfterResolveSelector)
 		}
 	}

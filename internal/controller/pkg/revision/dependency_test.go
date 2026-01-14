@@ -281,19 +281,23 @@ func TestResolve(t *testing.T) {
 						return &dagfake.MockDag{
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1beta1.Dependency{
-										Package: "not-here-2",
+									&dag.DependencyNode{
+										Dependency: v1beta1.Dependency{
+											Package: "not-here-2",
+										},
 									},
-									&v1beta1.Dependency{
-										Package: "not-here-3",
+									&dag.DependencyNode{
+										Dependency: v1beta1.Dependency{
+											Package: "not-here-3",
+										},
 									},
 								}, nil
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
 								return map[string]dag.Node{
-									"not-here-1": &v1beta1.Dependency{},
-									"not-here-2": &v1beta1.Dependency{},
-									"not-here-3": &v1beta1.Dependency{},
+									"not-here-1": &dag.DependencyNode{},
+									"not-here-2": &dag.DependencyNode{},
+									"not-here-3": &dag.DependencyNode{},
 								}, nil
 							},
 						}
@@ -373,22 +377,26 @@ func TestResolve(t *testing.T) {
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
 								return map[string]dag.Node{
-									"not-here-1": &v1beta1.Dependency{},
-									"not-here-2": &v1beta1.Dependency{},
-									"not-here-3": &v1beta1.Dependency{},
+									"not-here-1": &dag.DependencyNode{},
+									"not-here-2": &dag.DependencyNode{},
+									"not-here-3": &dag.DependencyNode{},
 								}, nil
 							},
 							MockGetNode: func(s string) (dag.Node, error) {
 								if s == "not-here-1" {
-									return &v1beta1.LockPackage{
-										Source:  "not-here-1",
-										Version: "v0.0.1",
+									return &dag.PackageNode{
+										LockPackage: v1beta1.LockPackage{
+											Source:  "not-here-1",
+											Version: "v0.0.1",
+										},
 									}, nil
 								}
 								if s == "not-here-2" {
-									return &v1beta1.LockPackage{
-										Source:  "not-here-2",
-										Version: "v0.0.1",
+									return &dag.PackageNode{
+										LockPackage: v1beta1.LockPackage{
+											Source:  "not-here-2",
+											Version: "v0.0.1",
+										},
 									}, nil
 								}
 								return nil, nil
@@ -480,29 +488,35 @@ func TestResolve(t *testing.T) {
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
 								return map[string]dag.Node{
-									"not-here-1":          &v1beta1.Dependency{},
-									"not-here-2":          &v1beta1.Dependency{},
-									"not-here-3":          &v1beta1.Dependency{},
-									"function-not-here-1": &v1beta1.Dependency{},
+									"not-here-1":          &dag.DependencyNode{},
+									"not-here-2":          &dag.DependencyNode{},
+									"not-here-3":          &dag.DependencyNode{},
+									"function-not-here-1": &dag.DependencyNode{},
 								}, nil
 							},
 							MockGetNode: func(s string) (dag.Node, error) {
 								if s == "not-here-1" {
-									return &v1beta1.LockPackage{
-										Source:  "not-here-1",
-										Version: "v0.20.0",
+									return &dag.PackageNode{
+										LockPackage: v1beta1.LockPackage{
+											Source:  "not-here-1",
+											Version: "v0.20.0",
+										},
 									}, nil
 								}
 								if s == "not-here-2" {
-									return &v1beta1.LockPackage{
-										Source:  "not-here-2",
-										Version: "v0.100.1",
+									return &dag.PackageNode{
+										LockPackage: v1beta1.LockPackage{
+											Source:  "not-here-2",
+											Version: "v0.100.1",
+										},
 									}, nil
 								}
 								if s == "function-not-here-1" {
-									return &v1beta1.LockPackage{
-										Source:  "function-not-here-1",
-										Version: "v0.1.0",
+									return &dag.PackageNode{
+										LockPackage: v1beta1.LockPackage{
+											Source:  "function-not-here-1",
+											Version: "v0.1.0",
+										},
 									}, nil
 								}
 
@@ -581,7 +595,7 @@ func TestResolve(t *testing.T) {
 							MockTraceNode: func(s string) (map[string]dag.Node, error) {
 								if s == "xpkg.crossplane.io/hasheddan/config-nop-a" {
 									return map[string]dag.Node{
-										s: &v1beta1.Dependency{},
+										s: &dag.DependencyNode{},
 									}, nil
 								}
 								return nil, errors.New("missing node in tree")

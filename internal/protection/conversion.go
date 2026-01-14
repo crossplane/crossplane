@@ -14,9 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package protection
 
-import "github.com/crossplane/crossplane/v2/internal/protection"
+import (
+	v1beta1 "github.com/crossplane/crossplane/v2/apis/protection/v1beta1"
+)
 
 // A ResourceConverter converts a Resource to the internal implementation.
 //
@@ -26,13 +28,13 @@ import "github.com/crossplane/crossplane/v2/internal/protection"
 // +k8s:deepcopy-gen=false
 type ResourceConverter interface {
 	// goverter:ignore Namespace
-	ToInternalResourceRef(in ResourceRef) protection.ResourceRef
+	ToInternalResourceRef(in v1beta1.ResourceRef) ResourceRef
 
 	// goverter:ignore Namespace
-	ToInternalResourceSelector(in ResourceSelector) protection.ResourceSelector
+	ToInternalResourceSelector(in v1beta1.ResourceSelector) ResourceSelector
 
-	ToInternal(in Resource) protection.Resource
-	FromInternal(in protection.Resource) Resource
+	ToInternal(in v1beta1.Resource) Resource
+	FromInternal(in Resource) v1beta1.Resource
 }
 
 // A NamespacedResourceConverter converts a Resource to the internal implementation.
@@ -40,9 +42,9 @@ type ResourceConverter interface {
 // goverter:converter
 // goverter:name GeneratedNamespacedResourceConverter
 // goverter:output:file ./zz_generated.conversion.go
-// goverter:output:package github.com/crossplane/crossplane/v2/apis/protection/v1beta1
+// goverter:output:package github.com/crossplane/crossplane/v2/internal/protection
 // +k8s:deepcopy-gen=false
 type NamespacedResourceConverter interface {
-	ToInternal(in NamespacedResource) protection.Resource
-	FromInternal(in protection.Resource) NamespacedResource
+	ToInternal(in v1beta1.NamespacedResource) Resource
+	FromInternal(in Resource) v1beta1.NamespacedResource
 }

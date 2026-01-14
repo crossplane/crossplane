@@ -49,6 +49,7 @@ limitations under the License.
 //go:generate go tool -modfile=tools/go.mod controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/apiextensions/v1alpha1;./apis/apiextensions/v1beta1;./apis/apiextensions/v1;./apis/apiextensions/v2 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
 //go:generate go tool -modfile=tools/go.mod controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/protection/v1beta1 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
 //go:generate go tool -modfile=tools/go.mod controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/ops/v1alpha1 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
+//go:generate go tool -modfile=tools/go.mod controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./internal/protection
 
 // We generate the meta.pkg.crossplane.io types separately as the generated CRDs
 // are never installed, only used for API documentation.
@@ -59,9 +60,9 @@ limitations under the License.
 
 // Generate conversion code
 //go:generate go tool -modfile=tools/go.mod goverter gen -build-tags="" ./apis/apiextensions/v1
-//go:generate go tool -modfile=tools/go.mod goverter gen -build-tags="" ./apis/protection/v1beta1
 //go:generate go tool -modfile=tools/go.mod goverter gen -build-tags="" ./apis/pkg/meta/v1alpha1
 //go:generate go tool -modfile=tools/go.mod goverter gen -build-tags="" ./apis/pkg/meta/v1beta1
+//go:generate go tool -modfile=tools/go.mod goverter gen -build-tags="" ./internal/protection
 
 // Replicate identical gRPC APIs
 

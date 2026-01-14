@@ -102,7 +102,9 @@ type SelectorResolver interface {
 // SetupUsage adds a controller that reconciles Usages.
 func SetupUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 	name := "usage/" + strings.ToLower(v1beta1.UsageGroupKind)
-	r := NewReconciler(mgr, &v1beta1.Usage{}, f,
+	r := NewReconciler(mgr,
+		func() protection.Usage { return &protection.InternalUsage{} },
+		f,
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithPollInterval(o.PollInterval))
@@ -117,7 +119,9 @@ func SetupUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 // SetupClusterUsage adds a controller that reconciles ClusterUsages.
 func SetupClusterUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 	name := "usage/" + strings.ToLower(v1beta1.ClusterUsageGroupKind)
-	r := NewReconciler(mgr, &v1beta1.ClusterUsage{}, f,
+	r := NewReconciler(mgr,
+		func() protection.Usage { return &protection.InternalClusterUsage{} },
+		f,
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithPollInterval(o.PollInterval))
@@ -133,7 +137,9 @@ func SetupClusterUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 // in the apiextensions.crossplane.io API group.
 func SetupLegacyUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 	name := "usage/" + strings.ToLower(legacy.UsageGroupKind)
-	r := NewReconciler(mgr, &legacy.Usage{}, f, //nolint:staticcheck // It's deprecated, but we still need to support it.
+	r := NewReconciler(mgr,
+		func() protection.Usage { return &protection.InternalLegacyUsage{} },
+		f,
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithPollInterval(o.PollInterval))
@@ -207,9 +213,9 @@ type usageResource struct {
 	SelectorResolver
 }
 
-// NewReconciler returns a Reconciler of the supplied Usage type. Pass an empty
-// type that satsifes the Usage interface.
-func NewReconciler(mgr manager.Manager, u protection.Usage, f Finder, opts ...ReconcilerOption) *Reconciler {
+// NewReconciler returns a Reconciler for a type that implements the
+// protection.Usage interface.
+func NewReconciler(mgr manager.Manager, u func() protection.Usage, f Finder, opts ...ReconcilerOption) *Reconciler {
 	// TODO(negz): Stop using this wrapper? It's only necessary if the client is
 	// backed by a cache, and at the time of writing the manager's client isn't.
 	// It's configured not to automatically cache unstructured objects. The
@@ -224,7 +230,7 @@ func NewReconciler(mgr manager.Manager, u protection.Usage, f Finder, opts ...Re
 			Applicator: xpresource.NewAPIUpdatingApplicator(kube),
 		},
 
-		u: u,
+		newUsage: u,
 
 		usage: usageResource{
 			Finalizer:        xpresource.NewAPIFinalizer(kube, finalizer),
@@ -248,7 +254,7 @@ func NewReconciler(mgr manager.Manager, u protection.Usage, f Finder, opts ...Re
 type Reconciler struct {
 	client xpresource.ClientApplicator
 
-	u protection.Usage
+	newUsage func() protection.Usage
 
 	usage    usageResource
 	resource Finder
@@ -268,8 +274,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
 	defer cancel()
 
-	u := r.u.DeepCopyObject().(protection.Usage) //nolint:forcetypeassert // Guaranteed to satisfy protection.Usage.
-	if err := r.client.Get(ctx, req.NamespacedName, u); err != nil {
+	u := r.newUsage()
+	uu := u.Unwrap()
+	if err := r.client.Get(ctx, req.NamespacedName, uu); err != nil {
 		log.Debug(errGetUsage, "error", err)
 		return reconcile.Result{}, errors.Wrap(xpresource.IgnoreNotFound(err), errGetUsage)
 	}
@@ -283,28 +290,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(err, errParseAPIVersion)
 	}
 
-	orig := u.DeepCopyObject()
+	orig := uu.DeepCopyObject()
 
 	if err := r.usage.ResolveSelectors(ctx, u); err != nil {
 		log.Debug(errResolveSelectors, "error", err)
 		err = errors.Wrap(err, errResolveSelectors)
-		r.record.Event(u, event.Warning(reasonResolveSelectors, err))
+		r.record.Event(uu, event.Warning(reasonResolveSelectors, err))
 
 		return reconcile.Result{}, err
 	}
 
-	status := r.conditions.For(u)
+	status := r.conditions.For(uu)
 
 	// Identify used as an unstructured object. It might not actually be
 	// composed by an XR; we use composed as a convenience.
 	used := composed.New(composed.FromReference(v1.ObjectReference{
 		Kind:       of.Kind,
-		Namespace:  ptr.Deref(of.ResourceRef.Namespace, u.GetNamespace()),
+		Namespace:  ptr.Deref(of.ResourceRef.Namespace, uu.GetNamespace()),
 		Name:       of.ResourceRef.Name,
 		APIVersion: of.APIVersion,
 	}))
 
-	if meta.WasDeleted(u) {
+	if meta.WasDeleted(uu) {
 		// Note (turkenh): A Usage can be composed as part of a Composition
 		// together with the using resource. When the composite is deleted, the
 		// usage resource will also be deleted. In this case, we need to wait
@@ -315,11 +322,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// as part of a higher-level Composition. Therefore, as an approximation
 		// we wait for the using resource to be deleted before deleting the
 		// usage resource, if the usage resource is part of a Composition.
-		if by != nil && u.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] != "" {
+		if by != nil && uu.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] != "" {
 			// Identify using resource as an unstructured object.
 			using := composed.New(composed.FromReference(v1.ObjectReference{
 				Kind:       by.Kind,
-				Namespace:  u.GetNamespace(), // Will always be cluster scoped or in the same namespace as the Usage.
+				Namespace:  uu.GetNamespace(), // Will always be cluster scoped or in the same namespace as the Usage.
 				Name:       by.ResourceRef.Name,
 				APIVersion: by.APIVersion,
 			}))
@@ -327,14 +334,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if err := r.client.Get(ctx, client.ObjectKeyFromObject(using), using); xpresource.IgnoreNotFound(err) != nil {
 				log.Debug(errGetUsing, "error", err)
 				err = errors.Wrap(xpresource.IgnoreNotFound(err), errGetUsing)
-				r.record.Event(u, event.Warning(reasonGetUsing, err))
+				r.record.Event(uu, event.Warning(reasonGetUsing, err))
 
 				return reconcile.Result{}, err
 			} else if err == nil {
 				// Using resource is still there, so we need to wait for it to be deleted.
 				msg := fmt.Sprintf("Waiting for the using resource (which is a %q named %q) to be deleted.", by.Kind, by.ResourceRef.Name)
 				log.Debug(msg)
-				r.record.Event(u, event.Normal(reasonWaitUsing, msg))
+				r.record.Event(uu, event.Normal(reasonWaitUsing, msg))
 				// We are using a waitPollInterval which is shorter than the
 				// pollInterval to make sure we delete the usage as soon as
 				// possible after the using resource is deleted. This is
@@ -353,7 +360,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.client.Get(ctx, client.ObjectKeyFromObject(used), used); xpresource.IgnoreNotFound(err) != nil {
 			log.Debug(errGetUsed, "error", err)
 			err = errors.Wrap(err, errGetUsed)
-			r.record.Event(u, event.Warning(reasonGetUsed, err))
+			r.record.Event(uu, event.Warning(reasonGetUsed, err))
 
 			return reconcile.Result{}, err
 		} else if err == nil {
@@ -362,7 +369,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if err != nil {
 				log.Debug(errFindUsages, "error", err)
 				err = errors.Wrap(err, errFindUsages)
-				r.record.Event(u, event.Warning(reasonFindUsages, err))
+				r.record.Event(uu, event.Warning(reasonFindUsages, err))
 
 				return reconcile.Result{}, err
 			}
@@ -379,7 +386,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 					}
 
 					err = errors.Wrap(err, errRemoveInUseLabel)
-					r.record.Event(u, event.Warning(reasonRemoveInUseLabel, err))
+					r.record.Event(uu, event.Warning(reasonRemoveInUseLabel, err))
 
 					return reconcile.Result{}, err
 				}
@@ -406,7 +413,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		// Remove the finalizer from the usage
-		if err := r.usage.RemoveFinalizer(ctx, u); err != nil {
+		if err := r.usage.RemoveFinalizer(ctx, uu); err != nil {
 			log.Debug(errRemoveFinalizer, "error", err)
 
 			if kerrors.IsConflict(err) {
@@ -414,7 +421,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 
 			err = errors.Wrap(err, errRemoveFinalizer)
-			r.record.Event(u, event.Warning(reasonRemoveFinalizer, err))
+			r.record.Event(uu, event.Warning(reasonRemoveFinalizer, err))
 
 			return reconcile.Result{}, err
 		}
@@ -423,7 +430,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Add finalizer for Usage resource.
-	if err := r.usage.AddFinalizer(ctx, u); err != nil {
+	if err := r.usage.AddFinalizer(ctx, uu); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
 
 		if kerrors.IsConflict(err) {
@@ -431,18 +438,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		err = errors.Wrap(err, errAddFinalizer)
-		r.record.Event(u, event.Warning(reasonAddFinalizer, err))
+		r.record.Event(uu, event.Warning(reasonAddFinalizer, err))
 
 		return reconcile.Result{}, err
 	}
 
 	d := detailsAnnotation(u)
-	if u.GetAnnotations()[detailsAnnotationKey] != d {
-		meta.AddAnnotations(u, map[string]string{
+	if uu.GetAnnotations()[detailsAnnotationKey] != d {
+		meta.AddAnnotations(uu, map[string]string{
 			detailsAnnotationKey: d,
 		})
 
-		if err := r.client.Update(ctx, u); err != nil {
+		if err := r.client.Update(ctx, uu); err != nil {
 			log.Debug(errAddDetailsAnnotation, "error", err)
 
 			if kerrors.IsConflict(err) {
@@ -450,7 +457,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 
 			err = errors.Wrap(err, errAddDetailsAnnotation)
-			r.record.Event(u, event.Warning(reasonDetailsToUsage, err))
+			r.record.Event(uu, event.Warning(reasonDetailsToUsage, err))
 
 			return reconcile.Result{}, err
 		}
@@ -460,13 +467,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := r.client.Get(ctx, client.ObjectKeyFromObject(used), used); err != nil {
 		log.Debug(errGetUsed, "error", err)
 		err = errors.Wrap(err, errGetUsed)
-		r.record.Event(u, event.Warning(reasonGetUsed, err))
+		r.record.Event(uu, event.Warning(reasonGetUsed, err))
 
 		return reconcile.Result{}, err
 	}
 
 	// Used resource should have in-use label.
-	if used.GetLabels()[inUseLabelKey] != "true" || !used.OwnedBy(u.GetUID()) {
+	if used.GetLabels()[inUseLabelKey] != "true" || !used.OwnedBy(uu.GetUID()) {
 		// Note(turkenh): Composite controller will not remove this label with
 		// new reconciles since it uses a patching applicator to update the
 		// resource.
@@ -480,7 +487,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 
 			err = errors.Wrap(err, errAddInUseLabel)
-			r.record.Event(u, event.Warning(reasonAddInUseLabel, err))
+			r.record.Event(uu, event.Warning(reasonAddInUseLabel, err))
 
 			return reconcile.Result{}, err
 		}
@@ -490,7 +497,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Identify using resource as an unstructured object.
 		using := composed.New(composed.FromReference(v1.ObjectReference{
 			Kind:       by.Kind,
-			Namespace:  u.GetNamespace(), // Will always be cluster scoped or in the same namespace as the Usage.
+			Namespace:  uu.GetNamespace(), // Will always be cluster scoped or in the same namespace as the Usage.
 			Name:       by.ResourceRef.Name,
 			APIVersion: by.APIVersion,
 		}))
@@ -499,18 +506,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.client.Get(ctx, client.ObjectKeyFromObject(using), using); err != nil {
 			log.Debug(errGetUsing, "error", err)
 			err = errors.Wrap(err, errGetUsing)
-			r.record.Event(u, event.Warning(reasonGetUsing, err))
+			r.record.Event(uu, event.Warning(reasonGetUsing, err))
 
 			return reconcile.Result{}, err
 		}
 
 		// usageResource should have a finalizer and be owned by the using resource.
-		if owners := u.GetOwnerReferences(); len(owners) == 0 || owners[0].UID != using.GetUID() {
-			meta.AddOwnerReference(u, meta.AsOwner(
+		if owners := uu.GetOwnerReferences(); len(owners) == 0 || owners[0].UID != using.GetUID() {
+			meta.AddOwnerReference(uu, meta.AsOwner(
 				meta.TypedReferenceTo(using, using.GetObjectKind().GroupVersionKind()),
 			))
 
-			if err := r.client.Update(ctx, u); err != nil {
+			if err := r.client.Update(ctx, uu); err != nil {
 				log.Debug(errAddOwnerToUsage, "error", err)
 
 				if kerrors.IsConflict(err) {
@@ -518,7 +525,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				}
 
 				err = errors.Wrap(err, errAddOwnerToUsage)
-				r.record.Event(u, event.Warning(reasonOwnerRefToUsage, err))
+				r.record.Event(uu, event.Warning(reasonOwnerRefToUsage, err))
 
 				return reconcile.Result{}, err
 			}
@@ -530,9 +537,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// We are only watching the Usage itself but not using or used resources.
 	// So, we need to reconcile the Usage periodically to check if the using
 	// or used resources are still there.
-	if !cmp.Equal(u, orig) {
-		r.record.Event(u, event.Normal(reasonUsageConfigured, "Usage configured successfully."))
-		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, u), errUpdateStatus)
+	if !cmp.Equal(uu, orig) {
+		r.record.Event(uu, event.Normal(reasonUsageConfigured, "Usage configured successfully."))
+		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, uu), errUpdateStatus)
 	}
 
 	return reconcile.Result{RequeueAfter: r.pollInterval}, nil

@@ -14,23 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package protection
 
-import "github.com/crossplane/crossplane/v2/internal/protection"
+import "github.com/crossplane/crossplane/v2/apis/apiextensions/v1beta1"
 
-// A ResourceConverter converts a Resource to the internal implementation.
+// A LegacyResourceConverter converts a Resource to the internal implementation.
 //
 // goverter:converter
-// goverter:name GeneratedResourceConverter
-// goverter:output:file ./zz_generated.conversion.go
+// goverter:name GeneratedLegacyResourceConverter
+// goverter:output:file ./zz_generated.conversion_legacy.go
 // +k8s:deepcopy-gen=false
-type ResourceConverter interface {
+type LegacyResourceConverter interface {
 	// goverter:ignore Namespace
-	ToInternalResourceRef(in ResourceRef) protection.ResourceRef
+	ToInternalResourceRef(in v1beta1.ResourceRef) ResourceRef
 
 	// goverter:ignore Namespace
-	ToInternalResourceSelector(in ResourceSelector) protection.ResourceSelector
+	ToInternalResourceSelector(in v1beta1.ResourceSelector) ResourceSelector
 
-	ToInternal(in Resource) protection.Resource
-	FromInternal(in protection.Resource) Resource
+	ToInternal(in v1beta1.Resource) Resource
+	FromInternal(in Resource) v1beta1.Resource
 }

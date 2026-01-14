@@ -66,7 +66,7 @@ func newFuzzDag(ff *fuzz.ConsumeFuzzer) (func() dag.DAG, error) {
 		return func() dag.DAG { return nil }, err
 	}
 
-	lp := &v1beta1.LockPackage{}
+	lp := &dag.PackageNode{}
 
 	err = ff.GenerateStruct(lp)
 	if err != nil {
