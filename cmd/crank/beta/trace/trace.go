@@ -62,14 +62,15 @@ type Cmd struct {
 	Name     string `arg:"" help:"Name of the Crossplane resource, can be passed as part of the resource too."          optional:""              predictor:"k8s_resource_name"`
 
 	// TODO(phisco): add support for all the usual kubectl flags; configFlags := genericclioptions.NewConfigFlags(true).AddFlags(...)
-	Context                   string `default:""                                    help:"Kubernetes context."                         name:"context"                                                             predictor:"context"              short:"c"`
-	Namespace                 string `default:""                                    help:"Namespace of the resource."                  name:"namespace"                                                           predictor:"namespace"            short:"n"`
-	Output                    string `default:"default"                             enum:"default,wide,json,dot"                       help:"Output format. One of: default, wide, json, dot."                    name:"output"                    short:"o"`
-	ShowConnectionSecrets     bool   `help:"Show connection secrets in the output." name:"show-connection-secrets"                     short:"s"`
-	ShowPackageDependencies   string `default:"unique"                              enum:"unique,all,none"                             help:"Show package dependencies in the output. One of: unique, all, none." name:"show-package-dependencies"`
-	ShowPackageRevisions      string `default:"active"                              enum:"active,all,none"                             help:"Show package revisions in the output. One of: active, all, none."    name:"show-package-revisions"`
-	ShowPackageRuntimeConfigs bool   `default:"false"                               help:"Show package runtime configs in the output." name:"show-package-runtime-configs"`
-	Concurrency               int    `default:"5"                                   help:"load concurrency"                            name:"concurrency"`
+	Context                   string `default:""                                    help:"Kubernetes context."                             name:"context"                                                             predictor:"context"              short:"c"`
+	Namespace                 string `default:""                                    help:"Namespace of the resource."                      name:"namespace"                                                           predictor:"namespace"            short:"n"`
+	Output                    string `default:"default"                             enum:"default,wide,json,dot"                           help:"Output format. One of: default, wide, json, dot."                    name:"output"                    short:"o"`
+	ShowConnectionSecrets     bool   `help:"Show connection secrets in the output." name:"show-connection-secrets"                         short:"s"`
+	ShowPackageDependencies   string `default:"unique"                              enum:"unique,all,none"                                 help:"Show package dependencies in the output. One of: unique, all, none." name:"show-package-dependencies"`
+	ShowPackageRevisions      string `default:"active"                              enum:"active,all,none"                                 help:"Show package revisions in the output. One of: active, all, none."    name:"show-package-revisions"`
+	ShowPackageRuntimeConfigs bool   `default:"false"                               help:"Show package runtime configs in the output."     name:"show-package-runtime-configs"`
+	Concurrency               int    `default:"5"                                   help:"load concurrency"                                name:"concurrency"`
+	Watch                     bool   `default:"false"                               help:"Watch for changes until the resource is deleted" name:"watch"                                                               short:"w"`
 }
 
 // Help returns help message for the trace command.
@@ -104,6 +105,9 @@ Examples:
 
   # Output debug logs to stderr while redirecting a dot formatted graph to dot
   crossplane beta trace mykind my-res -n my-ns -o dot --verbose | dot -Tpng -o output.png
+
+  # Watch a resource continuously until it is deleted
+  crossplane beta trace mykind my-res -n my-ns --watch
 `
 }
 
@@ -145,7 +149,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	logger.Debug("Found kubeconfig")
 
-	client, err := client.New(kubeconfig, client.Options{
+	client, err := client.NewWithWatch(kubeconfig, client.Options{
 		Scheme: scheme.Scheme,
 	})
 	if err != nil {
@@ -229,6 +233,12 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		logger.Debug("Got resource tree", "root", root)
 
 		resourceList.Items[i] = root
+	}
+
+	// Watch mode for a single resource
+	if c.Watch && !shouldPrintAsList && len(resourceList.Items) > 0 {
+		root := resourceList.Items[0]
+		return c.watchResourceTree(ctx, k, logger, client, root, mapping, p)
 	}
 
 	if shouldPrintAsList {
