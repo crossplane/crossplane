@@ -264,7 +264,7 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   creationTimestamp: null
-  name: validating-webhook-configuration
+  name: mutating-webhook-configuration
 webhooks:
 - admissionReviewVersions:
   - v1
