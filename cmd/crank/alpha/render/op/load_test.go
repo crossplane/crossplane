@@ -39,16 +39,44 @@ func TestLoadOperation(t *testing.T) {
 
 	invalidYAML := "invalid: yaml: content: ["
 
+	notAnOperationYAML := `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-data
+data:
+  foo: bar`
+
 	cronOperationYAML := `apiVersion: ops.crossplane.io/v1alpha1
 kind: CronOperation
 metadata:
-  name: test-cron
+  name: test-operation
 spec:
   schedule: "*/5 * * * *"
-  pipeline:
-  - step: test-step
-    functionRef:
-      name: test-function`
+  operationTemplate:
+    spec:
+      mode: Pipeline
+      pipeline:
+      - step: test-step
+        functionRef:
+          name: test-function`
+
+	watchOperationYAML := `apiVersion: ops.crossplane.io/v1alpha1
+kind: WatchOperation
+metadata:
+  name: test-operation
+spec:
+  watch:
+    apiVersion: v1
+    kind: Secret
+    matchLabels:
+      foo: bar
+  operationTemplate:
+    spec:
+      mode: Pipeline
+      pipeline:
+      - step: test-step
+        functionRef:
+          name: test-function`
 
 	wrongVersionYAML := `apiVersion: ops.crossplane.io/v1beta1
 kind: Operation
@@ -127,10 +155,10 @@ spec:
 			args: args{
 				fs: func() afero.Fs {
 					fs := afero.NewMemMapFs()
-					_ = afero.WriteFile(fs, "cronop.yaml", []byte(cronOperationYAML), 0o644)
+					_ = afero.WriteFile(fs, "notop.yaml", []byte(notAnOperationYAML), 0o644)
 					return fs
 				}(),
-				path: "cronop.yaml",
+				path: "notop.yaml",
 			},
 			want: want{
 				err: cmpopts.AnyError,
@@ -159,6 +187,34 @@ spec:
 					return fs
 				}(),
 				path: "operation.yaml",
+			},
+			want: want{
+				op: validOperation,
+			},
+		},
+		"ValidCronOperation": {
+			reason: "Should successfully load a valid Operation from a CronOperation",
+			args: args{
+				fs: func() afero.Fs {
+					fs := afero.NewMemMapFs()
+					_ = afero.WriteFile(fs, "cronoperation.yaml", []byte(cronOperationYAML), 0o644)
+					return fs
+				}(),
+				path: "cronoperation.yaml",
+			},
+			want: want{
+				op: validOperation,
+			},
+		},
+		"ValidWatchOperation": {
+			reason: "Should successfully load a valid Operation from a WatchOperation",
+			args: args{
+				fs: func() afero.Fs {
+					fs := afero.NewMemMapFs()
+					_ = afero.WriteFile(fs, "watchoperation.yaml", []byte(watchOperationYAML), 0o644)
+					return fs
+				}(),
+				path: "watchoperation.yaml",
 			},
 			want: want{
 				op: validOperation,

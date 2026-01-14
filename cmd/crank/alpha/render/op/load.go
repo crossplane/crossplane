@@ -41,7 +41,24 @@ func LoadOperation(fs afero.Fs, path string) (*opsv1alpha1.Operation, error) {
 	switch gvk := op.GroupVersionKind(); gvk {
 	case opsv1alpha1.OperationGroupVersionKind:
 		return op, nil
+	case opsv1alpha1.CronOperationGroupVersionKind:
+		cop := &opsv1alpha1.CronOperation{}
+		if err := yaml.Unmarshal(data, cop); err != nil {
+			return nil, errors.Wrapf(err, "cannot unmarshal operation from %q", path)
+		}
+		op.Kind = opsv1alpha1.OperationKind
+		op.Spec = cop.Spec.OperationTemplate.Spec
+		return op, nil
+	case opsv1alpha1.WatchOperationGroupVersionKind:
+		wop := &opsv1alpha1.WatchOperation{}
+		if err := yaml.Unmarshal(data, wop); err != nil {
+			return nil, errors.Wrapf(err, "cannot unmarshal operation from %q", path)
+		}
+		op.Kind = opsv1alpha1.OperationKind
+		op.Spec = wop.Spec.OperationTemplate.Spec
+		return op, nil
+
 	default:
-		return nil, errors.Errorf("not an operation: %s/%s", gvk.Kind, op.GetName())
+		return nil, errors.Errorf("not an operation type: %s/%s", gvk.Kind, op.GetName())
 	}
 }
