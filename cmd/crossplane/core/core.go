@@ -521,6 +521,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		Options:                  o,
 		ControllerEngine:         ce,
 		FunctionRunner:           runner,
+		OpenAPIClient:            oac,
 		CircuitBreakerMetrics:    cbm,
 		CircuitBreakerBurst:      c.CircuitBreakerBurst,
 		CircuitBreakerRefillRate: c.CircuitBreakerRefillRate,
@@ -535,6 +536,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		oo := opscontroller.Options{
 			Options:          o,
 			FunctionRunner:   runner,
+			OpenAPIClient:    oac,
 			ControllerEngine: ce,
 		}
 		if err := ops.Setup(mgr, oo); err != nil {

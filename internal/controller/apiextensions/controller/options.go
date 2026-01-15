@@ -37,6 +37,10 @@ type Options struct {
 	// FunctionRunner used to run Composition Functions.
 	FunctionRunner xfn.FunctionRunner
 
+	// OpenAPIClient used to fetch OpenAPI schemas for bootstrap requirements
+	// specified in Compositions.
+	OpenAPIClient xfn.OpenAPIV3Client
+
 	// CircuitBreakerMetrics records XR circuit breaker activity.
 	CircuitBreakerMetrics *circuit.PrometheusMetrics
 

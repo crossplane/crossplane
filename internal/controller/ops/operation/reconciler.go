@@ -79,6 +79,7 @@ type Reconciler struct {
 	pipeline  xfn.FunctionRunner
 	functions xfn.CapabilityChecker
 	resources xfn.RequiredResourcesFetcher
+	schemas   xfn.RequiredSchemasFetcher
 }
 
 // Reconcile an Operation by running its function pipeline.
@@ -251,6 +252,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 				// Add to request (resources could be nil if not found)
 				req.RequiredResources[sel.RequirementName] = resources
+			}
+
+			req.RequiredSchemas = map[string]*fnv1.Schema{}
+			for _, sel := range fn.Requirements.RequiredSchemas {
+				schema, err := r.schemas.Fetch(ctx, xfn.ToProtobufSchemaSelector(&sel))
+				if err != nil {
+					op.Status.Failures++
+
+					log.Debug("Cannot fetch bootstrap required schema", "error", err, "failures", op.Status.Failures, "requirement", sel.RequirementName)
+					err = errors.Wrapf(err, "cannot fetch bootstrap required schema for requirement %q", sel.RequirementName)
+					r.record.Event(op, event.Warning(reasonBootstrapRequirements, err))
+					status.MarkConditions(xpv1.ReconcileError(err))
+					_ = r.client.Status().Update(ctx, op)
+
+					return reconcile.Result{}, err
+				}
+
+				req.RequiredSchemas[sel.RequirementName] = schema
 			}
 		}
 

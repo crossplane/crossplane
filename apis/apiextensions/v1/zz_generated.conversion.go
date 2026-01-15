@@ -70,6 +70,12 @@ func (c *GeneratedRevisionSpecConverter) pV1FunctionRequirementsToPV1FunctionReq
 				v1FunctionRequirements.RequiredResources[i] = c.v1RequiredResourceSelectorToV1RequiredResourceSelector((*source).RequiredResources[i])
 			}
 		}
+		if (*source).RequiredSchemas != nil {
+			v1FunctionRequirements.RequiredSchemas = make([]RequiredSchemaSelector, len((*source).RequiredSchemas))
+			for j := 0; j < len((*source).RequiredSchemas); j++ {
+				v1FunctionRequirements.RequiredSchemas[j] = c.v1RequiredSchemaSelectorToV1RequiredSchemaSelector((*source).RequiredSchemas[j])
+			}
+		}
 		pV1FunctionRequirements = &v1FunctionRequirements
 	}
 	return pV1FunctionRequirements
@@ -140,6 +146,13 @@ func (c *GeneratedRevisionSpecConverter) v1RequiredResourceSelectorToV1RequiredR
 		}
 	}
 	return v1RequiredResourceSelector
+}
+func (c *GeneratedRevisionSpecConverter) v1RequiredSchemaSelectorToV1RequiredSchemaSelector(source RequiredSchemaSelector) RequiredSchemaSelector {
+	var v1RequiredSchemaSelector RequiredSchemaSelector
+	v1RequiredSchemaSelector.RequirementName = source.RequirementName
+	v1RequiredSchemaSelector.APIVersion = source.APIVersion
+	v1RequiredSchemaSelector.Kind = source.Kind
+	return v1RequiredSchemaSelector
 }
 func (c *GeneratedRevisionSpecConverter) v1TypeReferenceToV1TypeReference(source TypeReference) TypeReference {
 	var v1TypeReference TypeReference
