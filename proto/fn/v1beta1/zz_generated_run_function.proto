@@ -92,6 +92,13 @@ message RunFunctionRequest {
   // satisfy the request. This field is only populated when the function uses
   // resources in its requirements.
   map<string, Resources> required_resources = 8;
+
+  // Optional schemas that the function specified in its requirements. The map
+  // key corresponds to the key in a RunFunctionResponse's requirements.schemas
+  // field. If a function requested a schema that could not be found, Crossplane
+  // sets the map key to an empty Schema message to indicate that it attempted
+  // to satisfy the request.
+  map<string, Schema> required_schemas = 9;
 }
 
 // Credentials that a function may use to communicate with an external system.
@@ -171,6 +178,27 @@ message Requirements {
   // Resources that this function requires. The map key uniquely identifies the
   // group of resources.
   map<string, ResourceSelector> resources = 2;
+
+  // Schemas that this function requires. The map key uniquely identifies the
+  // schema request.
+  map<string, SchemaSelector> schemas = 3;
+}
+
+// SchemaSelector identifies a resource kind whose OpenAPI schema is requested.
+message SchemaSelector {
+  // API version of the resource kind, e.g. "example.org/v1".
+  string api_version = 1;
+
+  // Kind of resource, e.g. "MyResource".
+  string kind = 2;
+}
+
+// Schema represents the OpenAPI schema for a resource kind.
+message Schema {
+  // The OpenAPI v3 schema of the resource kind as unstructured JSON.
+  // For CRDs this is the spec.versions[].schema.openAPIV3Schema field.
+  // Empty if Crossplane could not find a schema for the requested kind.
+  optional google.protobuf.Struct openapi_v3 = 1;
 }
 
 // ResourceSelector selects a group of resources, either by name or by label.
