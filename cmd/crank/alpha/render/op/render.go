@@ -78,7 +78,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 	}()
 
-	runner := xfn.NewFetchingFunctionRunner(runtimes, render.NewFilteringFetcher(in.RequiredResources...))
+	runner := xfn.NewFetchingFunctionRunner(runtimes, render.NewFilteringFetcher(in.RequiredResources...), xfn.NopRequiredSchemasFetcher{})
 
 	// Build the function context from supplied context data
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}

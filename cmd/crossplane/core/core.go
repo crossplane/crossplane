@@ -31,6 +31,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	kcache "k8s.io/client-go/tools/cache"
@@ -454,9 +456,22 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot start garbage collector for custom resource informers")
 	}
 
-	// Middleware layering: We want Inspector → Cache → FetchingFunctionRunner → gRPC.
-	// First, wrap the runner with FetchingFunctionRunner to handle requirements.
-	runner = xfn.NewFetchingFunctionRunner(runner, xfn.NewExistingRequiredResourcesFetcher(cached))
+	// Create a memory-cached discovery client for fetching OpenAPI schemas.
+	dc, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
+	if err != nil {
+		return errors.Wrap(err, "cannot create discovery client for OpenAPI schemas")
+	}
+	oac := xfn.NewCachedOpenAPIClient(memory.NewMemCacheClient(dc))
+	if err := oac.InvalidateOnCRDChanges(ctx, ca); err != nil {
+		return errors.Wrap(err, "cannot setup discovery cache invalidation")
+	}
+
+	// Middleware layering: We want Cache → FetchingFunctionRunner → gRPC.
+	// First, wrap the runner with FetchingFunctionRunner to handle
+	// requirements.
+	runner = xfn.NewFetchingFunctionRunner(runner,
+		xfn.NewExistingRequiredResourcesFetcher(cached),
+		xfn.NewOpenAPIRequiredSchemasFetcher(oac))
 
 	// Then, if caching is enabled, wrap with the cache layer.
 	// This ensures the cache stores final responses after all requirements are fulfilled.
