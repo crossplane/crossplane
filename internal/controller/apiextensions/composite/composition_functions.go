@@ -82,6 +82,7 @@ const (
 	errFmtGetResourceMapping          = "cannot check if composed resource %q is namespaced (a %s named %s)"
 	errFmtNamespacedXRClusterResource = "cannot apply cluster scoped composed resource %q (a %s named %s) for a namespaced composite resource."
 	errFmtFetchBootstrapRequirements  = "cannot fetch bootstrap required resources for requirement %q"
+	errFmtFetchBootstrapSchemas       = "cannot fetch bootstrap required schema for requirement %q"
 )
 
 // Server-side-apply field owners. We need two of these because it's possible
@@ -108,6 +109,7 @@ type FunctionComposer struct {
 	composite xr
 	pipeline  FunctionRunner
 	resources xfn.RequiredResourcesFetcher
+	schemas   xfn.RequiredSchemasFetcher
 }
 
 type xr struct {
@@ -223,6 +225,14 @@ func WithRequiredResourcesFetcher(f xfn.RequiredResourcesFetcher) FunctionCompos
 	}
 }
 
+// WithRequiredSchemasFetcher configures how the FunctionComposer should
+// fetch required schemas for composition functions.
+func WithRequiredSchemasFetcher(f xfn.RequiredSchemasFetcher) FunctionComposerOption {
+	return func(p *FunctionComposer) {
+		p.schemas = f
+	}
+}
+
 // NewFunctionComposer returns a new Composer that supports composing resources using
 // both Patch and Transform (P&T) logic and a pipeline of Composition Functions.
 func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...FunctionComposerOption) *FunctionComposer {
@@ -241,6 +251,7 @@ func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...
 
 		pipeline:  r,
 		resources: xfn.NewExistingRequiredResourcesFetcher(cached),
+		schemas:   xfn.NopRequiredSchemasFetcher{},
 	}
 
 	for _, fn := range o {
@@ -340,6 +351,15 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 					return CompositionResult{}, errors.Wrapf(err, errFmtFetchBootstrapRequirements, sel.RequirementName)
 				}
 				req.RequiredResources[sel.RequirementName] = resources
+			}
+
+			req.RequiredSchemas = map[string]*fnv1.Schema{}
+			for _, sel := range fn.Requirements.RequiredSchemas {
+				schema, err := c.schemas.Fetch(ctx, xfn.ToProtobufSchemaSelector(&sel))
+				if err != nil {
+					return CompositionResult{}, errors.Wrapf(err, errFmtFetchBootstrapSchemas, sel.RequirementName)
+				}
+				req.RequiredSchemas[sel.RequirementName] = schema
 			}
 		}
 
