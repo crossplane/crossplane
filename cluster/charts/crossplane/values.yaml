@@ -215,5 +215,8 @@ extraVolumesCrossplane: {}
 # -- Add custom `volumeMounts` to the Crossplane pod.
 extraVolumeMountsCrossplane: {}
 
+# -- Add sidecar containers to the Crossplane pod.
+sidecarsCrossplane: []
+
 # -- To add arbitrary Kubernetes Objects during a Helm Install
 extraObjects: []
