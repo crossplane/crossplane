@@ -163,6 +163,44 @@ message RequestMeta {
   // An opaque string identifying a request. Requests with identical tags will
   // be otherwise identical.
   string tag = 1;
+
+  // Capabilities supported by this version of Crossplane. Functions may use
+  // this to determine whether Crossplane will honor certain fields in their
+  // response, or populate certain fields in their request.
+  repeated Capability capabilities = 2;
+}
+
+// Capability indicates that Crossplane supports a particular feature.
+// Functions can check for capabilities to determine whether Crossplane will
+// honor a particular request or response field.
+enum Capability {
+  CAPABILITY_UNSPECIFIED = 0;
+
+  // Crossplane sends capabilities in RequestMeta. If this capability is
+  // present, the function knows that if another capability is absent, it's
+  // because Crossplane doesn't support it (not because Crossplane predates
+  // capability advertisement). Added in Crossplane v2.2.
+  CAPABILITY_CAPABILITIES = 1;
+
+  // Crossplane supports the requirements.resources field. Functions can return
+  // resource requirements and Crossplane will fetch the requested resources and
+  // return them in required_resources. Added in Crossplane v1.15.
+  CAPABILITY_REQUIRED_RESOURCES = 2;
+
+  // Crossplane supports the credentials field. Functions can receive
+  // credentials from secrets specified in the Composition. Added in Crossplane
+  // v1.16.
+  CAPABILITY_CREDENTIALS = 3;
+
+  // Crossplane supports the conditions field. Functions can return status
+  // conditions to be applied to the XR and optionally its claim. Added in
+  // Crossplane v1.17.
+  CAPABILITY_CONDITIONS = 4;
+
+  // Crossplane supports the requirements.schemas field. Functions can request
+  // OpenAPI schemas and Crossplane will return them in required_schemas. Added
+  // in Crossplane v2.2.
+  CAPABILITY_REQUIRED_SCHEMAS = 5;
 }
 
 // Requirements that must be satisfied for a function to run successfully.

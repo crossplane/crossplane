@@ -301,6 +301,8 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			}
 		}
 
+		req.Meta = &fnv1.RequestMeta{Capabilities: xfn.RenderCapabilities()}
+
 		rsp, err := runner.RunFunction(ctx, fn.FunctionRef.Name, req)
 		if err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot run pipeline step %q", fn.Step)

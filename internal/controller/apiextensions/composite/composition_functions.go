@@ -363,7 +363,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			}
 		}
 
-		req.Meta = &fnv1.RequestMeta{Tag: Tag(req)}
+		req.Meta = &fnv1.RequestMeta{Tag: Tag(req), Capabilities: xfn.SupportedCapabilities()}
 
 		rsp, err := c.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
 		if err != nil {

@@ -266,7 +266,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 		}
 
-		req.Meta = &fnv1.RequestMeta{Tag: xfn.Tag(req)}
+		req.Meta = &fnv1.RequestMeta{Tag: xfn.Tag(req), Capabilities: xfn.SupportedCapabilities()}
 
 		rsp, err := r.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
 		if err != nil {
