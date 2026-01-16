@@ -366,17 +366,17 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				fnreq.RequiredResources[sel.RequirementName] = resources
 			}
 
-			req.RequiredSchemas = map[string]*fnv1.Schema{}
+			fnreq.RequiredSchemas = map[string]*fnv1.Schema{}
 			for _, sel := range fn.Requirements.RequiredSchemas {
 				schema, err := c.schemas.Fetch(ctx, xfn.ToProtobufSchemaSelector(&sel))
 				if err != nil {
 					return CompositionResult{}, errors.Wrapf(err, errFmtFetchBootstrapSchemas, sel.RequirementName)
 				}
-				req.RequiredSchemas[sel.RequirementName] = schema
+				fnreq.RequiredSchemas[sel.RequirementName] = schema
 			}
 		}
 
-		fnreq.Meta = &fnv1.RequestMeta{Tag: Tag(fnreq)}
+		fnreq.Meta = &fnv1.RequestMeta{Tag: Tag(fnreq), Capabilities: xfn.SupportedCapabilities()}
 
 		// Add step metadata to context for use by downstream components like InspectedRunner.
 		stepCtx := step.ContextWithStepMetaForCompositions(ctx, traceID, fn.Step, int32(stepIndex), compositionName) //nolint:gosec // int32 conversion is safe here, we know the number of steps won't exceed int32.

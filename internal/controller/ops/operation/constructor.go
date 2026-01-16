@@ -43,7 +43,7 @@ func Setup(mgr ctrl.Manager, o opscontroller.Options) error {
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithFunctionRunner(o.FunctionRunner),
-		WithRequiredSchemasFetcher(xfn.NewOpenAPISchemasFetcher(o.OpenAPIClient)))
+		WithRequiredSchemasFetcher(xfn.NewOpenAPIRequiredSchemasFetcher(o.OpenAPIClient)))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).

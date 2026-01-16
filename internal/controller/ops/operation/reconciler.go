@@ -273,7 +273,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 		}
 
-		req.Meta = &fnv1.RequestMeta{Tag: xfn.Tag(req)}
+		req.Meta = &fnv1.RequestMeta{Tag: xfn.Tag(req), Capabilities: xfn.SupportedCapabilities()}
 
 		// Add step metadata to context for use by downstream components like InspectedRunner.
 		stepCtx := step.ContextWithStepMetaForOperations(ctx, traceID, fn.Step, int32(stepIndex), op.GetName(), string(op.GetUID())) //nolint:gosec // int32 conversion is safe here, we know the number of steps won't exceed int32.

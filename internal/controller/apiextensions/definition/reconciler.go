@@ -516,7 +516,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), r.options.FunctionRunner,
 		composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.engine.GetCached(), r.engine.GetUncached(), fetcher)),
 		composite.WithCompositeConnectionDetailsFetcher(fetcher),
-		composite.WithRequiredSchemasFetcher(xfn.NewOpenAPISchemasFetcher(r.options.OpenAPIClient)),
+		composite.WithRequiredSchemasFetcher(xfn.NewOpenAPIRequiredSchemasFetcher(r.options.OpenAPIClient)),
 	)
 
 	controllerName := composite.ControllerName(d.GetName())
