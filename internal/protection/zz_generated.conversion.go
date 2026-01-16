@@ -3,7 +3,7 @@
 
 package protection
 
-import v1beta1 "github.com/crossplane/crossplane/v2/apis/protection/v1beta1"
+import v1beta1 "github.com/crossplane/crossplane/apis/v2/protection/v1beta1"
 
 type GeneratedNamespacedResourceConverter struct{}
 
