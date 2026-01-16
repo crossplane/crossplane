@@ -1,0 +1,7 @@
+apiVersion: example.org/v1alpha1
+kind: SchemaTest
+metadata:
+  namespace: default
+  name: test-schema-request
+spec:
+  testField: "test"
