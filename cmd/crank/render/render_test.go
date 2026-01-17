@@ -1909,8 +1909,7 @@ object:
 func NewFunction(t *testing.T, rsp *fnv1.RunFunctionResponse) net.Listener {
 	t.Helper()
 
-	conf := &net.ListenConfig{}
-	lis, err := conf.Listen(context.Background(), "tcp", "localhost:0")
+	lis, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1926,8 +1925,7 @@ func NewFunction(t *testing.T, rsp *fnv1.RunFunctionResponse) net.Listener {
 func NewFunctionWithRunFunc(t *testing.T, runFunc func(context.Context, *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)) net.Listener {
 	t.Helper()
 
-	conf := &net.ListenConfig{}
-	lis, err := conf.Listen(context.Background(), "tcp", "localhost:0")
+	lis, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -439,8 +439,7 @@ func NewGRPCServer(t *testing.T, ss fnv1.FunctionRunnerServiceServer) net.Listen
 	t.Helper()
 
 	// Listen on a random port.
-	conf := &net.ListenConfig{}
-	lis, err := conf.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -462,8 +461,7 @@ func NewBetaGRPCServer(t *testing.T, ss fnv1beta1.FunctionRunnerServiceServer) n
 	t.Helper()
 
 	// Listen on a random port.
-	conf := &net.ListenConfig{}
-	lis, err := conf.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
