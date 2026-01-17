@@ -1114,7 +1114,7 @@ type Resource struct {
 	// * A function should set this field to READY_TRUE in a RunFunctionResponse
 	// to indicate that a desired XR is ready. This overwrites the standard
 	// readiness detection that determines the ready state of the composite by the
-	// ready state of the the composed resources.
+	// ready state of the composed resources.
 	//
 	// Ready is only used for composition. It's ignored by Operations.
 	Ready         Ready `protobuf:"varint,3,opt,name=ready,proto3,enum=apiextensions.fn.proto.v1beta1.Ready" json:"ready,omitempty"`
