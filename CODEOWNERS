@@ -5,7 +5,7 @@
 #
 # The goal of this file is for most PRs to automatically and fairly have 1 to 2
 # maintainers set as PR reviewers. All maintainers have permission to approve
-# and merge PRs. PRs only need 
+# and merge PRs. PRs only need
 #
 # Most lines in this file will assign one subject matter expert and one random
 # maintainer. PRs only need to be approved by one of these people to be merged.
@@ -43,10 +43,10 @@
 /contributing/                       @crossplane/crossplane-maintainers @negz
 
 # Package manager
-/apis/pkg/                           @crossplane/crossplane-maintainers @turkenh
-/internal/xpkg/                      @crossplane/crossplane-maintainers @turkenh
-/internal/dag/                       @crossplane/crossplane-maintainers @turkenh
-/internal/controller/pkg/            @crossplane/crossplane-maintainers @turkenh
+/apis/pkg/                           @crossplane/crossplane-maintainers @adamwg
+/internal/xpkg/                      @crossplane/crossplane-maintainers @adamwg
+/internal/dag/                       @crossplane/crossplane-maintainers @adamwg
+/internal/controller/pkg/            @crossplane/crossplane-maintainers @adamwg
 
 # Composition
 /apis/apiextensions/                 @crossplane/crossplane-maintainers @negz
@@ -63,5 +63,4 @@
 /cmd/crank/                          @crossplane/crossplane-maintainers @phisco
 
 # Misc
-/apis/secrets/                       @crossplane/crossplane-maintainers @turkenh
 /internal/features/                  @crossplane/crossplane-maintainers @negz
