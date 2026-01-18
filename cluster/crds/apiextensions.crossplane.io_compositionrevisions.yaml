@@ -218,6 +218,36 @@ spec:
                           x-kubernetes-list-map-keys:
                           - requirementName
                           x-kubernetes-list-type: map
+                        requiredSchemas:
+                          description: |-
+                            RequiredSchemas is a list of OpenAPI schemas that must be fetched before
+                            this function is called.
+                          items:
+                            description: RequiredSchemaSelector selects a required
+                              OpenAPI schema.
+                            properties:
+                              apiVersion:
+                                description: APIVersion of the resource kind whose
+                                  schema is required, e.g. "example.org/v1".
+                                type: string
+                              kind:
+                                description: Kind of resource whose schema is required,
+                                  e.g. "MyResource".
+                                type: string
+                              requirementName:
+                                description: |-
+                                  RequirementName is the unique name to identify this required schema
+                                  in the Required Schemas map in the function request.
+                                type: string
+                            required:
+                            - apiVersion
+                            - kind
+                            - requirementName
+                            type: object
+                          type: array
+                          x-kubernetes-list-map-keys:
+                          - requirementName
+                          x-kubernetes-list-type: map
                       type: object
                     step:
                       description: Step name. Must be unique within its Pipeline.
