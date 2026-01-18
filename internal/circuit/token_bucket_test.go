@@ -408,15 +408,13 @@ func TestTokenBucketBreakerConcurrency(t *testing.T) {
 	// Run concurrent operations
 	var wg sync.WaitGroup
 	for range 10 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for range 10 {
 				breaker.RecordEvent(ctx, target, source, EventAllowed)
 				breaker.GetState(ctx, target)
 				breaker.RecordEvent(ctx, target, source, EventHalfOpenAllowed)
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
