@@ -91,7 +91,7 @@ type Outputs struct {
 	// The Crossplane context object
 	Context *unstructured.Unstructured
 	// The Function requirements
-	Requirements map[string]fnv1.Requirements
+	Requirements map[string]*fnv1.Requirements
 
 	// TODO(negz): Allow returning desired XR connection details. Maybe as a
 	// Secret? Should we honor writeConnectionSecretToRef? What if secret stores
@@ -228,7 +228,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 
 	results := make([]unstructured.Unstructured, 0)
 	conditions := make([]xpv1.Condition, 0)
-	requirements := make(map[string]fnv1.Requirements)
+	requirements := make(map[string]*fnv1.Requirements)
 
 	// The Function context starts empty.
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
@@ -334,9 +334,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			})
 		}
 
-		if rsp.GetRequirements() != nil {
-			requirements[fn.Step] = *rsp.GetRequirements()
-		}
+		requirements[fn.Step] = rsp.GetRequirements()
 
 		// Results of fatal severity stop the Composition process.
 		for _, rs := range rsp.GetResults() {
