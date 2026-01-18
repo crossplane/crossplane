@@ -92,13 +92,13 @@ func (r *InspectingFunctionRunner) RunFunction(ctx context.Context, name string,
     // Extract metadata from context and request
     meta := extractMeta(ctx, name, req)
 
-    // Emit request before execution (non-blocking, fire-and-forget)
+    // Emit request before execution
     r.inspector.EmitRequest(ctx, req, meta)
 
     // Run the wrapped function
     rsp, err := r.wrapped.RunFunction(ctx, name, req)
 
-    // Emit response after execution (non-blocking, fire-and-forget)
+    // Emit response after execution
     r.inspector.EmitResponse(ctx, rsp, err, meta)
 
     return rsp, err
@@ -165,11 +165,11 @@ import "google/protobuf/timestamp.proto";
 // PipelineInspectorService receives pipeline execution data from Crossplane.
 service PipelineInspectorService {
     // EmitRequest receives the function request before execution.
-    // This is a fire-and-forget call; errors do not affect pipeline execution.
+    // Errors do not affect pipeline execution.
     rpc EmitRequest(EmitRequestRequest) returns (EmitRequestResponse);
 
     // EmitResponse receives the function response after execution.
-    // This is a fire-and-forget call; errors do not affect pipeline execution.
+    // Errors do not affect pipeline execution.
     rpc EmitResponse(EmitResponseRequest) returns (EmitResponseResponse);
 }
 
@@ -231,13 +231,22 @@ By using JSON bytes for the request and response payloads, consumers can parse t
 
 ### Security: Credential Stripping
 
-The `RunFunctionRequest` includes a `credentials` field that may contain sensitive data (secrets, connection details). **This field must be cleared before emission**:
+The `RunFunctionRequest` includes `credentials` and connection details fields that may contain sensitive data, **this field must be cleared before emission**.
+
+On top of that, if any composed resource is a Secret, its `data` field must also be cleared before emission.
 
 ```go
 func (e *SocketPipelineInspector) EmitRequest(ctx context.Context, req *fnv1.RunFunctionRequest, meta StepMeta) {
-    // Create a copy with credentials stripped for security
+    // Strip sensitive data
     sanitizedReq := proto.Clone(req).(*fnv1.RunFunctionRequest)
     sanitizedReq.Credentials = nil
+    sanitizedReq.GetObserved().GetComposite().GetResource().ConnectionDetails = nil
+    for _, cr := range sanitizedReq.GetObserved().GetResources() {
+        r := cr.GetResource()
+        r.ConnectionDetails = nil
+        // if it's a Secret, drop data too
+        // ...
+    }
 
     // Serialize the request to JSON bytes
     reqBytes, err := protojson.Marshal(sanitizedReq)
@@ -261,7 +270,12 @@ func (e *SocketPipelineInspector) EmitRequest(ctx context.Context, req *fnv1.Run
 
 ### Fail-Open Behavior
 
-Since this feature is for debugging rather than security auditing or compliance, the system must **fail-open**: if the sidecar or emitter is unavailable, pipeline execution continues and data is simply not captured. This ensures the debugging feature cannot negatively impact production workloads.
+Since this feature is for debugging rather than security auditing or compliance, the system must **fail-open**: if the
+sidecar or emitter is unavailable, pipeline execution continues and data is simply not captured. This ensures the
+debugging feature cannot negatively impact production workloads. 
+
+To allow monitoring the health of the pipeline inspector we should also expose metrics counting the number of failed
+emits.
 
 ### Configuration
 
