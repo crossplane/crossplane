@@ -67,6 +67,7 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/metrics"
 	"github.com/crossplane/crossplane/v2/internal/protection/usage"
 	"github.com/crossplane/crossplane/v2/internal/transport"
+	providerhook "github.com/crossplane/crossplane/v2/internal/webhook/protection/provider"
 	usagehook "github.com/crossplane/crossplane/v2/internal/webhook/protection/usage"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	"github.com/crossplane/crossplane/v2/internal/xfn/cached"
@@ -141,7 +142,8 @@ type startCommand struct {
 	EnableRealtimeCompositions              bool `default:"true" group:"Beta Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
 	EnableCustomToManagedResourceConversion bool `default:"true" group:"Beta Features:" help:"Enable support CRD to MRD conversion when installing a package."`
 
-	RestrictNamespacedEvents bool `default:"false" help:"Prevent events from being produced on resources that are not namespaced. Useful when crossplane does not have permissions in the default namespace."`
+	DisableProviderDeletionProtection bool `default:"false" help:"Disable provider deletion protection webhook that prevents deletion of providers with active managed resources."`
+	RestrictNamespacedEvents          bool `default:"false" help:"Prevent events from being produced on resources that are not namespaced. Useful when crossplane does not have permissions in the default namespace."`
 
 	// These are features that we've removed support for. Crossplane returns an
 	// error when you enable them. This ensures you'll see an explicit and
@@ -343,6 +345,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableOperations {
 		o.Features.Enable(features.EnableAlphaOperations)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaOperations)
+	}
+
+	if c.DisableProviderDeletionProtection {
+		o.Features.Enable(features.DisableProviderDeletionProtection)
+		log.Info("Provider deletion protection disabled", "flag", features.DisableProviderDeletionProtection)
 	}
 
 	// Claim and XR controllers are started and stopped dynamically by the
@@ -566,17 +573,25 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	// Registering webhooks with the manager is what actually starts the webhook
 	// server.
-	if c.EnableWebhooks && o.Features.Enabled(features.EnableBetaUsages) {
-		f, err := usage.NewFinder(mgr.GetClient(), mgr.GetFieldIndexer())
-		if err != nil {
-			return errors.Wrap(err, "cannot setup usage finder")
+	if c.EnableWebhooks {
+		// Provider deletion protection webhook - enabled by default unless explicitly disabled
+		if !o.Features.Enabled(features.DisableProviderDeletionProtection) {
+			providerhook.SetupWebhookWithManager(mgr, o)
 		}
 
-		if err := protection.Setup(mgr, f, o); err != nil {
-			return errors.Wrap(err, "cannot add protection (usage) controllers to manager")
-		}
+		// Usage webhooks - only when the feature is enabled
+		if o.Features.Enabled(features.EnableBetaUsages) {
+			f, err := usage.NewFinder(mgr.GetClient(), mgr.GetFieldIndexer())
+			if err != nil {
+				return errors.Wrap(err, "cannot setup usage finder")
+			}
 
-		usagehook.SetupWebhookWithManager(mgr, f, o)
+			if err := protection.Setup(mgr, f, o); err != nil {
+				return errors.Wrap(err, "cannot add protection (usage) controllers to manager")
+			}
+
+			usagehook.SetupWebhookWithManager(mgr, f, o)
+		}
 	}
 
 	if err := c.SetupProbes(mgr); err != nil {

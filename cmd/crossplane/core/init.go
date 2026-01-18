@@ -45,7 +45,8 @@ type initCommand struct {
 	CRDsPath                  string `default:"/crds"                  env:"CRDS_PATH"            help:"Path of Crossplane core Custom Resource Definitions."`
 	WebhookConfigurationsPath string `default:"/webhookconfigurations" env:"WEBHOOK_CONFIGS_PATH" help:"Path of Crossplane core Webhook Configurations."`
 
-	EnableWebhooks bool `aliases:"webhook-enabled" default:"true" env:"ENABLE_WEBHOOKS,WEBHOOK_ENABLED" help:"Enable webhook configuration."`
+	EnableWebhooks                    bool `aliases:"webhook-enabled" default:"true"                                                                                                         env:"ENABLE_WEBHOOKS,WEBHOOK_ENABLED" help:"Enable webhook configuration."`
+	DisableProviderDeletionProtection bool `default:"false"           help:"Disable provider deletion protection webhook that prevents deletion of providers with active managed resources."`
 
 	WebhookServiceName      string `env:"WEBHOOK_SERVICE_NAME"      help:"The name of the Service object that the webhook service will be run."`
 	WebhookServiceNamespace string `env:"WEBHOOK_SERVICE_NAMESPACE" help:"The namespace of the Service object that the webhook service will be run."`
@@ -100,9 +101,27 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 			Namespace: c.WebhookServiceNamespace,
 			Port:      &c.WebhookServicePort,
 		}
+
+		// Build webhook configuration options
+		webhookOpts := []initializer.WebhookConfigurationsOption{}
+		if c.DisableProviderDeletionProtection {
+			webhookOpts = append(webhookOpts,
+				initializer.WithWebhookConfigurationsSkipNames("crossplane-provider-deletion"))
+		}
+
 		steps = append(steps,
 			initializer.NewCoreCRDs(c.CRDsPath, s, initializer.WithWebhookTLSSecretRef(nn)),
-			initializer.NewWebhookConfigurations(c.WebhookConfigurationsPath, s, nn, svc))
+			initializer.NewWebhookConfigurations(c.WebhookConfigurationsPath, s, nn, svc, webhookOpts...))
+
+		// Remove provider deletion protection webhook if disabled.
+		// This handles the case where users switch from enabled to disabled.
+		if c.DisableProviderDeletionProtection {
+			steps = append(steps,
+				initializer.NewValidatingWebhookRemover("crossplane-provider-deletion",
+					"providerdeletion.pkg.crossplane.io",
+				),
+			)
+		}
 	} else {
 		log.Info("Warning: Webhooks are disabled, so deprecated ValidatingWebhookConfigurations will not be automatically deleted.")
 		steps = append(steps,

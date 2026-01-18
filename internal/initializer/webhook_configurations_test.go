@@ -183,6 +183,37 @@ func TestWebhookConfigurations(t *testing.T) {
 				err: errors.Errorf("only MutatingWebhookConfiguration and ValidatingWebhookConfiguration kinds are accepted, got %s", "*v1.CustomResourceDefinition"),
 			},
 		},
+		"SkipWebhookByName": {
+			reason: "Webhooks in the skip list should not be applied",
+			args: args{
+				opts: []WebhookConfigurationsOption{
+					WithWebhookConfigurationsFs(fs),
+					WithWebhookConfigurationsSkipNames("validating-webhook-configuration"),
+				},
+				svc: svc,
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							secret.DeepCopyInto(s)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
+					MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
+						// Validating webhook should be skipped, only mutating should be applied
+						switch obj.(type) {
+						case *admv1.ValidatingWebhookConfiguration:
+							t.Error("ValidatingWebhookConfiguration should have been skipped")
+						case *admv1.MutatingWebhookConfiguration:
+							// Expected - mutating webhook should still be applied
+						default:
+							t.Error("unexpected type")
+						}
+						return nil
+					},
+				},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -233,7 +264,7 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   creationTimestamp: null
-  name: validating-webhook-configuration
+  name: mutating-webhook-configuration
 webhooks:
 - admissionReviewVersions:
   - v1
