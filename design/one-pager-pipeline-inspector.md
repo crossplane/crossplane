@@ -393,7 +393,7 @@ The wrapper approach addresses this by capturing data before the cache is consul
 
 ### Modifying Functions Directly
 
-Instrumenting functions themselves (as demonstrated by Apple at KubeCon NA 2024) was considered but rejected because:
+Instrumenting functions themselves (as demonstrated by [Apple at KubeCon NA 2025][apple-kubecon-na-2025]) was considered but rejected because:
 - We do not control function implementations
 - Would require changes to every function
 - Does not address cache behavior
@@ -420,3 +420,5 @@ Instrumenting functions themselves (as demonstrated by Apple at KubeCon NA 2024)
 
 1. Document the feature flag and Helm values configuration
 2. Document the gRPC interface for downstream implementers
+
+[apple-kubecon-na-2025]: https://youtu.be/g70y40Qk7bs?si=MpAwmKrDPo_mAvL0
