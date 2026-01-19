@@ -1,0 +1,109 @@
+/*
+   Copyright 2026 The Crossplane Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
+syntax = "proto3";
+
+//buf:lint:ignore PACKAGE_DIRECTORY_MATCH
+package crossplane.pipeline.v1alpha1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/crossplane/crossplane/v2/proto/pipeline/v1alpha1";
+
+// PipelineInspectorService receives pipeline execution data from Crossplane.
+// This service is implemented by a sidecar that captures function pipeline
+// execution data for debugging and observability purposes.
+service PipelineInspectorService {
+  // EmitRequest receives the function request before execution.
+  // This is a fire-and-forget call; errors do not affect pipeline execution.
+  rpc EmitRequest(EmitRequestRequest) returns (EmitRequestResponse) {}
+
+  // EmitResponse receives the function response after execution.
+  // This is a fire-and-forget call; errors do not affect pipeline execution.
+  rpc EmitResponse(EmitResponseRequest) returns (EmitResponseResponse) {}
+}
+
+// EmitRequestRequest wraps the function request with correlation metadata.
+message EmitRequestRequest {
+  // The original function request as JSON bytes (with credentials stripped for security).
+  // This allows consumers to parse the request without needing the proto schema.
+  bytes request = 1;
+
+  // Metadata for correlation and identification.
+  StepMeta meta = 2;
+}
+
+// EmitRequestResponse is empty - this is a fire-and-forget call.
+message EmitRequestResponse {}
+
+// EmitResponseRequest wraps the function response with correlation metadata.
+message EmitResponseRequest {
+  // The function response as JSON bytes (nil if function call failed).
+  // This allows consumers to parse the response without needing the proto schema.
+  bytes response = 1;
+
+  // Error message if the function call failed.
+  string error = 2;
+
+  // Metadata for correlation and identification.
+  // Must match the meta from the corresponding EmitRequest.
+  StepMeta meta = 3;
+}
+
+// EmitResponseResponse is empty - this is a fire-and-forget call.
+message EmitResponseResponse {}
+
+// StepMeta contains metadata for correlating and identifying a function
+// invocation within a pipeline execution.
+message StepMeta {
+  // UUID identifying the entire pipeline execution (all steps in one reconciliation).
+  // All function invocations within a single reconciliation share the same trace_id.
+  string trace_id = 1;
+
+  // UUID identifying this specific function invocation.
+  string span_id = 2;
+
+  // Zero-based index of this step in the function pipeline.
+  int32 step_index = 3;
+
+  // Per-step counter incremented when a function requests additional resources and
+  // needs to be re-run, starting from 0.
+  int32 iteration = 4;
+
+  // Name of the function being invoked.
+  string function_name = 5;
+
+  // Name of the Composition defining this pipeline.
+  string composition_name = 6;
+
+  // UID of the composite resource being reconciled.
+  string composite_resource_uid = 7;
+
+  // Name of the composite resource being reconciled.
+  string composite_resource_name = 8;
+
+  // Namespace of the composite resource (empty for cluster-scoped resources).
+  string composite_resource_namespace = 9;
+
+  // API version of the composite resource (e.g., "example.org/v1").
+  string composite_resource_api_version = 10;
+
+  // Kind of the composite resource (e.g., "XDatabase").
+  string composite_resource_kind = 11;
+
+  // Timestamp when this step was executed.
+  google.protobuf.Timestamp timestamp = 12;
+}
