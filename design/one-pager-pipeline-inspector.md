@@ -80,56 +80,107 @@ flowchart TB
 
 A new `FunctionRunner` wrapper that emits pipeline execution data after each function call. This follows the existing pattern in Crossplane where `FunctionRunner` implementations can be composed (e.g., the caching `FunctionRunner` wraps the base `PackagedFunctionRunner`).
 
+The implementation is organized into the following packages:
+
+- `internal/xfn/inspected/`: Contains the `Runner` wrapper, `SocketPipelineInspector`, and metrics
+- `internal/controller/apiextensions/composite/step/`: Contains `Metadata` struct and `BuildStepMeta()` function
+
 ```go
-// InspectingFunctionRunner wraps another FunctionRunner, emitting request and
-// response data to a PipelineInspector for debugging and observability.
-type InspectingFunctionRunner struct {
-    wrapped   FunctionRunner
-    inspector PipelineInspector
+// A PipelineInspector inspects function pipeline execution data.
+type PipelineInspector interface {
+    // EmitRequest emits the given request and metadata.
+    EmitRequest(ctx context.Context, req *fnv1.RunFunctionRequest, meta *step.Metadata) error
+
+    // EmitResponse emits the given response, error, and metadata.
+    EmitResponse(ctx context.Context, rsp *fnv1.RunFunctionResponse, err error, meta *step.Metadata) error
 }
 
-func (r *InspectingFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+// A Runner wraps another FunctionRunner, emitting request and response data to
+// a PipelineInspector for debugging and observability.
+type Runner struct {
+    wrapped   FunctionRunner
+    inspector PipelineInspector
+    metrics   Metrics
+    log       logging.Logger
+}
+
+func (r *Runner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
     // Extract metadata from context and request
-    meta := extractMeta(ctx, name, req)
+    meta, err := step.BuildMetadata(ctx, name, req)
+    if err != nil {
+        r.log.Info("failed to extract step metadata", "function", name, "error", err)
+        // We proceed even if we fail to extract metadata.
+    }
 
     // Emit request before execution
-    r.inspector.EmitRequest(ctx, req, meta)
+    if err := r.inspector.EmitRequest(ctx, req, meta); err != nil {
+        r.metrics.ErrorOnRequest(name)
+        r.log.Info("failed to inspect request for function", "function", name, "error", err)
+    }
 
     // Run the wrapped function
     rsp, err := r.wrapped.RunFunction(ctx, name, req)
 
     // Emit response after execution
-    r.inspector.EmitResponse(ctx, rsp, err, meta)
+    if err := r.inspector.EmitResponse(ctx, rsp, err, meta); err != nil {
+        r.metrics.ErrorOnResponse(name)
+        r.log.Info("failed to inspect response for function", "function", name, "error", err)
+    }
 
     return rsp, err
 }
 
-// extractMeta builds StepMeta from the context and request.
-// - trace_id identifies the entire pipeline execution (all steps in one reconciliation)
-// - span_id is generated as a UUID for each function invocation
-// - iteration is extracted from context (counts how many times this step was called)
-// - XR metadata (name, namespace, UID, GVK) is extracted from req.Observed.Composite
-// - function_name, step_index, and composition_name are extracted from context
-func extractMeta(ctx context.Context, functionName string, req *fnv1.RunFunctionRequest) StepMeta {
-    meta := StepMeta{
+```
+
+#### Context Injection by FunctionComposer
+
+The `FunctionComposer` is responsible for injecting the step metadata into the context before calling each function. This happens in `composition_functions.go`:
+
+```go
+// Before the pipeline loop starts, generate a trace_id for the entire reconciliation
+traceID := uuid.NewString()
+
+// For each step in the pipeline...
+for stepIndex, fn := range req.Revision.Spec.Pipeline {
+    // ...
+
+    // Inject step metadata into context
+    stepCtx := step.ContextWithStepMeta(ctx, traceID, stepIndex, compositionName, 0)
+
+    // Call the function with the enriched context
+    rsp, err := c.pipeline.RunFunction(stepCtx, fn.FunctionRef.Name, fnreq)
+}
+```
+
+The `Runner` wrapper then extracts this metadata using `step.BuildMetadata()`:
+
+```go
+// BuildMetadata builds Metadata from the given context and function request.
+func BuildMetadata(ctx context.Context, functionName string, req *fnv1.RunFunctionRequest) (*Metadata, error) {
+    meta := Metadata{
         FunctionName: functionName,
         Timestamp:    time.Now(),
     }
 
-    // Extract step index, composition name, and iteration from context (set by FunctionComposer)
+    // Extract trace_id, step index, composition name, and iteration from context
+    // (injected by FunctionComposer via ContextWithStepMeta)
+    if v, ok := ctx.Value(ContextKeyTraceID).(string); ok {
+        meta.TraceID = v
+    } else {
+        return nil, fmt.Errorf("could not extract trace ID from context")
+    }
     if v, ok := ctx.Value(ContextKeyStepIndex).(int); ok {
-        meta.StepIndex = v
+        meta.StepIndex = int32(v)
+    } else {
+        return nil, fmt.Errorf("could not extract step index from context")
     }
     if v, ok := ctx.Value(ContextKeyCompositionName).(string); ok {
         meta.CompositionName = v
+    } else {
+        return nil, fmt.Errorf("could not extract composition name from context")
     }
-    if v, ok := ctx.Value(ContextKeyIteration).(int64); ok {
+    if v, ok := ctx.Value(ContextKeyIteration).(int32); ok {
         meta.Iteration = v
-    }
-
-    // Extract trace_id from context (set by FunctionComposer at the start of reconciliation)
-    if v, ok := ctx.Value(ContextKeyTraceID).(string); ok {
-        meta.TraceID = v
     }
 
     // Generate a unique span_id for this function invocation
@@ -147,9 +198,27 @@ func extractMeta(ctx context.Context, functionName string, req *fnv1.RunFunction
         }
     }
 
-    return meta
+    return &meta, nil
 }
 ```
+
+The `FetchingFunctionRunner` (in `internal/xfn/required_resources.go`) updates the iteration counter when a function requests additional resources and needs to be re-run:
+
+```go
+// FetchingFunctionRunner re-runs functions that request additional resources
+for i := int32(0); i <= MaxRequirementsIterations; i++ {
+    // Update the iteration counter in the context for downstream components.
+    iterCtx := step.ContextWithStepIteration(ctx, i)
+
+    rsp, err := c.wrapped.RunFunction(iterCtx, name, req)
+    // ...
+}
+```
+
+This design separates concerns:
+- **FunctionComposer** generates the `trace_id` and injects initial context values (`trace_id`, `step_index`, `composition_name`, `iteration=0`)
+- **FetchingFunctionRunner** updates the `iteration` counter when re-running functions that request additional resources
+- **Runner** extracts all context values along with request data to build complete metadata for emission
 
 ### gRPC Interface
 
@@ -213,8 +282,9 @@ message StepMeta {
     // Zero-based index of this step in the function pipeline.
     int32 step_index = 3;
 
-    // Counts how many times this step has been called, starting from 0.
-    int64 iteration = 4;
+    // Monotonically increasing counter for correlating steps within a reconciliation.
+    // All steps in the same reconciliation share this value.
+    int32 iteration = 4;
 
     string function_name = 5;
     string composition_name = 6;
@@ -272,23 +342,28 @@ func (e *SocketPipelineInspector) EmitRequest(ctx context.Context, req *fnv1.Run
 
 Since this feature is for debugging rather than security auditing or compliance, the system must **fail-open**: if the
 sidecar or emitter is unavailable, pipeline execution continues and data is simply not captured. This ensures the
-debugging feature cannot negatively impact production workloads. 
+debugging feature cannot negatively impact production workloads.
 
-To allow monitoring the health of the pipeline inspector we should also expose metrics counting the number of failed
-emits.
+The default emit timeout is 100ms. If the sidecar doesn't respond within this time, the emit fails and pipeline execution continues.
+
+To allow monitoring the health of the pipeline inspector, the following Prometheus metric is exposed:
+
+- `function_run_function_pipeline_inspector_errors_total`: Counter for errors encountered emitting request/response data, with labels `function_name` and `type` (request/response).
 
 ### Configuration
 
-The feature is enabled via a feature flag and configured with a socket path:
+The feature is enabled via the `--enable-pipeline-inspector` flag and configured with a socket path:
 
 ```yaml
-# Crossplane deployment args (set automatically when pipeline inspector is enabled)
+# Crossplane deployment args
 args:
   - --enable-pipeline-inspector
-  - --pipeline-inspector-socket=/var/run/pipeline-inspector/socket
+  - --pipeline-inspector-socket=/var/run/pipeline-inspector/socket  # default value
 ```
 
-When the feature flag is not set, the `InspectingFunctionRunner` is not instantiated and there is zero overhead.
+The socket path can also be configured via the `PIPELINE_INSPECTOR_SOCKET` environment variable.
+
+When the feature flag is not set, the `Runner` wrapper is not instantiated and there is zero overhead.
 
 See [Helm Chart Changes](#helm-chart-changes) for the recommended configuration approach.
 
