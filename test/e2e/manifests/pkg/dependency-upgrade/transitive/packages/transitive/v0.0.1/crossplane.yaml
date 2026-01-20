@@ -1,0 +1,7 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: transitive-dependency
+  annotations:
+    adamwg.com/version: one
+spec: {}

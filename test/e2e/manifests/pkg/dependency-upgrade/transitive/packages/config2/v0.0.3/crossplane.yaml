@@ -1,0 +1,10 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: config-2
+spec:
+  dependsOn:
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Configuration
+      package: docker.io/adamwg/e2e-dep2
+      version: v0.0.3
