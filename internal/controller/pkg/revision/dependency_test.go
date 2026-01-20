@@ -153,8 +153,9 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1beta1.Lock)
 							l.Packages = []v1beta1.LockPackage{
 								{
-									Name:   "config-nop-a-abc123",
-									Source: "xpkg.crossplane.io/hasheddan/config-nop-a",
+									Name:    "config-nop-a-abc123",
+									Source:  "xpkg.crossplane.io/hasheddan/config-nop-a",
+									Version: "v0.0.1",
 								},
 							}
 							return nil
@@ -179,6 +180,58 @@ func TestResolve(t *testing.T) {
 					},
 					Spec: v1.PackageRevisionSpec{
 						Package:      "xpkg.crossplane.io/hasheddan/config-nop-a:v0.0.1",
+						DesiredState: v1.PackageRevisionActive,
+					},
+				},
+			},
+			want: want{},
+		},
+		"SuccessfulSelfExistWrongVersion": {
+			reason: "Should update the lock if the revision is in it with the wrong version.",
+			args: args{
+				dep: &PackageDependencyManager{
+					client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							l := obj.(*v1beta1.Lock)
+							l.Packages = []v1beta1.LockPackage{
+								{
+									Name:    "config-nop-a-abc123",
+									Source:  "xpkg.crossplane.io/hasheddan/config-nop-a",
+									Version: "v0.0.1",
+								},
+							}
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+							l := obj.(*v1beta1.Lock)
+							p := l.Packages[0]
+							if p.Version != "v0.0.2" {
+								return errors.Errorf("lock package updated to incorrect version %q", p.Version)
+							}
+
+							return nil
+						}),
+					},
+					newDag: func() dag.DAG {
+						return &dagfake.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return nil, nil
+							},
+							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
+								return nil, nil
+							},
+							MockAddOrUpdateNodes: func(_ ...dag.Node) {},
+						}
+					},
+					log: logging.NewNopLogger(),
+				},
+				meta: &pkgmetav1.Configuration{},
+				pr: &v1.ConfigurationRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "config-nop-a-abc123",
+					},
+					Spec: v1.PackageRevisionSpec{
+						Package:      "xpkg.crossplane.io/hasheddan/config-nop-a:v0.0.2",
 						DesiredState: v1.PackageRevisionActive,
 					},
 				},
@@ -250,8 +303,9 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1beta1.Lock)
 							l.Packages = []v1beta1.LockPackage{
 								{
-									Name:   "config-nop-a-abc123",
-									Source: "xpkg.crossplane.io/hasheddan/config-nop-a",
+									Name:    "config-nop-a-abc123",
+									Source:  "xpkg.crossplane.io/hasheddan/config-nop-a",
+									Version: "v0.0.1",
 									Dependencies: []v1beta1.Dependency{
 										{
 											Package: "not-here-1",
@@ -339,8 +393,9 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1beta1.Lock)
 							l.Packages = []v1beta1.LockPackage{
 								{
-									Name:   "config-nop-a-abc123",
-									Source: "xpkg.crossplane.io/hasheddan/config-nop-a",
+									Name:    "config-nop-a-abc123",
+									Source:  "xpkg.crossplane.io/hasheddan/config-nop-a",
+									Version: "v0.0.1",
 									Dependencies: []v1beta1.Dependency{
 										{
 											Package: "not-here-1",
@@ -439,8 +494,9 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1beta1.Lock)
 							l.Packages = []v1beta1.LockPackage{
 								{
-									Name:   "config-nop-a-abc123",
-									Source: "xpkg.crossplane.io/hasheddan/config-nop-a",
+									Name:    "config-nop-a-abc123",
+									Source:  "xpkg.crossplane.io/hasheddan/config-nop-a",
+									Version: "v0.0.1",
 									Dependencies: []v1beta1.Dependency{
 										{
 											Package: "not-here-1",
