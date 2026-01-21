@@ -169,8 +169,9 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	}
 
 	// Propagate composition ref from the XR if the claim doesn't have an
-	// opinion. Composition and revision selectors only propagate from claim ->
-	// XR. When a claim has selectors **and no reference** the flow should be:
+	// opinion. Composition selectors propagate claim -> XR; revision selectors
+	// may be mirrored XR -> claim when set by defaults. When a claim has selectors
+	// **and no reference** the flow should be:
 	//
 	// 1. Claim controller propagates selectors claim -> XR.
 	// 2. XR controller uses selectors to set XR's composition ref.

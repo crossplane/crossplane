@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -964,7 +965,7 @@ func TestAPIDefaultCompositionRevisionSelector(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := NewAPIDefaultCompositionSelector(tc.kube, tc.defRef, event.NewNopRecorder())
 			err := c.SelectCompositionRevision(context.Background(), tc.args.cp)
-			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nSelectCompositionRevision(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
