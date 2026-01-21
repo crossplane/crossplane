@@ -539,6 +539,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record),
 			composite.NewAPILabelSelectorResolver(r.engine.GetCached()),
 		)),
+		composite.WithCompositionRevisionSelector(
+			composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record),
+		),
 		composite.WithLogger(r.log.WithValues("controller", controllerName)),
 		composite.WithRecorder(r.record.WithAnnotations("controller", controllerName)),
 		composite.WithPollInterval(r.options.PollInterval),

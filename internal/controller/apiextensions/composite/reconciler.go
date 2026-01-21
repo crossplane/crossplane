@@ -121,6 +121,19 @@ func (fn CompositionSelectorFn) SelectComposition(ctx context.Context, cr resour
 	return fn(ctx, cr)
 }
 
+// A CompositionRevisionSelector selects a composition revision via selector.
+type CompositionRevisionSelector interface {
+	SelectCompositionRevision(ctx context.Context, cr resource.Composite) error
+}
+
+// A CompositionRevisionSelectorFn selects a composition revision by label.
+type CompositionRevisionSelectorFn func(ctx context.Context, cr resource.Composite) error
+
+// SelectCompositionRevision for the supplied composite resource.
+func (fn CompositionRevisionSelectorFn) SelectCompositionRevision(ctx context.Context, cr resource.Composite) error {
+	return fn(ctx, cr)
+}
+
 // A ConnectionPublisher publishes the supplied ConnectionDetails for the
 // supplied resource.
 type ConnectionPublisher interface {
@@ -333,6 +346,14 @@ func WithCompositionSelector(s CompositionSelector) ReconcilerOption {
 	}
 }
 
+// WithCompositionRevisionSelector specifies how the composition revision to be used should be
+// selected.
+func WithCompositionRevisionSelector(s CompositionRevisionSelector) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composite.CompositionRevisionSelector = s
+	}
+}
+
 // WithConfigurator specifies how the Reconciler should configure
 // composite resources using their composition.
 func WithConfigurator(c Configurator) ReconcilerOption {
@@ -424,6 +445,7 @@ func (fn WatchStarterFn) StartWatches(ctx context.Context, name string, ws ...en
 type compositeResource struct {
 	resource.Finalizer
 	CompositionSelector
+	CompositionRevisionSelector
 	Configurator
 	ConnectionPublisher
 }
@@ -603,6 +625,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if compRef := xr.GetCompositionReference(); compRef != nil && (orig == nil || *compRef != *orig) {
 		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Successfully selected composition: %s", compRef.Name)))
+	}
+
+	origCompRev := xr.GetCompositionRevisionReference()
+	if err := r.composite.SelectCompositionRevision(ctx, xr); err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
+		err = errors.Wrap(err, errSelectComp)
+		r.record.Event(xr, event.Warning(reasonResolve, err))
+		status.MarkConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+	}
+
+	if compRevRef := xr.GetCompositionRevisionReference(); compRevRef != nil && (origCompRev == nil || *compRevRef != *origCompRev) {
+		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Successfully selected composition revision: %s", compRevRef.Name)))
 	}
 
 	// Select (if there is a new one) and fetch the composition revision.
