@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package common
+package resource
 
 // ObservedStatus contains the recent reconciliation stats.
 type ObservedStatus struct {
