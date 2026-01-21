@@ -111,19 +111,7 @@ Examples:
 `
 }
 
-// Run runs the trace command.
-func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
-	ctx := context.Background()
-	logger = logger.WithValues("Resource", c.Resource, "Name", c.Name)
-
-	// Init new printer
-	p, err := printer.New(c.Output)
-	if err != nil {
-		return errors.Wrap(err, errInitPrinter)
-	}
-
-	logger.Debug("Built printer", "output", c.Output)
-
+func (c *Cmd) setupKubeClient(logger logging.Logger) (clientcmd.ClientConfig, client.WithWatch, meta.RESTMapper, error) {
 	clientconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		clientcmd.NewDefaultClientConfigLoadingRules(),
 		&clientcmd.ConfigOverrides{CurrentContext: c.Context},
@@ -131,7 +119,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	kubeconfig, err := clientconfig.ClientConfig()
 	if err != nil {
-		return errors.Wrap(err, errKubeConfig)
+		return nil, nil, nil, errors.Wrap(err, errKubeConfig)
 	}
 
 	// NOTE(phisco): We used to get them set as part of
@@ -149,25 +137,46 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	logger.Debug("Found kubeconfig")
 
-	client, err := client.NewWithWatch(kubeconfig, client.Options{
+	cl, err := client.NewWithWatch(kubeconfig, client.Options{
 		Scheme: scheme.Scheme,
 	})
 	if err != nil {
-		return errors.Wrap(err, errInitKubeClient)
+		return nil, nil, nil, errors.Wrap(err, errInitKubeClient)
 	}
 
 	// add package scheme
-	_ = pkg.AddToScheme(client.Scheme())
+	_ = pkg.AddToScheme(cl.Scheme())
 
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(kubeconfig)
 	if err != nil {
-		return errors.Wrap(err, errGetDiscoveryClient)
+		return nil, nil, nil, errors.Wrap(err, errGetDiscoveryClient)
 	}
 	// TODO(phisco): properly handle flags and switch to file backed cache
 	// 	(restmapper.NewDeferredDiscoveryRESTMapper), as cli-runtime
 	// 	pkg/resource Builder does.
 	d := memory.NewMemCacheClient(discoveryClient)
 	rmapper := restmapper.NewShortcutExpander(restmapper.NewDeferredDiscoveryRESTMapper(d), d, nil)
+
+	return clientconfig, cl, rmapper, nil
+}
+
+// Run runs the trace command.
+func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
+	ctx := context.Background()
+	logger = logger.WithValues("Resource", c.Resource, "Name", c.Name)
+
+	// Init new printer
+	p, err := printer.New(c.Output)
+	if err != nil {
+		return errors.Wrap(err, errInitPrinter)
+	}
+
+	logger.Debug("Built printer", "output", c.Output)
+
+	clientconfig, client, rmapper, err := c.setupKubeClient(logger)
+	if err != nil {
+		return err
+	}
 
 	res, name, err := c.getResourceAndName()
 	if err != nil {
