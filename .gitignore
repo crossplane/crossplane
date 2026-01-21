@@ -36,6 +36,7 @@ gitlab/
 
 # ignore AI tools settings/config
 /.claude
+/.kiro
 CLAUDE.md
 AGENTS.md
 
