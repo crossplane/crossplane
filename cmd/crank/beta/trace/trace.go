@@ -244,11 +244,18 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	if shouldPrintAsList {
 		// Print list of resources
 		err = p.PrintList(k.Stdout, resourceList)
-	} else {
-		// Print a single resource
-		err = p.Print(k.Stdout, resourceList.Items[0])
+		if err != nil {
+			return errors.Wrap(err, errCliOutput)
+		}
+		// Warn if watch mode was requested with multiple resources
+		if c.Watch {
+			k.Stdout.Write([]byte("error: you may only watch a single resource at a time\n"))
+		}
+		return nil
 	}
 
+	// Print a single resource
+	err = p.Print(k.Stdout, resourceList.Items[0])
 	if err != nil {
 		return errors.Wrap(err, errCliOutput)
 	}
