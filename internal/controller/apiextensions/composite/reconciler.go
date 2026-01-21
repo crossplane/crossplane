@@ -628,14 +628,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	origCompRev := xr.GetCompositionRevisionReference()
-	if err := r.composite.SelectCompositionRevision(ctx, xr); err != nil {
-		if kerrors.IsConflict(err) {
-			return reconcile.Result{Requeue: true}, nil
+	if r.composite.CompositionRevisionSelector != nil {
+		if err := r.composite.SelectCompositionRevision(ctx, xr); err != nil {
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
+			err = errors.Wrap(err, errSelectComp)
+			r.record.Event(xr, event.Warning(reasonResolve, err))
+			status.MarkConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 		}
-		err = errors.Wrap(err, errSelectComp)
-		r.record.Event(xr, event.Warning(reasonResolve, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
 
 	if compRevRef := xr.GetCompositionRevisionReference(); compRevRef != nil && (origCompRev == nil || *compRevRef != *origCompRev) {
