@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package common
+// Package resource contains utilities and common APIs for Crossplane resources.
+package resource
 
 import (
 	"sort"
@@ -68,6 +69,7 @@ const (
 // See https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
 
 // A Condition that may apply to a resource.
+// +k8s:deepcopy-gen=true
 type Condition struct { //nolint:recvcheck // False positive - only has non-pointer methods AFAICT.
 	// Type of this condition. At most one of each condition type may apply to
 	// a resource at any point in time.
@@ -139,6 +141,7 @@ func IsSystemConditionType(t ConditionType) bool {
 
 // A ConditionedStatus reflects the observed status of a resource. Only
 // one condition of each type may exist.
+// +k8s:deepcopy-gen=true
 type ConditionedStatus struct {
 	// Conditions of the resource.
 	// +listType=map

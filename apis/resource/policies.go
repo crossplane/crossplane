@@ -14,44 +14,41 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
-
-import (
-	"github.com/crossplane/crossplane/apis/v2/common"
-)
+package resource
 
 // ManagementPolicies determine how should Crossplane controllers manage an
 // external resource through an array of ManagementActions.
-type ManagementPolicies = common.ManagementPolicies
+type ManagementPolicies []ManagementAction
 
 // A ManagementAction represents an action that the Crossplane controllers
 // can take on an external resource.
-type ManagementAction = common.ManagementAction
+// +kubebuilder:validation:Enum=Observe;Create;Update;Delete;LateInitialize;*
+type ManagementAction string
 
 const (
 	// ManagementActionObserve means that the managed resource status.atProvider
 	// will be updated with the external resource state.
-	ManagementActionObserve = common.ManagementActionObserve
+	ManagementActionObserve ManagementAction = "Observe"
 
 	// ManagementActionCreate means that the external resource will be created
 	// using the managed resource spec.initProvider and spec.forProvider.
-	ManagementActionCreate = common.ManagementActionCreate
+	ManagementActionCreate ManagementAction = "Create"
 
 	// ManagementActionUpdate means that the external resource will be updated
 	// using the managed resource spec.forProvider.
-	ManagementActionUpdate = common.ManagementActionUpdate
+	ManagementActionUpdate ManagementAction = "Update"
 
 	// ManagementActionDelete means that the external resource will be deleted
 	// when the managed resource is deleted.
-	ManagementActionDelete = common.ManagementActionDelete
+	ManagementActionDelete ManagementAction = "Delete"
 
 	// ManagementActionLateInitialize means that unspecified fields of the managed
 	// resource spec.forProvider will be updated with the external resource state.
-	ManagementActionLateInitialize = common.ManagementActionLateInitialize
+	ManagementActionLateInitialize ManagementAction = "LateInitialize"
 
 	// ManagementActionAll means that all of the above actions will be taken
 	// by the Crossplane controllers.
-	ManagementActionAll = common.ManagementActionAll
+	ManagementActionAll ManagementAction = "*"
 )
 
 // A DeletionPolicy determines what should happen to the underlying external
@@ -71,51 +68,53 @@ const (
 
 // A CompositeDeletePolicy determines how the composite resource should be deleted
 // when the corresponding claim is deleted.
-type CompositeDeletePolicy = common.CompositeDeletePolicy
+// +kubebuilder:validation:Enum=Background;Foreground
+type CompositeDeletePolicy string
 
 const (
 	// CompositeDeleteBackground means the composite resource will be deleted using
 	// the Background Propagation Policy when the claim is deleted.
-	CompositeDeleteBackground = common.CompositeDeleteBackground
+	CompositeDeleteBackground CompositeDeletePolicy = "Background"
 
 	// CompositeDeleteForeground means the composite resource will be deleted using
 	// the Foreground Propagation Policy when the claim is deleted.
-	CompositeDeleteForeground = common.CompositeDeleteForeground
+	CompositeDeleteForeground CompositeDeletePolicy = "Foreground"
 )
 
 // An UpdatePolicy determines how something should be updated - either
 // automatically (without human intervention) or manually.
-type UpdatePolicy = common.UpdatePolicy
+// +kubebuilder:validation:Enum=Automatic;Manual
+type UpdatePolicy string
 
 const (
 	// UpdateAutomatic means the resource should be updated automatically,
 	// without any human intervention.
-	UpdateAutomatic = common.UpdateAutomatic
+	UpdateAutomatic UpdatePolicy = "Automatic"
 
 	// UpdateManual means the resource requires human intervention to
 	// update.
-	UpdateManual = common.UpdateManual
+	UpdateManual UpdatePolicy = "Manual"
 )
 
 // ResolvePolicy is a type for resolve policy.
-type ResolvePolicy = common.ResolvePolicy
+type ResolvePolicy string
 
 // ResolutionPolicy is a type for resolution policy.
-type ResolutionPolicy = common.ResolutionPolicy
+type ResolutionPolicy string
 
 const (
 	// ResolvePolicyAlways is a resolve option.
 	// When the ResolvePolicy is set to ResolvePolicyAlways the reference will
 	// be tried to resolve for every reconcile loop.
-	ResolvePolicyAlways = common.ResolvePolicyAlways
+	ResolvePolicyAlways ResolvePolicy = "Always"
 
 	// ResolutionPolicyRequired is a resolution option.
 	// When the ResolutionPolicy is set to ResolutionPolicyRequired the execution
 	// could not continue even if the reference cannot be resolved.
-	ResolutionPolicyRequired = common.ResolutionPolicyRequired
+	ResolutionPolicyRequired ResolutionPolicy = "Required"
 
 	// ResolutionPolicyOptional is a resolution option.
 	// When the ReferenceResolutionPolicy is set to ReferencePolicyOptional the
 	// execution could continue even if the reference cannot be resolved.
-	ResolutionPolicyOptional = common.ResolutionPolicyOptional
+	ResolutionPolicyOptional ResolutionPolicy = "Optional"
 )
