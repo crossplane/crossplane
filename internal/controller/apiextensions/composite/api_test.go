@@ -962,9 +962,9 @@ func TestAPIDefaultCompositionRevisionSelector(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPIDefaultCompositionSelector(tc.args.kube, tc.args.defRef, event.NewNopRecorder())
+			c := NewAPIDefaultCompositionSelector(tc.kube, tc.defRef, event.NewNopRecorder())
 			err := c.SelectCompositionRevision(context.Background(), tc.args.cp)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nSelectCompositionRevision(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {

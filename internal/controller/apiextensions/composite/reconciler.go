@@ -67,6 +67,7 @@ const (
 	errAddFinalizer     = "cannot add composite resource finalizer"
 	errRemoveFinalizer  = "cannot remove composite resource finalizer"
 	errSelectComp       = "cannot select Composition"
+	errSelectCompRev    = "cannot select CompositionRevision"
 	errFetchComp        = "cannot fetch Composition"
 	errConfigure        = "cannot configure composite resource"
 	errPublish          = "cannot publish connection details"
@@ -633,10 +634,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
-			err = errors.Wrap(err, errSelectComp)
+			err = errors.Wrap(err, errSelectCompRev)
 			r.record.Event(xr, event.Warning(reasonResolve, err))
 			status.MarkConditions(xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+			_ = r.client.Status().Update(updateCtx, xr)
+
+			return reconcile.Result{}, err
 		}
 	}
 
