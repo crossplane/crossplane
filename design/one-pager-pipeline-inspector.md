@@ -6,19 +6,33 @@
 
 ## Background
 
-Crossplane Compositions are defined as pipelines—a sequence of Functions called one after another, where each function receives the previous step's output combined with the observed state, and can modify the desired state, emit events, or return an error. If no failures occur, Crossplane applies the resulting desired state to both the composite resource and all composed resources.
+Crossplane Compositions are defined as pipelines—a sequence of Functions called one after
+another, where each function receives the previous step's output combined with the observed
+state, and can modify the desired state, emit events, or return an error. If no failures occur,
+Crossplane applies the resulting desired state to both the composite resource and all composed
+resources.
 
-While this pipeline-based model is powerful and flexible, it presents significant challenges for debugging and observability. When something goes wrong—or behaves unexpectedly—platform engineers have limited visibility into what actually happened during pipeline execution.
+While this pipeline-based model is powerful and flexible, it presents significant challenges for
+debugging and observability. When something goes wrong—or behaves unexpectedly—platform
+engineers have limited visibility into what actually happened during pipeline execution.
 
 ### Current State
 
 Today, users rely on a combination of tools to debug composition pipelines:
 
-- **`crossplane render`**: Enables local rendering and testing of compositions before deployment. Useful during development but cannot capture real-world behavior with actual observed state from a live cluster.
+- **`crossplane render`**: Enables local rendering and testing of compositions before
+  deployment. Useful during development but cannot capture real-world behavior with actual
+  observed state from a live cluster.
 
-- **`crossplane beta trace`**: Traces resource relationships to understand the hierarchy of composite and composed resources. Helps with understanding "what exists" but not "how it got there."
+- **`crossplane beta trace`**: Traces resource relationships to understand the hierarchy of
+  composite and composed resources. Helps with understanding "what exists" but not "how it got
+  there."
 
-- **Function outputs (logs, events, conditions)**: Functions can emit logs, report events on the composite resource, and set conditions. While these provide some visibility into function behavior, correlating this information across multiple functions in a pipeline, understanding the data flow between them, and reconstructing the full sequence of events is manual and error-prone.
+- **Function outputs (logs, events, conditions)**: Functions can emit logs, report events on the
+  composite resource, and set conditions. While these provide some visibility into function
+  behavior, correlating this information across multiple functions in a pipeline, understanding
+  the data flow between them, and reconstructing the full sequence of events is manual and
+  error-prone.
 
 ### Pain Points
 
@@ -108,8 +122,9 @@ func (r *Runner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunc
     // Extract metadata from context and request
     meta, err := step.BuildMetadata(ctx, name, req)
     if err != nil {
-        r.log.Info("failed to extract step metadata", "function", name, "error", err)
-        // We proceed even if we fail to extract metadata.
+        r.log.Info("failed to extract step metadata, skipping inspection", "function", name, "error", err)
+        // Skip inspection if we can't build metadata, but proceed with function execution.
+        return r.wrapped.RunFunction(ctx, name, req)
     }
 
     // Emit request before execution
@@ -282,8 +297,8 @@ message StepMeta {
     // Zero-based index of this step in the function pipeline.
     int32 step_index = 3;
 
-    // Monotonically increasing counter for correlating steps within a reconciliation.
-    // All steps in the same reconciliation share this value.
+    // Per-step counter incremented when a function requests additional resources and
+    // needs to be re-run, starting from 0.
     int32 iteration = 4;
 
     string function_name = 5;
@@ -301,17 +316,31 @@ By using JSON bytes for the request and response payloads, consumers can parse t
 
 ### Security: Credential Stripping
 
-The `RunFunctionRequest` includes `credentials` and connection details fields that may contain sensitive data, **this field must be cleared before emission**.
+The `RunFunctionRequest` includes `credentials` and connection details fields that may contain
+sensitive data. **These fields must be cleared before emission.**
 
-On top of that, if any composed resource is a Secret, its `data` field must also be cleared before emission.
+Additionally, if any composed resource (observed or desired) is a Secret, its `data` field must
+also be cleared before emission. The `context` field is passed through as-is, since functions
+already have access to it and it typically contains non-sensitive configuration data.
 
 ```go
 func (e *SocketPipelineInspector) EmitRequest(ctx context.Context, req *fnv1.RunFunctionRequest, meta StepMeta) {
     // Strip sensitive data
     sanitizedReq := proto.Clone(req).(*fnv1.RunFunctionRequest)
     sanitizedReq.Credentials = nil
+
+    // Sanitize observed resources
     sanitizedReq.GetObserved().GetComposite().GetResource().ConnectionDetails = nil
     for _, cr := range sanitizedReq.GetObserved().GetResources() {
+        r := cr.GetResource()
+        r.ConnectionDetails = nil
+        // if it's a Secret, drop data too
+        // ...
+    }
+
+    // Sanitize desired resources
+    sanitizedReq.GetDesired().GetComposite().GetResource().ConnectionDetails = nil
+    for _, cr := range sanitizedReq.GetDesired().GetResources() {
         r := cr.GetResource()
         r.ConnectionDetails = nil
         // if it's a Secret, drop data too
@@ -390,9 +419,11 @@ Pipeline Inspector provides metadata for correlating function invocations:
 
 - **`step_index`**: The zero-based index of this step in the function pipeline. Indicates the order of execution.
 
-- **`iteration`**: Counts how many times this step has been called, starting from 0. Useful for tracking retries or repeated calls to the same step.
+- **`iteration`**: Per-step counter incremented when a function requests additional resources and
+  needs to be re-run, starting from 0.
 
-- **`composite_resource_uid`**: The UID of the composite resource being reconciled. Can be used to group all function calls for the same resource.
+- **`composite_resource_uid`**: The UID of the composite resource being reconciled. It can be
+  used to group all function calls for the same resource.
 
 **Naming Convention**: The `trace_id` and `span_id` naming
 follows [OpenTelemetry (OTEL) conventions](https://opentelemetry.io/docs/concepts/signals/traces/). This intentional
