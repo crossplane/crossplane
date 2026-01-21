@@ -90,7 +90,7 @@ Examples:
   # Trace all MyKind resources (mykinds.example.org/v1alpha1) in the namespace 'my-ns'
   crossplane beta trace mykind -n my-ns
 
-  # Output wide format, showing full errors and condition messages, and other useful info 
+  # Output wide format, showing full errors and condition messages, and other useful info
   # depending on the target type, e.g. composed resources names for composite resources or image used for packages
   crossplane beta trace mykind my-res -n my-ns -o wide
 
@@ -249,7 +249,9 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		}
 		// Warn if watch mode was requested with multiple resources
 		if c.Watch {
-			k.Stdout.Write([]byte("error: you may only watch a single resource at a time\n"))
+			if _, err := k.Stdout.Write([]byte("error: you may only watch a single resource at a time\n")); err != nil {
+				return errors.Wrap(err, errCliOutput)
+			}
 		}
 		return nil
 	}
