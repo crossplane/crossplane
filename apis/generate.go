@@ -45,7 +45,7 @@ limitations under the License.
 // generate them all together in one command.
 
 // Generate deepcopy methodsets and CRD manifests
-//go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./common/v1;./common/v2
+//go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./resource
 //go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./pkg/v1beta1;./pkg/v1 crd:crdVersions=v1,generateEmbeddedObjectMeta=true output:artifacts:config=../cluster/crds
 //go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apiextensions/v1alpha1;./apiextensions/v1beta1;./apiextensions/v1;./apiextensions/v2 crd:crdVersions=v1 output:artifacts:config=../cluster/crds
 //go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./protection/v1beta1 crd:crdVersions=v1 output:artifacts:config=../cluster/crds

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package common
+package resource
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -233,6 +233,8 @@ func (obj *TypedReference) GroupVersionKind() schema.GroupVersionKind {
 func (obj *TypedReference) GetObjectKind() schema.ObjectKind { return obj }
 
 // ResourceStatus represents the observed state of a managed resource.
+//
+//nolint:revive // This used to be common.ResourceStatus.
 type ResourceStatus struct {
 	ConditionedStatus `json:",inline"`
 	ObservedStatus    `json:",inline"`
@@ -268,8 +270,6 @@ const (
 
 // CommonCredentialSelectors provides common selectors for extracting
 // credentials.
-//
-//nolint:revive // preserve backward-compatibility
 type CommonCredentialSelectors struct {
 	// Fs is a reference to a filesystem location that contains credentials that
 	// must be used to connect to the provider.
