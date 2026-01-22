@@ -21,7 +21,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 )
 
 // Annotations that can be used to configure the Development runtime.

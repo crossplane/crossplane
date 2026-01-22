@@ -21,8 +21,8 @@ package protection
 import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 
-	legacy "github.com/crossplane/crossplane/v2/apis/apiextensions/v1beta1"
-	"github.com/crossplane/crossplane/v2/apis/protection/v1beta1"
+	legacy "github.com/crossplane/crossplane/apis/v2/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/apis/v2/protection/v1beta1"
 )
 
 // InternalUsage wraps a Usage to implement the internal interface.

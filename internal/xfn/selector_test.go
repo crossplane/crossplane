@@ -23,8 +23,8 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"k8s.io/utils/ptr"
 
-	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
-	opsv1alpha1 "github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 

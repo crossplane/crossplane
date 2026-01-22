@@ -32,8 +32,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 
-	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
-	"github.com/crossplane/crossplane/v2/apis/pkg/meta/v1beta1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
+	"github.com/crossplane/crossplane/apis/v2/pkg/meta/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/xpkg/parser/examples"
 )
 
