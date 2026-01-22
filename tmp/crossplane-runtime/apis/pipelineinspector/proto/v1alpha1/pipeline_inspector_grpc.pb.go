@@ -17,7 +17,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             (unknown)
-// source: apis/pipelineinspector/proto/v1alpha1/pipeline_inspector.proto
+// source: tmp/crossplane-runtime/apis/pipelineinspector/proto/v1alpha1/pipeline_inspector.proto
 
 //buf:lint:ignore PACKAGE_DIRECTORY_MATCH
 
@@ -189,5 +189,5 @@ var PipelineInspectorService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "apis/pipelineinspector/proto/v1alpha1/pipeline_inspector.proto",
+	Metadata: "tmp/crossplane-runtime/apis/pipelineinspector/proto/v1alpha1/pipeline_inspector.proto",
 }

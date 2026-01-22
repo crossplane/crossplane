@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -43,6 +42,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/rbac/controller"
 )

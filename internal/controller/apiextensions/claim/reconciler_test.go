@@ -30,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -38,6 +37,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
+
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
 )
 
 func TestReconcile(t *testing.T) {

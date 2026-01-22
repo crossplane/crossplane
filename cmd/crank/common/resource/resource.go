@@ -21,8 +21,9 @@ package resource
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
+
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
 )
 
 // Resource struct represents a kubernetes resource.

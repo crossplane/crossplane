@@ -21,7 +21,6 @@ import (
 
 	"dario.cat/mergo"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
 
@@ -31,7 +30,7 @@ const (
 
 // MergeValue of the receiver p at the specified field path with the supplied
 // value according to supplied merge options.
-func (p *Paved) MergeValue(path string, value any, mo *xpv1.MergeOptions) error {
+func (p *Paved) MergeValue(path string, value any, mo *MergeOptions) error {
 	dst, err := p.GetValue(path)
 	if IsNotFound(err) || mo == nil {
 		dst = nil
@@ -52,7 +51,7 @@ func (p *Paved) MergeValue(path string, value any, mo *xpv1.MergeOptions) error 
 // If a nil merge options is supplied, the default behavior is MergeOptions'
 // default behavior. If dst or src is nil, src is returned
 // (i.e., dst replaced by src).
-func merge(dst, src any, mergeOptions *xpv1.MergeOptions) (any, error) {
+func merge(dst, src any, mergeOptions *MergeOptions) (any, error) {
 	// because we are merging values of a field, which can be a slice, and
 	// because mergo currently supports merging only maps or structs,
 	// we wrap the argument to be passed to mergo.Merge in a map.
@@ -69,13 +68,13 @@ func merge(dst, src any, mergeOptions *xpv1.MergeOptions) (any, error) {
 	}
 	// TODO(aru): we may provide an extra MergeOption to also append duplicates of slice elements
 	// but, by default, do not append duplicate slice items if MergeOptions.AppendSlice is set
-	if mergeOptions.IsAppendSlice() {
+	if mergeOptions.isAppendSlice() {
 		src = removeSourceDuplicates(dst, src)
 	}
 
 	mDst := argWrap(dst)
 	// use merge semantics with the configured merge options to obtain the target dst value
-	if err := mergo.Merge(&mDst, argWrap(src), mergeOptions.MergoConfiguration()...); err != nil {
+	if err := mergo.Merge(&mDst, argWrap(src), mergeOptions.mergoConfiguration()...); err != nil {
 		return nil, errors.Wrap(err, errInvalidMerge)
 	}
 
@@ -115,4 +114,37 @@ func removeSourceDuplicates(dst, src any) any {
 	}
 
 	return result.Interface()
+}
+
+// MergeOptions Specifies merge options on a field path.
+type MergeOptions struct { // TODO(aru): add more options that control merging behavior
+	// Specifies that already existing values in a merged map should be preserved
+	// +optional
+	KeepMapValues *bool `json:"keepMapValues,omitempty"`
+	// Specifies that already existing elements in a merged slice should be preserved
+	// +optional
+	AppendSlice *bool `json:"appendSlice,omitempty"`
+}
+
+// mergoConfiguration the default behavior is to replace maps and slices.
+func (mo *MergeOptions) mergoConfiguration() []func(*mergo.Config) {
+	config := []func(*mergo.Config){mergo.WithOverride}
+	if mo == nil {
+		return config
+	}
+
+	if mo.KeepMapValues != nil && *mo.KeepMapValues {
+		config = config[:0]
+	}
+
+	if mo.AppendSlice != nil && *mo.AppendSlice {
+		config = append(config, mergo.WithAppendSlice)
+	}
+
+	return config
+}
+
+// isAppendSlice returns true if mo.AppendSlice is set to true.
+func (mo *MergeOptions) isAppendSlice() bool {
+	return mo != nil && mo.AppendSlice != nil && *mo.AppendSlice
 }

@@ -8,9 +8,9 @@ import (
 	"github.com/emicklei/dot"
 	"github.com/pkg/errors"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource/xpkg"

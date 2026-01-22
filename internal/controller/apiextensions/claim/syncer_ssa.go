@@ -22,7 +22,6 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
@@ -30,6 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
 	"github.com/crossplane/crossplane/v2/internal/names"
 	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )

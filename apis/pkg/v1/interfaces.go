@@ -20,10 +20,11 @@ import (
 	"slices"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
 )
 
 const (
@@ -128,9 +129,11 @@ func (s *PackageStatus) ClearAppliedImageConfigRef(reason ImageConfigRefReason) 
 // Package is the interface satisfied by package types.
 // +k8s:deepcopy-gen=false
 type Package interface { //nolint:interfacebloat // TODO(negz): Could we break this up into smaller, composable interfaces?
-	resource.Object
-	resource.Conditioned
+	metav1.Object
+	runtime.Object
 
+	SetConditions(c ...xpv1.Condition)
+	GetCondition(ct xpv1.ConditionType) xpv1.Condition
 	CleanConditions()
 
 	GetSource() string
@@ -530,9 +533,11 @@ func (s *PackageRevisionStatus) ClearAppliedImageConfigRef(reason ImageConfigRef
 // PackageRevision is the interface satisfied by package revision types.
 // +k8s:deepcopy-gen=false
 type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we break this up into smaller, composable interfaces?
-	resource.Object
-	resource.Conditioned
+	metav1.Object
+	runtime.Object
 
+	SetConditions(c ...xpv1.Condition)
+	GetCondition(ct xpv1.ConditionType) xpv1.Condition
 	CleanConditions()
 
 	GetObjects() []xpv1.TypedReference

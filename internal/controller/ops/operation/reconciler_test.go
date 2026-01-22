@@ -36,11 +36,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
+	v1 "github.com/crossplane/crossplane/apis/v2/core"
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"

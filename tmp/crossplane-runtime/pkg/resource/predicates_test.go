@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	runtimev1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	runtimev1 "github.com/crossplane/crossplane/apis/v2/core"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 )

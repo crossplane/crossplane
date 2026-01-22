@@ -4,7 +4,7 @@
 package v1
 
 import (
-	common "github.com/crossplane/crossplane-runtime/v2/apis/common"
+	core "github.com/crossplane/crossplane/apis/v2/core"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -42,15 +42,15 @@ func (c *GeneratedRevisionSpecConverter) ToRevisionSpec(source CompositionSpec) 
 	}
 	return v1CompositionRevisionSpec
 }
-func (c *GeneratedRevisionSpecConverter) pCommonSecretReferenceToPCommonSecretReference(source *common.SecretReference) *common.SecretReference {
-	var pCommonSecretReference *common.SecretReference
+func (c *GeneratedRevisionSpecConverter) pCoreSecretReferenceToPCoreSecretReference(source *core.SecretReference) *core.SecretReference {
+	var pCoreSecretReference *core.SecretReference
 	if source != nil {
-		var commonSecretReference common.SecretReference
-		commonSecretReference.Name = (*source).Name
-		commonSecretReference.Namespace = (*source).Namespace
-		pCommonSecretReference = &commonSecretReference
+		var coreSecretReference core.SecretReference
+		coreSecretReference.Name = (*source).Name
+		coreSecretReference.Namespace = (*source).Namespace
+		pCoreSecretReference = &coreSecretReference
 	}
-	return pCommonSecretReference
+	return pCoreSecretReference
 }
 func (c *GeneratedRevisionSpecConverter) pRuntimeRawExtensionToPRuntimeRawExtension(source *runtime.RawExtension) *runtime.RawExtension {
 	var pRuntimeRawExtension *runtime.RawExtension
@@ -104,7 +104,7 @@ func (c *GeneratedRevisionSpecConverter) v1FunctionCredentialsToV1FunctionCreden
 	var v1FunctionCredentials FunctionCredentials
 	v1FunctionCredentials.Name = source.Name
 	v1FunctionCredentials.Source = c.v1FunctionCredentialsSourceToV1FunctionCredentialsSource(source.Source)
-	v1FunctionCredentials.SecretRef = c.pCommonSecretReferenceToPCommonSecretReference(source.SecretRef)
+	v1FunctionCredentials.SecretRef = c.pCoreSecretReferenceToPCoreSecretReference(source.SecretRef)
 	return v1FunctionCredentials
 }
 func (c *GeneratedRevisionSpecConverter) v1FunctionReferenceToV1FunctionReference(source FunctionReference) FunctionReference {

@@ -14,7 +14,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             (unknown)
-// source: apis/proto/v1alpha1/ess.proto
+// source: tmp/crossplane-runtime/apis/proto/v1alpha1/ess.proto
 
 // buf:lint:ignore PACKAGE_DIRECTORY_MATCH
 
@@ -212,5 +212,5 @@ var ExternalSecretStorePluginService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "apis/proto/v1alpha1/ess.proto",
+	Metadata: "tmp/crossplane-runtime/apis/proto/v1alpha1/ess.proto",
 }

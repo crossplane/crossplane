@@ -54,11 +54,12 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/yaml"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
 )
 
 // DefaultPollInterval is the suggested poll interval for wait.For.

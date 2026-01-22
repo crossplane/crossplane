@@ -22,9 +22,8 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/utils/ptr"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
-
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
 )
 
 // Label keys.

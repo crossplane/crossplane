@@ -14,7 +14,7 @@
 // versions:
 // 	protoc-gen-go v1.36.10
 // 	protoc        (unknown)
-// source: apis/changelogs/proto/v1alpha1/changelog.proto
+// source: tmp/crossplane-runtime/apis/changelogs/proto/v1alpha1/changelog.proto
 
 // buf:lint:ignore PACKAGE_DIRECTORY_MATCH
 
@@ -75,11 +75,11 @@ func (x OperationType) String() string {
 }
 
 func (OperationType) Descriptor() protoreflect.EnumDescriptor {
-	return file_apis_changelogs_proto_v1alpha1_changelog_proto_enumTypes[0].Descriptor()
+	return file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_enumTypes[0].Descriptor()
 }
 
 func (OperationType) Type() protoreflect.EnumType {
-	return &file_apis_changelogs_proto_v1alpha1_changelog_proto_enumTypes[0]
+	return &file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_enumTypes[0]
 }
 
 func (x OperationType) Number() protoreflect.EnumNumber {
@@ -88,7 +88,7 @@ func (x OperationType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use OperationType.Descriptor instead.
 func (OperationType) EnumDescriptor() ([]byte, []int) {
-	return file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescGZIP(), []int{0}
+	return file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescGZIP(), []int{0}
 }
 
 // SendChangeLogRequest represents a request to send a single change log entry.
@@ -102,7 +102,7 @@ type SendChangeLogRequest struct {
 
 func (x *SendChangeLogRequest) Reset() {
 	*x = SendChangeLogRequest{}
-	mi := &file_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes[0]
+	mi := &file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -114,7 +114,7 @@ func (x *SendChangeLogRequest) String() string {
 func (*SendChangeLogRequest) ProtoMessage() {}
 
 func (x *SendChangeLogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes[0]
+	mi := &file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -127,7 +127,7 @@ func (x *SendChangeLogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendChangeLogRequest.ProtoReflect.Descriptor instead.
 func (*SendChangeLogRequest) Descriptor() ([]byte, []int) {
-	return file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescGZIP(), []int{0}
+	return file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *SendChangeLogRequest) GetEntry() *ChangeLogEntry {
@@ -172,7 +172,7 @@ type ChangeLogEntry struct {
 
 func (x *ChangeLogEntry) Reset() {
 	*x = ChangeLogEntry{}
-	mi := &file_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes[1]
+	mi := &file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -184,7 +184,7 @@ func (x *ChangeLogEntry) String() string {
 func (*ChangeLogEntry) ProtoMessage() {}
 
 func (x *ChangeLogEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes[1]
+	mi := &file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -197,7 +197,7 @@ func (x *ChangeLogEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangeLogEntry.ProtoReflect.Descriptor instead.
 func (*ChangeLogEntry) Descriptor() ([]byte, []int) {
-	return file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescGZIP(), []int{1}
+	return file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ChangeLogEntry) GetTimestamp() *timestamppb.Timestamp {
@@ -281,7 +281,7 @@ type SendChangeLogResponse struct {
 
 func (x *SendChangeLogResponse) Reset() {
 	*x = SendChangeLogResponse{}
-	mi := &file_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes[2]
+	mi := &file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -293,7 +293,7 @@ func (x *SendChangeLogResponse) String() string {
 func (*SendChangeLogResponse) ProtoMessage() {}
 
 func (x *SendChangeLogResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes[2]
+	mi := &file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -306,14 +306,14 @@ func (x *SendChangeLogResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendChangeLogResponse.ProtoReflect.Descriptor instead.
 func (*SendChangeLogResponse) Descriptor() ([]byte, []int) {
-	return file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescGZIP(), []int{2}
+	return file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescGZIP(), []int{2}
 }
 
-var File_apis_changelogs_proto_v1alpha1_changelog_proto protoreflect.FileDescriptor
+var File_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto protoreflect.FileDescriptor
 
-const file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDesc = "" +
+const file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_rawDesc = "" +
 	"\n" +
-	".apis/changelogs/proto/v1alpha1/changelog.proto\x12\x19changelogs.proto.v1alpha1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"W\n" +
+	"Etmp/crossplane-runtime/apis/changelogs/proto/v1alpha1/changelog.proto\x12\x19changelogs.proto.v1alpha1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"W\n" +
 	"\x14SendChangeLogRequest\x12?\n" +
 	"\x05entry\x18\x01 \x01(\v2).changelogs.proto.v1alpha1.ChangeLogEntryR\x05entry\"\xc4\x04\n" +
 	"\x0eChangeLogEntry\x128\n" +
@@ -343,20 +343,20 @@ const file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDesc = "" +
 	"\rSendChangeLog\x12/.changelogs.proto.v1alpha1.SendChangeLogRequest\x1a0.changelogs.proto.v1alpha1.SendChangeLogResponse\"\x00BLZJgithub.com/crossplane/crossplane-runtime/v2/apis/changelogs/proto/v1alpha1b\x06proto3"
 
 var (
-	file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescOnce sync.Once
-	file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescData []byte
+	file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescOnce sync.Once
+	file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescData []byte
 )
 
-func file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescGZIP() []byte {
-	file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescOnce.Do(func() {
-		file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDesc), len(file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDesc)))
+func file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescGZIP() []byte {
+	file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescOnce.Do(func() {
+		file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_rawDesc), len(file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_rawDesc)))
 	})
-	return file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescData
+	return file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_rawDescData
 }
 
-var file_apis_changelogs_proto_v1alpha1_changelog_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_apis_changelogs_proto_v1alpha1_changelog_proto_goTypes = []any{
+var file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_goTypes = []any{
 	(OperationType)(0),            // 0: changelogs.proto.v1alpha1.OperationType
 	(*SendChangeLogRequest)(nil),  // 1: changelogs.proto.v1alpha1.SendChangeLogRequest
 	(*ChangeLogEntry)(nil),        // 2: changelogs.proto.v1alpha1.ChangeLogEntry
@@ -365,7 +365,7 @@ var file_apis_changelogs_proto_v1alpha1_changelog_proto_goTypes = []any{
 	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
 	(*structpb.Struct)(nil),       // 6: google.protobuf.Struct
 }
-var file_apis_changelogs_proto_v1alpha1_changelog_proto_depIdxs = []int32{
+var file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_depIdxs = []int32{
 	2, // 0: changelogs.proto.v1alpha1.SendChangeLogRequest.entry:type_name -> changelogs.proto.v1alpha1.ChangeLogEntry
 	5, // 1: changelogs.proto.v1alpha1.ChangeLogEntry.timestamp:type_name -> google.protobuf.Timestamp
 	0, // 2: changelogs.proto.v1alpha1.ChangeLogEntry.operation:type_name -> changelogs.proto.v1alpha1.OperationType
@@ -380,28 +380,28 @@ var file_apis_changelogs_proto_v1alpha1_changelog_proto_depIdxs = []int32{
 	0, // [0:5] is the sub-list for field type_name
 }
 
-func init() { file_apis_changelogs_proto_v1alpha1_changelog_proto_init() }
-func file_apis_changelogs_proto_v1alpha1_changelog_proto_init() {
-	if File_apis_changelogs_proto_v1alpha1_changelog_proto != nil {
+func init() { file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_init() }
+func file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_init() {
+	if File_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto != nil {
 		return
 	}
-	file_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes[1].OneofWrappers = []any{}
+	file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDesc), len(file_apis_changelogs_proto_v1alpha1_changelog_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_rawDesc), len(file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_rawDesc)),
 			NumEnums:      1,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_apis_changelogs_proto_v1alpha1_changelog_proto_goTypes,
-		DependencyIndexes: file_apis_changelogs_proto_v1alpha1_changelog_proto_depIdxs,
-		EnumInfos:         file_apis_changelogs_proto_v1alpha1_changelog_proto_enumTypes,
-		MessageInfos:      file_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes,
+		GoTypes:           file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_goTypes,
+		DependencyIndexes: file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_depIdxs,
+		EnumInfos:         file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_enumTypes,
+		MessageInfos:      file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_msgTypes,
 	}.Build()
-	File_apis_changelogs_proto_v1alpha1_changelog_proto = out.File
-	file_apis_changelogs_proto_v1alpha1_changelog_proto_goTypes = nil
-	file_apis_changelogs_proto_v1alpha1_changelog_proto_depIdxs = nil
+	File_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto = out.File
+	file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_goTypes = nil
+	file_tmp_crossplane_runtime_apis_changelogs_proto_v1alpha1_changelog_proto_depIdxs = nil
 }

@@ -17,7 +17,7 @@
 // versions:
 // 	protoc-gen-go v1.36.10
 // 	protoc        (unknown)
-// source: apis/pipelineinspector/proto/v1alpha1/pipeline_inspector.proto
+// source: tmp/crossplane-runtime/apis/pipelineinspector/proto/v1alpha1/pipeline_inspector.proto
 
 //buf:lint:ignore PACKAGE_DIRECTORY_MATCH
 
@@ -53,7 +53,7 @@ type EmitRequestRequest struct {
 
 func (x *EmitRequestRequest) Reset() {
 	*x = EmitRequestRequest{}
-	mi := &file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[0]
+	mi := &file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -65,7 +65,7 @@ func (x *EmitRequestRequest) String() string {
 func (*EmitRequestRequest) ProtoMessage() {}
 
 func (x *EmitRequestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[0]
+	mi := &file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -78,7 +78,7 @@ func (x *EmitRequestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmitRequestRequest.ProtoReflect.Descriptor instead.
 func (*EmitRequestRequest) Descriptor() ([]byte, []int) {
-	return file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{0}
+	return file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *EmitRequestRequest) GetRequest() []byte {
@@ -104,7 +104,7 @@ type EmitRequestResponse struct {
 
 func (x *EmitRequestResponse) Reset() {
 	*x = EmitRequestResponse{}
-	mi := &file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[1]
+	mi := &file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -116,7 +116,7 @@ func (x *EmitRequestResponse) String() string {
 func (*EmitRequestResponse) ProtoMessage() {}
 
 func (x *EmitRequestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[1]
+	mi := &file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -129,7 +129,7 @@ func (x *EmitRequestResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmitRequestResponse.ProtoReflect.Descriptor instead.
 func (*EmitRequestResponse) Descriptor() ([]byte, []int) {
-	return file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{1}
+	return file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{1}
 }
 
 // EmitResponseRequest wraps the function response with correlation metadata.
@@ -149,7 +149,7 @@ type EmitResponseRequest struct {
 
 func (x *EmitResponseRequest) Reset() {
 	*x = EmitResponseRequest{}
-	mi := &file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[2]
+	mi := &file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -161,7 +161,7 @@ func (x *EmitResponseRequest) String() string {
 func (*EmitResponseRequest) ProtoMessage() {}
 
 func (x *EmitResponseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[2]
+	mi := &file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -174,7 +174,7 @@ func (x *EmitResponseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmitResponseRequest.ProtoReflect.Descriptor instead.
 func (*EmitResponseRequest) Descriptor() ([]byte, []int) {
-	return file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{2}
+	return file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *EmitResponseRequest) GetResponse() []byte {
@@ -207,7 +207,7 @@ type EmitResponseResponse struct {
 
 func (x *EmitResponseResponse) Reset() {
 	*x = EmitResponseResponse{}
-	mi := &file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[3]
+	mi := &file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -219,7 +219,7 @@ func (x *EmitResponseResponse) String() string {
 func (*EmitResponseResponse) ProtoMessage() {}
 
 func (x *EmitResponseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[3]
+	mi := &file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -232,7 +232,7 @@ func (x *EmitResponseResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmitResponseResponse.ProtoReflect.Descriptor instead.
 func (*EmitResponseResponse) Descriptor() ([]byte, []int) {
-	return file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{3}
+	return file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{3}
 }
 
 // StepMeta contains metadata for correlating and identifying a function
@@ -268,7 +268,7 @@ type StepMeta struct {
 
 func (x *StepMeta) Reset() {
 	*x = StepMeta{}
-	mi := &file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[4]
+	mi := &file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -280,7 +280,7 @@ func (x *StepMeta) String() string {
 func (*StepMeta) ProtoMessage() {}
 
 func (x *StepMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[4]
+	mi := &file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -293,7 +293,7 @@ func (x *StepMeta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepMeta.ProtoReflect.Descriptor instead.
 func (*StepMeta) Descriptor() ([]byte, []int) {
-	return file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{4}
+	return file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *StepMeta) GetTimestamp() *timestamppb.Timestamp {
@@ -407,7 +407,7 @@ type CompositionMeta struct {
 
 func (x *CompositionMeta) Reset() {
 	*x = CompositionMeta{}
-	mi := &file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[5]
+	mi := &file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -419,7 +419,7 @@ func (x *CompositionMeta) String() string {
 func (*CompositionMeta) ProtoMessage() {}
 
 func (x *CompositionMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[5]
+	mi := &file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -432,7 +432,7 @@ func (x *CompositionMeta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompositionMeta.ProtoReflect.Descriptor instead.
 func (*CompositionMeta) Descriptor() ([]byte, []int) {
-	return file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{5}
+	return file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CompositionMeta) GetCompositionName() string {
@@ -490,7 +490,7 @@ type OperationMeta struct {
 
 func (x *OperationMeta) Reset() {
 	*x = OperationMeta{}
-	mi := &file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[6]
+	mi := &file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -502,7 +502,7 @@ func (x *OperationMeta) String() string {
 func (*OperationMeta) ProtoMessage() {}
 
 func (x *OperationMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[6]
+	mi := &file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -515,7 +515,7 @@ func (x *OperationMeta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperationMeta.ProtoReflect.Descriptor instead.
 func (*OperationMeta) Descriptor() ([]byte, []int) {
-	return file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{6}
+	return file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *OperationMeta) GetOperationName() string {
@@ -532,11 +532,11 @@ func (x *OperationMeta) GetOperationUid() string {
 	return ""
 }
 
-var File_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto protoreflect.FileDescriptor
+var File_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto protoreflect.FileDescriptor
 
-const file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDesc = "" +
+const file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDesc = "" +
 	"\n" +
-	">apis/pipelineinspector/proto/v1alpha1/pipeline_inspector.proto\x12\x1ccrossplane.pipeline.v1alpha1\x1a\x1fgoogle/protobuf/timestamp.proto\"j\n" +
+	"Utmp/crossplane-runtime/apis/pipelineinspector/proto/v1alpha1/pipeline_inspector.proto\x12\x1ccrossplane.pipeline.v1alpha1\x1a\x1fgoogle/protobuf/timestamp.proto\"j\n" +
 	"\x12EmitRequestRequest\x12\x18\n" +
 	"\arequest\x18\x01 \x01(\fR\arequest\x12:\n" +
 	"\x04meta\x18\x02 \x01(\v2&.crossplane.pipeline.v1alpha1.StepMetaR\x04meta\"\x15\n" +
@@ -573,19 +573,19 @@ const file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDes
 	"\fEmitResponse\x121.crossplane.pipeline.v1alpha1.EmitResponseRequest\x1a2.crossplane.pipeline.v1alpha1.EmitResponseResponse\"\x00BSZQgithub.com/crossplane/crossplane-runtime/v2/apis/pipelineinspector/proto/v1alpha1b\x06proto3"
 
 var (
-	file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescOnce sync.Once
-	file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescData []byte
+	file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescOnce sync.Once
+	file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescData []byte
 )
 
-func file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP() []byte {
-	file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescOnce.Do(func() {
-		file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDesc), len(file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDesc)))
+func file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP() []byte {
+	file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescOnce.Do(func() {
+		file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDesc), len(file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDesc)))
 	})
-	return file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescData
+	return file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescData
 }
 
-var file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
-var file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_goTypes = []any{
+var file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_goTypes = []any{
 	(*EmitRequestRequest)(nil),    // 0: crossplane.pipeline.v1alpha1.EmitRequestRequest
 	(*EmitRequestResponse)(nil),   // 1: crossplane.pipeline.v1alpha1.EmitRequestResponse
 	(*EmitResponseRequest)(nil),   // 2: crossplane.pipeline.v1alpha1.EmitResponseRequest
@@ -595,7 +595,7 @@ var file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_goTypes 
 	(*OperationMeta)(nil),         // 6: crossplane.pipeline.v1alpha1.OperationMeta
 	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
 }
-var file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_depIdxs = []int32{
+var file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_depIdxs = []int32{
 	4, // 0: crossplane.pipeline.v1alpha1.EmitRequestRequest.meta:type_name -> crossplane.pipeline.v1alpha1.StepMeta
 	4, // 1: crossplane.pipeline.v1alpha1.EmitResponseRequest.meta:type_name -> crossplane.pipeline.v1alpha1.StepMeta
 	7, // 2: crossplane.pipeline.v1alpha1.StepMeta.timestamp:type_name -> google.protobuf.Timestamp
@@ -612,12 +612,14 @@ var file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_depIdxs 
 	0, // [0:5] is the sub-list for field type_name
 }
 
-func init() { file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_init() }
-func file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_init() {
-	if File_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto != nil {
+func init() {
+	file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_init()
+}
+func file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_init() {
+	if File_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto != nil {
 		return
 	}
-	file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[4].OneofWrappers = []any{
+	file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[4].OneofWrappers = []any{
 		(*StepMeta_OperationMeta)(nil),
 		(*StepMeta_CompositionMeta)(nil),
 	}
@@ -625,17 +627,17 @@ func file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_init() 
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDesc), len(file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDesc), len(file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_goTypes,
-		DependencyIndexes: file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_depIdxs,
-		MessageInfos:      file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes,
+		GoTypes:           file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_goTypes,
+		DependencyIndexes: file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_depIdxs,
+		MessageInfos:      file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes,
 	}.Build()
-	File_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto = out.File
-	file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_goTypes = nil
-	file_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_depIdxs = nil
+	File_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto = out.File
+	file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_goTypes = nil
+	file_tmp_crossplane_runtime_apis_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_depIdxs = nil
 }

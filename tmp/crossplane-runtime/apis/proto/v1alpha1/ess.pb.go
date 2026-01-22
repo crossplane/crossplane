@@ -14,7 +14,7 @@
 // versions:
 // 	protoc-gen-go v1.36.10
 // 	protoc        (unknown)
-// source: apis/proto/v1alpha1/ess.proto
+// source: tmp/crossplane-runtime/apis/proto/v1alpha1/ess.proto
 
 // buf:lint:ignore PACKAGE_DIRECTORY_MATCH
 
@@ -47,7 +47,7 @@ type ConfigReference struct {
 
 func (x *ConfigReference) Reset() {
 	*x = ConfigReference{}
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[0]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -59,7 +59,7 @@ func (x *ConfigReference) String() string {
 func (*ConfigReference) ProtoMessage() {}
 
 func (x *ConfigReference) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[0]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -72,7 +72,7 @@ func (x *ConfigReference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigReference.ProtoReflect.Descriptor instead.
 func (*ConfigReference) Descriptor() ([]byte, []int) {
-	return file_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{0}
+	return file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *ConfigReference) GetApiVersion() string {
@@ -108,7 +108,7 @@ type Secret struct {
 
 func (x *Secret) Reset() {
 	*x = Secret{}
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[1]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -120,7 +120,7 @@ func (x *Secret) String() string {
 func (*Secret) ProtoMessage() {}
 
 func (x *Secret) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[1]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -133,7 +133,7 @@ func (x *Secret) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Secret.ProtoReflect.Descriptor instead.
 func (*Secret) Descriptor() ([]byte, []int) {
-	return file_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{1}
+	return file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Secret) GetScopedName() string {
@@ -168,7 +168,7 @@ type GetSecretRequest struct {
 
 func (x *GetSecretRequest) Reset() {
 	*x = GetSecretRequest{}
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[2]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -180,7 +180,7 @@ func (x *GetSecretRequest) String() string {
 func (*GetSecretRequest) ProtoMessage() {}
 
 func (x *GetSecretRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[2]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -193,7 +193,7 @@ func (x *GetSecretRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSecretRequest.ProtoReflect.Descriptor instead.
 func (*GetSecretRequest) Descriptor() ([]byte, []int) {
-	return file_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{2}
+	return file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetSecretRequest) GetConfig() *ConfigReference {
@@ -220,7 +220,7 @@ type GetSecretResponse struct {
 
 func (x *GetSecretResponse) Reset() {
 	*x = GetSecretResponse{}
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[3]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -232,7 +232,7 @@ func (x *GetSecretResponse) String() string {
 func (*GetSecretResponse) ProtoMessage() {}
 
 func (x *GetSecretResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[3]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -245,7 +245,7 @@ func (x *GetSecretResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSecretResponse.ProtoReflect.Descriptor instead.
 func (*GetSecretResponse) Descriptor() ([]byte, []int) {
-	return file_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{3}
+	return file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetSecretResponse) GetSecret() *Secret {
@@ -266,7 +266,7 @@ type ApplySecretRequest struct {
 
 func (x *ApplySecretRequest) Reset() {
 	*x = ApplySecretRequest{}
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[4]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -278,7 +278,7 @@ func (x *ApplySecretRequest) String() string {
 func (*ApplySecretRequest) ProtoMessage() {}
 
 func (x *ApplySecretRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[4]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -291,7 +291,7 @@ func (x *ApplySecretRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplySecretRequest.ProtoReflect.Descriptor instead.
 func (*ApplySecretRequest) Descriptor() ([]byte, []int) {
-	return file_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{4}
+	return file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ApplySecretRequest) GetConfig() *ConfigReference {
@@ -318,7 +318,7 @@ type ApplySecretResponse struct {
 
 func (x *ApplySecretResponse) Reset() {
 	*x = ApplySecretResponse{}
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[5]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -330,7 +330,7 @@ func (x *ApplySecretResponse) String() string {
 func (*ApplySecretResponse) ProtoMessage() {}
 
 func (x *ApplySecretResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[5]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -343,7 +343,7 @@ func (x *ApplySecretResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplySecretResponse.ProtoReflect.Descriptor instead.
 func (*ApplySecretResponse) Descriptor() ([]byte, []int) {
-	return file_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{5}
+	return file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ApplySecretResponse) GetChanged() bool {
@@ -364,7 +364,7 @@ type DeleteKeysRequest struct {
 
 func (x *DeleteKeysRequest) Reset() {
 	*x = DeleteKeysRequest{}
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[6]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -376,7 +376,7 @@ func (x *DeleteKeysRequest) String() string {
 func (*DeleteKeysRequest) ProtoMessage() {}
 
 func (x *DeleteKeysRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[6]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -389,7 +389,7 @@ func (x *DeleteKeysRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteKeysRequest.ProtoReflect.Descriptor instead.
 func (*DeleteKeysRequest) Descriptor() ([]byte, []int) {
-	return file_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{6}
+	return file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *DeleteKeysRequest) GetConfig() *ConfigReference {
@@ -415,7 +415,7 @@ type DeleteKeysResponse struct {
 
 func (x *DeleteKeysResponse) Reset() {
 	*x = DeleteKeysResponse{}
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[7]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -427,7 +427,7 @@ func (x *DeleteKeysResponse) String() string {
 func (*DeleteKeysResponse) ProtoMessage() {}
 
 func (x *DeleteKeysResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_apis_proto_v1alpha1_ess_proto_msgTypes[7]
+	mi := &file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -440,14 +440,14 @@ func (x *DeleteKeysResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteKeysResponse.ProtoReflect.Descriptor instead.
 func (*DeleteKeysResponse) Descriptor() ([]byte, []int) {
-	return file_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{7}
+	return file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDescGZIP(), []int{7}
 }
 
-var File_apis_proto_v1alpha1_ess_proto protoreflect.FileDescriptor
+var File_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto protoreflect.FileDescriptor
 
-const file_apis_proto_v1alpha1_ess_proto_rawDesc = "" +
+const file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDesc = "" +
 	"\n" +
-	"\x1dapis/proto/v1alpha1/ess.proto\x12\x12ess.proto.v1alpha1\"Z\n" +
+	"4tmp/crossplane-runtime/apis/proto/v1alpha1/ess.proto\x12\x12ess.proto.v1alpha1\"Z\n" +
 	"\x0fConfigReference\x12\x1f\n" +
 	"\vapi_version\x18\x01 \x01(\tR\n" +
 	"apiVersion\x12\x12\n" +
@@ -485,19 +485,19 @@ const file_apis_proto_v1alpha1_ess_proto_rawDesc = "" +
 	"DeleteKeys\x12%.ess.proto.v1alpha1.DeleteKeysRequest\x1a&.ess.proto.v1alpha1.DeleteKeysResponse\"\x00BAZ?github.com/crossplane/crossplane-runtime/v2/apis/proto/v1alpha1b\x06proto3"
 
 var (
-	file_apis_proto_v1alpha1_ess_proto_rawDescOnce sync.Once
-	file_apis_proto_v1alpha1_ess_proto_rawDescData []byte
+	file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDescOnce sync.Once
+	file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDescData []byte
 )
 
-func file_apis_proto_v1alpha1_ess_proto_rawDescGZIP() []byte {
-	file_apis_proto_v1alpha1_ess_proto_rawDescOnce.Do(func() {
-		file_apis_proto_v1alpha1_ess_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_apis_proto_v1alpha1_ess_proto_rawDesc), len(file_apis_proto_v1alpha1_ess_proto_rawDesc)))
+func file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDescGZIP() []byte {
+	file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDescOnce.Do(func() {
+		file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDesc), len(file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDesc)))
 	})
-	return file_apis_proto_v1alpha1_ess_proto_rawDescData
+	return file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDescData
 }
 
-var file_apis_proto_v1alpha1_ess_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
-var file_apis_proto_v1alpha1_ess_proto_goTypes = []any{
+var file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_goTypes = []any{
 	(*ConfigReference)(nil),     // 0: ess.proto.v1alpha1.ConfigReference
 	(*Secret)(nil),              // 1: ess.proto.v1alpha1.Secret
 	(*GetSecretRequest)(nil),    // 2: ess.proto.v1alpha1.GetSecretRequest
@@ -509,7 +509,7 @@ var file_apis_proto_v1alpha1_ess_proto_goTypes = []any{
 	nil,                         // 8: ess.proto.v1alpha1.Secret.MetadataEntry
 	nil,                         // 9: ess.proto.v1alpha1.Secret.DataEntry
 }
-var file_apis_proto_v1alpha1_ess_proto_depIdxs = []int32{
+var file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_depIdxs = []int32{
 	8,  // 0: ess.proto.v1alpha1.Secret.metadata:type_name -> ess.proto.v1alpha1.Secret.MetadataEntry
 	9,  // 1: ess.proto.v1alpha1.Secret.data:type_name -> ess.proto.v1alpha1.Secret.DataEntry
 	0,  // 2: ess.proto.v1alpha1.GetSecretRequest.config:type_name -> ess.proto.v1alpha1.ConfigReference
@@ -532,26 +532,26 @@ var file_apis_proto_v1alpha1_ess_proto_depIdxs = []int32{
 	0,  // [0:9] is the sub-list for field type_name
 }
 
-func init() { file_apis_proto_v1alpha1_ess_proto_init() }
-func file_apis_proto_v1alpha1_ess_proto_init() {
-	if File_apis_proto_v1alpha1_ess_proto != nil {
+func init() { file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_init() }
+func file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_init() {
+	if File_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_apis_proto_v1alpha1_ess_proto_rawDesc), len(file_apis_proto_v1alpha1_ess_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDesc), len(file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_apis_proto_v1alpha1_ess_proto_goTypes,
-		DependencyIndexes: file_apis_proto_v1alpha1_ess_proto_depIdxs,
-		MessageInfos:      file_apis_proto_v1alpha1_ess_proto_msgTypes,
+		GoTypes:           file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_goTypes,
+		DependencyIndexes: file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_depIdxs,
+		MessageInfos:      file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_msgTypes,
 	}.Build()
-	File_apis_proto_v1alpha1_ess_proto = out.File
-	file_apis_proto_v1alpha1_ess_proto_goTypes = nil
-	file_apis_proto_v1alpha1_ess_proto_depIdxs = nil
+	File_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto = out.File
+	file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_goTypes = nil
+	file_tmp_crossplane_runtime_apis_proto_v1alpha1_ess_proto_depIdxs = nil
 }

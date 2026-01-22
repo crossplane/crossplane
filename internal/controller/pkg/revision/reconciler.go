@@ -34,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
@@ -47,6 +46,7 @@ import (
 	extv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	extv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
 	extv2 "github.com/crossplane/crossplane/apis/v2/apiextensions/v2"
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
 	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"

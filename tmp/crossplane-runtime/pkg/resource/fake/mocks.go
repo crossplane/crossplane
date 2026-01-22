@@ -34,8 +34,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
+
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
 )
 
 // Conditioned is a mock that implements Conditioned interface.
@@ -436,7 +437,8 @@ type Composite struct {
 	ClaimReferencer
 	ConnectionSecretWriterTo
 
-	xpv1.ResourceStatus
+	xpv1.ConditionedStatus
+	xpv1.ObservedStatus
 	ConnectionDetailsLastPublishedTimer
 }
 
@@ -463,7 +465,8 @@ func (m *Composite) DeepCopyObject() runtime.Object {
 type Composed struct {
 	metav1.ObjectMeta
 	ConnectionSecretWriterTo
-	xpv1.ResourceStatus
+	xpv1.ConditionedStatus
+	xpv1.ObservedStatus
 }
 
 // GetObjectKind returns schema.ObjectKind.
@@ -497,7 +500,8 @@ type CompositeClaim struct {
 	CompositeResourceReferencer
 	LocalConnectionSecretWriterTo
 
-	xpv1.ResourceStatus
+	xpv1.ConditionedStatus
+	xpv1.ObservedStatus
 	ConnectionDetailsLastPublishedTimer
 }
 

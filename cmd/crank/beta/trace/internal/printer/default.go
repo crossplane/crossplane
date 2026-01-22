@@ -26,10 +26,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource/xpkg"

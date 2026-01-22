@@ -33,7 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/kube-openapi/pkg/spec3"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
@@ -42,6 +41,7 @@ import (
 	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/v2/internal/xfn"

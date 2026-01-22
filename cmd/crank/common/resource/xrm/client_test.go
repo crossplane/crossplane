@@ -25,11 +25,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
 )
 

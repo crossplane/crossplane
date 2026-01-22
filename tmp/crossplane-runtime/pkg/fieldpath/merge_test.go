@@ -25,7 +25,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"k8s.io/apimachinery/pkg/util/json"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
@@ -64,7 +63,7 @@ func TestMergeValue(t *testing.T) {
 	type args struct {
 		path  string
 		value any
-		mo    *xpv1.MergeOptions
+		mo    *MergeOptions
 	}
 
 	type want struct {
@@ -103,7 +102,7 @@ func TestMergeValue(t *testing.T) {
 			args: args{
 				path:  pathTest,
 				value: arrSrc,
-				mo: &xpv1.MergeOptions{
+				mo: &MergeOptions{
 					AppendSlice: &valFalse,
 				},
 			},
@@ -121,7 +120,7 @@ func TestMergeValue(t *testing.T) {
 			args: args{
 				path:  pathTest,
 				value: arrSrc,
-				mo: &xpv1.MergeOptions{
+				mo: &MergeOptions{
 					AppendSlice: &valTrue,
 				},
 			},
@@ -139,7 +138,7 @@ func TestMergeValue(t *testing.T) {
 			args: args{
 				path:  pathTest,
 				value: []string{valSrc, valSrc2},
-				mo: &xpv1.MergeOptions{
+				mo: &MergeOptions{
 					AppendSlice: &valTrue,
 				},
 			},
@@ -168,7 +167,7 @@ func TestMergeValue(t *testing.T) {
 			args: args{
 				path:  pathTest,
 				value: fnMapSrc(),
-				mo: &xpv1.MergeOptions{
+				mo: &MergeOptions{
 					KeepMapValues: &valFalse,
 				},
 			},
@@ -184,7 +183,7 @@ func TestMergeValue(t *testing.T) {
 			args: args{
 				path:  pathTest,
 				value: fnMapSrc(),
-				mo: &xpv1.MergeOptions{
+				mo: &MergeOptions{
 					KeepMapValues: &valTrue,
 				},
 			},

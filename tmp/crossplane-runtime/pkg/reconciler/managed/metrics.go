@@ -24,7 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kmetrics "k8s.io/component-base/metrics"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 )
 
