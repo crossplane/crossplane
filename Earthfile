@@ -150,6 +150,9 @@ go-modules:
   RUN go mod download
   SAVE ARTIFACT go.mod AS LOCAL go.mod
   SAVE ARTIFACT go.sum AS LOCAL go.sum
+  RUN go mod download -C apis
+  SAVE ARTIFACT apis/go.mod AS LOCAL apis/go.mod
+  SAVE ARTIFACT apis/go.sum AS LOCAL apis/go.sum
 
 # go-modules-tidy tidies and verifies go.mod and go.sum.
 go-modules-tidy:
@@ -161,6 +164,10 @@ go-modules-tidy:
   RUN go mod verify
   SAVE ARTIFACT go.mod AS LOCAL go.mod
   SAVE ARTIFACT go.sum AS LOCAL go.sum
+  RUN go mod tidy -C apis
+  RUN go mod verify -C apis
+  SAVE ARTIFACT apis/go.mod AS LOCAL apis/go.mod
+  SAVE ARTIFACT apis/go.sum AS LOCAL apis/go.sum
 
 # go-modules-tools-tidy tidies and verifies tools/go.mod and tools/go.sum.
 go-modules-tools-tidy:
