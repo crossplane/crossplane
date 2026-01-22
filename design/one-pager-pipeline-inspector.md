@@ -242,23 +242,29 @@ For the sidecar implementations, we define a gRPC service:
 ```protobuf
 syntax = "proto3";
 
-package crossplane.pipeline.v1alpha1;
+//buf:lint:ignore PACKAGE_DIRECTORY_MATCH
+package crossplane.pipelineinspector.v1alpha1;
 
 import "google/protobuf/timestamp.proto";
 
+option go_package = "github.com/crossplane/crossplane-runtime/v2/apis/pipelineinspector/proto/v1alpha1";
+
 // PipelineInspectorService receives pipeline execution data from Crossplane.
+// This service is implemented by a sidecar that captures function pipeline
+// execution data for debugging and observability purposes.
 service PipelineInspectorService {
     // EmitRequest receives the function request before execution.
-    // Errors do not affect pipeline execution.
-    rpc EmitRequest(EmitRequestRequest) returns (EmitRequestResponse);
+    // This is a fire-and-forget call; errors do not affect pipeline execution.
+    rpc EmitRequest(EmitRequestRequest) returns (EmitRequestResponse) {}
 
     // EmitResponse receives the function response after execution.
-    // Errors do not affect pipeline execution.
-    rpc EmitResponse(EmitResponseRequest) returns (EmitResponseResponse);
+    // This is a fire-and-forget call; errors do not affect pipeline execution.
+    rpc EmitResponse(EmitResponseRequest) returns (EmitResponseResponse) {}
 }
 
+// EmitRequestRequest wraps the function request with correlation metadata.
 message EmitRequestRequest {
-    // The original function request as JSON bytes (with credentials stripped).
+    // The original function request as JSON bytes (with credentials stripped for security).
     // This allows consumers to parse the request without needing the proto schema.
     bytes request = 1;
 
@@ -266,12 +272,12 @@ message EmitRequestRequest {
     StepMeta meta = 2;
 }
 
-message EmitRequestResponse {
-    // Empty - fire and forget.
-}
+// EmitRequestResponse is empty - this is a fire-and-forget call.
+message EmitRequestResponse {}
 
+// EmitResponseRequest wraps the function response with correlation metadata.
 message EmitResponseRequest {
-    // The function response as JSON bytes (nil if function call failed).
+    // The function response as JSON bytes, empty if there was an error.
     // This allows consumers to parse the response without needing the proto schema.
     bytes response = 1;
 
@@ -283,12 +289,14 @@ message EmitResponseRequest {
     StepMeta meta = 3;
 }
 
-message EmitResponseResponse {
-    // Empty - fire and forget.
-}
+// EmitResponseResponse is empty - this is a fire-and-forget call.
+message EmitResponseResponse {}
 
+// StepMeta contains metadata for correlating and identifying a function
+// invocation within a pipeline execution.
 message StepMeta {
     // UUID identifying the entire pipeline execution (all steps in one reconciliation).
+    // All function invocations within a single reconciliation share the same trace_id.
     string trace_id = 1;
 
     // UUID identifying this specific function invocation.
@@ -301,18 +309,35 @@ message StepMeta {
     // needs to be re-run, starting from 0.
     int32 iteration = 4;
 
+    // Name of the function being invoked.
     string function_name = 5;
+
+    // Name of the Composition defining this pipeline.
     string composition_name = 6;
+
+    // UID of the composite resource being reconciled.
     string composite_resource_uid = 7;
+
+    // Name of the composite resource being reconciled.
     string composite_resource_name = 8;
+
+    // Namespace of the composite resource (empty for cluster-scoped resources).
     string composite_resource_namespace = 9;
+
+    // API version of the composite resource (e.g., "example.org/v1").
     string composite_resource_api_version = 10;
+
+    // Kind of the composite resource (e.g., "XDatabase").
     string composite_resource_kind = 11;
+
+    // Timestamp when this step was executed.
     google.protobuf.Timestamp timestamp = 12;
 }
 ```
 
 By using JSON bytes for the request and response payloads, consumers can parse the data without needing the function proto schema. This decouples the sidecar implementation from the Crossplane proto definitions entirely, making it simpler to build and maintain. Each message still stays within the default 4MB gRPC limit by splitting request and response into separate RPC calls. The `StepMeta` is included in both calls to allow the sidecar to correlate them using `trace_id`, `span_id`, `step_index`, and `composite_resource_uid`.
+
+This Protobuf definition and the generated Go code will live in [crossplane/crossplane-runtime](crossplane-runtime), so that both downstream sidecar implementations and Crossplane itself can import it.
 
 ### Security: Credential Stripping
 
@@ -542,3 +567,4 @@ Instrumenting functions themselves (as demonstrated by [Apple at KubeCon NA 2025
 2. Document the gRPC interface for downstream implementers
 
 [apple-kubecon-na-2025]: https://youtu.be/g70y40Qk7bs?si=MpAwmKrDPo_mAvL0
+[crossplane/crossplane-runtime]: https://github.com/crossplane/crossplane-runtime
