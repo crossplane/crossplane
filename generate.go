@@ -17,8 +17,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// NOTE(negz): See the below link for details on what is happening here.
-// https://go.dev/wiki/Modules#how-can-i-track-tool-dependencies-for-a-module
+// NOTE(negz): Code generation tools (controller-gen, goverter, buf, etc.) must
+// be in $PATH. Use 'nix develop' or 'nix run .#generate' to ensure they are.
 
 // Remove existing manifests
 //go:generate rm -rf ./cluster/crds
@@ -45,41 +45,32 @@ limitations under the License.
 // generate them all together in one command.
 
 // Generate deepcopy methodsets and CRD manifests
-//go:generate go tool -modfile=tools/go.mod controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/pkg/v1beta1;./apis/pkg/v1 crd:crdVersions=v1,generateEmbeddedObjectMeta=true output:artifacts:config=./cluster/crds
-//go:generate go tool -modfile=tools/go.mod controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/apiextensions/v1alpha1;./apis/apiextensions/v1beta1;./apis/apiextensions/v1;./apis/apiextensions/v2 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
-//go:generate go tool -modfile=tools/go.mod controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/protection/v1beta1 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
-//go:generate go tool -modfile=tools/go.mod controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/ops/v1alpha1 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
-//go:generate go tool -modfile=tools/go.mod controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./internal/protection
+//go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/pkg/v1beta1;./apis/pkg/v1 crd:crdVersions=v1,generateEmbeddedObjectMeta=true output:artifacts:config=./cluster/crds
+//go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/apiextensions/v1alpha1;./apis/apiextensions/v1beta1;./apis/apiextensions/v1;./apis/apiextensions/v2 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
+//go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/protection/v1beta1 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
+//go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/ops/v1alpha1 crd:crdVersions=v1 output:artifacts:config=./cluster/crds
+//go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./internal/protection
 
 // We generate the meta.pkg.crossplane.io types separately as the generated CRDs
 // are never installed, only used for API documentation.
-//go:generate go tool -modfile=tools/go.mod controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/pkg/meta/... crd:crdVersions=v1 output:artifacts:config=./cluster/meta
+//go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/pkg/meta/... crd:crdVersions=v1 output:artifacts:config=./cluster/meta
 
 // Generate webhook manifests
-//go:generate go tool -modfile=tools/go.mod controller-gen webhook paths=./apis/pkg/v1beta1;./apis/pkg/v1;./apis/apiextensions/v1alpha1;./apis/apiextensions/v1beta1;./apis/apiextensions/v1;./apis/protection/v1beta1 output:artifacts:config=./cluster/webhookconfigurations
+//go:generate controller-gen webhook paths=./apis/pkg/v1beta1;./apis/pkg/v1;./apis/apiextensions/v1alpha1;./apis/apiextensions/v1beta1;./apis/apiextensions/v1;./apis/protection/v1beta1 output:artifacts:config=./cluster/webhookconfigurations
 
 // Generate conversion code
-//go:generate go tool -modfile=tools/go.mod goverter gen -build-tags="" ./apis/apiextensions/v1
-//go:generate go tool -modfile=tools/go.mod goverter gen -build-tags="" ./apis/pkg/meta/v1alpha1
-//go:generate go tool -modfile=tools/go.mod goverter gen -build-tags="" ./apis/pkg/meta/v1beta1
-//go:generate go tool -modfile=tools/go.mod goverter gen -build-tags="" ./internal/protection
+//go:generate goverter gen -build-tags="" ./apis/apiextensions/v1
+//go:generate goverter gen -build-tags="" ./apis/pkg/meta/v1alpha1
+//go:generate goverter gen -build-tags="" ./apis/pkg/meta/v1beta1
+//go:generate goverter gen -build-tags="" ./internal/protection
 
 // Replicate identical gRPC APIs
 
 //go:generate ./hack/duplicate_proto_type.sh proto/fn/v1/run_function.proto proto/fn/v1beta1
 
-// Generate gRPC types and stubs.
-//
-// We use buf rather than the traditional protoc because it's pure go and can
-// thus be invoked using go run from a pinned dependency. If we used protoc we'd
-// need to install it via the Makefile, and there are not currently statically
-// compiled binaries available for download (the release binaries for Linux are
-// dynamically linked). See buf.gen.yaml for buf's configuration.
-//
-// We go install the required plugins because they need to be in $PATH for buf
-// (or protoc) to invoke them.
-
-//go:generate go install -modfile=tools/go.mod google.golang.org/protobuf/cmd/protoc-gen-go google.golang.org/grpc/cmd/protoc-gen-go-grpc
-//go:generate go tool -modfile=tools/go.mod buf generate
+// Generate gRPC types and stubs. See buf.gen.yaml for buf's configuration.
+// The protoc-gen-go and protoc-gen-go-grpc plugins must be in $PATH.
+// Note that the vendor dir does temporarily exist during a Nix build.
+//go:generate buf generate --exclude-path vendor
 
 package generate
