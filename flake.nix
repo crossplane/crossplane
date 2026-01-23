@@ -648,6 +648,44 @@
             );
             meta.description = "Run end-to-end tests";
           };
+
+          hack = {
+            type = "app";
+            program = pkgs.lib.getExe (
+              pkgs.writeShellApplication {
+                name = "hack";
+                runtimeInputs = devTools;
+                text = ''
+                  CLUSTER_NAME="crossplane-hack"
+
+                  # (Re)create cluster if control plane isn't running
+                  if ! docker ps --format '{{.Names}}' | grep -q "^$CLUSTER_NAME-control-plane$"; then
+                    kind delete cluster --name "$CLUSTER_NAME" 2>/dev/null || true
+                    echo "Creating kind cluster..."
+                    kind create cluster --name "$CLUSTER_NAME" --wait 60s
+                  fi
+
+                  echo "Loading Crossplane image..."
+                  docker load < ${images."linux-${nativePlatform.arch}"}
+                  kind load docker-image --name "$CLUSTER_NAME" crossplane/crossplane:${version}
+
+                  echo "Installing Crossplane..."
+                  helm upgrade --install crossplane ${mkHelmChart pkgs}/crossplane-${chartVersion}.tgz \
+                    --namespace crossplane-system --create-namespace \
+                    --set image.pullPolicy=Never \
+                    --set image.repository=crossplane/crossplane \
+                    --set image.tag=${version} \
+                    --set "args={--debug}" \
+                    --wait
+
+                  echo ""
+                  echo "Crossplane is running in kind cluster '$CLUSTER_NAME'."
+                  kubectl get pods -n crossplane-system
+                '';
+              }
+            );
+            meta.description = "Create kind cluster with Crossplane for local development";
+          };
         };
 
         devShells.default = pkgs.mkShell {
@@ -663,12 +701,11 @@
             echo "  nix run .#test                         # Run unit tests"
             echo "  nix run .#tidy                         # Tidy Go modules"
             echo "  nix run .#e2e -- -test.run TestFoo     # Run E2E tests"
+            echo "  nix run .#hack                         # Deploy Crossplane to a kind cluster"
             echo ""
             echo "CI:"
             echo "  nix build                              # All binaries, images, Helm chart"
             echo "  nix flake check                        # Run all checks (test, lint, generate)"
-            echo ""
-            echo "To use your preferred shell: nix develop -c \$SHELL"
             echo ""
           '';
         };
