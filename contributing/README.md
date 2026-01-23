@@ -104,27 +104,55 @@ and coding skill set.
 ## Establishing a Development Environment
 
 > The Crossplane project consists of several repositories under the crossplane
-> and crossplane-contrib GitHub organisations. We're experimenting with
-> [Earthly] in this repository (crossplane) and crossplane-runtime. Most other
-> repositories use a `Makefile`. To establish a development environment for a
-> repository with a `Makefile`, try running `make && make help`.
+> and crossplane-contrib GitHub organisations. This repository uses [Nix] for
+> builds. Most other repositories use a `Makefile`. To establish a development
+> environment for a repository with a `Makefile`, try running `make && make help`.
 
-Crossplane is written in [Go]. You don't need to have Go installed to contribute
-code to Crossplane but it helps to use an editor that understands Go.
+Crossplane is written in [Go]. For regular development you'll need Go and an IDE
+installed, but for small contributions you don't need to install Go. You can use
+any text editor and validate your changes with `./nix.sh flake check`.
 
 To setup a Crossplane development environment:
 
 1. Fork and clone this repository.
-1. Install [Docker][get-docker] and [Earthly][get-earthly].
+1. Install [Docker][get-docker].
+1. Run `./nix.sh run .#test` to verify everything works.
 
-Use the `earthly` command to build and test Crossplane. Run `earthly doc` to see
-available build targets.
+The first run takes ~2-3 minutes to download tooling into a Docker volume.
+Subsequent runs take seconds because everything is cached - the Nix store, Go
+modules, Go build cache, and Docker images all persist across runs.
 
-Useful targets include:
+Use your editor or IDE to write code, then validate with `nix.sh`:
 
-* `earthly +reviewable` - Run code generators, linters, and unit tests.
-* `earthly -P +e2e` - Run end-to-end tests.
-* `earthly +hack` - Build Crossplane and deploy it to a local `kind` cluster.
+```sh
+./nix.sh run .#test         # Run unit tests (uses local caches, fast)
+./nix.sh run .#lint         # Run linters (with --fix)
+./nix.sh run .#generate     # Run code generators
+./nix.sh run .#e2e          # Run E2E tests (starts a kind cluster)
+./nix.sh build              # Build binaries and images (see the result/ dir)
+./nix.sh flake check        # Run checks hermetically, like CI
+
+./nix.sh flake show         # List all available commands
+```
+
+Build output goes to `./result/`. For example, after `./nix.sh build` you'll
+find binaries in `./result/bin/` and container images as tarballs.
+
+### Native Nix (Optional)
+
+Native Nix requires root to install, but is useful if you:
+
+* Want `nix develop` to use your shell and dotfiles, not a generic bash shell.
+* Don't want to use Docker.
+* Want to use Nix as a general-purpose package manager.
+
+If you prefer to install Nix natively, [install it][install-nix] and
+[enable flakes][enable-flakes], then run commands without the `./nix.sh` wrapper:
+
+```sh
+nix run .#test
+nix develop -c $SHELL    # Drop into your shell with Go, kubectl, helm, etc.
+```
 
 ## Checklist Cheat Sheet
 
@@ -132,7 +160,7 @@ Wondering whether something on the pull request checklist applies to your PR?
 Generally:
 
 * Everyone must read and follow this contribution process.
-* Every PR must run (and pass) `earthly +reviewable`.
+* Every PR must run (and pass) `./nix.sh flake check`.
 * Most PRs that touch code should touch unit tests. We want ~80% coverage.
 * Any significant feature should be covered by E2E tests. If you're adding a new
   feature, you should probably be adding or updating E2Es.
@@ -179,7 +207,7 @@ Ensure each of your commits is signed-off in compliance with the [Developer
 Certificate of Origin] by using `git commit -s`. The Crossplane project highly
 values readable, idiomatic Go code. Familiarise yourself with the
 [Coding Style](#coding-style) section below and try to preempt any comments your
-reviewers would otherwise leave. Run `earthly +reviewable` to lint your change.
+reviewers would otherwise leave. Run `./nix.sh run .#lint` to lint your change.
 
 All Crossplane features must be covered by unit **and** end-to-end (E2E) tests.
 
@@ -938,9 +966,10 @@ func TestExample(t *testing.T) {
 
 [Slack]: https://slack.crossplane.io/
 [code of conduct]: https://github.com/cncf/foundation/blob/main/code-of-conduct.md
-[Earthly]: https://docs.earthly.dev
+[Nix]: https://nixos.org
+[install-nix]: https://nixos.org/download/
+[enable-flakes]: https://wiki.nixos.org/wiki/Flakes#Nix_standalone
 [get-docker]: https://docs.docker.com/get-docker
-[get-earthly]: https://earthly.dev/get-earthly
 [Go]: https://go.dev
 [build submodule]: https://github.com/crossplane/build/
 [`kind`]: https://kind.sigs.k8s.io/

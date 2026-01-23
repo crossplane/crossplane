@@ -19,7 +19,7 @@ Fixes #
 I have: <!--You MUST either [x] check or [ ] ~strike through~ every item.-->
 
 - [ ] Read and followed Crossplane's [contribution process].
-- [ ] Run `earthly +reviewable` to ensure this PR is ready for review.
+- [ ] Run `nix flake check` to ensure this PR is ready for review.
 - [ ] Added or updated unit tests.
 - [ ] Added or updated e2e tests.
 - [ ] Linked a PR or a [docs tracking issue] to [document this change].
