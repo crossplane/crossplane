@@ -75,30 +75,12 @@
         }
       ];
 
-      # OCI base image
-      imageBase = {
-        name = "gcr.io/distroless/static";
-        digest = "sha256:b7b9a6953e7bed6baaf37329331051d7bdc1b99c885f6dbeb72d75b1baad54f9";
-      };
-
-      # Target architectures for OCI images (hash is the per-arch NAR hash of the pulled base image)
+      # Target architectures for OCI images
       imageArchs = [
-        {
-          arch = "amd64";
-          hash = "sha256-3lqT9uvd6ibN2j/vtib9GrKJdmGToT9I+Vf5elQZD/4=";
-        }
-        {
-          arch = "arm64";
-          hash = "sha256-HcNRmnBYbd4yk8FLdKUn3ycqeTAQVfbOdRRPKdPverg=";
-        }
-        {
-          arch = "arm";
-          hash = "sha256-1gAbYf7CW5BISbReBh7rhexlsbvATL0R2ZfMoG8+duc=";
-        }
-        {
-          arch = "ppc64le";
-          hash = "sha256-1+NLWURPb6ayHw05BqtzSu7+XsZ/d8jjP4C2tB0jBak=";
-        }
+        "amd64"
+        "arm64"
+        "arm"
+        "ppc64le"
       ];
 
       # Build a Go binary for a specific GOOS/GOARCH using Go's native cross-compilation
@@ -186,20 +168,27 @@
           '';
 
       # Build OCI image for a specific architecture (always Linux)
+      # This replicates gcr.io/distroless/static using pure Nix.
       mkImageArgs =
         {
           pkgs,
           crossplaneBin,
           arch,
-          hash,
         }:
         let
-          base = pkgs.dockerTools.pullImage {
-            imageName = imageBase.name;
-            imageDigest = imageBase.digest;
-            inherit arch hash;
-            os = "linux";
-          };
+          passwd = pkgs.writeText "passwd" ''
+            root:x:0:0:root:/root:/sbin/nologin
+            nobody:x:65534:65534:nobody:/nonexistent:/sbin/nologin
+            nonroot:x:65532:65532:nonroot:/home/nonroot:/sbin/nologin
+          '';
+          group = pkgs.writeText "group" ''
+            root:x:0:
+            nobody:x:65534:
+            nonroot:x:65532:
+          '';
+          nsswitch = pkgs.writeText "nsswitch.conf" ''
+            hosts: files dns
+          '';
         in
         {
           name = "crossplane/crossplane";
@@ -207,14 +196,19 @@
           created = "now";
           architecture = arch;
 
-          fromImage = base;
-
           contents = [
             crossplaneBin
+            pkgs.cacert
+            pkgs.tzdata
+            pkgs.iana-etc
           ];
 
           extraCommands = ''
-            mkdir -p crds webhookconfigurations
+            mkdir -p tmp home/nonroot etc crds webhookconfigurations
+            chmod 1777 tmp
+            cp ${passwd} etc/passwd
+            cp ${group} etc/group
+            cp ${nsswitch} etc/nsswitch.conf
             cp -r ${self}/cluster/crds/* crds/
             cp -r ${self}/cluster/webhookconfigurations/* webhookconfigurations/
           '';
@@ -225,6 +219,10 @@
               "8080/tcp" = { };
             };
             User = "65532";
+            Env = [
+              "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+              "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-certificates.crt"
+            ];
             Labels = {
               "org.opencontainers.image.source" = "https://github.com/crossplane/crossplane";
               "org.opencontainers.image.version" = version;
@@ -288,12 +286,11 @@
         );
 
         images = builtins.listToAttrs (
-          map (platform: {
-            name = "linux-${platform.arch}";
+          map (arch: {
+            name = "linux-${arch}";
             value = pkgs.dockerTools.buildLayeredImage (mkImageArgs {
-              inherit pkgs;
-              inherit (platform) arch hash;
-              crossplaneBin = crossplaneBins."linux-${platform.arch}";
+              inherit pkgs arch;
+              crossplaneBin = crossplaneBins."linux-${arch}";
             });
           }) imageArchs
         );
@@ -325,7 +322,8 @@
           pkgs.gotestsum
           pkgs.helm-docs
           gomod2nix.packages.${system}.default
-        ] ++ codegenTools;
+        ]
+        ++ codegenTools;
 
         # PATH for apps - isolated from host tools
         devToolsPath = pkgs.lib.makeBinPath devTools;
@@ -382,9 +380,9 @@
 
             cp ${mkHelmChart pkgs}/* $out/charts/
 
-            ${pkgs.lib.concatMapStrings (p: ''
-              mkdir -p $out/images/linux_${p.arch}
-              cp ${images."linux-${p.arch}"} $out/images/linux_${p.arch}/image.tar.gz
+            ${pkgs.lib.concatMapStrings (arch: ''
+              mkdir -p $out/images/linux_${arch}
+              cp ${images."linux-${arch}"} $out/images/linux_${arch}/image.tar.gz
             '') imageArchs}
           '';
         };
@@ -530,12 +528,9 @@
         apps = {
           stream-image =
             let
-              nativeImageArch = builtins.head (
-                builtins.filter (p: p.arch == nativePlatform.arch) imageArchs
-              );
               streamScript = pkgs.dockerTools.streamLayeredImage (mkImageArgs {
                 inherit pkgs;
-                inherit (nativeImageArch) arch hash;
+                arch = nativePlatform.arch;
                 crossplaneBin = crossplaneBins."linux-${nativePlatform.arch}";
               });
             in
