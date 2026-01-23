@@ -103,13 +103,7 @@ if [ -t 1 ]; then
 fi
 
 # Run with --privileged for Docker-in-Docker (required for kind clusters).
-#
-# We use true Docker-in-Docker (a Docker daemon inside the container) rather
-# than Docker-outside-of-Docker (mounting /var/run/docker.sock). DinD avoids
-# path translation issues: when kind tells Docker to mount a path, that path
-# must exist where Docker runs. With DooD, Docker runs on the host but the
-# paths only exist in the container.
-docker run --rm --privileged ${INTERACTIVE_FLAGS} \
+docker run --rm --privileged --cgroupns=host ${INTERACTIVE_FLAGS} \
   -v "$(pwd):/crossplane" \
   -v "crossplane-nix:/nix" \
   -w /crossplane \
