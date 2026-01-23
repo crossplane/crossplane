@@ -433,7 +433,7 @@
 
             CGO_ENABLED = "0";
 
-            nativeBuildInputs = [ pkgs.golangci-lint ];
+            nativeBuildInputs = devTools;
 
             dontBuild = true;
 
@@ -455,7 +455,7 @@
           helm-lint =
             pkgs.runCommand "crossplane-helm-lint"
               {
-                nativeBuildInputs = [ pkgs.kubernetes-helm ];
+                nativeBuildInputs = devTools;
               }
               ''
                 cd ${self}/cluster/charts/crossplane
@@ -474,7 +474,7 @@
 
             CGO_ENABLED = "0";
 
-            nativeBuildInputs = codegenTools ++ [ pkgs.kubectl ];
+            nativeBuildInputs = devTools;
 
             dontBuild = true;
 
@@ -492,12 +492,16 @@
                 --output=yaml > /tmp/patched.yaml \
                 && mv /tmp/patched.yaml cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml
 
+              # Generate Helm chart docs
+              helm-docs --chart-search-root=cluster/charts
+
               # Compare against committed source
               if ! diff -rq apis ${self}/apis > /dev/null 2>&1 || \
                  ! diff -rq internal ${self}/internal > /dev/null 2>&1 || \
                  ! diff -rq proto ${self}/proto > /dev/null 2>&1 || \
                  ! diff -rq cluster/crds ${self}/cluster/crds > /dev/null 2>&1 || \
-                 ! diff -rq cluster/webhookconfigurations ${self}/cluster/webhookconfigurations > /dev/null 2>&1; then
+                 ! diff -rq cluster/webhookconfigurations ${self}/cluster/webhookconfigurations > /dev/null 2>&1 || \
+                 ! diff -rq cluster/charts ${self}/cluster/charts > /dev/null 2>&1; then
                 echo "ERROR: Generated code is out of date. Run 'nix run .#generate' and commit the changes."
                 echo ""
                 echo "Changed files:"
@@ -506,6 +510,7 @@
                 diff -rq proto ${self}/proto 2>/dev/null || true
                 diff -rq cluster/crds ${self}/cluster/crds 2>/dev/null || true
                 diff -rq cluster/webhookconfigurations ${self}/cluster/webhookconfigurations 2>/dev/null || true
+                diff -rq cluster/charts ${self}/cluster/charts 2>/dev/null || true
                 exit 1
               fi
 
@@ -608,6 +613,9 @@
                     --filename cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml \
                     --output=yaml > /tmp/patched.yaml \
                     && mv /tmp/patched.yaml cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml
+
+                  echo "Generating Helm chart docs..."
+                  helm-docs --chart-search-root=cluster/charts
 
                   echo "Done"
                 '';
