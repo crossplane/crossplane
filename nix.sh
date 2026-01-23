@@ -19,7 +19,8 @@ if [ "${NIX_SH_CONTAINER:-}" = "1" ]; then
   # in Docker for E2E tests, and rsync to copy build the build result (cp
   # doesn't work well on MacOS volumes). Installed packages persist across runs
   # thanks to the crossplane-nix volume.
-  nix-env -iA nixpkgs.docker nixpkgs.rsync
+  command -v docker &>/dev/null && command -v rsync &>/dev/null || \
+    nix-env -iA nixpkgs.docker nixpkgs.rsync
 
   # Start the Docker daemon, storing its data in the crossplane-nix volume for
   # persistence across container runs. This gives us a consistent Docker
@@ -113,5 +114,6 @@ docker run --rm --privileged --cgroupns=host ${INTERACTIVE_FLAGS} \
   -e "GOCACHE=/nix/go-build-cache" \
   -e "HOST_UID=$(id -u)" \
   -e "HOST_GID=$(id -g)" \
+  -e "TERM=${TERM:-xterm}" \
   nixos/nix \
   /crossplane/nix.sh "${@}"

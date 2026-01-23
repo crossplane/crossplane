@@ -313,6 +313,7 @@
         devTools = [
           pkgs.coreutils
           pkgs.gnused
+          pkgs.ncurses
           pkgs.go
           pkgs.golangci-lint
           pkgs.kubectl
@@ -692,6 +693,19 @@
           buildInputs = devTools;
 
           shellHook = ''
+            export PS1='\[\033[38;2;243;128;123m\][cros\[\033[38;2;255;205;60m\]spla\[\033[38;2;53;208;186m\]ne]\[\033[0m\] \w \$ '
+
+            export HISTFILE="/nix/.bash_history"
+            export HISTSIZE=10000
+            export HISTFILESIZE=10000
+
+            source <(kubectl completion bash 2>/dev/null)
+            source <(helm completion bash 2>/dev/null)
+            source <(kind completion bash 2>/dev/null)
+
+            alias k=kubectl
+            complete -o default -F __start_kubectl k
+
             echo "Crossplane development shell ($(go version | cut -d' ' -f3))"
             echo ""
             echo "Local development:"
@@ -706,6 +720,9 @@
             echo "CI:"
             echo "  nix build                              # All binaries, images, Helm chart"
             echo "  nix flake check                        # Run all checks (test, lint, generate)"
+            echo ""
+            echo "Install extra tools (https://search.nixos.org/packages):"
+            echo "  nix-env -iA nixpkgs.neovim nixpkgs.jq"
             echo ""
           '';
         };
