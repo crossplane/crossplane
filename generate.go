@@ -17,8 +17,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// NOTE(negz): Code generation tools (controller-gen, goverter, buf, etc.) must
-// be in $PATH. Use 'nix develop' or 'nix run .#generate' to ensure they are.
+// Code generation tools (controller-gen, goverter, buf, etc.) must be in your
+// $PATH. Use './nix.sh develop' or './nix.sh run .#generate' to ensure they
+// are.
 
 // Remove existing manifests
 //go:generate rm -rf ./cluster/crds
