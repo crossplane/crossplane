@@ -47,6 +47,36 @@ jobs:
       - name: Lint
         run: nix build .#checks.x86_64-linux.go-lint .#checks.x86_64-linux.helm-lint --print-build-logs
 
+  codeql:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v16
+        with:
+          name: crossplane
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Setup Nix Environment
+        uses: nicknovitski/nix-develop@v1
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: go
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
   unit-tests:
     runs-on: ubuntu-22.04
 
