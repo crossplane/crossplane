@@ -96,6 +96,13 @@ jobs:
       - name: Run Unit Tests
         run: nix build .#checks.x86_64-linux.test --print-build-logs
 
+      - name: Publish Unit Test Coverage
+        uses: codecov/codecov-action@v4
+        with:
+          flags: unittests
+          file: result/coverage.txt
+          token: ${{ secrets.CODECOV_TOKEN }}
+
   # E2E tests run outside the Nix sandbox (needs Docker)
   e2e-tests:
     runs-on: ubuntu-22.04
@@ -170,12 +177,22 @@ jobs:
               --test-suite ${{ matrix.test-suite }} \
               -labels area=${{ matrix.test-area }}
 
+      - name: Publish E2E Test Flakes
+        if: '!cancelled()'
+        uses: buildpulse/buildpulse-action@v0.11.0
+        with:
+          account: 45158470
+          repository: 147886080
+          key: ${{ secrets.BUILDPULSE_ACCESS_KEY_ID }}
+          secret: ${{ secrets.BUILDPULSE_SECRET_ACCESS_KEY }}
+          path: /tmp/e2e-tests.xml
+
       - name: Upload E2E Test Artifacts
         if: '!cancelled()'
         uses: actions/upload-artifact@v4
         with:
           name: e2e-tests-${{ matrix.test-area }}-${{ matrix.test-suite }}
-          path: _output/tests/**
+          path: /tmp/e2e-tests.xml
 
   # Build all artifacts (binaries, images, Helm chart)
   build-artifacts:

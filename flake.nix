@@ -634,6 +634,8 @@
                   export PATH="${devToolsPath}"
                   export CGO_ENABLED=0
 
+                  JUNIT_DIR="''${TMPDIR:-/tmp}"
+
                   echo "Loading crossplane image into Docker..."
                   docker load < ${images."linux-${nativePlatform.arch}"}
 
@@ -643,6 +645,7 @@
                   echo "Running e2e tests..."
                   gotestsum \
                     --format standard-verbose \
+                    --junitfile "$JUNIT_DIR/e2e-tests.xml" \
                     --raw-command -- go tool test2json -t -p E2E ${e2e}/bin/e2e -test.v "$@"
                 '';
               }
