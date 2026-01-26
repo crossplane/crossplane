@@ -34,11 +34,22 @@
         })
       ];
 
-      version =
+      # Set automatically by CI (see .github/workflows/ci.yml).
+      #
+      # To perfectly reproduce a CI build locally:
+      # 1. Checkout the relevant commit
+      # 2. Set buildVersion to the relevant release version
+      # 3. Run ./nix.sh build
+      buildVersion = "";
+
+      # Auto-generated version for local development builds.
+      devVersion =
         if self ? shortRev then
           "v0.0.0-${builtins.toString self.lastModified}-${self.shortRev}"
         else
           "v0.0.0-${builtins.toString self.lastModified}-${self.dirtyShortRev}";
+
+      version = if buildVersion != "" then buildVersion else devVersion;
 
       # Strip leading 'v' for Helm chart version
       chartVersion = builtins.substring 1 (-1) version;
@@ -689,6 +700,38 @@
               }
             );
             meta.description = "Create kind cluster with Crossplane for local development";
+          };
+
+          push-images = {
+            type = "app";
+            program = pkgs.lib.getExe (
+              pkgs.writeShellApplication {
+                name = "push-images";
+                runtimeInputs = [ pkgs.docker-client ];
+                text = ''
+                  REPO="''${1:?Usage: nix run .#push-images -- <registry/image>}"
+
+                  echo "Pushing images to ''${REPO}..."
+
+                  # Load, tag, and push each architecture
+                  ${pkgs.lib.concatMapStrings (arch: ''
+                    echo "Loading and pushing ''${REPO}:${version}-${arch}..."
+                    docker load < ${images."linux-${arch}"}
+                    docker tag crossplane/crossplane:${version} "''${REPO}:${version}-${arch}"
+                    docker push "''${REPO}:${version}-${arch}"
+                  '') imageArchs}
+
+                  # Create and push multi-arch manifest
+                  echo "Creating manifest ''${REPO}:${version}..."
+                  docker manifest create "''${REPO}:${version}" \
+                    ${pkgs.lib.concatMapStringsSep " " (arch: ''"''${REPO}:${version}-${arch}"'') imageArchs}
+                  docker manifest push "''${REPO}:${version}"
+
+                  echo "Pushed ''${REPO}:${version}"
+                '';
+              }
+            );
+            meta.description = "Push multi-arch images to a container registry";
           };
         };
 
