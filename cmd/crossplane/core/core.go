@@ -69,7 +69,7 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/transport"
 	usagehook "github.com/crossplane/crossplane/v2/internal/webhook/protection/usage"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
-	"github.com/crossplane/crossplane/v2/internal/xfn/cached"
+	xfncached "github.com/crossplane/crossplane/v2/internal/xfn/cached"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
 	"github.com/crossplane/crossplane/v2/internal/xpkg/signature"
 )
@@ -283,21 +283,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableFunctionResponseCache {
 		o.Features.Enable(features.EnableAlphaFunctionResponseCache)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaFunctionResponseCache)
-
-		cfrm := cached.NewPrometheusMetrics()
-		metrics.Registry.MustRegister(cfrm)
-
-		// Wrap the packaged function runner with a caching one.
-		cfr := cached.NewFileBackedRunner(pfr, c.XfnCacheDir,
-			cached.WithLogger(log),
-			cached.WithMaxTTL(c.XfnCacheMaxTTL),
-			cached.WithMetrics(cfrm),
-		)
-
-		// Periodically delete expired cache entries.
-		go cfr.GarbageCollectFiles(ctx, 1*time.Minute)
-
-		runner = cfr
 	}
 
 	if c.EnableUsages {
@@ -442,8 +427,27 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot start garbage collector for custom resource informers")
 	}
 
-	// Automatically fetch required resources.
+	// Middleware layering: We want Cache → FetchingFunctionRunner → gRPC.
+	// First, wrap the runner with FetchingFunctionRunner to handle requirements.
 	runner = xfn.NewFetchingFunctionRunner(runner, xfn.NewExistingRequiredResourcesFetcher(cached))
+
+	// Then, if caching is enabled, wrap with the cache layer.
+	// This ensures the cache stores final responses after all requirements are fulfilled.
+	if c.EnableFunctionResponseCache {
+		cfrm := xfncached.NewPrometheusMetrics()
+		metrics.Registry.MustRegister(cfrm)
+
+		cfr := xfncached.NewFileBackedRunner(runner, c.XfnCacheDir,
+			xfncached.WithLogger(log),
+			xfncached.WithMaxTTL(c.XfnCacheMaxTTL),
+			xfncached.WithMetrics(cfrm),
+		)
+
+		// Periodically delete expired cache entries.
+		go cfr.GarbageCollectFiles(ctx, 1*time.Minute)
+
+		runner = cfr
+	}
 
 	cbm := circuit.NewPrometheusMetrics()
 	metrics.Registry.MustRegister(cbm)
