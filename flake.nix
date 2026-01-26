@@ -333,6 +333,7 @@
           pkgs.docker-client
           pkgs.gotestsum
           pkgs.helm-docs
+          pkgs.awscli2
           gomod2nix.packages.${system}.default
         ]
         ++ codegenTools;
@@ -707,8 +708,8 @@
             program = pkgs.lib.getExe (
               pkgs.writeShellApplication {
                 name = "push-images";
-                runtimeInputs = [ pkgs.docker-client ];
                 text = ''
+                  export PATH="${devToolsPath}"
                   REPO="''${1:?Usage: nix run .#push-images -- <registry/image>}"
 
                   echo "Pushing images to ''${REPO}..."
@@ -732,6 +733,105 @@
               }
             );
             meta.description = "Push multi-arch images to a container registry";
+          };
+
+          push-artifacts = {
+            type = "app";
+            program = pkgs.lib.getExe (
+              pkgs.writeShellApplication {
+                name = "push-artifacts";
+                text = ''
+                  export PATH="${devToolsPath}"
+                  BRANCH="''${1:?Usage: nix run .#push-artifacts -- <branch>}"
+
+                  echo "Pushing artifacts to s3://crossplane-releases/build/''${BRANCH}/${version}..."
+                  aws s3 sync --delete --only-show-errors \
+                    ${self.packages.${system}.default} \
+                    "s3://crossplane-releases/build/''${BRANCH}/${version}"
+                  echo "Done"
+                '';
+              }
+            );
+            meta.description = "Push build artifacts to S3";
+          };
+
+          promote-images = {
+            type = "app";
+            program = pkgs.lib.getExe (
+              pkgs.writeShellApplication {
+                name = "promote-images";
+                text = ''
+                  export PATH="${devToolsPath}"
+                  REPO="''${1:?Usage: nix run .#promote-images -- <registry/image> <version> <channel>}"
+                  VERSION="''${2:?Usage: nix run .#promote-images -- <registry/image> <version> <channel>}"
+                  CHANNEL="''${3:?Usage: nix run .#promote-images -- <registry/image> <version> <channel>}"
+
+                  echo "Promoting ''${REPO}:''${VERSION} to channel ''${CHANNEL}..."
+
+                  docker buildx imagetools create \
+                    --tag "''${REPO}:''${CHANNEL}" \
+                    --tag "''${REPO}:''${VERSION}-''${CHANNEL}" \
+                    "''${REPO}:''${VERSION}"
+
+                  echo "Done"
+                '';
+              }
+            );
+            meta.description = "Promote images to a release channel";
+          };
+
+          promote-artifacts = {
+            type = "app";
+            program = pkgs.lib.getExe (
+              pkgs.writeShellApplication {
+                name = "promote-artifacts";
+                text = ''
+                  export PATH="${devToolsPath}"
+                  BRANCH="''${1:?Usage: nix run .#promote-artifacts -- <branch> <version> <channel> [--prerelease]}"
+                  VERSION="''${2:?Usage: nix run .#promote-artifacts -- <branch> <version> <channel> [--prerelease]}"
+                  CHANNEL="''${3:?Usage: nix run .#promote-artifacts -- <branch> <version> <channel> [--prerelease]}"
+                  PRERELEASE="''${4:-}"
+
+                  BUILD_PATH="s3://crossplane-releases/build/''${BRANCH}/''${VERSION}"
+                  CHANNEL_PATH="s3://crossplane-releases/''${CHANNEL}"
+                  CHARTS_PATH="s3://crossplane-helm-charts/''${CHANNEL}"
+
+                  WORKDIR=$(mktemp -d)
+                  trap 'rm -rf "$WORKDIR"' EXIT
+
+                  echo "Promoting artifacts from ''${BUILD_PATH} to ''${CHANNEL}..."
+
+                  # Download existing Helm chart repo for this channel
+                  aws s3 sync --only-show-errors "''${CHARTS_PATH}" "$WORKDIR/" || true
+
+                  # Add new chart to the repo
+                  aws s3 sync --only-show-errors "''${BUILD_PATH}/charts" "$WORKDIR/"
+
+                  # Regenerate the Helm repo index
+                  helm repo index --url "https://charts.crossplane.io/''${CHANNEL}" "$WORKDIR/"
+
+                  # Upload the updated repo
+                  aws s3 sync --delete --only-show-errors "$WORKDIR/" "''${CHARTS_PATH}"
+
+                  # Set cache-control on index.yaml to prevent caching
+                  aws s3 cp --only-show-errors --cache-control "private, max-age=0, no-transform" \
+                    "$WORKDIR/index.yaml" "''${CHARTS_PATH}/index.yaml"
+
+                  # Promote binaries to the channel
+                  aws s3 sync --delete --only-show-errors \
+                    "''${BUILD_PATH}" "''${CHANNEL_PATH}/''${VERSION}"
+
+                  # Update 'current' pointer (skip for pre-releases)
+                  if [ "''${PRERELEASE}" != "--prerelease" ]; then
+                    aws s3 sync --delete --only-show-errors \
+                      "''${BUILD_PATH}" "''${CHANNEL_PATH}/current"
+                  fi
+
+                  echo "Done"
+                '';
+              }
+            );
+            meta.description = "Promote build artifacts to a release channel";
           };
         };
 

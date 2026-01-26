@@ -1,0 +1,85 @@
+name: Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v1.18.0)'
+        required: true
+      channel:
+        description: 'Release channel'
+        required: true
+        default: 'stable'
+      pre-release:
+        type: boolean
+        description: 'This is a pre-release (will not update current pointer)'
+        required: true
+        default: false
+
+env:
+  DOCKER_USR: ${{ secrets.DOCKER_USR }}
+  AWS_USR: ${{ secrets.AWS_USR }}
+  UPBOUND_MARKETPLACE_PUSH_ROBOT_USR: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }}
+
+jobs:
+  promote:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v16
+        with:
+          name: crossplane
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        if: env.DOCKER_USR != ''
+        with:
+          username: ${{ secrets.DOCKER_USR }}
+          password: ${{ secrets.DOCKER_PSW }}
+
+      - name: Login to Upbound
+        uses: docker/login-action@v3
+        if: env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''
+        with:
+          registry: xpkg.upbound.io
+          username: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }}
+          password: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_PSW }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Promote Images to DockerHub
+        if: env.DOCKER_USR != ''
+        run: nix run .#promote-images -- crossplane/crossplane ${{ inputs.version }} ${{ inputs.channel }}
+
+      - name: Promote Images to Upbound
+        if: env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''
+        run: nix run .#promote-images -- xpkg.upbound.io/crossplane/crossplane ${{ inputs.version }} ${{ inputs.channel }}
+
+      - name: Promote Images to GitHub Container Registry
+        run: nix run .#promote-images -- ghcr.io/crossplane/crossplane ${{ inputs.version }} ${{ inputs.channel }}
+
+      - name: Promote Artifacts to S3
+        if: env.AWS_USR != ''
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          PRERELEASE_FLAG=""
+          if [ "${{ inputs.pre-release }}" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+          nix run .#promote-artifacts -- "${GITHUB_REF##*/}" ${{ inputs.version }} ${{ inputs.channel }} $PRERELEASE_FLAG
