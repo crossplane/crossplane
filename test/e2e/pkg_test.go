@@ -424,9 +424,9 @@ func TestUpgradeDependencyVersionSharedTransitive(t *testing.T) {
 			Assess("UpdateConfigurationB",
 				funcs.ApplyResources(FieldManager, manifests, "configuration-b-updated.yaml")).
 			Assess("DepsUpgradedToNewVersionAndHealthy", funcs.AllOf(
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "adamwg-e2e-dep1"}}, "spec.package", "docker.io/adamwg/e2e-dep1:v0.0.2"),
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "adamwg-e2e-dep2"}}, "spec.package", "docker.io/adamwg/e2e-dep2:v0.0.2"),
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "adamwg-e2e-transitive"}}, "spec.package", "docker.io/adamwg/e2e-transitive:v0.0.2"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-e2e-transitive-dep1"}}, "spec.package", "xpkg.crossplane.io/crossplane/e2e-transitive-dep1:v0.0.2"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-e2e-transitive-dep2"}}, "spec.package", "xpkg.crossplane.io/crossplane/e2e-transitive-dep2:v0.0.2"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-e2e-transitive-transitive"}}, "spec.package", "xpkg.crossplane.io/crossplane/e2e-transitive-transitive:v0.0.2"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "deps.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			Assess("ConfigurationsAreStillHealthy", funcs.AllOf(
@@ -482,9 +482,9 @@ func TestUpgradeDependencyVersionSharedTransitiveNoop(t *testing.T) {
 			Assess("UpdateConfigurationB",
 				funcs.ApplyResources(FieldManager, manifests, "configuration-b-updated.yaml")).
 			Assess("DepsUpgradedToNewVersionAndHealthy", funcs.AllOf(
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "adamwg-e2e-dep1"}}, "spec.package", "docker.io/adamwg/e2e-dep1:v0.0.3"),
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "adamwg-e2e-dep2"}}, "spec.package", "docker.io/adamwg/e2e-dep2:v0.0.3"),
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "adamwg-e2e-transitive"}}, "spec.package", "docker.io/adamwg/e2e-transitive:v0.0.3"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-e2e-transitive-dep1"}}, "spec.package", "xpkg.crossplane.io/crossplane/e2e-transitive-dep1:v0.0.3"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-e2e-transitive-dep2"}}, "spec.package", "xpkg.crossplane.io/crossplane/e2e-transitive-dep2:v0.0.3"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-e2e-transitive-transitive"}}, "spec.package", "xpkg.crossplane.io/crossplane/e2e-transitive-transitive:v0.0.3"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "deps.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			Assess("ConfigurationsAreStillHealthy", funcs.AllOf(

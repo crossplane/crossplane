@@ -3,5 +3,4 @@ kind: Configuration
 metadata:
   name: configuration-a
 spec:
-  # TODO(adamwg): Move this to xpkg.crossplane.io.
-  package: docker.io/adamwg/e2e-config1:v0.0.3
+  package: xpkg.crossplane.io/crossplane/e2e-transitive-config1:v0.0.3
