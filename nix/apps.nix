@@ -1,0 +1,359 @@
+# Interactive development commands for Crossplane.
+#
+# Apps run outside the Nix sandbox with full filesystem and network access.
+# They're designed for local development where Go modules are already available.
+#
+# All apps are builder functions that take an attrset of arguments and return a
+# complete app definition ({ type, meta.description, program }). Most use
+# writeShellApplication to create the program. The text block is preprocessed:
+#
+#   ${somePkg}/bin/foo   -> /nix/store/.../bin/foo  (Nix store path)
+#   ''${SOME_VAR}        -> ${SOME_VAR}             (shell variable, escaped)
+#
+# Each app declares its tool dependencies via runtimeInputs. This ensures apps
+# only have access to explicitly declared tools, not arbitrary system binaries.
+{ pkgs }:
+{
+  # Run Go unit tests.
+  test =
+    { }:
+    {
+      type = "app";
+      meta.description = "Run unit tests";
+      program = pkgs.lib.getExe (
+        pkgs.writeShellApplication {
+          name = "crossplane-test";
+          runtimeInputs = [ pkgs.go ];
+          text = ''
+            export CGO_ENABLED=0
+            go test -covermode=count ./apis/... ./cmd/... ./internal/... "$@"
+          '';
+        }
+      );
+    };
+
+  # Run golangci-lint.
+  lint =
+    {
+      fix ? false,
+    }:
+    {
+      type = "app";
+      meta.description = "Run golangci-lint" + (if fix then " with auto-fix" else "");
+      program = pkgs.lib.getExe (
+        pkgs.writeShellApplication {
+          name = "crossplane-lint";
+          runtimeInputs = [
+            pkgs.go
+            pkgs.golangci-lint
+          ];
+          text = ''
+            export CGO_ENABLED=0
+            export GOLANGCI_LINT_CACHE="''${XDG_CACHE_HOME:-$HOME/.cache}/golangci-lint"
+            golangci-lint run ${if fix then "--fix" else ""} "$@"
+          '';
+        }
+      );
+    };
+
+  # Run code generation.
+  generate =
+    { }:
+    {
+      type = "app";
+      meta.description = "Run code generation";
+      program = pkgs.lib.getExe (
+        pkgs.writeShellApplication {
+          name = "crossplane-generate";
+          runtimeInputs = [
+            pkgs.go
+            pkgs.kubectl
+            pkgs.helm-docs
+
+            # Code generation
+            pkgs.buf
+            pkgs.goverter
+            pkgs.protoc-gen-go
+            pkgs.protoc-gen-go-grpc
+            pkgs.kubernetes-controller-tools
+          ];
+          text = ''
+            export CGO_ENABLED=0
+
+            echo "Running go generate..."
+            go generate -tags generate .
+
+            echo "Patching CRDs..."
+            kubectl patch --local --type=json \
+              --patch-file cluster/crd-patches/pkg.crossplane.io_deploymentruntimeconfigs.yaml \
+              --filename cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml \
+              --output=yaml > /tmp/patched.yaml \
+              && mv /tmp/patched.yaml cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml
+
+            echo "Generating Helm chart docs..."
+            helm-docs --chart-search-root=cluster/charts
+
+            echo "Done"
+          '';
+        }
+      );
+    };
+
+  # Run go mod tidy and regenerate gomod2nix.toml.
+  tidy =
+    { }:
+    {
+      type = "app";
+      meta.description = "Run go mod tidy and regenerate gomod2nix.toml";
+      program = pkgs.lib.getExe (
+        pkgs.writeShellApplication {
+          name = "crossplane-tidy";
+          runtimeInputs = [
+            pkgs.go
+            pkgs.gomod2nix
+          ];
+          text = ''
+            export CGO_ENABLED=0
+            echo "Running go mod tidy..."
+            go mod tidy
+            echo "Regenerating gomod2nix.toml..."
+            gomod2nix generate --with-deps
+            echo "Done"
+          '';
+        }
+      );
+    };
+
+  # Stream OCI image tarball to stdout (pipe to docker load).
+  streamImage =
+    { imageArgs }:
+    {
+      type = "app";
+      meta.description = "Stream OCI image tarball to stdout (pipe to docker load)";
+      program = "${pkgs.dockerTools.streamLayeredImage imageArgs}";
+    };
+
+  # Run end-to-end tests.
+  e2e =
+    {
+      image,
+      bin,
+      version,
+    }:
+    {
+      type = "app";
+      meta.description = "Run end-to-end tests";
+      program = pkgs.lib.getExe (
+        pkgs.writeShellApplication {
+          name = "crossplane-e2e";
+          runtimeInputs = [
+            pkgs.go
+            pkgs.docker-client
+            pkgs.gotestsum
+          ];
+          text = ''
+            export CGO_ENABLED=0
+
+            echo "Loading crossplane image into Docker..."
+            docker load < ${image}
+
+            echo "Tagging image as crossplane-e2e/crossplane:latest..."
+            docker tag crossplane/crossplane:${version} crossplane-e2e/crossplane:latest
+
+            echo "Running e2e tests..."
+            gotestsum \
+              --format standard-verbose \
+              --junitfile "''${TMPDIR:-/tmp}/e2e-tests.xml" \
+              --raw-command -- go tool test2json -t -p E2E ${bin}/bin/e2e -test.v "$@"
+          '';
+        }
+      );
+    };
+
+  # Create kind cluster with Crossplane for local development.
+  hack =
+    {
+      image,
+      chart,
+      version,
+    }:
+    let
+      chartVersion = builtins.substring 1 (-1) version;
+    in
+    {
+      type = "app";
+      meta.description = "Create kind cluster with Crossplane for local development";
+      program = pkgs.lib.getExe (
+        pkgs.writeShellApplication {
+          name = "crossplane-hack";
+          runtimeInputs = [
+            pkgs.docker-client
+            pkgs.kind
+            pkgs.kubectl
+            pkgs.kubernetes-helm
+          ];
+          text = ''
+            CLUSTER_NAME="crossplane-hack"
+
+            if ! docker ps --format '{{.Names}}' | grep -q "^$CLUSTER_NAME-control-plane$"; then
+              kind delete cluster --name "$CLUSTER_NAME" 2>/dev/null || true
+              echo "Creating kind cluster..."
+              kind create cluster --name "$CLUSTER_NAME" --wait 60s
+            fi
+
+            # Ensure kubeconfig is set up for existing clusters.
+            kind export kubeconfig --name "$CLUSTER_NAME"
+
+            echo "Loading Crossplane image..."
+            docker load < ${image}
+            kind load docker-image --name "$CLUSTER_NAME" crossplane/crossplane:${version}
+
+            echo "Installing Crossplane..."
+            helm upgrade --install crossplane ${chart}/crossplane-${chartVersion}.tgz \
+              --namespace crossplane-system --create-namespace \
+              --set image.pullPolicy=Never \
+              --set image.repository=crossplane/crossplane \
+              --set image.tag=${version} \
+              --set "args={--debug}" \
+              --wait
+
+            echo ""
+            echo "Crossplane is running in kind cluster '$CLUSTER_NAME'."
+            kubectl get pods -n crossplane-system
+          '';
+        }
+      );
+    };
+
+  # Push multi-arch images to a container registry.
+  pushImages =
+    {
+      images,
+      platforms,
+      version,
+    }:
+    {
+      type = "app";
+      meta.description = "Push multi-arch images to a container registry";
+      program = pkgs.lib.getExe (
+        pkgs.writeShellApplication {
+          name = "crossplane-push-images";
+          runtimeInputs = [ pkgs.docker-client ];
+          text = ''
+            REPO="''${1:?Usage: nix run .#push-images -- <registry/image>}"
+
+            echo "Pushing images to ''${REPO}..."
+            ${pkgs.lib.concatMapStrings (p: ''
+              echo "Loading and pushing ''${REPO}:${version}-${p.arch}..."
+              docker load < ${images."${p.os}-${p.arch}".image}
+              docker tag crossplane/crossplane:${version} "''${REPO}:${version}-${p.arch}"
+              docker push "''${REPO}:${version}-${p.arch}"
+            '') platforms}
+
+            echo "Creating manifest ''${REPO}:${version}..."
+            docker manifest create "''${REPO}:${version}" \
+              ${pkgs.lib.concatMapStringsSep " " (p: ''"''${REPO}:${version}-${p.arch}"'') platforms}
+            docker manifest push "''${REPO}:${version}"
+
+            echo "Pushed ''${REPO}:${version}"
+          '';
+        }
+      );
+    };
+
+  # Push build artifacts to S3.
+  pushArtifacts =
+    { release, version }:
+    {
+      type = "app";
+      meta.description = "Push build artifacts to S3";
+      program = pkgs.lib.getExe (
+        pkgs.writeShellApplication {
+          name = "crossplane-push-artifacts";
+          runtimeInputs = [ pkgs.awscli2 ];
+          text = ''
+            BRANCH="''${1:?Usage: nix run .#push-artifacts -- <branch>}"
+
+            echo "Pushing artifacts to s3://crossplane-releases/build/''${BRANCH}/${version}..."
+            aws s3 sync --delete --only-show-errors \
+              ${release} \
+              "s3://crossplane-releases/build/''${BRANCH}/${version}"
+            echo "Done"
+          '';
+        }
+      );
+    };
+
+  # Promote images to a release channel.
+  promoteImages =
+    { }:
+    {
+      type = "app";
+      meta.description = "Promote images to a release channel";
+      program = pkgs.lib.getExe (
+        pkgs.writeShellApplication {
+          name = "crossplane-promote-images";
+          runtimeInputs = [ pkgs.docker-client ];
+          text = ''
+            REPO="''${1:?Usage: nix run .#promote-images -- <registry/image> <version> <channel>}"
+            VERSION="''${2:?Usage: nix run .#promote-images -- <registry/image> <version> <channel>}"
+            CHANNEL="''${3:?Usage: nix run .#promote-images -- <registry/image> <version> <channel>}"
+
+            echo "Promoting ''${REPO}:''${VERSION} to channel ''${CHANNEL}..."
+            docker buildx imagetools create \
+              --tag "''${REPO}:''${CHANNEL}" \
+              --tag "''${REPO}:''${VERSION}-''${CHANNEL}" \
+              "''${REPO}:''${VERSION}"
+            echo "Done"
+          '';
+        }
+      );
+    };
+
+  # Promote build artifacts to a release channel.
+  promoteArtifacts =
+    { }:
+    {
+      type = "app";
+      meta.description = "Promote build artifacts to a release channel";
+      program = pkgs.lib.getExe (
+        pkgs.writeShellApplication {
+          name = "crossplane-promote-artifacts";
+          runtimeInputs = [
+            pkgs.awscli2
+            pkgs.kubernetes-helm
+          ];
+          text = ''
+            BRANCH="''${1:?Usage: nix run .#promote-artifacts -- <branch> <version> <channel> [--prerelease]}"
+            VERSION="''${2:?Usage: nix run .#promote-artifacts -- <branch> <version> <channel> [--prerelease]}"
+            CHANNEL="''${3:?Usage: nix run .#promote-artifacts -- <branch> <version> <channel> [--prerelease]}"
+            PRERELEASE="''${4:-}"
+
+            BUILD_PATH="s3://crossplane-releases/build/''${BRANCH}/''${VERSION}"
+            CHANNEL_PATH="s3://crossplane-releases/''${CHANNEL}"
+            CHARTS_PATH="s3://crossplane-helm-charts/''${CHANNEL}"
+
+            WORKDIR=$(mktemp -d)
+            trap 'rm -rf "$WORKDIR"' EXIT
+
+            echo "Promoting artifacts from ''${BUILD_PATH} to ''${CHANNEL}..."
+
+            aws s3 sync --only-show-errors "''${CHARTS_PATH}" "$WORKDIR/" || true
+            aws s3 sync --only-show-errors "''${BUILD_PATH}/charts" "$WORKDIR/"
+            helm repo index --url "https://charts.crossplane.io/''${CHANNEL}" "$WORKDIR/"
+            aws s3 sync --delete --only-show-errors "$WORKDIR/" "''${CHARTS_PATH}"
+            aws s3 cp --only-show-errors --cache-control "private, max-age=0, no-transform" \
+              "$WORKDIR/index.yaml" "''${CHARTS_PATH}/index.yaml"
+
+            aws s3 sync --delete --only-show-errors "''${BUILD_PATH}" "''${CHANNEL_PATH}/''${VERSION}"
+
+            if [ "''${PRERELEASE}" != "--prerelease" ]; then
+              aws s3 sync --delete --only-show-errors "''${BUILD_PATH}" "''${CHANNEL_PATH}/current"
+            fi
+
+            echo "Done"
+          '';
+        }
+      );
+    };
+}

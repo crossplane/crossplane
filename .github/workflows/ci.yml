@@ -238,7 +238,7 @@ jobs:
         run: |
           VERSION=$(git describe --dirty --always --tags | sed 's/-/./2g')
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          sed -i "s|buildVersion = \"\";|buildVersion = \"$VERSION\";|" flake.nix
+          sed -i "s|buildVersion = null;|buildVersion = \"$VERSION\";|" flake.nix
 
       - name: Build Artifacts
         run: nix build --option warn-dirty false --print-build-logs
