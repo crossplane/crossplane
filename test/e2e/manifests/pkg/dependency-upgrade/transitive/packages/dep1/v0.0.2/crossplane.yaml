@@ -6,5 +6,5 @@ spec:
   dependsOn:
     - apiVersion: pkg.crossplane.io/v1
       kind: Configuration
-      package: docker.io/adamwg/e2e-transitive
+      package: xpkg.crossplane.io/crossplane/e2e-transitive-transitive
       version: v0.0.2
