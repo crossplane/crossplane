@@ -1,20 +1,20 @@
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: adamwg-e2e-dep1
+  name: crossplane-e2e-transitive-dep1
 spec:
-  package: docker.io/adamwg/e2e-dep1:v0.0.2
+  package: xpkg.crossplane.io/crossplane/e2e-transitive-dep1:v0.0.2
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: adamwg-e2e-dep2
+  name: crossplane-e2e-transitive-dep2
 spec:
-  package: docker.io/adamwg/e2e-dep2:v0.0.2
+  package: xpkg.crossplane.io/crossplane/e2e-transitive-dep2:v0.0.2
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: adamwg-e2e-transitive
+  name: crossplane-e2e-transitive-transitive
 spec:
-  package: docker.io/adamwg/e2e-transitive:v0.0.2
+  package: xpkg.crossplane.io/crossplane/e2e-transitive-transitive:v0.0.2
