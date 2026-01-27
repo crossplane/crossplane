@@ -213,6 +213,10 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 		cm.SetCompositionReference(ref)
 	}
 
+	if ref := xr.GetCompositionRevisionSelector(); ref != nil && cm.GetCompositionRevisionSelector() == nil {
+		cm.SetCompositionRevisionSelector(ref)
+	}
+
 	// We want to propagate the XR's spec to the claim's spec, but first we must
 	// filter out any well-known fields that are unique to XR. We do this by:
 	// 1. Grabbing a map whose keys represent all well-known XR fields.
