@@ -59,6 +59,8 @@ let
     };
 
   # Build OCI image arguments for dockerTools.
+  # This matches the distroless base image Crossplane previously used.
+  # https://github.com/GoogleContainerTools/distroless
   mkImageArgs =
     {
       version,
