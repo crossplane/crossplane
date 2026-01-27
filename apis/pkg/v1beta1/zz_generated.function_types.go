@@ -32,7 +32,7 @@ import (
 // Crossplane with support for a new kind of composition function.
 //
 // Read the Crossplane documentation for
-// [more information about Functions](https://docs.crossplane.io/latest/concepts/composition-functions).
+// [more information about Functions](https://docs.crossplane.io/latest/packages/functions/).
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="INSTALLED",type="string",JSONPath=".status.conditions[?(@.type=='Installed')].status"
 // +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='Healthy')].status"

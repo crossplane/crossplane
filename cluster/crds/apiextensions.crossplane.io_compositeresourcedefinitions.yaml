@@ -40,7 +40,7 @@ spec:
           API.
 
           Read the Crossplane documentation for
-          [more information about CustomResourceDefinitions](https://docs.crossplane.io/latest/concepts/composite-resource-definitions).
+          [more information about CustomResourceDefinitions](https://docs.crossplane.io/latest/composition/composite-resource-definitions/).
         properties:
           apiVersion:
             description: |-
@@ -628,7 +628,7 @@ spec:
           API.
 
           Read the Crossplane documentation for
-          [more information about CustomResourceDefinitions](https://docs.crossplane.io/latest/concepts/composite-resource-definitions).
+          [more information about CustomResourceDefinitions](https://docs.crossplane.io/latest/composition/composite-resource-definitions/).
         properties:
           apiVersion:
             description: |-

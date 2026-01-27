@@ -29,7 +29,7 @@ import (
 // resources with dependent resources.
 //
 // Read the Crossplane documentation for
-// [more information about usages](https://docs.crossplane.io/latest/concepts/usages).
+// [more information about usages](https://docs.crossplane.io/latest/managed-resources/usages/).
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="DETAILS",type="string",JSONPath=".metadata.annotations.crossplane\\.io/usage-details"

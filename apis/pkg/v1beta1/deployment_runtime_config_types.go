@@ -91,7 +91,7 @@ type DeploymentRuntimeConfigSpec struct {
 // of a Provider or composition function package.
 //
 // Read the Crossplane documentation for
-// [more information about DeploymentRuntimeConfigs](https://docs.crossplane.io/latest/concepts/providers/#runtime-configuration).
+// [more information about DeploymentRuntimeConfigs](https://docs.crossplane.io/latest/packages/providers/#runtime-configuration).
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories={crossplane}
 type DeploymentRuntimeConfig struct {

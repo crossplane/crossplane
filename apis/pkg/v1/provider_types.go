@@ -30,7 +30,7 @@ import (
 // Crossplane with support for new kinds of managed resources.
 //
 // Read the Crossplane documentation for
-// [more information about Providers](https://docs.crossplane.io/latest/concepts/providers).
+// [more information about Providers](https://docs.crossplane.io/latest/packages/providers/).
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="INSTALLED",type="string",JSONPath=".status.conditions[?(@.type=='Installed')].status"
