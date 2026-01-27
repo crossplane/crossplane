@@ -88,6 +88,9 @@ experimental-features = nix-command flakes
 # like a Makefile target. 'auto' uses one job per CPU core.
 max-jobs = auto
 
+# Sandbox builds to prevent access to undeclared dependencies. Requires --privileged.
+sandbox = true
+
 # Cachix is a binary cache service. Our GitHub Actions CI pushes there, so if CI
 # has recently built the commit you're on Nix will download stuff instead of
 # rebuilding it locally.
