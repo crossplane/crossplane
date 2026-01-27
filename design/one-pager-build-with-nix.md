@@ -16,9 +16,9 @@ Building and releasing Crossplane is pretty complex. Our build system must:
 * Run a complex mesh of E2E tests (in a `kind` cluster)
 * Publish everything to OCI registries and https://releases.crossplane.io
 
-Two years ago we [migrated from the Make-based [build submodule][build] to
-[Earthly][earthly]. Most maintainers disliked working with advanced Make, and the
-git submodule workflow added friction to build changes. Builds also weren't
+Two years ago we migrated from the Make-based [build submodule][build] to
+[Earthly][earthly]. Most maintainers disliked working with advanced Make, and
+the git submodule workflow added friction to build changes. Builds also weren't
 hermetic. The submodule pinned most tools but relied on your system's Go
 toolchain, `sed` nuances, etc.
 
