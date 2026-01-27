@@ -40,6 +40,7 @@ import (
 	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
@@ -70,6 +71,7 @@ type Inputs struct {
 	FunctionsFile        string
 	FunctionAnnotations  []string // Annotations to apply to all functions (KEY=VALUE format)
 	WriteExpectedOutputs bool     // If true, write/update OutputFile for each test instead of comparing
+	IncludeFullXR        bool
 }
 
 // Outputs contains test results.
@@ -153,7 +155,12 @@ func Test(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) {
 	// Process tests sequentially
 	results := make(map[string]render.Outputs)
 	for _, dir := range testDirs {
-		output, err := renderTest(ctx, log, in.FileSystem, dir, functions)
+		output, err := renderTest(ctx, log, renderConfiguration{
+			filesystem:    in.FileSystem,
+			dir:           dir,
+			functions:     functions,
+			includeFullXR: in.IncludeFullXR,
+		})
 		if err != nil {
 			return Outputs{}, errors.Wrapf(err, "failed to process %q", dir)
 		}
@@ -328,22 +335,29 @@ func findTestDirectories(filesystem afero.Fs, testDir string) ([]string, error) 
 	return testDirs, err
 }
 
-// renderTest renders a single test directory.
-func renderTest(ctx context.Context, log logging.Logger, filesystem afero.Fs, dir string, functions []pkgv1.Function) (render.Outputs, error) {
-	log.Debug("Processing test directory", "directory", dir)
+type renderConfiguration struct {
+	filesystem    afero.Fs
+	dir           string
+	functions     []pkgv1.Function
+	includeFullXR bool
+}
 
-	compositeResource, err := loadCompositeResource(filesystem, dir)
+// renderTest renders a single test directory.
+func renderTest(ctx context.Context, log logging.Logger, rc renderConfiguration) (render.Outputs, error) {
+	log.Debug("Processing test directory", "directory", rc.dir)
+
+	compositeResource, err := loadCompositeResource(rc.filesystem, rc.dir)
 	if err != nil {
 		return render.Outputs{}, err
 	}
 
-	compositionName, err := extractCompositionName(compositeResource, dir)
+	compositionName, err := extractCompositionName(compositeResource, rc.dir)
 	if err != nil {
 		return render.Outputs{}, err
 	}
 	log.Debug("Found composition reference", "name", compositionName)
 
-	composition, err := findComposition(filesystem, ".", compositionName)
+	composition, err := findComposition(rc.filesystem, ".", compositionName)
 	if err != nil {
 		return render.Outputs{}, errors.Wrapf(err, "cannot find composition for %q", compositionName)
 	}
@@ -351,15 +365,41 @@ func renderTest(ctx context.Context, log logging.Logger, filesystem afero.Fs, di
 	renderInputs := render.Inputs{
 		CompositeResource: compositeResource,
 		Composition:       composition,
-		Functions:         functions,
+		Functions:         rc.functions,
 		Context:           make(map[string][]byte),
 	}
 
-	if err := loadOptionalResources(filesystem, dir, &renderInputs, log); err != nil {
+	if err := loadOptionalResources(rc.filesystem, rc.dir, &renderInputs, log); err != nil {
 		return render.Outputs{}, err
 	}
 
-	return render.Render(ctx, log, renderInputs)
+	out, err := render.Render(ctx, log, renderInputs)
+	if err != nil {
+		return render.Outputs{}, errors.Wrap(err, "cannot render composite resource")
+	}
+
+	// from cmd/crank/render/cmd.go:304
+	if rc.includeFullXR {
+		xrSpec, err := fieldpath.Pave(compositeResource.Object).GetValue("spec")
+		if err != nil {
+			return render.Outputs{}, errors.Wrapf(err, "cannot get composite resource spec")
+		}
+
+		if err := fieldpath.Pave(out.CompositeResource.Object).SetValue("spec", xrSpec); err != nil {
+			return render.Outputs{}, errors.Wrapf(err, "cannot set composite resource spec")
+		}
+
+		xrMeta, err := fieldpath.Pave(compositeResource.Object).GetValue("metadata")
+		if err != nil {
+			return render.Outputs{}, errors.Wrapf(err, "cannot get composite resource metadata")
+		}
+
+		if err := fieldpath.Pave(out.CompositeResource.Object).SetValue("metadata", xrMeta); err != nil {
+			return render.Outputs{}, errors.Wrapf(err, "cannot set composite resource metadata")
+		}
+	}
+
+	return out, nil
 }
 
 // writeExpectedOutputs writes the rendered outputs to files.
