@@ -11,7 +11,12 @@
 let
   # Build a Go binary for a specific platform.
   goBinary =
-    { version, pname, subPackage, platform }:
+    {
+      version,
+      pname,
+      subPackage,
+      platform,
+    }:
     let
       ext = if platform.os == "windows" then ".exe" else "";
     in
@@ -55,7 +60,11 @@ let
 
   # Build OCI image arguments for dockerTools.
   mkImageArgs =
-    { version, crossplaneBin, arch }:
+    {
+      version,
+      crossplaneBin,
+      arch,
+    }:
     let
       passwd = pkgs.writeText "passwd" ''
         root:x:0:0:root:/root:/sbin/nologin
@@ -96,7 +105,9 @@ let
 
       config = {
         Entrypoint = [ "/bin/crossplane" ];
-        ExposedPorts = { "8080/tcp" = { }; };
+        ExposedPorts = {
+          "8080/tcp" = { };
+        };
         User = "65532";
         Env = [
           "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -111,12 +122,21 @@ let
 
   # Build crank tarball with checksums.
   crankBundle =
-    { version, crankDrv, platform }:
+    {
+      version,
+      crankDrv,
+      platform,
+    }:
     let
       ext = if platform.os == "windows" then ".exe" else "";
     in
     pkgs.runCommand "crank-bundle-${platform.os}-${platform.arch}-${version}"
-      { nativeBuildInputs = [ pkgs.gnutar pkgs.gzip ]; }
+      {
+        nativeBuildInputs = [
+          pkgs.gnutar
+          pkgs.gzip
+        ];
+      }
       ''
         mkdir -p $out
         cp ${crankDrv}/bin/crank${ext} .
@@ -141,18 +161,16 @@ in
             subPackage = "cmd/crossplane";
             platform = p;
           };
-          image = pkgs.dockerTools.buildLayeredImage (
-            mkImageArgs {
+          image = pkgs.dockerTools.buildLayeredImage (mkImageArgs {
+            inherit version;
+            inherit (p) arch;
+            crossplaneBin = goBinary {
               inherit version;
-              arch = p.arch;
-              crossplaneBin = goBinary {
-                inherit version;
-                pname = "crossplane";
-                subPackage = "cmd/crossplane";
-                platform = p;
-              };
-            }
-          );
+              pname = "crossplane";
+              subPackage = "cmd/crossplane";
+              platform = p;
+            };
+          });
         };
       }) platforms
     );
@@ -209,13 +227,20 @@ in
         inherit version;
         pname = "crossplane";
         subPackage = "cmd/crossplane";
-        platform = { os = "linux"; inherit arch; };
+        platform = {
+          os = "linux";
+          inherit arch;
+        };
       };
     };
 
   # Full release package with all artifacts.
   release =
-    { version, goPlatforms, imagePlatforms }:
+    {
+      version,
+      goPlatforms,
+      imagePlatforms,
+    }:
     let
       chartVersion = builtins.substring 1 (-1) version;
 
@@ -248,13 +273,11 @@ in
           name = "${p.os}-${p.arch}";
           value = {
             bin = crossplaneBins."${p.os}-${p.arch}";
-            image = pkgs.dockerTools.buildLayeredImage (
-              mkImageArgs {
-                inherit version;
-                arch = p.arch;
-                crossplaneBin = crossplaneBins."${p.os}-${p.arch}";
-              }
-            );
+            image = pkgs.dockerTools.buildLayeredImage (mkImageArgs {
+              inherit version;
+              inherit (p) arch;
+              crossplaneBin = crossplaneBins."${p.os}-${p.arch}";
+            });
           };
         }) imagePlatforms
       );
@@ -270,16 +293,17 @@ in
         }) goPlatforms
       );
 
-      chart = pkgs.runCommand "crossplane-helm-chart-${chartVersion}"
-        { nativeBuildInputs = [ pkgs.kubernetes-helm ]; }
-        ''
-          mkdir -p $out
-          cp -r ${self}/cluster/charts/crossplane chart
-          chmod -R u+w chart
-          cd chart
-          helm dependency update 2>/dev/null || true
-          helm package --version ${chartVersion} --app-version ${chartVersion} -d $out .
-        '';
+      chart =
+        pkgs.runCommand "crossplane-helm-chart-${chartVersion}"
+          { nativeBuildInputs = [ pkgs.kubernetes-helm ]; }
+          ''
+            mkdir -p $out
+            cp -r ${self}/cluster/charts/crossplane chart
+            chmod -R u+w chart
+            cd chart
+            helm dependency update 2>/dev/null || true
+            helm package --version ${chartVersion} --app-version ${chartVersion} -d $out .
+          '';
     in
     pkgs.runCommand "crossplane-release-${version}" { } ''
       mkdir -p $out/bin $out/bundle $out/charts $out/images

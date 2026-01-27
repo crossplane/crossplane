@@ -144,17 +144,17 @@
           tidy = apps.tidy { };
           e2e = apps.e2e {
             inherit version;
-            image = images."linux-${nativeArch}".image;
+            inherit (images."linux-${nativeArch}") image;
             bin = build.e2e { inherit version; };
           };
           hack = apps.hack {
             inherit version;
-            image = images."linux-${nativeArch}".image;
+            inherit (images."linux-${nativeArch}") image;
             chart = build.chart { inherit version; };
           };
           push-images = apps.pushImages {
             inherit version;
-            images = images;
+            inherit images;
             platforms = imagePlatforms;
           };
           push-artifacts = apps.pushArtifacts {

@@ -70,7 +70,7 @@
 
   # Run Helm linter
   helmLint =
-    { }:
+    _:
     pkgs.runCommand "crossplane-helm-lint"
       {
         nativeBuildInputs = [ pkgs.kubernetes-helm ];
@@ -144,7 +144,7 @@
 
   # Run Nix linters (statix, deadnix, nixfmt)
   nixLint =
-    { }:
+    _:
     pkgs.runCommand "crossplane-nix-lint"
       {
         nativeBuildInputs = [

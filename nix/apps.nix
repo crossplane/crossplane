@@ -15,22 +15,20 @@
 { pkgs }:
 {
   # Run Go unit tests.
-  test =
-    { }:
-    {
-      type = "app";
-      meta.description = "Run unit tests";
-      program = pkgs.lib.getExe (
-        pkgs.writeShellApplication {
-          name = "crossplane-test";
-          runtimeInputs = [ pkgs.go ];
-          text = ''
-            export CGO_ENABLED=0
-            go test -covermode=count ./apis/... ./cmd/... ./internal/... "$@"
-          '';
-        }
-      );
-    };
+  test = _: {
+    type = "app";
+    meta.description = "Run unit tests";
+    program = pkgs.lib.getExe (
+      pkgs.writeShellApplication {
+        name = "crossplane-test";
+        runtimeInputs = [ pkgs.go ];
+        text = ''
+          export CGO_ENABLED=0
+          go test -covermode=count ./apis/... ./cmd/... ./internal/... "$@"
+        '';
+      }
+    );
+  };
 
   # Run golangci-lint.
   lint =
@@ -57,72 +55,68 @@
     };
 
   # Run code generation.
-  generate =
-    { }:
-    {
-      type = "app";
-      meta.description = "Run code generation";
-      program = pkgs.lib.getExe (
-        pkgs.writeShellApplication {
-          name = "crossplane-generate";
-          runtimeInputs = [
-            pkgs.go
-            pkgs.kubectl
-            pkgs.helm-docs
+  generate = _: {
+    type = "app";
+    meta.description = "Run code generation";
+    program = pkgs.lib.getExe (
+      pkgs.writeShellApplication {
+        name = "crossplane-generate";
+        runtimeInputs = [
+          pkgs.go
+          pkgs.kubectl
+          pkgs.helm-docs
 
-            # Code generation
-            pkgs.buf
-            pkgs.goverter
-            pkgs.protoc-gen-go
-            pkgs.protoc-gen-go-grpc
-            pkgs.kubernetes-controller-tools
-          ];
-          text = ''
-            export CGO_ENABLED=0
+          # Code generation
+          pkgs.buf
+          pkgs.goverter
+          pkgs.protoc-gen-go
+          pkgs.protoc-gen-go-grpc
+          pkgs.kubernetes-controller-tools
+        ];
+        text = ''
+          export CGO_ENABLED=0
 
-            echo "Running go generate..."
-            go generate -tags generate .
+          echo "Running go generate..."
+          go generate -tags generate .
 
-            echo "Patching CRDs..."
-            kubectl patch --local --type=json \
-              --patch-file cluster/crd-patches/pkg.crossplane.io_deploymentruntimeconfigs.yaml \
-              --filename cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml \
-              --output=yaml > /tmp/patched.yaml \
-              && mv /tmp/patched.yaml cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml
+          echo "Patching CRDs..."
+          kubectl patch --local --type=json \
+            --patch-file cluster/crd-patches/pkg.crossplane.io_deploymentruntimeconfigs.yaml \
+            --filename cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml \
+            --output=yaml > /tmp/patched.yaml \
+            && mv /tmp/patched.yaml cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml
 
-            echo "Generating Helm chart docs..."
-            helm-docs --chart-search-root=cluster/charts
+          echo "Generating Helm chart docs..."
+          helm-docs --chart-search-root=cluster/charts
 
-            echo "Done"
-          '';
-        }
-      );
-    };
+          echo "Done"
+        '';
+      }
+    );
+  };
 
   # Run go mod tidy and regenerate gomod2nix.toml.
-  tidy =
-    { }:
-    {
-      type = "app";
-      meta.description = "Run go mod tidy and regenerate gomod2nix.toml";
-      program = pkgs.lib.getExe (
-        pkgs.writeShellApplication {
-          name = "crossplane-tidy";
-          runtimeInputs = [
-            pkgs.go
-            pkgs.gomod2nix
-          ];
-          text = ''
-            export CGO_ENABLED=0
-            echo "Running go mod tidy..."
-            go mod tidy
-            echo "Regenerating gomod2nix.toml..."
-            gomod2nix generate --with-deps
-            echo "Done"
-          '';
-        }
-      );
-    };
+  tidy = _: {
+    type = "app";
+    meta.description = "Run go mod tidy and regenerate gomod2nix.toml";
+    program = pkgs.lib.getExe (
+      pkgs.writeShellApplication {
+        name = "crossplane-tidy";
+        runtimeInputs = [
+          pkgs.go
+          pkgs.gomod2nix
+        ];
+        text = ''
+          export CGO_ENABLED=0
+          echo "Running go mod tidy..."
+          go mod tidy
+          echo "Regenerating gomod2nix.toml..."
+          gomod2nix generate --with-deps
+          echo "Done"
+        '';
+      }
+    );
+  };
 
   # Stream OCI image tarball to stdout (pipe to docker load).
   streamImage =
@@ -285,75 +279,71 @@
     };
 
   # Promote images to a release channel.
-  promoteImages =
-    { }:
-    {
-      type = "app";
-      meta.description = "Promote images to a release channel";
-      program = pkgs.lib.getExe (
-        pkgs.writeShellApplication {
-          name = "crossplane-promote-images";
-          runtimeInputs = [ pkgs.docker-client ];
-          text = ''
-            REPO="''${1:?Usage: nix run .#promote-images -- <registry/image> <version> <channel>}"
-            VERSION="''${2:?Usage: nix run .#promote-images -- <registry/image> <version> <channel>}"
-            CHANNEL="''${3:?Usage: nix run .#promote-images -- <registry/image> <version> <channel>}"
+  promoteImages = _: {
+    type = "app";
+    meta.description = "Promote images to a release channel";
+    program = pkgs.lib.getExe (
+      pkgs.writeShellApplication {
+        name = "crossplane-promote-images";
+        runtimeInputs = [ pkgs.docker-client ];
+        text = ''
+          REPO="''${1:?Usage: nix run .#promote-images -- <registry/image> <version> <channel>}"
+          VERSION="''${2:?Usage: nix run .#promote-images -- <registry/image> <version> <channel>}"
+          CHANNEL="''${3:?Usage: nix run .#promote-images -- <registry/image> <version> <channel>}"
 
-            echo "Promoting ''${REPO}:''${VERSION} to channel ''${CHANNEL}..."
-            docker buildx imagetools create \
-              --tag "''${REPO}:''${CHANNEL}" \
-              --tag "''${REPO}:''${VERSION}-''${CHANNEL}" \
-              "''${REPO}:''${VERSION}"
-            echo "Done"
-          '';
-        }
-      );
-    };
+          echo "Promoting ''${REPO}:''${VERSION} to channel ''${CHANNEL}..."
+          docker buildx imagetools create \
+            --tag "''${REPO}:''${CHANNEL}" \
+            --tag "''${REPO}:''${VERSION}-''${CHANNEL}" \
+            "''${REPO}:''${VERSION}"
+          echo "Done"
+        '';
+      }
+    );
+  };
 
   # Promote build artifacts to a release channel.
-  promoteArtifacts =
-    { }:
-    {
-      type = "app";
-      meta.description = "Promote build artifacts to a release channel";
-      program = pkgs.lib.getExe (
-        pkgs.writeShellApplication {
-          name = "crossplane-promote-artifacts";
-          runtimeInputs = [
-            pkgs.awscli2
-            pkgs.kubernetes-helm
-          ];
-          text = ''
-            BRANCH="''${1:?Usage: nix run .#promote-artifacts -- <branch> <version> <channel> [--prerelease]}"
-            VERSION="''${2:?Usage: nix run .#promote-artifacts -- <branch> <version> <channel> [--prerelease]}"
-            CHANNEL="''${3:?Usage: nix run .#promote-artifacts -- <branch> <version> <channel> [--prerelease]}"
-            PRERELEASE="''${4:-}"
+  promoteArtifacts = _: {
+    type = "app";
+    meta.description = "Promote build artifacts to a release channel";
+    program = pkgs.lib.getExe (
+      pkgs.writeShellApplication {
+        name = "crossplane-promote-artifacts";
+        runtimeInputs = [
+          pkgs.awscli2
+          pkgs.kubernetes-helm
+        ];
+        text = ''
+          BRANCH="''${1:?Usage: nix run .#promote-artifacts -- <branch> <version> <channel> [--prerelease]}"
+          VERSION="''${2:?Usage: nix run .#promote-artifacts -- <branch> <version> <channel> [--prerelease]}"
+          CHANNEL="''${3:?Usage: nix run .#promote-artifacts -- <branch> <version> <channel> [--prerelease]}"
+          PRERELEASE="''${4:-}"
 
-            BUILD_PATH="s3://crossplane-releases/build/''${BRANCH}/''${VERSION}"
-            CHANNEL_PATH="s3://crossplane-releases/''${CHANNEL}"
-            CHARTS_PATH="s3://crossplane-helm-charts/''${CHANNEL}"
+          BUILD_PATH="s3://crossplane-releases/build/''${BRANCH}/''${VERSION}"
+          CHANNEL_PATH="s3://crossplane-releases/''${CHANNEL}"
+          CHARTS_PATH="s3://crossplane-helm-charts/''${CHANNEL}"
 
-            WORKDIR=$(mktemp -d)
-            trap 'rm -rf "$WORKDIR"' EXIT
+          WORKDIR=$(mktemp -d)
+          trap 'rm -rf "$WORKDIR"' EXIT
 
-            echo "Promoting artifacts from ''${BUILD_PATH} to ''${CHANNEL}..."
+          echo "Promoting artifacts from ''${BUILD_PATH} to ''${CHANNEL}..."
 
-            aws s3 sync --only-show-errors "''${CHARTS_PATH}" "$WORKDIR/" || true
-            aws s3 sync --only-show-errors "''${BUILD_PATH}/charts" "$WORKDIR/"
-            helm repo index --url "https://charts.crossplane.io/''${CHANNEL}" "$WORKDIR/"
-            aws s3 sync --delete --only-show-errors "$WORKDIR/" "''${CHARTS_PATH}"
-            aws s3 cp --only-show-errors --cache-control "private, max-age=0, no-transform" \
-              "$WORKDIR/index.yaml" "''${CHARTS_PATH}/index.yaml"
+          aws s3 sync --only-show-errors "''${CHARTS_PATH}" "$WORKDIR/" || true
+          aws s3 sync --only-show-errors "''${BUILD_PATH}/charts" "$WORKDIR/"
+          helm repo index --url "https://charts.crossplane.io/''${CHANNEL}" "$WORKDIR/"
+          aws s3 sync --delete --only-show-errors "$WORKDIR/" "''${CHARTS_PATH}"
+          aws s3 cp --only-show-errors --cache-control "private, max-age=0, no-transform" \
+            "$WORKDIR/index.yaml" "''${CHARTS_PATH}/index.yaml"
 
-            aws s3 sync --delete --only-show-errors "''${BUILD_PATH}" "''${CHANNEL_PATH}/''${VERSION}"
+          aws s3 sync --delete --only-show-errors "''${BUILD_PATH}" "''${CHANNEL_PATH}/''${VERSION}"
 
-            if [ "''${PRERELEASE}" != "--prerelease" ]; then
-              aws s3 sync --delete --only-show-errors "''${BUILD_PATH}" "''${CHANNEL_PATH}/current"
-            fi
+          if [ "''${PRERELEASE}" != "--prerelease" ]; then
+            aws s3 sync --delete --only-show-errors "''${BUILD_PATH}" "''${CHANNEL_PATH}/current"
+          fi
 
-            echo "Done"
-          '';
-        }
-      );
-    };
+          echo "Done"
+        '';
+      }
+    );
+  };
 }
