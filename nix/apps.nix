@@ -214,6 +214,14 @@
             echo ""
             echo "Crossplane is running in kind cluster '$CLUSTER_NAME'."
             kubectl get pods -n crossplane-system
+
+            # When running via nix.sh, the cluster is inside the container. Drop
+            # into a dev shell so the user can interact with it before exiting.
+            if [ "''${NIX_SH_CONTAINER:-}" = "1" ]; then
+              echo ""
+              echo "Entering development shell (exit to stop)..."
+              exec nix develop
+            fi
           '';
         }
       );
