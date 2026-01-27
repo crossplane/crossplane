@@ -141,4 +141,23 @@
         touch $out/.generate-passed
       '';
     };
+
+  # Run Nix linters (statix, deadnix, nixfmt)
+  nixLint =
+    { }:
+    pkgs.runCommand "crossplane-nix-lint"
+      {
+        nativeBuildInputs = [
+          pkgs.statix
+          pkgs.deadnix
+          pkgs.nixfmt-rfc-style
+        ];
+      }
+      ''
+        statix check ${self}
+        deadnix --fail ${self}/flake.nix ${self}/nix
+        nixfmt --check ${self}/flake.nix ${self}/nix/*.nix
+        mkdir -p $out
+        touch $out/.nix-lint-passed
+      '';
 }

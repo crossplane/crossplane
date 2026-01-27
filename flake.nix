@@ -118,9 +118,10 @@
         in
         {
           test = checks.test { inherit version; };
+          generate = checks.generate { inherit version; };
           go-lint = checks.goLint { inherit version; };
           helm-lint = checks.helmLint { };
-          generate = checks.generate { inherit version; };
+          nix-lint = checks.nixLint { };
         }
       );
 
@@ -200,6 +201,9 @@
               pkgs.protoc-gen-go
               pkgs.protoc-gen-go-grpc
               pkgs.kubernetes-controller-tools
+
+              # Nix
+              pkgs.nixfmt-rfc-style
             ];
 
             shellHook = ''
