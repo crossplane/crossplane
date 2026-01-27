@@ -808,15 +808,15 @@ func TestImageConfigVerificationKeyless(t *testing.T) {
 	)
 }
 
-// TestImageConfigAttestationVerificationPrivateKeyless tests that we can verify signature and attestations on a private
-// provider when signed keyless.
+// TestImageConfigAttestationVerificationPrivateKeylessCosignV2 tests that we can verify signature and attestations on a private
+// provider when signed keyless using cosign v2.
 // The providers used in this test are built and pushed manually with the necessary signatures and attestations, they
 // are just a copy of the provider-nop package.
-func TestImageConfigAttestationVerificationPrivateKeyless(t *testing.T) {
+func TestImageConfigAttestationVerificationPrivateKeylessCosignV2(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/image-config/signature-verification/keyless-private-with-attestation"
 
 	environment.Test(t,
-		features.NewWithDescription(t.Name(), "Tests that we can verify signature and attestations on a private provider when signed keyless.").
+		features.NewWithDescription(t.Name(), "Tests that we can verify signature and attestations on a private provider when signed keyless with cosign v2.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, SuitePackageSignatureVerification).
@@ -825,23 +825,56 @@ func TestImageConfigAttestationVerificationPrivateKeyless(t *testing.T) {
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "image-config.yaml"),
 			)).
 			WithSetup("ApplyUnsignedPackage", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "provider-unsigned.yaml"),
-				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-unsigned.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "provider-unsigned-cosign-v2.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-unsigned-cosign-v2.yaml"),
 			)).
 			Assess("SignatureVerificationFailed", funcs.AllOf(
 				// Verification fails before the revision is created, so only the
 				// Provider exists and it's stuck unpacking.
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless"}}, pkgv1.Unpacking(), pkgv1.Unhealthy()),
+				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-v2"}}, pkgv1.Unpacking(), pkgv1.Unhealthy()),
 			)).
 			Assess("SignatureVerificationSucceeded", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "provider-signed.yaml"),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-37f3300ebfa7"}}, pkgv1.RevisionHealthy()),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless"}}, pkgv1.Active(), pkgv1.Healthy()),
+				funcs.ApplyResources(FieldManager, manifests, "provider-signed-cosign-v2.yaml"),
+				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-v2-37f3300ebfa7"}}, pkgv1.RevisionHealthy()),
+				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-v2"}}, pkgv1.Active(), pkgv1.Healthy()),
 			)).
 			WithTeardown("DeletePackageAndImageConfig", funcs.AllOf(
 				funcs.DeleteResources(manifests, "image-config.yaml"),
-				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider-signed.yaml", metav1.DeletePropagationForeground),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-signed.yaml"),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider-signed-cosign-v2.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-signed-cosign-v2.yaml"),
+				// Providers are a copy of provider-nop, so waiting until nop
+				// CRD is gone is sufficient to ensure the provider completely
+				// deleted including all revisions.
+				funcs.ResourceDeletedWithin(2*time.Minute, &k8sapiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}}),
+			)).Feature(),
+	)
+}
+
+// TestImageConfigAttestationVerificationPrivateKeylessCosignV3 tests that we can verify signature and attestations on a private
+// provider when signed keyless using cosign v3.
+// The providers used in this test are built and pushed manually with the necessary signatures and attestations, they
+// are just a copy of the provider-nop package.
+func TestImageConfigAttestationVerificationPrivateKeylessCosignV3(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/image-config/signature-verification/keyless-private-with-attestation"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that we can verify signature and attestations on a private provider when signed keyless with cosign v3.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuitePackageSignatureVerification).
+			WithSetup("ApplyImageConfig", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "image-config.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "image-config.yaml"),
+			)).
+			Assess("SignatureVerificationSucceeded", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-signed-cosign-v3.yaml"),
+				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-v3-37f3300ebfa7"}}, pkgv1.RevisionHealthy()),
+				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-v3"}}, pkgv1.Active(), pkgv1.Healthy()),
+			)).
+			WithTeardown("DeletePackageAndImageConfig", funcs.AllOf(
+				funcs.DeleteResources(manifests, "image-config.yaml"),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider-signed-cosign-v3.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-signed-cosign-v3.yaml"),
 				// Providers are a copy of provider-nop, so waiting until nop
 				// CRD is gone is sufficient to ensure the provider completely
 				// deleted including all revisions.
