@@ -87,6 +87,8 @@ func (e *SocketPipelineInspector) EmitRequest(ctx context.Context, req *fnv1.Run
 	redactCredentials(sanitizedReq.GetCredentials())
 	sanitizeState(sanitizedReq.GetObserved())
 	sanitizeState(sanitizedReq.GetDesired())
+	sanitizeRequiredResources(sanitizedReq.GetRequiredResources())
+	sanitizeRequiredResources(sanitizedReq.GetExtraResources()) //nolint:staticcheck // Supporting deprecated field for backward compatibility
 
 	// Serialize the request to JSON bytes.
 	reqBytes, err := protojson.Marshal(sanitizedReq)
@@ -164,6 +166,18 @@ func sanitizeState(state *fnv1.State) {
 	for _, cr := range state.GetResources() {
 		redactConnectionDetails(cr.GetConnectionDetails())
 		stripSecretData(cr.GetResource())
+	}
+}
+
+// sanitizeRequiredResources redacts sensitive data from required resources,
+// including connection details from all resources, and the data field from any
+// Secret resources.
+func sanitizeRequiredResources(resources map[string]*fnv1.Resources) {
+	for _, res := range resources {
+		for _, r := range res.GetItems() {
+			redactConnectionDetails(r.GetConnectionDetails())
+			stripSecretData(r.GetResource())
+		}
 	}
 }
 
