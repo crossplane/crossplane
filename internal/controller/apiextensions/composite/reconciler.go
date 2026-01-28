@@ -135,6 +135,11 @@ func (fn CompositionRevisionSelectorFn) SelectCompositionRevision(ctx context.Co
 	return fn(ctx, cr)
 }
 
+// NewNopCompositionRevisionSelector returns a CompositionRevisionSelector that does nothing.
+func NewNopCompositionRevisionSelector() CompositionRevisionSelector {
+	return CompositionRevisionSelectorFn(func(_ context.Context, _ resource.Composite) error { return nil })
+}
+
 // A ConnectionPublisher publishes the supplied ConnectionDetails for the
 // supplied resource.
 type ConnectionPublisher interface {
@@ -463,9 +468,10 @@ func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...Rec
 		},
 
 		composite: compositeResource{
-			Finalizer:           resource.NewAPIFinalizer(cached, finalizer),
-			CompositionSelector: NewAPILabelSelectorResolver(cached),
-			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(cached), NewAPIConfigurator(cached)),
+			Finalizer:                   resource.NewAPIFinalizer(cached, finalizer),
+			CompositionSelector:         NewAPILabelSelectorResolver(cached),
+			CompositionRevisionSelector: NewNopCompositionRevisionSelector(),
+			Configurator:                NewConfiguratorChain(NewAPINamingConfigurator(cached), NewAPIConfigurator(cached)),
 
 			// Modern v2 XRs don't support connection details, but
 			// legacy v1 XRs do. Publishing is disabled by default.
@@ -629,18 +635,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	origCompRev := xr.GetCompositionRevisionReference()
-	if r.composite.CompositionRevisionSelector != nil {
-		if err := r.composite.SelectCompositionRevision(ctx, xr); err != nil {
-			if kerrors.IsConflict(err) {
-				return reconcile.Result{Requeue: true}, nil
-			}
-			err = errors.Wrap(err, errSelectCompRev)
-			r.record.Event(xr, event.Warning(reasonResolve, err))
-			status.MarkConditions(xpv1.ReconcileError(err))
-			_ = r.client.Status().Update(updateCtx, xr)
-
-			return reconcile.Result{}, err
+	if err := r.composite.SelectCompositionRevision(ctx, xr); err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
 		}
+		err = errors.Wrap(err, errSelectCompRev)
+		r.record.Event(xr, event.Warning(reasonResolve, err))
+		status.MarkConditions(xpv1.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
+
+		return reconcile.Result{}, err
 	}
 
 	if compRevRef := xr.GetCompositionRevisionReference(); compRevRef != nil && (origCompRev == nil || *compRevRef != *origCompRev) {
