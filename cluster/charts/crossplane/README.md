@@ -143,6 +143,7 @@ and their default values.
 | `topologySpreadConstraints` | Add `topologySpreadConstraints` to the Crossplane pod deployment. | `[]` |
 | `webhooks.enabled` | Enable webhooks for Crossplane and installed Provider packages. | `true` |
 | `webhooks.port` | The port the webhook server listens on. | `""` |
+| `webhooks.providerDeletionProtection.enabled` | Enable provider deletion protection webhook that prevents deletion of providers with active managed resources. | `true` |
 
 ### Command Line
 

@@ -1,0 +1,27 @@
+---
+# Provider deletion validation webhook
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: crossplane-provider-deletion
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: webhook-service
+        namespace: system
+        path: /validate-provider-deletion
+    failurePolicy: Fail
+    name: providerdeletion.pkg.crossplane.io
+    rules:
+      - apiGroups:
+          - pkg.crossplane.io
+        apiVersions:
+          - v1
+          - v1beta1
+        operations:
+          - DELETE
+        resources:
+          - providers
+    sideEffects: None
