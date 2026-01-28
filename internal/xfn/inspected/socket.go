@@ -82,10 +82,7 @@ func (e *SocketPipelineInspector) EmitRequest(ctx context.Context, req *fnv1.Run
 	}
 
 	// Create a copy with sensitive data redacted for security.
-	sanitizedReq, ok := proto.Clone(req).(*fnv1.RunFunctionRequest)
-	if !ok {
-		return errors.New("failed to clone pipeline request for sanitization")
-	}
+	sanitizedReq := proto.CloneOf[*fnv1.RunFunctionRequest](req)
 
 	redactCredentials(sanitizedReq.GetCredentials())
 	sanitizeState(sanitizedReq.GetObserved())
