@@ -109,6 +109,10 @@ func (e *SocketPipelineInspector) EmitResponse(ctx context.Context, rsp *fnv1.Ru
 	if meta == nil {
 		return errors.New("step metadata is required to emit pipeline response")
 	}
+	sanitizedRsp := proto.CloneOf[*fnv1.RunFunctionResponse](rsp)
+
+	sanitizeState(sanitizedRsp.GetDesired())
+
 	errMsg := ""
 	if fnErr != nil {
 		errMsg = fnErr.Error()
@@ -118,7 +122,7 @@ func (e *SocketPipelineInspector) EmitResponse(ctx context.Context, rsp *fnv1.Ru
 	var rspBytes []byte
 	if rsp != nil {
 		var err error
-		rspBytes, err = protojson.Marshal(rsp)
+		rspBytes, err = protojson.Marshal(sanitizedRsp)
 		if err != nil {
 			return errors.Wrapf(err, "failed to marshal pipeline response for function %s", meta.GetFunctionName())
 		}
