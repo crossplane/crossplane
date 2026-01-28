@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
 
+	pipelinev1alpha1 "github.com/crossplane/crossplane-runtime/v2/apis/pipelineinspector/proto/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
@@ -45,19 +46,19 @@ type MockPipelineInspector struct {
 	EmitResponseErr    error
 	LastRequest        *fnv1.RunFunctionRequest
 	LastResponse       *fnv1.RunFunctionResponse
-	LastRequestMeta    *step.Metadata
-	LastResponseMeta   *step.Metadata
+	LastRequestMeta    *pipelinev1alpha1.StepMeta
+	LastResponseMeta   *pipelinev1alpha1.StepMeta
 	LastResponseErr    error
 }
 
-func (m *MockPipelineInspector) EmitRequest(_ context.Context, req *fnv1.RunFunctionRequest, meta *step.Metadata) error {
+func (m *MockPipelineInspector) EmitRequest(_ context.Context, req *fnv1.RunFunctionRequest, meta *pipelinev1alpha1.StepMeta) error {
 	m.EmitRequestCalled = true
 	m.LastRequest = req
 	m.LastRequestMeta = meta
 	return m.EmitRequestErr
 }
 
-func (m *MockPipelineInspector) EmitResponse(_ context.Context, rsp *fnv1.RunFunctionResponse, err error, meta *step.Metadata) error {
+func (m *MockPipelineInspector) EmitResponse(_ context.Context, rsp *fnv1.RunFunctionResponse, err error, meta *pipelinev1alpha1.StepMeta) error {
 	m.EmitResponseCalled = true
 	m.LastResponse = rsp
 	m.LastResponseMeta = meta
@@ -333,22 +334,22 @@ func TestRunFunctionMetadataConsistency(t *testing.T) {
 
 	// Verify metadata fields.
 	meta := inspector.LastRequestMeta
-	if meta.TraceID != "trace-abc" {
-		t.Errorf("expected TraceID 'trace-abc', got %q", meta.TraceID)
+	if meta.GetTraceId() != "trace-abc" {
+		t.Errorf("expected TraceID 'trace-abc', got %q", meta.GetTraceId())
 	}
-	if meta.StepIndex != 2 {
-		t.Errorf("expected StepIndex 2, got %d", meta.StepIndex)
+	if meta.GetStepIndex() != 2 {
+		t.Errorf("expected StepIndex 2, got %d", meta.GetStepIndex())
 	}
-	if meta.CompositionName != "test-composition" {
-		t.Errorf("expected CompositionName 'test-composition', got %q", meta.CompositionName)
+	if meta.GetCompositionName() != "test-composition" {
+		t.Errorf("expected CompositionName 'test-composition', got %q", meta.GetCompositionName())
 	}
-	if meta.Iteration != 5 {
-		t.Errorf("expected Iteration 5, got %d", meta.Iteration)
+	if meta.GetIteration() != 5 {
+		t.Errorf("expected Iteration 5, got %d", meta.GetIteration())
 	}
-	if meta.FunctionName != "my-function" {
-		t.Errorf("expected FunctionName 'my-function', got %q", meta.FunctionName)
+	if meta.GetFunctionName() != "my-function" {
+		t.Errorf("expected FunctionName 'my-function', got %q", meta.GetFunctionName())
 	}
-	if meta.SpanID == "" {
+	if meta.GetSpanId() == "" {
 		t.Error("expected SpanID to be set")
 	}
 }

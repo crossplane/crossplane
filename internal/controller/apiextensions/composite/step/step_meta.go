@@ -23,52 +23,12 @@ import (
 
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	pipelinev1alpha1 "github.com/crossplane/crossplane-runtime/v2/apis/pipelineinspector/proto/v1alpha1"
 
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
-
-// Metadata contains metadata for correlating and identifying a function
-// invocation within a pipeline execution.
-type Metadata struct {
-	// TraceID is a UUID identifying the entire pipeline execution.
-	// All function invocations within a single reconciliation share the same TraceID.
-	TraceID string
-
-	// SpanID is a UUID identifying this specific function invocation.
-	SpanID string
-
-	// Iteration counts how many times this step has been called, starting from 0.
-	// Useful for tracking retries or repeated calls to the same step.
-	Iteration int32
-
-	// StepIndex is the zero-based index of this step in the function pipeline.
-	StepIndex int32
-
-	// FunctionName is the name of the function being invoked.
-	FunctionName string
-
-	// CompositionName is the name of the Composition defining this pipeline.
-	CompositionName string
-
-	// CompositeResourceUID is the UID of the composite resource being reconciled.
-	CompositeResourceUID string
-
-	// CompositeResourceName is the name of the composite resource being reconciled.
-	CompositeResourceName string
-
-	// CompositeResourceNamespace is the namespace of the composite resource
-	// (empty for cluster-scoped resources).
-	CompositeResourceNamespace string
-
-	// CompositeResourceAPIVersion is the API version of the composite resource.
-	CompositeResourceAPIVersion string
-
-	// CompositeResourceKind is the kind of the composite resource.
-	CompositeResourceKind string
-
-	// Timestamp is when this step was executed.
-	Timestamp time.Time
-}
 
 // Context keys for pipeline step metadata.
 type contextKey string
@@ -109,10 +69,10 @@ func ContextWithStepIteration(ctx context.Context, iteration int32) context.Cont
 }
 
 // BuildMetadata builds Metadata from the given context and function request.
-func BuildMetadata(ctx context.Context, functionName string, req *fnv1.RunFunctionRequest) (*Metadata, error) {
-	meta := Metadata{
+func BuildMetadata(ctx context.Context, functionName string, req *fnv1.RunFunctionRequest) (*pipelinev1alpha1.StepMeta, error) {
+	meta := pipelinev1alpha1.StepMeta{
 		FunctionName: functionName,
-		Timestamp:    time.Now(),
+		Timestamp:    timestamppb.New(time.Now()),
 	}
 
 	if ctx == nil {
@@ -121,7 +81,7 @@ func BuildMetadata(ctx context.Context, functionName string, req *fnv1.RunFuncti
 
 	// Extract trace_id, step index, composition name, and iteration from context.
 	if v, ok := ctx.Value(ContextKeyTraceID).(string); ok {
-		meta.TraceID = v
+		meta.TraceId = v
 	} else {
 		return nil, fmt.Errorf("could not extract trace ID from context")
 	}
@@ -141,18 +101,18 @@ func BuildMetadata(ctx context.Context, functionName string, req *fnv1.RunFuncti
 	}
 
 	// Generate a unique span_id for this function invocation.
-	meta.SpanID = uuid.NewString()
+	meta.SpanId = uuid.NewString()
 
 	// Extract composite resource metadata from the request.
 	xr := req.GetObserved().GetComposite().GetResource()
 	if xr != nil {
-		meta.CompositeResourceAPIVersion = getStringField(xr, "apiVersion")
+		meta.CompositeResourceApiVersion = getStringField(xr, "apiVersion")
 		meta.CompositeResourceKind = getStringField(xr, "kind")
 
 		if metadata := getStructField(xr, "metadata"); metadata != nil {
 			meta.CompositeResourceName = getStringField(metadata, "name")
 			meta.CompositeResourceNamespace = getStringField(metadata, "namespace")
-			meta.CompositeResourceUID = getStringField(metadata, "uid")
+			meta.CompositeResourceUid = getStringField(metadata, "uid")
 		}
 	}
 

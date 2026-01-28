@@ -24,12 +24,10 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pipelinev1alpha1 "github.com/crossplane/crossplane-runtime/v2/apis/pipelineinspector/proto/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
-	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
@@ -78,7 +76,7 @@ func NewSocketPipelineInspector(socketPath string, o ...SocketPipelineInspectorO
 
 // EmitRequest emits the function request before execution. Credentials are
 // stripped from the request before emission for security.
-func (e *SocketPipelineInspector) EmitRequest(ctx context.Context, req *fnv1.RunFunctionRequest, meta *step.Metadata) error {
+func (e *SocketPipelineInspector) EmitRequest(ctx context.Context, req *fnv1.RunFunctionRequest, meta *pipelinev1alpha1.StepMeta) error {
 	if meta == nil {
 		return errors.New("step metadata is required to emit pipeline request")
 	}
@@ -96,7 +94,7 @@ func (e *SocketPipelineInspector) EmitRequest(ctx context.Context, req *fnv1.Run
 	// Serialize the request to JSON bytes.
 	reqBytes, err := protojson.Marshal(sanitizedReq)
 	if err != nil {
-		return errors.Wrapf(err, "failed to marshal pipeline request for function %s", meta.FunctionName)
+		return errors.Wrapf(err, "failed to marshal pipeline request for function %s", meta.GetFunctionName())
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, e.timeout)
@@ -104,13 +102,13 @@ func (e *SocketPipelineInspector) EmitRequest(ctx context.Context, req *fnv1.Run
 
 	_, err = e.client.EmitRequest(ctx, &pipelinev1alpha1.EmitRequestRequest{
 		Request: reqBytes,
-		Meta:    toProtoMeta(meta),
+		Meta:    meta,
 	})
-	return errors.Wrapf(err, "failed to emit pipeline request for function %s", meta.FunctionName)
+	return errors.Wrapf(err, "failed to emit pipeline request for function %s", meta.GetFunctionName())
 }
 
 // EmitResponse emits the function response after execution.
-func (e *SocketPipelineInspector) EmitResponse(ctx context.Context, rsp *fnv1.RunFunctionResponse, fnErr error, meta *step.Metadata) error {
+func (e *SocketPipelineInspector) EmitResponse(ctx context.Context, rsp *fnv1.RunFunctionResponse, fnErr error, meta *pipelinev1alpha1.StepMeta) error {
 	if meta == nil {
 		return errors.New("step metadata is required to emit pipeline response")
 	}
@@ -125,7 +123,7 @@ func (e *SocketPipelineInspector) EmitResponse(ctx context.Context, rsp *fnv1.Ru
 		var err error
 		rspBytes, err = protojson.Marshal(rsp)
 		if err != nil {
-			return errors.Wrapf(err, "failed to marshal pipeline response for function %s", meta.FunctionName)
+			return errors.Wrapf(err, "failed to marshal pipeline response for function %s", meta.GetFunctionName())
 		}
 	}
 
@@ -135,9 +133,9 @@ func (e *SocketPipelineInspector) EmitResponse(ctx context.Context, rsp *fnv1.Ru
 	_, err := e.client.EmitResponse(ctx, &pipelinev1alpha1.EmitResponseRequest{
 		Response: rspBytes,
 		Error:    errMsg,
-		Meta:     toProtoMeta(meta),
+		Meta:     meta,
 	})
-	return errors.Wrapf(err, "failed to emit pipeline response for function %s", meta.FunctionName)
+	return errors.Wrapf(err, "failed to emit pipeline response for function %s", meta.GetFunctionName())
 }
 
 // redactCredentials redacts credential data values while preserving the keys.
@@ -196,22 +194,5 @@ func stripSecretData(resource *structpb.Struct) {
 				data.Fields[k] = structpb.NewStringValue(redactedValue)
 			}
 		}
-	}
-}
-
-func toProtoMeta(meta *step.Metadata) *pipelinev1alpha1.StepMeta {
-	return &pipelinev1alpha1.StepMeta{
-		TraceId:                     meta.TraceID,
-		SpanId:                      meta.SpanID,
-		StepIndex:                   meta.StepIndex,
-		Iteration:                   meta.Iteration,
-		FunctionName:                meta.FunctionName,
-		CompositionName:             meta.CompositionName,
-		CompositeResourceUid:        meta.CompositeResourceUID,
-		CompositeResourceName:       meta.CompositeResourceName,
-		CompositeResourceNamespace:  meta.CompositeResourceNamespace,
-		CompositeResourceApiVersion: meta.CompositeResourceAPIVersion,
-		CompositeResourceKind:       meta.CompositeResourceKind,
-		Timestamp:                   timestamppb.New(meta.Timestamp),
 	}
 }

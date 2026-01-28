@@ -24,13 +24,15 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	pipelinev1alpha1 "github.com/crossplane/crossplane-runtime/v2/apis/pipelineinspector/proto/v1alpha1"
+
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
 func TestContextWithStepMeta(t *testing.T) {
 	type args struct {
 		ctx             context.Context
-		traceID         string
+		TraceID         string
 		compositionName string
 		stepIndex       int32
 		iteration       int32
@@ -40,7 +42,7 @@ func TestContextWithStepMeta(t *testing.T) {
 		reason string
 		args   args
 		want   struct {
-			traceID         string
+			TraceID         string
 			compositionName string
 			stepIndex       int32
 			iteration       int32
@@ -50,18 +52,18 @@ func TestContextWithStepMeta(t *testing.T) {
 			reason: "Should store all values in context.",
 			args: args{
 				ctx:             context.Background(),
-				traceID:         "trace-123",
+				TraceID:         "trace-123",
 				compositionName: "my-composition",
 				stepIndex:       2,
 				iteration:       3,
 			},
 			want: struct {
-				traceID         string
+				TraceID         string
 				compositionName string
 				stepIndex       int32
 				iteration       int32
 			}{
-				traceID:         "trace-123",
+				TraceID:         "trace-123",
 				compositionName: "my-composition",
 				stepIndex:       2,
 				iteration:       3,
@@ -71,18 +73,18 @@ func TestContextWithStepMeta(t *testing.T) {
 			reason: "Should create background context when nil is passed.",
 			args: args{
 				ctx:             nil,
-				traceID:         "trace-456",
+				TraceID:         "trace-456",
 				compositionName: "other-composition",
 				stepIndex:       0,
 				iteration:       0,
 			},
 			want: struct {
-				traceID         string
+				TraceID         string
 				compositionName string
 				stepIndex       int32
 				iteration       int32
 			}{
-				traceID:         "trace-456",
+				TraceID:         "trace-456",
 				compositionName: "other-composition",
 				stepIndex:       0,
 				iteration:       0,
@@ -92,14 +94,14 @@ func TestContextWithStepMeta(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ctx := ContextWithStepMeta(tc.args.ctx, tc.args.traceID, tc.args.compositionName, tc.args.stepIndex, tc.args.iteration)
+			ctx := ContextWithStepMeta(tc.args.ctx, tc.args.TraceID, tc.args.compositionName, tc.args.stepIndex, tc.args.iteration)
 
 			if ctx == nil {
 				t.Fatal("expected non-nil context")
 			}
 
-			if got := ctx.Value(ContextKeyTraceID); got != tc.want.traceID {
-				t.Errorf("\n%s\nContextWithStepMeta(...) TraceID: want %q, got %q", tc.reason, tc.want.traceID, got)
+			if got := ctx.Value(ContextKeyTraceID); got != tc.want.TraceID {
+				t.Errorf("\n%s\nContextWithStepMeta(...) TraceId: want %q, got %q", tc.reason, tc.want.TraceID, got)
 			}
 			if got := ctx.Value(ContextKeyCompositionName); got != tc.want.compositionName {
 				t.Errorf("\n%s\nContextWithStepMeta(...) CompositionName: want %q, got %q", tc.reason, tc.want.compositionName, got)
@@ -155,7 +157,7 @@ func TestBuildMetadata(t *testing.T) {
 	}
 
 	type want struct {
-		meta *Metadata
+		meta *pipelinev1alpha1.StepMeta
 		err  error
 	}
 
@@ -192,17 +194,17 @@ func TestBuildMetadata(t *testing.T) {
 				},
 			},
 			want: want{
-				meta: &Metadata{
-					TraceID:                     "trace-abc",
+				meta: &pipelinev1alpha1.StepMeta{
+					TraceId:                     "trace-abc",
 					StepIndex:                   2,
 					Iteration:                   5,
 					FunctionName:                "function-auto-ready",
 					CompositionName:             "my-composition",
-					CompositeResourceAPIVersion: "example.org/v1",
+					CompositeResourceApiVersion: "example.org/v1",
 					CompositeResourceKind:       "XDatabase",
 					CompositeResourceName:       "my-db",
 					CompositeResourceNamespace:  "default",
-					CompositeResourceUID:        "uid-123",
+					CompositeResourceUid:        "uid-123",
 				},
 			},
 		},
@@ -217,7 +219,7 @@ func TestBuildMetadata(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
-		"MissingTraceID": {
+		"MissingTraceId": {
 			reason: "Should return error when trace ID is missing from context.",
 			args: args{
 				ctx:          context.Background(),
@@ -267,8 +269,8 @@ func TestBuildMetadata(t *testing.T) {
 				req:          &fnv1.RunFunctionRequest{},
 			},
 			want: want{
-				meta: &Metadata{
-					TraceID:         "trace",
+				meta: &pipelinev1alpha1.StepMeta{
+					TraceId:         "trace",
 					StepIndex:       1,
 					Iteration:       0,
 					FunctionName:    "test-function",
@@ -284,8 +286,8 @@ func TestBuildMetadata(t *testing.T) {
 				req:          &fnv1.RunFunctionRequest{},
 			},
 			want: want{
-				meta: &Metadata{
-					TraceID:         "trace-abc",
+				meta: &pipelinev1alpha1.StepMeta{
+					TraceId:         "trace-abc",
 					StepIndex:       2,
 					Iteration:       5,
 					FunctionName:    "test-function",
@@ -301,8 +303,8 @@ func TestBuildMetadata(t *testing.T) {
 				req:          nil,
 			},
 			want: want{
-				meta: &Metadata{
-					TraceID:         "trace-abc",
+				meta: &pipelinev1alpha1.StepMeta{
+					TraceId:         "trace-abc",
 					StepIndex:       2,
 					Iteration:       5,
 					FunctionName:    "test-function",
@@ -324,19 +326,21 @@ func TestBuildMetadata(t *testing.T) {
 				return
 			}
 
-			// Check that SpanID was generated (non-empty UUID).
-			if got.SpanID == "" {
-				t.Errorf("\n%s\nBuildMetadata(...): expected SpanID to be set", tc.reason)
+			// Check that SpanId was generated (non-empty UUID).
+			if got.GetSpanId() == "" {
+				t.Errorf("\n%s\nBuildMetadata(...): expected SpanId to be set", tc.reason)
 			}
+			got.SpanId = ""
 
 			// Check that Timestamp was set.
-			if got.Timestamp.IsZero() {
+			if got.GetTimestamp().AsTime().IsZero() {
 				t.Errorf("\n%s\nBuildMetadata(...): expected Timestamp to be set", tc.reason)
 			}
+			got.Timestamp = nil
 
-			// Compare other fields (ignoring SpanID and Timestamp which are dynamic).
+			// Compare other fields (ignoring SpanId and Timestamp which are dynamic).
 			if diff := cmp.Diff(tc.want.meta, got,
-				cmpopts.IgnoreFields(Metadata{}, "SpanID", "Timestamp"),
+				protocmp.Transform(),
 			); diff != "" {
 				t.Errorf("\n%s\nBuildMetadata(...): -want, +got:\n%s", tc.reason, diff)
 			}
