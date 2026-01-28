@@ -77,9 +77,9 @@ func WithLogger(l logging.Logger) RunnerOption {
 	}
 }
 
-// NewInspectedRunner creates a new TeeFunctionRunner that wraps the given
+// NewRunner creates a new inspected Runner that wraps the given
 // FunctionRunner and emits data to the given PipelineInspector.
-func NewInspectedRunner(wrapped FunctionRunner, inspector PipelineInspector, opts ...RunnerOption) *Runner {
+func NewRunner(wrapped FunctionRunner, inspector PipelineInspector, opts ...RunnerOption) *Runner {
 	r := &Runner{
 		wrapped:   wrapped,
 		inspector: inspector,
