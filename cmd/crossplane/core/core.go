@@ -294,6 +294,22 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	var runner xfn.FunctionRunner = pfr
 
+	if c.EnablePipelineInspector {
+		o.Features.Enable(features.EnableAlphaPipelineInspector)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaPipelineInspector)
+		ifrm := inspected.NewPrometheusMetrics()
+		metrics.Registry.MustRegister(ifrm)
+
+		inspector, err := inspected.NewSocketPipelineInspector(c.PipelineInspectorSocket)
+		if err != nil {
+			return errors.Wrap(err, "cannot create pipeline inspector")
+		}
+
+		runner = inspected.NewRunner(runner, inspector,
+			inspected.WithMetrics(ifrm),
+			inspected.WithLogger(log))
+	}
+
 	if c.EnableFunctionResponseCache {
 		o.Features.Enable(features.EnableAlphaFunctionResponseCache)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaFunctionResponseCache)
@@ -312,22 +328,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		go cfr.GarbageCollectFiles(ctx, 1*time.Minute)
 
 		runner = cfr
-	}
-
-	if c.EnablePipelineInspector {
-		o.Features.Enable(features.EnableAlphaPipelineInspector)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaPipelineInspector)
-		ifrm := inspected.NewPrometheusMetrics()
-		metrics.Registry.MustRegister(ifrm)
-
-		inspector, err := inspected.NewSocketPipelineInspector(c.PipelineInspectorSocket)
-		if err != nil {
-			return errors.Wrap(err, "cannot create pipeline inspector")
-		}
-
-		runner = inspected.NewRunner(runner, inspector,
-			inspected.WithMetrics(ifrm),
-			inspected.WithLogger(log))
 	}
 
 	if c.EnableUsages {
