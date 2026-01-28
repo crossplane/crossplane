@@ -663,6 +663,247 @@ func TestRedactCredentials(t *testing.T) {
 	}
 }
 
+func TestSanitizeRequiredResources(t *testing.T) {
+	cases := map[string]struct {
+		reason    string
+		resources map[string]*fnv1.Resources
+		want      map[string]*fnv1.Resources
+	}{
+		"NilResources": {
+			reason:    "Should handle nil resources without panic.",
+			resources: nil,
+			want:      nil,
+		},
+		"EmptyResources": {
+			reason:    "Should handle empty resources.",
+			resources: map[string]*fnv1.Resources{},
+			want:      map[string]*fnv1.Resources{},
+		},
+		"RedactsConnectionDetails": {
+			reason: "Should redact connection details from resource items, preserving keys.",
+			resources: map[string]*fnv1.Resources{
+				"extra": {
+					Items: []*fnv1.Resource{
+						{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("example.org/v1"),
+									"kind":       structpb.NewStringValue("XDatabase"),
+								},
+							},
+							ConnectionDetails: map[string][]byte{
+								"endpoint": []byte("db.example.com"),
+								"password": []byte("secret123"),
+							},
+						},
+					},
+				},
+			},
+			want: map[string]*fnv1.Resources{
+				"extra": {
+					Items: []*fnv1.Resource{
+						{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("example.org/v1"),
+									"kind":       structpb.NewStringValue("XDatabase"),
+								},
+							},
+							ConnectionDetails: map[string][]byte{
+								"endpoint": []byte(redactedValue),
+								"password": []byte(redactedValue),
+							},
+						},
+					},
+				},
+			},
+		},
+		"RedactsSecretData": {
+			reason: "Should redact data field values from Secret resources, preserving keys.",
+			resources: map[string]*fnv1.Resources{
+				"secrets": {
+					Items: []*fnv1.Resource{
+						{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("v1"),
+									"kind":       structpb.NewStringValue("Secret"),
+									"metadata": structpb.NewStructValue(&structpb.Struct{
+										Fields: map[string]*structpb.Value{
+											"name": structpb.NewStringValue("my-secret"),
+										},
+									}),
+									"data": structpb.NewStructValue(&structpb.Struct{
+										Fields: map[string]*structpb.Value{
+											"password": structpb.NewStringValue("c2VjcmV0"),
+											"token":    structpb.NewStringValue("dG9rZW4="),
+										},
+									}),
+								},
+							},
+						},
+					},
+				},
+			},
+			want: map[string]*fnv1.Resources{
+				"secrets": {
+					Items: []*fnv1.Resource{
+						{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("v1"),
+									"kind":       structpb.NewStringValue("Secret"),
+									"metadata": structpb.NewStructValue(&structpb.Struct{
+										Fields: map[string]*structpb.Value{
+											"name": structpb.NewStringValue("my-secret"),
+										},
+									}),
+									"data": structpb.NewStructValue(&structpb.Struct{
+										Fields: map[string]*structpb.Value{
+											"password": structpb.NewStringValue(redactedValue),
+											"token":    structpb.NewStringValue(redactedValue),
+										},
+									}),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"PreservesNonSecretData": {
+			reason: "Should preserve data-like fields on non-Secret resources.",
+			resources: map[string]*fnv1.Resources{
+				"configs": {
+					Items: []*fnv1.Resource{
+						{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("v1"),
+									"kind":       structpb.NewStringValue("ConfigMap"),
+									"data": structpb.NewStructValue(&structpb.Struct{
+										Fields: map[string]*structpb.Value{
+											"config.yaml": structpb.NewStringValue("key: value"),
+										},
+									}),
+								},
+							},
+						},
+					},
+				},
+			},
+			want: map[string]*fnv1.Resources{
+				"configs": {
+					Items: []*fnv1.Resource{
+						{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("v1"),
+									"kind":       structpb.NewStringValue("ConfigMap"),
+									"data": structpb.NewStructValue(&structpb.Struct{
+										Fields: map[string]*structpb.Value{
+											"config.yaml": structpb.NewStringValue("key: value"),
+										},
+									}),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"HandlesMultipleResourceGroups": {
+			reason: "Should sanitize multiple resource groups with multiple items.",
+			resources: map[string]*fnv1.Resources{
+				"group1": {
+					Items: []*fnv1.Resource{
+						{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("v1"),
+									"kind":       structpb.NewStringValue("Secret"),
+									"data": structpb.NewStructValue(&structpb.Struct{
+										Fields: map[string]*structpb.Value{
+											"key1": structpb.NewStringValue("value1"),
+										},
+									}),
+								},
+							},
+							ConnectionDetails: map[string][]byte{"conn1": []byte("secret1")},
+						},
+					},
+				},
+				"group2": {
+					Items: []*fnv1.Resource{
+						{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("v1"),
+									"kind":       structpb.NewStringValue("Secret"),
+									"data": structpb.NewStructValue(&structpb.Struct{
+										Fields: map[string]*structpb.Value{
+											"key2": structpb.NewStringValue("value2"),
+										},
+									}),
+								},
+							},
+							ConnectionDetails: map[string][]byte{"conn2": []byte("secret2")},
+						},
+					},
+				},
+			},
+			want: map[string]*fnv1.Resources{
+				"group1": {
+					Items: []*fnv1.Resource{
+						{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("v1"),
+									"kind":       structpb.NewStringValue("Secret"),
+									"data": structpb.NewStructValue(&structpb.Struct{
+										Fields: map[string]*structpb.Value{
+											"key1": structpb.NewStringValue(redactedValue),
+										},
+									}),
+								},
+							},
+							ConnectionDetails: map[string][]byte{"conn1": []byte(redactedValue)},
+						},
+					},
+				},
+				"group2": {
+					Items: []*fnv1.Resource{
+						{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("v1"),
+									"kind":       structpb.NewStringValue("Secret"),
+									"data": structpb.NewStructValue(&structpb.Struct{
+										Fields: map[string]*structpb.Value{
+											"key2": structpb.NewStringValue(redactedValue),
+										},
+									}),
+								},
+							},
+							ConnectionDetails: map[string][]byte{"conn2": []byte(redactedValue)},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			sanitizeRequiredResources(tc.resources)
+
+			if diff := cmp.Diff(tc.want, tc.resources, protocmp.Transform()); diff != "" {
+				t.Errorf("\n%s\nsanitizeRequiredResources(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestRedactConnectionDetails(t *testing.T) {
 	cases := map[string]struct {
 		reason            string
