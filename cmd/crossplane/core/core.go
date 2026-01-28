@@ -294,11 +294,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	var runner xfn.FunctionRunner = pfr
 
-	if c.EnableFunctionResponseCache {
-		o.Features.Enable(features.EnableAlphaFunctionResponseCache)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaFunctionResponseCache)
-	}
-
 	if c.EnablePipelineInspector {
 		o.Features.Enable(features.EnableAlphaPipelineInspector)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaPipelineInspector)
@@ -313,6 +308,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		runner = inspected.NewRunner(runner, inspector,
 			inspected.WithMetrics(ifrm),
 			inspected.WithLogger(log))
+	}
+
+	if c.EnableFunctionResponseCache {
+		o.Features.Enable(features.EnableAlphaFunctionResponseCache)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaFunctionResponseCache)
 	}
 
 	if c.EnableUsages {
