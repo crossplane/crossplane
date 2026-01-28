@@ -20,6 +20,7 @@ package inspected
 import (
 	"context"
 
+	pipelinev1alpha1 "github.com/crossplane/crossplane-runtime/v2/apis/pipelineinspector/proto/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
@@ -44,10 +45,10 @@ type FunctionRunner interface {
 // A PipelineInspector inspects function pipeline execution data.
 type PipelineInspector interface {
 	// EmitRequest emits the given request and metadata.
-	EmitRequest(ctx context.Context, req *fnv1.RunFunctionRequest, meta *step.Metadata) error
+	EmitRequest(ctx context.Context, req *fnv1.RunFunctionRequest, meta *pipelinev1alpha1.StepMeta) error
 
 	// EmitResponse emits the given response, error, and metadata.
-	EmitResponse(ctx context.Context, rsp *fnv1.RunFunctionResponse, err error, meta *step.Metadata) error
+	EmitResponse(ctx context.Context, rsp *fnv1.RunFunctionResponse, err error, meta *pipelinev1alpha1.StepMeta) error
 }
 
 // A Runner is a FunctionRunner that wraps another

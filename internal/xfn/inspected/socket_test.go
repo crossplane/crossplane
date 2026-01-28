@@ -29,7 +29,6 @@ import (
 
 	pipelinev1alpha1 "github.com/crossplane/crossplane-runtime/v2/apis/pipelineinspector/proto/v1alpha1"
 
-	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
@@ -63,7 +62,7 @@ func TestSocketPipelineInspectorEmitRequest(t *testing.T) {
 	type args struct {
 		ctx  context.Context
 		req  *fnv1.RunFunctionRequest
-		meta *step.Metadata
+		meta *pipelinev1alpha1.StepMeta
 	}
 
 	type want struct {
@@ -72,9 +71,9 @@ func TestSocketPipelineInspectorEmitRequest(t *testing.T) {
 		connectionDetailsNil bool
 	}
 
-	validMeta := &step.Metadata{
-		TraceID:         "trace-123",
-		SpanID:          "span-456",
+	validMeta := &pipelinev1alpha1.StepMeta{
+		TraceId:         "trace-123",
+		SpanId:          "span-456",
 		StepIndex:       1,
 		Iteration:       2,
 		FunctionName:    "test-function",
@@ -275,7 +274,7 @@ func TestSocketPipelineInspectorEmitResponse(t *testing.T) {
 		ctx   context.Context
 		rsp   *fnv1.RunFunctionResponse
 		fnErr error
-		meta  *step.Metadata
+		meta  *pipelinev1alpha1.StepMeta
 	}
 
 	type want struct {
@@ -283,9 +282,9 @@ func TestSocketPipelineInspectorEmitResponse(t *testing.T) {
 		errField string
 	}
 
-	validMeta := &step.Metadata{
-		TraceID:         "trace-123",
-		SpanID:          "span-456",
+	validMeta := &pipelinev1alpha1.StepMeta{
+		TraceId:         "trace-123",
+		SpanId:          "span-456",
 		StepIndex:       1,
 		Iteration:       2,
 		FunctionName:    "test-function",
@@ -393,66 +392,6 @@ func TestSocketPipelineInspectorEmitResponse(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestToProtoMeta(t *testing.T) {
-	timestamp := time.Date(2026, 1, 15, 10, 30, 0, 0, time.UTC)
-
-	meta := &step.Metadata{
-		TraceID:                     "trace-abc-123",
-		SpanID:                      "span-def-456",
-		Iteration:                   5,
-		StepIndex:                   2,
-		FunctionName:                "function-auto-ready",
-		CompositionName:             "my-composition",
-		CompositeResourceUID:        "uid-123",
-		CompositeResourceName:       "my-xr",
-		CompositeResourceNamespace:  "default",
-		CompositeResourceAPIVersion: "example.org/v1",
-		CompositeResourceKind:       "XDatabase",
-		Timestamp:                   timestamp,
-	}
-
-	got := toProtoMeta(meta)
-
-	if got.GetTraceId() != meta.TraceID {
-		t.Errorf("TraceId: want %q, got %q", meta.TraceID, got.GetTraceId())
-	}
-	if got.GetSpanId() != meta.SpanID {
-		t.Errorf("SpanId: want %q, got %q", meta.SpanID, got.GetSpanId())
-	}
-	if got.GetStepIndex() != meta.StepIndex {
-		t.Errorf("StepIndex: want %d, got %d", meta.StepIndex, got.GetStepIndex())
-	}
-	if got.GetIteration() != meta.Iteration {
-		t.Errorf("Iteration: want %d, got %d", meta.Iteration, got.GetIteration())
-	}
-	if got.GetFunctionName() != meta.FunctionName {
-		t.Errorf("FunctionName: want %q, got %q", meta.FunctionName, got.GetFunctionName())
-	}
-	if got.GetCompositionName() != meta.CompositionName {
-		t.Errorf("CompositionName: want %q, got %q", meta.CompositionName, got.GetCompositionName())
-	}
-	if got.GetCompositeResourceUid() != meta.CompositeResourceUID {
-		t.Errorf("CompositeResourceUid: want %q, got %q", meta.CompositeResourceUID, got.GetCompositeResourceUid())
-	}
-	if got.GetCompositeResourceName() != meta.CompositeResourceName {
-		t.Errorf("CompositeResourceName: want %q, got %q", meta.CompositeResourceName, got.GetCompositeResourceName())
-	}
-	if got.GetCompositeResourceNamespace() != meta.CompositeResourceNamespace {
-		t.Errorf("CompositeResourceNamespace: want %q, got %q", meta.CompositeResourceNamespace, got.GetCompositeResourceNamespace())
-	}
-	if got.GetCompositeResourceApiVersion() != meta.CompositeResourceAPIVersion {
-		t.Errorf("CompositeResourceApiVersion: want %q, got %q", meta.CompositeResourceAPIVersion, got.GetCompositeResourceApiVersion())
-	}
-	if got.GetCompositeResourceKind() != meta.CompositeResourceKind {
-		t.Errorf("CompositeResourceKind: want %q, got %q", meta.CompositeResourceKind, got.GetCompositeResourceKind())
-	}
-	if got.GetTimestamp() == nil {
-		t.Error("Timestamp: expected to be set")
-	} else if !got.GetTimestamp().AsTime().Equal(timestamp) {
-		t.Errorf("Timestamp: want %v, got %v", timestamp, got.GetTimestamp().AsTime())
 	}
 }
 
