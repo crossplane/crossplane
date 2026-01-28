@@ -266,7 +266,7 @@ func TestRunFunction(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewInspectedRunner(tc.params.wrap, tc.params.inspector,
+			r := NewRunner(tc.params.wrap, tc.params.inspector,
 				WithMetrics(tc.params.metrics),
 				WithLogger(logging.NewNopLogger()))
 
@@ -310,7 +310,7 @@ func TestRunFunctionMetadataConsistency(t *testing.T) {
 		return &fnv1.RunFunctionResponse{}, nil
 	})
 
-	r := NewInspectedRunner(wrap, inspector,
+	r := NewRunner(wrap, inspector,
 		WithMetrics(metrics),
 		WithLogger(logging.NewNopLogger()))
 
