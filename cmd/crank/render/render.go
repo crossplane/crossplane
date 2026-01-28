@@ -374,9 +374,15 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		// resource we want to maintain its name and namespace.
 		or, ok := observed[composite.ResourceName(name)]
 		if ok {
-			cd.SetNamespace(or.Resource.GetNamespace())
-			cd.SetName(or.Resource.GetName())
-			cd.SetGenerateName(or.Resource.GetGenerateName())
+			if ns := or.Resource.GetNamespace(); ns != "" {
+				cd.SetNamespace(ns)
+			}
+			if name := or.Resource.GetName(); name != "" {
+				cd.SetName(name)
+			}
+			if genName := or.Resource.GetGenerateName(); genName != "" {
+				cd.SetGenerateName(genName)
+			}
 		}
 
 		// Set standard composed resource metadata that is derived from the XR.
