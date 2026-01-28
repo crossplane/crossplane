@@ -27,9 +27,10 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	pipelinev1alpha1 "github.com/crossplane/crossplane-runtime/v2/apis/pipelineinspector/proto/v1alpha1"
+
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
-	pipelinev1alpha1 "github.com/crossplane/crossplane/v2/proto/pipeline/v1alpha1"
 )
 
 // MockPipelineInspectorServiceClient is a mock implementation of the gRPC client.
