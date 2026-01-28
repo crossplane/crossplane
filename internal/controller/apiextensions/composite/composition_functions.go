@@ -358,7 +358,6 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		fnreq.Meta = &fnv1.RequestMeta{Tag: Tag(fnreq)}
 
 		// Add step metadata to context for use by downstream components like InspectedRunner.
-		// Use context.Background() if ctx is nil to prevent panics in tests.
 		stepCtx := step.ContextWithStepMeta(ctx, traceID, compositionName, int32(stepIndex), 0) //nolint:gosec // int32 conversion is safe here, we know the number of steps won't exceed int32.
 
 		rsp, err := c.pipeline.RunFunction(stepCtx, fn.FunctionRef.Name, fnreq)
