@@ -1347,3 +1347,560 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 		})
 	}
 }
+
+func TestPruneOutdatedDependencies(t *testing.T) {
+	type args struct {
+		pkgs []v1beta1.LockPackage
+	}
+
+	type want struct {
+		pkgs []v1beta1.LockPackage
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"EmptyList": {
+			reason: "An empty package list should return an empty list.",
+			args: args{
+				pkgs: []v1beta1.LockPackage{},
+			},
+			want: want{
+				pkgs: []v1beta1.LockPackage{},
+			},
+		},
+		"OnlyRootPackages": {
+			reason: "All packages should be kept when they are all root packages (no dependencies reference them).",
+			args: args{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root-a",
+						Source:  "example.com/root-a",
+						Version: "v1.0.0",
+					},
+					{
+						Name:    "root-b",
+						Source:  "example.com/root-b",
+						Version: "v2.0.0",
+					},
+				},
+			},
+			want: want{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root-a",
+						Source:  "example.com/root-a",
+						Version: "v1.0.0",
+					},
+					{
+						Name:    "root-b",
+						Source:  "example.com/root-b",
+						Version: "v2.0.0",
+					},
+				},
+			},
+		},
+		"KeepMatchingConstraint": {
+			reason: "Dependencies that match their parent constraints should be kept.",
+			args: args{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-a",
+								Constraints: ">=v1.0.0",
+							},
+						},
+					},
+					{
+						Name:    "dep-a",
+						Source:  "example.com/dep-a",
+						Version: "v1.5.0",
+					},
+				},
+			},
+			want: want{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-a",
+								Constraints: ">=v1.0.0",
+							},
+						},
+					},
+					{
+						Name:    "dep-a",
+						Source:  "example.com/dep-a",
+						Version: "v1.5.0",
+					},
+				},
+			},
+		},
+		"PruneOutdatedDependency": {
+			reason: "Dependencies that don't match any constraints should be pruned.",
+			args: args{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-a",
+								Constraints: ">=v2.0.0",
+							},
+						},
+					},
+					{
+						Name:    "dep-a",
+						Source:  "example.com/dep-a",
+						Version: "v1.5.0",
+					},
+				},
+			},
+			want: want{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-a",
+								Constraints: ">=v2.0.0",
+							},
+						},
+					},
+				},
+			},
+		},
+		"KeepOneMatchingOutOfMany": {
+			reason: "When multiple packages depend on the same source, keep dependencies matching at least one constraint.",
+			args: args{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root-a",
+						Source:  "example.com/root-a",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/shared",
+								Constraints: ">=v1.0.0",
+							},
+						},
+					},
+					{
+						Name:    "root-b",
+						Source:  "example.com/root-b",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/shared",
+								Constraints: ">=v2.0.0",
+							},
+						},
+					},
+					{
+						Name:    "shared",
+						Source:  "example.com/shared",
+						Version: "v1.5.0",
+					},
+				},
+			},
+			want: want{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root-a",
+						Source:  "example.com/root-a",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/shared",
+								Constraints: ">=v1.0.0",
+							},
+						},
+					},
+					{
+						Name:    "root-b",
+						Source:  "example.com/root-b",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/shared",
+								Constraints: ">=v2.0.0",
+							},
+						},
+					},
+					{
+						Name:    "shared",
+						Source:  "example.com/shared",
+						Version: "v1.5.0",
+					},
+				},
+			},
+		},
+		"DigestMatchExact": {
+			reason: "Digest versions should be kept only when they exactly match a constraint.",
+			args: args{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-digest",
+								Constraints: digest1,
+							},
+						},
+					},
+					{
+						Name:    "dep-digest",
+						Source:  "example.com/dep-digest",
+						Version: digest1,
+					},
+				},
+			},
+			want: want{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-digest",
+								Constraints: digest1,
+							},
+						},
+					},
+					{
+						Name:    "dep-digest",
+						Source:  "example.com/dep-digest",
+						Version: digest1,
+					},
+				},
+			},
+		},
+		"DigestNotMatch": {
+			reason: "Digest versions should be pruned when they don't match the constraint.",
+			args: args{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-digest",
+								Constraints: digest1,
+							},
+						},
+					},
+					{
+						Name:    "dep-digest",
+						Source:  "example.com/dep-digest",
+						Version: digest2,
+					},
+				},
+			},
+			want: want{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-digest",
+								Constraints: digest1,
+							},
+						},
+					},
+				},
+			},
+		},
+		"ComplexDependencyChainNoConflicts": {
+			reason: "In a complex dependency tree with no conflicting constraints, only packages that are roots or match constraints should be kept.",
+			args: args{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root1",
+						Source:  "example.com/root1",
+						Version: "v2.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/branch1",
+								Constraints: "v2.0.0",
+							},
+						},
+					},
+					{
+						Name:    "root2",
+						Source:  "example.com/root2",
+						Version: "v2.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/branch2",
+								Constraints: "v2.0.0",
+							},
+						},
+					},
+					{
+						Name:    "branch1",
+						Source:  "example.com/branch1",
+						Version: "v2.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/leaf",
+								Constraints: "v2.0.0",
+							},
+						},
+					},
+					{
+						Name:    "branch2",
+						Source:  "example.com/branch2",
+						Version: "v2.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/leaf",
+								Constraints: "v2.0.0",
+							},
+						},
+					},
+					{
+						Name:    "leaf",
+						Source:  "example.com/leaf",
+						Version: "v1.5.0",
+					},
+				},
+			},
+			want: want{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root1",
+						Source:  "example.com/root1",
+						Version: "v2.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/branch1",
+								Constraints: "v2.0.0",
+							},
+						},
+					},
+					{
+						Name:    "root2",
+						Source:  "example.com/root2",
+						Version: "v2.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/branch2",
+								Constraints: "v2.0.0",
+							},
+						},
+					},
+					{
+						Name:    "branch1",
+						Source:  "example.com/branch1",
+						Version: "v2.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/leaf",
+								Constraints: "v2.0.0",
+							},
+						},
+					},
+					{
+						Name:    "branch2",
+						Source:  "example.com/branch2",
+						Version: "v2.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/leaf",
+								Constraints: "v2.0.0",
+							},
+						},
+					},
+				},
+			},
+		},
+		"ComplexDependencyChainConflicts": {
+			reason: "In a complex dependency tree with conflicting constraints, packages matching one conflicting constraint should be kept.",
+			args: args{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root1",
+						Source:  "example.com/root1",
+						Version: "v2.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/branch1",
+								Constraints: "v2.0.0",
+							},
+						},
+					},
+					{
+						Name:    "root2",
+						Source:  "example.com/root2",
+						Version: "v1.5.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/branch2",
+								Constraints: "v1.5.0",
+							},
+						},
+					},
+					{
+						Name:    "branch1",
+						Source:  "example.com/branch1",
+						Version: "v2.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/leaf",
+								Constraints: "v2.0.0",
+							},
+						},
+					},
+					{
+						Name:    "branch2",
+						Source:  "example.com/branch2",
+						Version: "v1.5.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/leaf",
+								Constraints: "v1.5.0",
+							},
+						},
+					},
+					{
+						Name:    "leaf",
+						Source:  "example.com/leaf",
+						Version: "v1.5.0",
+					},
+				},
+			},
+			want: want{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root1",
+						Source:  "example.com/root1",
+						Version: "v2.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/branch1",
+								Constraints: "v2.0.0",
+							},
+						},
+					},
+					{
+						Name:    "root2",
+						Source:  "example.com/root2",
+						Version: "v1.5.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/branch2",
+								Constraints: "v1.5.0",
+							},
+						},
+					},
+					{
+						Name:    "branch1",
+						Source:  "example.com/branch1",
+						Version: "v2.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/leaf",
+								Constraints: "v2.0.0",
+							},
+						},
+					},
+					{
+						Name:    "branch2",
+						Source:  "example.com/branch2",
+						Version: "v1.5.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/leaf",
+								Constraints: "v1.5.0",
+							},
+						},
+					},
+					{
+						Name:    "leaf",
+						Source:  "example.com/leaf",
+						Version: "v1.5.0",
+					},
+				},
+			},
+		},
+		"MixedSemverAndDigest": {
+			reason: "Should handle packages with both semver and digest versions correctly.",
+			args: args{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-a",
+								Constraints: ">=v1.0.0",
+							},
+							{
+								Package:     "example.com/dep-b",
+								Constraints: digest1,
+							},
+						},
+					},
+					{
+						Name:    "dep-a",
+						Source:  "example.com/dep-a",
+						Version: "v0.9.0",
+					},
+					{
+						Name:    "dep-b",
+						Source:  "example.com/dep-b",
+						Version: digest2,
+					},
+				},
+			},
+			want: want{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-a",
+								Constraints: ">=v1.0.0",
+							},
+							{
+								Package:     "example.com/dep-b",
+								Constraints: digest1,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := pruneOutdatedDependencies(tc.args.pkgs)
+			if diff := cmp.Diff(tc.want.pkgs, got); diff != "" {
+				t.Errorf("\n%s\npruneOutdatedDependencies(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}

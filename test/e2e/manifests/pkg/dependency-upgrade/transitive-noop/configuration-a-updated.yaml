@@ -1,0 +1,6 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: configuration-a
+spec:
+  package: xpkg.crossplane.io/crossplane/e2e-transitive-config1:v0.0.3

@@ -503,6 +503,120 @@ func TestUpgradeDependencyVersion(t *testing.T) {
 	)
 }
 
+// TestUpgradeDependencyVersionSharedTransitive tests that dependencies are
+// upgraded correctly when multiple packages share a transitive dependency,
+// which temporarily has conflicting constraints while the parent packages are
+// upgraded in sequence.
+func TestUpgradeDependencyVersionSharedTransitive(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/dependency-upgrade/transitive"
+
+	resolutionFailed := v1beta1.ResolutionFailed(nil)
+	resolutionFailed.Message = ""
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that a shared transitive dependency can be upgraded.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpdates).
+			WithSetup("ApplyConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration-initial.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration-initial.yaml"),
+			)).
+			Assess("DepsAreHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "deps.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("ConfigurationIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-initial.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("UpdateConfigurationA",
+				funcs.ApplyResources(FieldManager, manifests, "configuration-a-updated.yaml")).
+			Assess("DependencyResolutionConflict",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "lock.yaml", resolutionFailed)).
+			Assess("UpdateConfigurationB",
+				funcs.ApplyResources(FieldManager, manifests, "configuration-b-updated.yaml")).
+			Assess("DepsUpgradedToNewVersionAndHealthy", funcs.AllOf(
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-e2e-transitive-dep1"}}, "spec.package", "xpkg.crossplane.io/crossplane/e2e-transitive-dep1:v0.0.2"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-e2e-transitive-dep2"}}, "spec.package", "xpkg.crossplane.io/crossplane/e2e-transitive-dep2:v0.0.2"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-e2e-transitive-transitive"}}, "spec.package", "xpkg.crossplane.io/crossplane/e2e-transitive-transitive:v0.0.2"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "deps.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("ConfigurationsAreStillHealthy", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-a-updated.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-b-updated.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("LockConditionDependencyResolutionSucceeded",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "lock.yaml", v1beta1.ResolutionSucceeded())).
+			// Dependencies are not automatically deleted.
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "configuration-a-updated.yaml", metav1.DeletePropagationForeground),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "configuration-b-updated.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-a-updated.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-b-updated.yaml"),
+			)).
+			WithTeardown("DeleteDeps", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "deps.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "deps.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+// TestUpgradeDependencyVersionSharedTransitiveNoop tests that dependencies are
+// upgraded correctly when multiple packages share a transitive dependency,
+// which temporarily has conflicting constraints while the parent packages are
+// upgraded in sequence, and the new version of the transitive dependency is
+// identical to the old version (i.e., they have the same digest but different
+// semvers).
+func TestUpgradeDependencyVersionSharedTransitiveNoop(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/dependency-upgrade/transitive-noop"
+
+	resolutionFailed := v1beta1.ResolutionFailed(nil)
+	resolutionFailed.Message = ""
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that a shared transitive dependency can be upgraded to a new semantic version when its digest does not change.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpdates).
+			WithSetup("ApplyConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration-initial.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration-initial.yaml"),
+			)).
+			Assess("DepsAreHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "deps.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("ConfigurationIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-initial.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("UpdateConfigurationA",
+				funcs.ApplyResources(FieldManager, manifests, "configuration-a-updated.yaml")).
+			Assess("DependencyResolutionConflict",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "lock.yaml", resolutionFailed)).
+			Assess("UpdateConfigurationB",
+				funcs.ApplyResources(FieldManager, manifests, "configuration-b-updated.yaml")).
+			Assess("DepsUpgradedToNewVersionAndHealthy", funcs.AllOf(
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-e2e-transitive-dep1"}}, "spec.package", "xpkg.crossplane.io/crossplane/e2e-transitive-dep1:v0.0.3"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-e2e-transitive-dep2"}}, "spec.package", "xpkg.crossplane.io/crossplane/e2e-transitive-dep2:v0.0.3"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-e2e-transitive-transitive"}}, "spec.package", "xpkg.crossplane.io/crossplane/e2e-transitive-transitive:v0.0.3"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "deps.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("ConfigurationsAreStillHealthy", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-a-updated.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-b-updated.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("LockConditionDependencyResolutionSucceeded",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "lock.yaml", v1beta1.ResolutionSucceeded())).
+			// Dependencies are not automatically deleted.
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "configuration-a-updated.yaml", metav1.DeletePropagationForeground),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "configuration-b-updated.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-a-updated.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-b-updated.yaml"),
+			)).
+			WithTeardown("DeleteDeps", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "deps.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "deps.yaml"),
+			)).
+			Feature(),
+	)
+}
+
 // TestUpgradeDependencyDigest tests that a dependency digest is upgraded when the parent configuration is updated.
 // The packages used in this test are built and pushed manually and the manifests must remain unchanged to ensure
 // the test scenario is not broken. Corresponding meta file can be found under
