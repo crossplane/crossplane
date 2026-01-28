@@ -1885,6 +1885,138 @@ object:
 				},
 			},
 		},
+		"ObservedResourcesMetadataName": {
+			reason: "A composition should be able to patch metadata.name of an observed resource with only resource annotation and status",
+			args: args{
+				ctx: context.Background(),
+				in: Inputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render",
+									"namespace": "test-namespace"
+								}
+							}`),
+						},
+					},
+					ObservedResources: []composed.Unstructured{
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "btest.crossplane.io/v1",
+									"kind": "BComposed",
+									"metadata": {
+										"annotations": {
+											"crossplane.io/composition-resource-name": "patched-metadata-name"
+										}
+									},
+									"status": {
+										"id": "foo"
+									}
+								}`),
+							},
+						},
+					},
+					Composition: &apiextensionsv1.Composition{
+						Spec: apiextensionsv1.CompositionSpec{
+							Mode: apiextensionsv1.CompositionModePipeline,
+							Pipeline: []apiextensionsv1.PipelineStep{
+								{
+									Step:        "test",
+									FunctionRef: apiextensionsv1.FunctionReference{Name: "function-test"},
+								},
+							},
+						},
+					},
+					Functions: []pkgv1.Function{
+						func() pkgv1.Function {
+							lis := NewFunction(t, &fnv1.RunFunctionResponse{
+								Desired: &fnv1.State{
+									Resources: map[string]*fnv1.Resource{
+										"patched-metadata-name": {
+											Resource: MustStructJSON(`{
+												"apiVersion": "btest.crossplane.io/v1",
+												"kind": "BComposed",
+												"metadata": {
+													"name": "patched"
+												}
+											}`),
+											Ready: fnv1.Ready_READY_TRUE,
+										},
+									},
+								},
+							})
+							listeners = append(listeners, lis)
+
+							return pkgv1.Function{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "function-test",
+									Annotations: map[string]string{
+										AnnotationKeyRuntime:                  string(AnnotationValueRuntimeDevelopment),
+										AnnotationKeyRuntimeDevelopmentTarget: lis.Addr().String(),
+									},
+								},
+							}
+						}(),
+					},
+				},
+			},
+			want: want{
+				out: Outputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render",
+									"namespace": "test-namespace"
+								},
+								"status": {
+									"conditions": [{
+										"lastTransitionTime": "2024-01-01T00:00:00Z",
+										"type": "Ready",
+										"status": "True",
+										"reason": "Available"
+									}]
+								}
+							}`),
+						},
+					},
+					ComposedResources: []composed.Unstructured{
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "btest.crossplane.io/v1",
+									"kind": "BComposed",
+									"metadata": {
+										"annotations": {
+											"crossplane.io/composition-resource-name": "patched-metadata-name"
+										},
+										"labels": {
+											"crossplane.io/composite": "test-render"
+										},
+										"name": "patched",
+										"namespace": "test-namespace",
+										"ownerReferences": [{
+											"apiVersion": "nop.example.org/v1alpha1",
+											"kind": "XNopResource",
+											"name": "test-render",
+											"blockOwnerDeletion": true,
+											"controller": true,
+											"uid": ""
+										}]
+									}
+								}`),
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
