@@ -26,11 +26,11 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	pipelinev1alpha1 "github.com/crossplane/crossplane-runtime/v2/apis/pipelineinspector/proto/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
-	pipelinev1alpha1 "github.com/crossplane/crossplane/v2/proto/pipeline/v1alpha1"
 )
 
 const (
