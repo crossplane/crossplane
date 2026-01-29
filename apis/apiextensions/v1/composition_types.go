@@ -69,7 +69,7 @@ type CompositionSpec struct {
 // Crossplane uses to create and manage new composite resources.
 //
 // Read the Crossplane documentation for
-// [more information about Compositions](https://docs.crossplane.io/latest/concepts/compositions).
+// [more information about Compositions](https://docs.crossplane.io/latest/composition/compositions/).
 // +kubebuilder:printcolumn:name="XR-KIND",type="string",JSONPath=".spec.compositeTypeRef.kind"
 // +kubebuilder:printcolumn:name="XR-APIVERSION",type="string",JSONPath=".spec.compositeTypeRef.apiVersion"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"

@@ -39,7 +39,7 @@ spec:
           Compositions.
 
           Read the Crossplane documentation for
-          [more information about Configuration packages](https://docs.crossplane.io/latest/concepts/packages).
+          [more information about Configuration packages]( https://docs.crossplane.io/latest/packages/configurations/).
         properties:
           apiVersion:
             description: |-

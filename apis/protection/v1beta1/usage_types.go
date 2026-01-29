@@ -150,7 +150,7 @@ type UsageStatus struct {
 // resources with dependent resources.
 //
 // Read the Crossplane documentation for
-// [more information about Compositions](https://docs.crossplane.io/latest/concepts/usages).
+// [more information about Usages](https://docs.crossplane.io/latest/managed-resources/usages/).
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +genclient

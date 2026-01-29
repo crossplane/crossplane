@@ -30,7 +30,7 @@ import (
 // use in a Composition.
 //
 // Read the Crossplane documentation for
-// [more information about EnvironmentConfigs](https://docs.crossplane.io/latest/concepts/environment-configs).
+// [more information about EnvironmentConfigs](https://docs.crossplane.io/latest/composition/environment-configs/).
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=envcfg
 type EnvironmentConfig struct {
