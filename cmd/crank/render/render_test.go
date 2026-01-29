@@ -1886,7 +1886,7 @@ object:
 			},
 		},
 		"ObservedResourcesMetadataName": {
-			reason: "A composition should be able to patch metadata.name of an observed resource with only resource annotation and status",
+			reason: "A composition should be able to patch generateName of an observed resource with only resource annotation and status",
 			args: args{
 				ctx: context.Background(),
 				in: Inputs{
@@ -1941,7 +1941,7 @@ object:
 												"apiVersion": "btest.crossplane.io/v1",
 												"kind": "BComposed",
 												"metadata": {
-													"name": "patched"
+													"generateName": "patched-"
 												}
 											}`),
 											Ready: fnv1.Ready_READY_TRUE,
@@ -1999,7 +1999,7 @@ object:
 										"labels": {
 											"crossplane.io/composite": "test-render"
 										},
-										"name": "patched",
+										"generateName": "patched-",
 										"namespace": "test-namespace",
 										"ownerReferences": [{
 											"apiVersion": "nop.example.org/v1alpha1",
