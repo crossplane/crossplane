@@ -532,13 +532,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		schema = ucomposite.SchemaLegacy
 	}
 
+	defaultCompositionSelector := composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record)
+
 	ro := []composite.ReconcilerOption{
 		composite.WithCompositeSchema(schema),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
 			composite.NewEnforcedCompositionSelector(r.client.Client, corev1.ObjectReference{Name: d.Name}, r.record),
-			composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record),
+			defaultCompositionSelector,
 			composite.NewAPILabelSelectorResolver(r.engine.GetCached()),
 		)),
+		composite.WithCompositionRevisionSelector(defaultCompositionSelector),
 		composite.WithLogger(r.log.WithValues("controller", controllerName)),
 		composite.WithRecorder(r.record.WithAnnotations("controller", controllerName)),
 		composite.WithPollInterval(r.options.PollInterval),

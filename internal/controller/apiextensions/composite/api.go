@@ -326,6 +326,27 @@ func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 	return nil
 }
 
+// SelectCompositionRevision selects the default composition revision if neither a reference nor
+// selector is given in composite resource.
+func (s *APIDefaultCompositionSelector) SelectCompositionRevision(ctx context.Context, cp resource.Composite) error {
+	if cp.GetCompositionRevisionSelector() != nil || cp.GetCompositionRevisionReference() != nil {
+		return nil
+	}
+	def := &v1.CompositeResourceDefinition{}
+	if err := s.client.Get(ctx, meta.NamespacedNameOf(&s.defRef), def); err != nil {
+		return errors.Wrap(err, errGetXRD)
+	}
+
+	if def.Spec.DefaultCompositionRevisionSelector == nil {
+		return nil
+	}
+
+	cp.SetCompositionRevisionSelector(def.Spec.DefaultCompositionRevisionSelector)
+	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Default revision selector has been selected"))
+
+	return nil
+}
+
 // NewEnforcedCompositionSelector returns a EnforcedCompositionSelector.
 func NewEnforcedCompositionSelector(c client.Client, defRef corev1.ObjectReference, r event.Recorder) *EnforcedCompositionSelector {
 	return &EnforcedCompositionSelector{client: c, defRef: defRef, recorder: r}

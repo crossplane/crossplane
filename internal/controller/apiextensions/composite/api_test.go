@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -847,6 +848,128 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAPIDefaultCompositionRevisionSelector(t *testing.T) {
+	a, k := schema.EmptyObjectKind.GroupVersionKind().ToAPIVersionAndKind()
+	tref := v1.TypeReference{APIVersion: a, Kind: k}
+	comp := &v1.Composition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "foo",
+		},
+		Spec: v1.CompositionSpec{
+			CompositeTypeRef: tref,
+		},
+	}
+	type args struct {
+		kube   client.Client
+		defRef corev1.ObjectReference
+		cp     resource.Composite
+	}
+	type want struct {
+		cp  resource.Composite
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args
+		want
+	}{
+		"SelectorInPlace": {
+			reason: "Should be no-op if a composition revision selector is in place",
+			args: args{
+				defRef: corev1.ObjectReference{},
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+				},
+				cp: &fake.Composite{
+					CompositionRevisionSelector: fake.CompositionRevisionSelector{Sel: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}}},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					CompositionRevisionSelector: fake.CompositionRevisionSelector{Sel: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}}},
+				},
+			},
+		},
+		"NoDefault": {
+			reason: "Should be no-op if no default is given in definition",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+				},
+				cp: &fake.Composite{},
+			},
+			want: want{
+				cp: &fake.Composite{},
+			},
+		},
+		"Success": {
+			reason: "Successfully set the default composition revision selector",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						switch cr := obj.(type) {
+						case *v1.CompositeResourceDefinition:
+							withRef := &v1.CompositeResourceDefinition{Spec: v1.CompositeResourceDefinitionSpec{DefaultCompositionRevisionSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"channel": "dev"}}}}
+							withRef.DeepCopyInto(cr)
+							return nil
+						case *v1.Composition:
+							comp.DeepCopyInto(cr)
+							return nil
+						}
+						return nil
+					},
+				},
+				cp: &fake.Composite{},
+			},
+			want: want{
+				cp: &fake.Composite{
+					CompositionRevisionSelector: fake.CompositionRevisionSelector{Sel: &metav1.LabelSelector{MatchLabels: map[string]string{"channel": "dev"}}},
+				},
+			},
+		},
+		"SelectorInPlaceNoOverwrite": {
+			reason: "Should not overwrite the given selector with default",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						switch cr := obj.(type) {
+						case *v1.CompositeResourceDefinition:
+							withRef := &v1.CompositeResourceDefinition{Spec: v1.CompositeResourceDefinitionSpec{DefaultCompositionRevisionSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"channel": "dev"}}}}
+							withRef.DeepCopyInto(cr)
+							return nil
+						case *v1.Composition:
+							comp.DeepCopyInto(cr)
+							return nil
+						}
+						return nil
+					},
+				},
+				cp: &fake.Composite{
+					CompositionRevisionSelector: fake.CompositionRevisionSelector{Sel: &metav1.LabelSelector{MatchLabels: map[string]string{"channel": "prod"}}},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					CompositionRevisionSelector: fake.CompositionRevisionSelector{Sel: &metav1.LabelSelector{MatchLabels: map[string]string{"channel": "prod"}}},
+				},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := NewAPIDefaultCompositionSelector(tc.kube, tc.defRef, event.NewNopRecorder())
+			err := c.SelectCompositionRevision(context.Background(), tc.args.cp)
+			if diff := cmp.Diff(tc.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nSelectCompositionRevision(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
+				t.Errorf("\n%s\nSelectCompositionRevision(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

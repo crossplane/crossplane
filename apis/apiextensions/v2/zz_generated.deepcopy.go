@@ -21,8 +21,9 @@ limitations under the License.
 package v2
 
 import (
-	"github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	commonv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -111,6 +112,11 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 		*out = new(CompositionReference)
 		**out = **in
 	}
+	if in.DefaultCompositionRevisionSelector != nil {
+		in, out := &in.DefaultCompositionRevisionSelector, &out.DefaultCompositionRevisionSelector
+		*out = new(v1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.EnforcedCompositionRef != nil {
 		in, out := &in.EnforcedCompositionRef, &out.EnforcedCompositionRef
 		*out = new(CompositionReference)
@@ -118,7 +124,7 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 	}
 	if in.DefaultCompositionUpdatePolicy != nil {
 		in, out := &in.DefaultCompositionUpdatePolicy, &out.DefaultCompositionUpdatePolicy
-		*out = new(v1.UpdatePolicy)
+		*out = new(commonv1.UpdatePolicy)
 		**out = **in
 	}
 	if in.Versions != nil {
@@ -145,7 +151,7 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 	}
 	if in.DefaultCompositeDeletePolicy != nil {
 		in, out := &in.DefaultCompositeDeletePolicy, &out.DefaultCompositeDeletePolicy
-		*out = new(v1.CompositeDeletePolicy)
+		*out = new(commonv1.CompositeDeletePolicy)
 		**out = **in
 	}
 	if in.ConnectionSecretKeys != nil {

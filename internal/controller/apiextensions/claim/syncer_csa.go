@@ -196,8 +196,9 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	}
 
 	// Propagate composition ref from the XR if the claim doesn't have an
-	// opinion. Composition and revision selectors only propagate from claim ->
-	// XR. When a claim has selectors **and no reference** the flow should be:
+	// opinion. Composition refs and revision selectors may propagate XR -> claim;
+	// composition selectors propagate claim -> XR. When a claim has selectors
+	// **and no reference** the flow should be:
 	//
 	// 1. Claim controller propagates selectors claim -> XR.
 	// 2. XR controller uses selectors to set XR's composition ref.
@@ -211,6 +212,10 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// takes precedence over any claim preference.
 	if ref := xr.GetCompositionReference(); ref != nil && (cm.GetCompositionReference() == nil || hasEnforcedComposition) {
 		cm.SetCompositionReference(ref)
+	}
+
+	if ref := xr.GetCompositionRevisionSelector(); ref != nil && cm.GetCompositionRevisionSelector() == nil {
+		cm.SetCompositionRevisionSelector(ref)
 	}
 
 	// We want to propagate the XR's spec to the claim's spec, but first we must
