@@ -31,7 +31,7 @@ import (
 // Compositions.
 //
 // Read the Crossplane documentation for
-// [more information about Configuration packages](https://docs.crossplane.io/latest/packages/).
+// [more information about Configuration packages]( https://docs.crossplane.io/latest/packages/configurations/).
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="INSTALLED",type="string",JSONPath=".status.conditions[?(@.type=='Installed')].status"
