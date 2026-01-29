@@ -122,6 +122,7 @@ func (c *LocalCache) Exists(image string) (string, error) {
 
 // getCachePath transforms an image name to a validate folder path that store schemas.
 func (c *LocalCache) getCachePath(image string) string {
-	cacheImagePath := strings.ReplaceAll(image, ":", "@")
+	replacer := strings.NewReplacer(":", "@", ",", " ")
+	cacheImagePath := replacer.Replace(image)
 	return filepath.Join(c.cacheDir, cacheImagePath)
 }
