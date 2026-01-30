@@ -528,8 +528,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v2.0.1"
     hash = "sha256-d8DVVdevVrFuDRndh99RS/1DKqoY6jXGSfUDKOuCK9c="
   [mod."github.com/sigstore/sigstore"]
-    version = "v1.10.3"
-    hash = "sha256-C1o+kIZCculwts1KAjbqrXD0Wysrnv3pA1FNSVahc4w="
+    version = "v1.10.4"
+    hash = "sha256-eRJFozhehtpsiOSJ1z6a4SmyfGd7hl+IjQ4QD3yW0h0="
   [mod."github.com/sigstore/sigstore-go"]
     version = "v1.1.4"
     hash = "sha256-EsPVloCbJXMXOUKsNU00WQzzR2DfkbmCGYGdYgnH94I="
