@@ -303,21 +303,14 @@ func TestBuildMetadata(t *testing.T) {
 			},
 		},
 		"NilRequest": {
-			reason: "Should handle nil request.",
+			reason: "Should return error for nil request.",
 			args: args{
 				ctx:          validCtx,
 				functionName: "test-function",
 				req:          nil,
 			},
 			want: want{
-				meta: &pipelinev1alpha1.StepMeta{
-					TraceId:         "trace-abc",
-					StepIndex:       2,
-					StepName:        "my-step",
-					Iteration:       5,
-					FunctionName:    "test-function",
-					CompositionName: "my-composition",
-				},
+				err: cmpopts.AnyError,
 			},
 		},
 	}

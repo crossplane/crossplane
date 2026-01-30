@@ -74,6 +74,10 @@ func ContextWithStepIteration(ctx context.Context, iteration int32) context.Cont
 
 // BuildMetadata builds Metadata from the given context and function request.
 func BuildMetadata(ctx context.Context, functionName string, req *fnv1.RunFunctionRequest) (*pipelinev1alpha1.StepMeta, error) {
+	if req == nil {
+		return nil, fmt.Errorf("function request should not be nil")
+	}
+
 	meta := pipelinev1alpha1.StepMeta{
 		FunctionName: functionName,
 		Timestamp:    timestamppb.New(time.Now()),
