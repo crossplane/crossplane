@@ -143,6 +143,7 @@ func (e *SocketPipelineInspector) EmitResponse(ctx context.Context, rsp *fnv1.Ru
 	return errors.Wrapf(err, "failed to emit pipeline response for function %s", meta.GetFunctionName())
 }
 
+// Close closes the underlying gRPC connection.
 func (e *SocketPipelineInspector) Close() error {
 	if e.conn != nil {
 		return e.conn.Close()
