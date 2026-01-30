@@ -190,7 +190,6 @@
               pkgs.kind
               pkgs.docker-client
               pkgs.gotestsum
-              pkgs.helm-docs
               pkgs.awscli2
               pkgs.gomod2nix
 
