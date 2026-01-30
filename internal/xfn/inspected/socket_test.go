@@ -325,7 +325,7 @@ func TestSocketPipelineInspectorEmitRequest(t *testing.T) {
 				// Unmarshal the emitted request and verify sanitization.
 				if tc.want.expectedReq != nil {
 					var gotReq fnv1.RunFunctionRequest
-					if err := protojson.Unmarshal(tc.client.LastEmitRequestRequest.Request, &gotReq); err != nil {
+					if err := protojson.Unmarshal(tc.client.LastEmitRequestRequest.GetRequest(), &gotReq); err != nil {
 						t.Fatalf("\n%s\nEmitRequest(...): failed to unmarshal emitted request: %v", tc.reason, err)
 					}
 					if diff := cmp.Diff(tc.want.expectedReq, &gotReq, protocmp.Transform()); diff != "" {
@@ -536,7 +536,7 @@ func TestSocketPipelineInspectorEmitResponse(t *testing.T) {
 			// Validate the sanitized response if expected.
 			if tc.want.expectedRsp != nil {
 				var gotRsp fnv1.RunFunctionResponse
-				if err := protojson.Unmarshal(tc.client.LastEmitResponseRequest.Response, &gotRsp); err != nil {
+				if err := protojson.Unmarshal(tc.client.LastEmitResponseRequest.GetResponse(), &gotRsp); err != nil {
 					t.Fatalf("\n%s\nEmitResponse(...): failed to unmarshal emitted response: %v", tc.reason, err)
 				}
 				if diff := cmp.Diff(tc.want.expectedRsp, &gotRsp, protocmp.Transform()); diff != "" {
