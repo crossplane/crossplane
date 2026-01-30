@@ -1,0 +1,20 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: crossplane-e2e-transitive-dep1
+spec:
+  package: xpkg.crossplane.io/crossplane/e2e-transitive-dep1:v0.0.1
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: crossplane-e2e-transitive-dep2
+spec:
+  package: xpkg.crossplane.io/crossplane/e2e-transitive-dep2:v0.0.1
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: crossplane-e2e-transitive-transitive
+spec:
+  package: xpkg.crossplane.io/crossplane/e2e-transitive-transitive:v0.0.1
