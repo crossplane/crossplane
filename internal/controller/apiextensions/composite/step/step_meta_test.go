@@ -38,15 +38,17 @@ func TestContextWithStepMeta(t *testing.T) {
 		iteration       int32
 	}
 
+	type want struct {
+		TraceID         string
+		compositionName string
+		stepIndex       int32
+		iteration       int32
+	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
-		want   struct {
-			TraceID         string
-			compositionName string
-			stepIndex       int32
-			iteration       int32
-		}
+		want   want
 	}{
 		"StoresAllValues": {
 			reason: "Should store all values in context.",
@@ -57,12 +59,7 @@ func TestContextWithStepMeta(t *testing.T) {
 				stepIndex:       2,
 				iteration:       3,
 			},
-			want: struct {
-				TraceID         string
-				compositionName string
-				stepIndex       int32
-				iteration       int32
-			}{
+			want: want{
 				TraceID:         "trace-123",
 				compositionName: "my-composition",
 				stepIndex:       2,
@@ -78,12 +75,7 @@ func TestContextWithStepMeta(t *testing.T) {
 				stepIndex:       0,
 				iteration:       0,
 			},
-			want: struct {
-				TraceID         string
-				compositionName string
-				stepIndex       int32
-				iteration       int32
-			}{
+			want: want{
 				TraceID:         "trace-456",
 				compositionName: "other-composition",
 				stepIndex:       0,
