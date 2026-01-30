@@ -13,3 +13,5 @@ jobs:
         with:
           # The checklist must _exist_ and be filled out.
           requireChecklist: true
+          # Only check the PR description, ignore checklists in comments.
+          skipComments: true
