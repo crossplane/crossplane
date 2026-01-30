@@ -32,10 +32,10 @@ func TestComposedResourceErrorError(t *testing.T) {
 
 	testComposed := &composed.Unstructured{
 		Unstructured: unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "example.org/v1",
 				"kind":       "TestResource",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name": "test-resource",
 				},
 			},
@@ -135,7 +135,7 @@ func TestComposedResourceError_Unwrap(t *testing.T) {
 
 	testComposed := &composed.Unstructured{
 		Unstructured: unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "example.org/v1",
 				"kind":       "TestResource",
 			},

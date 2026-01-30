@@ -74,12 +74,14 @@ spec:
                       description: |-
                         Configuration is the name of a Configuration package image.
                         Must be a fully qualified image name, including the registry,
+
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     function:
                       description: |-
                         Function is the name of a Function package image.
                         Must be a fully qualified image name, including the registry,
+
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     kind:
@@ -96,6 +98,7 @@ spec:
                       description: |-
                         Provider is the name of a Provider package image.
                         Must be a fully qualified image name, including the registry,
+
                         Deprecated: Specify an apiVersion and kind instead.
                       type: string
                     version:
@@ -172,12 +175,14 @@ spec:
                       description: |-
                         Configuration is the name of a Configuration package image.
                         Must be a fully qualified image name, including the registry,
+
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     function:
                       description: |-
                         Function is the name of a Function package image.
                         Must be a fully qualified image name, including the registry,
+
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     kind:
@@ -194,6 +199,7 @@ spec:
                       description: |-
                         Provider is the name of a Provider package image.
                         Must be a fully qualified image name, including the registry,
+
                         Deprecated: Specify an apiVersion and kind instead.
                       type: string
                     version:

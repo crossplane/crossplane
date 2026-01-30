@@ -55,6 +55,7 @@ type LockPackage struct {
 	// Type is the type of package.
 	// +kubebuilder:validation:Enum=Configuration;Provider;Function
 	// +optional
+	//
 	// Deprecated: Specify an apiVersion and kind instead.
 	Type *PackageType `json:"type"`
 
@@ -143,6 +144,7 @@ type Dependency struct {
 	// Type is the type of package. Can be either Configuration or Provider.
 	// +kubebuilder:validation:Enum=Configuration;Provider;Function
 	// +optional
+	//
 	// Deprecated: Specify an apiVersion and kind instead.
 	Type *PackageType `json:"type"`
 

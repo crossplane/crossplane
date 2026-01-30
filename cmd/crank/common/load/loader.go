@@ -221,7 +221,7 @@ func streamToUnstructured(stream [][]byte) ([]*unstructured.Unstructured, error)
 			for _, step := range comp.Spec.Pipeline {
 				// Create a new resource based on the input (we can use it for validation)
 				if step.Input != nil && step.Input.Raw != nil {
-					var inputMap map[string]interface{}
+					var inputMap map[string]any
 
 					err := json.Unmarshal(step.Input.Raw, &inputMap)
 					if err != nil {
