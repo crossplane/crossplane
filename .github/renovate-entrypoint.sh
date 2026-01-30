@@ -12,13 +12,14 @@ chmod +x /usr/local/bin/earthly
 echo "Installing Nix..."
 apt-get update && apt-get install -y nix-bin
 
-# Configure Nix via environment variable
-export NIX_CONFIG="
+# Configure Nix
+mkdir -p /etc/nix
+cat > /etc/nix/nix.conf << 'EOF'
 experimental-features = nix-command flakes
 max-jobs = auto
 extra-substituters = https://crossplane.cachix.org
 extra-trusted-public-keys = crossplane.cachix.org-1:NJluVUN9TX0rY/zAxHYaT19Y5ik4ELH4uFuxje+62d4=
-"
+EOF
 
 echo "Nix $(nix --version) installed successfully"
 
