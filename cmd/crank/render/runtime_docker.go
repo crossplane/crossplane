@@ -104,13 +104,14 @@ type DockerPullPolicy string
 
 // Supported pull policies.
 const (
-	// Always pull the image.
+	// AnnotationValueRuntimeDockerPullPolicyAlways always pulls the image.
 	AnnotationValueRuntimeDockerPullPolicyAlways DockerPullPolicy = "Always"
 
-	// Never pull the image.
+	// AnnotationValueRuntimeDockerPullPolicyNever never pulls the image.
 	AnnotationValueRuntimeDockerPullPolicyNever DockerPullPolicy = "Never"
 
-	// Pull the image if it's not present.
+	// AnnotationValueRuntimeDockerPullPolicyIfNotPresent pulls the image if
+	// it's not present.
 	AnnotationValueRuntimeDockerPullPolicyIfNotPresent DockerPullPolicy = "IfNotPresent"
 
 	AnnotationValueRuntimeDockerPullPolicyDefault DockerPullPolicy = AnnotationValueRuntimeDockerPullPolicyIfNotPresent
@@ -207,8 +208,8 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 	}
 
 	if i := fn.GetAnnotations()[AnnotationKeyRuntimeEnvironmentVariables]; i != "" {
-		pairs := strings.Split(i, ",")
-		for _, pair := range pairs {
+		pairs := strings.SplitSeq(i, ",")
+		for pair := range pairs {
 			if !strings.Contains(pair, "=") {
 				r.log.Debug("ignoring invalid environment variable", "pair", pair)
 				continue

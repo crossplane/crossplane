@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package e2e implements end-to-end tests for Crossplane.
 package e2e
 
 // LabelArea represents the 'area' of a feature. For example 'apiextensions',

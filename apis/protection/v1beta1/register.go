@@ -42,7 +42,7 @@ var (
 
 // Usage type metadata.
 var (
-	UsageKind             = reflect.TypeOf(Usage{}).Name()
+	UsageKind             = reflect.TypeFor[Usage]().Name()
 	UsageGroupKind        = schema.GroupKind{Group: Group, Kind: UsageKind}.String()
 	UsageKindAPIVersion   = UsageKind + "." + SchemeGroupVersion.String()
 	UsageGroupVersionKind = SchemeGroupVersion.WithKind(UsageKind)
@@ -50,7 +50,7 @@ var (
 
 // ClusterUsage type metadata.
 var (
-	ClusterUsageKind             = reflect.TypeOf(ClusterUsage{}).Name()
+	ClusterUsageKind             = reflect.TypeFor[ClusterUsage]().Name()
 	ClusterUsageGroupKind        = schema.GroupKind{Group: Group, Kind: ClusterUsageKind}.String()
 	ClusterUsageKindAPIVersion   = ClusterUsageKind + "." + SchemeGroupVersion.String()
 	ClusterUsageGroupVersionKind = SchemeGroupVersion.WithKind(ClusterUsageKind)

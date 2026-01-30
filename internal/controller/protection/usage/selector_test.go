@@ -223,10 +223,10 @@ func TestResolveSelectors(t *testing.T) {
 						case "SomeKindList":
 							l.Items = []unstructured.Unstructured{
 								{
-									Object: map[string]interface{}{
+									Object: map[string]any{
 										"apiVersion": "v1",
 										"kind":       "SomeKind",
-										"metadata": map[string]interface{}{
+										"metadata": map[string]any{
 											"name": "some",
 										},
 									},
@@ -269,10 +269,10 @@ func TestResolveSelectors(t *testing.T) {
 						case "AnotherKindList":
 							l.Items = []unstructured.Unstructured{
 								{
-									Object: map[string]interface{}{
+									Object: map[string]any{
 										"apiVersion": "v1",
 										"kind":       "AnotherKind",
-										"metadata": map[string]interface{}{
+										"metadata": map[string]any{
 											"name": "another",
 										},
 									},
@@ -349,10 +349,10 @@ func TestResolveSelectors(t *testing.T) {
 						case "SomeKindList":
 							l.Items = []unstructured.Unstructured{
 								{
-									Object: map[string]interface{}{
+									Object: map[string]any{
 										"apiVersion": "v1",
 										"kind":       "SomeKind",
-										"metadata": map[string]interface{}{
+										"metadata": map[string]any{
 											"name": "some",
 										},
 									},
@@ -402,13 +402,13 @@ func TestResolveSelectors(t *testing.T) {
 							}
 							l.Items = []unstructured.Unstructured{
 								{
-									Object: map[string]interface{}{
+									Object: map[string]any{
 										"apiVersion": "v1",
 										"kind":       "SomeKind",
-										"metadata": map[string]interface{}{
+										"metadata": map[string]any{
 											"name": "some",
-											"ownerReferences": []interface{}{
-												map[string]interface{}{
+											"ownerReferences": []any{
+												map[string]any{
 													"apiVersion": "v1",
 													"kind":       "OwnerKind",
 													"name":       "owner",
@@ -426,10 +426,10 @@ func TestResolveSelectors(t *testing.T) {
 							}
 							l.Items = []unstructured.Unstructured{
 								{
-									Object: map[string]interface{}{
+									Object: map[string]any{
 										"apiVersion": "v1",
 										"kind":       "AnotherKind",
-										"metadata": map[string]interface{}{
+										"metadata": map[string]any{
 											"name": "another",
 										},
 									},
