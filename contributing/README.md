@@ -966,7 +966,7 @@ func TestExample(t *testing.T) {
 
 [Slack]: https://slack.crossplane.io/
 [code of conduct]: https://github.com/cncf/foundation/blob/main/code-of-conduct.md
-[Nix]: https://nixos.org
+[Nix]: ../design/one-pager-build-with-nix.md
 [install-nix]: https://nixos.org/download/
 [enable-flakes]: https://wiki.nixos.org/wiki/Flakes#Nix_standalone
 [get-docker]: https://docs.docker.com/get-docker

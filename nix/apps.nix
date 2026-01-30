@@ -152,6 +152,7 @@
             pkgs.docker-client
             pkgs.gotestsum
             pkgs.kind
+            pkgs.kubernetes-helm
           ];
           inheritPath = false;
           text = ''
