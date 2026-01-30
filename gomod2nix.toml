@@ -507,8 +507,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v7.2.1+incompatible"
     hash = "sha256-vHyTdLRh6OlfoGzVgvx7I0+E6tpE7V43lCQaHD/e8J4="
   [mod."github.com/secure-systems-lab/go-securesystemslib"]
-    version = "v0.9.1"
-    hash = "sha256-6kWaL+i7CKGLiOoAPZ4fHT99qnEYr2RNq6CaoowvIK0="
+    version = "v0.10.0"
+    hash = "sha256-KY68WNnb3tgNTi0QWsmirkPfmU0xyaP23QVuSuawtHQ="
   [mod."github.com/sergi/go-diff"]
     version = "v1.4.0"
     hash = "sha256-rs9NKpv/qcQEMRg7CmxGdP4HGuFdBxlpWf9LbA9wS4k="
@@ -528,8 +528,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v2.0.1"
     hash = "sha256-d8DVVdevVrFuDRndh99RS/1DKqoY6jXGSfUDKOuCK9c="
   [mod."github.com/sigstore/sigstore"]
-    version = "v1.10.3"
-    hash = "sha256-C1o+kIZCculwts1KAjbqrXD0Wysrnv3pA1FNSVahc4w="
+    version = "v1.10.4"
+    hash = "sha256-eRJFozhehtpsiOSJ1z6a4SmyfGd7hl+IjQ4QD3yW0h0="
   [mod."github.com/sigstore/sigstore-go"]
     version = "v1.1.4"
     hash = "sha256-EsPVloCbJXMXOUKsNU00WQzzR2DfkbmCGYGdYgnH94I="
@@ -561,8 +561,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v0.7.0"
     hash = "sha256-YwQTq6V20iI46KufNAi+1P1qrn0ldZxsFRY7dhXbO1s="
   [mod."github.com/theupdateframework/go-tuf/v2"]
-    version = "v2.3.0"
-    hash = "sha256-z8fn38nDMVyRLbSdKjZyapca+ST5/j2UzRQOErlCH/o="
+    version = "v2.4.1"
+    hash = "sha256-v9ULpLPiK+0wBn+36zwA2ci8bX1ugO+qf3+1nd7xI4g="
   [mod."github.com/titanous/rocacheck"]
     version = "v0.0.0-20171023193734-afe73141d399"
     hash = "sha256-r5XUB1A/doHNd5pu1cL0J8Jwy5IBtc8gQtG5NmKEYPU="
