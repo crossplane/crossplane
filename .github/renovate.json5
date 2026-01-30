@@ -5,9 +5,12 @@
   // - renovate-base.json5: Common configuration for all branches
   // - renovate-earthly.json5: Earthly-specific config for release branches
   // - renovate-nix.json5: Nix-specific config for main branch
+  //
+  // The local> syntax requires owner/repo format with // for paths.
+  // See: https://docs.renovatebot.com/config-presets/#local-presets
   extends: [
-    'local>.github/renovate-base.json5',
-    'local>.github/renovate-earthly.json5',
-    'local>.github/renovate-nix.json5',
+    'local>crossplane/crossplane//.github/renovate-base.json5',
+    'local>crossplane/crossplane//.github/renovate-earthly.json5',
+    'local>crossplane/crossplane//.github/renovate-nix.json5',
   ],
 }
