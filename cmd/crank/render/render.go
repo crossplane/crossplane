@@ -203,7 +203,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 	}()
 
-	runner := xfn.NewFetchingFunctionRunner(runtimes, NewFilteringFetcher(append(in.ExtraResources, in.RequiredResources...)...))
+	runner := xfn.NewFetchingFunctionRunner(runtimes, NewFilteringFetcher(append(in.ExtraResources, in.RequiredResources...)...), xfn.NopRequiredSchemasFetcher{})
 
 	observed := composite.ComposedResourceStates{}
 
@@ -300,6 +300,8 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 				req.RequiredResources[sel.RequirementName] = resources
 			}
 		}
+
+		req.Meta = &fnv1.RequestMeta{Capabilities: xfn.RenderCapabilities()}
 
 		rsp, err := runner.RunFunction(ctx, fn.FunctionRef.Name, req)
 		if err != nil {

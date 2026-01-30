@@ -31,6 +31,10 @@ type Options struct {
 	// FunctionRunner used to run Composition Functions.
 	FunctionRunner xfn.FunctionRunner
 
+	// OpenAPIClient used to fetch OpenAPI schemas for bootstrap requirements
+	// specified in Operations.
+	OpenAPIClient xfn.OpenAPIV3Client
+
 	// ControllerEngine used to dynamically manage watches.
 	ControllerEngine *engine.ControllerEngine
 }

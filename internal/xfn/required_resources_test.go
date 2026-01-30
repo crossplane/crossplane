@@ -339,6 +339,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 	type params struct {
 		wrapped   FunctionRunner
 		resources RequiredResourcesFetcher
+		schemas   RequiredSchemasFetcher
 	}
 
 	type args struct {
@@ -364,6 +365,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					return nil, errors.New("boom")
 				}),
+				schemas: NopRequiredSchemasFetcher{},
 			},
 			args: args{
 				req: &fnv1.RunFunctionRequest{},
@@ -385,6 +387,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 					}
 					return rsp, nil
 				}),
+				schemas: NopRequiredSchemasFetcher{},
 			},
 			args: args{
 				req: &fnv1.RunFunctionRequest{},
@@ -413,6 +416,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 					}
 					return rsp, nil
 				}),
+				schemas: NopRequiredSchemasFetcher{},
 			},
 			args: args{
 				req: &fnv1.RunFunctionRequest{},
@@ -447,6 +451,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 				resources: RequiredResourcesFetcherFn(func(_ context.Context, _ *fnv1.ResourceSelector) (*fnv1.Resources, error) {
 					return nil, errors.New("boom")
 				}),
+				schemas: NopRequiredSchemasFetcher{},
 			},
 			args: args{
 				req: &fnv1.RunFunctionRequest{},
@@ -476,6 +481,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 				resources: RequiredResourcesFetcherFn(func(_ context.Context, _ *fnv1.ResourceSelector) (*fnv1.Resources, error) {
 					return &fnv1.Resources{}, nil
 				}),
+				schemas: NopRequiredSchemasFetcher{},
 			},
 			args: args{
 				req: &fnv1.RunFunctionRequest{},
@@ -525,6 +531,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 					}
 					return r, nil
 				}),
+				schemas: NopRequiredSchemasFetcher{},
 			},
 			args: args{
 				req: &fnv1.RunFunctionRequest{},
@@ -603,6 +610,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 						Items: []*fnv1.Resource{{Resource: coolResource}},
 					}, nil
 				}),
+				schemas: NopRequiredSchemasFetcher{},
 			},
 			args: args{
 				req: &fnv1.RunFunctionRequest{
@@ -630,11 +638,170 @@ func TestFetchingFunctionRunner(t *testing.T) {
 				},
 			},
 		},
+		"FetchSchemasError": {
+			reason: "We should return any error encountered when fetching schemas",
+			params: params{
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					rsp := &fnv1.RunFunctionResponse{
+						Requirements: &fnv1.Requirements{
+							Schemas: map[string]*fnv1.SchemaSelector{
+								"pod-schema": {
+									ApiVersion: "v1",
+									Kind:       "Pod",
+								},
+							},
+						},
+					}
+					return rsp, nil
+				}),
+				schemas: RequiredSchemasFetcherFn(func(_ context.Context, _ *fnv1.SchemaSelector) (*fnv1.Schema, error) {
+					return nil, errors.New("boom")
+				}),
+			},
+			args: args{
+				req: &fnv1.RunFunctionRequest{},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"FetchSchemasSuccess": {
+			reason: "We should return the fetched schemas",
+			params: params{
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// On second call, verify schemas were populated
+					if len(req.GetRequiredSchemas()) > 0 {
+						if _, exists := req.GetRequiredSchemas()["pod-schema"]; !exists {
+							return nil, errors.New("expected pod-schema to be populated")
+						}
+					}
+					rsp := &fnv1.RunFunctionResponse{
+						Requirements: &fnv1.Requirements{
+							Schemas: map[string]*fnv1.SchemaSelector{
+								"pod-schema": {
+									ApiVersion: "v1",
+									Kind:       "Pod",
+								},
+							},
+						},
+					}
+					return rsp, nil
+				}),
+				schemas: RequiredSchemasFetcherFn(func(_ context.Context, ss *fnv1.SchemaSelector) (*fnv1.Schema, error) {
+					return &fnv1.Schema{
+						OpenapiV3: MustStruct(map[string]any{
+							"type": "object",
+							"x-kubernetes-group-version-kind": []any{
+								map[string]any{
+									"group":   "",
+									"version": ss.GetApiVersion(),
+									"kind":    ss.GetKind(),
+								},
+							},
+						}),
+					}, nil
+				}),
+			},
+			args: args{
+				req: &fnv1.RunFunctionRequest{},
+			},
+			want: want{
+				rsp: &fnv1.RunFunctionResponse{
+					Requirements: &fnv1.Requirements{
+						Schemas: map[string]*fnv1.SchemaSelector{
+							"pod-schema": {
+								ApiVersion: "v1",
+								Kind:       "Pod",
+							},
+						},
+					},
+				},
+			},
+		},
+		"PreserveBootstrapSchemasWithDynamicRequirements": {
+			reason: "We should preserve bootstrap schemas when functions set dynamic requirements",
+			params: params{
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// First call - check we have bootstrap schemas and set dynamic requirements
+					if len(req.GetRequiredSchemas()) == 1 {
+						if _, exists := req.GetRequiredSchemas()["bootstrap-schema"]; !exists {
+							return nil, errors.New("bootstrap schema missing on first call")
+						}
+
+						// Set dynamic requirements - this triggers the same path as resources
+						rsp := &fnv1.RunFunctionResponse{
+							Requirements: &fnv1.Requirements{
+								Schemas: map[string]*fnv1.SchemaSelector{
+									"dynamic-schema": {
+										ApiVersion: "apps/v1",
+										Kind:       "Deployment",
+									},
+								},
+							},
+						}
+						return rsp, nil
+					}
+
+					// Second call - verify we still have bootstrap AND dynamic schemas
+					if len(req.GetRequiredSchemas()) != 2 {
+						return nil, errors.Errorf("expected 2 required schemas, got %d", len(req.GetRequiredSchemas()))
+					}
+
+					if _, exists := req.GetRequiredSchemas()["bootstrap-schema"]; !exists {
+						return nil, errors.New("bootstrap schema lost after setting dynamic requirements")
+					}
+
+					if _, exists := req.GetRequiredSchemas()["dynamic-schema"]; !exists {
+						return nil, errors.New("dynamic schema not found")
+					}
+
+					// Requirements are stable now
+					return &fnv1.RunFunctionResponse{
+						Requirements: &fnv1.Requirements{
+							Schemas: map[string]*fnv1.SchemaSelector{
+								"dynamic-schema": {
+									ApiVersion: "apps/v1",
+									Kind:       "Deployment",
+								},
+							},
+						},
+					}, nil
+				}),
+				schemas: RequiredSchemasFetcherFn(func(_ context.Context, _ *fnv1.SchemaSelector) (*fnv1.Schema, error) {
+					// Return mock schema for dynamic requirements
+					return &fnv1.Schema{
+						OpenapiV3: MustStruct(map[string]any{"type": "object"}),
+					}, nil
+				}),
+			},
+			args: args{
+				req: &fnv1.RunFunctionRequest{
+					// Start with bootstrap schemas
+					RequiredSchemas: map[string]*fnv1.Schema{
+						"bootstrap-schema": {
+							OpenapiV3: MustStruct(map[string]any{"type": "object"}),
+						},
+					},
+				},
+			},
+			want: want{
+				rsp: &fnv1.RunFunctionResponse{
+					Requirements: &fnv1.Requirements{
+						Schemas: map[string]*fnv1.SchemaSelector{
+							"dynamic-schema": {
+								ApiVersion: "apps/v1",
+								Kind:       "Deployment",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewFetchingFunctionRunner(tc.params.wrapped, tc.params.resources)
+			r := NewFetchingFunctionRunner(tc.params.wrapped, tc.params.resources, tc.params.schemas)
 
 			rsp, err := r.RunFunction(tc.args.ctx, tc.args.name, tc.args.req)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {

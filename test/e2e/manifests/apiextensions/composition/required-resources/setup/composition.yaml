@@ -1,0 +1,60 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: resource-test-composition
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: ResourceTest
+  mode: Pipeline
+  pipeline:
+  - step: request-and-verify-resource
+    functionRef:
+      name: function-python-resources
+    input:
+      apiVersion: python.fn.crossplane.io/v1beta1
+      kind: Script
+      script: |
+        from crossplane.function import response, request
+        from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+
+        def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+            # Request a specific ConfigMap by name.
+            response.require_resources(
+                rsp,
+                name="test-configmap",
+                api_version="v1",
+                kind="ConfigMap",
+                match_name="test-configmap",
+                namespace="default",
+            )
+
+            # Check if we received the resource in this iteration.
+            resource_received = "test-configmap" in req.required_resources
+
+            # Check if the resource has the expected data.
+            resource_has_expected_data = False
+            if resource_received:
+                cm = request.get_required_resource(req, "test-configmap")
+                if cm:
+                    data = cm.get("data", {})
+                    resource_has_expected_data = data.get("test-key") == "test-value"
+
+            # Set status fields to indicate what we found.
+            rsp.desired.composite.resource.update({
+                "status": {
+                    "resourceReceived": resource_received,
+                    "resourceHasExpectedData": resource_has_expected_data,
+                }
+            })
+
+            # Add a result for observability.
+            result = fnv1.Result()
+            result.severity = fnv1.SEVERITY_NORMAL
+            if resource_has_expected_data:
+                result.message = "Successfully received ConfigMap with expected data"
+            elif resource_received:
+                result.message = "Received ConfigMap but it was missing expected data"
+            else:
+                result.message = "Waiting for ConfigMap"
+            rsp.results.append(result)

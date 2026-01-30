@@ -90,6 +90,13 @@ message RunFunctionRequest {
   // satisfy the request. This field is only populated when the function uses
   // resources in its requirements.
   map<string, Resources> required_resources = 8;
+
+  // Optional schemas that the function specified in its requirements. The map
+  // key corresponds to the key in a RunFunctionResponse's requirements.schemas
+  // field. If a function requested a schema that could not be found, Crossplane
+  // sets the map key to an empty Schema message to indicate that it attempted
+  // to satisfy the request.
+  map<string, Schema> required_schemas = 9;
 }
 
 // Credentials that a function may use to communicate with an external system.
@@ -156,6 +163,44 @@ message RequestMeta {
   // An opaque string identifying a request. Requests with identical tags will
   // be otherwise identical.
   string tag = 1;
+
+  // Capabilities supported by this version of Crossplane. Functions may use
+  // this to determine whether Crossplane will honor certain fields in their
+  // response, or populate certain fields in their request.
+  repeated Capability capabilities = 2;
+}
+
+// Capability indicates that Crossplane supports a particular feature.
+// Functions can check for capabilities to determine whether Crossplane will
+// honor a particular request or response field.
+enum Capability {
+  CAPABILITY_UNSPECIFIED = 0;
+
+  // Crossplane sends capabilities in RequestMeta. If this capability is
+  // present, the function knows that if another capability is absent, it's
+  // because Crossplane doesn't support it (not because Crossplane predates
+  // capability advertisement). Added in Crossplane v2.2.
+  CAPABILITY_CAPABILITIES = 1;
+
+  // Crossplane supports the requirements.resources field. Functions can return
+  // resource requirements and Crossplane will fetch the requested resources and
+  // return them in required_resources. Added in Crossplane v1.15.
+  CAPABILITY_REQUIRED_RESOURCES = 2;
+
+  // Crossplane supports the credentials field. Functions can receive
+  // credentials from secrets specified in the Composition. Added in Crossplane
+  // v1.16.
+  CAPABILITY_CREDENTIALS = 3;
+
+  // Crossplane supports the conditions field. Functions can return status
+  // conditions to be applied to the XR and optionally its claim. Added in
+  // Crossplane v1.17.
+  CAPABILITY_CONDITIONS = 4;
+
+  // Crossplane supports the requirements.schemas field. Functions can request
+  // OpenAPI schemas and Crossplane will return them in required_schemas. Added
+  // in Crossplane v2.2.
+  CAPABILITY_REQUIRED_SCHEMAS = 5;
 }
 
 // Requirements that must be satisfied for a function to run successfully.
@@ -169,6 +214,27 @@ message Requirements {
   // Resources that this function requires. The map key uniquely identifies the
   // group of resources.
   map<string, ResourceSelector> resources = 2;
+
+  // Schemas that this function requires. The map key uniquely identifies the
+  // schema request.
+  map<string, SchemaSelector> schemas = 3;
+}
+
+// SchemaSelector identifies a resource kind whose OpenAPI schema is requested.
+message SchemaSelector {
+  // API version of the resource kind, e.g. "example.org/v1".
+  string api_version = 1;
+
+  // Kind of resource, e.g. "MyResource".
+  string kind = 2;
+}
+
+// Schema represents the OpenAPI schema for a resource kind.
+message Schema {
+  // The OpenAPI v3 schema of the resource kind as unstructured JSON.
+  // For CRDs this is the spec.versions[].schema.openAPIV3Schema field.
+  // Empty if Crossplane could not find a schema for the requested kind.
+  optional google.protobuf.Struct openapi_v3 = 1;
 }
 
 // ResourceSelector selects a group of resources, either by name or by label.
