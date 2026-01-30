@@ -228,8 +228,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v2.9.0"
     hash = "sha256-/IZK76MRCrz9XCiilieH5tKaLnIWyPJhwxDoVKB8dFc="
   [mod."github.com/go-chi/chi/v5"]
-    version = "v5.2.3"
-    hash = "sha256-fB8KidqJgWrPnnS+0uIKVOO1VRclD6nG1Lt1IeSq2M0="
+    version = "v5.2.4"
+    hash = "sha256-u2ADFcS4pc7jJjNo6qZ4zMm29/Dh5ptqlwE4XG8jSEA="
   [mod."github.com/go-errors/errors"]
     version = "v1.4.2"
     hash = "sha256-TkRLJlgaVlNxRD9c0ky+CN99tKL4Gx9W06H5a273gPM="
@@ -258,8 +258,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v0.24.1"
     hash = "sha256-g7JQNKJ/Oy7gT6QiA7S5DGTO1A9EpOmsP3ahrU/eB9Y="
   [mod."github.com/go-openapi/errors"]
-    version = "v0.22.5"
-    hash = "sha256-O54OKhGkBmUBALIsoPvTTwusfuRahLcP5MPWAatcQjA="
+    version = "v0.22.6"
+    hash = "sha256-JcWNO3VO/OxaMptpMuFs6pYD7xFDtC5H8vn1EiF9w20="
   [mod."github.com/go-openapi/jsonpointer"]
     version = "v0.22.4"
     hash = "sha256-V76k+oQUyqkWcpa64bOirteoCfdn1Xm9TLH0/7W4Uxc="
@@ -273,8 +273,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v0.29.2"
     hash = "sha256-bif9t7r2Xb2Uf1R30b2o/38NWiA0+G53B5I/3i/n6L4="
   [mod."github.com/go-openapi/spec"]
-    version = "v0.22.2"
-    hash = "sha256-o9A6ZVaVPUVP2ssO0I4CDTuGyRuhL/VCM28jU0l32ps="
+    version = "v0.22.3"
+    hash = "sha256-AhZLJGr4STQH4pmcLHtwVaLt3Gij5uyYgHs9oOAzOMw="
   [mod."github.com/go-openapi/strfmt"]
     version = "v0.25.0"
     hash = "sha256-xz4aMKsHsDhUPVc27hBa4FrywKQABhLhEBNg3qClL9Y="
@@ -522,8 +522,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v0.5.0"
     hash = "sha256-nImiBItjCQwskGHqYYthBjUfHHxy8VnVwSMWkK6GiNo="
   [mod."github.com/sigstore/rekor"]
-    version = "v1.4.3"
-    hash = "sha256-sCJIIfjobsY8SU4oSP+ujxhTV5Ii7VTdTS0m0shKTW8="
+    version = "v1.5.0"
+    hash = "sha256-4iHI86GGqCOQqUN2rkCFTjkRsHUh3/UYs7PFzNfDXOU="
   [mod."github.com/sigstore/rekor-tiles/v2"]
     version = "v2.0.1"
     hash = "sha256-d8DVVdevVrFuDRndh99RS/1DKqoY6jXGSfUDKOuCK9c="
@@ -663,11 +663,11 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v0.0.0-20251202230838-ff82c1b0f217"
     hash = "sha256-z0OqsPMjhZ8fNmUbcDfi5Q49hBcutKX8lyzW1mLBTec="
   [mod."google.golang.org/genproto/googleapis/rpc"]
-    version = "v0.0.0-20251213004720-97cd9d5aeac2"
-    hash = "sha256-I3ZNpNjKKvTq4DVNw3wLKrCuORabZ0oYj0KKhOMI/MA="
+    version = "v0.0.0-20251222181119-0a764e51fe1b"
+    hash = "sha256-gdgUw1LzgVOrarF1cGBUI9uoaR/d6lur2RwxUDKnOZA="
   [mod."google.golang.org/grpc"]
-    version = "v1.77.0"
-    hash = "sha256-RDkejy1CQ9em+6Pm0oWevEiWbzHSFo1QNut5uWH9TLE="
+    version = "v1.78.0"
+    hash = "sha256-oKsu3+Eae5tpFOZ9K2ZzYh1FgdYdEnEIB1C+UIxSD+E="
   [mod."google.golang.org/protobuf"]
     version = "v1.36.11"
     hash = "sha256-7W+6jntfI/awWL3JP6yQedxqP5S9o3XvPgJ2XxxsIeE="
