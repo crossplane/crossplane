@@ -28,6 +28,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
@@ -71,8 +72,11 @@ func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, r
 	// Preserve bootstrap required resources from the initial request.
 	bootstrap := maps.Clone(req.GetRequiredResources())
 
-	for i := int64(0); i <= MaxRequirementsIterations; i++ {
-		rsp, err := c.wrapped.RunFunction(ctx, name, req)
+	for i := int32(0); i <= MaxRequirementsIterations; i++ {
+		// Update the iteration counter in the context for downstream components.
+		iterCtx := step.ContextWithStepIteration(ctx, i)
+
+		rsp, err := c.wrapped.RunFunction(iterCtx, name, req)
 		if err != nil {
 			// I can't think of any useful info to wrap this error with.
 			return nil, err
