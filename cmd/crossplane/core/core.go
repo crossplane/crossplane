@@ -318,7 +318,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		metrics.Registry.MustRegister(cfrm)
 
 		// Wrap the packaged function runner with a caching one.
-		cfr := cached.NewFileBackedRunner(pfr, c.XfnCacheDir,
+		cfr := cached.NewFileBackedRunner(runner, c.XfnCacheDir,
 			cached.WithLogger(log),
 			cached.WithMaxTTL(c.XfnCacheMaxTTL),
 			cached.WithMetrics(cfrm),
