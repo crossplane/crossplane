@@ -228,8 +228,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v2.9.0"
     hash = "sha256-/IZK76MRCrz9XCiilieH5tKaLnIWyPJhwxDoVKB8dFc="
   [mod."github.com/go-chi/chi/v5"]
-    version = "v5.2.3"
-    hash = "sha256-fB8KidqJgWrPnnS+0uIKVOO1VRclD6nG1Lt1IeSq2M0="
+    version = "v5.2.4"
+    hash = "sha256-u2ADFcS4pc7jJjNo6qZ4zMm29/Dh5ptqlwE4XG8jSEA="
   [mod."github.com/go-errors/errors"]
     version = "v1.4.2"
     hash = "sha256-TkRLJlgaVlNxRD9c0ky+CN99tKL4Gx9W06H5a273gPM="
