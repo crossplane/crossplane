@@ -79,6 +79,28 @@
         else
           "v0.0.0-${builtins.toString self.lastModified}-${self.dirtyShortRev}";
 
+      # Filtered source for Go builds. Nix will only see these paths when it
+      # builds Go code in its sandbox. It starts with 'self' (the repo root),
+      # and filters down to *.go, go.mod, etc. Everything Nix needs to see to
+      # build Crossplane, build E2E tests, run unit tests, or run golangci-lint
+      # must be listed here. The benefit of this filtering is that Nix'll only
+      # rebuild Go code when these files change. If you nix build, edit
+      # README.md, then nix build again, the second build will be cached.
+      src = nixpkgs.lib.sources.cleanSourceWith {
+        src = self;
+        filter =
+          path: type:
+          type == "directory"
+          || nixpkgs.lib.hasSuffix ".go" path
+          || nixpkgs.lib.hasInfix "/testdata/" path
+          || builtins.elem (baseNameOf path) [
+            "go.mod"
+            "go.sum"
+            "gomod2nix.toml"
+            ".golangci.yml"
+          ];
+      };
+
       # Helpers for per-system outputs.
       forAllSystems = f: nixpkgs.lib.genAttrs supportedSystems (system: forSystem system f);
       forSystem =
@@ -97,7 +119,7 @@
       packages = forAllSystems (
         { pkgs, ... }:
         let
-          build = import ./nix/build.nix { inherit pkgs self; };
+          build = import ./nix/build.nix { inherit pkgs self src; };
         in
         {
           default = build.release {
@@ -114,7 +136,7 @@
       checks = forAllSystems (
         { pkgs, ... }:
         let
-          checks = import ./nix/checks.nix { inherit pkgs self; };
+          checks = import ./nix/checks.nix { inherit pkgs self src; };
         in
         {
           test = checks.test { inherit version; };
@@ -129,7 +151,7 @@
       apps = forAllSystems (
         { pkgs, ... }:
         let
-          build = import ./nix/build.nix { inherit pkgs self; };
+          build = import ./nix/build.nix { inherit pkgs self src; };
           apps = import ./nix/apps.nix { inherit pkgs; };
           nativeArch = if pkgs.stdenv.hostPlatform.isAarch64 then "arm64" else "amd64";
           images = build.images {
