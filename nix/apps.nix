@@ -10,8 +10,8 @@
 #   ${somePkg}/bin/foo   -> /nix/store/.../bin/foo  (Nix store path)
 #   ''${SOME_VAR}        -> ${SOME_VAR}             (shell variable, escaped)
 #
-# Each app declares its tool dependencies via runtimeInputs. This ensures apps
-# only have access to explicitly declared tools, not arbitrary system binaries.
+# Each app declares its tool dependencies via runtimeInputs, with inheritPath
+# set to false. This ensures apps only use explicitly declared tools.
 { pkgs }:
 {
   # Run Go unit tests.
@@ -22,6 +22,7 @@
       pkgs.writeShellApplication {
         name = "crossplane-test";
         runtimeInputs = [ pkgs.go ];
+        inheritPath = false;
         text = ''
           export CGO_ENABLED=0
           go test -covermode=count ./apis/... ./cmd/... ./internal/... "$@"
@@ -45,6 +46,7 @@
             pkgs.go
             pkgs.golangci-lint
           ];
+          inheritPath = false;
           text = ''
             export CGO_ENABLED=0
             export GOLANGCI_LINT_CACHE="''${XDG_CACHE_HOME:-$HOME/.cache}/golangci-lint"
@@ -62,6 +64,8 @@
       pkgs.writeShellApplication {
         name = "crossplane-generate";
         runtimeInputs = [
+          pkgs.coreutils
+          pkgs.gnused
           pkgs.go
           pkgs.kubectl
           pkgs.helm-docs
@@ -73,6 +77,7 @@
           pkgs.protoc-gen-go-grpc
           pkgs.kubernetes-controller-tools
         ];
+        inheritPath = false;
         text = ''
           export CGO_ENABLED=0
 
@@ -106,6 +111,7 @@
           pkgs.go
           pkgs.gomod2nix
         ];
+        inheritPath = false;
         text = ''
           export CGO_ENABLED=0
           echo "Running go mod tidy..."
@@ -141,10 +147,13 @@
         pkgs.writeShellApplication {
           name = "crossplane-e2e";
           runtimeInputs = [
+            pkgs.coreutils
             pkgs.go
             pkgs.docker-client
             pkgs.gotestsum
+            pkgs.kind
           ];
+          inheritPath = false;
           text = ''
             export CGO_ENABLED=0
 
@@ -181,11 +190,15 @@
         pkgs.writeShellApplication {
           name = "crossplane-hack";
           runtimeInputs = [
+            pkgs.coreutils
+            pkgs.gnugrep
             pkgs.docker-client
             pkgs.kind
             pkgs.kubectl
             pkgs.kubernetes-helm
+            pkgs.nix
           ];
+          inheritPath = false;
           text = ''
             CLUSTER_NAME="crossplane-hack"
 
@@ -241,6 +254,7 @@
         pkgs.writeShellApplication {
           name = "crossplane-push-images";
           runtimeInputs = [ pkgs.docker-client ];
+          inheritPath = false;
           text = ''
             REPO="''${1:?Usage: nix run .#push-images -- <registry/image>}"
 
@@ -273,6 +287,7 @@
         pkgs.writeShellApplication {
           name = "crossplane-push-artifacts";
           runtimeInputs = [ pkgs.awscli2 ];
+          inheritPath = false;
           text = ''
             BRANCH="''${1:?Usage: nix run .#push-artifacts -- <branch>}"
 
@@ -294,6 +309,7 @@
       pkgs.writeShellApplication {
         name = "crossplane-promote-images";
         runtimeInputs = [ pkgs.docker-client ];
+        inheritPath = false;
         text = ''
           REPO="''${1:?Usage: nix run .#promote-images -- <registry/image> <version> <channel>}"
           VERSION="''${2:?Usage: nix run .#promote-images -- <registry/image> <version> <channel>}"
@@ -318,9 +334,11 @@
       pkgs.writeShellApplication {
         name = "crossplane-promote-artifacts";
         runtimeInputs = [
+          pkgs.coreutils
           pkgs.awscli2
           pkgs.kubernetes-helm
         ];
+        inheritPath = false;
         text = ''
           BRANCH="''${1:?Usage: nix run .#promote-artifacts -- <branch> <version> <channel> [--prerelease]}"
           VERSION="''${2:?Usage: nix run .#promote-artifacts -- <branch> <version> <channel> [--prerelease]}"
