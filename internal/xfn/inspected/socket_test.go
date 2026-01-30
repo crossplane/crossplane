@@ -382,10 +382,8 @@ func TestSocketPipelineInspectorEmitResponse(t *testing.T) {
 
 			// If we expected success, verify the error field was captured correctly.
 			if tc.want.err == nil && tc.client.LastEmitResponseRequest != nil {
-				if tc.want.errField != "" {
-					if tc.client.LastEmitResponseRequest.GetError() != tc.want.errField {
-						t.Errorf("\n%s\nEmitResponse(...): want error field %q, got %q", tc.reason, tc.want.errField, tc.client.LastEmitResponseRequest.GetError())
-					}
+				if diff := cmp.Diff(tc.want.errField, tc.client.LastEmitResponseRequest.GetError()); diff != "" {
+					t.Errorf("\n%s\nEmitResponse(...) error field: -want, +got:\n%s", tc.reason, diff)
 				}
 				if tc.client.LastEmitResponseRequest.GetMeta() == nil {
 					t.Errorf("\n%s\nEmitResponse(...): expected meta to be set", tc.reason)

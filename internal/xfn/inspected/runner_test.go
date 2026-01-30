@@ -103,7 +103,7 @@ func TestRunFunction(t *testing.T) {
 	}
 
 	// Create a valid context with all required step metadata.
-	validCtx := step.ContextWithStepMeta(context.Background(), "trace-123", "my-composition", 0, 0)
+	validCtx := step.ContextWithStepMeta(context.Background(), "trace-123", "my-composition", "test-step", 0, 0)
 
 	cases := map[string]struct {
 		reason string
@@ -301,7 +301,7 @@ func TestRunFunction(t *testing.T) {
 
 func TestRunFunctionMetadataConsistency(t *testing.T) {
 	// This test verifies that the same metadata is passed to both EmitRequest and EmitResponse.
-	validCtx := step.ContextWithStepMeta(context.Background(), "trace-abc", "test-composition", 2, 5)
+	validCtx := step.ContextWithStepMeta(context.Background(), "trace-abc", "test-composition", "test-step", 2, 5)
 
 	inspector := &MockPipelineInspector{}
 	metrics := &MockMetrics{}

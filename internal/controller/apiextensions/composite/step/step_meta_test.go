@@ -34,6 +34,7 @@ func TestContextWithStepMeta(t *testing.T) {
 		ctx             context.Context
 		TraceID         string
 		compositionName string
+		stepName        string
 		stepIndex       int32
 		iteration       int32
 	}
@@ -41,6 +42,7 @@ func TestContextWithStepMeta(t *testing.T) {
 	type want struct {
 		TraceID         string
 		compositionName string
+		stepName        string
 		stepIndex       int32
 		iteration       int32
 	}
@@ -56,12 +58,14 @@ func TestContextWithStepMeta(t *testing.T) {
 				ctx:             context.Background(),
 				TraceID:         "trace-123",
 				compositionName: "my-composition",
+				stepName:        "my-step",
 				stepIndex:       2,
 				iteration:       3,
 			},
 			want: want{
 				TraceID:         "trace-123",
 				compositionName: "my-composition",
+				stepName:        "my-step",
 				stepIndex:       2,
 				iteration:       3,
 			},
@@ -72,12 +76,14 @@ func TestContextWithStepMeta(t *testing.T) {
 				ctx:             nil,
 				TraceID:         "trace-456",
 				compositionName: "other-composition",
+				stepName:        "other-step",
 				stepIndex:       0,
 				iteration:       0,
 			},
 			want: want{
 				TraceID:         "trace-456",
 				compositionName: "other-composition",
+				stepName:        "other-step",
 				stepIndex:       0,
 				iteration:       0,
 			},
@@ -86,7 +92,7 @@ func TestContextWithStepMeta(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ctx := ContextWithStepMeta(tc.args.ctx, tc.args.TraceID, tc.args.compositionName, tc.args.stepIndex, tc.args.iteration)
+			ctx := ContextWithStepMeta(tc.args.ctx, tc.args.TraceID, tc.args.compositionName, tc.args.stepName, tc.args.stepIndex, tc.args.iteration)
 
 			if ctx == nil {
 				t.Fatal("expected non-nil context")
@@ -97,6 +103,9 @@ func TestContextWithStepMeta(t *testing.T) {
 			}
 			if got := ctx.Value(ContextKeyCompositionName); got != tc.want.compositionName {
 				t.Errorf("\n%s\nContextWithStepMeta(...) CompositionName: want %q, got %q", tc.reason, tc.want.compositionName, got)
+			}
+			if got := ctx.Value(ContextKeyStepName); got != tc.want.stepName {
+				t.Errorf("\n%s\nContextWithStepMeta(...) StepName: want %q, got %q", tc.reason, tc.want.stepName, got)
 			}
 			if got := ctx.Value(ContextKeyStepIndex); got != tc.want.stepIndex {
 				t.Errorf("\n%s\nContextWithStepMeta(...) StepIndex: want %d, got %d", tc.reason, tc.want.stepIndex, got)
@@ -116,7 +125,7 @@ func TestContextWithStepIteration(t *testing.T) {
 	}{
 		"UpdatesIteration": {
 			reason:    "Should update iteration in existing context.",
-			ctx:       ContextWithStepMeta(context.Background(), "trace", "comp", 0, 0),
+			ctx:       ContextWithStepMeta(context.Background(), "trace", "comp", "step", 0, 0),
 			iteration: 5,
 		},
 		"HandlesNilContext": {
@@ -153,7 +162,7 @@ func TestBuildMetadata(t *testing.T) {
 		err  error
 	}
 
-	validCtx := ContextWithStepMeta(context.Background(), "trace-abc", "my-composition", 2, 5)
+	validCtx := ContextWithStepMeta(context.Background(), "trace-abc", "my-composition", "my-step", 2, 5)
 
 	cases := map[string]struct {
 		reason string
@@ -189,6 +198,7 @@ func TestBuildMetadata(t *testing.T) {
 				meta: &pipelinev1alpha1.StepMeta{
 					TraceId:                     "trace-abc",
 					StepIndex:                   2,
+					StepName:                    "my-step",
 					Iteration:                   5,
 					FunctionName:                "function-auto-ready",
 					CompositionName:             "my-composition",
@@ -252,10 +262,13 @@ func TestBuildMetadata(t *testing.T) {
 			args: args{
 				ctx: context.WithValue(
 					context.WithValue(
-						context.WithValue(context.Background(), ContextKeyTraceID, "trace"),
-						ContextKeyStepIndex, int32(1),
+						context.WithValue(
+							context.WithValue(context.Background(), ContextKeyTraceID, "trace"),
+							ContextKeyStepIndex, int32(1),
+						),
+						ContextKeyCompositionName, "comp",
 					),
-					ContextKeyCompositionName, "comp",
+					ContextKeyStepName, "step",
 				),
 				functionName: "test-function",
 				req:          &fnv1.RunFunctionRequest{},
@@ -264,6 +277,7 @@ func TestBuildMetadata(t *testing.T) {
 				meta: &pipelinev1alpha1.StepMeta{
 					TraceId:         "trace",
 					StepIndex:       1,
+					StepName:        "step",
 					Iteration:       0,
 					FunctionName:    "test-function",
 					CompositionName: "comp",
@@ -281,6 +295,7 @@ func TestBuildMetadata(t *testing.T) {
 				meta: &pipelinev1alpha1.StepMeta{
 					TraceId:         "trace-abc",
 					StepIndex:       2,
+					StepName:        "my-step",
 					Iteration:       5,
 					FunctionName:    "test-function",
 					CompositionName: "my-composition",
@@ -298,6 +313,7 @@ func TestBuildMetadata(t *testing.T) {
 				meta: &pipelinev1alpha1.StepMeta{
 					TraceId:         "trace-abc",
 					StepIndex:       2,
+					StepName:        "my-step",
 					Iteration:       5,
 					FunctionName:    "test-function",
 					CompositionName: "my-composition",
