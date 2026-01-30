@@ -1,0 +1,4 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Lock
+metadata:
+  name: lock

@@ -20,6 +20,7 @@ package resolver
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -270,7 +271,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	)
 
 	dag := r.newDag()
-	implied, err := dag.Init(v1beta1.ToNodes(lock.Packages...))
+
+	packages := lock.Packages
+	if r.features.Enabled(features.EnableAlphaDependencyVersionUpgrades) {
+		// Filter packages to only include those that are roots (not installed
+		// as a dependency) or match some current dependency. This prevents
+		// "orphaned" packages with incompatible versions from blocking
+		// resolution. We do this only when upgrades are enabled, since this
+		// implicitly enables upgrades by ignoring outdated installed packages.
+		packages = pruneOutdatedDependencies(lock.Packages)
+	}
+
+	implied, err := dag.Init(v1beta1.ToNodes(packages...))
 	if err != nil {
 		log.Debug(errBuildDAG, "error", err)
 		lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errBuildDAG)))
@@ -624,6 +636,86 @@ func findDigestToUpdate(node internaldag.Node) (string, error) {
 	}
 
 	return "", nil
+}
+
+// pruneOutdatedDependencies filters the lock to only include packages that
+// either:
+//
+// 1. Are root packages (their source doesn't appear in any dependency list), OR
+// 2. Match at least one dependency constraint from another package in the lock
+//
+// This prevents the reconciler from getting stuck trying to resolve orphaned
+// packages with incompatible version constraints. Note that this is relevant
+// only when upgrades are enabled, since otherwise the incompatible package
+// can't be updated anyway.
+func pruneOutdatedDependencies(pkgs []v1beta1.LockPackage) []v1beta1.LockPackage {
+	if len(pkgs) == 0 {
+		return pkgs
+	}
+
+	// Build a set of all package sources that are declared as dependencies,
+	// with their constraints.
+	depConstraints := make(map[string][]string)
+	for _, pkg := range pkgs {
+		for _, dep := range pkg.Dependencies {
+			depConstraints[dep.Package] = append(depConstraints[dep.Package], dep.Constraints)
+		}
+	}
+
+	var filtered []v1beta1.LockPackage
+	for _, pkg := range pkgs {
+		// Keep if it's a root package (source doesn't appear in any
+		// dependency).
+		if _, ok := depConstraints[pkg.Source]; !ok {
+			filtered = append(filtered, pkg)
+			continue
+		}
+
+		// Keep if it matches at least one dependency constraint.
+		if matchesAnyConstraint(pkg.Version, depConstraints[pkg.Source]) {
+			filtered = append(filtered, pkg)
+		}
+	}
+
+	return filtered
+}
+
+// matchesAnyConstraint checks if a version matches a constraint.  Handles both
+// semantic version constraints and digest pins.
+func matchesAnyConstraint(version string, constraints []string) bool {
+	// Check whether the version is a digest; if it is, it must exactly match
+	// some constraint.
+	if _, err := conregv1.NewHash(version); err == nil {
+		return slices.Contains(constraints, version)
+	}
+
+	// Otherwise, we should have a semantic version and need to check each
+	// constraint.
+	v, err := semver.NewVersion(version)
+	if err != nil {
+		// Shouldn't happen, since the version was found in the lock and
+		// therefore should be either a digest or a semver.
+		return false
+	}
+
+	for _, constraint := range constraints {
+		// Check if constraint is a digest, which can't match a semver.
+		if _, err := conregv1.NewHash(constraint); err == nil {
+			continue
+		}
+
+		c, err := semver.NewConstraint(constraint)
+		if err != nil {
+			// Invalid constraint - shouldn't happen, but let's ignore it.
+			continue
+		}
+
+		if c.Check(v) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // NewPackage creates a new package from the given dependency and version.

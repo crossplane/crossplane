@@ -169,9 +169,22 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 	}
 
 	prExists := false
-	for _, lp := range lock.Packages {
+	for i, lp := range lock.Packages {
 		if lp.Name == pr.GetName() {
 			prExists = true
+
+			if lp.Version != self.Version {
+				// Version was updated without creating a new revision (e.g., because
+				// there were no changes between two semvers). Update the lock to
+				// reflect which version is installed, in case other packages are
+				// depending on the new version.
+				lock.Packages[i].Version = self.Version
+				if err := m.client.Update(ctx, lock); err != nil {
+					return found, installed, invalid, err
+				}
+				d.AddOrUpdateNodes(&self)
+			}
+
 			break
 		}
 	}
