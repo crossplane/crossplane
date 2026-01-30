@@ -1,0 +1,164 @@
+{
+  // Earthly-specific configuration for release branches.
+  // Main branch uses Nix - see renovate-nix.json5.
+  customManagers: [
+    {
+      customType: 'regex',
+      description: 'Bump Earthly version in GitHub workflows',
+      fileMatch: [
+        '^\\.github\\/workflows\\/[^/]+\\.ya?ml$',
+      ],
+      matchStrings: [
+        "EARTHLY_VERSION: '(?<currentValue>.*?)'\\n",
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'earthly/earthly',
+      extractVersionTemplate: '^v(?<version>.*)$',
+    },
+    {
+      customType: 'regex',
+      description: 'Bump Go version in Earthfile',
+      fileMatch: [
+        '^Earthfile$',
+      ],
+      matchStrings: [
+        'ARG --global GO_VERSION=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'golang-version',
+      depNameTemplate: 'golang',
+    },
+    {
+      customType: 'regex',
+      description: 'Bump golangci-lint version in the Earthfile',
+      fileMatch: [
+        '^Earthfile$',
+      ],
+      matchStrings: [
+        'ARG GOLANGCI_LINT_VERSION=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'golangci/golangci-lint',
+    },
+    {
+      customType: 'regex',
+      description: 'Bump helm version in the Earthfile',
+      fileMatch: [
+        '^Earthfile$',
+      ],
+      matchStrings: [
+        'ARG HELM_VERSION=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'helm/helm',
+    },
+    {
+      customType: 'regex',
+      description: 'Bump helm-docs version in the Earthfile',
+      fileMatch: [
+        '^Earthfile$',
+      ],
+      matchStrings: [
+        'ARG HELM_DOCS_VERSION=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'norwoodj/helm-docs',
+      extractVersionTemplate: '^v(?<version>.*)$',
+    },
+    {
+      customType: 'regex',
+      description: 'Bump kind version in the Earthfile',
+      fileMatch: [
+        '^Earthfile$',
+      ],
+      matchStrings: [
+        'ARG KIND_VERSION=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'kubernetes-sigs/kind',
+    },
+    {
+      customType: 'regex',
+      description: 'Bump kubectl version in the Earthfile',
+      fileMatch: [
+        '^Earthfile$',
+      ],
+      matchStrings: [
+        'ARG KUBECTL_VERSION=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'kubernetes/kubernetes',
+    },
+    {
+      customType: 'regex',
+      description: 'Bump gotestsum version in the Earthfile',
+      fileMatch: [
+        '^Earthfile$',
+      ],
+      matchStrings: [
+        'ARG GOTESTSUM_VERSION=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'gotestyourself/gotestsum',
+      extractVersionTemplate: '^v(?<version>.*)$',
+    },
+    {
+      customType: 'regex',
+      description: 'Bump codeql version in the Earthfile',
+      fileMatch: [
+        '^Earthfile$',
+      ],
+      matchStrings: [
+        'ARG CODEQL_VERSION=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'github/codeql-action',
+      extractVersionTemplate: '^codeql-bundle-(?<version>.*)$',
+    },
+  ],
+  // Renovate doesn't have native Earthfile support, but because Earthfile
+  // syntax is a superset of Dockerfile syntax this works to update FROM images.
+  // https://github.com/renovatebot/renovate/issues/15975
+  dockerfile: {
+    fileMatch: [
+      '(^|/)Earthfile$',
+    ],
+  },
+  packageRules: [
+    {
+      description: 'Generate code after upgrading go dependencies (Earthly)',
+      matchDatasources: [
+        'go',
+      ],
+      matchBaseBranches: [
+        '/^release-.*/',
+      ],
+      postUpgradeTasks: {
+        commands: [
+          'earthly --strict +go-generate',
+        ],
+        fileFilters: [
+          '**/*',
+        ],
+        executionMode: 'update',
+      },
+    },
+    {
+      description: 'Lint code after upgrading golangci-lint (Earthly)',
+      matchDepNames: [
+        'golangci/golangci-lint',
+      ],
+      matchBaseBranches: [
+        '/^release-.*/',
+      ],
+      postUpgradeTasks: {
+        commands: [
+          'earthly --strict +go-lint',
+        ],
+        fileFilters: [
+          '**/*',
+        ],
+        executionMode: 'update',
+      },
+    },
+  ],
+}

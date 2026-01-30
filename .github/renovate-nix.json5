@@ -1,0 +1,58 @@
+{
+  // Nix-specific configuration for main branch.
+  // Release branches use Earthly - see renovate-earthly.json5.
+
+  // Enable the nix manager to update flake.lock when flake inputs change.
+  nix: {
+    enabled: true,
+  },
+
+  packageRules: [
+    {
+      description: 'Update flake.lock monthly',
+      matchManagers: [
+        'nix',
+      ],
+      extends: [
+        'schedule:monthly',
+      ],
+    },
+    {
+      description: 'Regenerate gomod2nix.toml and generated code after upgrading go dependencies (Nix)',
+      matchDatasources: [
+        'go',
+      ],
+      matchBaseBranches: [
+        'main',
+      ],
+      postUpgradeTasks: {
+        commands: [
+          'nix run .#tidy',
+          'nix run .#generate',
+        ],
+        fileFilters: [
+          '**/*',
+        ],
+        executionMode: 'update',
+      },
+    },
+    {
+      description: 'Lint code after upgrading golangci-lint (Nix)',
+      matchDepNames: [
+        'golangci/golangci-lint',
+      ],
+      matchBaseBranches: [
+        'main',
+      ],
+      postUpgradeTasks: {
+        commands: [
+          'nix run .#lint',
+        ],
+        fileFilters: [
+          '**/*',
+        ],
+        executionMode: 'update',
+      },
+    },
+  ],
+}

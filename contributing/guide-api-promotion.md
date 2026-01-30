@@ -74,8 +74,8 @@ based on the workflow defined above.
    version, e.g., as shown here for [Usage v1alpha1]
 1. Duplicate the API to other versions if needed using [`generate.go`], also
    instructing the [duplicate script] to set the storage version if needed
-1. Run `earthly +generate` to generate the CRDs and check them for sanity in the
-   [`cluster/crds`] directory
+1. Run `./nix.sh run .#generate` to generate the CRDs and check them for sanity
+   in the [`cluster/crds`] directory
 1. Include a [migrator] if needed to ensure resources are migrated to the
    current storage version and the CRD status is updated to declare that it only
    has resources stored in etcd of the current storage version

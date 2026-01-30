@@ -1,0 +1,140 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+    'helpers:pinGitHubActionDigests',
+    ':semanticCommits',
+  ],
+  // We only want renovate to rebase PRs when they have conflicts, default
+  // "auto" mode is not required.
+  rebaseWhen: 'conflicted',
+  // The maximum number of PRs to be created in parallel
+  prConcurrentLimit: 5,
+  // The branches renovate should target
+  // PLEASE UPDATE THIS WHEN RELEASING.
+  baseBranches: [
+    'main',
+    'release-1.20',
+    'release-2.0',
+    'release-2.1',
+  ],
+  ignorePaths: [
+    'design/**',
+    // We test upgrades, so leave it on an older version on purpose.
+    "test/e2e/manifests/pkg/provider/provider-initial.yaml",
+    // We test dependencies' upgrades, manifests must remain unchanged to avoid breaking tests.
+    "test/e2e/manifests/pkg/dependency-upgrade/**",
+    // We test packages signature verifications also on upgrades, manifests must remain unchanged to avoid breaking tests.
+    "test/e2e/manifests/pkg/image-config/signature-verification/**"
+  ],
+  postUpdateOptions: [
+    'gomodTidy',
+  ],
+  // All PRs should have a label
+  labels: [
+    'automated',
+  ],
+  crossplane: {
+    fileMatch: [
+      '(^|/)test/e2e/.*\\.ya?ml$',
+    ],
+  },
+  // PackageRules disabled below should be enabled in case of vulnerabilities
+  vulnerabilityAlerts: {
+    enabled: true,
+  },
+  osvVulnerabilityAlerts: true,
+  // Renovate evaluates all packageRules in order, so low priority rules should
+  // be at the beginning, high priority at the end
+  packageRules: [
+    {
+      matchManagers: [
+        'crossplane',
+      ],
+      matchFileNames: [
+        'test/e2e/**',
+      ],
+      groupName: 'e2e-manifests',
+    },
+    {
+      description: 'Ignore non-security related updates to release branches',
+      matchBaseBranches: [
+        '/^release-.*/',
+      ],
+      enabled: false,
+    },
+    {
+      description: 'Still update Docker images on release branches though',
+      matchDatasources: [
+        'docker',
+      ],
+      matchBaseBranches: [
+        '/^release-.*/',
+      ],
+      enabled: true,
+    },
+    {
+      description: 'Only get Docker image updates every 2 weeks to reduce noise',
+      matchDatasources: [
+        'docker',
+      ],
+      schedule: [
+        'every 2 week on monday',
+      ],
+      enabled: true,
+    },
+    {
+      description: 'Ignore k8s.io/client-go older versions, they switched to semantic version and old tags are still available in the repo',
+      matchDatasources: [
+        'go',
+      ],
+      matchDepNames: [
+        'k8s.io/client-go',
+      ],
+      allowedVersions: '<1.0',
+    },
+    {
+      description: 'Ignore k8s dependencies, should be updated on crossplane-runtime',
+      matchDatasources: [
+        'go',
+      ],
+      enabled: false,
+      matchPackageNames: [
+        'k8s.io{/,}**',
+        'sigs.k8s.io{/,}**',
+      ],
+    },
+    {
+      description: 'Only get dependency digest updates every month to reduce noise, except crossplane-runtime',
+      matchDatasources: [
+        'go',
+      ],
+      matchUpdateTypes: [
+        'digest',
+      ],
+      extends: [
+        'schedule:monthly',
+      ],
+      matchPackageNames: [
+        '!github.com/crossplane/crossplane-runtime/v2',
+      ],
+    },
+    {
+      description: "Ignore oss-fuzz, it's not using tags, we'll stick to master",
+      matchDepTypes: [
+        'action',
+      ],
+      matchDepNames: [
+        'google/oss-fuzz',
+      ],
+      enabled: false,
+    },
+    {
+      description: 'Group all go version updates',
+      matchDatasources: [
+        'golang-version',
+      ],
+      groupName: 'golang version',
+    },
+  ],
+}
