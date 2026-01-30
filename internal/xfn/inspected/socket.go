@@ -44,6 +44,7 @@ const (
 type SocketPipelineInspector struct {
 	client  pipelinev1alpha1.PipelineInspectorServiceClient
 	timeout time.Duration
+	conn    *grpc.ClientConn
 }
 
 // A SocketPipelineInspectorOption configures a SocketPipelineInspector.
@@ -65,6 +66,7 @@ func NewSocketPipelineInspector(socketPath string, o ...SocketPipelineInspectorO
 	e := &SocketPipelineInspector{
 		client:  pipelinev1alpha1.NewPipelineInspectorServiceClient(conn),
 		timeout: defaultEmitTimeout,
+		conn:    conn,
 	}
 
 	for _, fn := range o {
@@ -139,6 +141,13 @@ func (e *SocketPipelineInspector) EmitResponse(ctx context.Context, rsp *fnv1.Ru
 		Meta:     meta,
 	})
 	return errors.Wrapf(err, "failed to emit pipeline response for function %s", meta.GetFunctionName())
+}
+
+func (e *SocketPipelineInspector) Close() error {
+	if e.conn != nil {
+		return e.conn.Close()
+	}
+	return nil
 }
 
 // redactCredentials redacts credential data values while preserving the keys.
