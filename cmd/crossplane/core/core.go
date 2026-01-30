@@ -305,6 +305,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			return errors.Wrap(err, "cannot create pipeline inspector")
 		}
 
+		defer func() {
+			if err := inspector.Close(); err != nil {
+				log.Info("Cannot close pipeline inspector", "error", err)
+			}
+		}()
+
 		runner = inspected.NewRunner(runner, inspector,
 			inspected.WithMetrics(ifrm),
 			inspected.WithLogger(log))
