@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -66,9 +67,10 @@ func TestSocketPipelineInspectorEmitRequest(t *testing.T) {
 	}
 
 	type want struct {
-		err                  error
-		credentialsStripped  bool
-		connectionDetailsNil bool
+		err error
+		// expectedReq is the expected sanitized request after emission.
+		// If nil, no request validation is performed.
+		expectedReq *fnv1.RunFunctionRequest
 	}
 
 	validMeta := &pipelinev1alpha1.StepMeta{
@@ -102,8 +104,14 @@ func TestSocketPipelineInspectorEmitRequest(t *testing.T) {
 				meta: validMeta,
 			},
 			want: want{
-				credentialsStripped:  true,
-				connectionDetailsNil: true,
+				expectedReq: &fnv1.RunFunctionRequest{
+					Meta: &fnv1.RequestMeta{Tag: "test"},
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{
+							Resource: &structpb.Struct{},
+						},
+					},
+				},
 			},
 		},
 		"NilMetadata": {
@@ -125,7 +133,7 @@ func TestSocketPipelineInspectorEmitRequest(t *testing.T) {
 			},
 		},
 		"StripsCredentials": {
-			reason: "Should strip credentials from request before emission.",
+			reason: "Should redact credentials from request before emission.",
 			client: &MockPipelineInspectorServiceClient{},
 			args: args{
 				ctx: context.Background(),
@@ -148,12 +156,26 @@ func TestSocketPipelineInspectorEmitRequest(t *testing.T) {
 				meta: validMeta,
 			},
 			want: want{
-				credentialsStripped:  true,
-				connectionDetailsNil: true,
+				expectedReq: &fnv1.RunFunctionRequest{
+					Credentials: map[string]*fnv1.Credentials{
+						"secret": {
+							Source: &fnv1.Credentials_CredentialData{
+								CredentialData: &fnv1.CredentialData{
+									Data: map[string][]byte{"password": []byte(redactedValue)},
+								},
+							},
+						},
+					},
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{
+							Resource: &structpb.Struct{},
+						},
+					},
+				},
 			},
 		},
 		"StripsConnectionDetails": {
-			reason: "Should strip connection details from observed composite and resources.",
+			reason: "Should redact connection details from observed composite and resources.",
 			client: &MockPipelineInspectorServiceClient{},
 			args: args{
 				ctx: context.Background(),
@@ -178,12 +200,28 @@ func TestSocketPipelineInspectorEmitRequest(t *testing.T) {
 				meta: validMeta,
 			},
 			want: want{
-				credentialsStripped:  true,
-				connectionDetailsNil: true,
+				expectedReq: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("example.org/v1"),
+								},
+							},
+							ConnectionDetails: map[string][]byte{"conn": []byte(redactedValue)},
+						},
+						Resources: map[string]*fnv1.Resource{
+							"resource1": {
+								Resource:          &structpb.Struct{},
+								ConnectionDetails: map[string][]byte{"conn": []byte(redactedValue)},
+							},
+						},
+					},
+				},
 			},
 		},
 		"StripsDesiredConnectionDetails": {
-			reason: "Should strip connection details from desired composite and resources.",
+			reason: "Should redact connection details from desired composite and resources.",
 			client: &MockPipelineInspectorServiceClient{},
 			args: args{
 				ctx: context.Background(),
@@ -213,8 +251,29 @@ func TestSocketPipelineInspectorEmitRequest(t *testing.T) {
 				meta: validMeta,
 			},
 			want: want{
-				credentialsStripped:  true,
-				connectionDetailsNil: true,
+				expectedReq: &fnv1.RunFunctionRequest{
+					Observed: &fnv1.State{
+						Composite: &fnv1.Resource{
+							Resource: &structpb.Struct{},
+						},
+					},
+					Desired: &fnv1.State{
+						Composite: &fnv1.Resource{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("example.org/v1"),
+								},
+							},
+							ConnectionDetails: map[string][]byte{"conn": []byte(redactedValue)},
+						},
+						Resources: map[string]*fnv1.Resource{
+							"resource1": {
+								Resource:          &structpb.Struct{},
+								ConnectionDetails: map[string][]byte{"conn": []byte(redactedValue)},
+							},
+						},
+					},
+				},
 			},
 		},
 		"GRPCCallFails": {
@@ -254,15 +313,24 @@ func TestSocketPipelineInspectorEmitRequest(t *testing.T) {
 				t.Errorf("\n%s\nEmitRequest(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
 
-			// If we expected success, verify credentials were stripped.
+			// If we expected success, verify the emitted request was sanitized correctly.
 			if tc.want.err == nil && tc.client.LastEmitRequestRequest != nil {
-				// The request should have been marshaled without credentials.
-				// We can't easily check the JSON, but we can verify the call was made.
 				if tc.client.LastEmitRequestRequest.Request == nil {
-					t.Errorf("\n%s\nEmitRequest(...): expected request bytes to be set", tc.reason)
+					t.Fatalf("\n%s\nEmitRequest(...): expected request bytes to be set", tc.reason)
 				}
 				if tc.client.LastEmitRequestRequest.GetMeta() == nil {
 					t.Errorf("\n%s\nEmitRequest(...): expected meta to be set", tc.reason)
+				}
+
+				// Unmarshal the emitted request and verify sanitization.
+				if tc.want.expectedReq != nil {
+					var gotReq fnv1.RunFunctionRequest
+					if err := protojson.Unmarshal(tc.client.LastEmitRequestRequest.Request, &gotReq); err != nil {
+						t.Fatalf("\n%s\nEmitRequest(...): failed to unmarshal emitted request: %v", tc.reason, err)
+					}
+					if diff := cmp.Diff(tc.want.expectedReq, &gotReq, protocmp.Transform()); diff != "" {
+						t.Errorf("\n%s\nEmitRequest(...) sanitized request: -want, +got:\n%s", tc.reason, diff)
+					}
 				}
 			}
 		})
@@ -278,8 +346,10 @@ func TestSocketPipelineInspectorEmitResponse(t *testing.T) {
 	}
 
 	type want struct {
-		err      error
-		errField string
+		err error
+		// expectedRsp is the expected sanitized response after emission.
+		// If nil, no response validation is performed.
+		expectedRsp *fnv1.RunFunctionResponse
 	}
 
 	validMeta := &pipelinev1alpha1.StepMeta{
@@ -330,9 +400,7 @@ func TestSocketPipelineInspectorEmitResponse(t *testing.T) {
 				fnErr: errors.New("function failed"),
 				meta:  validMeta,
 			},
-			want: want{
-				errField: "function failed",
-			},
+			want: want{},
 		},
 		"CapturesFunctionError": {
 			reason: "Should capture function error message in the emitted response.",
@@ -346,7 +414,77 @@ func TestSocketPipelineInspectorEmitResponse(t *testing.T) {
 				meta:  validMeta,
 			},
 			want: want{
-				errField: "something went wrong",
+				expectedRsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Tag: "partial"},
+				},
+			},
+		},
+		"StripsDesiredConnectionDetails": {
+			reason: "Should strip connection details from desired state.",
+			client: &MockPipelineInspectorServiceClient{},
+			args: args{
+				ctx: context.Background(),
+				rsp: &fnv1.RunFunctionResponse{
+					Desired: &fnv1.State{
+						Composite: &fnv1.Resource{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("example.org/v1"),
+									"kind":       structpb.NewStringValue("XDatabase"),
+								},
+							},
+							ConnectionDetails: map[string][]byte{
+								"password": []byte("secret-password"),
+								"host":     []byte("db.example.com"),
+							},
+						},
+						Resources: map[string]*fnv1.Resource{
+							"db-instance": {
+								Resource: &structpb.Struct{
+									Fields: map[string]*structpb.Value{
+										"apiVersion": structpb.NewStringValue("rds.aws.upbound.io/v1beta1"),
+										"kind":       structpb.NewStringValue("Instance"),
+									},
+								},
+								ConnectionDetails: map[string][]byte{
+									"endpoint": []byte("rds.amazonaws.com"),
+								},
+							},
+						},
+					},
+				},
+				meta: validMeta,
+			},
+			want: want{
+				expectedRsp: &fnv1.RunFunctionResponse{
+					Desired: &fnv1.State{
+						Composite: &fnv1.Resource{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("example.org/v1"),
+									"kind":       structpb.NewStringValue("XDatabase"),
+								},
+							},
+							ConnectionDetails: map[string][]byte{
+								"password": []byte(redactedValue),
+								"host":     []byte(redactedValue),
+							},
+						},
+						Resources: map[string]*fnv1.Resource{
+							"db-instance": {
+								Resource: &structpb.Struct{
+									Fields: map[string]*structpb.Value{
+										"apiVersion": structpb.NewStringValue("rds.aws.upbound.io/v1beta1"),
+										"kind":       structpb.NewStringValue("Instance"),
+									},
+								},
+								ConnectionDetails: map[string][]byte{
+									"endpoint": []byte(redactedValue),
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 		"GRPCCallFails": {
@@ -380,13 +518,29 @@ func TestSocketPipelineInspectorEmitResponse(t *testing.T) {
 				t.Errorf("\n%s\nEmitResponse(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
 
-			// If we expected success, verify the error field was captured correctly.
+			// If we expected success, verify the request was captured correctly.
 			if tc.want.err == nil && tc.client.LastEmitResponseRequest != nil {
-				if diff := cmp.Diff(tc.want.errField, tc.client.LastEmitResponseRequest.GetError()); diff != "" {
+				// Verify the function error was captured correctly.
+				wantErrField := ""
+				if tc.args.fnErr != nil {
+					wantErrField = tc.args.fnErr.Error()
+				}
+				if diff := cmp.Diff(wantErrField, tc.client.LastEmitResponseRequest.GetError()); diff != "" {
 					t.Errorf("\n%s\nEmitResponse(...) error field: -want, +got:\n%s", tc.reason, diff)
 				}
 				if tc.client.LastEmitResponseRequest.GetMeta() == nil {
 					t.Errorf("\n%s\nEmitResponse(...): expected meta to be set", tc.reason)
+				}
+			}
+
+			// Validate the sanitized response if expected.
+			if tc.want.expectedRsp != nil {
+				var gotRsp fnv1.RunFunctionResponse
+				if err := protojson.Unmarshal(tc.client.LastEmitResponseRequest.Response, &gotRsp); err != nil {
+					t.Fatalf("\n%s\nEmitResponse(...): failed to unmarshal emitted response: %v", tc.reason, err)
+				}
+				if diff := cmp.Diff(tc.want.expectedRsp, &gotRsp, protocmp.Transform()); diff != "" {
+					t.Errorf("\n%s\nEmitResponse(...) sanitized response: -want, +got:\n%s", tc.reason, diff)
 				}
 			}
 		})
