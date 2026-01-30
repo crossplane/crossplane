@@ -40,6 +40,9 @@ const (
 	// ContextKeyStepIndex is the context key for the current pipeline step index.
 	ContextKeyStepIndex contextKey = "pipeline-step-index"
 
+	// ContextKeyStepName is the context key for the current pipeline step name.
+	ContextKeyStepName contextKey = "pipeline-step-name"
+
 	// ContextKeyCompositionName is the context key for the composition name.
 	ContextKeyCompositionName contextKey = "composition-name"
 
@@ -48,12 +51,13 @@ const (
 )
 
 // ContextWithStepMeta returns a new context with pipeline step metadata.
-func ContextWithStepMeta(ctx context.Context, traceID string, compositionName string, stepIndex, iteration int32) context.Context {
+func ContextWithStepMeta(ctx context.Context, traceID string, compositionName string, stepName string, stepIndex, iteration int32) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	ctx = context.WithValue(ctx, ContextKeyTraceID, traceID)
 	ctx = context.WithValue(ctx, ContextKeyStepIndex, stepIndex)
+	ctx = context.WithValue(ctx, ContextKeyStepName, stepName)
 	ctx = context.WithValue(ctx, ContextKeyCompositionName, compositionName)
 	ctx = context.WithValue(ctx, ContextKeyIteration, iteration)
 	return ctx
@@ -89,6 +93,11 @@ func BuildMetadata(ctx context.Context, functionName string, req *fnv1.RunFuncti
 		meta.StepIndex = v
 	} else {
 		return nil, fmt.Errorf("could not extract step index from context")
+	}
+	if v, ok := ctx.Value(ContextKeyStepName).(string); ok {
+		meta.StepName = v
+	} else {
+		return nil, fmt.Errorf("could not extract step name from context")
 	}
 	if v, ok := ctx.Value(ContextKeyCompositionName).(string); ok {
 		meta.CompositionName = v
