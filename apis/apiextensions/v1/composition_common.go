@@ -93,8 +93,14 @@ type FunctionReference struct {
 	Name string `json:"name"`
 }
 
-// FunctionCredentials are optional credentials that a function
-// needs to run.
+// FunctionCredentials specifies credentials that a function needs to run.
+// Credentials are typically sourced from Kubernetes secrets and passed to
+// functions during pipeline execution.
+//
+// Credentials can be marked as optional, allowing functions to run even when
+// the referenced secret does not exist. This is useful for functions that can
+// operate with or without certain credentials, or during initial setup when
+// secrets may not yet be provisioned.
 //
 // +kubebuilder:validation:XValidation:rule="self.source == 'Secret' && has(self.secretRef)",message="the Secret source requires a secretRef"
 type FunctionCredentials struct {
@@ -109,6 +115,24 @@ type FunctionCredentials struct {
 	// be supplied to the function.
 	// +optional
 	SecretRef *xpv1.SecretReference `json:"secretRef,omitempty"`
+
+	// ResolvePolicy specifies how to handle missing credentials. When set to
+	// "Optional", if the referenced secret does not exist, the function will be
+	// called without these credentials rather than failing the pipeline step.
+	// When set to "Required" or unspecified, missing credentials will cause
+	// the pipeline step to fail with an error.
+	//
+	// Note that only "not found" errors are handled gracefully when ResolvePolicy
+	// is "Optional". Permission errors (forbidden, unauthorized) will still cause
+	// the pipeline step to fail regardless of this setting. Similarly, if the
+	// secret exists but the referenced key is missing, the pipeline step will fail.
+	//
+	// When an optional secret is not found, an informational event is recorded
+	// on the composite resource, but reconciliation continues normally.
+	// +optional
+	// +kubebuilder:validation:Enum=Required;Optional
+	// +kubebuilder:default=Required
+	ResolvePolicy *CredentialResolvePolicy `json:"resolvePolicy,omitempty"`
 }
 
 // A FunctionCredentialsSource is a source from which function
@@ -123,6 +147,19 @@ const (
 	// FunctionCredentialsSourceSecret indicates that a function should acquire
 	// credentials from a secret.
 	FunctionCredentialsSourceSecret FunctionCredentialsSource = "Secret"
+)
+
+// A CredentialResolvePolicy specifies how to handle missing credentials.
+type CredentialResolvePolicy string
+
+const (
+	// CredentialResolvePolicyRequired indicates that missing credentials should
+	// cause the pipeline step to fail. This is the default behavior.
+	CredentialResolvePolicyRequired CredentialResolvePolicy = "Required"
+
+	// CredentialResolvePolicyOptional indicates that missing credentials should
+	// be skipped, allowing the pipeline to continue without the credential.
+	CredentialResolvePolicyOptional CredentialResolvePolicy = "Optional"
 )
 
 // FunctionRequirements define requirements that a function may need to

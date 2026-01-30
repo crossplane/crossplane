@@ -317,6 +317,20 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 			s := &corev1.Secret{}
 			if err := c.client.Get(ctx, client.ObjectKey{Namespace: cs.SecretRef.Namespace, Name: cs.SecretRef.Name}, s); err != nil {
+				// If the secret is not found and the credential is optional,
+				// skip it and continue with the pipeline. Record an event to
+				// inform users the optional credential was not found.
+				if kerrors.IsNotFound(err) && ptr.Deref(cs.ResolvePolicy, v1.CredentialResolvePolicyRequired) == v1.CredentialResolvePolicyOptional {
+					events = append(events, TargetedEvent{
+						Event: event.Normal(reasonCompose, fmt.Sprintf("Optional credential %q not found (secret %s/%s does not exist), continuing without it",
+							cs.Name, cs.SecretRef.Namespace, cs.SecretRef.Name)),
+						Detail: fmt.Sprintf("Pipeline step %q", fn.Step),
+						Target: CompositionTargetComposite,
+					})
+					continue
+				}
+				// For required credentials or non-NotFound errors (e.g., permission errors),
+				// always return the error.
 				return CompositionResult{}, errors.Wrapf(err, errFmtGetCredentialsFromSecret, fn.Step, cs.Name)
 			}
 
