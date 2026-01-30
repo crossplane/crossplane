@@ -1,8 +1,8 @@
 # Build with Nix
 
 * Owner: Nic Cope (@negz)
-* Reviewers: TBD
-* Status: Draft
+* Reviewers: Jared Watts (@jbw976)
+* Status: Approved
 
 ## Background
 
