@@ -9,16 +9,19 @@
 #
 # All checks are builder functions that take an attrset of arguments and return
 # a derivation. The actual check definitions live in flake.nix.
-{ pkgs, self }:
+{
+  pkgs,
+  self,
+  src,
+}:
 {
   # Run Go unit tests with coverage
   test =
     { version }:
     pkgs.buildGoApplication {
       pname = "crossplane-test";
-      inherit version;
-      src = self;
-      pwd = self;
+      inherit version src;
+      pwd = src;
       modules = ../gomod2nix.toml;
 
       CGO_ENABLED = "0";
@@ -43,9 +46,8 @@
     { version }:
     pkgs.buildGoApplication {
       pname = "crossplane-go-lint";
-      inherit version;
-      src = self;
-      pwd = self;
+      inherit version src;
+      pwd = src;
       modules = ../gomod2nix.toml;
 
       CGO_ENABLED = "0";
