@@ -537,8 +537,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v2.0.4"
     hash = "sha256-n4uj+IAvjEgDRfFyl6rirp59jOenxRIpQtO4LC5B4jE="
   [mod."github.com/sirupsen/logrus"]
-    version = "v1.9.4-0.20230606125235-dd1b4c2e81af"
-    hash = "sha256-2WPfRNvtP5LYFEYsEWR9rfwWO50UZeIelYW0DjVHMpE="
+    version = "v1.9.4"
+    hash = "sha256-ltRvmtM3XTCAFwY0IesfRqYIivyXPPuvkFjL4ARh1wg="
   [mod."github.com/skeema/knownhosts"]
     version = "v1.3.0"
     hash = "sha256-piR5IdfqxK9nxyErJ+IRDLnkaeNQwX93ztTFZyPm5MQ="
