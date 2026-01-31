@@ -127,7 +127,7 @@ func CompositeResourceSpecProps(s v1.CompositeResourceScope, defaultPol *xpv1.Up
 				if defaultPol == nil {
 					return nil
 				}
-				return &extv1.JSON{Raw: []byte(fmt.Sprintf("\"%s\"", *defaultPol))}
+				return &extv1.JSON{Raw: fmt.Appendf(nil, "\"%s\"", *defaultPol)}
 			}(),
 		},
 		"resourceRefs": {
@@ -268,7 +268,7 @@ func CompositeResourceClaimSpecProps(defaultPol *xpv1.CompositeDeletePolicy) map
 				if defaultPol == nil {
 					return nil
 				}
-				return &extv1.JSON{Raw: []byte(fmt.Sprintf("\"%s\"", *defaultPol))}
+				return &extv1.JSON{Raw: fmt.Appendf(nil, "\"%s\"", *defaultPol)}
 			}(),
 		},
 		"resourceRef": {

@@ -174,10 +174,10 @@ func TestLocalCacheLoad(t *testing.T) {
 			want: want{
 				schemas: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "apiextensions.k8s.io/v1beta1",
 							"kind":       "CustomResourceDefinition",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "test",
 							},
 						},

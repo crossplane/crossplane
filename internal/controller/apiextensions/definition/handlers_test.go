@@ -241,10 +241,10 @@ func TestCompositeResourcesMapFunc(t *testing.T) {
 					},
 				},
 				obj: &kunstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": bucket.GroupVersion().String(),
 						"kind":       bucket.Kind,
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "my-bucket",
 							"namespace": "default",
 						},
@@ -270,10 +270,10 @@ func TestCompositeResourcesMapFunc(t *testing.T) {
 					},
 				},
 				obj: &kunstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": bucket.GroupVersion().String(),
 						"kind":       bucket.Kind,
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "my-bucket",
 							"namespace": "default",
 						},
@@ -305,10 +305,10 @@ func TestCompositeResourcesMapFunc(t *testing.T) {
 					},
 				},
 				obj: &kunstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": bucket.GroupVersion().String(),
 						"kind":       bucket.Kind,
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "my-bucket",
 							"namespace": "default",
 						},
@@ -347,8 +347,8 @@ func TestSelfMapFunc(t *testing.T) {
 		"ClusterScoped": {
 			reason: "Should return a reconcile request for the object itself (cluster-scoped).",
 			obj: &kunstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
+				Object: map[string]any{
+					"metadata": map[string]any{
 						"name": "my-object",
 					},
 				},
@@ -362,8 +362,8 @@ func TestSelfMapFunc(t *testing.T) {
 		"Namespaced": {
 			reason: "Should return a reconcile request for the object itself (namespaced).",
 			obj: &kunstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
+				Object: map[string]any{
+					"metadata": map[string]any{
 						"name":      "my-object",
 						"namespace": "my-namespace",
 					},

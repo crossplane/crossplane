@@ -226,7 +226,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot create manager")
 	}
 
-	eb.StartLogging(func(format string, args ...interface{}) {
+	eb.StartLogging(func(format string, args ...any) {
 		log.Debug(fmt.Sprintf(format, args...))
 	})
 	defer eb.Shutdown()

@@ -42,7 +42,7 @@ var (
 
 // Lock type metadata.
 var (
-	LockKind             = reflect.TypeOf(Lock{}).Name()
+	LockKind             = reflect.TypeFor[Lock]().Name()
 	LockGroupKind        = schema.GroupKind{Group: Group, Kind: LockKind}.String()
 	LockKindAPIVersion   = LockKind + "." + SchemeGroupVersion.String()
 	LockGroupVersionKind = SchemeGroupVersion.WithKind(LockKind)
@@ -50,7 +50,7 @@ var (
 
 // Function type metadata.
 var (
-	FunctionKind             = reflect.TypeOf(Function{}).Name()
+	FunctionKind             = reflect.TypeFor[Function]().Name()
 	FunctionGroupKind        = schema.GroupKind{Group: Group, Kind: FunctionKind}.String()
 	FunctionKindAPIVersion   = FunctionKind + "." + SchemeGroupVersion.String()
 	FunctionGroupVersionKind = SchemeGroupVersion.WithKind(FunctionKind)
@@ -58,7 +58,7 @@ var (
 
 // FunctionRevision type metadata.
 var (
-	FunctionRevisionKind             = reflect.TypeOf(FunctionRevision{}).Name()
+	FunctionRevisionKind             = reflect.TypeFor[FunctionRevision]().Name()
 	FunctionRevisionGroupKind        = schema.GroupKind{Group: Group, Kind: FunctionRevisionKind}.String()
 	FunctionRevisionKindAPIVersion   = FunctionRevisionKind + "." + SchemeGroupVersion.String()
 	FunctionRevisionGroupVersionKind = SchemeGroupVersion.WithKind(FunctionRevisionKind)
@@ -66,7 +66,7 @@ var (
 
 // DeploymentRuntimeConfig type metadata.
 var (
-	DeploymentRuntimeConfigKind             = reflect.TypeOf(DeploymentRuntimeConfig{}).Name()
+	DeploymentRuntimeConfigKind             = reflect.TypeFor[DeploymentRuntimeConfig]().Name()
 	DeploymentRuntimeConfigGroupKind        = schema.GroupKind{Group: Group, Kind: DeploymentRuntimeConfigKind}.String()
 	DeploymentRuntimeConfigKindAPIVersion   = DeploymentRuntimeConfigKind + "." + SchemeGroupVersion.String()
 	DeploymentRuntimeConfigGroupVersionKind = SchemeGroupVersion.WithKind(DeploymentRuntimeConfigKind)
@@ -74,7 +74,7 @@ var (
 
 // ImageConfig type metadata.
 var (
-	ImageConfigKind             = reflect.TypeOf(ImageConfig{}).Name()
+	ImageConfigKind             = reflect.TypeFor[ImageConfig]().Name()
 	ImageConfigGroupKind        = schema.GroupKind{Group: Group, Kind: ImageConfigKind}.String()
 	ImageConfigKindAPIVersion   = ImageConfigKind + "." + SchemeGroupVersion.String()
 	ImageConfigGroupVersionKind = SchemeGroupVersion.WithKind(ImageConfigKind)

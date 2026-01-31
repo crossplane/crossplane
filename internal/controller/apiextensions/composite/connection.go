@@ -18,6 +18,7 @@ package composite
 
 import (
 	"context"
+	"maps"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -55,9 +56,7 @@ func (fc ConnectionDetailsFetcherChain) FetchConnection(ctx context.Context, o C
 			return nil, err
 		}
 
-		for k, v := range conn {
-			all[k] = v
-		}
+		maps.Copy(all, conn)
 	}
 
 	return all, nil
