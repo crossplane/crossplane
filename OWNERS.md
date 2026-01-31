@@ -16,6 +16,7 @@ See [CODEOWNERS](CODEOWNERS) for automatic PR assignment.
 * Philippe Scorsolini <philippe.scorsolini@upbound.io> ([phisco](https://github.com/phisco))
 * Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
 * Adam Wolfe Gordon <adam.wolfegordon@upbound.io> ([adamwg](https://github.com/adamwg))
+* Christopher Haar <christopher.haar@upbound.io> ([haarchri](https://github.com/haarchri))
 
 ## Emeritus Maintainers
 
