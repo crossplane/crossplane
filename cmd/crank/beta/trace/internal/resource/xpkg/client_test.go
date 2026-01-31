@@ -225,8 +225,8 @@ func TestGetPackageDeps(t *testing.T) {
 				client: &test.MockClient{},
 				node: &resource.Resource{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"status": map[string]interface{}{
+						Object: map[string]any{
+							"status": map[string]any{
 								"currentRevision": "provider-revision-1",
 							},
 						},
@@ -246,8 +246,8 @@ func TestGetPackageDeps(t *testing.T) {
 				dependencyOutput: DependencyOutputUnique,
 				node: &resource.Resource{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"status": map[string]interface{}{
+						Object: map[string]any{
+							"status": map[string]any{
 								"currentRevision": "provider-revision-1",
 							},
 						},
@@ -293,8 +293,8 @@ func TestGetPackageDeps(t *testing.T) {
 				dependencyOutput: DependencyOutputUnique,
 				node: &resource.Resource{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"status": map[string]interface{}{
+						Object: map[string]any{
+							"status": map[string]any{
 								"currentRevision": "provider-revision-0",
 							},
 						},

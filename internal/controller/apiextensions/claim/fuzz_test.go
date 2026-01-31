@@ -67,6 +67,6 @@ func FuzzPropagateConnection(f *testing.F) {
 			}),
 		}
 		api := &APIConnectionPropagator{client: c}
-		_, _ = api.PropagateConnection(context.Background(), cm, cp) //nolint:usetesting // https://github.com/AdamKorcz/go-118-fuzz-build/blob/main/testing/t.go doesn't support t.Context()
+		_, _ = api.PropagateConnection(context.Background(), cm, cp)
 	})
 }

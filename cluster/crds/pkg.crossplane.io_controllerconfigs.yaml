@@ -26,6 +26,7 @@ spec:
       openAPIV3Schema:
         description: |-
           A ControllerConfig applies settings to controllers like Provider pods.
+
           Deprecated: Use the
           [DeploymentRuntimeConfig](https://docs.crossplane.io/latest/concepts/providers#runtime-configuration)
           instead.

@@ -236,7 +236,8 @@ type CompositeResourceDefinition struct {
 type CompositeResourceDefinitionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []CompositeResourceDefinition `json:"items"`
+
+	Items []CompositeResourceDefinition `json:"items"`
 }
 
 // GetCompositeGroupVersionKind returns the schema.GroupVersionKind of the CRD for

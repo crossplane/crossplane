@@ -191,7 +191,7 @@ func ResolveMap(t v1.MapTransform, input any) (any, error) {
 		if !ok {
 			return nil, errors.Errorf(errFmtMapNotFound, i)
 		}
-		var val interface{}
+		var val any
 		if err := json.Unmarshal(p.Raw, &val); err != nil {
 			return nil, errors.Wrapf(err, errFmtMapInvalidJSON, i)
 		}

@@ -42,7 +42,7 @@ var (
 
 // StoreConfig type metadata.
 var (
-	StoreConfigKind             = reflect.TypeOf(StoreConfig{}).Name()
+	StoreConfigKind             = reflect.TypeFor[StoreConfig]().Name()
 	StoreConfigGroupKind        = schema.GroupKind{Group: Group, Kind: StoreConfigKind}.String()
 	StoreConfigKindAPIVersion   = StoreConfigKind + "." + SchemeGroupVersion.String()
 	StoreConfigGroupVersionKind = SchemeGroupVersion.WithKind(StoreConfigKind)

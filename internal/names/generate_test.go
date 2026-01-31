@@ -147,8 +147,8 @@ func TestGenerateName(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := &nameGenerator{reader: tc.client, namer: &mockNameGenerator{last: 41}}
-			err := r.GenerateName(tc.args.ctx, tc.args.cd)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			err := r.GenerateName(tc.ctx, tc.args.cd)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nDryRunRender(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.cd, tc.args.cd); diff != "" {

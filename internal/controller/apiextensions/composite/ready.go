@@ -51,7 +51,9 @@ const (
 	ReadinessCheckTypeNonEmpty     ReadinessCheckType = "NonEmpty"
 	ReadinessCheckTypeMatchString  ReadinessCheckType = "MatchString"
 	ReadinessCheckTypeMatchInteger ReadinessCheckType = "MatchInteger"
-	// discussion regarding MatchBool vs MatchTrue/MatchFalse:
+
+	// ReadinessCheckTypeMatchTrue and ReadinessCheckTypeMatchFalse were chosen
+	// over MatchBool per the discussion at:
 	// https://github.com/crossplane/crossplane/pull/4399#discussion_r1277225375
 	ReadinessCheckTypeMatchTrue      ReadinessCheckType = "MatchTrue"
 	ReadinessCheckTypeMatchFalse     ReadinessCheckType = "MatchFalse"
@@ -200,13 +202,13 @@ func (c ReadinessCheck) IsReady(p *fieldpath.Paved, o ConditionedObject) (bool, 
 		if err != nil {
 			return false, resource.Ignore(fieldpath.IsNotFound, err)
 		}
-		return val == false, nil //nolint:gosimple // returning '!val' here as suggested hurts readability
+		return !val, nil //nolint:gosimple // returning '!val' here as suggested hurts readability
 	case ReadinessCheckTypeMatchTrue:
 		val, err := p.GetBool(*c.FieldPath)
 		if err != nil {
 			return false, resource.Ignore(fieldpath.IsNotFound, err)
 		}
-		return val == true, nil //nolint:gosimple // returning 'val' here as suggested hurts readability
+		return val, nil //nolint:gosimple // returning 'val' here as suggested hurts readability
 	}
 
 	return false, nil

@@ -42,7 +42,7 @@ var (
 
 // ControllerConfig type metadata.
 var (
-	ControllerConfigKind             = reflect.TypeOf(ControllerConfig{}).Name()
+	ControllerConfigKind             = reflect.TypeFor[ControllerConfig]().Name()
 	ControllerConfigGroupKind        = schema.GroupKind{Group: Group, Kind: ControllerConfigKind}.String()
 	ControllerConfigKindAPIVersion   = ControllerConfigKind + "." + SchemeGroupVersion.String()
 	ControllerConfigGroupVersionKind = SchemeGroupVersion.WithKind(ControllerConfigKind)

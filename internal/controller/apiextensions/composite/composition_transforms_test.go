@@ -34,7 +34,7 @@ import (
 )
 
 func TestMapResolve(t *testing.T) {
-	asJSON := func(val interface{}) extv1.JSON {
+	asJSON := func(val any) extv1.JSON {
 		raw, err := json.Marshal(val)
 		if err != nil {
 			t.Fatal(err)
@@ -104,11 +104,11 @@ func TestMapResolve(t *testing.T) {
 		},
 		"SuccessObject": {
 			args: args{
-				t: v1.MapTransform{Pairs: map[string]extv1.JSON{"ola": asJSON(map[string]interface{}{"foo": "bar"})}},
+				t: v1.MapTransform{Pairs: map[string]extv1.JSON{"ola": asJSON(map[string]any{"foo": "bar"})}},
 				i: "ola",
 			},
 			want: want{
-				o: map[string]interface{}{"foo": "bar"},
+				o: map[string]any{"foo": "bar"},
 			},
 		},
 		"SuccessSlice": {
@@ -117,7 +117,7 @@ func TestMapResolve(t *testing.T) {
 				i: "ola",
 			},
 			want: want{
-				o: []interface{}{"foo", "bar"},
+				o: []any{"foo", "bar"},
 			},
 		},
 	}
@@ -125,10 +125,10 @@ func TestMapResolve(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got, err := ResolveMap(tc.t, tc.i)
 
-			if diff := cmp.Diff(tc.want.o, got); diff != "" {
+			if diff := cmp.Diff(tc.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
 			}
 		})
@@ -136,7 +136,7 @@ func TestMapResolve(t *testing.T) {
 }
 
 func TestMatchResolve(t *testing.T) {
-	asJSON := func(val interface{}) extv1.JSON {
+	asJSON := func(val any) extv1.JSON {
 		raw, err := json.Marshal(val)
 		if err != nil {
 			t.Fatal(err)
@@ -296,7 +296,7 @@ func TestMatchResolve(t *testing.T) {
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
 							Literal: ptr.To("foo"),
-							Result: asJSON(map[string]interface{}{
+							Result: asJSON(map[string]any{
 								"Hello": "World",
 							}),
 						},
@@ -305,7 +305,7 @@ func TestMatchResolve(t *testing.T) {
 				i: "foo",
 			},
 			want: want{
-				o: map[string]interface{}{
+				o: map[string]any{
 					"Hello": "World",
 				},
 			},
@@ -445,12 +445,12 @@ func TestMatchResolve(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := ResolveMatch(tc.args.t, tc.i)
+			got, err := ResolveMatch(tc.t, tc.i)
 
-			if diff := cmp.Diff(tc.want.o, got); diff != "" {
+			if diff := cmp.Diff(tc.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
 			}
 		})
@@ -630,7 +630,7 @@ func TestMathResolve(t *testing.T) {
 			tr := v1.MathTransform{Type: tc.mathType, Multiply: tc.multiplier, ClampMin: tc.clampMin, ClampMax: tc.clampMax}
 			got, err := ResolveMath(tr, tc.i)
 
-			if diff := cmp.Diff(tc.want.o, got); diff != "" {
+			if diff := cmp.Diff(tc.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
 			}
 			fieldErr := &field.Error{}
@@ -638,7 +638,7 @@ func TestMathResolve(t *testing.T) {
 				fieldErr.Detail = ""
 				fieldErr.BadValue = nil
 			}
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
 			}
 		})
@@ -1067,10 +1067,10 @@ func TestStringResolve(t *testing.T) {
 
 			got, err := ResolveString(tr, tc.i)
 
-			if diff := cmp.Diff(tc.want.o, got); diff != "" {
+			if diff := cmp.Diff(tc.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
 			}
 		})
@@ -1217,13 +1217,13 @@ func TestConvertResolve(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			tr := v1.ConvertTransform{ToType: tc.args.to, Format: tc.format}
+			tr := v1.ConvertTransform{ToType: tc.to, Format: tc.format}
 			got, err := ResolveConvert(tr, tc.i)
 
-			if diff := cmp.Diff(tc.want.o, got); diff != "" {
+			if diff := cmp.Diff(tc.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
 			}
 		})

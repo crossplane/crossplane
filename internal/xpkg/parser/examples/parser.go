@@ -20,9 +20,9 @@ package examples
 import (
 	"bufio"
 	"context"
+	"errors"
 	"io"
 
-	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	k8syaml "sigs.k8s.io/yaml"
@@ -34,9 +34,7 @@ type Examples struct {
 }
 
 // Parser is a Parser implementation for parsing examples.
-type Parser struct {
-	objScheme parser.ObjectCreaterTyper
-}
+type Parser struct{}
 
 // NewExamples creates a new Examples object.
 func NewExamples() *Examples {
@@ -49,7 +47,7 @@ func New() *Parser {
 }
 
 // Parse is the underlying logic for parsing examples.
-func (p *Parser) Parse(ctx context.Context, reader io.ReadCloser) (*Examples, error) {
+func (p *Parser) Parse(_ context.Context, reader io.ReadCloser) (*Examples, error) {
 	ex := NewExamples()
 	if reader == nil {
 		return ex, nil
@@ -58,10 +56,10 @@ func (p *Parser) Parse(ctx context.Context, reader io.ReadCloser) (*Examples, er
 	yr := yaml.NewYAMLReader(bufio.NewReader(reader))
 	for {
 		bytes, err := yr.Read()
-		if err != nil && err != io.EOF {
+		if err != nil && !errors.Is(err, io.EOF) {
 			return ex, err
 		}
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if len(bytes) == 0 {

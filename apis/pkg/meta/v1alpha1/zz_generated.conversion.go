@@ -165,8 +165,8 @@ func (c *GeneratedFromHubConverter) v1PolicyRuleToV1PolicyRule(source v11.Policy
 }
 func (c *GeneratedFromHubConverter) v1ProviderSpecToV1alpha1ProviderSpec(source v1.ProviderSpec) ProviderSpec {
 	var v1alpha1ProviderSpec ProviderSpec
-	v1alpha1ProviderSpec.Controller = c.v1ControllerSpecToV1alpha1ControllerSpec(source.Controller)
 	v1alpha1ProviderSpec.MetaSpec = c.v1MetaSpecToV1alpha1MetaSpec(source.MetaSpec)
+	v1alpha1ProviderSpec.Controller = c.v1ControllerSpecToV1alpha1ControllerSpec(source.Controller)
 	return v1alpha1ProviderSpec
 }
 func (c *GeneratedFromHubConverter) v1TypeMetaToV1TypeMeta(source v12.TypeMeta) v12.TypeMeta {
@@ -338,7 +338,7 @@ func (c *GeneratedToHubConverter) v1alpha1MetaSpecToV1MetaSpec(source MetaSpec) 
 }
 func (c *GeneratedToHubConverter) v1alpha1ProviderSpecToV1ProviderSpec(source ProviderSpec) v1.ProviderSpec {
 	var v1ProviderSpec v1.ProviderSpec
-	v1ProviderSpec.Controller = c.v1alpha1ControllerSpecToV1ControllerSpec(source.Controller)
 	v1ProviderSpec.MetaSpec = c.v1alpha1MetaSpecToV1MetaSpec(source.MetaSpec)
+	v1ProviderSpec.Controller = c.v1alpha1ControllerSpecToV1ControllerSpec(source.Controller)
 	return v1ProviderSpec
 }

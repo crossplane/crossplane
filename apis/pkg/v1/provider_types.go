@@ -65,7 +65,8 @@ type ProviderStatus struct {
 type ProviderList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Provider `json:"items"`
+
+	Items []Provider `json:"items"`
 }
 
 // ProviderRevisionSpec specifies configuration for a ProviderRevision.
@@ -107,5 +108,6 @@ type ProviderRevision struct {
 type ProviderRevisionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ProviderRevision `json:"items"`
+
+	Items []ProviderRevision `json:"items"`
 }

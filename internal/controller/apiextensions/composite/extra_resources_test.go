@@ -104,24 +104,24 @@ func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 						obj.(*kunstructured.UnstructuredList).Items = []kunstructured.Unstructured{
 							{
-								Object: map[string]interface{}{
+								Object: map[string]any{
 									"apiVersion": "test.crossplane.io/v1",
 									"kind":       "Foo",
-									"metadata": map[string]interface{}{
+									"metadata": map[string]any{
 										"name": "cool-resource",
-										"labels": map[string]interface{}{
+										"labels": map[string]any{
 											"cool": "resource",
 										},
 									},
 								},
 							},
 							{
-								Object: map[string]interface{}{
+								Object: map[string]any{
 									"apiVersion": "test.crossplane.io/v1",
 									"kind":       "Foo",
-									"metadata": map[string]interface{}{
+									"metadata": map[string]any{
 										"name": "cooler-resource",
-										"labels": map[string]interface{}{
+										"labels": map[string]any{
 											"cool": "resource",
 										},
 									},

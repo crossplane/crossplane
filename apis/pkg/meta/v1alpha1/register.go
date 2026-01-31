@@ -42,7 +42,7 @@ var (
 
 // Provider type metadata.
 var (
-	ProviderKind             = reflect.TypeOf(Provider{}).Name()
+	ProviderKind             = reflect.TypeFor[Provider]().Name()
 	ProviderGroupKind        = schema.GroupKind{Group: Group, Kind: ProviderKind}.String()
 	ProviderKindAPIVersion   = ProviderKind + "." + SchemeGroupVersion.String()
 	ProviderGroupVersionKind = SchemeGroupVersion.WithKind(ProviderKind)
@@ -50,7 +50,7 @@ var (
 
 // Configuration type metadata.
 var (
-	ConfigurationKind             = reflect.TypeOf(Configuration{}).Name()
+	ConfigurationKind             = reflect.TypeFor[Configuration]().Name()
 	ConfigurationGroupKind        = schema.GroupKind{Group: Group, Kind: ConfigurationKind}.String()
 	ConfigurationKindAPIVersion   = ConfigurationKind + "." + SchemeGroupVersion.String()
 	ConfigurationGroupVersionKind = SchemeGroupVersion.WithKind(ConfigurationKind)

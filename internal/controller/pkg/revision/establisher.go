@@ -19,6 +19,7 @@ package revision
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 
 	"golang.org/x/sync/errgroup"
@@ -207,9 +208,7 @@ func (e *APIEstablisher) addLabels(objs []runtime.Object, parent v1.PackageRevis
 		}
 		labels := d.GetLabels()
 		if labels != nil {
-			for key, value := range commonLabels {
-				labels[key] = value
-			}
+			maps.Copy(labels, commonLabels)
 		} else {
 			d.SetLabels(commonLabels)
 		}

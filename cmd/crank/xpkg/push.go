@@ -59,14 +59,14 @@ const (
 
 // pushCmd pushes a package.
 type pushCmd struct {
+	// Common Upbound API configuration.
+	upbound.Flags `embed:""`
+
 	// Arguments.
 	Package string `arg:"" help:"Where to push the package."`
 
 	// Flags. Keep sorted alphabetically.
 	PackageFiles []string `help:"A comma-separated list of xpkg files to push." placeholder:"PATH" predictor:"xpkg_file" short:"f" type:"existingfile"`
-
-	// Common Upbound API configuration.
-	upbound.Flags `embed:""`
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
 	fs afero.Fs

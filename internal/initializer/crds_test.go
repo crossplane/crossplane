@@ -146,7 +146,7 @@ func TestCoreCRDs(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := NewCoreCRDs("/crds", s, tc.opts...).Run(t.Context(), tc.kube)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRun(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
 		})

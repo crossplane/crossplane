@@ -382,7 +382,7 @@ const (
 	testGroupSingular = "resource.test.com"
 )
 
-func marshalJSON(t *testing.T, obj interface{}) []byte {
+func marshalJSON(t *testing.T, obj any) []byte {
 	t.Helper()
 	b, err := json.Marshal(obj)
 	if err != nil {

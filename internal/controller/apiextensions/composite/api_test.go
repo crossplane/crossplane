@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package composite
 
 import (
@@ -585,9 +586,9 @@ func TestConfigure(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := &APIConfigurator{client: tc.args.kube}
-			err := c.Configure(t.Context(), tc.args.cp, tc.args.rev)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			c := &APIConfigurator{client: tc.kube}
+			err := c.Configure(t.Context(), tc.args.cp, tc.rev)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
@@ -704,9 +705,9 @@ func TestSelectorResolver(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPILabelSelectorResolver(tc.args.kube)
+			c := NewAPILabelSelectorResolver(tc.kube)
 			err := c.SelectComposition(t.Context(), tc.args.cp)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
@@ -824,9 +825,9 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPIDefaultCompositionSelector(tc.args.kube, tc.args.defRef, event.NewNopRecorder())
+			c := NewAPIDefaultCompositionSelector(tc.kube, tc.defRef, event.NewNopRecorder())
 			err := c.SelectComposition(t.Context(), tc.args.cp)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
@@ -960,7 +961,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := NewEnforcedCompositionSelector(tc.kube, corev1.ObjectReference{}, event.NewNopRecorder())
 			err := c.SelectComposition(t.Context(), tc.args.cp)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
@@ -1009,9 +1010,9 @@ func TestAPINamingConfigurator(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPINamingConfigurator(tc.args.kube)
+			c := NewAPINamingConfigurator(tc.kube)
 			err := c.Configure(t.Context(), tc.args.cp, nil)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {

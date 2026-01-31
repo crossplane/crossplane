@@ -156,13 +156,13 @@ func TestConfigurationTypeSupport(t *testing.T) {
 			args: args{
 				extensions: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "pkg.crossplane.io/v1alpha1",
 							"kind":       "Configuration",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "config-pkg",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"package": "config-pkg:v1.3.0",
 							},
 						},
@@ -183,14 +183,14 @@ func TestConfigurationTypeSupport(t *testing.T) {
 			args: args{
 				extensions: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "meta.pkg.crossplane.io/v1alpha1",
 							"kind":       "Configuration",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "config-meta",
 							},
-							"spec": map[string]interface{}{
-								"dependsOn": []map[string]interface{}{
+							"spec": map[string]any{
+								"dependsOn": []map[string]any{
 									{
 										"function": "function-dep-1",
 										"version":  "v1.3.0",
@@ -217,14 +217,14 @@ func TestConfigurationTypeSupport(t *testing.T) {
 			args: args{
 				extensions: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "meta.pkg.crossplane.io/v1alpha1",
 							"kind":       "Configuration",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "config-meta",
 							},
-							"spec": map[string]interface{}{
-								"dependsOn": []map[string]interface{}{
+							"spec": map[string]any{
+								"dependsOn": []map[string]any{
 									{
 										"function": "function-dep-1",
 										"version":  "v1.3.0",
@@ -242,13 +242,13 @@ func TestConfigurationTypeSupport(t *testing.T) {
 						},
 					},
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "pkg.crossplane.io/v1alpha1",
 							"kind":       "Configuration",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "config-pkg",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"package": "config-pkg:v1.3.0",
 							},
 						},
@@ -268,13 +268,13 @@ func TestConfigurationTypeSupport(t *testing.T) {
 			args: args{
 				extensions: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "pkg.crossplane.io/v1",
 							"kind":       "Function",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "function-test",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"package": "function-test:v1.3.0",
 							},
 						},
@@ -294,25 +294,25 @@ func TestConfigurationTypeSupport(t *testing.T) {
 			args: args{
 				extensions: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "pkg.crossplane.io/v1",
 							"kind":       "Function",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "function-test",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"package": "function-test:v1.3.0",
 							},
 						},
 					},
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "pkg.crossplane.io/v1",
 							"kind":       "Function",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "function-dep-1",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"package": "function-dep-1:v1.3.0",
 							},
 						},
@@ -417,13 +417,13 @@ func TestAddDependencies(t *testing.T) {
 				},
 				extensions: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "pkg.crossplane.io/v1alpha1",
 							"kind":       "Configuration",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "config-dep-1",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"package": "config-dep-1:v1.3.0",
 							},
 						},
@@ -447,13 +447,13 @@ func TestAddDependencies(t *testing.T) {
 				fetcher: &MockFetcher{fetchMockFunc, nil},
 				extensions: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "pkg.crossplane.io/v1alpha1",
 							"kind":       "Configuration",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "config-dep-1",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"package": "config-dep-1:v1.3.0",
 							},
 						},

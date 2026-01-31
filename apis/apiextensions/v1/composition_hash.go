@@ -30,12 +30,12 @@ func (c *Composition) Hash() string {
 	// I believe marshaling errors should be impossible given we're
 	// marshalling a known, strongly typed struct.
 
-	y, err := yaml.Marshal(c.ObjectMeta.Labels)
+	y, err := yaml.Marshal(c.Labels)
 	if err != nil {
 		return "unknown"
 	}
 
-	a, err := yaml.Marshal(c.ObjectMeta.Annotations)
+	a, err := yaml.Marshal(c.Annotations)
 	if err != nil {
 		return "unknown"
 	}

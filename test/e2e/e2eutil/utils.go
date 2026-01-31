@@ -14,6 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package utils contains convenience functions for certification creations
-// and for retrieving k8s objects and their field values
-package utils
+// Package e2eutil contains convenience functions for certificate creation
+// and for retrieving k8s objects and their field values.
+package e2eutil

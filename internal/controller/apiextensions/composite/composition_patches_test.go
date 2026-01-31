@@ -871,7 +871,7 @@ func TestPatchApply(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ncp := tc.args.cp.DeepCopyObject().(resource.Composite)
-			err := Apply(tc.args.patch, ncp, tc.args.cd, tc.args.only...)
+			err := Apply(tc.patch, ncp, tc.args.cd, tc.only...)
 
 			if tc.want.cp != nil {
 				if diff := cmp.Diff(tc.want.cp, ncp); diff != "" {
@@ -883,7 +883,7 @@ func TestPatchApply(t *testing.T) {
 					t.Errorf("\n%s\nApply(cd): -want, +got:\n%s", tc.reason, diff)
 				}
 			}
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nApply(err): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -960,7 +960,7 @@ func TestOptionalFieldPathNotFound(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := IsOptionalFieldPathNotFound(tc.args.err, tc.args.p)
+			got := IsOptionalFieldPathNotFound(tc.err, tc.p)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("IsOptionalFieldPathNotFound(...): -want, +got:\n%s", diff)
 			}
@@ -969,7 +969,7 @@ func TestOptionalFieldPathNotFound(t *testing.T) {
 }
 
 func TestComposedTemplates(t *testing.T) {
-	asJSON := func(val interface{}) extv1.JSON {
+	asJSON := func(val any) extv1.JSON {
 		raw, err := json.Marshal(val)
 		if err != nil {
 			t.Fatal(err)
@@ -1171,12 +1171,12 @@ func TestComposedTemplates(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := ComposedTemplates(tc.args.pss, tc.args.cts)
+			got, err := ComposedTemplates(tc.pss, tc.cts)
 
-			if diff := cmp.Diff(tc.want.ct, got); diff != "" {
+			if diff := cmp.Diff(tc.ct, got); diff != "" {
 				t.Errorf("\n%s\nrs.ComposedTemplates(...): -want, +got:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nrs.ComposedTemplates(...)): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -1201,18 +1201,18 @@ func TestResolveTransforms(t *testing.T) {
 			name: "NoTransforms",
 			args: args{
 				ts: nil,
-				input: map[string]interface{}{
-					"spec": map[string]interface{}{
-						"parameters": map[string]interface{}{
+				input: map[string]any{
+					"spec": map[string]any{
+						"parameters": map[string]any{
 							"test": "test",
 						},
 					},
 				},
 			},
 			want: want{
-				output: map[string]interface{}{
-					"spec": map[string]interface{}{
-						"parameters": map[string]interface{}{
+				output: map[string]any{
+					"spec": map[string]any{
+						"parameters": map[string]any{
 							"test": "test",
 						},
 					},
