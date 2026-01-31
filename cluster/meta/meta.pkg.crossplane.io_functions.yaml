@@ -66,11 +66,13 @@ spec:
                     configuration:
                       description: |-
                         Configuration is the name of a Configuration package image.
+
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     function:
                       description: |-
                         Function is the name of a Function package image.
+
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     kind:
@@ -84,6 +86,7 @@ spec:
                     provider:
                       description: |-
                         Provider is the name of a Provider package image.
+
                         Deprecated: Specify an apiVersion and kind instead.
                       type: string
                     version:
@@ -155,11 +158,13 @@ spec:
                     configuration:
                       description: |-
                         Configuration is the name of a Configuration package image.
+
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     function:
                       description: |-
                         Function is the name of a Function package image.
+
                         Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     kind:
@@ -173,6 +178,7 @@ spec:
                     provider:
                       description: |-
                         Provider is the name of a Provider package image.
+
                         Deprecated: Specify an apiVersion and kind instead.
                       type: string
                     version:

@@ -47,14 +47,14 @@ const (
 )
 
 type loginCmd struct {
+	// Common Upbound API configuration.
+	upbound.Flags `embed:""`
+
 	// Flags. We're intentionally making an exception to the rule here and not
 	// sorting these alphabetically.
 	Username string `env:"UP_USER"     help:"Username used to authenticate."                           short:"u" xor:"identifier"`
 	Password string `env:"UP_PASSWORD" help:"Password for specified username. '-' to read from stdin." short:"p"`
 	Token    string `env:"UP_TOKEN"    help:"Token used to authenticate. '-' to read from stdin."      short:"t" xor:"identifier"`
-
-	// Common Upbound API configuration.
-	upbound.Flags `embed:""`
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
 	stdin  *os.File

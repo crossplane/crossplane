@@ -19,6 +19,7 @@ package composite
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -332,9 +333,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 			return CompositionResult{}, errors.Wrapf(err, errFmtExtractDetails, name)
 		}
 
-		for key, val := range extracted {
-			xrConnDetails[key] = val
-		}
+		maps.Copy(xrConnDetails, extracted)
 
 		ready, err := c.composed.IsReady(ctx, cd, ReadinessChecksFromComposedTemplate(&t)...)
 		if err != nil {
@@ -409,10 +408,7 @@ func AssociateByOrder(t []v1.ComposedTemplate, r []corev1.ObjectReference) []Tem
 		a[i] = TemplateAssociation{Template: t[i]}
 	}
 
-	j := len(t)
-	if len(r) < j {
-		j = len(r)
-	}
+	j := min(len(r), len(t))
 
 	for i := range j {
 		a[i].Reference = r[i]

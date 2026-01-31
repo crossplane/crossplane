@@ -176,6 +176,7 @@ type PodObjectMeta struct {
 // +genclient:nonNamespaced
 
 // A ControllerConfig applies settings to controllers like Provider pods.
+//
 // Deprecated: Use the
 // [DeploymentRuntimeConfig](https://docs.crossplane.io/latest/concepts/providers#runtime-configuration)
 // instead.
@@ -199,5 +200,6 @@ type ControllerConfig struct {
 type ControllerConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ControllerConfig `json:"items"`
+
+	Items []ControllerConfig `json:"items"`
 }

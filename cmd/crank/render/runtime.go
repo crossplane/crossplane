@@ -34,14 +34,14 @@ type RuntimeType string
 
 // Supported runtimes.
 const (
-	// The Docker runtime uses a Docker daemon to run a Function. It uses the
-	// standard DOCKER_ environment variables to determine how to connect to the
-	// daemon.
+	// AnnotationValueRuntimeDocker uses a Docker daemon to run a Function. It
+	// uses the standard DOCKER_ environment variables to determine how to
+	// connect to the daemon.
 	AnnotationValueRuntimeDocker RuntimeType = "Docker"
 
-	// The Development runtime expects you to deploy a Function locally. This is
-	// mostly useful when developing a Function. The Function must be running
-	// with the --insecure flag, i.e. without transport security.
+	// AnnotationValueRuntimeDevelopment expects you to deploy a Function
+	// locally. This is mostly useful when developing a Function. The Function
+	// must be running with the --insecure flag, i.e. without transport security.
 	AnnotationValueRuntimeDevelopment RuntimeType = "Development"
 
 	AnnotationValueRuntimeDefault = AnnotationValueRuntimeDocker

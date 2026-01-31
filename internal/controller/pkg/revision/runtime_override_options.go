@@ -17,6 +17,7 @@ limitations under the License.
 package revision
 
 import (
+	"maps"
 	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -145,9 +146,7 @@ func DeploymentWithSelectors(selectors map[string]string) DeploymentOverride {
 		if d.Spec.Template.Labels == nil {
 			d.Spec.Template.Labels = map[string]string{}
 		}
-		for k, v := range selectors {
-			d.Spec.Template.Labels[k] = v
-		}
+		maps.Copy(d.Spec.Template.Labels, selectors)
 	}
 }
 
@@ -308,9 +307,7 @@ func DeploymentForControllerConfig(cc *v1alpha1.ControllerConfig) DeploymentOver
 			if d.Spec.Template.Labels == nil {
 				d.Spec.Template.Labels = map[string]string{}
 			}
-			for k, v := range cc.Spec.Metadata.Labels {
-				d.Spec.Template.Labels[k] = v
-			}
+			maps.Copy(d.Spec.Template.Labels, cc.Spec.Metadata.Labels)
 		}
 
 		if cc.Spec.Replicas != nil {

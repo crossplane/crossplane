@@ -408,11 +408,11 @@ func TestIsReady(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ready, err := IsReady(tc.args.ctx, tc.args.o, tc.args.rc...)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			ready, err := IsReady(tc.ctx, tc.o, tc.rc...)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsReady(...): -want, +got:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.ready, ready); diff != "" {
+			if diff := cmp.Diff(tc.ready, ready); diff != "" {
 				t.Errorf("\n%s\nIsReady(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})

@@ -42,7 +42,7 @@ var (
 
 // EnvironmentConfig type metadata.
 var (
-	EnvironmentConfigKind             = reflect.TypeOf(EnvironmentConfig{}).Name()
+	EnvironmentConfigKind             = reflect.TypeFor[EnvironmentConfig]().Name()
 	EnvironmentConfigGroupKind        = schema.GroupKind{Group: Group, Kind: EnvironmentConfigKind}.String()
 	EnvironmentConfigKindAPIVersion   = EnvironmentConfigKind + "." + SchemeGroupVersion.String()
 	EnvironmentConfigGroupVersionKind = SchemeGroupVersion.WithKind(EnvironmentConfigKind)
@@ -50,7 +50,7 @@ var (
 
 // Usage type metadata.
 var (
-	UsageKind             = reflect.TypeOf(Usage{}).Name()
+	UsageKind             = reflect.TypeFor[Usage]().Name()
 	UsageGroupKind        = schema.GroupKind{Group: Group, Kind: UsageKind}.String()
 	UsageKindAPIVersion   = UsageKind + "." + SchemeGroupVersion.String()
 	UsageGroupVersionKind = SchemeGroupVersion.WithKind(UsageKind)

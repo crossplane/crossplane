@@ -23,10 +23,10 @@ import (
 
 // ProviderSpec specifies the configuration of a Provider.
 type ProviderSpec struct {
+	MetaSpec `json:",inline"`
+
 	// Configuration for the packaged Provider's controller.
 	Controller ControllerSpec `json:"controller"`
-
-	MetaSpec `json:",inline"`
 }
 
 // ControllerSpec specifies the configuration for the packaged Provider

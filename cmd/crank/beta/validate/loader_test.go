@@ -25,29 +25,29 @@ import (
 )
 
 var (
-	coolResource = map[string]interface{}{
+	coolResource = map[string]any{
 		"apiVersion": "example.org/v1alpha1",
 		"kind":       "ComposedResource",
-		"metadata": map[string]interface{}{
-			"annotations": map[string]interface{}{
+		"metadata": map[string]any{
+			"annotations": map[string]any{
 				"crossplane.io/composition-resource-name": "resource-a",
 			},
 			"name": "test-validate-a",
 		},
-		"spec": map[string]interface{}{
+		"spec": map[string]any{
 			"coolField": "I'm cool!",
 		},
 	}
-	coolerResource = map[string]interface{}{
+	coolerResource = map[string]any{
 		"apiVersion": "example.org/v1alpha1",
 		"kind":       "ComposedResource",
-		"metadata": map[string]interface{}{
-			"annotations": map[string]interface{}{
+		"metadata": map[string]any{
+			"annotations": map[string]any{
 				"crossplane.io/composition-resource-name": "resource-b",
 			},
 			"name": "test-validate-b",
 		},
-		"spec": map[string]interface{}{
+		"spec": map[string]any{
 			"coolerField": "I'm cooler!",
 		},
 	}
@@ -190,10 +190,10 @@ func TestStreamToUnstructured(t *testing.T) {
 			want: want{
 				resources: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "v1",
 							"kind":       "Pod",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "test",
 							},
 						},
@@ -245,49 +245,49 @@ spec:
 			want: want{
 				resources: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "pt.fn.crossplane.io/v1beta1",
 							"kind":       "Resources",
-							"resources": []interface{}{
-								map[string]interface{}{
+							"resources": []any{
+								map[string]any{
 									"name": "instanceNodeRole",
-									"base": map[string]interface{}{
+									"base": map[string]any{
 										"apiVersion": "iam.aws.upbound.io/v1beta1",
 										"kind":       "Role",
-										"spec":       map[string]interface{}{},
+										"spec":       map[string]any{},
 									},
 								},
 							},
 						},
 					},
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "apiextensions.crossplane.io/v1",
 							"kind":       "Composition",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "example-composition",
 							},
-							"spec": map[string]interface{}{
-								"compositeTypeRef": map[string]interface{}{
+							"spec": map[string]any{
+								"compositeTypeRef": map[string]any{
 									"apiVersion": "example.crossplane.io/v1alpha1",
 									"kind":       "ExampleComposite",
 								},
-								"pipeline": []interface{}{
-									map[string]interface{}{
+								"pipeline": []any{
+									map[string]any{
 										"step": "patch-and-transform",
-										"functionRef": map[string]interface{}{
+										"functionRef": map[string]any{
 											"name": "example-function",
 										},
-										"input": map[string]interface{}{
+										"input": map[string]any{
 											"apiVersion": "pt.fn.crossplane.io/v1beta1",
 											"kind":       "Resources",
-											"resources": []interface{}{
-												map[string]interface{}{
+											"resources": []any{
+												map[string]any{
 													"name": "instanceNodeRole",
-													"base": map[string]interface{}{
+													"base": map[string]any{
 														"apiVersion": "iam.aws.upbound.io/v1beta1",
 														"kind":       "Role",
-														"spec":       map[string]interface{}{},
+														"spec":       map[string]any{},
 													},
 												},
 											},

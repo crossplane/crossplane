@@ -452,7 +452,7 @@ spec:
 
 func fromYAML(t *testing.T, in string) *unstructured.Unstructured {
 	t.Helper()
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	err := yaml.Unmarshal([]byte(in), &obj)
 	if err != nil {
 		t.Fatalf("fromYAML: %s", err)
@@ -658,10 +658,10 @@ func TestSetTransformTypeRequiredFields(t *testing.T) {
 
 func TestMigratePatch(t *testing.T) {
 	type args struct {
-		p map[string]interface{}
+		p map[string]any
 	}
 	type want struct {
-		p   map[string]interface{}
+		p   map[string]any
 		err error
 	}
 	cases := map[string]struct {
@@ -770,13 +770,13 @@ toFieldPath: spec.id
 				t.Errorf("%s\nsetMissingPatchSetFields(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.p, got.UnstructuredContent(),
-				cmp.FilterValues(func(x, y interface{}) bool {
-					isNumeric := func(v interface{}) bool {
-						return v != nil && reflect.TypeOf(v).ConvertibleTo(reflect.TypeOf(float64(0)))
+				cmp.FilterValues(func(x, y any) bool {
+					isNumeric := func(v any) bool {
+						return v != nil && reflect.TypeOf(v).ConvertibleTo(reflect.TypeFor[float64]())
 					}
 					return isNumeric(x) && isNumeric(y)
-				}, cmp.Transformer("string", func(in interface{}) float64 {
-					return reflect.ValueOf(in).Convert(reflect.TypeOf(float64(0))).Float()
+				}, cmp.Transformer("string", func(in any) float64 {
+					return reflect.ValueOf(in).Convert(reflect.TypeFor[float64]()).Float()
 				}))); diff != "" {
 				t.Errorf("%s\nsetMissingPatchSetFields(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
@@ -786,11 +786,11 @@ toFieldPath: spec.id
 
 func TestMigrateResource(t *testing.T) {
 	type args struct {
-		r map[string]interface{}
+		r map[string]any
 		i int
 	}
 	type want struct {
-		r   map[string]interface{}
+		r   map[string]any
 		err error
 	}
 	cases := map[string]struct {

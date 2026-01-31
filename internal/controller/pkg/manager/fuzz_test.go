@@ -38,7 +38,7 @@ func FuzzPackageRevision(f *testing.F) {
 			MockHead: fake.NewMockHeadFn(nil, errors.New("boom")),
 		}
 		r := NewPackageRevisioner(fetcher)
-		_, _ = r.Revision(context.Background(), pkg, "") //nolint:usetesting // https://github.com/AdamKorcz/go-118-fuzz-build/blob/main/testing/t.go doesn't support t.Context()
+		_, _ = r.Revision(context.Background(), pkg, "")
 		n, err := ff.GetString()
 		if err != nil {
 			t.Skip()

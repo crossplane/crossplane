@@ -18,6 +18,7 @@ package offered
 
 import (
 	"context"
+	"slices"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -52,12 +53,7 @@ func IsClaimCRD() resource.PredicateFn {
 		if !ok {
 			return false
 		}
-		for _, c := range d.Spec.Names.Categories {
-			if c == xcrd.CategoryClaim {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(d.Spec.Names.Categories, xcrd.CategoryClaim)
 	}
 }
 

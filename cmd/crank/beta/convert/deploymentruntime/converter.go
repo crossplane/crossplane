@@ -18,6 +18,7 @@ package deploymentruntime
 
 import (
 	"errors"
+	"maps"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -76,8 +77,8 @@ func deploymentTemplateFromControllerConfig(cc *v1alpha1.ControllerConfig) *v1be
 
 	// set the creation timestamp due to https://github.com/kubernetes/kubernetes/issues/109427
 	// to be removed when fixed. k8s apply ignores this field
-	if cc.CreationTimestamp.IsZero() || dt.Spec.Template.ObjectMeta.CreationTimestamp.IsZero() {
-		dt.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
+	if cc.CreationTimestamp.IsZero() || dt.Spec.Template.CreationTimestamp.IsZero() {
+		dt.Spec.Template.CreationTimestamp = metav1.Now()
 	}
 
 	if cc.Spec.Metadata != nil {
@@ -118,9 +119,7 @@ func deploymentTemplateFromControllerConfig(cc *v1alpha1.ControllerConfig) *v1be
 	}
 	templateLabels := make(map[string]string)
 	if cc.Spec.Metadata != nil {
-		for k, v := range cc.Spec.Metadata.Labels {
-			templateLabels[k] = v
-		}
+		maps.Copy(templateLabels, cc.Spec.Metadata.Labels)
 	}
 	dt.Spec.Template.Labels = templateLabels
 
@@ -185,13 +184,13 @@ func newDeploymentRuntimeConfig(options ...func(*v1beta1.DeploymentRuntimeConfig
 
 func withName(name string) func(*v1beta1.DeploymentRuntimeConfig) {
 	return func(drc *v1beta1.DeploymentRuntimeConfig) {
-		drc.ObjectMeta.Name = name
+		drc.Name = name
 	}
 }
 
 func withCreationTimestamp(time metav1.Time) func(*v1beta1.DeploymentRuntimeConfig) {
 	return func(drc *v1beta1.DeploymentRuntimeConfig) {
-		drc.ObjectMeta.CreationTimestamp = time
+		drc.CreationTimestamp = time
 	}
 }
 
