@@ -83,11 +83,8 @@ func (l *loader) load(ctx context.Context, concurrency int) {
 
 	var wg sync.WaitGroup
 	for range concurrency {
-		wg.Add(1)
 		// spin up a worker that processes items from the channel until the done channel is signaled.
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			for {
 				select {
 				case <-l.done:
@@ -96,7 +93,7 @@ func (l *loader) load(ctx context.Context, concurrency int) {
 					l.processItem(ctx, item)
 				}
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

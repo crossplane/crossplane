@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package watched implements a controller for resources watched by WatchOperations.
 package watched
 
 import (

@@ -36,10 +36,10 @@ type DummyManifestOpt func(*unstructured.Unstructured)
 // other tests, can be customized with DummyManifestOpt.
 func DummyManifest(kind, name string, opts ...DummyManifestOpt) unstructured.Unstructured {
 	m := unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "test.cloud/v1alpha1",
 			"kind":       kind,
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name": name,
 			},
 		},

@@ -24,6 +24,7 @@ package xcrd
 
 import (
 	"encoding/json"
+	"maps"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -93,14 +94,10 @@ func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomRes
 		crdv.AdditionalPrinterColumns = append(crdv.AdditionalPrinterColumns, CompositeResourcePrinterColumns(scope)...)
 
 		props := CompositeResourceSpecProps(scope, xrd.Spec.DefaultCompositionUpdatePolicy)
-		for k, v := range props {
-			crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
-		}
+		maps.Copy(crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties, props)
 
 		props = CompositeResourceStatusProps(scope)
-		for k, v := range props {
-			crdv.Schema.OpenAPIV3Schema.Properties["status"].Properties[k] = v
-		}
+		maps.Copy(crdv.Schema.OpenAPIV3Schema.Properties["status"].Properties, props)
 
 		crd.Spec.Versions[i] = *crdv
 	}
@@ -147,15 +144,11 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 		crdv.AdditionalPrinterColumns = append(crdv.AdditionalPrinterColumns, CompositeResourceClaimPrinterColumns()...)
 
 		props := CompositeResourceClaimSpecProps(xrd.Spec.DefaultCompositeDeletePolicy)
-		for k, v := range props {
-			crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
-		}
+		maps.Copy(crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties, props)
 		// TODO(negz): This means claims will have status.claimConditionTypes.
 		// I think that's a bug - only XRs should have that field.
 		props = CompositeResourceStatusProps(v1.CompositeResourceScopeLegacyCluster)
-		for k, v := range props {
-			crdv.Schema.OpenAPIV3Schema.Properties["status"].Properties[k] = v
-		}
+		maps.Copy(crdv.Schema.OpenAPIV3Schema.Properties["status"].Properties, props)
 
 		crd.Spec.Versions[i] = *crdv
 	}
@@ -210,9 +203,7 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64
 	cSpec.OneOf = append(cSpec.OneOf, xSpec.OneOf...)
 
 	cSpec.Description = xSpec.Description
-	for k, v := range xSpec.Properties {
-		cSpec.Properties[k] = v
-	}
+	maps.Copy(cSpec.Properties, xSpec.Properties)
 
 	crdv.Schema.OpenAPIV3Schema.Properties["spec"] = cSpec
 
@@ -223,9 +214,7 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64
 	cStatus.Description = xStatus.Description
 
 	cStatus.OneOf = xStatus.OneOf
-	for k, v := range xStatus.Properties {
-		cStatus.Properties[k] = v
-	}
+	maps.Copy(cStatus.Properties, xStatus.Properties)
 
 	crdv.Schema.OpenAPIV3Schema.Properties["status"] = cStatus
 
@@ -280,9 +269,7 @@ func setCrdMetadata(crd *extv1.CustomResourceDefinition, xrd *v1.CompositeResour
 				inheritedLabels = map[string]string{}
 			}
 
-			for k, v := range xrd.Spec.Metadata.Labels {
-				inheritedLabels[k] = v
-			}
+			maps.Copy(inheritedLabels, xrd.Spec.Metadata.Labels)
 
 			crd.SetLabels(inheritedLabels)
 		}

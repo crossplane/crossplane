@@ -99,7 +99,7 @@ const (
 func ParsePackageRuntime(input string) (ActiveRuntime, error) {
 	var opts []RuntimeOption
 
-	for _, pkgRt := range strings.Split(input, ";") {
+	for pkgRt := range strings.SplitSeq(input, ";") {
 		parts := strings.Split(pkgRt, "=")
 		if len(parts) != 2 {
 			return ActiveRuntime{}, errors.Errorf("invalid package runtime setting %q, expected: runtime=kind", pkgRt)

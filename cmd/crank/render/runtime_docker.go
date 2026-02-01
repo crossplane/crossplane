@@ -93,13 +93,14 @@ type DockerPullPolicy string
 
 // Supported pull policies.
 const (
-	// Always pull the image.
+	// AnnotationValueRuntimeDockerPullPolicyAlways always pulls the image.
 	AnnotationValueRuntimeDockerPullPolicyAlways DockerPullPolicy = "Always"
 
-	// Never pull the image.
+	// AnnotationValueRuntimeDockerPullPolicyNever never pulls the image.
 	AnnotationValueRuntimeDockerPullPolicyNever DockerPullPolicy = "Never"
 
-	// Pull the image if it's not present.
+	// AnnotationValueRuntimeDockerPullPolicyIfNotPresent pulls the image if
+	// it's not present.
 	AnnotationValueRuntimeDockerPullPolicyIfNotPresent DockerPullPolicy = "IfNotPresent"
 
 	AnnotationValueRuntimeDockerPullPolicyDefault DockerPullPolicy = AnnotationValueRuntimeDockerPullPolicyIfNotPresent
@@ -187,8 +188,8 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 	}
 
 	if i := fn.GetAnnotations()[AnnotationKeyRuntimeEnvironmentVariables]; i != "" {
-		pairs := strings.Split(i, ",")
-		for _, pair := range pairs {
+		pairs := strings.SplitSeq(i, ",")
+		for pair := range pairs {
 			if !strings.Contains(pair, "=") {
 				r.log.Debug("ignoring invalid environment variable", "pair", pair)
 				continue
@@ -260,8 +261,8 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 	r.log.Debug("Starting Docker container runtime setup", "image", r.Image)
 	// Find a random, available port. There's a chance of a race here, where
 	// something else binds to the port before we start our container.
-
-	lis, err := net.Listen("tcp", "localhost:0")
+	lc := net.ListenConfig{}
+	lis, err := lc.Listen(ctx, "tcp", "localhost:0")
 	if err != nil {
 		return "", "", errors.Wrap(err, "cannot get available TCP port")
 	}

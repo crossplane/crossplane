@@ -18,6 +18,7 @@ package composition
 
 import (
 	"fmt"
+	"maps"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -54,9 +55,7 @@ func NewCompositionRevision(c *v1.Composition, revision int64) *v1.CompositionRe
 	ref := meta.TypedReferenceTo(c, v1.CompositionGroupVersionKind)
 	meta.AddOwnerReference(cr, meta.AsController(ref))
 
-	for k, v := range c.GetLabels() {
-		cr.Labels[k] = v
-	}
+	maps.Copy(cr.Labels, c.GetLabels())
 
 	return cr
 }
