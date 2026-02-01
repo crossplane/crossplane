@@ -198,8 +198,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v1.0.1"
     hash = "sha256-yuvxYYngpfVkUg9yAmG99IUVmADTQA0tMbBXe0Fq0Mc="
   [mod."github.com/emicklei/dot"]
-    version = "v1.8.0"
-    hash = "sha256-ps9BTdj9l2MGD8GkwzNSmkI4CZhjsf4b0E8ezgyNQrk="
+    version = "v1.10.0"
+    hash = "sha256-ovi4o/VOn4LsaqyiFIeIARDT8RcBzinMt/uV7/V459E="
   [mod."github.com/emicklei/go-restful/v3"]
     version = "v3.13.0"
     hash = "sha256-lB2Z29RDLiVQE5NrsV1s2iHeQ4ciGwNj5OG1zJxwZV8="

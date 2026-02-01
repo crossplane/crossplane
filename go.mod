@@ -11,7 +11,7 @@ require (
 	github.com/crossplane/crossplane-runtime/v2 v2.2.0-rc.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.5.0
-	github.com/emicklei/dot v1.8.0
+	github.com/emicklei/dot v1.10.0
 	github.com/go-git/go-billy/v5 v5.6.2
 	github.com/go-git/go-git/v5 v5.13.0
 	github.com/google/go-cmp v0.7.0
