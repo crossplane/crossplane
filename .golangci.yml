@@ -160,6 +160,7 @@ linters:
           - gochecknoinits
           - gocognit
           - gosec
+          - noctx
           - scopelint
           - unparam
           - embeddedstructfieldcheck
@@ -176,6 +177,14 @@ linters:
           - gochecknoglobals
           - gochecknoinits
         path: apis/
+
+      # The omitzero check warns that omitempty has no effect on struct fields
+      # in Go's encoding/json, which is true. However, kubebuilder uses
+      # omitempty to determine whether fields are optional in CRD schemas.
+      # Removing omitempty would incorrectly mark fields like status as required.
+      - linters:
+          - modernize
+        text: 'omitzero:'
 
       # These are performance optimisations rather than style issues per se.
       # They warn when function arguments or range values copy a lot of memory
@@ -219,6 +228,14 @@ linters:
       - linters:
           - staticcheck
         text: 'SA1019: .+ is deprecated: Use Composition Functions instead.'
+
+      # Various fields related to package dependencies are deprecated in favor
+      # of specifying apiVersion and kind explicitly. External package authors
+      # should use the new format, but Crossplane must support the old format
+      # for backward compatibility.
+      - linters:
+          - staticcheck
+        text: 'SA1019: .+ is deprecated: Specify an apiVersion'
 
       # We include a 'common' package under crank, which revive doesn't like.
       - linters:

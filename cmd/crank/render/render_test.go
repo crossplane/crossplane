@@ -715,7 +715,7 @@ func TestRender(t *testing.T) {
 									if res == nil || len(res.GetItems()) == 0 {
 										t.Fatalf("expected extra resource to be passed to function on second call")
 									}
-									foo := (res.GetItems()[0].GetResource().AsMap()["spec"].(map[string]interface{}))["foo"].(string)
+									foo := (res.GetItems()[0].GetResource().AsMap()["spec"].(map[string]any))["foo"].(string)
 									return &fnv1.RunFunctionResponse{
 										Requirements: &fnv1.Requirements{
 											ExtraResources: map[string]*fnv1.ResourceSelector{

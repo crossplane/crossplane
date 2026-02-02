@@ -218,7 +218,7 @@ spec:
 func fromYAML(t *testing.T, in string) *unstructured.Unstructured {
 	t.Helper()
 
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 
 	err := yaml.Unmarshal([]byte(in), &obj)
 	if err != nil {

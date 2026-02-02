@@ -42,7 +42,7 @@ var (
 
 // CompositeResourceDefinition type metadata.
 var (
-	CompositeResourceDefinitionKind             = reflect.TypeOf(CompositeResourceDefinition{}).Name()
+	CompositeResourceDefinitionKind             = reflect.TypeFor[CompositeResourceDefinition]().Name()
 	CompositeResourceDefinitionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositeResourceDefinitionKind}.String()
 	CompositeResourceDefinitionKindAPIVersion   = CompositeResourceDefinitionKind + "." + SchemeGroupVersion.String()
 	CompositeResourceDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(CompositeResourceDefinitionKind)
@@ -50,7 +50,7 @@ var (
 
 // Composition type metadata.
 var (
-	CompositionKind             = reflect.TypeOf(Composition{}).Name()
+	CompositionKind             = reflect.TypeFor[Composition]().Name()
 	CompositionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositionKind}.String()
 	CompositionKindAPIVersion   = CompositionKind + "." + SchemeGroupVersion.String()
 	CompositionGroupVersionKind = SchemeGroupVersion.WithKind(CompositionKind)
@@ -58,7 +58,7 @@ var (
 
 // CompositionRevision type metadata.
 var (
-	CompositionRevisionKind             = reflect.TypeOf(CompositionRevision{}).Name()
+	CompositionRevisionKind             = reflect.TypeFor[CompositionRevision]().Name()
 	CompositionRevisionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositionRevisionKind}.String()
 	CompositionRevisionKindAPIVersion   = CompositionRevisionKind + "." + SchemeGroupVersion.String()
 	CompositionRevisionGroupVersionKind = SchemeGroupVersion.WithKind(CompositionRevisionKind)
