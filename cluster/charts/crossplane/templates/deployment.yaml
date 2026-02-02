@@ -5,6 +5,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.componentLabel" "cloud-infrastructure-controller" | nindent 4 }}
     release: {{ .Release.Name }}
     {{- include "crossplane.labels" . | indent 4 }}
   {{- with .Values.customAnnotations }}
@@ -36,6 +37,7 @@ spec:
       {{- end }}
       labels:
         app: {{ template "crossplane.name" . }}
+        {{- include "crossplane.componentLabel" "cloud-infrastructure-controller" | nindent 8 }}
         release: {{ .Release.Name }}
         {{- include "crossplane.labels" . | indent 8 }}
     spec:
