@@ -123,6 +123,95 @@ func TestOpenAPISchemasFetcherFetch(t *testing.T) {
 		},
 	}
 
+	// Schema with a $ref to ObjectMeta.
+	schemaWithRef := map[string]any{
+		"type": "object",
+		"x-kubernetes-group-version-kind": []any{
+			map[string]any{
+				"group":   "example.com",
+				"version": "v1",
+				"kind":    "MyResource",
+			},
+		},
+		"properties": map[string]any{
+			"metadata": map[string]any{
+				"$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta",
+			},
+		},
+	}
+
+	objectMetaSchema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"name":      map[string]any{"type": "string"},
+			"namespace": map[string]any{"type": "string"},
+		},
+	}
+
+	// Schemas with nested refs: MyResource -> ObjectMeta -> OwnerReference.
+	schemaWithNestedRef := map[string]any{
+		"type": "object",
+		"x-kubernetes-group-version-kind": []any{
+			map[string]any{
+				"group":   "example.com",
+				"version": "v1",
+				"kind":    "NestedResource",
+			},
+		},
+		"properties": map[string]any{
+			"metadata": map[string]any{
+				"$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta",
+			},
+		},
+	}
+
+	objectMetaWithOwnerRef := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"name": map[string]any{"type": "string"},
+			"ownerReferences": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference",
+				},
+			},
+		},
+	}
+
+	ownerReferenceSchema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"uid":  map[string]any{"type": "string"},
+			"name": map[string]any{"type": "string"},
+		},
+	}
+
+	// Schemas with circular refs: A -> B -> A.
+	schemaCircularA := map[string]any{
+		"type": "object",
+		"x-kubernetes-group-version-kind": []any{
+			map[string]any{
+				"group":   "example.com",
+				"version": "v1",
+				"kind":    "CircularA",
+			},
+		},
+		"properties": map[string]any{
+			"refToB": map[string]any{
+				"$ref": "#/components/schemas/example.com.v1.CircularB",
+			},
+		},
+	}
+
+	schemaCircularB := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"refToA": map[string]any{
+				"$ref": "#/components/schemas/example.com.v1.CircularA",
+			},
+		},
+	}
+
 	type args struct {
 		ss *fnv1.SchemaSelector
 	}
@@ -388,6 +477,150 @@ func TestOpenAPISchemasFetcherFetch(t *testing.T) {
 								"group":   "APPS",
 								"version": "v1",
 								"kind":    "Deployment",
+							},
+						},
+					}),
+				},
+			},
+		},
+		"IncludesReferencedSchemas": {
+			reason: "We should include schemas referenced via $ref in the components section",
+			client: &MockOpenAPIV3Client{
+				PathsFn: func() (map[string]openapi.GroupVersion, error) {
+					return map[string]openapi.GroupVersion{
+						"apis/example.com/v1": &MockGroupVersion{
+							SchemaFn: func(_ string) ([]byte, error) {
+								return openAPIDoc(map[string]map[string]any{
+									"example.com.v1.MyResource":                            schemaWithRef,
+									"io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta":      objectMetaSchema,
+									"io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference":  ownerReferenceSchema,
+								}), nil
+							},
+						},
+					}, nil
+				},
+			},
+			args: args{
+				ss: &fnv1.SchemaSelector{
+					ApiVersion: "example.com/v1",
+					Kind:       "MyResource",
+				},
+			},
+			want: want{
+				schema: &fnv1.Schema{
+					OpenapiV3: MustStruct(map[string]any{
+						"type": "object",
+						"x-kubernetes-group-version-kind": []any{
+							map[string]any{
+								"group":   "example.com",
+								"version": "v1",
+								"kind":    "MyResource",
+							},
+						},
+						"properties": map[string]any{
+							"metadata": map[string]any{
+								"$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta",
+							},
+						},
+						"components": map[string]any{
+							"schemas": map[string]any{
+								"io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta": objectMetaSchema,
+							},
+						},
+					}),
+				},
+			},
+		},
+		"IncludesNestedReferencedSchemas": {
+			reason: "We should transitively include schemas referenced via $ref",
+			client: &MockOpenAPIV3Client{
+				PathsFn: func() (map[string]openapi.GroupVersion, error) {
+					return map[string]openapi.GroupVersion{
+						"apis/example.com/v1": &MockGroupVersion{
+							SchemaFn: func(_ string) ([]byte, error) {
+								return openAPIDoc(map[string]map[string]any{
+									"example.com.v1.NestedResource":                        schemaWithNestedRef,
+									"io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta":      objectMetaWithOwnerRef,
+									"io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference":  ownerReferenceSchema,
+								}), nil
+							},
+						},
+					}, nil
+				},
+			},
+			args: args{
+				ss: &fnv1.SchemaSelector{
+					ApiVersion: "example.com/v1",
+					Kind:       "NestedResource",
+				},
+			},
+			want: want{
+				schema: &fnv1.Schema{
+					OpenapiV3: MustStruct(map[string]any{
+						"type": "object",
+						"x-kubernetes-group-version-kind": []any{
+							map[string]any{
+								"group":   "example.com",
+								"version": "v1",
+								"kind":    "NestedResource",
+							},
+						},
+						"properties": map[string]any{
+							"metadata": map[string]any{
+								"$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta",
+							},
+						},
+						"components": map[string]any{
+							"schemas": map[string]any{
+								"io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta":      objectMetaWithOwnerRef,
+								"io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference":  ownerReferenceSchema,
+							},
+						},
+					}),
+				},
+			},
+		},
+		"HandlesCircularReferences": {
+			reason: "We should handle circular $ref references without infinite recursion",
+			client: &MockOpenAPIV3Client{
+				PathsFn: func() (map[string]openapi.GroupVersion, error) {
+					return map[string]openapi.GroupVersion{
+						"apis/example.com/v1": &MockGroupVersion{
+							SchemaFn: func(_ string) ([]byte, error) {
+								return openAPIDoc(map[string]map[string]any{
+									"example.com.v1.CircularA": schemaCircularA,
+									"example.com.v1.CircularB": schemaCircularB,
+								}), nil
+							},
+						},
+					}, nil
+				},
+			},
+			args: args{
+				ss: &fnv1.SchemaSelector{
+					ApiVersion: "example.com/v1",
+					Kind:       "CircularA",
+				},
+			},
+			want: want{
+				schema: &fnv1.Schema{
+					OpenapiV3: MustStruct(map[string]any{
+						"type": "object",
+						"x-kubernetes-group-version-kind": []any{
+							map[string]any{
+								"group":   "example.com",
+								"version": "v1",
+								"kind":    "CircularA",
+							},
+						},
+						"properties": map[string]any{
+							"refToB": map[string]any{
+								"$ref": "#/components/schemas/example.com.v1.CircularB",
+							},
+						},
+						"components": map[string]any{
+							"schemas": map[string]any{
+								"example.com.v1.CircularB": schemaCircularB,
 							},
 						},
 					}),

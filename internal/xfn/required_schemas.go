@@ -29,6 +29,9 @@ import (
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
+// refPrefix is the prefix for local schema references in OpenAPI v3 documents.
+const refPrefix = "#/components/schemas/"
+
 // A RequiredSchemasFetcher gets OpenAPI schemas for requested resource kinds.
 type RequiredSchemasFetcher interface {
 	Fetch(ctx context.Context, ss *fnv1.SchemaSelector) (*fnv1.Schema, error)
@@ -122,7 +125,7 @@ func (f *OpenAPISchemasFetcher) Fetch(_ context.Context, ss *fnv1.SchemaSelector
 	// Find the schema matching our GVK. Each schema has an
 	// x-kubernetes-group-version-kind annotation identifying what GVK it
 	// represents. Schemas shared across GVKs (e.g. DeleteOptions) are skipped.
-	for _, s := range doc.Components.Schemas {
+	for name, s := range doc.Components.Schemas {
 		gvks, ok := s["x-kubernetes-group-version-kind"].([]any)
 		if !ok || len(gvks) != 1 {
 			continue
@@ -143,6 +146,23 @@ func (f *OpenAPISchemasFetcher) Fetch(_ context.Context, ss *fnv1.SchemaSelector
 		if k != ss.GetKind() {
 			continue
 		}
+
+		// Collect all schemas referenced by $ref and include them in the
+		// result so functions can resolve them.
+		collected := make(map[string]map[string]any)
+		visited := make(map[string]bool)
+		collectRefs(s, doc.Components.Schemas, collected, visited)
+		// Remove self-reference to avoid circular data structures.
+		delete(collected, name)
+		if len(collected) > 0 {
+			// Convert to map[string]any for structpb compatibility.
+			schemas := make(map[string]any, len(collected))
+			for k, v := range collected {
+				schemas[k] = v
+			}
+			s["components"] = map[string]any{"schemas": schemas}
+		}
+
 		st, err := structpb.NewStruct(s)
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot convert schema to protobuf Struct")
@@ -152,4 +172,33 @@ func (f *OpenAPISchemasFetcher) Fetch(_ context.Context, ss *fnv1.SchemaSelector
 
 	// Kind not found. Return an empty schema.
 	return &fnv1.Schema{}, nil
+}
+
+// collectRefs recursively walks node looking for $ref fields and adds the
+// referenced schemas to collected. The visited map prevents infinite recursion.
+func collectRefs(node any, definitions, collected map[string]map[string]any, visited map[string]bool) {
+	switch val := node.(type) {
+	case map[string]any:
+		if ref, ok := val["$ref"].(string); ok {
+			name, found := strings.CutPrefix(ref, refPrefix)
+			if !found || visited[name] {
+				return
+			}
+			visited[name] = true
+			schema, ok := definitions[name]
+			if !ok {
+				return
+			}
+			collected[name] = schema
+			collectRefs(schema, definitions, collected, visited)
+			return
+		}
+		for _, child := range val {
+			collectRefs(child, definitions, collected, visited)
+		}
+	case []any:
+		for _, item := range val {
+			collectRefs(item, definitions, collected, visited)
+		}
+	}
 }

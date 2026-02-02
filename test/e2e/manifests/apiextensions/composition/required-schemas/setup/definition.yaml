@@ -30,3 +30,5 @@ spec:
                 type: boolean
               schemaHasProperties:
                 type: boolean
+              schemaHasReferencedSchemas:
+                type: boolean

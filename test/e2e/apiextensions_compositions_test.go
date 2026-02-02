@@ -416,7 +416,7 @@ func TestCircuitBreaker(t *testing.T) {
 func TestRequiredSchemas(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/required-schemas"
 	environment.Test(t,
-		features.NewWithDescription(t.Name(), "Tests that functions can request and receive OpenAPI schemas for resource kinds via the required schemas mechanism.").
+		features.NewWithDescription(t.Name(), "Tests that functions can request and receive OpenAPI schemas for resource kinds via the required schemas mechanism, including referenced schemas like ObjectMeta.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -438,6 +438,9 @@ func TestRequiredSchemas(t *testing.T) {
 			).
 			Assess("SchemaHasExpectedProperties",
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.schemaHasProperties", true),
+			).
+			Assess("SchemaHasReferencedSchemas",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.schemaHasReferencedSchemas", true),
 			).
 			WithTeardown("DeleteXR", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),

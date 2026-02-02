@@ -28,25 +28,35 @@ spec:
             # Check if the schema has the expected structure.
             # ConfigMap schema should have properties like "data", "binaryData".
             schema_has_properties = False
+            schema_has_referenced_schemas = False
             if schema_received:
                 schema = request.get_required_schema(req, "configmap-schema")
                 if schema:
                     props = schema.get("properties", {})
                     schema_has_properties = "data" in props or "binaryData" in props
 
+                    # Check if referenced schemas (like ObjectMeta) are included.
+                    # ConfigMap has a metadata field that refs ObjectMeta.
+                    components = schema.get("components", {})
+                    schemas = components.get("schemas", {})
+                    schema_has_referenced_schemas = any("ObjectMeta" in k for k in schemas.keys())
+
             # Set status fields to indicate what we found.
             rsp.desired.composite.resource.update({
                 "status": {
                     "schemaReceived": schema_received,
                     "schemaHasProperties": schema_has_properties,
+                    "schemaHasReferencedSchemas": schema_has_referenced_schemas,
                 }
             })
 
             # Add a result for observability.
             result = fnv1.Result()
             result.severity = fnv1.SEVERITY_NORMAL
-            if schema_has_properties:
-                result.message = "Successfully received ConfigMap schema with expected properties"
+            if schema_has_referenced_schemas:
+                result.message = "Successfully received ConfigMap schema with properties and referenced schemas"
+            elif schema_has_properties:
+                result.message = "Received ConfigMap schema with properties but missing referenced schemas"
             elif schema_received:
                 result.message = "Received ConfigMap schema but it was empty or missing expected properties"
             else:
