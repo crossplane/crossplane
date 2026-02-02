@@ -103,7 +103,7 @@ func TestRunFunction(t *testing.T) {
 	}
 
 	// Create a valid context with all required step metadata.
-	validCtx := step.ContextWithStepMeta(context.Background(), "trace-123", "my-composition", "test-step", 0, 0)
+	validCtx := step.ContextWithStepMeta(context.Background(), "trace-123", "my-composition", "test-step", 0)
 
 	cases := map[string]struct {
 		reason string
@@ -301,7 +301,7 @@ func TestRunFunction(t *testing.T) {
 
 func TestRunFunctionMetadataConsistency(t *testing.T) {
 	// This test verifies that the same metadata is passed to both EmitRequest and EmitResponse.
-	validCtx := step.ContextWithStepMeta(context.Background(), "trace-abc", "test-composition", "test-step", 2, 5)
+	validCtx := step.ContextWithStepMeta(context.Background(), "trace-abc", "test-composition", "test-step", 2)
 
 	inspector := &MockPipelineInspector{}
 	metrics := &MockMetrics{}
@@ -328,28 +328,19 @@ func TestRunFunctionMetadataConsistency(t *testing.T) {
 	}
 
 	// Verify the same metadata instance is passed to both.
-	if inspector.LastRequestMeta != inspector.LastResponseMeta {
-		t.Error("expected same metadata instance for request and response")
+	if diff := cmp.Diff(inspector.LastRequestMeta, inspector.LastResponseMeta, protocmp.Transform()); diff != "" {
+		t.Errorf("metadata mismatch between request and response (-want +got):\n%s", diff)
 	}
 
-	// Verify metadata fields.
+	// Verify metadata fields are as expected.
 	meta := inspector.LastRequestMeta
-	if meta.GetTraceId() != "trace-abc" {
-		t.Errorf("expected TraceID 'trace-abc', got %q", meta.GetTraceId())
-	}
-	if meta.GetStepIndex() != 2 {
-		t.Errorf("expected StepIndex 2, got %d", meta.GetStepIndex())
-	}
-	if meta.GetCompositionName() != "test-composition" {
-		t.Errorf("expected CompositionName 'test-composition', got %q", meta.GetCompositionName())
-	}
-	if meta.GetIteration() != 5 {
-		t.Errorf("expected Iteration 5, got %d", meta.GetIteration())
-	}
-	if meta.GetFunctionName() != "my-function" {
-		t.Errorf("expected FunctionName 'my-function', got %q", meta.GetFunctionName())
-	}
-	if meta.GetSpanId() == "" {
-		t.Error("expected SpanID to be set")
+	if diff := cmp.Diff(&pipelinev1alpha1.StepMeta{
+		FunctionName:    "my-function",
+		TraceId:         "trace-abc",
+		StepName:        "test-step",
+		StepIndex:       2,
+		CompositionName: "test-composition",
+	}, meta, protocmp.Transform(), protocmp.IgnoreFields(&pipelinev1alpha1.StepMeta{}, "span_id", "timestamp")); diff != "" {
+		t.Errorf("metadata fields mismatch (-want +got):\n%s", diff)
 	}
 }

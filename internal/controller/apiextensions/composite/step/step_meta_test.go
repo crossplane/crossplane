@@ -36,7 +36,6 @@ func TestContextWithStepMeta(t *testing.T) {
 		compositionName string
 		stepName        string
 		stepIndex       int32
-		iteration       int32
 	}
 
 	type want struct {
@@ -44,7 +43,6 @@ func TestContextWithStepMeta(t *testing.T) {
 		compositionName string
 		stepName        string
 		stepIndex       int32
-		iteration       int32
 	}
 
 	cases := map[string]struct {
@@ -60,14 +58,12 @@ func TestContextWithStepMeta(t *testing.T) {
 				compositionName: "my-composition",
 				stepName:        "my-step",
 				stepIndex:       2,
-				iteration:       3,
 			},
 			want: want{
 				TraceID:         "trace-123",
 				compositionName: "my-composition",
 				stepName:        "my-step",
 				stepIndex:       2,
-				iteration:       3,
 			},
 		},
 		"HandlesNilContext": {
@@ -78,21 +74,19 @@ func TestContextWithStepMeta(t *testing.T) {
 				compositionName: "other-composition",
 				stepName:        "other-step",
 				stepIndex:       0,
-				iteration:       0,
 			},
 			want: want{
 				TraceID:         "trace-456",
 				compositionName: "other-composition",
 				stepName:        "other-step",
 				stepIndex:       0,
-				iteration:       0,
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ctx := ContextWithStepMeta(tc.args.ctx, tc.args.TraceID, tc.args.compositionName, tc.args.stepName, tc.args.stepIndex, tc.args.iteration)
+			ctx := ContextWithStepMeta(tc.args.ctx, tc.args.TraceID, tc.args.compositionName, tc.args.stepName, tc.args.stepIndex)
 
 			if ctx == nil {
 				t.Fatal("expected non-nil context")
@@ -110,8 +104,8 @@ func TestContextWithStepMeta(t *testing.T) {
 			if got := ctx.Value(ContextKeyStepIndex); got != tc.want.stepIndex {
 				t.Errorf("\n%s\nContextWithStepMeta(...) StepIndex: want %d, got %d", tc.reason, tc.want.stepIndex, got)
 			}
-			if got := ctx.Value(ContextKeyIteration); got != tc.want.iteration {
-				t.Errorf("\n%s\nContextWithStepMeta(...) Iteration: want %d, got %d", tc.reason, tc.want.iteration, got)
+			if got := ctx.Value(ContextKeyIteration); got != 0 {
+				t.Errorf("\n%s\nContextWithStepMeta(...) Iteration: want 0, got %d", tc.reason, got)
 			}
 		})
 	}
@@ -125,7 +119,7 @@ func TestContextWithStepIteration(t *testing.T) {
 	}{
 		"UpdatesIteration": {
 			reason:    "Should update iteration in existing context.",
-			ctx:       ContextWithStepMeta(context.Background(), "trace", "comp", "step", 0, 0),
+			ctx:       ContextWithStepMeta(context.Background(), "trace", "comp", "step", 0),
 			iteration: 5,
 		},
 		"HandlesNilContext": {
@@ -162,7 +156,7 @@ func TestBuildMetadata(t *testing.T) {
 		err  error
 	}
 
-	validCtx := ContextWithStepMeta(context.Background(), "trace-abc", "my-composition", "my-step", 2, 5)
+	validCtx := ContextWithStepMeta(context.Background(), "trace-abc", "my-composition", "my-step", 2)
 
 	cases := map[string]struct {
 		reason string
@@ -199,7 +193,7 @@ func TestBuildMetadata(t *testing.T) {
 					TraceId:                     "trace-abc",
 					StepIndex:                   2,
 					StepName:                    "my-step",
-					Iteration:                   5,
+					Iteration:                   0,
 					FunctionName:                "function-auto-ready",
 					CompositionName:             "my-composition",
 					CompositeResourceApiVersion: "example.org/v1",

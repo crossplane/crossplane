@@ -51,7 +51,7 @@ const (
 )
 
 // ContextWithStepMeta returns a new context with pipeline step metadata.
-func ContextWithStepMeta(ctx context.Context, traceID string, compositionName string, stepName string, stepIndex, iteration int32) context.Context {
+func ContextWithStepMeta(ctx context.Context, traceID, compositionName, stepName string, stepIndex int32) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -59,7 +59,7 @@ func ContextWithStepMeta(ctx context.Context, traceID string, compositionName st
 	ctx = context.WithValue(ctx, ContextKeyStepIndex, stepIndex)
 	ctx = context.WithValue(ctx, ContextKeyStepName, stepName)
 	ctx = context.WithValue(ctx, ContextKeyCompositionName, compositionName)
-	ctx = context.WithValue(ctx, ContextKeyIteration, iteration)
+	ctx = context.WithValue(ctx, ContextKeyIteration, 0) // Default iteration to 0, is going to be updated later if needed.
 	return ctx
 }
 
