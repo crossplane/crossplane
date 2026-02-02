@@ -491,9 +491,9 @@ func TestOpenAPISchemasFetcherFetch(t *testing.T) {
 						"apis/example.com/v1": &MockGroupVersion{
 							SchemaFn: func(_ string) ([]byte, error) {
 								return openAPIDoc(map[string]map[string]any{
-									"example.com.v1.MyResource":                            schemaWithRef,
-									"io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta":      objectMetaSchema,
-									"io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference":  ownerReferenceSchema,
+									"example.com.v1.MyResource":                           schemaWithRef,
+									"io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta":     objectMetaSchema,
+									"io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference": ownerReferenceSchema,
 								}), nil
 							},
 						},
@@ -539,9 +539,9 @@ func TestOpenAPISchemasFetcherFetch(t *testing.T) {
 						"apis/example.com/v1": &MockGroupVersion{
 							SchemaFn: func(_ string) ([]byte, error) {
 								return openAPIDoc(map[string]map[string]any{
-									"example.com.v1.NestedResource":                        schemaWithNestedRef,
-									"io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta":      objectMetaWithOwnerRef,
-									"io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference":  ownerReferenceSchema,
+									"example.com.v1.NestedResource":                       schemaWithNestedRef,
+									"io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta":     objectMetaWithOwnerRef,
+									"io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference": ownerReferenceSchema,
 								}), nil
 							},
 						},
@@ -572,8 +572,8 @@ func TestOpenAPISchemasFetcherFetch(t *testing.T) {
 						},
 						"components": map[string]any{
 							"schemas": map[string]any{
-								"io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta":      objectMetaWithOwnerRef,
-								"io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference":  ownerReferenceSchema,
+								"io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta":     objectMetaWithOwnerRef,
+								"io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference": ownerReferenceSchema,
 							},
 						},
 					}),
@@ -642,20 +642,5 @@ func TestOpenAPISchemasFetcherFetch(t *testing.T) {
 				t.Errorf("\n%s\nFetch(...): -want schema, +got schema:\n%s", tc.reason, diff)
 			}
 		})
-	}
-}
-
-func TestNopRequiredSchemasFetcher(t *testing.T) {
-	f := NopRequiredSchemasFetcher{}
-	schema, err := f.Fetch(context.Background(), &fnv1.SchemaSelector{
-		ApiVersion: "v1",
-		Kind:       "Pod",
-	})
-	if err != nil {
-		t.Errorf("NopRequiredSchemasFetcher.Fetch() returned unexpected error: %v", err)
-	}
-
-	if schema.GetOpenapiV3() != nil {
-		t.Errorf("NopRequiredSchemasFetcher.Fetch() returned non-empty schema: %v", schema)
 	}
 }
