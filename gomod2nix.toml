@@ -237,8 +237,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v1.5.1-0.20230307220236-3a3c6141e376"
     hash = "sha256-f4k0gSYuo0/q3WOoTxl2eFaj7WZpdz29ih6CKc8Ude8="
   [mod."github.com/go-git/go-billy/v5"]
-    version = "v5.6.2"
-    hash = "sha256-VgbxcLkHjiSyRIfKS7E9Sn8OynCrMGUDkwFz6K2TVL4="
+    version = "v5.7.0"
+    hash = "sha256-PIVqP1YpCHmwc8PVPydIiz4i6E6fghCdKeBMzQpYW1w="
   [mod."github.com/go-git/go-git/v5"]
     version = "v5.13.0"
     hash = "sha256-S/Mh89tfcSvpE3dXDNW9gbLipmSilX7YGW3hC4GqFMw="
