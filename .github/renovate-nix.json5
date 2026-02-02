@@ -2,21 +2,19 @@
   // Nix-specific configuration for main branch.
   // Release branches use Earthly - see renovate-earthly.json5.
 
-  // Enable the nix manager to update flake.lock when flake inputs change.
+  // Enable the nix manager to detect flake.nix/flake.lock files.
   nix: {
     enabled: true,
   },
 
+  // Update flake.lock weekly by running 'nix flake update'.
+  // This also affects other lock files, so we disable it for gomod below.
+  lockFileMaintenance: {
+    enabled: true,
+    extends: ['schedule:weekly'],
+  },
+
   packageRules: [
-    {
-      description: 'Update flake.lock monthly',
-      matchManagers: [
-        'nix',
-      ],
-      extends: [
-        'schedule:monthly',
-      ],
-    },
     {
       description: 'Regenerate gomod2nix.toml and generated code after upgrading go dependencies (Nix)',
       matchDatasources: [
