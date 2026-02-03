@@ -24,7 +24,7 @@ jobs:
     permissions:
       contents: write  # for zeebe-io/backport-action to create branch
       pull-requests: write  # for zeebe-io/backport-action to create PR to backport
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: github.event.pull_request.merged
     steps:
       - name: Checkout

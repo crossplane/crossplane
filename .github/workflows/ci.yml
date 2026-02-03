@@ -17,7 +17,7 @@ env:
 
 jobs:
   check-diff:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -36,7 +36,7 @@ jobs:
         run: nix build .#checks.x86_64-linux.generate --print-build-logs
 
   lint:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -55,7 +55,7 @@ jobs:
         run: nix build .#checks.x86_64-linux.go-lint .#checks.x86_64-linux.helm-lint --print-build-logs
 
   codeql:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       security-events: write
@@ -85,7 +85,7 @@ jobs:
         uses: github/codeql-action/analyze@2588666de8825e1e9dc4e2329a4c985457d55b32 # v3
 
   unit-tests:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -112,7 +112,7 @@ jobs:
 
   # E2E tests run outside the Nix sandbox (needs Docker)
   e2e-tests:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -203,7 +203,7 @@ jobs:
 
   # Build all artifacts (binaries, images, Helm chart)
   build-artifacts:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Cleanup Disk
@@ -304,7 +304,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -328,7 +328,7 @@ jobs:
 
   # Fuzz testing (unchanged from original)
   fuzz-test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Build Fuzzers
@@ -354,7 +354,7 @@ jobs:
 
   # Protobuf schema linting (unchanged from original)
   protobuf-schemas:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
