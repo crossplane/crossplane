@@ -297,23 +297,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnablePipelineInspector {
 		o.Features.Enable(features.EnableAlphaPipelineInspector)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaPipelineInspector)
-		ifrm := inspected.NewPrometheusMetrics()
-		metrics.Registry.MustRegister(ifrm)
-
-		inspector, err := inspected.NewSocketPipelineInspector(c.PipelineInspectorSocket)
-		if err != nil {
-			return errors.Wrap(err, "cannot create pipeline inspector")
-		}
-
-		defer func() {
-			if err := inspector.Close(); err != nil {
-				log.Info("Cannot close pipeline inspector", "error", err)
-			}
-		}()
-
-		runner = inspected.NewRunner(runner, inspector,
-			inspected.WithMetrics(ifrm),
-			inspected.WithLogger(log))
 	}
 
 	if c.EnableFunctionResponseCache {
@@ -471,7 +454,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot start garbage collector for custom resource informers")
 	}
 
-	// Middleware layering: We want Cache → FetchingFunctionRunner → gRPC.
+	// Middleware layering: We want Inspector → Cache → FetchingFunctionRunner → gRPC.
 	// First, wrap the runner with FetchingFunctionRunner to handle requirements.
 	runner = xfn.NewFetchingFunctionRunner(runner, xfn.NewExistingRequiredResourcesFetcher(cached))
 
@@ -491,6 +474,29 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		go cfr.GarbageCollectFiles(ctx, 1*time.Minute)
 
 		runner = cfr
+	}
+
+	// Then, last, if pipeline inspection is enabled, wrap with the inspector layer.
+	// This ensures inspection sees requests before and responses after all
+	// other layers, including requirement fetching and response caching.
+	if c.EnablePipelineInspector {
+		ifrm := inspected.NewPrometheusMetrics()
+		metrics.Registry.MustRegister(ifrm)
+
+		inspector, err := inspected.NewSocketPipelineInspector(c.PipelineInspectorSocket)
+		if err != nil {
+			return errors.Wrap(err, "cannot create pipeline inspector")
+		}
+
+		defer func() {
+			if err := inspector.Close(); err != nil {
+				log.Info("Cannot close pipeline inspector", "error", err)
+			}
+		}()
+
+		runner = inspected.NewRunner(runner, inspector,
+			inspected.WithMetrics(ifrm),
+			inspected.WithLogger(log))
 	}
 
 	cbm := circuit.NewPrometheusMetrics()
