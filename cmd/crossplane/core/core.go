@@ -70,6 +70,7 @@ import (
 	usagehook "github.com/crossplane/crossplane/v2/internal/webhook/protection/usage"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	xfncached "github.com/crossplane/crossplane/v2/internal/xfn/cached"
+	"github.com/crossplane/crossplane/v2/internal/xfn/inspected"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
 	"github.com/crossplane/crossplane/v2/internal/xpkg/signature"
 )
@@ -131,9 +132,11 @@ type startCommand struct {
 	EnableSignatureVerification       bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
 	EnableFunctionResponseCache       bool `group:"Alpha Features:" help:"Enable support for caching composition function responses."`
 	EnableOperations                  bool `group:"Alpha Features:" help:"Enable support for Operations."`
+	EnablePipelineInspector           bool `group:"Alpha Features:" help:"Enable support for emitting function pipeline execution data to a sidecar."`
 
-	XfnCacheDir    string        `default:"/cache/xfn" env:"XFN_CACHE_DIR"     group:"Alpha Features:" help:"Directory used for caching function responses. Requires --enable-function-response-cache."`
-	XfnCacheMaxTTL time.Duration `default:"24h"        env:"XFN_CACHE_MAX_TTL" group:"Alpha Features:" help:"Maximum TTL for cached function responses. Set to 0 to disable. Requires --enable-function-response-cache."`
+	XfnCacheDir             string        `default:"/cache/xfn"                         env:"XFN_CACHE_DIR"             group:"Alpha Features:" help:"Directory used for caching function responses. Requires --enable-function-response-cache."`
+	XfnCacheMaxTTL          time.Duration `default:"24h"                                env:"XFN_CACHE_MAX_TTL"         group:"Alpha Features:" help:"Maximum TTL for cached function responses. Set to 0 to disable. Requires --enable-function-response-cache."`
+	PipelineInspectorSocket string        `default:"/var/run/pipeline-inspector/socket" env:"PIPELINE_INSPECTOR_SOCKET" group:"Alpha Features:" help:"Unix socket path for pipeline inspector sidecar. Requires --enable-pipeline-inspector."`
 
 	EnableDeploymentRuntimeConfigs          bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
 	EnableUsages                            bool `default:"true" group:"Beta Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
@@ -291,6 +294,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	var runner xfn.FunctionRunner = pfr
 
+	if c.EnablePipelineInspector {
+		o.Features.Enable(features.EnableAlphaPipelineInspector)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaPipelineInspector)
+	}
+
 	if c.EnableFunctionResponseCache {
 		o.Features.Enable(features.EnableAlphaFunctionResponseCache)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaFunctionResponseCache)
@@ -446,7 +454,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot start garbage collector for custom resource informers")
 	}
 
-	// Middleware layering: We want Cache → FetchingFunctionRunner → gRPC.
+	// Middleware layering: We want Inspector → Cache → FetchingFunctionRunner → gRPC.
 	// First, wrap the runner with FetchingFunctionRunner to handle requirements.
 	runner = xfn.NewFetchingFunctionRunner(runner, xfn.NewExistingRequiredResourcesFetcher(cached))
 
@@ -466,6 +474,29 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		go cfr.GarbageCollectFiles(ctx, 1*time.Minute)
 
 		runner = cfr
+	}
+
+	// Then, last, if pipeline inspection is enabled, wrap with the inspector layer.
+	// This ensures inspection sees requests before and responses after all
+	// other layers, including requirement fetching and response caching.
+	if c.EnablePipelineInspector {
+		ifrm := inspected.NewPrometheusMetrics()
+		metrics.Registry.MustRegister(ifrm)
+
+		inspector, err := inspected.NewSocketPipelineInspector(c.PipelineInspectorSocket)
+		if err != nil {
+			return errors.Wrap(err, "cannot create pipeline inspector")
+		}
+
+		defer func() {
+			if err := inspector.Close(); err != nil {
+				log.Info("Cannot close pipeline inspector", "error", err)
+			}
+		}()
+
+		runner = inspected.NewRunner(runner, inspector,
+			inspected.WithMetrics(ifrm),
+			inspected.WithLogger(log))
 	}
 
 	cbm := circuit.NewPrometheusMetrics()

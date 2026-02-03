@@ -23,6 +23,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
@@ -42,6 +43,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
 	"github.com/crossplane/crossplane/v2/internal/names"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
 	"github.com/crossplane/crossplane/v2/internal/xcrd"
@@ -252,6 +254,7 @@ func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...
 
 // Compose resources using the Functions pipeline.
 func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) { //nolint:gocognit // We probably don't want any further abstraction for the sake of reduced complexity.
+	ctx = step.ForCompositions(ctx)
 	// Observe our existing composed resources. We need to do this before we
 	// render any P&T templates, so that we can make sure we use the same
 	// composed resource names (as in, metadata.name) every time. We know what
@@ -293,11 +296,21 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// The Function context always starts empty.
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
 
+	// Get the composition name for tracing attributes.
+	compositionName := ""
+	if req.Revision != nil {
+		compositionName = req.Revision.GetLabels()[v1.LabelCompositionName]
+	}
+
+	// Generate a trace ID for this pipeline execution. All steps in this
+	// reconciliation will share this trace ID for correlation.
+	traceID := uuid.NewString()
+
 	// Run any Composition Functions in the pipeline. Each Function may mutate
 	// the desired state returned by the last, and each Function may produce
 	// results that will be emitted as events.
-	for _, fn := range req.Revision.Spec.Pipeline {
-		req := &fnv1.RunFunctionRequest{Observed: o, Desired: d, Context: fctx}
+	for stepIndex, fn := range req.Revision.Spec.Pipeline {
+		fnreq := &fnv1.RunFunctionRequest{Observed: o, Desired: d, Context: fctx}
 
 		if fn.Input != nil {
 			in := &structpb.Struct{}
@@ -305,10 +318,10 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				return CompositionResult{}, errors.Wrapf(err, errFmtUnmarshalPipelineStepInput, fn.Step)
 			}
 
-			req.Input = in
+			fnreq.Input = in
 		}
 
-		req.Credentials = map[string]*fnv1.Credentials{}
+		fnreq.Credentials = map[string]*fnv1.Credentials{}
 		for _, cs := range fn.Credentials {
 			// For now, we only support loading credentials from secrets.
 			if cs.Source != v1.FunctionCredentialsSourceSecret || cs.SecretRef == nil {
@@ -320,7 +333,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				return CompositionResult{}, errors.Wrapf(err, errFmtGetCredentialsFromSecret, fn.Step, cs.Name)
 			}
 
-			req.Credentials[cs.Name] = &fnv1.Credentials{
+			fnreq.Credentials[cs.Name] = &fnv1.Credentials{
 				Source: &fnv1.Credentials_CredentialData{
 					CredentialData: &fnv1.CredentialData{
 						Data: s.Data,
@@ -333,19 +346,22 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		if fn.Requirements != nil {
 			// Bootstrap requirements were introduced alongside the new field names,
 			// so we only need to support the new required_resources field.
-			req.RequiredResources = map[string]*fnv1.Resources{}
+			fnreq.RequiredResources = map[string]*fnv1.Resources{}
 			for _, sel := range fn.Requirements.RequiredResources {
 				resources, err := c.resources.Fetch(ctx, xfn.ToProtobufResourceSelector(&sel))
 				if err != nil {
 					return CompositionResult{}, errors.Wrapf(err, errFmtFetchBootstrapRequirements, sel.RequirementName)
 				}
-				req.RequiredResources[sel.RequirementName] = resources
+				fnreq.RequiredResources[sel.RequirementName] = resources
 			}
 		}
 
-		req.Meta = &fnv1.RequestMeta{Tag: Tag(req)}
+		fnreq.Meta = &fnv1.RequestMeta{Tag: Tag(fnreq)}
 
-		rsp, err := c.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
+		// Add step metadata to context for use by downstream components like InspectedRunner.
+		stepCtx := step.ContextWithStepMetaForCompositions(ctx, traceID, fn.Step, int32(stepIndex), compositionName) //nolint:gosec // int32 conversion is safe here, we know the number of steps won't exceed int32.
+
+		rsp, err := c.pipeline.RunFunction(stepCtx, fn.FunctionRef.Name, fnreq)
 		if err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
 		}

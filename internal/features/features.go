@@ -42,6 +42,12 @@ const (
 	// EnableAlphaOperations enables alpha support for Operations, including
 	// CronOperations and WatchOperations.
 	EnableAlphaOperations feature.Flag = "EnableAlphaOperations"
+
+	// EnableAlphaPipelineInspector enables alpha support for emitting function
+	// pipeline execution data to a sidecar for debugging and observability.
+	// See the below design for more details.
+	// https://github.com/crossplane/crossplane/blob/main/design/one-pager-pipeline-inspector.md
+	EnableAlphaPipelineInspector feature.Flag = "EnableAlphaPipelineInspector"
 )
 
 // Beta Feature Flags.
