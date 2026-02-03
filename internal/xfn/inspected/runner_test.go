@@ -103,7 +103,7 @@ func TestRunFunction(t *testing.T) {
 	}
 
 	// Create a valid context with all required step metadata.
-	validCtx := step.ContextWithStepMeta(context.Background(), "trace-123", "my-composition", "test-step", 0)
+	validCtx := step.ForCompositions(step.ContextWithStepMetaForCompositions(context.Background(), "trace-123", "test-step", 0, "my-composition"))
 
 	cases := map[string]struct {
 		reason string
@@ -301,7 +301,7 @@ func TestRunFunction(t *testing.T) {
 
 func TestRunFunctionMetadataConsistency(t *testing.T) {
 	// This test verifies that the same metadata is passed to both EmitRequest and EmitResponse.
-	validCtx := step.ContextWithStepMeta(context.Background(), "trace-abc", "test-composition", "test-step", 2)
+	validCtx := step.ForCompositions(step.ContextWithStepMetaForCompositions(context.Background(), "trace-abc", "test-step", 2, "test-composition"))
 
 	inspector := &MockPipelineInspector{}
 	metrics := &MockMetrics{}
@@ -335,11 +335,15 @@ func TestRunFunctionMetadataConsistency(t *testing.T) {
 	// Verify metadata fields are as expected.
 	meta := inspector.LastRequestMeta
 	if diff := cmp.Diff(&pipelinev1alpha1.StepMeta{
-		FunctionName:    "my-function",
-		TraceId:         "trace-abc",
-		StepName:        "test-step",
-		StepIndex:       2,
-		CompositionName: "test-composition",
+		FunctionName: "my-function",
+		TraceId:      "trace-abc",
+		StepName:     "test-step",
+		StepIndex:    2,
+		Context: &pipelinev1alpha1.StepMeta_CompositionMeta{
+			CompositionMeta: &pipelinev1alpha1.CompositionMeta{
+				CompositionName: "test-composition",
+			},
+		},
 	}, meta, protocmp.Transform(), protocmp.IgnoreFields(&pipelinev1alpha1.StepMeta{}, "span_id", "timestamp")); diff != "" {
 		t.Errorf("metadata fields mismatch (-want +got):\n%s", diff)
 	}

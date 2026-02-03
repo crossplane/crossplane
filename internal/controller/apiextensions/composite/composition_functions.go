@@ -254,6 +254,7 @@ func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...
 
 // Compose resources using the Functions pipeline.
 func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) { //nolint:gocognit // We probably don't want any further abstraction for the sake of reduced complexity.
+	ctx = step.ForCompositions(ctx)
 	// Observe our existing composed resources. We need to do this before we
 	// render any P&T templates, so that we can make sure we use the same
 	// composed resource names (as in, metadata.name) every time. We know what
@@ -358,7 +359,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		fnreq.Meta = &fnv1.RequestMeta{Tag: Tag(fnreq)}
 
 		// Add step metadata to context for use by downstream components like InspectedRunner.
-		stepCtx := step.ContextWithStepMeta(ctx, traceID, compositionName, fn.Step, int32(stepIndex)) //nolint:gosec // int32 conversion is safe here, we know the number of steps won't exceed int32.
+		stepCtx := step.ContextWithStepMetaForCompositions(ctx, traceID, fn.Step, int32(stepIndex), compositionName) //nolint:gosec // int32 conversion is safe here, we know the number of steps won't exceed int32.
 
 		rsp, err := c.pipeline.RunFunction(stepCtx, fn.FunctionRef.Name, fnreq)
 		if err != nil {

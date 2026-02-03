@@ -174,8 +174,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v3.17.0"
     hash = "sha256-b9dCq5GN5ac64UG23Rijv1qcmUZNcxb8DJQycAa96EQ="
   [mod."github.com/crossplane/crossplane-runtime/v2"]
-    version = "v2.2.0-rc.0.0.20260130110818-b375c81880a3"
-    hash = "sha256-Lae0576w2lUlBqPoVbMQYvAMuG1MzdWEfsbGQne6e00="
+    version = "v2.2.0-rc.0.0.20260203080537-a4cdda495567"
+    hash = "sha256-lL2RefDoE2IHuSktKO9qyY655LF5/CSqJmvibMkiNOY="
   [mod."github.com/cyberphone/json-canonicalization"]
     version = "v0.0.0-20241213102144-19d51d7fe467"
     hash = "sha256-eqH3UKAZ9eOlZjYdN7nWuJ1hFm2JAP1PVbJInQk6OLw="

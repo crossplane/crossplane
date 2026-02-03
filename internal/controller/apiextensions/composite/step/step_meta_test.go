@@ -29,7 +29,7 @@ import (
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
-func TestContextWithStepMeta(t *testing.T) {
+func TestContextWithStepMetaForCompositions(t *testing.T) {
 	type args struct {
 		ctx             context.Context
 		TraceID         string
@@ -86,7 +86,7 @@ func TestContextWithStepMeta(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ctx := ContextWithStepMeta(tc.args.ctx, tc.args.TraceID, tc.args.compositionName, tc.args.stepName, tc.args.stepIndex)
+			ctx := ContextWithStepMetaForCompositions(tc.args.ctx, tc.args.TraceID, tc.args.stepName, tc.args.stepIndex, tc.args.compositionName)
 
 			if ctx == nil {
 				t.Fatal("expected non-nil context")
@@ -111,6 +111,100 @@ func TestContextWithStepMeta(t *testing.T) {
 	}
 }
 
+func TestContextWithStepMetaForOperations(t *testing.T) {
+	type args struct {
+		ctx           context.Context
+		TraceID       string
+		operationName string
+		operationUID  string
+		stepName      string
+		stepIndex     int32
+	}
+
+	type want struct {
+		TraceID       string
+		operationName string
+		operationUID  string
+		stepName      string
+		stepIndex     int32
+		iteration     int
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"StoresAllValues": {
+			reason: "Should store all values in context.",
+			args: args{
+				ctx:           context.Background(),
+				TraceID:       "trace-123",
+				operationName: "my-operation",
+				operationUID:  "uid-456",
+				stepName:      "my-step",
+				stepIndex:     2,
+			},
+			want: want{
+				TraceID:       "trace-123",
+				operationName: "my-operation",
+				operationUID:  "uid-456",
+				stepName:      "my-step",
+				stepIndex:     2,
+				iteration:     0,
+			},
+		},
+		"HandlesNilContext": {
+			reason: "Should create background context when nil is passed.",
+			args: args{
+				ctx:           nil,
+				TraceID:       "trace-789",
+				operationName: "other-operation",
+				operationUID:  "uid-012",
+				stepName:      "other-step",
+				stepIndex:     0,
+			},
+			want: want{
+				TraceID:       "trace-789",
+				operationName: "other-operation",
+				operationUID:  "uid-012",
+				stepName:      "other-step",
+				stepIndex:     0,
+				iteration:     0,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ctx := ContextWithStepMetaForOperations(tc.args.ctx, tc.args.TraceID, tc.args.stepName, tc.args.stepIndex, tc.args.operationName, tc.args.operationUID)
+
+			if ctx == nil {
+				t.Fatal("expected non-nil context")
+			}
+
+			if got := ctx.Value(ContextKeyTraceID); got != tc.want.TraceID {
+				t.Errorf("\n%s\nContextWithStepMetaForOperations(...) TraceId: want %q, got %q", tc.reason, tc.want.TraceID, got)
+			}
+			if got := ctx.Value(ContextKeyOperationName); got != tc.want.operationName {
+				t.Errorf("\n%s\nContextWithStepMetaForOperations(...) OperationName: want %q, got %q", tc.reason, tc.want.operationName, got)
+			}
+			if got := ctx.Value(ContextKeyOperationUID); got != tc.want.operationUID {
+				t.Errorf("\n%s\nContextWithStepMetaForOperations(...) OperationUID: want %q, got %q", tc.reason, tc.want.operationUID, got)
+			}
+			if got := ctx.Value(ContextKeyStepName); got != tc.want.stepName {
+				t.Errorf("\n%s\nContextWithStepMetaForOperations(...) StepName: want %q, got %q", tc.reason, tc.want.stepName, got)
+			}
+			if got := ctx.Value(ContextKeyStepIndex); got != tc.want.stepIndex {
+				t.Errorf("\n%s\nContextWithStepMetaForOperations(...) StepIndex: want %d, got %d", tc.reason, tc.want.stepIndex, got)
+			}
+			if got := ctx.Value(ContextKeyIteration); got != tc.want.iteration {
+				t.Errorf("\n%s\nContextWithStepMetaForOperations(...) Iteration: want %d, got %d", tc.reason, tc.want.iteration, got)
+			}
+		})
+	}
+}
+
 func TestContextWithStepIteration(t *testing.T) {
 	cases := map[string]struct {
 		reason    string
@@ -119,7 +213,7 @@ func TestContextWithStepIteration(t *testing.T) {
 	}{
 		"UpdatesIteration": {
 			reason:    "Should update iteration in existing context.",
-			ctx:       ContextWithStepMeta(context.Background(), "trace", "comp", "step", 0),
+			ctx:       ContextWithStepMetaForCompositions(context.Background(), "trace", "step", 0, "comp"),
 			iteration: 5,
 		},
 		"HandlesNilContext": {
@@ -156,7 +250,7 @@ func TestBuildMetadata(t *testing.T) {
 		err  error
 	}
 
-	validCtx := ContextWithStepMeta(context.Background(), "trace-abc", "my-composition", "my-step", 2)
+	validCtx := ForCompositions(ContextWithStepMetaForCompositions(context.Background(), "trace-abc", "my-step", 2, "my-composition"))
 
 	cases := map[string]struct {
 		reason string
@@ -190,17 +284,21 @@ func TestBuildMetadata(t *testing.T) {
 			},
 			want: want{
 				meta: &pipelinev1alpha1.StepMeta{
-					TraceId:                     "trace-abc",
-					StepIndex:                   2,
-					StepName:                    "my-step",
-					Iteration:                   0,
-					FunctionName:                "function-auto-ready",
-					CompositionName:             "my-composition",
-					CompositeResourceApiVersion: "example.org/v1",
-					CompositeResourceKind:       "XDatabase",
-					CompositeResourceName:       "my-db",
-					CompositeResourceNamespace:  "default",
-					CompositeResourceUid:        "uid-123",
+					TraceId:      "trace-abc",
+					StepIndex:    2,
+					StepName:     "my-step",
+					Iteration:    0,
+					FunctionName: "function-auto-ready",
+					Context: &pipelinev1alpha1.StepMeta_CompositionMeta{
+						CompositionMeta: &pipelinev1alpha1.CompositionMeta{
+							CompositionName:             "my-composition",
+							CompositeResourceApiVersion: "example.org/v1",
+							CompositeResourceKind:       "XDatabase",
+							CompositeResourceName:       "my-db",
+							CompositeResourceNamespace:  "default",
+							CompositeResourceUid:        "uid-123",
+						},
+					},
 				},
 			},
 		},
@@ -254,7 +352,7 @@ func TestBuildMetadata(t *testing.T) {
 		"MissingIterationIsOptional": {
 			reason: "Should succeed when iteration is missing (defaults to 0).",
 			args: args{
-				ctx: context.WithValue(
+				ctx: ForCompositions(context.WithValue(
 					context.WithValue(
 						context.WithValue(
 							context.WithValue(context.Background(), ContextKeyTraceID, "trace"),
@@ -263,18 +361,22 @@ func TestBuildMetadata(t *testing.T) {
 						ContextKeyCompositionName, "comp",
 					),
 					ContextKeyStepName, "step",
-				),
+				)),
 				functionName: "test-function",
 				req:          &fnv1.RunFunctionRequest{},
 			},
 			want: want{
 				meta: &pipelinev1alpha1.StepMeta{
-					TraceId:         "trace",
-					StepIndex:       1,
-					StepName:        "step",
-					Iteration:       0,
-					FunctionName:    "test-function",
-					CompositionName: "comp",
+					TraceId:      "trace",
+					StepIndex:    1,
+					StepName:     "step",
+					Iteration:    0,
+					FunctionName: "test-function",
+					Context: &pipelinev1alpha1.StepMeta_CompositionMeta{
+						CompositionMeta: &pipelinev1alpha1.CompositionMeta{
+							CompositionName: "comp",
+						},
+					},
 				},
 			},
 		},
@@ -287,12 +389,16 @@ func TestBuildMetadata(t *testing.T) {
 			},
 			want: want{
 				meta: &pipelinev1alpha1.StepMeta{
-					TraceId:         "trace-abc",
-					StepIndex:       2,
-					StepName:        "my-step",
-					Iteration:       5,
-					FunctionName:    "test-function",
-					CompositionName: "my-composition",
+					TraceId:      "trace-abc",
+					StepIndex:    2,
+					StepName:     "my-step",
+					Iteration:    0,
+					FunctionName: "test-function",
+					Context: &pipelinev1alpha1.StepMeta_CompositionMeta{
+						CompositionMeta: &pipelinev1alpha1.CompositionMeta{
+							CompositionName: "my-composition",
+						},
+					},
 				},
 			},
 		},

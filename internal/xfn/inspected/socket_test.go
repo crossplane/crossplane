@@ -74,12 +74,16 @@ func TestSocketPipelineInspectorEmitRequest(t *testing.T) {
 	}
 
 	validMeta := &pipelinev1alpha1.StepMeta{
-		TraceId:         "trace-123",
-		SpanId:          "span-456",
-		StepIndex:       1,
-		Iteration:       2,
-		FunctionName:    "test-function",
-		CompositionName: "test-composition",
+		TraceId:      "trace-123",
+		SpanId:       "span-456",
+		StepIndex:    1,
+		Iteration:    2,
+		FunctionName: "test-function",
+		Context: &pipelinev1alpha1.StepMeta_CompositionMeta{
+			CompositionMeta: &pipelinev1alpha1.CompositionMeta{
+				CompositionName: "test-composition",
+			},
+		},
 	}
 
 	cases := map[string]struct {
@@ -353,12 +357,16 @@ func TestSocketPipelineInspectorEmitResponse(t *testing.T) {
 	}
 
 	validMeta := &pipelinev1alpha1.StepMeta{
-		TraceId:         "trace-123",
-		SpanId:          "span-456",
-		StepIndex:       1,
-		Iteration:       2,
-		FunctionName:    "test-function",
-		CompositionName: "test-composition",
+		TraceId:      "trace-123",
+		SpanId:       "span-456",
+		StepIndex:    1,
+		Iteration:    2,
+		FunctionName: "test-function",
+		Context: &pipelinev1alpha1.StepMeta_CompositionMeta{
+			CompositionMeta: &pipelinev1alpha1.CompositionMeta{
+				CompositionName: "test-composition",
+			},
+		},
 	}
 
 	cases := map[string]struct {

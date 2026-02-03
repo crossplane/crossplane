@@ -48,17 +48,73 @@ const (
 
 	// ContextKeyIteration is the context key for the iteration counter (shared across all steps in a reconciliation).
 	ContextKeyIteration contextKey = "iteration"
+
+	// ContextKeyFunctionType is the context key used to store the type of function being executed.
+	ContextKeyFunctionType contextKey = "function-type"
+
+	// ContextKeyOperationName is the context key for the operation name.
+	ContextKeyOperationName contextKey = "operation-name"
+
+	// ContextKeyOperationUID is the context key for the operation UID.
+	ContextKeyOperationUID contextKey = "operation-uid"
 )
 
-// ContextWithStepMeta returns a new context with pipeline step metadata.
-func ContextWithStepMeta(ctx context.Context, traceID, compositionName, stepName string, stepIndex int32) context.Context {
+const (
+	CompositionValue = "composition"
+	OperationValue   = "operation"
+)
+
+// ForCompositions returns a context indicating the function is being run for a Composition.
+func ForCompositions(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, ContextKeyFunctionType, CompositionValue)
+}
+
+// ForOperations returns a context indicating the function is being run for an Ops resource.
+func ForOperations(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, ContextKeyFunctionType, OperationValue)
+}
+
+// IsForCompositions returns true if the context indicates the function is being run for an XR resource.
+func IsForCompositions(ctx context.Context) bool {
+	v := ctx.Value(ContextKeyFunctionType)
+	s, ok := v.(string)
+	return ok && s == CompositionValue
+}
+
+// IsForOperations returns true if the context indicates the function is being run for an Ops resource.
+func IsForOperations(ctx context.Context) bool {
+	v := ctx.Value(ContextKeyFunctionType)
+	s, ok := v.(string)
+	return ok && s == OperationValue
+}
+
+// ContextWithStepMetaForCompositions returns a new context with pipeline step metadata for compositions.
+func ContextWithStepMetaForCompositions(ctx context.Context, traceID, stepName string, stepIndex int32, compositionName string) context.Context {
+	ctx = contextWithStepMeta(ctx, traceID, stepName, stepIndex)
+	return context.WithValue(ctx, ContextKeyCompositionName, compositionName)
+}
+
+// ContextWithStepMetaForOperations returns a new context with pipeline step metadata for operations.
+func ContextWithStepMetaForOperations(ctx context.Context, traceID, stepName string, stepIndex int32, operationName, operationUID string) context.Context {
+	ctx = contextWithStepMeta(ctx, traceID, stepName, stepIndex)
+	ctx = context.WithValue(ctx, ContextKeyOperationName, operationName)
+	return context.WithValue(ctx, ContextKeyOperationUID, operationUID)
+}
+
+// contextWithStepMeta returns a new context with generic pipeline step metadata.
+func contextWithStepMeta(ctx context.Context, traceID, stepName string, stepIndex int32) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	ctx = context.WithValue(ctx, ContextKeyTraceID, traceID)
 	ctx = context.WithValue(ctx, ContextKeyStepIndex, stepIndex)
 	ctx = context.WithValue(ctx, ContextKeyStepName, stepName)
-	ctx = context.WithValue(ctx, ContextKeyCompositionName, compositionName)
 	ctx = context.WithValue(ctx, ContextKeyIteration, 0) // Default iteration to 0, is going to be updated later if needed.
 	return ctx
 }
@@ -81,6 +137,8 @@ func BuildMetadata(ctx context.Context, functionName string, req *fnv1.RunFuncti
 	meta := pipelinev1alpha1.StepMeta{
 		FunctionName: functionName,
 		Timestamp:    timestamppb.New(time.Now()),
+		// Generate a unique span_id for this function invocation.
+		SpanId: uuid.NewString(),
 	}
 
 	if ctx == nil {
@@ -103,30 +161,43 @@ func BuildMetadata(ctx context.Context, functionName string, req *fnv1.RunFuncti
 	} else {
 		return nil, fmt.Errorf("could not extract step name from context")
 	}
-	if v, ok := ctx.Value(ContextKeyCompositionName).(string); ok {
-		meta.CompositionName = v
-	} else {
-		return nil, fmt.Errorf("could not extract composition name from context")
-	}
 	if v, ok := ctx.Value(ContextKeyIteration).(int32); ok {
 		meta.Iteration = v
 		// This is optional; we can default to 0 if not found.
 	}
 
-	// Generate a unique span_id for this function invocation.
-	meta.SpanId = uuid.NewString()
-
-	// Extract composite resource metadata from the request.
-	xr := req.GetObserved().GetComposite().GetResource()
-	if xr != nil {
-		meta.CompositeResourceApiVersion = getStringField(xr, "apiVersion")
-		meta.CompositeResourceKind = getStringField(xr, "kind")
-
-		if metadata := getStructField(xr, "metadata"); metadata != nil {
-			meta.CompositeResourceName = getStringField(metadata, "name")
-			meta.CompositeResourceNamespace = getStringField(metadata, "namespace")
-			meta.CompositeResourceUid = getStringField(metadata, "uid")
+	switch {
+	case IsForCompositions(ctx):
+		compositionMeta := &pipelinev1alpha1.CompositionMeta{}
+		if v, ok := ctx.Value(ContextKeyCompositionName).(string); ok {
+			compositionMeta.CompositionName = v
+		} else {
+			return nil, fmt.Errorf("could not extract composition name from context")
 		}
+		// Extract composite resource metadata from the request.
+		xr := req.GetObserved().GetComposite().GetResource()
+		if xr != nil {
+			compositionMeta.CompositeResourceApiVersion = getStringField(xr, "apiVersion")
+			compositionMeta.CompositeResourceKind = getStringField(xr, "kind")
+
+			if metadata := getStructField(xr, "metadata"); metadata != nil {
+				compositionMeta.CompositeResourceName = getStringField(metadata, "name")
+				compositionMeta.CompositeResourceNamespace = getStringField(metadata, "namespace")
+				compositionMeta.CompositeResourceUid = getStringField(metadata, "uid")
+			}
+		}
+		meta.Context = &pipelinev1alpha1.StepMeta_CompositionMeta{CompositionMeta: compositionMeta}
+	case IsForOperations(ctx):
+		operationMeta := &pipelinev1alpha1.OperationMeta{}
+		if v, ok := ctx.Value(ContextKeyOperationName).(string); ok {
+			operationMeta.OperationName = v
+		}
+		if v, ok := ctx.Value(ContextKeyOperationUID).(string); ok {
+			operationMeta.OperationUid = v
+		}
+		meta.Context = &pipelinev1alpha1.StepMeta_OperationMeta{OperationMeta: operationMeta}
+	default:
+		return nil, fmt.Errorf("unable to determine if function is for XR or Ops from context")
 	}
 
 	return &meta, nil
