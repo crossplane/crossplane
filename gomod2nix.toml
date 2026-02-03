@@ -54,8 +54,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v0.6.2"
     hash = "sha256-tVNWDUMILZbJvarcl/E7tpSnkn7urqgSHa2Eaka5vSU="
   [mod."github.com/ProtonMail/go-crypto"]
-    version = "v1.1.3"
-    hash = "sha256-XN/cWNUTZvhe7ni7tIeBpc9J0Gfe+ReEFsUwab/epO0="
+    version = "v1.1.6"
+    hash = "sha256-XlFT3uxgpPYFTND54uO8fH33jtQqAHWa7zrv24nw/PE="
   [mod."github.com/alecthomas/kong"]
     version = "v1.13.0"
     hash = "sha256-9nSlldkif002WKjCIRBUmTofdtSL16V9NUZZ1PD34c0="
@@ -159,8 +159,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v0.0.0-20241213102144-19d51d7fe467"
     hash = "sha256-eqH3UKAZ9eOlZjYdN7nWuJ1hFm2JAP1PVbJInQk6OLw="
   [mod."github.com/cyphar/filepath-securejoin"]
-    version = "v0.3.6"
-    hash = "sha256-M1J+wjHnOZ/u2HvR9fry/dpzwGBc23oqEwnD3ym2Z88="
+    version = "v0.4.1"
+    hash = "sha256-NOV6MfbkcQbfhNmfADQw2SJmZ6q1nw0wwg8Pm2tf2DM="
   [mod."github.com/davecgh/go-spew"]
     version = "v1.1.2-0.20180830191138-d8f796af33cc"
     hash = "sha256-fV9oI51xjHdOmEx6+dlq7Ku2Ag+m/bmbzPo6A4Y74qc="
@@ -240,8 +240,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v5.7.0"
     hash = "sha256-PIVqP1YpCHmwc8PVPydIiz4i6E6fghCdKeBMzQpYW1w="
   [mod."github.com/go-git/go-git/v5"]
-    version = "v5.13.0"
-    hash = "sha256-S/Mh89tfcSvpE3dXDNW9gbLipmSilX7YGW3hC4GqFMw="
+    version = "v5.16.4"
+    hash = "sha256-y8pzypv2vAhaDRQbL1dhfvD+2s9jPcqg/EALko89gkI="
   [mod."github.com/go-jose/go-jose/v4"]
     version = "v4.1.3"
     hash = "sha256-WfogdTIRu4yDtCVX5fzz/+kKVPwX/hXBl+nY31XFHNc="
@@ -468,8 +468,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v2.0.1+incompatible"
     hash = "sha256-K4mEVjH0eyxyYHQRxdbmgJT0AJrfucUwGB2BplRRt9c="
   [mod."github.com/pjbgf/sha1cd"]
-    version = "v0.3.0"
-    hash = "sha256-kX9BdLh2dxtGNaDvc24NORO+C0AZ7JzbrXrtecCdB7w="
+    version = "v0.3.2"
+    hash = "sha256-jdbiRhU8xc1C5c8m7BSCj71PUXHY3f7TWFfxDKKpUMk="
   [mod."github.com/pkg/browser"]
     version = "v0.0.0-20240102092130-5ac0b6a4141c"
     hash = "sha256-9iaSHHpcA1fXVF5f8RlKyo1DSoHx7eGXIC2/4LFaoBY="
@@ -540,8 +540,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v1.9.4"
     hash = "sha256-ltRvmtM3XTCAFwY0IesfRqYIivyXPPuvkFjL4ARh1wg="
   [mod."github.com/skeema/knownhosts"]
-    version = "v1.3.0"
-    hash = "sha256-piR5IdfqxK9nxyErJ+IRDLnkaeNQwX93ztTFZyPm5MQ="
+    version = "v1.3.1"
+    hash = "sha256-kjqQDzuncQNTuOYegqVZExwuOt/Z73m2ST7NZFEKixI="
   [mod."github.com/spf13/afero"]
     version = "v1.15.0"
     hash = "sha256-LhcezbOqfuBzacytbqck0hNUxi6NbWNhifUc5/9uHQ8="
