@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   stale:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/stale@997185467fa4f803885201cee163a9f38240193d # v10
       with:
