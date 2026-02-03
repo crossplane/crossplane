@@ -52,16 +52,19 @@ type Dependency struct {
 
 	// Provider is the name of a Provider package image.
 	// +optional
+	//
 	// Deprecated: Specify an apiVersion and kind instead.
 	Provider *string `json:"provider,omitempty"`
 
 	// Configuration is the name of a Configuration package image.
 	// +optional
+	//
 	// Deprecated: Specify an apiVersion, kind, and package instead.
 	Configuration *string `json:"configuration,omitempty"`
 
 	// Function is the name of a Function package image.
 	// +optional
+	//
 	// Deprecated: Specify an apiVersion, kind, and package instead.
 	Function *string `json:"function,omitempty"`
 

@@ -18,6 +18,7 @@ package composite
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -78,12 +79,7 @@ func filterPatch(p v1.Patch, only ...v1.PatchType) bool {
 		return false
 	}
 
-	for _, patchType := range only {
-		if patchType == p.Type {
-			return false
-		}
-	}
-	return true
+	return !slices.Contains(only, p.Type)
 }
 
 // ResolveTransforms applies a list of transforms to a patch value.

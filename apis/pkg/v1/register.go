@@ -42,7 +42,7 @@ var (
 
 // Configuation type metadata.
 var (
-	ConfigurationKind             = reflect.TypeOf(Configuration{}).Name()
+	ConfigurationKind             = reflect.TypeFor[Configuration]().Name()
 	ConfigurationGroupKind        = schema.GroupKind{Group: Group, Kind: ConfigurationKind}.String()
 	ConfigurationKindAPIVersion   = ConfigurationKind + "." + SchemeGroupVersion.String()
 	ConfigurationGroupVersionKind = SchemeGroupVersion.WithKind(ConfigurationKind)
@@ -50,7 +50,7 @@ var (
 
 // ConfigurationRevision type metadata.
 var (
-	ConfigurationRevisionKind             = reflect.TypeOf(ConfigurationRevision{}).Name()
+	ConfigurationRevisionKind             = reflect.TypeFor[ConfigurationRevision]().Name()
 	ConfigurationRevisionGroupKind        = schema.GroupKind{Group: Group, Kind: ConfigurationRevisionKind}.String()
 	ConfigurationRevisionKindAPIVersion   = ConfigurationRevisionKind + "." + SchemeGroupVersion.String()
 	ConfigurationRevisionGroupVersionKind = SchemeGroupVersion.WithKind(ConfigurationRevisionKind)
@@ -58,7 +58,7 @@ var (
 
 // Provider type metadata.
 var (
-	ProviderKind             = reflect.TypeOf(Provider{}).Name()
+	ProviderKind             = reflect.TypeFor[Provider]().Name()
 	ProviderGroupKind        = schema.GroupKind{Group: Group, Kind: ProviderKind}.String()
 	ProviderKindAPIVersion   = ProviderKind + "." + SchemeGroupVersion.String()
 	ProviderGroupVersionKind = SchemeGroupVersion.WithKind(ProviderKind)
@@ -66,7 +66,7 @@ var (
 
 // ProviderRevision type metadata.
 var (
-	ProviderRevisionKind             = reflect.TypeOf(ProviderRevision{}).Name()
+	ProviderRevisionKind             = reflect.TypeFor[ProviderRevision]().Name()
 	ProviderRevisionGroupKind        = schema.GroupKind{Group: Group, Kind: ProviderRevisionKind}.String()
 	ProviderRevisionKindAPIVersion   = ProviderRevisionKind + "." + SchemeGroupVersion.String()
 	ProviderRevisionGroupVersionKind = SchemeGroupVersion.WithKind(ProviderRevisionKind)
@@ -74,7 +74,7 @@ var (
 
 // Function type metadata.
 var (
-	FunctionKind             = reflect.TypeOf(Function{}).Name()
+	FunctionKind             = reflect.TypeFor[Function]().Name()
 	FunctionGroupKind        = schema.GroupKind{Group: Group, Kind: FunctionKind}.String()
 	FunctionKindAPIVersion   = FunctionKind + "." + SchemeGroupVersion.String()
 	FunctionGroupVersionKind = SchemeGroupVersion.WithKind(FunctionKind)
@@ -82,7 +82,7 @@ var (
 
 // FunctionRevision type metadata.
 var (
-	FunctionRevisionKind             = reflect.TypeOf(FunctionRevision{}).Name()
+	FunctionRevisionKind             = reflect.TypeFor[FunctionRevision]().Name()
 	FunctionRevisionGroupKind        = schema.GroupKind{Group: Group, Kind: FunctionRevisionKind}.String()
 	FunctionRevisionKindAPIVersion   = FunctionRevisionKind + "." + SchemeGroupVersion.String()
 	FunctionRevisionGroupVersionKind = SchemeGroupVersion.WithKind(FunctionRevisionKind)

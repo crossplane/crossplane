@@ -156,38 +156,38 @@ func TestConvertToCRDs(t *testing.T) {
 			args: args{
 				schemas: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "apiextensions.k8s.io/v1",
 							"kind":       "CustomResourceDefinition",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "test",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"group": "test.org",
-								"names": map[string]interface{}{
+								"names": map[string]any{
 									"kind":     "Test",
 									"listKind": "TestList",
 									"plural":   "tests",
 									"singular": "test",
 								},
 								"scope": "Cluster",
-								"versions": []interface{}{
-									map[string]interface{}{
+								"versions": []any{
+									map[string]any{
 										"name":    "v1alpha1",
 										"served":  true,
 										"storage": true,
-										"schema": map[string]interface{}{
-											"openAPIV3Schema": map[string]interface{}{
+										"schema": map[string]any{
+											"openAPIV3Schema": map[string]any{
 												"type": "object",
-												"properties": map[string]interface{}{
-													"spec": map[string]interface{}{
+												"properties": map[string]any{
+													"spec": map[string]any{
 														"type": "object",
-														"properties": map[string]interface{}{
-															"replicas": map[string]interface{}{
+														"properties": map[string]any{
+															"replicas": map[string]any{
 																"type": "integer",
 															},
 														},
-														"required": []interface{}{
+														"required": []any{
 															"replicas",
 														},
 													},
@@ -212,41 +212,41 @@ func TestConvertToCRDs(t *testing.T) {
 			args: args{
 				schemas: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "apiextensions.crossplane.io/v1alpha1",
 							"kind":       "CompositeResourceDefinition",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "test",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"group": "test.org",
-								"names": map[string]interface{}{
+								"names": map[string]any{
 									"kind":     "Test",
 									"listKind": "TestList",
 									"plural":   "tests",
 									"singular": "test",
 								},
-								"versions": []interface{}{
-									map[string]interface{}{
+								"versions": []any{
+									map[string]any{
 										"name":    "v1alpha1",
 										"served":  true,
 										"storage": true,
-										"schema": map[string]interface{}{
-											"openAPIV3Schema": map[string]interface{}{
+										"schema": map[string]any{
+											"openAPIV3Schema": map[string]any{
 												"type": "object",
-												"properties": map[string]interface{}{
-													"spec": map[string]interface{}{
+												"properties": map[string]any{
+													"spec": map[string]any{
 														"type": "object",
-														"properties": map[string]interface{}{
-															"replicas": map[string]interface{}{
+														"properties": map[string]any{
+															"replicas": map[string]any{
 																"type": "integer",
 															},
 														},
 													},
-													"status": map[string]interface{}{
+													"status": map[string]any{
 														"type": "object",
-														"properties": map[string]interface{}{
-															"replicas": map[string]interface{}{
+														"properties": map[string]any{
+															"replicas": map[string]any{
 																"type": "integer",
 															},
 														},
@@ -552,45 +552,45 @@ func TestConvertToCRDs(t *testing.T) {
 			args: args{
 				schemas: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "apiextensions.crossplane.io/v1alpha1",
 							"kind":       "CompositeResourceDefinition",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "test",
 							},
-							"spec": map[string]interface{}{
-								"claimNames": map[string]interface{}{
+							"spec": map[string]any{
+								"claimNames": map[string]any{
 									"kind":   "TestClaim",
 									"plural": "testclaims",
 								},
 								"group": "test.org",
-								"names": map[string]interface{}{
+								"names": map[string]any{
 									"kind":     "Test",
 									"listKind": "TestList",
 									"plural":   "tests",
 									"singular": "test",
 								},
-								"versions": []interface{}{
-									map[string]interface{}{
+								"versions": []any{
+									map[string]any{
 										"name":    "v1alpha1",
 										"served":  true,
 										"storage": true,
-										"schema": map[string]interface{}{
-											"openAPIV3Schema": map[string]interface{}{
+										"schema": map[string]any{
+											"openAPIV3Schema": map[string]any{
 												"type": "object",
-												"properties": map[string]interface{}{
-													"spec": map[string]interface{}{
+												"properties": map[string]any{
+													"spec": map[string]any{
 														"type": "object",
-														"properties": map[string]interface{}{
-															"replicas": map[string]interface{}{
+														"properties": map[string]any{
+															"replicas": map[string]any{
 																"type": "integer",
 															},
 														},
 													},
-													"status": map[string]interface{}{
+													"status": map[string]any{
 														"type": "object",
-														"properties": map[string]interface{}{
-															"replicas": map[string]interface{}{
+														"properties": map[string]any{
+															"replicas": map[string]any{
 																"type": "integer",
 															},
 														},
@@ -1149,10 +1149,10 @@ func TestConvertToCRDs(t *testing.T) {
 			args: args{
 				schemas: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "apiextensions.k8s.io/v1",
 							"kind":       "WrongKind",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "test",
 							},
 						},
@@ -1200,13 +1200,13 @@ func TestValidateResources(t *testing.T) {
 			args: args{
 				resources: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "test.org/v1alpha1",
 							"kind":       "Test",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "test",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"replicas": 1,
 							},
 						},
@@ -1222,13 +1222,13 @@ func TestValidateResources(t *testing.T) {
 			args: args{
 				resources: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "test.org/v1alpha1",
 							"kind":       "Test",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "test",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"replicas":    5,
 								"minReplicas": 3,
 								"maxReplicas": 10,
@@ -1246,13 +1246,13 @@ func TestValidateResources(t *testing.T) {
 			args: args{
 				resources: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "test.org/v1alpha1",
 							"kind":       "Test",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "test",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"replicas": 1,
 							},
 						},
@@ -1269,13 +1269,13 @@ func TestValidateResources(t *testing.T) {
 			args: args{
 				resources: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "test.org/v1alpha1",
 							"kind":       "Test",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "test",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"replicas": 1,
 							},
 						},
@@ -1293,13 +1293,13 @@ func TestValidateResources(t *testing.T) {
 			args: args{
 				resources: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "test.org/v1alpha1",
 							"kind":       "Test",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "test",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"replicas": "non-integer",
 							},
 						},
@@ -1318,13 +1318,13 @@ func TestValidateResources(t *testing.T) {
 			args: args{
 				resources: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "test.org/v1alpha1",
 							"kind":       "Test",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "test",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"replicas":    50,
 								"minReplicas": 3,
 								"maxReplicas": 10,
@@ -1345,13 +1345,13 @@ func TestValidateResources(t *testing.T) {
 			args: args{
 				resources: []*unstructured.Unstructured{
 					{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "test.org/v1alpha1",
 							"kind":       "Test",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "test",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"replicas": 1,
 							},
 						},
@@ -1375,7 +1375,7 @@ func TestValidateResources(t *testing.T) {
 
 func TestValidateUnknownFields(t *testing.T) {
 	type args struct {
-		mr  map[string]interface{}
+		mr  map[string]any
 		sch *schema.Structural
 	}
 	type want struct {
@@ -1389,13 +1389,13 @@ func TestValidateUnknownFields(t *testing.T) {
 		"UnknownFieldPresent": {
 			reason: "Should detect unknown fields in the resource and return an error",
 			args: args{
-				mr: map[string]interface{}{
+				mr: map[string]any{
 					"apiVersion": "test.org/v1alpha1",
 					"kind":       "Test",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "test-instance",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas":     3,
 						"unknownField": "should fail", // This field is not defined in the CRD schema
 					},
@@ -1421,13 +1421,13 @@ func TestValidateUnknownFields(t *testing.T) {
 		"UnknownFieldNotPresent": {
 			reason: "Should not return an error when no unknown fields are present",
 			args: args{
-				mr: map[string]interface{}{
+				mr: map[string]any{
 					"apiVersion": "test.org/v1alpha1",
 					"kind":       "Test",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "test-instance",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3, // No unknown fields
 					},
 				},

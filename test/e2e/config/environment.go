@@ -43,6 +43,8 @@ const testSuiteFlag = "test-suite"
 // Environment is these e2e test configuration, wraps the e2e-framework
 // environment.
 type Environment struct {
+	env.Environment
+
 	createKindCluster      *bool
 	destroyKindCluster     *bool
 	preinstallCrossplane   *bool
@@ -55,8 +57,6 @@ type Environment struct {
 
 	specificTestSelected *bool
 	suites               map[string]testSuite
-
-	env.Environment
 }
 
 // selectedTestSuite implements the flag.Value interface. To be able to

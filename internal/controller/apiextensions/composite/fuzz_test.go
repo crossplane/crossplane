@@ -147,7 +147,7 @@ func FuzzTransform(f *testing.F) {
 }
 
 func YamlToUnstructured(yamlStr string) (*unstructured.Unstructured, error) {
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	err := yaml.Unmarshal([]byte(yamlStr), &obj)
 	if err != nil {
 		return nil, err

@@ -480,7 +480,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// Without this managedFields upgrade, the composed resources ends up having shared ownership
 	// of fields and field removals won't sync properly.
 	for _, cd := range observed {
-		if err := c.composite.ManagedFieldsUpgrader.Upgrade(ctx, cd.Resource); err != nil {
+		if err := c.composite.Upgrade(ctx, cd.Resource); err != nil {
 			return CompositionResult{}, errors.Wrap(err, "cannot upgrade composed resource's managed fields from client-side to server-side apply")
 		}
 	}
@@ -892,10 +892,10 @@ func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.
 	// We found our SSA field manager but also before-first-apply. It should now
 	// be safe to delete before-first-apply.
 	case foundSSA && foundBFA:
-		p := []byte(fmt.Sprintf(`[
+		p := fmt.Appendf(nil, `[
 			{"op": "remove", "path": "/metadata/managedFields/%d"},
 			{"op": "replace", "path": "/metadata/resourceVersion", "value": "%s"}
-		]`, idxBFA, obj.GetResourceVersion()))
+		]`, idxBFA, obj.GetResourceVersion())
 		return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), "cannot remove before-first-apply from field managers")
 
 	// We didn't find our SSA field manager. This means we haven't started the
@@ -904,10 +904,10 @@ func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.
 	// cares about. The result will be that our SSA field manager shares
 	// ownership with a new manager named 'before-first-apply'.
 	default:
-		p := []byte(fmt.Sprintf(`[
+		p := fmt.Appendf(nil, `[
 			{"op": "replace", "path": "/metadata/managedFields", "value": [{}]},
 			{"op": "replace", "path": "/metadata/resourceVersion", "value": "%s"}
-		]`, obj.GetResourceVersion()))
+		]`, obj.GetResourceVersion())
 		return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), "cannot clear field managers")
 	}
 }

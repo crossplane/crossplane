@@ -55,6 +55,7 @@ type LockPackage struct {
 	// Type is the type of package.
 	// +kubebuilder:validation:Enum=Configuration;Provider;Function
 	// +optional
+	//
 	// Deprecated: Specify an apiVersion and kind instead.
 	Type *PackageType `json:"type"`
 
@@ -140,6 +141,7 @@ type Dependency struct {
 	// Type is the type of package. Can be either Configuration or Provider.
 	// +kubebuilder:validation:Enum=Configuration;Provider;Function
 	// +optional
+	//
 	// Deprecated: Specify an apiVersion and kind instead.
 	Type *PackageType `json:"type"`
 
@@ -210,7 +212,8 @@ type Lock struct {
 type LockList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Lock `json:"items"`
+
+	Items []Lock `json:"items"`
 }
 
 // LockStatus represents the status of the Lock.

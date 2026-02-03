@@ -14,12 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package xcrd generates CustomResourceDefinitions from Crossplane definitions.
-//
-// v1.JSONSchemaProps is incompatible with controller-tools (as of 0.2.4)
-// because it is missing JSON tags and uses float64, which is a disallowed type.
-// We thus copy the entire struct as CRDSpecTemplate. See the below issue:
-// https://github.com/kubernetes-sigs/controller-tools/issues/291
 package xcrd
 
 import (
@@ -660,7 +654,7 @@ func TestForCompositeResource(t *testing.T) {
 												},
 												"compositionUpdatePolicy": {
 													Type:    "string",
-													Default: &extv1.JSON{Raw: []byte(fmt.Sprintf("\"%s\"", defaultCompositionUpdatePolicy))},
+													Default: &extv1.JSON{Raw: fmt.Appendf(nil, "\"%s\"", defaultCompositionUpdatePolicy)},
 													Enum: []extv1.JSON{
 														{Raw: []byte(`"Automatic"`)},
 														{Raw: []byte(`"Manual"`)},
@@ -2572,7 +2566,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 												},
 												"compositeDeletePolicy": {
 													Type:    "string",
-													Default: &extv1.JSON{Raw: []byte(fmt.Sprintf("\"%s\"", defaultPolicy))},
+													Default: &extv1.JSON{Raw: fmt.Appendf(nil, "\"%s\"", defaultPolicy)},
 													Enum: []extv1.JSON{
 														{Raw: []byte(`"Background"`)},
 														{Raw: []byte(`"Foreground"`)},

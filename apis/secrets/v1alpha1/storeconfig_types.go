@@ -48,7 +48,8 @@ type StoreConfig struct {
 type StoreConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []StoreConfig `json:"items"`
+
+	Items []StoreConfig `json:"items"`
 }
 
 // GetStoreConfig returns SecretStoreConfig.

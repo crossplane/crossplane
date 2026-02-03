@@ -28,8 +28,8 @@ import (
 // Based slightly off of https://github.com/alecthomas/kong/blob/f48da244f54370c0cb63e22b0e500e5459a491bf/resolver.go#L33-L60
 // Hyphens in flag names are replaced with underscores.
 func JSON(base, overlay io.Reader) (kong.Resolver, error) {
-	baseValues := map[string]interface{}{}
-	overlayValues := map[string]interface{}{}
+	baseValues := map[string]any{}
+	overlayValues := map[string]any{}
 	err := json.NewDecoder(base).Decode(&baseValues)
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func JSON(base, overlay io.Reader) (kong.Resolver, error) {
 		return nil, err
 	}
 
-	var f kong.ResolverFunc = func(_ *kong.Context, _ *kong.Path, flag *kong.Flag) (interface{}, error) {
+	var f kong.ResolverFunc = func(_ *kong.Context, _ *kong.Path, flag *kong.Flag) (any, error) {
 		name := strings.ReplaceAll(flag.Name, "-", "_")
 		bRaw, bOk := resolveValue(name, flag.Envs, baseValues)
 		oRaw, oOk := resolveValue(name, flag.Envs, overlayValues)
@@ -63,7 +63,7 @@ func JSON(base, overlay io.Reader) (kong.Resolver, error) {
 	return f, nil
 }
 
-func resolveValue(fieldName string, envVarsName []string, vals map[string]interface{}) (interface{}, bool) {
+func resolveValue(fieldName string, envVarsName []string, vals map[string]any) (any, bool) {
 	// attempt to lookup by field name first
 	raw, ok := vals[fieldName]
 	if !ok {

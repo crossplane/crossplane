@@ -36,25 +36,25 @@ func TestIndexCompositeResourcesRefs(t *testing.T) {
 		"Nil":             {args: args{object: nil}, want: nil},
 		"NotUnstructured": {args: args{object: &corev1.Pod{}}, want: nil},
 		"NoRefs": {args: args{object: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"spec": map[string]interface{}{},
+			Object: map[string]any{
+				"spec": map[string]any{},
 			},
 		}}, want: []string{}},
 		"References": {args: args{object: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"spec": map[string]interface{}{
-					"resourceRefs": []interface{}{
-						map[string]interface{}{
+			Object: map[string]any{
+				"spec": map[string]any{
+					"resourceRefs": []any{
+						map[string]any{
 							"apiVersion": "nop.crossplane.io/v1alpha1",
 							"kind":       "NopResource",
 							"name":       "mr",
 						},
-						map[string]interface{}{
+						map[string]any{
 							"apiVersion": "nop.example.org/v1alpha1",
 							"kind":       "NopResource",
 							"name":       "xr",
 						},
-						map[string]interface{}{
+						map[string]any{
 							"apiVersion": "v1",
 							"kind":       "ConfigMap",
 							"name":       "cm",

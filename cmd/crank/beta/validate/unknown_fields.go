@@ -26,7 +26,7 @@ import (
 )
 
 // validateUnknownFields Validates the resource's unknown fields against the given schema and returns a list of errors.
-func validateUnknownFields(mr map[string]interface{}, sch *schema.Structural) field.ErrorList {
+func validateUnknownFields(mr map[string]any, sch *schema.Structural) field.ErrorList {
 	opts := schema.UnknownFieldPathOptions{
 		TrackUnknownFieldPaths: true, // to get the list of pruned unknown fields
 	}

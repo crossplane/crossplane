@@ -966,10 +966,10 @@ func TestComposedTemplateGetBaseObject(t *testing.T) {
 			want: want{
 				output: &composed.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "v1",
 							"kind":       "Service",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "foo",
 							},
 						},

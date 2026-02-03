@@ -22,6 +22,7 @@ package v1
 type PackageRuntimeSpec struct {
 	// ControllerConfigRef references a ControllerConfig resource that will be
 	// used to configure the packaged controller Deployment.
+	//
 	// Deprecated: Use RuntimeConfigReference instead.
 	// +optional
 	ControllerConfigReference *ControllerConfigReference `json:"controllerConfigRef,omitempty"`
@@ -37,6 +38,7 @@ type PackageRuntimeSpec struct {
 // providers and functions but not for configurations.
 type PackageRevisionRuntimeSpec struct {
 	PackageRuntimeSpec `json:",inline"`
+
 	// TLSServerSecretName is the name of the TLS Secret that stores server
 	// certificates of the Provider.
 	// +optional

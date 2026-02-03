@@ -189,6 +189,7 @@ const (
 // can target either the XR only, or both the XR and the claim.
 type TargetedEvent struct {
 	event.Event
+
 	Target CompositionTarget
 	// Detail about the event to be included in the composite resource event but
 	// not the claim.
@@ -213,6 +214,7 @@ func (e *TargetedEvent) AsDetailedEvent() event.Event {
 // process. It can target either the XR only, or both the XR and the claim.
 type TargetedCondition struct {
 	xpv1.Condition
+
 	Target CompositionTarget
 }
 
@@ -740,7 +742,7 @@ func (r *Reconciler) handleCommonCompositionResult(ctx context.Context, res Comp
 
 	numWarningEvents := 0
 	for _, e := range res.Events {
-		if e.Event.Type == event.TypeWarning {
+		if e.Type == event.TypeWarning {
 			numWarningEvents++
 		}
 
@@ -755,15 +757,15 @@ func (r *Reconciler) handleCommonCompositionResult(ctx context.Context, res Comp
 
 	conditionTypesSeen := make(map[xpv1.ConditionType]bool)
 	for _, c := range res.Conditions {
-		if xpv1.IsSystemConditionType(c.Condition.Type) {
+		if xpv1.IsSystemConditionType(c.Type) {
 			// Do not let users update system conditions.
 			continue
 		}
-		conditionTypesSeen[c.Condition.Type] = true
+		conditionTypesSeen[c.Type] = true
 		xr.SetConditions(c.Condition)
 		if c.Target == CompositionTargetCompositeAndClaim {
 			// We can ignore the error as it only occurs if given a system condition.
-			_ = xr.SetClaimConditionTypes(c.Condition.Type)
+			_ = xr.SetClaimConditionTypes(c.Type)
 		}
 	}
 

@@ -25,6 +25,7 @@ package xcrd
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -85,12 +86,10 @@ func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomRes
 		props := CompositeResourceSpecProps()
 		if xrd.Spec.DefaultCompositionUpdatePolicy != nil {
 			cup := props["compositionUpdatePolicy"]
-			cup.Default = &extv1.JSON{Raw: []byte(fmt.Sprintf("\"%s\"", *xrd.Spec.DefaultCompositionUpdatePolicy))}
+			cup.Default = &extv1.JSON{Raw: fmt.Appendf(nil, "\"%s\"", *xrd.Spec.DefaultCompositionUpdatePolicy)}
 			props["compositionUpdatePolicy"] = cup
 		}
-		for k, v := range props {
-			crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
-		}
+		maps.Copy(crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties, props)
 		crd.Spec.Versions[i] = *crdv
 	}
 
@@ -136,12 +135,10 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 		props := CompositeResourceClaimSpecProps()
 		if xrd.Spec.DefaultCompositeDeletePolicy != nil {
 			cdp := props["compositeDeletePolicy"]
-			cdp.Default = &extv1.JSON{Raw: []byte(fmt.Sprintf("\"%s\"", *xrd.Spec.DefaultCompositeDeletePolicy))}
+			cdp.Default = &extv1.JSON{Raw: fmt.Appendf(nil, "\"%s\"", *xrd.Spec.DefaultCompositeDeletePolicy)}
 			props["compositeDeletePolicy"] = cdp
 		}
-		for k, v := range props {
-			crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
-		}
+		maps.Copy(crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties, props)
 		crd.Spec.Versions[i] = *crdv
 	}
 
@@ -192,9 +189,7 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64
 	cSpec.XValidations = append(cSpec.XValidations, xSpec.XValidations...)
 	cSpec.OneOf = append(cSpec.OneOf, xSpec.OneOf...)
 	cSpec.Description = xSpec.Description
-	for k, v := range xSpec.Properties {
-		cSpec.Properties[k] = v
-	}
+	maps.Copy(cSpec.Properties, xSpec.Properties)
 	crdv.Schema.OpenAPIV3Schema.Properties["spec"] = cSpec
 
 	xStatus := s.Properties["status"]
@@ -203,12 +198,8 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64
 	cStatus.XValidations = xStatus.XValidations
 	cStatus.Description = xStatus.Description
 	cStatus.OneOf = xStatus.OneOf
-	for k, v := range xStatus.Properties {
-		cStatus.Properties[k] = v
-	}
-	for k, v := range CompositeResourceStatusProps() {
-		cStatus.Properties[k] = v
-	}
+	maps.Copy(cStatus.Properties, xStatus.Properties)
+	maps.Copy(cStatus.Properties, CompositeResourceStatusProps())
 	crdv.Schema.OpenAPIV3Schema.Properties["status"] = cStatus
 	return &crdv, nil
 }
@@ -258,9 +249,7 @@ func setCrdMetadata(crd *extv1.CustomResourceDefinition, xrd *v1.CompositeResour
 			if inheritedLabels == nil {
 				inheritedLabels = map[string]string{}
 			}
-			for k, v := range xrd.Spec.Metadata.Labels {
-				inheritedLabels[k] = v
-			}
+			maps.Copy(inheritedLabels, xrd.Spec.Metadata.Labels)
 			crd.SetLabels(inheritedLabels)
 		}
 		if xrd.Spec.Metadata.Annotations != nil {

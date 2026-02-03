@@ -82,6 +82,7 @@ spec:
                 description: |-
                   ControllerConfigRef references a ControllerConfig resource that will be
                   used to configure the packaged controller Deployment.
+
                   Deprecated: Use RuntimeConfigReference instead.
                 properties:
                   name:
@@ -427,6 +428,7 @@ spec:
                 description: |-
                   ControllerConfigRef references a ControllerConfig resource that will be
                   used to configure the packaged controller Deployment.
+
                   Deprecated: Use RuntimeConfigReference instead.
                 properties:
                   name:
