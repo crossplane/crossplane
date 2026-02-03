@@ -196,7 +196,7 @@ jobs:
 
       - name: Upload E2E Test Artifacts
         if: '!cancelled()'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: e2e-tests-${{ matrix.test-area }}-${{ matrix.test-suite }}
           path: /tmp/e2e-tests.xml
@@ -244,7 +244,7 @@ jobs:
         run: nix build --option warn-dirty false --print-build-logs
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: output
           path: result/**
@@ -346,7 +346,7 @@ jobs:
           language: go
 
       - name: Upload Crash
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: failure() && steps.build.outcome == 'success'
         with:
           name: artifacts
