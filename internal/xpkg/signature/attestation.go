@@ -25,11 +25,13 @@ import (
 	"encoding/json"
 	"fmt"
 
+	attestationv1 "github.com/in-toto/attestation/go/v1"
 	"github.com/in-toto/in-toto-golang/in_toto"
 	slsa02 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2"
 	slsa1 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v1"
 	"github.com/sigstore/cosign/v3/pkg/cosign/attestation"
 	"github.com/sigstore/cosign/v3/pkg/oci"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
@@ -111,14 +113,14 @@ func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 	}
 
 	// Only apply the policy against the requested predicate type
-	var statement in_toto.Statement
-	if err := json.Unmarshal(decodedPayload, &statement); err != nil {
+	var statement attestationv1.Statement
+	if err := protojson.Unmarshal(decodedPayload, &statement); err != nil {
 		return nil, "", fmt.Errorf("unmarshal in-toto statement: %w", err)
 	}
 
-	if statement.PredicateType != predicateURI {
+	if statement.GetPredicateType() != predicateURI {
 		// This is not the predicate we're looking for, so skip it.
-		return nil, statement.PredicateType, nil
+		return nil, statement.GetPredicateType(), nil
 	}
 
 	// NB: In many (all?) of these cases, we could just return the
@@ -128,67 +130,67 @@ func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 
 	switch predicateType {
 	case predicateCustom:
-		payload, err = json.Marshal(statement)
+		payload, err = protojson.Marshal(&statement)
 		if err != nil {
-			return nil, statement.PredicateType, fmt.Errorf("generating CosignStatement: %w", err)
+			return nil, statement.GetPredicateType(), fmt.Errorf("generating CosignStatement: %w", err)
 		}
 	case predicateLink:
 		var linkStatement in_toto.LinkStatement
 		if err := json.Unmarshal(decodedPayload, &linkStatement); err != nil {
-			return nil, statement.PredicateType, fmt.Errorf("unmarshaling LinkStatement: %w", err)
+			return nil, statement.GetPredicateType(), fmt.Errorf("unmarshaling LinkStatement: %w", err)
 		}
 
 		payload, err = json.Marshal(linkStatement)
 		if err != nil {
-			return nil, statement.PredicateType, fmt.Errorf("marshaling LinkStatement: %w", err)
+			return nil, statement.GetPredicateType(), fmt.Errorf("marshaling LinkStatement: %w", err)
 		}
 	case predicateSLSA:
 		var slsaProvenanceStatement in_toto.ProvenanceStatementSLSA02
 		if err := json.Unmarshal(decodedPayload, &slsaProvenanceStatement); err != nil {
-			return nil, statement.PredicateType, fmt.Errorf("unmarshaling ProvenanceStatementSLSA02): %w", err)
+			return nil, statement.GetPredicateType(), fmt.Errorf("unmarshaling ProvenanceStatementSLSA02): %w", err)
 		}
 
 		payload, err = json.Marshal(slsaProvenanceStatement)
 		if err != nil {
-			return nil, statement.PredicateType, fmt.Errorf("marshaling ProvenanceStatementSLSA02: %w", err)
+			return nil, statement.GetPredicateType(), fmt.Errorf("marshaling ProvenanceStatementSLSA02: %w", err)
 		}
 	case predicateSPDX, predicateSPDXJSON:
 		var spdxStatement in_toto.SPDXStatement
 		if err := json.Unmarshal(decodedPayload, &spdxStatement); err != nil {
-			return nil, statement.PredicateType, fmt.Errorf("unmarshaling SPDXStatement: %w", err)
+			return nil, statement.GetPredicateType(), fmt.Errorf("unmarshaling SPDXStatement: %w", err)
 		}
 
 		payload, err = json.Marshal(spdxStatement)
 		if err != nil {
-			return nil, statement.PredicateType, fmt.Errorf("marshaling SPDXStatement: %w", err)
+			return nil, statement.GetPredicateType(), fmt.Errorf("marshaling SPDXStatement: %w", err)
 		}
 	case predicateCycloneDX:
 		var cyclonedxStatement in_toto.CycloneDXStatement
 		if err := json.Unmarshal(decodedPayload, &cyclonedxStatement); err != nil {
-			return nil, statement.PredicateType, fmt.Errorf("unmarshaling CycloneDXStatement: %w", err)
+			return nil, statement.GetPredicateType(), fmt.Errorf("unmarshaling CycloneDXStatement: %w", err)
 		}
 
 		payload, err = json.Marshal(cyclonedxStatement)
 		if err != nil {
-			return nil, statement.PredicateType, fmt.Errorf("marshaling CycloneDXStatement: %w", err)
+			return nil, statement.GetPredicateType(), fmt.Errorf("marshaling CycloneDXStatement: %w", err)
 		}
 	case predicateVuln:
 		var vulnStatement attestation.CosignVulnStatement
 		if err := json.Unmarshal(decodedPayload, &vulnStatement); err != nil {
-			return nil, statement.PredicateType, fmt.Errorf("unmarshaling CosignVulnStatement: %w", err)
+			return nil, statement.GetPredicateType(), fmt.Errorf("unmarshaling CosignVulnStatement: %w", err)
 		}
 
 		payload, err = json.Marshal(vulnStatement)
 		if err != nil {
-			return nil, statement.PredicateType, fmt.Errorf("marshaling CosignVulnStatement: %w", err)
+			return nil, statement.GetPredicateType(), fmt.Errorf("marshaling CosignVulnStatement: %w", err)
 		}
 	default:
 		// Valid URI type reaches here.
-		payload, err = json.Marshal(statement)
+		payload, err = protojson.Marshal(&statement)
 		if err != nil {
-			return nil, statement.PredicateType, fmt.Errorf("generating Statement: %w", err)
+			return nil, statement.GetPredicateType(), fmt.Errorf("generating Statement: %w", err)
 		}
 	}
 
-	return payload, statement.PredicateType, nil
+	return payload, statement.GetPredicateType(), nil
 }
