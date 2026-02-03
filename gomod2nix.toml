@@ -210,8 +210,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v0.9.4"
     hash = "sha256-uqFbW3RocboVPczGjqNryvRwdUB4y8FinUNszlGnQlc="
   [mod."github.com/docker/go-connections"]
-    version = "v0.5.0"
-    hash = "sha256-aGbMRrguh98DupIHgcpLkVUZpwycx1noQXbtTl5Sbms="
+    version = "v0.6.0"
+    hash = "sha256-RoK/DIT7Q1Yxzbr0xcgYP7ORJgH894tjlKDp+voznGM="
   [mod."github.com/docker/go-units"]
     version = "v0.5.0"
     hash = "sha256-iK/V/jJc+borzqMeqLY+38Qcts2KhywpsTk95++hImE="
