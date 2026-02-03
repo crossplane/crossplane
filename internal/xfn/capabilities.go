@@ -105,13 +105,6 @@ func SupportedCapabilities() []fnv1.Capability {
 }
 
 // RenderCapabilities returns all capabilities supported by crank render.
-// This excludes CAPABILITY_REQUIRED_SCHEMAS since render doesn't support
-// fetching OpenAPI schemas.
 func RenderCapabilities() []fnv1.Capability {
-	return []fnv1.Capability{
-		fnv1.Capability_CAPABILITY_CAPABILITIES,
-		fnv1.Capability_CAPABILITY_REQUIRED_RESOURCES,
-		fnv1.Capability_CAPABILITY_CREDENTIALS,
-		fnv1.Capability_CAPABILITY_CONDITIONS,
-	}
+	return SupportedCapabilities()
 }

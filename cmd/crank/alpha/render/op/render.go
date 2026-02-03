@@ -44,6 +44,7 @@ type Inputs struct {
 	Functions           []pkgv1.Function
 	FunctionCredentials []corev1.Secret
 	RequiredResources   []unstructured.Unstructured
+	RequiredSchemas     []render.OpenAPIV3Schema
 	Context             map[string][]byte
 }
 
@@ -78,7 +79,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 	}()
 
-	runner := xfn.NewFetchingFunctionRunner(runtimes, render.NewFilteringFetcher(in.RequiredResources...), xfn.NopRequiredSchemasFetcher{})
+	runner := xfn.NewFetchingFunctionRunner(runtimes, render.NewFilteringFetcher(in.RequiredResources...), render.NewFilteringSchemaFetcher(in.RequiredSchemas))
 
 	// Build the function context from supplied context data
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}

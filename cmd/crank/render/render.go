@@ -74,6 +74,7 @@ type Inputs struct {
 	ObservedResources   []composed.Unstructured
 	ExtraResources      []unstructured.Unstructured
 	RequiredResources   []unstructured.Unstructured
+	RequiredSchemas     []OpenAPIV3Schema
 	Context             map[string][]byte
 
 	// TODO(negz): Allow supplying observed XR and composed resource connection
@@ -203,7 +204,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 	}()
 
-	runner := xfn.NewFetchingFunctionRunner(runtimes, NewFilteringFetcher(append(in.ExtraResources, in.RequiredResources...)...), xfn.NopRequiredSchemasFetcher{})
+	runner := xfn.NewFetchingFunctionRunner(runtimes, NewFilteringFetcher(append(in.ExtraResources, in.RequiredResources...)...), NewFilteringSchemaFetcher(in.RequiredSchemas))
 
 	observed := composite.ComposedResourceStates{}
 
@@ -301,7 +302,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			}
 		}
 
-		req.Meta = &fnv1.RequestMeta{Capabilities: xfn.RenderCapabilities()}
+		req.Meta = &fnv1.RequestMeta{Capabilities: xfn.SupportedCapabilities()}
 
 		rsp, err := runner.RunFunction(ctx, fn.FunctionRef.Name, req)
 		if err != nil {
