@@ -60,8 +60,8 @@ const (
 )
 
 const (
-	CompositionValue = "composition"
-	OperationValue   = "operation"
+	contextValueFunctionTypeComposition = "composition"
+	contextValueFunctionTypeOperation   = "operation"
 )
 
 // ForCompositions returns a context indicating the function is being run for a Composition.
@@ -69,7 +69,7 @@ func ForCompositions(ctx context.Context) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return context.WithValue(ctx, ContextKeyFunctionType, CompositionValue)
+	return context.WithValue(ctx, ContextKeyFunctionType, contextValueFunctionTypeComposition)
 }
 
 // ForOperations returns a context indicating the function is being run for an Ops resource.
@@ -77,21 +77,21 @@ func ForOperations(ctx context.Context) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return context.WithValue(ctx, ContextKeyFunctionType, OperationValue)
+	return context.WithValue(ctx, ContextKeyFunctionType, contextValueFunctionTypeOperation)
 }
 
 // IsForCompositions returns true if the context indicates the function is being run for an XR resource.
 func IsForCompositions(ctx context.Context) bool {
 	v := ctx.Value(ContextKeyFunctionType)
 	s, ok := v.(string)
-	return ok && s == CompositionValue
+	return ok && s == contextValueFunctionTypeComposition
 }
 
 // IsForOperations returns true if the context indicates the function is being run for an Ops resource.
 func IsForOperations(ctx context.Context) bool {
 	v := ctx.Value(ContextKeyFunctionType)
 	s, ok := v.(string)
-	return ok && s == OperationValue
+	return ok && s == contextValueFunctionTypeOperation
 }
 
 // ContextWithStepMetaForCompositions returns a new context with pipeline step metadata for compositions.
