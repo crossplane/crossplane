@@ -387,8 +387,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v1.1.2"
     hash = "sha256-BdRbWCnzMCMyZmo8lkovtvGWQq2qCB7S2XBZWClJ6TM="
   [mod."github.com/in-toto/in-toto-golang"]
-    version = "v0.9.0"
-    hash = "sha256-7PMF1ENUvwYER2vlUMuMYIkiG1GzvCq++jYpN3ICFe8="
+    version = "v0.10.0"
+    hash = "sha256-ZL2+v1bszcWWTLUsIVf0A7q37Vw+v9vgqb2AlMHabe0="
   [mod."github.com/inconshreveable/mousetrap"]
     version = "v1.1.0"
     hash = "sha256-XWlYH0c8IcxAwQTnIi6WYqq44nOKUylSWxWO/vi+8pE="
@@ -642,8 +642,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v0.19.0"
     hash = "sha256-RbRZ+sKZUurOczGhhzOoY/sojTlta3H9XjL4PXX/cno="
   [mod."golang.org/x/sys"]
-    version = "v0.39.0"
-    hash = "sha256-dxTBu/JAWUkPbjFIXXRFdhQWyn+YyEpIC+tWqGo0Y6U="
+    version = "v0.40.0"
+    hash = "sha256-KDe+wMr7dfMFwKMJEljzk+f82pQWFFPoFHivjD7qJGg="
   [mod."golang.org/x/term"]
     version = "v0.38.0"
     hash = "sha256-46mX91XGJqii6SUESiU5mLVJDBOfKYCp+408m91hrMw="
