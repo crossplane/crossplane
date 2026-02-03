@@ -41,9 +41,10 @@ var (
 
 // Non-managed resource kinds that should not be converted to MRDs.
 const (
-	kindProviderConfig        = "ProviderConfig"
-	kindClusterProviderConfig = "ClusterProviderConfig"
-	kindProviderConfigUsage   = "ProviderConfigUsage"
+	kindProviderConfig             = "ProviderConfig"
+	kindClusterProviderConfig      = "ClusterProviderConfig"
+	kindProviderConfigUsage        = "ProviderConfigUsage"
+	kindClusterProviderConfigUsage = "ClusterProviderConfigUsage"
 )
 
 // CustomToManagedResourceDefinitions converts managed resource CRDs to MRDs
@@ -112,7 +113,7 @@ func isManagedResource(crd map[string]any) bool {
 	}
 
 	switch kind {
-	case kindProviderConfig, kindClusterProviderConfig, kindProviderConfigUsage:
+	case kindProviderConfig, kindClusterProviderConfig, kindProviderConfigUsage, kindClusterProviderConfigUsage:
 		return false // These are not managed resources
 	default:
 		return true // Everything else is assumed to be a managed resource
