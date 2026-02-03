@@ -62,14 +62,15 @@ type Cmd struct {
 	Name     string `arg:"" help:"Name of the Crossplane resource, can be passed as part of the resource too."          optional:""              predictor:"k8s_resource_name"`
 
 	// TODO(phisco): add support for all the usual kubectl flags; configFlags := genericclioptions.NewConfigFlags(true).AddFlags(...)
-	Context                   string `default:""                                    help:"Kubernetes context."                         name:"context"                                                             predictor:"context"              short:"c"`
-	Namespace                 string `default:""                                    help:"Namespace of the resource."                  name:"namespace"                                                           predictor:"namespace"            short:"n"`
-	Output                    string `default:"default"                             enum:"default,wide,json,dot"                       help:"Output format. One of: default, wide, json, dot."                    name:"output"                    short:"o"`
-	ShowConnectionSecrets     bool   `help:"Show connection secrets in the output." name:"show-connection-secrets"                     short:"s"`
-	ShowPackageDependencies   string `default:"unique"                              enum:"unique,all,none"                             help:"Show package dependencies in the output. One of: unique, all, none." name:"show-package-dependencies"`
-	ShowPackageRevisions      string `default:"active"                              enum:"active,all,none"                             help:"Show package revisions in the output. One of: active, all, none."    name:"show-package-revisions"`
-	ShowPackageRuntimeConfigs bool   `default:"false"                               help:"Show package runtime configs in the output." name:"show-package-runtime-configs"`
-	Concurrency               int    `default:"5"                                   help:"load concurrency"                            name:"concurrency"`
+	Context                   string `default:""                                    help:"Kubernetes context."                             name:"context"                                                             predictor:"context"              short:"c"`
+	Namespace                 string `default:""                                    help:"Namespace of the resource."                      name:"namespace"                                                           predictor:"namespace"            short:"n"`
+	Output                    string `default:"default"                             enum:"default,wide,json,dot"                           help:"Output format. One of: default, wide, json, dot."                    name:"output"                    short:"o"`
+	ShowConnectionSecrets     bool   `help:"Show connection secrets in the output." name:"show-connection-secrets"                         short:"s"`
+	ShowPackageDependencies   string `default:"unique"                              enum:"unique,all,none"                                 help:"Show package dependencies in the output. One of: unique, all, none." name:"show-package-dependencies"`
+	ShowPackageRevisions      string `default:"active"                              enum:"active,all,none"                                 help:"Show package revisions in the output. One of: active, all, none."    name:"show-package-revisions"`
+	ShowPackageRuntimeConfigs bool   `default:"false"                               help:"Show package runtime configs in the output."     name:"show-package-runtime-configs"`
+	Concurrency               int    `default:"5"                                   help:"load concurrency"                                name:"concurrency"`
+	Watch                     bool   `default:"false"                               help:"Watch for changes until the resource is deleted" name:"watch"                                                               short:"w"`
 }
 
 // Help returns help message for the trace command.
@@ -89,7 +90,7 @@ Examples:
   # Trace all MyKind resources (mykinds.example.org/v1alpha1) in the namespace 'my-ns'
   crossplane beta trace mykind -n my-ns
 
-  # Output wide format, showing full errors and condition messages, and other useful info 
+  # Output wide format, showing full errors and condition messages, and other useful info
   # depending on the target type, e.g. composed resources names for composite resources or image used for packages
   crossplane beta trace mykind my-res -n my-ns -o wide
 
@@ -104,22 +105,13 @@ Examples:
 
   # Output debug logs to stderr while redirecting a dot formatted graph to dot
   crossplane beta trace mykind my-res -n my-ns -o dot --verbose | dot -Tpng -o output.png
+
+  # Watch a resource continuously until it is deleted
+  crossplane beta trace mykind my-res -n my-ns --watch
 `
 }
 
-// Run runs the trace command.
-func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
-	ctx := context.Background()
-	logger = logger.WithValues("Resource", c.Resource, "Name", c.Name)
-
-	// Init new printer
-	p, err := printer.New(c.Output)
-	if err != nil {
-		return errors.Wrap(err, errInitPrinter)
-	}
-
-	logger.Debug("Built printer", "output", c.Output)
-
+func (c *Cmd) setupKubeClient(logger logging.Logger) (clientcmd.ClientConfig, client.WithWatch, meta.RESTMapper, error) {
 	clientconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		clientcmd.NewDefaultClientConfigLoadingRules(),
 		&clientcmd.ConfigOverrides{CurrentContext: c.Context},
@@ -127,7 +119,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	kubeconfig, err := clientconfig.ClientConfig()
 	if err != nil {
-		return errors.Wrap(err, errKubeConfig)
+		return nil, nil, nil, errors.Wrap(err, errKubeConfig)
 	}
 
 	// NOTE(phisco): We used to get them set as part of
@@ -145,25 +137,46 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	logger.Debug("Found kubeconfig")
 
-	client, err := client.New(kubeconfig, client.Options{
+	cl, err := client.NewWithWatch(kubeconfig, client.Options{
 		Scheme: scheme.Scheme,
 	})
 	if err != nil {
-		return errors.Wrap(err, errInitKubeClient)
+		return nil, nil, nil, errors.Wrap(err, errInitKubeClient)
 	}
 
 	// add package scheme
-	_ = pkg.AddToScheme(client.Scheme())
+	_ = pkg.AddToScheme(cl.Scheme())
 
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(kubeconfig)
 	if err != nil {
-		return errors.Wrap(err, errGetDiscoveryClient)
+		return nil, nil, nil, errors.Wrap(err, errGetDiscoveryClient)
 	}
 	// TODO(phisco): properly handle flags and switch to file backed cache
 	// 	(restmapper.NewDeferredDiscoveryRESTMapper), as cli-runtime
 	// 	pkg/resource Builder does.
 	d := memory.NewMemCacheClient(discoveryClient)
 	rmapper := restmapper.NewShortcutExpander(restmapper.NewDeferredDiscoveryRESTMapper(d), d, nil)
+
+	return clientconfig, cl, rmapper, nil
+}
+
+// Run runs the trace command.
+func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
+	ctx := context.Background()
+	logger = logger.WithValues("Resource", c.Resource, "Name", c.Name)
+
+	// Init new printer
+	p, err := printer.New(c.Output)
+	if err != nil {
+		return errors.Wrap(err, errInitPrinter)
+	}
+
+	logger.Debug("Built printer", "output", c.Output)
+
+	clientconfig, client, rmapper, err := c.setupKubeClient(logger)
+	if err != nil {
+		return err
+	}
 
 	res, name, err := c.getResourceAndName()
 	if err != nil {
@@ -231,14 +244,29 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		resourceList.Items[i] = root
 	}
 
+	// Watch mode for a single resource
+	if c.Watch && !shouldPrintAsList && len(resourceList.Items) > 0 {
+		root := resourceList.Items[0]
+		return c.watchResourceTree(ctx, k, logger, client, root, mapping, p)
+	}
+
 	if shouldPrintAsList {
 		// Print list of resources
 		err = p.PrintList(k.Stdout, resourceList)
-	} else {
-		// Print a single resource
-		err = p.Print(k.Stdout, resourceList.Items[0])
+		if err != nil {
+			return errors.Wrap(err, errCliOutput)
+		}
+		// Warn if watch mode was requested with multiple resources
+		if c.Watch {
+			if _, err := k.Stdout.Write([]byte("error: you may only watch a single resource at a time\n")); err != nil {
+				return errors.Wrap(err, errCliOutput)
+			}
+		}
+		return nil
 	}
 
+	// Print a single resource
+	err = p.Print(k.Stdout, resourceList.Items[0])
 	if err != nil {
 		return errors.Wrap(err, errCliOutput)
 	}
