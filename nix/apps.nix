@@ -192,6 +192,7 @@
           name = "crossplane-hack";
           runtimeInputs = [
             pkgs.coreutils
+            pkgs.docopts
             pkgs.gnugrep
             pkgs.docker-client
             pkgs.kind
@@ -201,35 +202,53 @@
           ];
           inheritPath = false;
           text = ''
-            CLUSTER_NAME="crossplane-hack"
-            CROSSPLANE_ARGS="''${HACK_CROSSPLANE_ARGS:---debug}"
-            HELM_VALUES="''${HACK_CROSSPLANE_VALUES:-}"
+            DOC='Usage: hack [options]
 
-            if ! docker ps --format '{{.Names}}' | grep -q "^$CLUSTER_NAME-control-plane$"; then
-              kind delete cluster --name "$CLUSTER_NAME" 2>/dev/null || true
+            Create a kind cluster with Crossplane for local development.
+
+            Options:
+              -n, --cluster NAME  Kind cluster name [default: crossplane-hack]
+              -a, --args ARGS     Comma-separated arguments for the Crossplane pod [default: --debug]
+              -f, --values FILE   Path to a Helm values file for Crossplane configuration
+              -h, --help          Show this help message
+
+            Examples:
+              nix run .#hack
+              nix run .#hack -- --args="--debug,--enable-operations"
+              nix run .#hack -- --values ./my-values.yaml
+              nix run .#hack -- --cluster my-cluster
+            '
+
+            # docopts parses args per the DOC usage string, setting $cluster, $args, etc.
+            eval "$(docopts -h "$DOC" : "$@")"
+
+            # shellcheck disable=SC2154 # $cluster set by docopts eval.
+            if ! docker ps --format '{{.Names}}' | grep -q "^$cluster-control-plane$"; then
+              kind delete cluster --name "$cluster" 2>/dev/null || true
               echo "Creating kind cluster..."
-              kind create cluster --name "$CLUSTER_NAME" --wait 60s
+              kind create cluster --name "$cluster" --wait 60s
             fi
 
             # Ensure kubeconfig is set up for existing clusters.
-            kind export kubeconfig --name "$CLUSTER_NAME"
+            kind export kubeconfig --name "$cluster"
 
             echo "Loading Crossplane image..."
             docker load < ${image}
-            kind load docker-image --name "$CLUSTER_NAME" crossplane/crossplane:${version}
+            kind load docker-image --name "$cluster" crossplane/crossplane:${version}
 
             echo "Installing Crossplane..."
+            # shellcheck disable=SC2154 # $args and $values set by docopts eval.
             helm upgrade --install crossplane ${chart}/crossplane-${chartVersion}.tgz \
               --namespace crossplane-system --create-namespace \
               --set image.pullPolicy=Never \
               --set image.repository=crossplane/crossplane \
               --set image.tag=${version} \
-              --set "args={''${CROSSPLANE_ARGS}}" \
-              ''${HELM_VALUES:+-f "$HELM_VALUES"} \
+              --set "args={$args}" \
+              ''${values:+-f "$values"} \
               --wait
 
             echo ""
-            echo "Crossplane is running in kind cluster '$CLUSTER_NAME'."
+            echo "Crossplane is running in kind cluster '$cluster'."
             kubectl get pods -n crossplane-system
 
             # When running via nix.sh, the cluster is inside the container. Drop
@@ -252,12 +271,26 @@
       pkgs.writeShellApplication {
         name = "crossplane-unhack";
         runtimeInputs = [
+          pkgs.docopts
           pkgs.docker-client
           pkgs.kind
         ];
         inheritPath = false;
         text = ''
-          kind delete clusters crossplane-hack
+          DOC='Usage: unhack [options]
+
+          Delete the kind cluster created by hack.
+
+          Options:
+            -n, --cluster NAME  Kind cluster name [default: crossplane-hack]
+            -h, --help          Show this help message
+          '
+
+          # docopts parses args per the DOC usage string, setting $cluster.
+          eval "$(docopts -h "$DOC" : "$@")"
+
+          # shellcheck disable=SC2154 # $cluster set by docopts eval.
+          kind delete clusters "$cluster"
         '';
       }
     );
