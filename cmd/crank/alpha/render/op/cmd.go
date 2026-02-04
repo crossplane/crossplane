@@ -143,8 +143,18 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error {
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
+	// Load required resources
+	rrs := []unstructured.Unstructured{}
+	var err error
+	if c.RequiredResources != "" {
+		rrs, err = render.LoadRequiredResources(c.fs, c.RequiredResources)
+		if err != nil {
+			return errors.Wrapf(err, "cannot load required resources from %q", c.RequiredResources)
+		}
+	}
+
 	// Load operation
-	op, err := LoadOperation(c.fs, c.Operation)
+	op, err := LoadOperation(c.fs, c.Operation, rrs)
 	if err != nil {
 		return err
 	}
@@ -166,15 +176,6 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error {
 		fcreds, err = render.LoadCredentials(c.fs, c.FunctionCredentials)
 		if err != nil {
 			return errors.Wrapf(err, "cannot load function credentials from %q", c.FunctionCredentials)
-		}
-	}
-
-	// Load required resources
-	rrs := []unstructured.Unstructured{}
-	if c.RequiredResources != "" {
-		rrs, err = render.LoadRequiredResources(c.fs, c.RequiredResources)
-		if err != nil {
-			return errors.Wrapf(err, "cannot load required resources from %q", c.RequiredResources)
 		}
 	}
 

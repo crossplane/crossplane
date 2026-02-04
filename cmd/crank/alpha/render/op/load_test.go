@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/afero"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	opsv1alpha1 "github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
 )
@@ -31,6 +32,7 @@ func TestLoadOperation(t *testing.T) {
 	type args struct {
 		fs   afero.Fs
 		path string
+		rrs  []unstructured.Unstructured
 	}
 	type want struct {
 		op  *opsv1alpha1.Operation
@@ -39,16 +41,44 @@ func TestLoadOperation(t *testing.T) {
 
 	invalidYAML := "invalid: yaml: content: ["
 
+	notAnOperationYAML := `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-data
+data:
+  foo: bar`
+
 	cronOperationYAML := `apiVersion: ops.crossplane.io/v1alpha1
 kind: CronOperation
 metadata:
-  name: test-cron
+  name: test-operation
 spec:
   schedule: "*/5 * * * *"
-  pipeline:
-  - step: test-step
-    functionRef:
-      name: test-function`
+  operationTemplate:
+    spec:
+      mode: Pipeline
+      pipeline:
+      - step: test-step
+        functionRef:
+          name: test-function`
+
+	watchOperationYAML := `apiVersion: ops.crossplane.io/v1alpha1
+kind: WatchOperation
+metadata:
+  name: test-operation
+spec:
+  watch:
+    apiVersion: v1
+    kind: Secret
+    matchLabels:
+      foo: bar
+  operationTemplate:
+    spec:
+      mode: Pipeline
+      pipeline:
+      - step: test-step
+        functionRef:
+          name: test-function`
 
 	wrongVersionYAML := `apiVersion: ops.crossplane.io/v1beta1
 kind: Operation
@@ -93,6 +123,40 @@ spec:
 		},
 	}
 
+	sn := "cool-secret"
+	sns := "default"
+	validOperationFromWatch := &opsv1alpha1.Operation{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "ops.crossplane.io/v1alpha1",
+			Kind:       "Operation",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-operation",
+		},
+		Spec: opsv1alpha1.OperationSpec{
+			Mode: opsv1alpha1.OperationModePipeline,
+			Pipeline: []opsv1alpha1.PipelineStep{
+				{
+					Step: "test-step",
+					FunctionRef: opsv1alpha1.FunctionReference{
+						Name: "test-function",
+					},
+					Requirements: &opsv1alpha1.FunctionRequirements{
+						RequiredResources: []opsv1alpha1.RequiredResourceSelector{
+							{
+								RequirementName: "ops.crossplane.io/watched-resource",
+								APIVersion:      "v1",
+								Kind:            "Secret",
+								Name:            &sn,
+								Namespace:       &sns,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -127,10 +191,10 @@ spec:
 			args: args{
 				fs: func() afero.Fs {
 					fs := afero.NewMemMapFs()
-					_ = afero.WriteFile(fs, "cronop.yaml", []byte(cronOperationYAML), 0o644)
+					_ = afero.WriteFile(fs, "notop.yaml", []byte(notAnOperationYAML), 0o644)
 					return fs
 				}(),
-				path: "cronop.yaml",
+				path: "notop.yaml",
 			},
 			want: want{
 				err: cmpopts.AnyError,
@@ -164,11 +228,58 @@ spec:
 				op: validOperation,
 			},
 		},
+		"ValidCronOperation": {
+			reason: "Should successfully load a valid Operation from a CronOperation",
+			args: args{
+				fs: func() afero.Fs {
+					fs := afero.NewMemMapFs()
+					_ = afero.WriteFile(fs, "cronoperation.yaml", []byte(cronOperationYAML), 0o644)
+					return fs
+				}(),
+				path: "cronoperation.yaml",
+			},
+			want: want{
+				op: validOperation,
+			},
+		},
+		"ValidWatchOperation": {
+			reason: "Should successfully load a valid Operation from a WatchOperation",
+			args: args{
+				fs: func() afero.Fs {
+					fs := afero.NewMemMapFs()
+					_ = afero.WriteFile(fs, "watchoperation.yaml", []byte(watchOperationYAML), 0o644)
+					return fs
+				}(),
+				path: "watchoperation.yaml",
+				rrs: []unstructured.Unstructured{
+					{
+						Object: MustLoadJSON(`{
+								"apiVersion": "v1",
+								"kind": "Secret",
+								"metadata": {
+									"annotations": {
+										"ops.crossplane.io/watched-resource": "True"},
+									"labels": {
+										"foo": "bar"},
+									"name": "cool-secret",
+									"namespace": "default"
+								},
+								"data": {
+									"coolData": "I'm cool!"
+								}
+							}`),
+					},
+				},
+			},
+			want: want{
+				op: validOperationFromWatch,
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := LoadOperation(tc.args.fs, tc.args.path)
+			got, err := LoadOperation(tc.args.fs, tc.args.path, tc.args.rrs)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nLoadOperation(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
