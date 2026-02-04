@@ -1,0 +1,47 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xrequiredresources.test.crossplane.io
+spec:
+  compositeTypeRef:
+    apiVersion: test.crossplane.io/v1alpha1
+    kind: XRequiredResource
+  mode: Pipeline
+  pipeline:
+  - step: request-required-resources
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          ---
+          apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+          kind: ExtraResources
+          requirements:
+            required-configmap:
+              apiVersion: v1
+              kind: ConfigMap
+              matchName: required-resource-data
+          ---
+          {{- $configMaps := index .extraResources "required-configmap" }}
+          {{- if and $configMaps $configMaps.items }}
+          {{- $cm := (index $configMaps.items 0).resource }}
+          apiVersion: test.crossplane.io/v1alpha1
+          kind: XRequiredResource
+          status:
+            configMapData: {{ index $cm.data "testKey" | quote }}
+          ---
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: composed-secret
+              gotemplating.fn.crossplane.io/ready: "True"
+            name: composed-from-required
+            namespace: default
+          stringData:
+            dataFromRequiredResource: {{ index $cm.data "testKey" | quote }}
+          {{- end }}

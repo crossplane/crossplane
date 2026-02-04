@@ -1,0 +1,31 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xrequiredresources.test.crossplane.io
+spec:
+  group: test.crossplane.io
+  names:
+    kind: XRequiredResource
+    plural: xrequiredresources
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              configMapName:
+                type: string
+                description: "Name of the ConfigMap to fetch as required resource"
+            required:
+            - configMapName
+          status:
+            type: object
+            properties:
+              configMapData:
+                type: string
+                description: "Data retrieved from the required resource ConfigMap"
