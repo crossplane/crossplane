@@ -30,7 +30,7 @@ set -o pipefail
 set -o errexit
 set -x
 
-printf "package main\nimport ( \n _ \"github.com/AdamKorcz/go-118-fuzz-build/testing\"\n )\n" > register.go
+printf "package main\nimport ( \n _ \"github.com/AdamKorcz/go-118-fuzz-build/testing\"\n )\n" >register.go
 
 # Moving all the fuzz_test.go to fuzz_test_fuzz.go, as oss-fuzz uses go build to build fuzzers
 # shellcheck disable=SC2016

@@ -31,30 +31,47 @@
     );
   };
 
-  # Run golangci-lint.
-  lint =
-    {
-      fix ? false,
-    }:
-    {
-      type = "app";
-      meta.description = "Run golangci-lint" + (if fix then " with auto-fix" else "");
-      program = pkgs.lib.getExe (
-        pkgs.writeShellApplication {
-          name = "crossplane-lint";
-          runtimeInputs = [
-            pkgs.go
-            pkgs.golangci-lint
-          ];
-          inheritPath = false;
-          text = ''
-            export CGO_ENABLED=0
-            export GOLANGCI_LINT_CACHE="''${XDG_CACHE_HOME:-$HOME/.cache}/golangci-lint"
-            golangci-lint run ${if fix then "--fix" else ""} "$@"
-          '';
-        }
-      );
-    };
+  # Run linters with auto-fix. Formats code first, then reports remaining issues.
+  lint = _: {
+    type = "app";
+    meta.description = "Format code and run linters";
+    program = pkgs.lib.getExe (
+      pkgs.writeShellApplication {
+        name = "crossplane-lint";
+        runtimeInputs = [
+          pkgs.findutils
+          pkgs.go
+          pkgs.golangci-lint
+          pkgs.statix
+          pkgs.deadnix
+          pkgs.nixfmt-rfc-style
+          pkgs.shellcheck
+          pkgs.gnupatch
+          pkgs.shfmt
+        ];
+        inheritPath = false;
+        text = ''
+          export CGO_ENABLED=0
+          export GOLANGCI_LINT_CACHE="''${XDG_CACHE_HOME:-$HOME/.cache}/golangci-lint"
+
+          echo "Formatting and linting Nix..."
+          statix fix .
+          deadnix --edit flake.nix nix/*.nix
+          nixfmt flake.nix nix/*.nix
+
+          echo "Formatting and linting shell..."
+          find . -name '*.sh' -type f | while read -r script; do
+            shellcheck --format=diff "$script" | patch -p1 || true
+            shfmt -w "$script"
+          done
+          find . -name '*.sh' -type f -exec shellcheck {} +
+
+          echo "Formatting and linting Go..."
+          golangci-lint run --fix "$@"
+        '';
+      }
+    );
+  };
 
   # Run code generation.
   generate = _: {
