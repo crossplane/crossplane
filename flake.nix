@@ -152,6 +152,7 @@
             inherit (images."linux-${nativeArch}") image;
             chart = build.chart { inherit version; };
           };
+          unhack = apps.unhack { };
           push-images = apps.pushImages {
             inherit version;
             inherit images;

@@ -118,5 +118,6 @@ docker run --rm --privileged --cgroupns=host ${INTERACTIVE_FLAGS} \
   -e "HOST_UID=$(id -u)" \
   -e "HOST_GID=$(id -g)" \
   -e "TERM=${TERM:-xterm}" \
+  -e "HACK_CROSSPLANE_ARGS=${HACK_CROSSPLANE_ARGS:-}" \
   nixos/nix \
   /crossplane/nix.sh "${@}"
