@@ -203,6 +203,7 @@
           text = ''
             CLUSTER_NAME="crossplane-hack"
             CROSSPLANE_ARGS="''${HACK_CROSSPLANE_ARGS:---debug}"
+            HELM_VALUES="''${HACK_CROSSPLANE_VALUES:-}"
 
             if ! docker ps --format '{{.Names}}' | grep -q "^$CLUSTER_NAME-control-plane$"; then
               kind delete cluster --name "$CLUSTER_NAME" 2>/dev/null || true
@@ -224,6 +225,7 @@
               --set image.repository=crossplane/crossplane \
               --set image.tag=${version} \
               --set "args={''${CROSSPLANE_ARGS}}" \
+              ''${HELM_VALUES:+-f "$HELM_VALUES"} \
               --wait
 
             echo ""
