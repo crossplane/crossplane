@@ -202,6 +202,7 @@
           inheritPath = false;
           text = ''
             CLUSTER_NAME="crossplane-hack"
+            CROSSPLANE_ARGS="''${HACK_CROSSPLANE_ARGS:---debug}"
 
             if ! docker ps --format '{{.Names}}' | grep -q "^$CLUSTER_NAME-control-plane$"; then
               kind delete cluster --name "$CLUSTER_NAME" 2>/dev/null || true
@@ -222,7 +223,7 @@
               --set image.pullPolicy=Never \
               --set image.repository=crossplane/crossplane \
               --set image.tag=${version} \
-              --set "args={--debug}" \
+              --set "args={''${CROSSPLANE_ARGS}}" \
               --wait
 
             echo ""
@@ -240,6 +241,25 @@
         }
       );
     };
+
+  # Delete the kind cluster created by hack.
+  unhack = _: {
+    type = "app";
+    meta.description = "Delete the kind cluster created by hack";
+    program = pkgs.lib.getExe (
+      pkgs.writeShellApplication {
+        name = "crossplane-unhack";
+        runtimeInputs = [
+          pkgs.docker-client
+          pkgs.kind
+        ];
+        inheritPath = false;
+        text = ''
+          kind delete clusters crossplane-hack
+        '';
+      }
+    );
+  };
 
   # Push multi-arch images to a container registry.
   pushImages =
