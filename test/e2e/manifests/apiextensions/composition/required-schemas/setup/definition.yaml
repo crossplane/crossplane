@@ -30,5 +30,5 @@ spec:
                 type: boolean
               schemaHasProperties:
                 type: boolean
-              schemaHasReferencedSchemas:
+              schemaHasFlattenedRefs:
                 type: boolean

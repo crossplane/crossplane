@@ -28,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/kube-openapi/pkg/spec3"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
@@ -280,7 +281,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		fctx[k] = []byte(v)
 	}
 
-	rsc := []OpenAPIV3Schema{}
+	rsc := []spec3.OpenAPI{}
 	if c.RequiredSchemas != "" {
 		rsc, err = LoadRequiredSchemas(c.fs, c.RequiredSchemas)
 		if err != nil {

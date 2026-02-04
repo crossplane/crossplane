@@ -19,13 +19,16 @@ package render
 import (
 	"context"
 	"encoding/json"
-	"maps"
 	"path/filepath"
 	"strings"
 
 	"github.com/spf13/afero"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
+	"k8s.io/apiserver/pkg/cel/openapi/resolver"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/kube-openapi/pkg/spec3"
+	"k8s.io/kube-openapi/pkg/validation/spec"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
@@ -35,21 +38,10 @@ import (
 // refPrefix is the prefix for local schema references in OpenAPI v3 documents.
 const refPrefix = "#/components/schemas/"
 
-// OpenAPIV3Schema is a parsed OpenAPI v3 document containing component schemas.
-// It represents the schema format returned by /openapi/v3/<group-version>.
-type OpenAPIV3Schema struct {
-	Components OpenAPIV3Components `json:"components"`
-}
-
-// OpenAPIV3Components holds the components section of an OpenAPI v3 document.
-type OpenAPIV3Components struct {
-	Schemas map[string]map[string]any `json:"schemas"`
-}
-
 // LoadRequiredSchemas loads OpenAPI v3 schema documents from a file or
 // directory. Each file should contain a single OpenAPI v3 document in JSON
 // format (as returned by /openapi/v3/<group-version>).
-func LoadRequiredSchemas(fs afero.Fs, fileOrDir string) ([]OpenAPIV3Schema, error) {
+func LoadRequiredSchemas(fs afero.Fs, fileOrDir string) ([]spec3.OpenAPI, error) {
 	var files []string
 
 	info, err := fs.Stat(fileOrDir)
@@ -79,14 +71,14 @@ func LoadRequiredSchemas(fs afero.Fs, fileOrDir string) ([]OpenAPIV3Schema, erro
 		files = append(files, fileOrDir)
 	}
 
-	schemas := make([]OpenAPIV3Schema, 0, len(files))
+	schemas := make([]spec3.OpenAPI, 0, len(files))
 	for _, file := range files {
 		data, err := afero.ReadFile(fs, file)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot read file %q", file)
 		}
 
-		s := OpenAPIV3Schema{}
+		s := spec3.OpenAPI{}
 		if err := json.Unmarshal(data, &s); err != nil {
 			return nil, errors.Wrapf(err, "cannot parse OpenAPI JSON from %q", file)
 		}
@@ -100,17 +92,18 @@ func LoadRequiredSchemas(fs afero.Fs, fileOrDir string) ([]OpenAPIV3Schema, erro
 // FilteringSchemaFetcher is a RequiredSchemasFetcher that returns schemas from
 // pre-loaded OpenAPI v3 documents. It's intended for use in offline rendering.
 type FilteringSchemaFetcher struct {
-	docs []OpenAPIV3Schema
+	docs []spec3.OpenAPI
 }
 
 // NewFilteringSchemaFetcher creates a FilteringSchemaFetcher from the supplied
 // OpenAPI v3 documents.
-func NewFilteringSchemaFetcher(docs []OpenAPIV3Schema) *FilteringSchemaFetcher {
+func NewFilteringSchemaFetcher(docs []spec3.OpenAPI) *FilteringSchemaFetcher {
 	return &FilteringSchemaFetcher{docs: docs}
 }
 
 // Fetch returns the schema for the requested GVK, or an empty schema if not
-// found. This matches the behavior of Crossplane's OpenAPISchemasFetcher.
+// found. References are flattened inline. This matches the behavior of
+// Crossplane's OpenAPISchemasFetcher.
 func (f *FilteringSchemaFetcher) Fetch(_ context.Context, ss *fnv1.SchemaSelector) (*fnv1.Schema, error) {
 	if ss == nil {
 		return &fnv1.Schema{}, nil
@@ -123,8 +116,12 @@ func (f *FilteringSchemaFetcher) Fetch(_ context.Context, ss *fnv1.SchemaSelecto
 
 	// Search through all documents for the requested GVK.
 	for _, doc := range f.docs {
+		if doc.Components == nil {
+			continue
+		}
+
 		for name, s := range doc.Components.Schemas {
-			gvks, ok := s["x-kubernetes-group-version-kind"].([]any)
+			gvks, ok := s.Extensions["x-kubernetes-group-version-kind"].([]any)
 			if !ok || len(gvks) != 1 {
 				continue
 			}
@@ -140,64 +137,30 @@ func (f *FilteringSchemaFetcher) Fetch(_ context.Context, ss *fnv1.SchemaSelecto
 				continue
 			}
 
-			// Found a match. Make a copy so we don't modify the original.
-			sCopy := make(map[string]any, len(s))
-			maps.Copy(sCopy, s)
-
-			// Collect all schemas referenced by $ref and include them in the
-			// result so functions can resolve them.
-			collected := make(map[string]map[string]any)
-			visited := make(map[string]bool)
-			collectRefs(sCopy, doc.Components.Schemas, collected, visited)
-			// Remove self-reference.
-			delete(collected, name)
-
-			if len(collected) > 0 {
-				schemas := make(map[string]any, len(collected))
-				for k, v := range collected {
-					schemas[k] = v
-				}
-				sCopy["components"] = map[string]any{"schemas": schemas}
+			// Flatten all $ref references inline.
+			schemaOf := func(ref string) (*spec.Schema, bool) {
+				n := strings.TrimPrefix(ref, refPrefix)
+				sch, ok := doc.Components.Schemas[n]
+				return sch, ok
+			}
+			flattened, err := resolver.PopulateRefs(schemaOf, refPrefix+name)
+			if err != nil {
+				return nil, errors.Wrap(err, "cannot flatten schema references")
 			}
 
-			st, err := structpb.NewStruct(sCopy)
+			// Convert to protobuf Struct via JSON.
+			jsonBytes, err := json.Marshal(flattened)
 			if err != nil {
+				return nil, errors.Wrap(err, "cannot marshal flattened schema")
+			}
+			st := &structpb.Struct{}
+			if err := protojson.Unmarshal(jsonBytes, st); err != nil {
 				return nil, errors.Wrap(err, "cannot convert schema to protobuf Struct")
 			}
-
 			return &fnv1.Schema{OpenapiV3: st}, nil
 		}
 	}
 
 	// Not found, return empty schema (matches Crossplane behavior).
 	return &fnv1.Schema{}, nil
-}
-
-// collectRefs recursively walks node looking for $ref fields and adds the
-// referenced schemas to collected. The visited map prevents infinite recursion.
-func collectRefs(node any, definitions, collected map[string]map[string]any, visited map[string]bool) {
-	switch val := node.(type) {
-	case map[string]any:
-		if ref, ok := val["$ref"].(string); ok {
-			name, found := strings.CutPrefix(ref, refPrefix)
-			if !found || visited[name] {
-				return
-			}
-			visited[name] = true
-			schema, ok := definitions[name]
-			if !ok {
-				return
-			}
-			collected[name] = schema
-			collectRefs(schema, definitions, collected, visited)
-			return
-		}
-		for _, child := range val {
-			collectRefs(child, definitions, collected, visited)
-		}
-	case []any:
-		for _, item := range val {
-			collectRefs(item, definitions, collected, visited)
-		}
-	}
 }

@@ -20,9 +20,13 @@ import (
 	"encoding/json"
 	"strings"
 
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apiserver/pkg/cel/openapi/resolver"
 	"k8s.io/client-go/openapi"
+	"k8s.io/kube-openapi/pkg/spec3"
+	"k8s.io/kube-openapi/pkg/validation/spec"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
@@ -66,15 +70,6 @@ type OpenAPISchemasFetcher struct {
 	client OpenAPIV3Client
 }
 
-// openAPIDocument is the portion of an OpenAPI v3 document we need to parse.
-type openAPIDocument struct {
-	Components openAPIComponents `json:"components"`
-}
-
-type openAPIComponents struct {
-	Schemas map[string]map[string]any `json:"schemas"`
-}
-
 // NewOpenAPIRequiredSchemasFetcher returns a new OpenAPISchemasFetcher that uses the
 // supplied OpenAPIV3Client to fetch schemas.
 func NewOpenAPIRequiredSchemasFetcher(c OpenAPIV3Client) *OpenAPISchemasFetcher {
@@ -82,7 +77,8 @@ func NewOpenAPIRequiredSchemasFetcher(c OpenAPIV3Client) *OpenAPISchemasFetcher 
 }
 
 // Fetch fetches the OpenAPI schema for the requested resource kind. It returns
-// an empty schema if the kind is not found, rather than an error.
+// an empty schema if the kind is not found, rather than an error. References to
+// other schemas are flattened inline.
 func (f *OpenAPISchemasFetcher) Fetch(_ context.Context, ss *fnv1.SchemaSelector) (*fnv1.Schema, error) {
 	if ss == nil {
 		return nil, errors.New("you must specify a schema selector")
@@ -117,16 +113,20 @@ func (f *OpenAPISchemasFetcher) Fetch(_ context.Context, ss *fnv1.SchemaSelector
 		return nil, errors.Wrapf(err, "cannot get OpenAPI schema for %s", pathKey)
 	}
 
-	doc := &openAPIDocument{}
+	doc := &spec3.OpenAPI{}
 	if err := json.Unmarshal(b, doc); err != nil {
 		return nil, errors.Wrapf(err, "cannot parse OpenAPI schema for %s", pathKey)
+	}
+
+	if doc.Components == nil {
+		return &fnv1.Schema{}, nil
 	}
 
 	// Find the schema matching our GVK. Each schema has an
 	// x-kubernetes-group-version-kind annotation identifying what GVK it
 	// represents. Schemas shared across GVKs (e.g. DeleteOptions) are skipped.
 	for name, s := range doc.Components.Schemas {
-		gvks, ok := s["x-kubernetes-group-version-kind"].([]any)
+		gvks, ok := s.Extensions["x-kubernetes-group-version-kind"].([]any)
 		if !ok || len(gvks) != 1 {
 			continue
 		}
@@ -147,24 +147,24 @@ func (f *OpenAPISchemasFetcher) Fetch(_ context.Context, ss *fnv1.SchemaSelector
 			continue
 		}
 
-		// Collect all schemas referenced by $ref and include them in the
-		// result so functions can resolve them.
-		collected := make(map[string]map[string]any)
-		visited := make(map[string]bool)
-		collectRefs(s, doc.Components.Schemas, collected, visited)
-		// Remove self-reference to avoid circular data structures.
-		delete(collected, name)
-		if len(collected) > 0 {
-			// Convert to map[string]any for structpb compatibility.
-			schemas := make(map[string]any, len(collected))
-			for k, v := range collected {
-				schemas[k] = v
-			}
-			s["components"] = map[string]any{"schemas": schemas}
+		// Flatten all $ref references inline.
+		schemaOf := func(ref string) (*spec.Schema, bool) {
+			n := strings.TrimPrefix(ref, refPrefix)
+			sch, ok := doc.Components.Schemas[n]
+			return sch, ok
+		}
+		flattened, err := resolver.PopulateRefs(schemaOf, refPrefix+name)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot flatten schema references")
 		}
 
-		st, err := structpb.NewStruct(s)
+		// Convert to protobuf Struct via JSON.
+		jsonBytes, err := json.Marshal(flattened)
 		if err != nil {
+			return nil, errors.Wrap(err, "cannot marshal flattened schema")
+		}
+		st := &structpb.Struct{}
+		if err := protojson.Unmarshal(jsonBytes, st); err != nil {
 			return nil, errors.Wrap(err, "cannot convert schema to protobuf Struct")
 		}
 		return &fnv1.Schema{OpenapiV3: st}, nil
@@ -172,33 +172,4 @@ func (f *OpenAPISchemasFetcher) Fetch(_ context.Context, ss *fnv1.SchemaSelector
 
 	// Kind not found. Return an empty schema.
 	return &fnv1.Schema{}, nil
-}
-
-// collectRefs recursively walks node looking for $ref fields and adds the
-// referenced schemas to collected. The visited map prevents infinite recursion.
-func collectRefs(node any, definitions, collected map[string]map[string]any, visited map[string]bool) {
-	switch val := node.(type) {
-	case map[string]any:
-		if ref, ok := val["$ref"].(string); ok {
-			name, found := strings.CutPrefix(ref, refPrefix)
-			if !found || visited[name] {
-				return
-			}
-			visited[name] = true
-			schema, ok := definitions[name]
-			if !ok {
-				return
-			}
-			collected[name] = schema
-			collectRefs(schema, definitions, collected, visited)
-			return
-		}
-		for _, child := range val {
-			collectRefs(child, definitions, collected, visited)
-		}
-	case []any:
-		for _, item := range val {
-			collectRefs(item, definitions, collected, visited)
-		}
-	}
 }

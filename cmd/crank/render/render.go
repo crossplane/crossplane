@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/kube-openapi/pkg/spec3"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -74,7 +75,7 @@ type Inputs struct {
 	ObservedResources   []composed.Unstructured
 	ExtraResources      []unstructured.Unstructured
 	RequiredResources   []unstructured.Unstructured
-	RequiredSchemas     []OpenAPIV3Schema
+	RequiredSchemas     []spec3.OpenAPI
 	Context             map[string][]byte
 
 	// TODO(negz): Allow supplying observed XR and composed resource connection
