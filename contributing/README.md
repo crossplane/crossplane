@@ -129,6 +129,7 @@ Use your editor or IDE to write code, then validate with `nix.sh`:
 ./nix.sh run .#lint         # Run linters (with --fix)
 ./nix.sh run .#generate     # Run code generators
 ./nix.sh run .#e2e          # Run E2E tests (starts a kind cluster)
+./nix.sh run .#hack         # Start kind cluster with your local changes. Args can be passed as needed, e.g. HACK_CROSSPLANE_ARGS="--debug" ./nix.sh run .#hack
 ./nix.sh build              # Build binaries and images (see the result/ dir)
 ./nix.sh flake check        # Run checks hermetically, like CI
 
@@ -517,7 +518,7 @@ func WithFowlWrangler(fw fowl.Wrangler) Option {
 func NewWrangler(looseGeese int, o ...Option) *Wrangler {
         w := &Wrangler{
                 fw: fowl.DefaultWrangler{}
-                loose: 
+                loose:
         }
 
         for _, fn := range o {
@@ -532,7 +533,7 @@ func example() {
                 WithFowlWrangler(chicken.NewWrangler()),
                 WithSomeOtherOption(),
                 WithYetAnotherOption())
-        
+
         w.Wrangle()
 }
 ```
@@ -795,7 +796,7 @@ func example() error {
         } else {
                 store(embiggen(v))
         }
-        
+
         return nil
 }
 ```
@@ -827,15 +828,15 @@ Conditions have a `type`, a `reason` and a `message`:
 - The type is fixed by type, e.g. `Ready` or `Synced`. Keep the number low.
   Uniform condition types across related kinds are preferred.
 
-  `Ready` is common in Crossplane to indicate that a resource is ready to be 
+  `Ready` is common in Crossplane to indicate that a resource is ready to be
   used by the user. Do not signal `Ready=True` earlier, e.g. do not signal
   a claim as ready before the credential secret has been created and has
   valid and working credentials.
-  
-- The reason is for machines and uses CamelCase. Reasons should be documented in 
+
+- The reason is for machines and uses CamelCase. Reasons should be documented in
   the API docs.
 - The message is for humans and is written in plain English, without newlines,
-  and with the first letter capitalized and no trailing punctuation. It might 
+  and with the first letter capitalized and no trailing punctuation. It might
   end in an error string, e.g. `Cannot create all resources: foo, bar, and 3 more failed: condiguration.pkg.crossplane.io "foo" is invalid: package.spec is required`.
   Keep the message reasonable short although there is no hard limit. 1000
   characters is probably too long, 100 characters is fine.
@@ -862,7 +863,7 @@ not emit an event. For example, if no new composition is selected, do not emit a
 event. Successful idem-potent actions should only emit an event once. Erroring
 actions should emit an event for each error.
 
-Events should aim at telling what has changed and to which value, e.g. 
+Events should aim at telling what has changed and to which value, e.g.
 `Successfully selected composition: eks.clusters.caas.com`, don't omit the
 composition name here.
 
@@ -891,7 +892,7 @@ Examples for good events:
 
 Examples for bad events:
 - `Applied RBAC ClusterRoles` – it's lacking which ClusterRoles.
-- `Bound system ClusterRole to provider ServiceAccount(s)` – it's lacking which 
+- `Bound system ClusterRole to provider ServiceAccount(s)` – it's lacking which
   ClusterRole, which service accounts and what this cluster role enables.
 - `(Re)started composite resource controller` – controllers are not user-facing,
   but just an implementation detail of how APIs are implemented.
@@ -943,7 +944,7 @@ func TestExample(t *testing.T) {
                         }
                 },
         }
-        
+
         for name, tc := range cases {
                 t.Run(name, func(t *testing.T) {
                         got, err := Example(tc.args.ctx, tc.args.input)
