@@ -14,7 +14,7 @@ apt-get update && apt-get install -y nix-bin
 
 # Configure Nix
 mkdir -p /etc/nix
-cat > /etc/nix/nix.conf << 'EOF'
+cat >/etc/nix/nix.conf <<'EOF'
 # Enable flakes and the nix command (e.g. nix run, nix build).
 experimental-features = nix-command flakes
 

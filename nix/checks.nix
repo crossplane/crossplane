@@ -142,6 +142,27 @@
       '';
     };
 
+  # Run shell linters (shellcheck, shfmt)
+  shellLint =
+    _:
+    pkgs.runCommand "crossplane-shell-lint"
+      {
+        nativeBuildInputs = [
+          pkgs.findutils
+          pkgs.shellcheck
+          pkgs.shfmt
+        ];
+      }
+      ''
+        cd ${self}
+        find . -name '*.sh' -type f | while read -r script; do
+          shellcheck "$script"
+          shfmt -d "$script"
+        done
+        mkdir -p $out
+        touch $out/.shell-lint-passed
+      '';
+
   # Run Nix linters (statix, deadnix, nixfmt)
   nixLint =
     _:

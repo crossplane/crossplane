@@ -121,6 +121,7 @@
           generate = checks.generate { inherit version; };
           go-lint = checks.goLint { inherit version; };
           helm-lint = checks.helmLint { };
+          shell-lint = checks.shellLint { };
           nix-lint = checks.nixLint { };
         }
       );
@@ -139,7 +140,7 @@
         in
         {
           test = apps.test { };
-          lint = apps.lint { fix = true; };
+          lint = apps.lint { };
           generate = apps.generate { };
           tidy = apps.tidy { };
           e2e = apps.e2e {
