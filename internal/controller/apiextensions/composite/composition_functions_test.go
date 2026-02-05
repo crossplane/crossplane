@@ -207,6 +207,546 @@ func TestFunctionCompose(t *testing.T) {
 				err: errors.Wrapf(errBoom, errFmtGetCredentialsFromSecret, "run-cool-function", "cool-secret"),
 			},
 		},
+		"OptionalCredentialMissingSecretContinues": {
+			reason: "When an optional credential's secret does not exist, the pipeline should continue without error and not include that credential in the function request.",
+			params: params{
+				c: &test.MockClient{
+					MockGet:         test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "optional-secret")),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// Verify the optional credential was not included
+					if len(req.GetCredentials()) != 0 {
+						return nil, errors.Errorf("expected no credentials, got %d", len(req.GetCredentials()))
+					}
+					return &fnv1.RunFunctionResponse{}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "optional-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv1.SecretReference{
+												Namespace: "default",
+												Name:      "optional-secret",
+											},
+											ResolvePolicy: ptr.To(v1.CredentialResolvePolicyOptional),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Events: []TargetedEvent{
+						{
+							Event: event.Event{
+								Type:    "Normal",
+								Reason:  "ComposeResources",
+								Message: "Optional credential \"optional-cred\" not found (secret default/optional-secret does not exist), continuing without it",
+							},
+							Detail: "Pipeline step \"run-cool-function\"",
+							Target: CompositionTargetComposite,
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+		"OptionalCredentialWithExistingSecretUsed": {
+			reason: "When an optional credential's secret exists, the credential should be passed to the function.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							s.Data = map[string][]byte{
+								"api-key": []byte("secret-value"),
+							}
+						}
+						return nil
+					}),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// Verify the optional credential was included
+					if len(req.GetCredentials()) != 1 {
+						return nil, errors.Errorf("expected 1 credential, got %d", len(req.GetCredentials()))
+					}
+					cred, ok := req.GetCredentials()["optional-cred"]
+					if !ok {
+						return nil, errors.New("expected credential 'optional-cred' not found")
+					}
+					data := cred.GetCredentialData().GetData()
+					if string(data["api-key"]) != "secret-value" {
+						return nil, errors.Errorf("expected api-key='secret-value', got '%s'", string(data["api-key"]))
+					}
+					return &fnv1.RunFunctionResponse{}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "optional-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv1.SecretReference{
+												Namespace: "default",
+												Name:      "optional-secret",
+											},
+											ResolvePolicy: ptr.To(v1.CredentialResolvePolicyOptional),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{},
+				err: nil,
+			},
+		},
+		"RequiredCredentialOptionalFalseMissingSecretFails": {
+			reason: "When a credential has optional=false and its secret does not exist, the pipeline should fail.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "required-secret")),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "required-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv1.SecretReference{
+												Namespace: "default",
+												Name:      "required-secret",
+											},
+											ResolvePolicy: ptr.To(v1.CredentialResolvePolicyRequired),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "required-secret"), errFmtGetCredentialsFromSecret, "run-cool-function", "required-cred"),
+			},
+		},
+		"RequiredCredentialNilOptionalMissingSecretFails": {
+			reason: "When a credential has no optional field (nil), it should be treated as required and fail when secret is missing (backward compatibility).",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "required-secret")),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "required-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv1.SecretReference{
+												Namespace: "default",
+												Name:      "required-secret",
+											},
+											// Optional is nil - should be treated as required
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "required-secret"), errFmtGetCredentialsFromSecret, "run-cool-function", "required-cred"),
+			},
+		},
+		"OptionalCredentialPermissionErrorFails": {
+			reason: "When an optional credential encounters a permission error (non-NotFound), the pipeline should fail regardless of the optional flag.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewForbidden(schema.GroupResource{Resource: "secrets"}, "optional-secret", errors.New("access denied"))),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "optional-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv1.SecretReference{
+												Namespace: "default",
+												Name:      "optional-secret",
+											},
+											ResolvePolicy: ptr.To(v1.CredentialResolvePolicyOptional),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(kerrors.NewForbidden(schema.GroupResource{Resource: "secrets"}, "optional-secret", errors.New("access denied")), errFmtGetCredentialsFromSecret, "run-cool-function", "optional-cred"),
+			},
+		},
+		"MixedRequiredAndOptionalCredentials": {
+			reason: "When a step has both required and optional credentials and the required one is missing, the pipeline should fail.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						if key.Name == "required-secret" {
+							return kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "required-secret")
+						}
+						if s, ok := obj.(*corev1.Secret); ok {
+							s.Data = map[string][]byte{"key": []byte("value")}
+						}
+						return nil
+					},
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "optional-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv1.SecretReference{
+												Namespace: "default",
+												Name:      "optional-secret",
+											},
+											ResolvePolicy: ptr.To(v1.CredentialResolvePolicyOptional),
+										},
+										{
+											Name:   "required-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv1.SecretReference{
+												Namespace: "default",
+												Name:      "required-secret",
+											},
+											// Required (no optional field)
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "required-secret"), errFmtGetCredentialsFromSecret, "run-cool-function", "required-cred"),
+			},
+		},
+		"OptionalCredentialWithEmptySecretDataPassed": {
+			reason: "When an optional credential's secret exists but has empty data, the credential should be passed to the function with empty data.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							s.Data = map[string][]byte{} // Empty data
+						}
+						return nil
+					}),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// Verify the credential was included with empty data
+					if len(req.GetCredentials()) != 1 {
+						return nil, errors.Errorf("expected 1 credential, got %d", len(req.GetCredentials()))
+					}
+					cred, ok := req.GetCredentials()["optional-cred"]
+					if !ok {
+						return nil, errors.New("expected credential 'optional-cred' not found")
+					}
+					data := cred.GetCredentialData().GetData()
+					if len(data) != 0 {
+						return nil, errors.Errorf("expected empty data, got %d entries", len(data))
+					}
+					return &fnv1.RunFunctionResponse{}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "optional-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv1.SecretReference{
+												Namespace: "default",
+												Name:      "optional-secret",
+											},
+											ResolvePolicy: ptr.To(v1.CredentialResolvePolicyOptional),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{},
+				err: nil,
+			},
+		},
+		"MultipleOptionalCredentialsSomeMissingSomePresent": {
+			reason: "When multiple optional credentials are specified and some are missing, only the present ones should be passed to the function.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						if key.Name == "missing-secret" {
+							return kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "missing-secret")
+						}
+						if s, ok := obj.(*corev1.Secret); ok {
+							s.Data = map[string][]byte{"key": []byte("present-" + key.Name)}
+						}
+						return nil
+					},
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// Verify only the present credentials were included
+					if len(req.GetCredentials()) != 2 {
+						return nil, errors.Errorf("expected 2 credentials, got %d", len(req.GetCredentials()))
+					}
+					if _, ok := req.GetCredentials()["optional-cred-1"]; !ok {
+						return nil, errors.New("expected credential 'optional-cred-1' not found")
+					}
+					if _, ok := req.GetCredentials()["optional-cred-3"]; !ok {
+						return nil, errors.New("expected credential 'optional-cred-3' not found")
+					}
+					if _, ok := req.GetCredentials()["optional-cred-2"]; ok {
+						return nil, errors.New("credential 'optional-cred-2' should not be present (its secret is missing)")
+					}
+					return &fnv1.RunFunctionResponse{}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "optional-cred-1",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv1.SecretReference{
+												Namespace: "default",
+												Name:      "present-secret-1",
+											},
+											ResolvePolicy: ptr.To(v1.CredentialResolvePolicyOptional),
+										},
+										{
+											Name:   "optional-cred-2",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv1.SecretReference{
+												Namespace: "default",
+												Name:      "missing-secret",
+											},
+											ResolvePolicy: ptr.To(v1.CredentialResolvePolicyOptional),
+										},
+										{
+											Name:   "optional-cred-3",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv1.SecretReference{
+												Namespace: "default",
+												Name:      "present-secret-2",
+											},
+											ResolvePolicy: ptr.To(v1.CredentialResolvePolicyOptional),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Events: []TargetedEvent{
+						{
+							Event: event.Event{
+								Type:    "Normal",
+								Reason:  "ComposeResources",
+								Message: "Optional credential \"optional-cred-2\" not found (secret default/missing-secret does not exist), continuing without it",
+							},
+							Detail: "Pipeline step \"run-cool-function\"",
+							Target: CompositionTargetComposite,
+						},
+					},
+				},
+				err: nil,
+			},
+		},
 		"RunFunctionError": {
 			reason: "We should return any error encountered while running a Composition Function",
 			params: params{

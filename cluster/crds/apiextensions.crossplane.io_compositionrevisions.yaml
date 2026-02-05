@@ -107,11 +107,37 @@ spec:
                         needs.
                       items:
                         description: |-
-                          FunctionCredentials are optional credentials that a function
-                          needs to run.
+                          FunctionCredentials specifies credentials that a function needs to run.
+                          Credentials are typically sourced from Kubernetes secrets and passed to
+                          functions during pipeline execution.
+
+                          Credentials can be marked as optional, allowing functions to run even when
+                          the referenced secret does not exist. This is useful for functions that can
+                          operate with or without certain credentials, or during initial setup when
+                          secrets may not yet be provisioned.
                         properties:
                           name:
                             description: Name of this set of credentials.
+                            type: string
+                          resolvePolicy:
+                            default: Required
+                            description: |-
+                              ResolvePolicy specifies how to handle missing credentials. When set to
+                              "Optional", if the referenced secret does not exist, the function will be
+                              called without these credentials rather than failing the pipeline step.
+                              When set to "Required" or unspecified, missing credentials will cause
+                              the pipeline step to fail with an error.
+
+                              Note that only "not found" errors are handled gracefully when ResolvePolicy
+                              is "Optional". Permission errors (forbidden, unauthorized) will still cause
+                              the pipeline step to fail regardless of this setting. Similarly, if the
+                              secret exists but the referenced key is missing, the pipeline step will fail.
+
+                              When an optional secret is not found, an informational event is recorded
+                              on the composite resource, but reconciliation continues normally.
+                            enum:
+                            - Required
+                            - Optional
                             type: string
                           secretRef:
                             description: |-

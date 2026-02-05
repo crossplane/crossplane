@@ -83,6 +83,17 @@ func (c *GeneratedRevisionSpecConverter) v1CompositionModeToV1CompositionMode(so
 	}
 	return v1CompositionMode
 }
+func (c *GeneratedRevisionSpecConverter) v1CredentialResolvePolicyToV1CredentialResolvePolicy(source CredentialResolvePolicy) CredentialResolvePolicy {
+	var v1CredentialResolvePolicy CredentialResolvePolicy
+	switch source {
+	case CredentialResolvePolicyOptional:
+		v1CredentialResolvePolicy = CredentialResolvePolicyOptional
+	case CredentialResolvePolicyRequired:
+		v1CredentialResolvePolicy = CredentialResolvePolicyRequired
+	default: // ignored
+	}
+	return v1CredentialResolvePolicy
+}
 func (c *GeneratedRevisionSpecConverter) v1FunctionCredentialsSourceToV1FunctionCredentialsSource(source FunctionCredentialsSource) FunctionCredentialsSource {
 	var v1FunctionCredentialsSource FunctionCredentialsSource
 	switch source {
@@ -99,6 +110,10 @@ func (c *GeneratedRevisionSpecConverter) v1FunctionCredentialsToV1FunctionCreden
 	v1FunctionCredentials.Name = source.Name
 	v1FunctionCredentials.Source = c.v1FunctionCredentialsSourceToV1FunctionCredentialsSource(source.Source)
 	v1FunctionCredentials.SecretRef = c.pCommonSecretReferenceToPCommonSecretReference(source.SecretRef)
+	if source.ResolvePolicy != nil {
+		v1CredentialResolvePolicy := c.v1CredentialResolvePolicyToV1CredentialResolvePolicy(*source.ResolvePolicy)
+		v1FunctionCredentials.ResolvePolicy = &v1CredentialResolvePolicy
+	}
 	return v1FunctionCredentials
 }
 func (c *GeneratedRevisionSpecConverter) v1FunctionReferenceToV1FunctionReference(source FunctionReference) FunctionReference {

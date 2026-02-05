@@ -293,6 +293,14 @@ func TestCompositionValidation(t *testing.T) {
 			Description: "A Composition with a step using a Secret credential source but without a secretRef shouldn't pass validation",
 			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "composition-invalid-missing-secretref.yaml"),
 		},
+		{
+			Name:        "ValidOptionalCredentials",
+			Description: "A Composition with optional credentials should pass validation",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "composition-valid-optional-credentials.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "composition-valid-optional-credentials.yaml"),
+			),
+		},
 	}
 	environment.Test(t,
 		cases.Build(t.Name()).
@@ -303,6 +311,10 @@ func TestCompositionValidation(t *testing.T) {
 			WithTeardown("DeleteValidComposition", funcs.AllOf(
 				funcs.DeleteResources(manifests, "composition-valid.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "composition-valid.yaml"),
+			)).
+			WithTeardown("DeleteValidOptionalCredentialsComposition", funcs.AllOf(
+				funcs.DeleteResources(manifests, "composition-valid-optional-credentials.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "composition-valid-optional-credentials.yaml"),
 			)).
 			Feature(),
 	)
@@ -404,6 +416,59 @@ func TestCircuitBreaker(t *testing.T) {
 			WithTeardown("DeleteXR", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestOptionalCredentials(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/optional-credentials"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that optional credentials allow a composition to succeed even when the referenced secret does not exist, and that the credentials are passed when the secret is later created.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			// Create XR without the optional secret existing - pipeline should succeed
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRIsReadyWithoutOptionalSecret",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess()),
+			).
+			Assess("XRHasStatusField",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.resultField", "success-without-optional-secret"),
+			).
+			// Now create the optional secret and verify the pipeline still succeeds
+			Assess("CreateOptionalSecret", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "optional-secret.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "optional-secret.yaml"),
+			)).
+			// Force a reconciliation by annotating the XR to ensure the optional secret is picked up
+			Assess("ForceReconciliationWithAnnotation",
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml", funcs.SetAnnotationMutateOption("crossplane.io/test-reconcile", time.Now().Format(time.RFC3339Nano))),
+			).
+			// Verify the XR is still ready after the optional secret is created and reconciliation is triggered
+			Assess("XRStillReadyAfterSecretCreated",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess()),
+			).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeleteOptionalSecret", funcs.AllOf(
+				funcs.DeleteResources(manifests, "optional-secret.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "optional-secret.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
