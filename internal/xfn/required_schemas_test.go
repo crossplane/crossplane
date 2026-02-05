@@ -410,53 +410,6 @@ func TestOpenAPISchemasFetcherFetch(t *testing.T) {
 				},
 			},
 		},
-		"CaseInsensitiveGroupMatch": {
-			reason: "Group matching should be case-insensitive",
-			client: &MockOpenAPIV3Client{
-				PathsFn: func() (map[string]openapi.GroupVersion, error) {
-					// Schema with uppercase group.
-					schemaWithUppercaseGroup := map[string]any{
-						"type": "object",
-						"x-kubernetes-group-version-kind": []any{
-							map[string]any{
-								"group":   "APPS",
-								"version": "v1",
-								"kind":    "Deployment",
-							},
-						},
-					}
-					return map[string]openapi.GroupVersion{
-						"apis/apps/v1": &MockGroupVersion{
-							SchemaFn: func(_ string) ([]byte, error) {
-								return openAPIDoc(map[string]map[string]any{
-									"io.k8s.api.apps.v1.Deployment": schemaWithUppercaseGroup,
-								}), nil
-							},
-						},
-					}, nil
-				},
-			},
-			args: args{
-				ss: &fnv1.SchemaSelector{
-					ApiVersion: "apps/v1",
-					Kind:       "Deployment",
-				},
-			},
-			want: want{
-				schema: &fnv1.Schema{
-					OpenapiV3: MustStruct(map[string]any{
-						"type": "object",
-						"x-kubernetes-group-version-kind": []any{
-							map[string]any{
-								"group":   "APPS",
-								"version": "v1",
-								"kind":    "Deployment",
-							},
-						},
-					}),
-				},
-			},
-		},
 		"FlattensReferencedSchemas": {
 			reason: "We should flatten schemas referenced via $ref inline",
 			client: &MockOpenAPIV3Client{

@@ -137,13 +137,7 @@ func (f *OpenAPISchemasFetcher) Fetch(_ context.Context, ss *fnv1.SchemaSelector
 		g, _ := gvk["group"].(string)
 		v, _ := gvk["version"].(string)
 		k, _ := gvk["kind"].(string)
-		if !strings.EqualFold(g, gv.Group) {
-			continue
-		}
-		if !strings.EqualFold(v, gv.Version) {
-			continue
-		}
-		if k != ss.GetKind() {
+		if g != gv.Group || v != gv.Version || k != ss.GetKind() {
 			continue
 		}
 
