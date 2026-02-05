@@ -246,8 +246,8 @@ func TestLoadRequiredSchemas(t *testing.T) {
 	}`
 
 	type args struct {
-		fs   afero.Fs
-		file string
+		fs  afero.Fs
+		dir string
 	}
 	type want struct {
 		count int
@@ -259,20 +259,6 @@ func TestLoadRequiredSchemas(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"SingleFile": {
-			reason: "Should load a single JSON file",
-			args: args{
-				fs: func() afero.Fs {
-					fs := afero.NewMemMapFs()
-					_ = afero.WriteFile(fs, "/schemas/apps-v1.json", []byte(deploymentJSON), 0o644)
-					return fs
-				}(),
-				file: "/schemas/apps-v1.json",
-			},
-			want: want{
-				count: 1,
-			},
-		},
 		"Directory": {
 			reason: "Should load all JSON files from a directory",
 			args: args{
@@ -284,17 +270,34 @@ func TestLoadRequiredSchemas(t *testing.T) {
 					_ = afero.WriteFile(fs, "/schemas/readme.txt", []byte("ignore me"), 0o644)
 					return fs
 				}(),
-				file: "/schemas",
+				dir: "/schemas",
 			},
 			want: want{
 				count: 2,
 			},
 		},
-		"FileNotFound": {
-			reason: "Should return error for non-existent file",
+		"NestedDirectory": {
+			reason: "Should load JSON files from nested directories",
 			args: args{
-				fs:   afero.NewMemMapFs(),
-				file: "/does-not-exist.json",
+				fs: func() afero.Fs {
+					fs := afero.NewMemMapFs()
+					_ = fs.MkdirAll("/schemas/apps", 0o755)
+					_ = fs.MkdirAll("/schemas/core", 0o755)
+					_ = afero.WriteFile(fs, "/schemas/apps/v1.json", []byte(deploymentJSON), 0o644)
+					_ = afero.WriteFile(fs, "/schemas/core/v1.json", []byte(deploymentJSON), 0o644)
+					return fs
+				}(),
+				dir: "/schemas",
+			},
+			want: want{
+				count: 2,
+			},
+		},
+		"NotFound": {
+			reason: "Should return error for non-existent directory",
+			args: args{
+				fs:  afero.NewMemMapFs(),
+				dir: "/does-not-exist",
 			},
 			want: want{
 				err: cmpopts.AnyError,
@@ -305,24 +308,25 @@ func TestLoadRequiredSchemas(t *testing.T) {
 			args: args{
 				fs: func() afero.Fs {
 					fs := afero.NewMemMapFs()
-					_ = afero.WriteFile(fs, "/bad.json", []byte("not valid json"), 0o644)
+					_ = fs.MkdirAll("/schemas", 0o755)
+					_ = afero.WriteFile(fs, "/schemas/bad.json", []byte("not valid json"), 0o644)
 					return fs
 				}(),
-				file: "/bad.json",
+				dir: "/schemas",
 			},
 			want: want{
 				err: cmpopts.AnyError,
 			},
 		},
 		"EmptyDirectory": {
-			reason: "Should return error for empty directory",
+			reason: "Should return error for directory with no JSON files",
 			args: args{
 				fs: func() afero.Fs {
 					fs := afero.NewMemMapFs()
 					_ = fs.MkdirAll("/empty", 0o755)
 					return fs
 				}(),
-				file: "/empty",
+				dir: "/empty",
 			},
 			want: want{
 				err: cmpopts.AnyError,
@@ -332,7 +336,7 @@ func TestLoadRequiredSchemas(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			schemas, err := LoadRequiredSchemas(tc.args.fs, tc.args.file)
+			schemas, err := LoadRequiredSchemas(tc.args.fs, tc.args.dir)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nLoadRequiredSchemas(...): -want error, +got error:\n%s", tc.reason, diff)

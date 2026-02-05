@@ -51,7 +51,7 @@ type Cmd struct {
 	IncludeFullOperation   bool              `help:"Include a direct copy of the input Operation's spec and metadata fields in the rendered output."                                           short:"o"`
 	IncludeFunctionResults bool              `help:"Include informational and warning messages from functions in the rendered output as resources of kind: Result."                            short:"r"`
 	RequiredResources      string            `help:"A YAML file or directory of YAML files specifying required resources to pass to the function pipeline."                                    placeholder:"PATH"      predictor:"yaml_file_or_directory" short:"e"   type:"path"`
-	RequiredSchemas        string            `help:"A JSON file or directory of JSON files specifying OpenAPI schemas to pass to the function pipeline."                                       placeholder:"PATH"      predictor:"json_file_or_directory" type:"path"`
+	RequiredSchemas        string            `help:"A directory of JSON files specifying OpenAPI schemas to pass to the function pipeline."                                                    placeholder:"DIR"       predictor:"directory"              type:"path"`
 
 	Timeout time.Duration `default:"1m" help:"How long to run before timing out."`
 

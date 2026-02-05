@@ -19,14 +19,15 @@ package render
 import (
 	"context"
 	"encoding/json"
+	iofs "io/fs"
 	"path/filepath"
 	"strings"
 
 	"github.com/spf13/afero"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
-	"k8s.io/apiserver/pkg/cel/openapi/resolver"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apiserver/pkg/cel/openapi/resolver"
 	"k8s.io/kube-openapi/pkg/spec3"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 
@@ -38,37 +39,30 @@ import (
 // refPrefix is the prefix for local schema references in OpenAPI v3 documents.
 const refPrefix = "#/components/schemas/"
 
-// LoadRequiredSchemas loads OpenAPI v3 schema documents from a file or
-// directory. Each file should contain a single OpenAPI v3 document in JSON
+// LoadRequiredSchemas loads OpenAPI v3 schema documents from a directory,
+// recursively. Each file should contain a single OpenAPI v3 document in JSON
 // format (as returned by /openapi/v3/<group-version>).
-func LoadRequiredSchemas(fs afero.Fs, fileOrDir string) ([]spec3.OpenAPI, error) {
+func LoadRequiredSchemas(fs afero.Fs, dir string) ([]spec3.OpenAPI, error) {
 	var files []string
 
-	info, err := fs.Stat(fileOrDir)
+	err := iofs.WalkDir(afero.NewIOFS(fs), dir, func(path string, d iofs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if filepath.Ext(path) == ".json" {
+			files = append(files, path)
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot stat file")
+		return nil, errors.Wrap(err, "cannot walk directory")
 	}
 
-	if info.IsDir() {
-		entries, err := afero.ReadDir(fs, fileOrDir)
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot read directory")
-		}
-		for _, entry := range entries {
-			if entry.IsDir() {
-				continue
-			}
-			// Accept .json files only for OpenAPI docs.
-			if filepath.Ext(entry.Name()) != ".json" {
-				continue
-			}
-			files = append(files, filepath.Join(fileOrDir, entry.Name()))
-		}
-		if len(files) == 0 {
-			return nil, errors.Errorf("no JSON files found in %q", fileOrDir)
-		}
-	} else {
-		files = append(files, fileOrDir)
+	if len(files) == 0 {
+		return nil, errors.Errorf("no JSON files found in %q", dir)
 	}
 
 	schemas := make([]spec3.OpenAPI, 0, len(files))
