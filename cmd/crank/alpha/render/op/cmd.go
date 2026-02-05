@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	kjson "k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/kube-openapi/pkg/spec3"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
@@ -50,6 +51,7 @@ type Cmd struct {
 	IncludeFullOperation   bool              `help:"Include a direct copy of the input Operation's spec and metadata fields in the rendered output."                                           short:"o"`
 	IncludeFunctionResults bool              `help:"Include informational and warning messages from functions in the rendered output as resources of kind: Result."                            short:"r"`
 	RequiredResources      string            `help:"A YAML file or directory of YAML files specifying required resources to pass to the function pipeline."                                    placeholder:"PATH"      predictor:"yaml_file_or_directory" short:"e"   type:"path"`
+	RequiredSchemas        string            `help:"A directory of JSON files specifying OpenAPI schemas to pass to the function pipeline."                                                    placeholder:"DIR"       predictor:"directory"              type:"path"`
 
 	Timeout time.Duration `default:"1m" help:"How long to run before timing out."`
 
@@ -110,6 +112,10 @@ Examples:
   crossplane alpha render op operation.yaml functions.yaml \
 	--required-resources=required-resources.yaml
 
+  # Pass OpenAPI schemas for functions that need them.
+  crossplane alpha render op operation.yaml functions.yaml \
+	--required-schemas=schemas/
+
   # Pass credentials to functions that need them.
   crossplane alpha render op operation.yaml functions.yaml \
 	--function-credentials=credentials.yaml
@@ -139,7 +145,7 @@ func (c *Cmd) AfterApply() error {
 }
 
 // Run alpha render op.
-func (c *Cmd) Run(k *kong.Context, log logging.Logger) error {
+func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit // Only a touch over.
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
@@ -150,6 +156,15 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error {
 		rrs, err = render.LoadRequiredResources(c.fs, c.RequiredResources)
 		if err != nil {
 			return errors.Wrapf(err, "cannot load required resources from %q", c.RequiredResources)
+		}
+	}
+
+	// Load required schemas
+	rsc := []spec3.OpenAPI{}
+	if c.RequiredSchemas != "" {
+		rsc, err = render.LoadRequiredSchemas(c.fs, c.RequiredSchemas)
+		if err != nil {
+			return errors.Wrapf(err, "cannot load required schemas from %q", c.RequiredSchemas)
 		}
 	}
 
@@ -199,6 +214,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error {
 		Functions:           fns,
 		FunctionCredentials: fcreds,
 		RequiredResources:   rrs,
+		RequiredSchemas:     rsc,
 		Context:             contextData,
 	})
 	if err != nil {

@@ -28,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/kube-openapi/pkg/spec3"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
@@ -54,6 +55,7 @@ type Cmd struct {
 	ObservedResources      string            `help:"A YAML file or directory of YAML files specifying the observed state of composed resources."                                                    placeholder:"PATH"      predictor:"yaml_file_or_directory" short:"o"   type:"path"`
 	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying required resources (deprecated, use --required-resources)."                                   placeholder:"PATH"      predictor:"yaml_file_or_directory" type:"path"`
 	RequiredResources      string            `help:"A YAML file or directory of YAML files specifying required resources to pass to the Function pipeline."                                         placeholder:"PATH"      predictor:"yaml_file_or_directory" short:"e"   type:"path"`
+	RequiredSchemas        string            `help:"A directory of JSON files specifying OpenAPI v3 schemas (from kubectl get --raw /openapi/v3/<group-version>)."                                  placeholder:"DIR"       predictor:"directory"              short:"s"   type:"path"`
 	IncludeContext         bool              `help:"Include the context in the rendered output as a resource of kind: Context."                                                                     short:"c"`
 	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                           placeholder:"PATH"      predictor:"yaml_file_or_directory" type:"path"`
 	FunctionAnnotations    []string          `help:"Override function annotations for all functions. Can be repeated."                                                                              placeholder:"KEY=VALUE" short:"a"`
@@ -135,6 +137,10 @@ Examples:
   # Pass extra resources (deprecated, same as --required-resources).
   crossplane render xr.yaml composition.yaml functions.yaml \
 	--extra-resources=extra-resources.yaml
+
+  # Pass OpenAPI schemas for Functions that need them.
+  crossplane render xr.yaml composition.yaml functions.yaml \
+	--required-schemas=schemas/
 
   # Pass credentials to Functions in the pipeline that need them.
   crossplane render xr.yaml composition.yaml functions.yaml \
@@ -275,6 +281,14 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		fctx[k] = []byte(v)
 	}
 
+	rsc := []spec3.OpenAPI{}
+	if c.RequiredSchemas != "" {
+		rsc, err = LoadRequiredSchemas(c.fs, c.RequiredSchemas)
+		if err != nil {
+			return errors.Wrapf(err, "cannot load OpenAPI schemas from %q", c.RequiredSchemas)
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
@@ -286,6 +300,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		ObservedResources:   ors,
 		ExtraResources:      ers,
 		RequiredResources:   rrs,
+		RequiredSchemas:     rsc,
 		Context:             fctx,
 	})
 	if err != nil {

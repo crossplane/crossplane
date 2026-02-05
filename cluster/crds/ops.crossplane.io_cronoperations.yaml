@@ -222,6 +222,37 @@ spec:
                                   x-kubernetes-list-map-keys:
                                   - requirementName
                                   x-kubernetes-list-type: map
+                                requiredSchemas:
+                                  description: |-
+                                    RequiredSchemas that will be fetched before this pipeline step
+                                    is called for the first time.
+                                  items:
+                                    description: |-
+                                      RequiredSchemaSelector selects an OpenAPI schema that should be fetched
+                                      before a pipeline step runs.
+                                    properties:
+                                      apiVersion:
+                                        description: APIVersion of the resource kind
+                                          whose schema is required, e.g. "example.org/v1".
+                                        type: string
+                                      kind:
+                                        description: Kind of resource whose schema
+                                          is required, e.g. "MyResource".
+                                        type: string
+                                      requirementName:
+                                        description: |-
+                                          RequirementName uniquely identifies this schema.
+                                          This name will be used as the key in RunFunctionRequest.required_schemas.
+                                        type: string
+                                    required:
+                                    - apiVersion
+                                    - kind
+                                    - requirementName
+                                    type: object
+                                  type: array
+                                  x-kubernetes-list-map-keys:
+                                  - requirementName
+                                  x-kubernetes-list-type: map
                               type: object
                             step:
                               description: Step name. Must be unique within its Pipeline.

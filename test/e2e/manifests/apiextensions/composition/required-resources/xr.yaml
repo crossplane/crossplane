@@ -1,0 +1,7 @@
+apiVersion: example.org/v1alpha1
+kind: ResourceTest
+metadata:
+  namespace: default
+  name: test-resource-request
+spec:
+  testField: "test"

@@ -47,6 +47,83 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Capability indicates that Crossplane supports a particular feature.
+// Functions can check for capabilities to determine whether Crossplane will
+// honor a particular request or response field.
+type Capability int32
+
+const (
+	Capability_CAPABILITY_UNSPECIFIED Capability = 0
+	// Crossplane sends capabilities in RequestMeta. If this capability is
+	// present, the function knows that if another capability is absent, it's
+	// because Crossplane doesn't support it (not because Crossplane predates
+	// capability advertisement). Added in Crossplane v2.2.
+	Capability_CAPABILITY_CAPABILITIES Capability = 1
+	// Crossplane supports the requirements.resources field. Functions can return
+	// resource requirements and Crossplane will fetch the requested resources and
+	// return them in required_resources. Added in Crossplane v1.15.
+	Capability_CAPABILITY_REQUIRED_RESOURCES Capability = 2
+	// Crossplane supports the credentials field. Functions can receive
+	// credentials from secrets specified in the Composition. Added in Crossplane
+	// v1.16.
+	Capability_CAPABILITY_CREDENTIALS Capability = 3
+	// Crossplane supports the conditions field. Functions can return status
+	// conditions to be applied to the XR and optionally its claim. Added in
+	// Crossplane v1.17.
+	Capability_CAPABILITY_CONDITIONS Capability = 4
+	// Crossplane supports the requirements.schemas field. Functions can request
+	// OpenAPI schemas and Crossplane will return them in required_schemas. Added
+	// in Crossplane v2.2.
+	Capability_CAPABILITY_REQUIRED_SCHEMAS Capability = 5
+)
+
+// Enum value maps for Capability.
+var (
+	Capability_name = map[int32]string{
+		0: "CAPABILITY_UNSPECIFIED",
+		1: "CAPABILITY_CAPABILITIES",
+		2: "CAPABILITY_REQUIRED_RESOURCES",
+		3: "CAPABILITY_CREDENTIALS",
+		4: "CAPABILITY_CONDITIONS",
+		5: "CAPABILITY_REQUIRED_SCHEMAS",
+	}
+	Capability_value = map[string]int32{
+		"CAPABILITY_UNSPECIFIED":        0,
+		"CAPABILITY_CAPABILITIES":       1,
+		"CAPABILITY_REQUIRED_RESOURCES": 2,
+		"CAPABILITY_CREDENTIALS":        3,
+		"CAPABILITY_CONDITIONS":         4,
+		"CAPABILITY_REQUIRED_SCHEMAS":   5,
+	}
+)
+
+func (x Capability) Enum() *Capability {
+	p := new(Capability)
+	*p = x
+	return p
+}
+
+func (x Capability) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Capability) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[0].Descriptor()
+}
+
+func (Capability) Type() protoreflect.EnumType {
+	return &file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[0]
+}
+
+func (x Capability) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Capability.Descriptor instead.
+func (Capability) EnumDescriptor() ([]byte, []int) {
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{0}
+}
+
 // Ready indicates whether a resource should be considered ready.
 type Ready int32
 
@@ -83,11 +160,11 @@ func (x Ready) String() string {
 }
 
 func (Ready) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[0].Descriptor()
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[1].Descriptor()
 }
 
 func (Ready) Type() protoreflect.EnumType {
-	return &file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[0]
+	return &file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[1]
 }
 
 func (x Ready) Number() protoreflect.EnumNumber {
@@ -96,7 +173,7 @@ func (x Ready) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Ready.Descriptor instead.
 func (Ready) EnumDescriptor() ([]byte, []int) {
-	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{0}
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{1}
 }
 
 // Severity of function results.
@@ -144,11 +221,11 @@ func (x Severity) String() string {
 }
 
 func (Severity) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[1].Descriptor()
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[2].Descriptor()
 }
 
 func (Severity) Type() protoreflect.EnumType {
-	return &file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[1]
+	return &file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[2]
 }
 
 func (x Severity) Number() protoreflect.EnumNumber {
@@ -157,7 +234,7 @@ func (x Severity) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Severity.Descriptor instead.
 func (Severity) EnumDescriptor() ([]byte, []int) {
-	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{1}
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{2}
 }
 
 // Target of function results and conditions.
@@ -199,11 +276,11 @@ func (x Target) String() string {
 }
 
 func (Target) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[2].Descriptor()
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[3].Descriptor()
 }
 
 func (Target) Type() protoreflect.EnumType {
-	return &file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[2]
+	return &file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[3]
 }
 
 func (x Target) Number() protoreflect.EnumNumber {
@@ -212,7 +289,7 @@ func (x Target) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Target.Descriptor instead.
 func (Target) EnumDescriptor() ([]byte, []int) {
-	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{2}
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{3}
 }
 
 type Status int32
@@ -251,11 +328,11 @@ func (x Status) String() string {
 }
 
 func (Status) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[3].Descriptor()
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[4].Descriptor()
 }
 
 func (Status) Type() protoreflect.EnumType {
-	return &file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[3]
+	return &file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes[4]
 }
 
 func (x Status) Number() protoreflect.EnumNumber {
@@ -264,7 +341,7 @@ func (x Status) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Status.Descriptor instead.
 func (Status) EnumDescriptor() ([]byte, []int) {
-	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{3}
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{4}
 }
 
 // A RunFunctionRequest requests that the function be run.
@@ -318,8 +395,14 @@ type RunFunctionRequest struct {
 	// satisfy the request. This field is only populated when the function uses
 	// resources in its requirements.
 	RequiredResources map[string]*Resources `protobuf:"bytes,8,rep,name=required_resources,json=requiredResources,proto3" json:"required_resources,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Optional schemas that the function specified in its requirements. The map
+	// key corresponds to the key in a RunFunctionResponse's requirements.schemas
+	// field. If a function requested a schema that could not be found, Crossplane
+	// sets the map key to an empty Schema message to indicate that it attempted
+	// to satisfy the request.
+	RequiredSchemas map[string]*Schema `protobuf:"bytes,9,rep,name=required_schemas,json=requiredSchemas,proto3" json:"required_schemas,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RunFunctionRequest) Reset() {
@@ -405,6 +488,13 @@ func (x *RunFunctionRequest) GetCredentials() map[string]*Credentials {
 func (x *RunFunctionRequest) GetRequiredResources() map[string]*Resources {
 	if x != nil {
 		return x.RequiredResources
+	}
+	return nil
+}
+
+func (x *RunFunctionRequest) GetRequiredSchemas() map[string]*Schema {
+	if x != nil {
+		return x.RequiredSchemas
 	}
 	return nil
 }
@@ -690,7 +780,11 @@ type RequestMeta struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// An opaque string identifying a request. Requests with identical tags will
 	// be otherwise identical.
-	Tag           string `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
+	Tag string `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
+	// Capabilities supported by this version of Crossplane. Functions may use
+	// this to determine whether Crossplane will honor certain fields in their
+	// response, or populate certain fields in their request.
+	Capabilities  []Capability `protobuf:"varint,2,rep,packed,name=capabilities,proto3,enum=apiextensions.fn.proto.v1beta1.Capability" json:"capabilities,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -732,6 +826,13 @@ func (x *RequestMeta) GetTag() string {
 	return ""
 }
 
+func (x *RequestMeta) GetCapabilities() []Capability {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
 // Requirements that must be satisfied for a function to run successfully.
 type Requirements struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -744,7 +845,10 @@ type Requirements struct {
 	ExtraResources map[string]*ResourceSelector `protobuf:"bytes,1,rep,name=extra_resources,json=extraResources,proto3" json:"extra_resources,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Resources that this function requires. The map key uniquely identifies the
 	// group of resources.
-	Resources     map[string]*ResourceSelector `protobuf:"bytes,2,rep,name=resources,proto3" json:"resources,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Resources map[string]*ResourceSelector `protobuf:"bytes,2,rep,name=resources,proto3" json:"resources,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Schemas that this function requires. The map key uniquely identifies the
+	// schema request.
+	Schemas       map[string]*SchemaSelector `protobuf:"bytes,3,rep,name=schemas,proto3" json:"schemas,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -794,6 +898,116 @@ func (x *Requirements) GetResources() map[string]*ResourceSelector {
 	return nil
 }
 
+func (x *Requirements) GetSchemas() map[string]*SchemaSelector {
+	if x != nil {
+		return x.Schemas
+	}
+	return nil
+}
+
+// SchemaSelector identifies a resource kind whose OpenAPI schema is requested.
+type SchemaSelector struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// API version of the resource kind, e.g. "example.org/v1".
+	ApiVersion string `protobuf:"bytes,1,opt,name=api_version,json=apiVersion,proto3" json:"api_version,omitempty"`
+	// Kind of resource, e.g. "MyResource".
+	Kind          string `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SchemaSelector) Reset() {
+	*x = SchemaSelector{}
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SchemaSelector) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SchemaSelector) ProtoMessage() {}
+
+func (x *SchemaSelector) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SchemaSelector.ProtoReflect.Descriptor instead.
+func (*SchemaSelector) Descriptor() ([]byte, []int) {
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SchemaSelector) GetApiVersion() string {
+	if x != nil {
+		return x.ApiVersion
+	}
+	return ""
+}
+
+func (x *SchemaSelector) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+// Schema represents the OpenAPI schema for a resource kind.
+type Schema struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The OpenAPI v3 schema of the resource kind as unstructured JSON.
+	// For CRDs this is the spec.versions[].schema.openAPIV3Schema field.
+	// Empty if Crossplane could not find a schema for the requested kind.
+	OpenapiV3     *structpb.Struct `protobuf:"bytes,1,opt,name=openapi_v3,json=openapiV3,proto3,oneof" json:"openapi_v3,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Schema) Reset() {
+	*x = Schema{}
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Schema) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Schema) ProtoMessage() {}
+
+func (x *Schema) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Schema.ProtoReflect.Descriptor instead.
+func (*Schema) Descriptor() ([]byte, []int) {
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *Schema) GetOpenapiV3() *structpb.Struct {
+	if x != nil {
+		return x.OpenapiV3
+	}
+	return nil
+}
+
 // ResourceSelector selects a group of resources, either by name or by label.
 type ResourceSelector struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -818,7 +1032,7 @@ type ResourceSelector struct {
 
 func (x *ResourceSelector) Reset() {
 	*x = ResourceSelector{}
-	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[7]
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -830,7 +1044,7 @@ func (x *ResourceSelector) String() string {
 func (*ResourceSelector) ProtoMessage() {}
 
 func (x *ResourceSelector) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[7]
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -843,7 +1057,7 @@ func (x *ResourceSelector) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceSelector.ProtoReflect.Descriptor instead.
 func (*ResourceSelector) Descriptor() ([]byte, []int) {
-	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{7}
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ResourceSelector) GetApiVersion() string {
@@ -920,7 +1134,7 @@ type MatchLabels struct {
 
 func (x *MatchLabels) Reset() {
 	*x = MatchLabels{}
-	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[8]
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -932,7 +1146,7 @@ func (x *MatchLabels) String() string {
 func (*MatchLabels) ProtoMessage() {}
 
 func (x *MatchLabels) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[8]
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -945,7 +1159,7 @@ func (x *MatchLabels) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MatchLabels.ProtoReflect.Descriptor instead.
 func (*MatchLabels) Descriptor() ([]byte, []int) {
-	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{8}
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *MatchLabels) GetLabels() map[string]string {
@@ -971,7 +1185,7 @@ type ResponseMeta struct {
 
 func (x *ResponseMeta) Reset() {
 	*x = ResponseMeta{}
-	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[9]
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -983,7 +1197,7 @@ func (x *ResponseMeta) String() string {
 func (*ResponseMeta) ProtoMessage() {}
 
 func (x *ResponseMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[9]
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -996,7 +1210,7 @@ func (x *ResponseMeta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResponseMeta.ProtoReflect.Descriptor instead.
 func (*ResponseMeta) Descriptor() ([]byte, []int) {
-	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{9}
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ResponseMeta) GetTag() string {
@@ -1028,7 +1242,7 @@ type State struct {
 
 func (x *State) Reset() {
 	*x = State{}
-	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[10]
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1040,7 +1254,7 @@ func (x *State) String() string {
 func (*State) ProtoMessage() {}
 
 func (x *State) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[10]
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1053,7 +1267,7 @@ func (x *State) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use State.ProtoReflect.Descriptor instead.
 func (*State) Descriptor() ([]byte, []int) {
-	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{10}
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *State) GetComposite() *Resource {
@@ -1124,7 +1338,7 @@ type Resource struct {
 
 func (x *Resource) Reset() {
 	*x = Resource{}
-	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[11]
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1136,7 +1350,7 @@ func (x *Resource) String() string {
 func (*Resource) ProtoMessage() {}
 
 func (x *Resource) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[11]
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1149,7 +1363,7 @@ func (x *Resource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Resource.ProtoReflect.Descriptor instead.
 func (*Resource) Descriptor() ([]byte, []int) {
-	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{11}
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Resource) GetResource() *structpb.Struct {
@@ -1191,7 +1405,7 @@ type Result struct {
 
 func (x *Result) Reset() {
 	*x = Result{}
-	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[12]
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1203,7 +1417,7 @@ func (x *Result) String() string {
 func (*Result) ProtoMessage() {}
 
 func (x *Result) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[12]
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1216,7 +1430,7 @@ func (x *Result) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Result.ProtoReflect.Descriptor instead.
 func (*Result) Descriptor() ([]byte, []int) {
-	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{12}
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Result) GetSeverity() Severity {
@@ -1274,7 +1488,7 @@ type Condition struct {
 
 func (x *Condition) Reset() {
 	*x = Condition{}
-	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[13]
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1286,7 +1500,7 @@ func (x *Condition) String() string {
 func (*Condition) ProtoMessage() {}
 
 func (x *Condition) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[13]
+	mi := &file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1299,7 +1513,7 @@ func (x *Condition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Condition.ProtoReflect.Descriptor instead.
 func (*Condition) Descriptor() ([]byte, []int) {
-	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{13}
+	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Condition) GetType() string {
@@ -1341,7 +1555,7 @@ var File_proto_fn_v1beta1_zz_generated_run_function_proto protoreflect.FileDescr
 
 const file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDesc = "" +
 	"\n" +
-	"0proto/fn/v1beta1/zz_generated_run_function.proto\x12\x1eapiextensions.fn.proto.v1beta1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\"\xfd\a\n" +
+	"0proto/fn/v1beta1/zz_generated_run_function.proto\x12\x1eapiextensions.fn.proto.v1beta1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\"\xdd\t\n" +
 	"\x12RunFunctionRequest\x12?\n" +
 	"\x04meta\x18\x01 \x01(\v2+.apiextensions.fn.proto.v1beta1.RequestMetaR\x04meta\x12A\n" +
 	"\bobserved\x18\x02 \x01(\v2%.apiextensions.fn.proto.v1beta1.StateR\bobserved\x12?\n" +
@@ -1350,7 +1564,8 @@ const file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDesc = "" +
 	"\acontext\x18\x05 \x01(\v2\x17.google.protobuf.StructH\x01R\acontext\x88\x01\x01\x12s\n" +
 	"\x0fextra_resources\x18\x06 \x03(\v2F.apiextensions.fn.proto.v1beta1.RunFunctionRequest.ExtraResourcesEntryB\x02\x18\x01R\x0eextraResources\x12e\n" +
 	"\vcredentials\x18\a \x03(\v2C.apiextensions.fn.proto.v1beta1.RunFunctionRequest.CredentialsEntryR\vcredentials\x12x\n" +
-	"\x12required_resources\x18\b \x03(\v2I.apiextensions.fn.proto.v1beta1.RunFunctionRequest.RequiredResourcesEntryR\x11requiredResources\x1al\n" +
+	"\x12required_resources\x18\b \x03(\v2I.apiextensions.fn.proto.v1beta1.RunFunctionRequest.RequiredResourcesEntryR\x11requiredResources\x12r\n" +
+	"\x10required_schemas\x18\t \x03(\v2G.apiextensions.fn.proto.v1beta1.RunFunctionRequest.RequiredSchemasEntryR\x0frequiredSchemas\x1al\n" +
 	"\x13ExtraResourcesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12?\n" +
 	"\x05value\x18\x02 \x01(\v2).apiextensions.fn.proto.v1beta1.ResourcesR\x05value:\x028\x01\x1ak\n" +
@@ -1359,7 +1574,10 @@ const file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2+.apiextensions.fn.proto.v1beta1.CredentialsR\x05value:\x028\x01\x1ao\n" +
 	"\x16RequiredResourcesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12?\n" +
-	"\x05value\x18\x02 \x01(\v2).apiextensions.fn.proto.v1beta1.ResourcesR\x05value:\x028\x01B\b\n" +
+	"\x05value\x18\x02 \x01(\v2).apiextensions.fn.proto.v1beta1.ResourcesR\x05value:\x028\x01\x1aj\n" +
+	"\x14RequiredSchemasEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12<\n" +
+	"\x05value\x18\x02 \x01(\v2&.apiextensions.fn.proto.v1beta1.SchemaR\x05value:\x028\x01B\b\n" +
 	"\x06_inputB\n" +
 	"\n" +
 	"\b_context\"r\n" +
@@ -1385,18 +1603,31 @@ const file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDesc = "" +
 	"\x06output\x18\a \x01(\v2\x17.google.protobuf.StructH\x01R\x06output\x88\x01\x01B\n" +
 	"\n" +
 	"\b_contextB\t\n" +
-	"\a_output\"\x1f\n" +
+	"\a_output\"o\n" +
 	"\vRequestMeta\x12\x10\n" +
-	"\x03tag\x18\x01 \x01(\tR\x03tag\"\xbd\x03\n" +
+	"\x03tag\x18\x01 \x01(\tR\x03tag\x12N\n" +
+	"\fcapabilities\x18\x02 \x03(\x0e2*.apiextensions.fn.proto.v1beta1.CapabilityR\fcapabilities\"\xfe\x04\n" +
 	"\fRequirements\x12m\n" +
 	"\x0fextra_resources\x18\x01 \x03(\v2@.apiextensions.fn.proto.v1beta1.Requirements.ExtraResourcesEntryB\x02\x18\x01R\x0eextraResources\x12Y\n" +
-	"\tresources\x18\x02 \x03(\v2;.apiextensions.fn.proto.v1beta1.Requirements.ResourcesEntryR\tresources\x1as\n" +
+	"\tresources\x18\x02 \x03(\v2;.apiextensions.fn.proto.v1beta1.Requirements.ResourcesEntryR\tresources\x12S\n" +
+	"\aschemas\x18\x03 \x03(\v29.apiextensions.fn.proto.v1beta1.Requirements.SchemasEntryR\aschemas\x1as\n" +
 	"\x13ExtraResourcesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12F\n" +
 	"\x05value\x18\x02 \x01(\v20.apiextensions.fn.proto.v1beta1.ResourceSelectorR\x05value:\x028\x01\x1an\n" +
 	"\x0eResourcesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12F\n" +
-	"\x05value\x18\x02 \x01(\v20.apiextensions.fn.proto.v1beta1.ResourceSelectorR\x05value:\x028\x01\"\xf4\x01\n" +
+	"\x05value\x18\x02 \x01(\v20.apiextensions.fn.proto.v1beta1.ResourceSelectorR\x05value:\x028\x01\x1aj\n" +
+	"\fSchemasEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12D\n" +
+	"\x05value\x18\x02 \x01(\v2..apiextensions.fn.proto.v1beta1.SchemaSelectorR\x05value:\x028\x01\"E\n" +
+	"\x0eSchemaSelector\x12\x1f\n" +
+	"\vapi_version\x18\x01 \x01(\tR\n" +
+	"apiVersion\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\"T\n" +
+	"\x06Schema\x12;\n" +
+	"\n" +
+	"openapi_v3\x18\x01 \x01(\v2\x17.google.protobuf.StructH\x00R\topenapiV3\x88\x01\x01B\r\n" +
+	"\v_openapi_v3\"\xf4\x01\n" +
 	"\x10ResourceSelector\x12\x1f\n" +
 	"\vapi_version\x18\x01 \x01(\tR\n" +
 	"apiVersion\x12\x12\n" +
@@ -1445,7 +1676,15 @@ const file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDesc = "" +
 	"\x06target\x18\x05 \x01(\x0e2&.apiextensions.fn.proto.v1beta1.TargetH\x01R\x06target\x88\x01\x01B\n" +
 	"\n" +
 	"\b_messageB\t\n" +
-	"\a_target*?\n" +
+	"\a_target*\xc0\x01\n" +
+	"\n" +
+	"Capability\x12\x1a\n" +
+	"\x16CAPABILITY_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17CAPABILITY_CAPABILITIES\x10\x01\x12!\n" +
+	"\x1dCAPABILITY_REQUIRED_RESOURCES\x10\x02\x12\x1a\n" +
+	"\x16CAPABILITY_CREDENTIALS\x10\x03\x12\x19\n" +
+	"\x15CAPABILITY_CONDITIONS\x10\x04\x12\x1f\n" +
+	"\x1bCAPABILITY_REQUIRED_SCHEMAS\x10\x05*?\n" +
 	"\x05Ready\x12\x15\n" +
 	"\x11READY_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -1480,85 +1719,96 @@ func file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescGZIP() []byte 
 	return file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDescData
 }
 
-var file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_proto_fn_v1beta1_zz_generated_run_function_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_proto_fn_v1beta1_zz_generated_run_function_proto_goTypes = []any{
-	(Ready)(0),                  // 0: apiextensions.fn.proto.v1beta1.Ready
-	(Severity)(0),               // 1: apiextensions.fn.proto.v1beta1.Severity
-	(Target)(0),                 // 2: apiextensions.fn.proto.v1beta1.Target
-	(Status)(0),                 // 3: apiextensions.fn.proto.v1beta1.Status
-	(*RunFunctionRequest)(nil),  // 4: apiextensions.fn.proto.v1beta1.RunFunctionRequest
-	(*Credentials)(nil),         // 5: apiextensions.fn.proto.v1beta1.Credentials
-	(*CredentialData)(nil),      // 6: apiextensions.fn.proto.v1beta1.CredentialData
-	(*Resources)(nil),           // 7: apiextensions.fn.proto.v1beta1.Resources
-	(*RunFunctionResponse)(nil), // 8: apiextensions.fn.proto.v1beta1.RunFunctionResponse
-	(*RequestMeta)(nil),         // 9: apiextensions.fn.proto.v1beta1.RequestMeta
-	(*Requirements)(nil),        // 10: apiextensions.fn.proto.v1beta1.Requirements
-	(*ResourceSelector)(nil),    // 11: apiextensions.fn.proto.v1beta1.ResourceSelector
-	(*MatchLabels)(nil),         // 12: apiextensions.fn.proto.v1beta1.MatchLabels
-	(*ResponseMeta)(nil),        // 13: apiextensions.fn.proto.v1beta1.ResponseMeta
-	(*State)(nil),               // 14: apiextensions.fn.proto.v1beta1.State
-	(*Resource)(nil),            // 15: apiextensions.fn.proto.v1beta1.Resource
-	(*Result)(nil),              // 16: apiextensions.fn.proto.v1beta1.Result
-	(*Condition)(nil),           // 17: apiextensions.fn.proto.v1beta1.Condition
-	nil,                         // 18: apiextensions.fn.proto.v1beta1.RunFunctionRequest.ExtraResourcesEntry
-	nil,                         // 19: apiextensions.fn.proto.v1beta1.RunFunctionRequest.CredentialsEntry
-	nil,                         // 20: apiextensions.fn.proto.v1beta1.RunFunctionRequest.RequiredResourcesEntry
-	nil,                         // 21: apiextensions.fn.proto.v1beta1.CredentialData.DataEntry
-	nil,                         // 22: apiextensions.fn.proto.v1beta1.Requirements.ExtraResourcesEntry
-	nil,                         // 23: apiextensions.fn.proto.v1beta1.Requirements.ResourcesEntry
-	nil,                         // 24: apiextensions.fn.proto.v1beta1.MatchLabels.LabelsEntry
-	nil,                         // 25: apiextensions.fn.proto.v1beta1.State.ResourcesEntry
-	nil,                         // 26: apiextensions.fn.proto.v1beta1.Resource.ConnectionDetailsEntry
-	(*structpb.Struct)(nil),     // 27: google.protobuf.Struct
-	(*durationpb.Duration)(nil), // 28: google.protobuf.Duration
+	(Capability)(0),             // 0: apiextensions.fn.proto.v1beta1.Capability
+	(Ready)(0),                  // 1: apiextensions.fn.proto.v1beta1.Ready
+	(Severity)(0),               // 2: apiextensions.fn.proto.v1beta1.Severity
+	(Target)(0),                 // 3: apiextensions.fn.proto.v1beta1.Target
+	(Status)(0),                 // 4: apiextensions.fn.proto.v1beta1.Status
+	(*RunFunctionRequest)(nil),  // 5: apiextensions.fn.proto.v1beta1.RunFunctionRequest
+	(*Credentials)(nil),         // 6: apiextensions.fn.proto.v1beta1.Credentials
+	(*CredentialData)(nil),      // 7: apiextensions.fn.proto.v1beta1.CredentialData
+	(*Resources)(nil),           // 8: apiextensions.fn.proto.v1beta1.Resources
+	(*RunFunctionResponse)(nil), // 9: apiextensions.fn.proto.v1beta1.RunFunctionResponse
+	(*RequestMeta)(nil),         // 10: apiextensions.fn.proto.v1beta1.RequestMeta
+	(*Requirements)(nil),        // 11: apiextensions.fn.proto.v1beta1.Requirements
+	(*SchemaSelector)(nil),      // 12: apiextensions.fn.proto.v1beta1.SchemaSelector
+	(*Schema)(nil),              // 13: apiextensions.fn.proto.v1beta1.Schema
+	(*ResourceSelector)(nil),    // 14: apiextensions.fn.proto.v1beta1.ResourceSelector
+	(*MatchLabels)(nil),         // 15: apiextensions.fn.proto.v1beta1.MatchLabels
+	(*ResponseMeta)(nil),        // 16: apiextensions.fn.proto.v1beta1.ResponseMeta
+	(*State)(nil),               // 17: apiextensions.fn.proto.v1beta1.State
+	(*Resource)(nil),            // 18: apiextensions.fn.proto.v1beta1.Resource
+	(*Result)(nil),              // 19: apiextensions.fn.proto.v1beta1.Result
+	(*Condition)(nil),           // 20: apiextensions.fn.proto.v1beta1.Condition
+	nil,                         // 21: apiextensions.fn.proto.v1beta1.RunFunctionRequest.ExtraResourcesEntry
+	nil,                         // 22: apiextensions.fn.proto.v1beta1.RunFunctionRequest.CredentialsEntry
+	nil,                         // 23: apiextensions.fn.proto.v1beta1.RunFunctionRequest.RequiredResourcesEntry
+	nil,                         // 24: apiextensions.fn.proto.v1beta1.RunFunctionRequest.RequiredSchemasEntry
+	nil,                         // 25: apiextensions.fn.proto.v1beta1.CredentialData.DataEntry
+	nil,                         // 26: apiextensions.fn.proto.v1beta1.Requirements.ExtraResourcesEntry
+	nil,                         // 27: apiextensions.fn.proto.v1beta1.Requirements.ResourcesEntry
+	nil,                         // 28: apiextensions.fn.proto.v1beta1.Requirements.SchemasEntry
+	nil,                         // 29: apiextensions.fn.proto.v1beta1.MatchLabels.LabelsEntry
+	nil,                         // 30: apiextensions.fn.proto.v1beta1.State.ResourcesEntry
+	nil,                         // 31: apiextensions.fn.proto.v1beta1.Resource.ConnectionDetailsEntry
+	(*structpb.Struct)(nil),     // 32: google.protobuf.Struct
+	(*durationpb.Duration)(nil), // 33: google.protobuf.Duration
 }
 var file_proto_fn_v1beta1_zz_generated_run_function_proto_depIdxs = []int32{
-	9,  // 0: apiextensions.fn.proto.v1beta1.RunFunctionRequest.meta:type_name -> apiextensions.fn.proto.v1beta1.RequestMeta
-	14, // 1: apiextensions.fn.proto.v1beta1.RunFunctionRequest.observed:type_name -> apiextensions.fn.proto.v1beta1.State
-	14, // 2: apiextensions.fn.proto.v1beta1.RunFunctionRequest.desired:type_name -> apiextensions.fn.proto.v1beta1.State
-	27, // 3: apiextensions.fn.proto.v1beta1.RunFunctionRequest.input:type_name -> google.protobuf.Struct
-	27, // 4: apiextensions.fn.proto.v1beta1.RunFunctionRequest.context:type_name -> google.protobuf.Struct
-	18, // 5: apiextensions.fn.proto.v1beta1.RunFunctionRequest.extra_resources:type_name -> apiextensions.fn.proto.v1beta1.RunFunctionRequest.ExtraResourcesEntry
-	19, // 6: apiextensions.fn.proto.v1beta1.RunFunctionRequest.credentials:type_name -> apiextensions.fn.proto.v1beta1.RunFunctionRequest.CredentialsEntry
-	20, // 7: apiextensions.fn.proto.v1beta1.RunFunctionRequest.required_resources:type_name -> apiextensions.fn.proto.v1beta1.RunFunctionRequest.RequiredResourcesEntry
-	6,  // 8: apiextensions.fn.proto.v1beta1.Credentials.credential_data:type_name -> apiextensions.fn.proto.v1beta1.CredentialData
-	21, // 9: apiextensions.fn.proto.v1beta1.CredentialData.data:type_name -> apiextensions.fn.proto.v1beta1.CredentialData.DataEntry
-	15, // 10: apiextensions.fn.proto.v1beta1.Resources.items:type_name -> apiextensions.fn.proto.v1beta1.Resource
-	13, // 11: apiextensions.fn.proto.v1beta1.RunFunctionResponse.meta:type_name -> apiextensions.fn.proto.v1beta1.ResponseMeta
-	14, // 12: apiextensions.fn.proto.v1beta1.RunFunctionResponse.desired:type_name -> apiextensions.fn.proto.v1beta1.State
-	16, // 13: apiextensions.fn.proto.v1beta1.RunFunctionResponse.results:type_name -> apiextensions.fn.proto.v1beta1.Result
-	27, // 14: apiextensions.fn.proto.v1beta1.RunFunctionResponse.context:type_name -> google.protobuf.Struct
-	10, // 15: apiextensions.fn.proto.v1beta1.RunFunctionResponse.requirements:type_name -> apiextensions.fn.proto.v1beta1.Requirements
-	17, // 16: apiextensions.fn.proto.v1beta1.RunFunctionResponse.conditions:type_name -> apiextensions.fn.proto.v1beta1.Condition
-	27, // 17: apiextensions.fn.proto.v1beta1.RunFunctionResponse.output:type_name -> google.protobuf.Struct
-	22, // 18: apiextensions.fn.proto.v1beta1.Requirements.extra_resources:type_name -> apiextensions.fn.proto.v1beta1.Requirements.ExtraResourcesEntry
-	23, // 19: apiextensions.fn.proto.v1beta1.Requirements.resources:type_name -> apiextensions.fn.proto.v1beta1.Requirements.ResourcesEntry
-	12, // 20: apiextensions.fn.proto.v1beta1.ResourceSelector.match_labels:type_name -> apiextensions.fn.proto.v1beta1.MatchLabels
-	24, // 21: apiextensions.fn.proto.v1beta1.MatchLabels.labels:type_name -> apiextensions.fn.proto.v1beta1.MatchLabels.LabelsEntry
-	28, // 22: apiextensions.fn.proto.v1beta1.ResponseMeta.ttl:type_name -> google.protobuf.Duration
-	15, // 23: apiextensions.fn.proto.v1beta1.State.composite:type_name -> apiextensions.fn.proto.v1beta1.Resource
-	25, // 24: apiextensions.fn.proto.v1beta1.State.resources:type_name -> apiextensions.fn.proto.v1beta1.State.ResourcesEntry
-	27, // 25: apiextensions.fn.proto.v1beta1.Resource.resource:type_name -> google.protobuf.Struct
-	26, // 26: apiextensions.fn.proto.v1beta1.Resource.connection_details:type_name -> apiextensions.fn.proto.v1beta1.Resource.ConnectionDetailsEntry
-	0,  // 27: apiextensions.fn.proto.v1beta1.Resource.ready:type_name -> apiextensions.fn.proto.v1beta1.Ready
-	1,  // 28: apiextensions.fn.proto.v1beta1.Result.severity:type_name -> apiextensions.fn.proto.v1beta1.Severity
-	2,  // 29: apiextensions.fn.proto.v1beta1.Result.target:type_name -> apiextensions.fn.proto.v1beta1.Target
-	3,  // 30: apiextensions.fn.proto.v1beta1.Condition.status:type_name -> apiextensions.fn.proto.v1beta1.Status
-	2,  // 31: apiextensions.fn.proto.v1beta1.Condition.target:type_name -> apiextensions.fn.proto.v1beta1.Target
-	7,  // 32: apiextensions.fn.proto.v1beta1.RunFunctionRequest.ExtraResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.Resources
-	5,  // 33: apiextensions.fn.proto.v1beta1.RunFunctionRequest.CredentialsEntry.value:type_name -> apiextensions.fn.proto.v1beta1.Credentials
-	7,  // 34: apiextensions.fn.proto.v1beta1.RunFunctionRequest.RequiredResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.Resources
-	11, // 35: apiextensions.fn.proto.v1beta1.Requirements.ExtraResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.ResourceSelector
-	11, // 36: apiextensions.fn.proto.v1beta1.Requirements.ResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.ResourceSelector
-	15, // 37: apiextensions.fn.proto.v1beta1.State.ResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.Resource
-	4,  // 38: apiextensions.fn.proto.v1beta1.FunctionRunnerService.RunFunction:input_type -> apiextensions.fn.proto.v1beta1.RunFunctionRequest
-	8,  // 39: apiextensions.fn.proto.v1beta1.FunctionRunnerService.RunFunction:output_type -> apiextensions.fn.proto.v1beta1.RunFunctionResponse
-	39, // [39:40] is the sub-list for method output_type
-	38, // [38:39] is the sub-list for method input_type
-	38, // [38:38] is the sub-list for extension type_name
-	38, // [38:38] is the sub-list for extension extendee
-	0,  // [0:38] is the sub-list for field type_name
+	10, // 0: apiextensions.fn.proto.v1beta1.RunFunctionRequest.meta:type_name -> apiextensions.fn.proto.v1beta1.RequestMeta
+	17, // 1: apiextensions.fn.proto.v1beta1.RunFunctionRequest.observed:type_name -> apiextensions.fn.proto.v1beta1.State
+	17, // 2: apiextensions.fn.proto.v1beta1.RunFunctionRequest.desired:type_name -> apiextensions.fn.proto.v1beta1.State
+	32, // 3: apiextensions.fn.proto.v1beta1.RunFunctionRequest.input:type_name -> google.protobuf.Struct
+	32, // 4: apiextensions.fn.proto.v1beta1.RunFunctionRequest.context:type_name -> google.protobuf.Struct
+	21, // 5: apiextensions.fn.proto.v1beta1.RunFunctionRequest.extra_resources:type_name -> apiextensions.fn.proto.v1beta1.RunFunctionRequest.ExtraResourcesEntry
+	22, // 6: apiextensions.fn.proto.v1beta1.RunFunctionRequest.credentials:type_name -> apiextensions.fn.proto.v1beta1.RunFunctionRequest.CredentialsEntry
+	23, // 7: apiextensions.fn.proto.v1beta1.RunFunctionRequest.required_resources:type_name -> apiextensions.fn.proto.v1beta1.RunFunctionRequest.RequiredResourcesEntry
+	24, // 8: apiextensions.fn.proto.v1beta1.RunFunctionRequest.required_schemas:type_name -> apiextensions.fn.proto.v1beta1.RunFunctionRequest.RequiredSchemasEntry
+	7,  // 9: apiextensions.fn.proto.v1beta1.Credentials.credential_data:type_name -> apiextensions.fn.proto.v1beta1.CredentialData
+	25, // 10: apiextensions.fn.proto.v1beta1.CredentialData.data:type_name -> apiextensions.fn.proto.v1beta1.CredentialData.DataEntry
+	18, // 11: apiextensions.fn.proto.v1beta1.Resources.items:type_name -> apiextensions.fn.proto.v1beta1.Resource
+	16, // 12: apiextensions.fn.proto.v1beta1.RunFunctionResponse.meta:type_name -> apiextensions.fn.proto.v1beta1.ResponseMeta
+	17, // 13: apiextensions.fn.proto.v1beta1.RunFunctionResponse.desired:type_name -> apiextensions.fn.proto.v1beta1.State
+	19, // 14: apiextensions.fn.proto.v1beta1.RunFunctionResponse.results:type_name -> apiextensions.fn.proto.v1beta1.Result
+	32, // 15: apiextensions.fn.proto.v1beta1.RunFunctionResponse.context:type_name -> google.protobuf.Struct
+	11, // 16: apiextensions.fn.proto.v1beta1.RunFunctionResponse.requirements:type_name -> apiextensions.fn.proto.v1beta1.Requirements
+	20, // 17: apiextensions.fn.proto.v1beta1.RunFunctionResponse.conditions:type_name -> apiextensions.fn.proto.v1beta1.Condition
+	32, // 18: apiextensions.fn.proto.v1beta1.RunFunctionResponse.output:type_name -> google.protobuf.Struct
+	0,  // 19: apiextensions.fn.proto.v1beta1.RequestMeta.capabilities:type_name -> apiextensions.fn.proto.v1beta1.Capability
+	26, // 20: apiextensions.fn.proto.v1beta1.Requirements.extra_resources:type_name -> apiextensions.fn.proto.v1beta1.Requirements.ExtraResourcesEntry
+	27, // 21: apiextensions.fn.proto.v1beta1.Requirements.resources:type_name -> apiextensions.fn.proto.v1beta1.Requirements.ResourcesEntry
+	28, // 22: apiextensions.fn.proto.v1beta1.Requirements.schemas:type_name -> apiextensions.fn.proto.v1beta1.Requirements.SchemasEntry
+	32, // 23: apiextensions.fn.proto.v1beta1.Schema.openapi_v3:type_name -> google.protobuf.Struct
+	15, // 24: apiextensions.fn.proto.v1beta1.ResourceSelector.match_labels:type_name -> apiextensions.fn.proto.v1beta1.MatchLabels
+	29, // 25: apiextensions.fn.proto.v1beta1.MatchLabels.labels:type_name -> apiextensions.fn.proto.v1beta1.MatchLabels.LabelsEntry
+	33, // 26: apiextensions.fn.proto.v1beta1.ResponseMeta.ttl:type_name -> google.protobuf.Duration
+	18, // 27: apiextensions.fn.proto.v1beta1.State.composite:type_name -> apiextensions.fn.proto.v1beta1.Resource
+	30, // 28: apiextensions.fn.proto.v1beta1.State.resources:type_name -> apiextensions.fn.proto.v1beta1.State.ResourcesEntry
+	32, // 29: apiextensions.fn.proto.v1beta1.Resource.resource:type_name -> google.protobuf.Struct
+	31, // 30: apiextensions.fn.proto.v1beta1.Resource.connection_details:type_name -> apiextensions.fn.proto.v1beta1.Resource.ConnectionDetailsEntry
+	1,  // 31: apiextensions.fn.proto.v1beta1.Resource.ready:type_name -> apiextensions.fn.proto.v1beta1.Ready
+	2,  // 32: apiextensions.fn.proto.v1beta1.Result.severity:type_name -> apiextensions.fn.proto.v1beta1.Severity
+	3,  // 33: apiextensions.fn.proto.v1beta1.Result.target:type_name -> apiextensions.fn.proto.v1beta1.Target
+	4,  // 34: apiextensions.fn.proto.v1beta1.Condition.status:type_name -> apiextensions.fn.proto.v1beta1.Status
+	3,  // 35: apiextensions.fn.proto.v1beta1.Condition.target:type_name -> apiextensions.fn.proto.v1beta1.Target
+	8,  // 36: apiextensions.fn.proto.v1beta1.RunFunctionRequest.ExtraResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.Resources
+	6,  // 37: apiextensions.fn.proto.v1beta1.RunFunctionRequest.CredentialsEntry.value:type_name -> apiextensions.fn.proto.v1beta1.Credentials
+	8,  // 38: apiextensions.fn.proto.v1beta1.RunFunctionRequest.RequiredResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.Resources
+	13, // 39: apiextensions.fn.proto.v1beta1.RunFunctionRequest.RequiredSchemasEntry.value:type_name -> apiextensions.fn.proto.v1beta1.Schema
+	14, // 40: apiextensions.fn.proto.v1beta1.Requirements.ExtraResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.ResourceSelector
+	14, // 41: apiextensions.fn.proto.v1beta1.Requirements.ResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.ResourceSelector
+	12, // 42: apiextensions.fn.proto.v1beta1.Requirements.SchemasEntry.value:type_name -> apiextensions.fn.proto.v1beta1.SchemaSelector
+	18, // 43: apiextensions.fn.proto.v1beta1.State.ResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.Resource
+	5,  // 44: apiextensions.fn.proto.v1beta1.FunctionRunnerService.RunFunction:input_type -> apiextensions.fn.proto.v1beta1.RunFunctionRequest
+	9,  // 45: apiextensions.fn.proto.v1beta1.FunctionRunnerService.RunFunction:output_type -> apiextensions.fn.proto.v1beta1.RunFunctionResponse
+	45, // [45:46] is the sub-list for method output_type
+	44, // [44:45] is the sub-list for method input_type
+	44, // [44:44] is the sub-list for extension type_name
+	44, // [44:44] is the sub-list for extension extendee
+	0,  // [0:44] is the sub-list for field type_name
 }
 
 func init() { file_proto_fn_v1beta1_zz_generated_run_function_proto_init() }
@@ -1571,20 +1821,21 @@ func file_proto_fn_v1beta1_zz_generated_run_function_proto_init() {
 		(*Credentials_CredentialData)(nil),
 	}
 	file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[4].OneofWrappers = []any{}
-	file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[7].OneofWrappers = []any{
+	file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[8].OneofWrappers = []any{}
+	file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[9].OneofWrappers = []any{
 		(*ResourceSelector_MatchName)(nil),
 		(*ResourceSelector_MatchLabels)(nil),
 	}
-	file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[9].OneofWrappers = []any{}
-	file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[12].OneofWrappers = []any{}
-	file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[13].OneofWrappers = []any{}
+	file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[11].OneofWrappers = []any{}
+	file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[14].OneofWrappers = []any{}
+	file_proto_fn_v1beta1_zz_generated_run_function_proto_msgTypes[15].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDesc), len(file_proto_fn_v1beta1_zz_generated_run_function_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   23,
+			NumEnums:      5,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

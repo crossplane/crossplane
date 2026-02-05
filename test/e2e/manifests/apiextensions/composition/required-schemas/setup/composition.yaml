@@ -1,0 +1,63 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: schema-test-composition
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: SchemaTest
+  mode: Pipeline
+  pipeline:
+  - step: request-and-verify-schema
+    functionRef:
+      name: function-python-schemas
+    input:
+      apiVersion: python.fn.crossplane.io/v1beta1
+      kind: Script
+      script: |
+        from crossplane.function import response, request
+        from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+
+        def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+            # Request schema for ConfigMap (a well-known core type).
+            response.require_schema(rsp, "configmap-schema", "v1", "ConfigMap")
+
+            # Check if we received the schema in this iteration.
+            schema_received = "configmap-schema" in req.required_schemas
+
+            # Check if the schema has the expected structure.
+            # ConfigMap schema should have properties like "data", "binaryData".
+            schema_has_properties = False
+            schema_has_flattened_refs = False
+            if schema_received:
+                schema = request.get_required_schema(req, "configmap-schema")
+                if schema:
+                    props = schema.get("properties", {})
+                    schema_has_properties = "data" in props or "binaryData" in props
+
+                    # Check if referenced schemas (like ObjectMeta) are flattened.
+                    # ConfigMap has a metadata field that should be inlined, not a $ref.
+                    metadata = props.get("metadata", {})
+                    schema_has_flattened_refs = "properties" in metadata and "$ref" not in metadata
+
+            # Set status fields to indicate what we found.
+            rsp.desired.composite.resource.update({
+                "status": {
+                    "schemaReceived": schema_received,
+                    "schemaHasProperties": schema_has_properties,
+                    "schemaHasFlattenedRefs": schema_has_flattened_refs,
+                }
+            })
+
+            # Add a result for observability.
+            result = fnv1.Result()
+            result.severity = fnv1.SEVERITY_NORMAL
+            if schema_has_flattened_refs:
+                result.message = "Successfully received ConfigMap schema with properties and flattened refs"
+            elif schema_has_properties:
+                result.message = "Received ConfigMap schema with properties but refs not flattened"
+            elif schema_received:
+                result.message = "Received ConfigMap schema but it was empty or missing expected properties"
+            else:
+                result.message = "Waiting for ConfigMap schema"
+            rsp.results.append(result)

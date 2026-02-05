@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/kube-openapi/pkg/spec3"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -74,6 +75,7 @@ type Inputs struct {
 	ObservedResources   []composed.Unstructured
 	ExtraResources      []unstructured.Unstructured
 	RequiredResources   []unstructured.Unstructured
+	RequiredSchemas     []spec3.OpenAPI
 	Context             map[string][]byte
 
 	// TODO(negz): Allow supplying observed XR and composed resource connection
@@ -203,7 +205,8 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 	}()
 
-	runner := xfn.NewFetchingFunctionRunner(runtimes, NewFilteringFetcher(append(in.ExtraResources, in.RequiredResources...)...))
+	schemaFetcher := NewFilteringSchemaFetcher(in.RequiredSchemas)
+	runner := xfn.NewFetchingFunctionRunner(runtimes, NewFilteringFetcher(append(in.ExtraResources, in.RequiredResources...)...), schemaFetcher)
 
 	observed := composite.ComposedResourceStates{}
 
@@ -289,8 +292,6 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 
 		// Handle bootstrap requirements
 		if fn.Requirements != nil {
-			// Bootstrap requirements were introduced alongside the new field names,
-			// so we only need to support the new required_resources field.
 			req.RequiredResources = map[string]*fnv1.Resources{}
 			for _, sel := range fn.Requirements.RequiredResources {
 				resources, err := NewFilteringFetcher(in.RequiredResources...).Fetch(ctx, xfn.ToProtobufResourceSelector(&sel))
@@ -299,7 +300,17 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 				}
 				req.RequiredResources[sel.RequirementName] = resources
 			}
+			req.RequiredSchemas = map[string]*fnv1.Schema{}
+			for _, sel := range fn.Requirements.RequiredSchemas {
+				schema, err := schemaFetcher.Fetch(ctx, xfn.ToProtobufSchemaSelector(&sel))
+				if err != nil {
+					return Outputs{}, errors.Wrapf(err, "cannot fetch bootstrap required schema for requirement %q", sel.RequirementName)
+				}
+				req.RequiredSchemas[sel.RequirementName] = schema
+			}
 		}
+
+		req.Meta = &fnv1.RequestMeta{Capabilities: xfn.SupportedCapabilities()}
 
 		rsp, err := runner.RunFunction(ctx, fn.FunctionRef.Name, req)
 		if err != nil {

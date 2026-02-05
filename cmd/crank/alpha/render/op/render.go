@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/kube-openapi/pkg/spec3"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
@@ -44,6 +45,7 @@ type Inputs struct {
 	Functions           []pkgv1.Function
 	FunctionCredentials []corev1.Secret
 	RequiredResources   []unstructured.Unstructured
+	RequiredSchemas     []spec3.OpenAPI
 	Context             map[string][]byte
 }
 
@@ -78,7 +80,8 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 	}()
 
-	runner := xfn.NewFetchingFunctionRunner(runtimes, render.NewFilteringFetcher(in.RequiredResources...))
+	schemaFetcher := render.NewFilteringSchemaFetcher(in.RequiredSchemas)
+	runner := xfn.NewFetchingFunctionRunner(runtimes, render.NewFilteringFetcher(in.RequiredResources...), schemaFetcher)
 
 	// Build the function context from supplied context data
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
@@ -143,9 +146,17 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 				}
 				req.RequiredResources[sel.RequirementName] = resources
 			}
+			req.RequiredSchemas = map[string]*fnv1.Schema{}
+			for _, sel := range fn.Requirements.RequiredSchemas {
+				schema, err := schemaFetcher.Fetch(ctx, xfn.ToProtobufSchemaSelector(&sel))
+				if err != nil {
+					return Outputs{}, errors.Wrapf(err, "cannot fetch bootstrap required schema for requirement %q", sel.RequirementName)
+				}
+				req.RequiredSchemas[sel.RequirementName] = schema
+			}
 		}
 
-		req.Meta = &fnv1.RequestMeta{Tag: xfn.Tag(req)}
+		req.Meta = &fnv1.RequestMeta{Tag: xfn.Tag(req), Capabilities: xfn.RenderCapabilities()}
 
 		rsp, err := runner.RunFunction(ctx, fn.FunctionRef.Name, req)
 		if err != nil {

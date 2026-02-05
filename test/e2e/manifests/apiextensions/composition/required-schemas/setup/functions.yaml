@@ -1,0 +1,8 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-python-schemas
+spec:
+  # TODO(negz): Switch to an official function-python build once one exists
+  # with required schema support.
+  package: xpkg.upbound.io/negzupboundio/function-python:schematics

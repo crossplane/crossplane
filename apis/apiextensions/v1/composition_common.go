@@ -134,6 +134,13 @@ type FunctionRequirements struct {
 	// +listType=map
 	// +listMapKey=requirementName
 	RequiredResources []RequiredResourceSelector `json:"requiredResources,omitempty"`
+
+	// RequiredSchemas is a list of OpenAPI schemas that must be fetched before
+	// this function is called.
+	// +optional
+	// +listType=map
+	// +listMapKey=requirementName
+	RequiredSchemas []RequiredSchemaSelector `json:"requiredSchemas,omitempty"`
 }
 
 // RequiredResourceSelector selects a required resource.
@@ -192,4 +199,32 @@ func (r *RequiredResourceSelector) GetMatchLabels() map[string]string {
 // GetNamespace returns the namespace.
 func (r *RequiredResourceSelector) GetNamespace() *string {
 	return r.Namespace
+}
+
+// RequiredSchemaSelector selects a required OpenAPI schema.
+type RequiredSchemaSelector struct {
+	// RequirementName is the unique name to identify this required schema
+	// in the Required Schemas map in the function request.
+	RequirementName string `json:"requirementName"`
+
+	// APIVersion of the resource kind whose schema is required, e.g. "example.org/v1".
+	APIVersion string `json:"apiVersion"`
+
+	// Kind of resource whose schema is required, e.g. "MyResource".
+	Kind string `json:"kind"`
+}
+
+// GetRequirementName returns the requirement name.
+func (r *RequiredSchemaSelector) GetRequirementName() string {
+	return r.RequirementName
+}
+
+// GetAPIVersion returns the API version.
+func (r *RequiredSchemaSelector) GetAPIVersion() string {
+	return r.APIVersion
+}
+
+// GetKind returns the kind.
+func (r *RequiredSchemaSelector) GetKind() string {
+	return r.Kind
 }
