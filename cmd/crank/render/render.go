@@ -205,7 +205,8 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 	}()
 
-	runner := xfn.NewFetchingFunctionRunner(runtimes, NewFilteringFetcher(append(in.ExtraResources, in.RequiredResources...)...), NewFilteringSchemaFetcher(in.RequiredSchemas))
+	schemaFetcher := NewFilteringSchemaFetcher(in.RequiredSchemas)
+	runner := xfn.NewFetchingFunctionRunner(runtimes, NewFilteringFetcher(append(in.ExtraResources, in.RequiredResources...)...), schemaFetcher)
 
 	observed := composite.ComposedResourceStates{}
 
@@ -291,8 +292,6 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 
 		// Handle bootstrap requirements
 		if fn.Requirements != nil {
-			// Bootstrap requirements were introduced alongside the new field names,
-			// so we only need to support the new required_resources field.
 			req.RequiredResources = map[string]*fnv1.Resources{}
 			for _, sel := range fn.Requirements.RequiredResources {
 				resources, err := NewFilteringFetcher(in.RequiredResources...).Fetch(ctx, xfn.ToProtobufResourceSelector(&sel))
@@ -300,6 +299,14 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 					return Outputs{}, errors.Wrapf(err, "cannot fetch bootstrap required resources for requirement %q", sel.RequirementName)
 				}
 				req.RequiredResources[sel.RequirementName] = resources
+			}
+			req.RequiredSchemas = map[string]*fnv1.Schema{}
+			for _, sel := range fn.Requirements.RequiredSchemas {
+				schema, err := schemaFetcher.Fetch(ctx, xfn.ToProtobufSchemaSelector(&sel))
+				if err != nil {
+					return Outputs{}, errors.Wrapf(err, "cannot fetch bootstrap required schema for requirement %q", sel.RequirementName)
+				}
+				req.RequiredSchemas[sel.RequirementName] = schema
 			}
 		}
 

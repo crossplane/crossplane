@@ -80,7 +80,8 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 	}()
 
-	runner := xfn.NewFetchingFunctionRunner(runtimes, render.NewFilteringFetcher(in.RequiredResources...), render.NewFilteringSchemaFetcher(in.RequiredSchemas))
+	schemaFetcher := render.NewFilteringSchemaFetcher(in.RequiredSchemas)
+	runner := xfn.NewFetchingFunctionRunner(runtimes, render.NewFilteringFetcher(in.RequiredResources...), schemaFetcher)
 
 	// Build the function context from supplied context data
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
@@ -144,6 +145,14 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 					return Outputs{}, errors.Wrapf(err, "cannot fetch bootstrap required resources for requirement %q", sel.RequirementName)
 				}
 				req.RequiredResources[sel.RequirementName] = resources
+			}
+			req.RequiredSchemas = map[string]*fnv1.Schema{}
+			for _, sel := range fn.Requirements.RequiredSchemas {
+				schema, err := schemaFetcher.Fetch(ctx, xfn.ToProtobufSchemaSelector(&sel))
+				if err != nil {
+					return Outputs{}, errors.Wrapf(err, "cannot fetch bootstrap required schema for requirement %q", sel.RequirementName)
+				}
+				req.RequiredSchemas[sel.RequirementName] = schema
 			}
 		}
 
