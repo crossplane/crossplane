@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/afero"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/utils/ptr"
 
 	opsv1alpha1 "github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
 )
@@ -32,7 +33,6 @@ func TestLoadOperation(t *testing.T) {
 	type args struct {
 		fs   afero.Fs
 		path string
-		rrs  []unstructured.Unstructured
 	}
 	type want struct {
 		op  *opsv1alpha1.Operation
@@ -117,40 +117,6 @@ spec:
 					Step: "test-step",
 					FunctionRef: opsv1alpha1.FunctionReference{
 						Name: "test-function",
-					},
-				},
-			},
-		},
-	}
-
-	sn := "cool-secret"
-	sns := "default"
-	validOperationFromWatch := &opsv1alpha1.Operation{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "ops.crossplane.io/v1alpha1",
-			Kind:       "Operation",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-operation",
-		},
-		Spec: opsv1alpha1.OperationSpec{
-			Mode: opsv1alpha1.OperationModePipeline,
-			Pipeline: []opsv1alpha1.PipelineStep{
-				{
-					Step: "test-step",
-					FunctionRef: opsv1alpha1.FunctionReference{
-						Name: "test-function",
-					},
-					Requirements: &opsv1alpha1.FunctionRequirements{
-						RequiredResources: []opsv1alpha1.RequiredResourceSelector{
-							{
-								RequirementName: "ops.crossplane.io/watched-resource",
-								APIVersion:      "v1",
-								Kind:            "Secret",
-								Name:            &sn,
-								Namespace:       &sns,
-							},
-						},
 					},
 				},
 			},
@@ -243,7 +209,7 @@ spec:
 			},
 		},
 		"ValidWatchOperation": {
-			reason: "Should successfully load a valid Operation from a WatchOperation",
+			reason: "Should successfully load a valid Operation from a WatchOperation without injecting watched resource",
 			args: args{
 				fs: func() afero.Fs {
 					fs := afero.NewMemMapFs()
@@ -251,40 +217,172 @@ spec:
 					return fs
 				}(),
 				path: "watchoperation.yaml",
-				rrs: []unstructured.Unstructured{
-					{
-						Object: MustLoadJSON(`{
-								"apiVersion": "v1",
-								"kind": "Secret",
-								"metadata": {
-									"annotations": {
-										"ops.crossplane.io/watched-resource": "True"},
-									"labels": {
-										"foo": "bar"},
-									"name": "cool-secret",
-									"namespace": "default"
-								},
-								"data": {
-									"coolData": "I'm cool!"
-								}
-							}`),
-					},
-				},
 			},
 			want: want{
-				op: validOperationFromWatch,
+				op: validOperation,
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := LoadOperation(tc.args.fs, tc.args.path, tc.args.rrs)
+			got, err := LoadOperation(tc.args.fs, tc.args.path)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nLoadOperation(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.op, got); diff != "" {
 				t.Errorf("\n%s\nLoadOperation(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestInjectWatchedResource(t *testing.T) {
+	type args struct {
+		op      *opsv1alpha1.Operation
+		watched *unstructured.Unstructured
+	}
+
+	sn := "cool-secret"
+	sns := "default"
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   *opsv1alpha1.Operation
+	}{
+		"InjectIntoAllSteps": {
+			reason: "Should inject the watched resource selector into all pipeline steps",
+			args: args{
+				op: &opsv1alpha1.Operation{
+					Spec: opsv1alpha1.OperationSpec{
+						Mode: opsv1alpha1.OperationModePipeline,
+						Pipeline: []opsv1alpha1.PipelineStep{
+							{
+								Step: "step-one",
+								FunctionRef: opsv1alpha1.FunctionReference{
+									Name: "fn-one",
+								},
+							},
+							{
+								Step: "step-two",
+								FunctionRef: opsv1alpha1.FunctionReference{
+									Name: "fn-two",
+								},
+							},
+						},
+					},
+				},
+				watched: &unstructured.Unstructured{
+					Object: map[string]any{
+						"apiVersion": "v1",
+						"kind":       "Secret",
+						"metadata": map[string]any{
+							"name":      "cool-secret",
+							"namespace": "default",
+						},
+					},
+				},
+			},
+			want: &opsv1alpha1.Operation{
+				Spec: opsv1alpha1.OperationSpec{
+					Mode: opsv1alpha1.OperationModePipeline,
+					Pipeline: []opsv1alpha1.PipelineStep{
+						{
+							Step: "step-one",
+							FunctionRef: opsv1alpha1.FunctionReference{
+								Name: "fn-one",
+							},
+							Requirements: &opsv1alpha1.FunctionRequirements{
+								RequiredResources: []opsv1alpha1.RequiredResourceSelector{
+									{
+										RequirementName: opsv1alpha1.RequirementNameWatchedResource,
+										APIVersion:      "v1",
+										Kind:            "Secret",
+										Name:            &sn,
+										Namespace:       &sns,
+									},
+								},
+							},
+						},
+						{
+							Step: "step-two",
+							FunctionRef: opsv1alpha1.FunctionReference{
+								Name: "fn-two",
+							},
+							Requirements: &opsv1alpha1.FunctionRequirements{
+								RequiredResources: []opsv1alpha1.RequiredResourceSelector{
+									{
+										RequirementName: opsv1alpha1.RequirementNameWatchedResource,
+										APIVersion:      "v1",
+										Kind:            "Secret",
+										Name:            &sn,
+										Namespace:       &sns,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"ClusterScopedResource": {
+			reason: "Should not set namespace for cluster-scoped resources",
+			args: args{
+				op: &opsv1alpha1.Operation{
+					Spec: opsv1alpha1.OperationSpec{
+						Mode: opsv1alpha1.OperationModePipeline,
+						Pipeline: []opsv1alpha1.PipelineStep{
+							{
+								Step: "test-step",
+								FunctionRef: opsv1alpha1.FunctionReference{
+									Name: "test-fn",
+								},
+							},
+						},
+					},
+				},
+				watched: &unstructured.Unstructured{
+					Object: map[string]any{
+						"apiVersion": "v1",
+						"kind":       "Node",
+						"metadata": map[string]any{
+							"name": "my-node",
+						},
+					},
+				},
+			},
+			want: &opsv1alpha1.Operation{
+				Spec: opsv1alpha1.OperationSpec{
+					Mode: opsv1alpha1.OperationModePipeline,
+					Pipeline: []opsv1alpha1.PipelineStep{
+						{
+							Step: "test-step",
+							FunctionRef: opsv1alpha1.FunctionReference{
+								Name: "test-fn",
+							},
+							Requirements: &opsv1alpha1.FunctionRequirements{
+								RequiredResources: []opsv1alpha1.RequiredResourceSelector{
+									{
+										RequirementName: opsv1alpha1.RequirementNameWatchedResource,
+										APIVersion:      "v1",
+										Kind:            "Node",
+										Name:            ptr.To("my-node"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			InjectWatchedResource(tc.args.op, tc.args.watched)
+			if diff := cmp.Diff(tc.want, tc.args.op); diff != "" {
+				t.Errorf("\n%s\nInjectWatchedResource(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

@@ -52,6 +52,7 @@ type Cmd struct {
 	IncludeFunctionResults bool              `help:"Include informational and warning messages from functions in the rendered output as resources of kind: Result."                            short:"r"`
 	RequiredResources      string            `help:"A YAML file or directory of YAML files specifying required resources to pass to the function pipeline."                                    placeholder:"PATH"      predictor:"yaml_file_or_directory" short:"e"   type:"path"`
 	RequiredSchemas        string            `help:"A directory of JSON files specifying OpenAPI schemas to pass to the function pipeline."                                                    placeholder:"DIR"       predictor:"directory"              type:"path"`
+	WatchedResource        string            `help:"A YAML file specifying the watched resource for WatchOperation rendering. The resource is also added to required resources."               placeholder:"PATH"      predictor:"yaml_file"              short:"w"   type:"existingfile"`
 
 	Timeout time.Duration `default:"1m" help:"How long to run before timing out."`
 
@@ -116,6 +117,10 @@ Examples:
   crossplane alpha render op operation.yaml functions.yaml \
 	--required-schemas=schemas/
 
+  # Render a WatchOperation with a watched resource.
+  crossplane alpha render op watchoperation.yaml functions.yaml \
+	--watched-resource=watched-configmap.yaml
+
   # Pass credentials to functions that need them.
   crossplane alpha render op operation.yaml functions.yaml \
 	--function-credentials=credentials.yaml
@@ -149,9 +154,14 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
+	// Load operation (extracts Operation template from CronOperation/WatchOperation)
+	op, err := LoadOperation(c.fs, c.Operation)
+	if err != nil {
+		return err
+	}
+
 	// Load required resources
 	rrs := []unstructured.Unstructured{}
-	var err error
 	if c.RequiredResources != "" {
 		rrs, err = render.LoadRequiredResources(c.fs, c.RequiredResources)
 		if err != nil {
@@ -168,10 +178,22 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		}
 	}
 
-	// Load operation
-	op, err := LoadOperation(c.fs, c.Operation, rrs)
-	if err != nil {
-		return err
+	// Handle watched resource for WatchOperation rendering
+	if c.WatchedResource != "" {
+		watched, err := render.LoadRequiredResources(c.fs, c.WatchedResource)
+		if err != nil {
+			return errors.Wrapf(err, "cannot load watched resource from %q", c.WatchedResource)
+		}
+
+		if len(watched) != 1 {
+			return errors.Errorf("--watched-resource must contain exactly one resource, got %d", len(watched))
+		}
+
+		// Inject selector into all pipeline steps (replicates WatchOperation controller behavior)
+		InjectWatchedResource(op, &watched[0])
+
+		// Add to required resources so it can be fetched by functions
+		rrs = append(rrs, watched[0])
 	}
 
 	// Load functions
