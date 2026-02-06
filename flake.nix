@@ -9,7 +9,7 @@
 
     # TODO(negz): Unpin once https://github.com/nix-community/gomod2nix/pull/231 is released.
     gomod2nix = {
-      url = "github:nix-community/gomod2nix/49662a44272806ff785df2990a420edaaca15db4";
+      url = "github:nix-community/gomod2nix/0629af88797d22dc18f8dd69cb2cd1fef6958e55";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
