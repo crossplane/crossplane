@@ -182,6 +182,7 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64
 	}
 
 	crdv.Schema.OpenAPIV3Schema.Description = s.Description
+	crdv.Schema.OpenAPIV3Schema.XValidations = s.XValidations
 
 	maxLength := maxNameLength
 	if old := s.Properties["metadata"].Properties["name"].MaxLength; old != nil && *old < maxLength {
