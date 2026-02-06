@@ -232,15 +232,15 @@ spec:
           - mountPath: /certs
             name: ca-certs
           {{- end }}
-          {{- if .Values.extraVolumeMountsCrossplane }}
-          {{- toYaml .Values.extraVolumeMountsCrossplane | nindent 10 }}
+          {{- with .Values.extraVolumeMountsCrossplane }}
+          {{- tpl (toYaml .) $ | nindent 10 }}
           {{- end }}
           - mountPath: /tls/server
             name: tls-server-certs
           - mountPath: /tls/client
             name: tls-client-certs
       {{- with .Values.sidecarsCrossplane }}
-      {{- toYaml . | nindent 6 }}
+      {{- tpl (toYaml .) $ | nindent 6 }}
       {{- end }}
       volumes:
       - name: package-cache
@@ -278,8 +278,8 @@ spec:
       - name: tls-client-certs
         secret:
           secretName: crossplane-tls-client
-      {{- if .Values.extraVolumesCrossplane }}
-      {{- toYaml .Values.extraVolumesCrossplane | nindent 6 }}
+      {{- with .Values.extraVolumesCrossplane }}
+      {{- tpl (toYaml .) $ | nindent 6 }}
       {{- end }}
       {{- if .Values.nodeSelector }}
       nodeSelector: {{ toYaml .Values.nodeSelector | nindent 8 }}
