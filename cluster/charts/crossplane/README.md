@@ -76,8 +76,8 @@ and their default values.
 | `extraEnvVarsCrossplaneInit` | Add custom environmental variables to the Crossplane pod deployment init container. Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`. | `{}` |
 | `extraEnvVarsRBACManager` | Add custom environmental variables to the RBAC Manager pod deployment. Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`. | `{}` |
 | `extraObjects` | To add arbitrary Kubernetes Objects during a Helm Install | `[]` |
-| `extraVolumeMountsCrossplane` | Add custom `volumeMounts` to the Crossplane pod. | `{}` |
-| `extraVolumesCrossplane` | Add custom `volumes` to the Crossplane pod. | `{}` |
+| `extraVolumeMountsCrossplane` | Add custom `volumeMounts` to the Crossplane pod. Supports template expressions. | `{}` |
+| `extraVolumesCrossplane` | Add custom `volumes` to the Crossplane pod. Supports template expressions. | `{}` |
 | `function.packages` | A list of Function packages to install | `[]` |
 | `functionCache.medium` | Set to `Memory` to hold the function cache in a RAM backed file system. Useful for Crossplane development. | `""` |
 | `functionCache.pvc` | The name of a PersistentVolumeClaim to use as the function cache. Disables the default function cache `emptyDir` Volume. | `""` |
@@ -138,7 +138,7 @@ and their default values.
 | `serviceAccount.create` | Specifies whether Crossplane ServiceAccount should be created | `true` |
 | `serviceAccount.customAnnotations` | Add custom `annotations` to the Crossplane ServiceAccount. | `{}` |
 | `serviceAccount.name` | Provide the name of an already created Crossplane ServiceAccount. Required when `serviceAccount.create` is `false` | `""` |
-| `sidecarsCrossplane` | Add sidecar containers to the Crossplane pod. | `[]` |
+| `sidecarsCrossplane` | Add sidecar containers to the Crossplane pod. Supports template expressions. | `[]` |
 | `tolerations` | Add `tolerations` to the Crossplane pod deployment. | `[]` |
 | `topologySpreadConstraints` | Add `topologySpreadConstraints` to the Crossplane pod deployment. | `[]` |
 | `webhooks.enabled` | Enable webhooks for Crossplane and installed Provider packages. | `true` |
