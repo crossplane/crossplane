@@ -28,3 +28,11 @@ spec:
           properties:
             coolerField:
               type: string
+            observedCompositeReceived:
+              type: boolean
+            observedCompositeHasCoolField:
+              type: boolean
+            credentialsReceived:
+              type: boolean
+            observedComposedResourcesReceived:
+              type: boolean
