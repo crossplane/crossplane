@@ -57,8 +57,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v1.1.6"
     hash = "sha256-XlFT3uxgpPYFTND54uO8fH33jtQqAHWa7zrv24nw/PE="
   [mod."github.com/alecthomas/kong"]
-    version = "v1.13.0"
-    hash = "sha256-9nSlldkif002WKjCIRBUmTofdtSL16V9NUZZ1PD34c0="
+    version = "v1.14.0"
+    hash = "sha256-F6BYciiFpdtjKosD+L+z0Sc2s903iD2ElbytjcM4mas="
   [mod."github.com/antlr4-go/antlr/v4"]
     version = "v4.13.0"
     hash = "sha256-98nKVlsgv1S7vMvGuKOQINOKkiEvrlX5DCSmyr6Mr+A="
