@@ -60,6 +60,7 @@ jobs:
   codeql:
     runs-on: ubuntu-24.04
     permissions:
+      contents: read
       security-events: write  # for github/codeql-action/analyze to upload SARIF
 
     steps:
@@ -206,6 +207,7 @@ jobs:
   # Build all artifacts (binaries, images, Helm chart)
   build-artifacts:
     permissions:
+      contents: read
       packages: write  # for pushing to ghcr.io
     runs-on: ubuntu-24.04
 
@@ -306,6 +308,7 @@ jobs:
   # Security scanning (unchanged from original)
   trivy-scan-fs:
     permissions:
+      contents: read
       security-events: write  # for github/codeql-action/upload-sarif to upload SARIF results
     runs-on: ubuntu-24.04
 
