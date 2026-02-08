@@ -18,6 +18,9 @@ on:
         required: true
         default: false
 
+permissions:
+  contents: read
+
 env:
   # Common versions
   EARTHLY_VERSION: '0.8.16'
@@ -32,6 +35,8 @@ env:
 
 jobs:
   promote-artifacts:
+    permissions:
+      packages: write  # for pushing to ghcr.io
     runs-on: ubuntu-22.04
 
     steps:
