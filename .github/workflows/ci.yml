@@ -8,6 +8,9 @@ on:
   pull_request: {}
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 env:
   # We can't run a step 'if secrets.FOO != ""' but we can run a step
   # 'if env.FOO' != ""', so we copy secrets to env vars for conditional checks.
@@ -57,8 +60,7 @@ jobs:
   codeql:
     runs-on: ubuntu-24.04
     permissions:
-      contents: read
-      security-events: write
+      security-events: write  # for github/codeql-action/analyze to upload SARIF
 
     steps:
       - name: Checkout
@@ -203,6 +205,8 @@ jobs:
 
   # Build all artifacts (binaries, images, Helm chart)
   build-artifacts:
+    permissions:
+      packages: write  # for pushing to ghcr.io
     runs-on: ubuntu-24.04
 
     steps:
@@ -302,8 +306,7 @@ jobs:
   # Security scanning (unchanged from original)
   trivy-scan-fs:
     permissions:
-      contents: read
-      security-events: write
+      security-events: write  # for github/codeql-action/upload-sarif to upload SARIF results
     runs-on: ubuntu-24.04
 
     steps:
