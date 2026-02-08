@@ -27,6 +27,7 @@ env:
 jobs:
   promote:
     permissions:
+      contents: read
       packages: write  # for pushing to ghcr.io
     runs-on: ubuntu-24.04
 
