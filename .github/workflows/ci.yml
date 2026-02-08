@@ -118,6 +118,7 @@ jobs:
 
   codeql:
     permissions:
+      contents: read
       security-events: write  # for github/codeql-action/analyze to upload SARIF
     runs-on: ubuntu-22.04
 
@@ -354,6 +355,7 @@ jobs:
 
   publish-artifacts:
     permissions:
+      contents: read
       packages: write  # for pushing to ghcr.io
     runs-on: ubuntu-22.04
 
