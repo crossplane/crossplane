@@ -64,11 +64,11 @@ outlined below.
 
 | &nbsp;                                                     | Member                                          | Organization | Email                   | Term Start | Term End   |
 |------------------------------------------------------------|-------------------------------------------------|--------------|-------------------------|------------|------------|
-| <img width="30px" src="https://github.com/bassam.png">     | [Bassam Tabbara](https://github.com/bassam)     | Upbound      | bassam@upbound.io       | 2024-02-06 | 2026-02-06 |
+| <img width="30px" src="https://github.com/bassam.png">     | [Bassam Tabbara](https://github.com/bassam)     | Upbound      | bassam@upbound.io       | 2026-02-06 | 2028-02-06 |
 | <img width="30px" src="https://github.com/bobh66.png">     | [Bob Haddleton](https://github.com/bobh66)      | Nokia        | bob.haddleton@nokia.com | 2025-02-06 | 2027-02-06 |
 | <img width="30px" src="https://github.com/lindblombr.png"> | [Brian Lindblom](https://github.com/lindblombr) | Apple        | blindblom@apple.com     | 2025-02-06 | 2027-02-06 |
-| <img width="30px" src="https://github.com/jbw976.png">     | [Jared Watts](https://github.com/jbw976)        | Upbound      | jared@upbound.io        | 2024-02-06 | 2026-02-06 |
-| <img width="30px" src="https://github.com/negz.png">       | [Nic Cope](https://github.com/negz)             | Upbound      | negz@upbound.io         | 2024-02-06 | 2026-02-06 |
+| <img width="30px" src="https://github.com/jbw976.png">     | [Jared Watts](https://github.com/jbw976)        | Upbound      | jared@upbound.io        | 2026-02-06 | 2028-02-06 |
+| <img width="30px" src="https://github.com/jcooklin.png">   | [Joel Cooklin](https://github.com/jcooklin)     | Nike         | joel.cooklin@gmail.com  | 2026-02-06 | 2028-02-06 |
 
 ### Contact Info
 
