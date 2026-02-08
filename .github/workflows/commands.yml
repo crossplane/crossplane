@@ -2,10 +2,16 @@ name: Comment Commands
 
 on: issue_comment
 
+permissions:
+  contents: read
+
 jobs:
   # NOTE(negz): See also backport.yml, which is the variant that triggers on PR
   # merge rather than on comment.
   backport:
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-22.04
     if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/backport')
     steps:
@@ -33,6 +39,9 @@ jobs:
         version: v0.0.4
 
   fresh:
+    permissions:
+      issues: write
+      pull-requests: write
     runs-on: ubuntu-22.04
     if: startsWith(github.event.comment.body, '/fresh')
 
