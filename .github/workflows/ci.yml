@@ -115,6 +115,7 @@ jobs:
 
   codeql:
     permissions:
+      contents: read
       security-events: write
     runs-on: ubuntu-22.04
 
@@ -356,6 +357,7 @@ jobs:
 
   publish-artifacts:
     permissions:
+      contents: read
       packages: write  # for pushing to ghcr.io
     runs-on: ubuntu-22.04
 

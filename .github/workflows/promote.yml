@@ -36,6 +36,7 @@ env:
 jobs:
   promote-artifacts:
     permissions:
+      contents: read
       packages: write  # for pushing to ghcr.io
     runs-on: ubuntu-22.04
 
