@@ -16,6 +16,9 @@ on:
         required: true
         default: false
 
+permissions:
+  contents: read
+
 env:
   DOCKER_USR: ${{ secrets.DOCKER_USR }}
   AWS_USR: ${{ secrets.AWS_USR }}
@@ -23,6 +26,8 @@ env:
 
 jobs:
   promote:
+    permissions:
+      packages: write  # for pushing to ghcr.io
     runs-on: ubuntu-24.04
 
     steps:

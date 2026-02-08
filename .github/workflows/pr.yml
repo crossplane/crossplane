@@ -4,8 +4,13 @@ on:
   pull_request:
     types: [opened, edited, synchronize]
 
+permissions:
+  contents: read
+
 jobs:
   checklist-completed:
+    permissions:
+      pull-requests: read  # for reading PR checklist
     if: github.actor != 'crossplane-renovate[bot]'
     runs-on: ubuntu-24.04
     steps:
