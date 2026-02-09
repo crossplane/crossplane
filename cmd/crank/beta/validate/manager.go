@@ -362,12 +362,7 @@ func (m *Manager) loadDependencies() ([]*unstructured.Unstructured, error) {
 	schemas := make([]*unstructured.Unstructured, 0)
 
 	for dep := range m.deps {
-		image, err := findImageTagForVersionConstraint(dep)
-		if err != nil {
-			return nil, errors.Wrapf(err, "cannot resolve image tag for %s", dep)
-		}
-
-		cachedSchema, err := m.cache.Load(image)
+		cachedSchema, err := m.cache.Load(dep)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot load cache for %s", dep)
 		}
