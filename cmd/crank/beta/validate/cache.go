@@ -93,7 +93,7 @@ func (c *LocalCache) Flush() error {
 func (c *LocalCache) Load(img string) ([]*unstructured.Unstructured, error) {
 	image, err := findImageTagForVersionConstraint(img)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot resolve image tag for %s", image)
+		return nil, errors.Wrapf(err, "cannot resolve image tag for %s", img)
 	}
 
 	cacheImagePath := c.getCachePath(image)
@@ -115,7 +115,7 @@ func (c *LocalCache) Load(img string) ([]*unstructured.Unstructured, error) {
 func (c *LocalCache) Exists(img string) (string, error) {
 	image, err := findImageTagForVersionConstraint(img)
 	if err != nil {
-		return "", errors.Wrapf(err, "cannot resolve image tag for %s", image)
+		return "", errors.Wrapf(err, "cannot resolve image tag for %s", img)
 	}
 
 	path := c.getCachePath(image)
