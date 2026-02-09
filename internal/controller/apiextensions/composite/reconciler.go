@@ -819,9 +819,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		if !cd.Synced {
-			log.Debug("Composed resource is not yet valid", "id", id)
+			if cd.SyncError != "" {
+				// Log at Info level (not Debug) when we know why a
+				// resource failed to sync. The error detail is also
+				// available via the Warning event emitted by the
+				// composer (e.g. FunctionComposer), so we don't emit
+				// a duplicate event here.
+				log.Info("Composed resource is not yet valid", "id", id, "error", cd.SyncError)
+			} else {
+				log.Debug("Composed resource is not yet valid", "id", id)
+				r.record.Event(xr, event.Normal(reasonCompose, fmt.Sprintf("Composed resource %q is not yet valid", id)))
+			}
 			unsynced = append(unsynced, id)
-			r.record.Event(xr, event.Normal(reasonCompose, fmt.Sprintf("Composed resource %q is not yet valid", id)))
 		}
 
 		if !cd.Ready {
@@ -833,7 +842,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	synced := xpv1.ReconcileSuccess()
 	if len(unsynced) > 0 {
-		synced = xpv1.ReconcileError(errors.New(errSyncResources)).WithMessage(fmt.Sprintf("Unsynced resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unsynced)))
+		// NOTE: We intentionally do not include the sync error in the
+		// condition message. API Server invalid errors can contain
+		// unstable string representations (e.g. pointer values in %v
+		// formatting) that change between reconciliations, which would
+		// cause the resource version to increment continuously and
+		// trigger endless reconciliation. The detailed error is available
+		// at Info log level and via Warning events. See also the similar
+		// stability guard at the IsInvalid handling above.
+		synced = xpv1.ReconcileError(errors.New(errSyncResources)).WithMessage(fmt.Sprintf("Unsynced resources: %s, check events and logs for details", resource.StableNAndSomeMore(resource.DefaultFirstN, unsynced)))
 	}
 
 	ready := xpv1.Available()
