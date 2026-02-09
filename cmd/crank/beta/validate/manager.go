@@ -144,7 +144,12 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 				return errors.Wrapf(err, "cannot get provider package image")
 			}
 
-			m.deps[image] = true
+			resolvedImage, err := findImageTagForVersionConstraint(image)
+			if err != nil {
+				return errors.Wrapf(err, "cannot resolve image tag for: %s", image)
+			}
+
+			m.deps[resolvedImage] = true
 
 		case schema.GroupKind{Group: "pkg.crossplane.io", Kind: "Function"}:
 			paved := fieldpath.Pave(e.Object)
@@ -154,7 +159,12 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 				return errors.Wrapf(err, "cannot get function package image")
 			}
 
-			m.deps[image] = true
+			resolvedImage, err := findImageTagForVersionConstraint(image)
+			if err != nil {
+				return errors.Wrapf(err, "cannot resolve image tag for: %s", image)
+			}
+
+			m.deps[resolvedImage] = true
 
 		case schema.GroupKind{Group: "pkg.crossplane.io", Kind: "Configuration"}:
 			paved := fieldpath.Pave(e.Object)
@@ -164,7 +174,12 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 				return errors.Wrapf(err, "cannot get package image")
 			}
 
-			m.confs[image] = nil
+			resolvedImage, err := findImageTagForVersionConstraint(image)
+			if err != nil {
+				return errors.Wrapf(err, "cannot resolve image tag for: %s", image)
+			}
+
+			m.confs[resolvedImage] = nil
 
 		case schema.GroupKind{Group: "meta.pkg.crossplane.io", Kind: "Configuration"}:
 			meta, err := e.MarshalJSON()
