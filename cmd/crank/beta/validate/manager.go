@@ -225,7 +225,7 @@ func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error 
 	for img := range confs {
 		image, err := findImageTagForVersionConstraint(img)
 		if err != nil {
-			return errors.Wrapf(err, "cannot resolve image tag for %s", image)
+			return errors.Wrapf(err, "cannot resolve image tag for %s", img)
 		}
 
 		cfg := m.confs[image]
@@ -295,7 +295,7 @@ func (m *Manager) cacheDependencies() error {
 	for img := range m.deps {
 		image, err := findImageTagForVersionConstraint(img)
 		if err != nil {
-			return errors.Wrapf(err, "cannot resolve image tag for %s", image)
+			return errors.Wrapf(err, "cannot resolve image tag for %s", img)
 		}
 
 		path, err := m.cache.Exists(image) // returns the path if the image is not cached
