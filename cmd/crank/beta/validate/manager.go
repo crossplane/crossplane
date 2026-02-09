@@ -222,7 +222,12 @@ func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error 
 
 	deepConfs := make(map[string]*metav1.Configuration)
 
-	for image := range confs {
+	for img := range confs {
+		image, err := findImageTagForVersionConstraint(img)
+		if err != nil {
+			return errors.Wrapf(err, "cannot resolve image tag for %s", image)
+		}
+
 		cfg := m.confs[image]
 
 		if cfg == nil {
@@ -287,7 +292,12 @@ func (m *Manager) cacheDependencies() error {
 		return errors.Wrapf(err, "cannot initialize cache directory")
 	}
 
-	for image := range m.deps {
+	for img := range m.deps {
+		image, err := findImageTagForVersionConstraint(img)
+		if err != nil {
+			return errors.Wrapf(err, "cannot resolve image tag for %s", image)
+		}
+
 		path, err := m.cache.Exists(image) // returns the path if the image is not cached
 		if err != nil {
 			return errors.Wrapf(err, "cannot check if cache exists for %s", image)
@@ -337,7 +347,12 @@ func (m *Manager) loadDependencies() ([]*unstructured.Unstructured, error) {
 	schemas := make([]*unstructured.Unstructured, 0)
 
 	for dep := range m.deps {
-		cachedSchema, err := m.cache.Load(dep)
+		image, err := findImageTagForVersionConstraint(dep)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot resolve image tag for %s", dep)
+		}
+
+		cachedSchema, err := m.cache.Load(image)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot load cache for %s", dep)
 		}
