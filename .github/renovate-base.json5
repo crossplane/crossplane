@@ -17,6 +17,7 @@
     'release-1.20',
     'release-2.0',
     'release-2.1',
+    'release-2.2',
   ],
   ignorePaths: [
     'design/**',
