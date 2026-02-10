@@ -110,10 +110,10 @@ that you can find in the [Community Calendar][community calendar].
 - [#sig-e2e-testing][sig-e2e-testing-slack]
 - [#sig-observability][sig-observability-slack]
 - [#sig-observe-only][sig-observe-only-slack]
+- [#sig-prod-readiness][sig-prod-readiness]
 - [#sig-provider-families][sig-provider-families-slack]
 - [#sig-secret-stores][sig-secret-stores-slack]
 - [#sig-upjet][sig-upjet-slack]
-- [#sig-upjet][sig-prod-readiness]
 
 ## Adopters
 
