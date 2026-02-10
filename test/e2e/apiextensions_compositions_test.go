@@ -105,7 +105,7 @@ func TestCompositionRevisionSelection(t *testing.T) {
 func TestBasicCompositionNamespaced(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/basic-namespaced"
 	environment.Test(t,
-		features.NewWithDescription(t.Name(), "Tests the correct functioning of a namespaced XR ensuring that the composed resources are created, conditions are met, fields are patched, and resources are properly cleaned up when deleted.").
+		features.NewWithDescription(t.Name(), "Tests the correct functioning of a namespaced XR ensuring that the composed resources are created, conditions are met, fields are patched, and resources are properly cleaned up when deleted. Uses function-python to validate that Crossplane sends the observed composite, credentials, and observed composed resources to the function.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -113,6 +113,7 @@ func TestBasicCompositionNamespaced(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			Assess("CreateXR", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
@@ -122,6 +123,18 @@ func TestBasicCompositionNamespaced(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess())).
 			Assess("XRHasStatusField",
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
+			).
+			Assess("FunctionReceivedObservedComposite",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.observedCompositeReceived", true),
+			).
+			Assess("FunctionReceivedObservedCompositeWithCoolField",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.observedCompositeHasCoolField", true),
+			).
+			Assess("FunctionReceivedCredentials",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.credentialsReceived", true),
+			).
+			Assess("FunctionReceivedObservedComposedResources",
+				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "xr.yaml", "status.observedComposedResourcesReceived", true),
 			).
 			WithTeardown("DeleteXR", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
@@ -170,7 +183,7 @@ func TestLackOfRightsNamespaced(t *testing.T) {
 func TestBasicCompositionCluster(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/basic-cluster"
 	environment.Test(t,
-		features.NewWithDescription(t.Name(), "Tests the correct functioning of cluster-scoped XR ensuring that the composed resources are created, conditions are met, fields are patched, and resources are properly cleaned up when deleted.").
+		features.NewWithDescription(t.Name(), "Tests the correct functioning of cluster-scoped XR ensuring that the composed resources are created, conditions are met, fields are patched, and resources are properly cleaned up when deleted. Uses function-python to validate that Crossplane sends the observed composite, credentials, and observed composed resources to the function.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -178,6 +191,7 @@ func TestBasicCompositionCluster(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			Assess("CreateXR", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
@@ -193,6 +207,18 @@ func TestBasicCompositionCluster(t *testing.T) {
 			).
 			Assess("XRHasStatusField",
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
+			).
+			Assess("FunctionReceivedObservedComposite",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.observedCompositeReceived", true),
+			).
+			Assess("FunctionReceivedObservedCompositeWithCoolField",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.observedCompositeHasCoolField", true),
+			).
+			Assess("FunctionReceivedCredentials",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.credentialsReceived", true),
+			).
+			Assess("FunctionReceivedObservedComposedResources",
+				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "xr.yaml", "status.observedComposedResourcesReceived", true),
 			).
 			WithTeardown("DeleteXR", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),

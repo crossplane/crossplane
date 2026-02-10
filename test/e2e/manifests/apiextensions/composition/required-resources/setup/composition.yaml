@@ -48,13 +48,9 @@ spec:
                 }
             })
 
-            # Add a result for observability.
-            result = fnv1.Result()
-            result.severity = fnv1.SEVERITY_NORMAL
             if resource_has_expected_data:
-                result.message = "Successfully received ConfigMap with expected data"
+                response.normal(rsp, "Successfully received ConfigMap with expected data")
             elif resource_received:
-                result.message = "Received ConfigMap but it was missing expected data"
+                response.normal(rsp, "Received ConfigMap but it was missing expected data")
             else:
-                result.message = "Waiting for ConfigMap"
-            rsp.results.append(result)
+                response.normal(rsp, "Waiting for ConfigMap")
