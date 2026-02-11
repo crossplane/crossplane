@@ -41,6 +41,12 @@ type ComposedResource struct {
 	// composed resource with its desired state. Setting it to false will cause
 	// the XR to be marked as not synced.
 	Synced bool
+
+	// SyncError contains the error message when Synced is false, providing
+	// details about why the composed resource could not be synced (e.g. XRD
+	// validation failures). This is used to surface actionable error messages
+	// in the XR's Synced condition and in logs at Info level.
+	SyncError string
 }
 
 // ComposedResourceState represents a composed resource (either desired or
