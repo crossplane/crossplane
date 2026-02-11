@@ -10,8 +10,13 @@ on:
         description: 'Tag message'
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   create-tag:
+    permissions:
+      contents: write  # for creating git tags
     runs-on: ubuntu-24.04
 
     steps:
