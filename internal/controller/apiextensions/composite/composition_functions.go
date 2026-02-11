@@ -856,6 +856,10 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 		}
 	}
 
+	// Always use foreground deletion.  There is no impact on Managed Resources,
+	// and nested XRs will be deleted "bottom up".
+	do := &client.DeleteOptions{}
+	client.PropagationPolicy(metav1.DeletePropagationForeground).ApplyToDelete(do)
 	for name, cd := range del {
 		// Don't garbage collect composed resources that someone else controls.
 		//
@@ -878,8 +882,11 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 		if err := d.client.Update(ctx, cd.Resource); resource.IgnoreNotFound(err) != nil {
 			return errors.Wrapf(err, errFmtCleanupLabelsCD, name, cd.Resource.GetObjectKind().GroupVersionKind().Kind, cd.Resource.GetName())
 		}
+		if uid := cd.Resource.GetUID(); uid != "" {
+			do.Preconditions = &metav1.Preconditions{UID: &uid}
+		}
 		// Delete the composed resource.
-		if err := d.client.Delete(ctx, cd.Resource); resource.IgnoreNotFound(err) != nil {
+		if err := d.client.Delete(ctx, cd.Resource, do); resource.IgnoreNotFound(err) != nil {
 			return errors.Wrapf(err, errFmtDeleteCD, name, cd.Resource.GetObjectKind().GroupVersionKind().Kind, cd.Resource.GetName())
 		}
 	}
