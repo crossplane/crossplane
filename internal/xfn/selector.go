@@ -46,7 +46,7 @@ func ToProtobufResourceSelector(r RequiredResourceSelector) *fnv1.ResourceSelect
 		return selector
 	}
 
-	if len(r.GetMatchLabels()) > 0 {
+	if r.GetMatchLabels() != nil {
 		selector.Match = &fnv1.ResourceSelector_MatchLabels{
 			MatchLabels: &fnv1.MatchLabels{
 				Labels: r.GetMatchLabels(),
