@@ -54,6 +54,7 @@ spec:
       {{- else }}
       serviceAccountName: {{ template "crossplane.name" . }}
       {{- end }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
       hostNetwork: {{ .Values.hostNetwork }}
       initContainers:
         - name: {{ .Chart.Name }}-init
