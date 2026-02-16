@@ -164,6 +164,7 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64
 		Deprecated:               ptr.Deref(vr.Deprecated, false),
 		DeprecationWarning:       vr.DeprecationWarning,
 		AdditionalPrinterColumns: vr.AdditionalPrinterColumns,
+		SelectableFields:         vr.SelectableFields,
 		Schema: &extv1.CustomResourceValidation{
 			OpenAPIV3Schema: BaseProps(),
 		},
