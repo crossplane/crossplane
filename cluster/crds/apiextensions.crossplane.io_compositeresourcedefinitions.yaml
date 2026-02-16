@@ -563,6 +563,7 @@ spec:
                         required:
                         - jsonPath
                         type: object
+                      maxItems: 8
                       type: array
                       x-kubernetes-list-type: atomic
                     served:
@@ -1216,6 +1217,7 @@ spec:
                         required:
                         - jsonPath
                         type: object
+                      maxItems: 8
                       type: array
                       x-kubernetes-list-type: atomic
                     served:

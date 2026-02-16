@@ -212,6 +212,7 @@ type CompositeResourceDefinitionVersion struct {
 	// +featureGate=CustomResourceFieldSelectors
 	// +optional
 	// +listType=atomic
+	// +kubebuilder:validation:MaxItems=8
 	SelectableFields []extv1.SelectableField `json:"selectableFields,omitempty"`
 }
 
