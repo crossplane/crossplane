@@ -211,6 +211,7 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 		return errors.Wrap(err, errUpdateClaim)
 	}
 
+	//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
 	if err := s.client.Patch(ctx, xrPatch, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerXR)); err != nil {
 		return errors.Wrap(err, errApplyComposite)
 	}
