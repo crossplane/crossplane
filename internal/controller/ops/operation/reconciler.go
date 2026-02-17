@@ -362,6 +362,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// always be operating on a resource some other controller owns.
 		// TODO(negz): Do we ever want to be an owner reference of these
 		// resources?
+		//
+		//nolint:staticcheck // TODO(adamwg): Stop using client.Apply after the v2.2 release.
 		if err := r.client.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerPrefix+op.GetUID())); err != nil {
 			op.Status.Failures++
 			log.Debug("Cannot apply desired resource", "error", err, "failures", op.Status.Failures, "resource-name", name)

@@ -381,6 +381,7 @@ func TestCircuitBreaker(t *testing.T) {
 					cm.SetName("circuit-breaker-configmap")
 					fieldpath.Pave(cm.Object).SetString("data.counter", fmt.Sprintf("%d", i))
 
+					//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
 					if err := cfg.Client().Resources().GetControllerRuntimeClient().Patch(ctx, cm, client.Apply, client.FieldOwner(FieldManager), client.ForceOwnership); err != nil {
 						t.Logf("SSA update %d failed: %v", i, err)
 					}

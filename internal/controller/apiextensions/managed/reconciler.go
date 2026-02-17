@@ -142,6 +142,8 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 
 	// Server-side apply the CRD. This handles both create and update.
 	// The Patch call updates patch in-place with the server response.
+	//
+	//nolint:staticcheck // TODO(adamwg): Stop using client.Apply after the v2.2 release.
 	if err := r.client.Patch(ctx, patch, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerMRD)); err != nil {
 		log.Debug("cannot apply CustomResourceDefinition", "error", err)
 		r.record.Event(mrd, event.Warning(reasonApplyCRD, err))
