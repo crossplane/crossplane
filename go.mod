@@ -9,7 +9,7 @@ require (
 	github.com/alecthomas/kong v1.14.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/containerd/errdefs v1.0.0
-	github.com/crossplane/crossplane-runtime/v2 v2.2.0-rc.1
+	github.com/crossplane/crossplane-runtime/v2 v2.2.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.6.0
 	github.com/emicklei/dot v1.10.0

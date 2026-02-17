@@ -786,6 +786,7 @@ func ApplyHandler(r *resources.Resources, manager string, osh ...onSuccessHandle
 		// sometimes, e.g. due to conflicts with a provider managing the same
 		// fields. I'm guessing controller-runtime is setting providers as a
 		// field manager at create time even though it doesn't use SSA?
+		//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
 		if err := r.GetControllerRuntimeClient().Patch(ctx, obj, client.Apply, client.FieldOwner(manager), client.ForceOwnership); err != nil {
 			return err
 		}
