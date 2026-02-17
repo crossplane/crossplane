@@ -43,7 +43,7 @@ func Setup(mgr ctrl.Manager, o opscontroller.Options) error {
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)))
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...))) //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).

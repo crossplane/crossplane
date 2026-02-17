@@ -182,7 +182,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 	r := NewReconciler(mgr,
 		WithNewPackageRevisionWithRuntimeFn(nr),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithRuntimeHooks(NewProviderHooks(mgr.GetClient())),
@@ -217,7 +217,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 	r := NewReconciler(mgr,
 		WithNewPackageRevisionWithRuntimeFn(nr),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())),
