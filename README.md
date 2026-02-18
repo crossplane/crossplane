@@ -24,7 +24,7 @@ documentation].
 
 | Release | Release Date  |   EOL    |
 |:-------:|:-------------:|:--------:|
-|  v1.20  | May 21, 2025  | Feb 2026 |
+|  v1.20  | May 21, 2025  | TBD      |
 |  v2.0   |  Aug 8, 2025  | May 2026 |
 |  v2.1   |  Nov 5, 2025  | Aug 2026 |
 |  v2.2   | Early Feb '26 | Nov 2026 |
@@ -35,6 +35,12 @@ You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
 
 The release process is fully documented in the [`crossplane/release`] repo.
+
+### Extended v1.20 Support
+
+Crossplane v1.20 is receiving extended support as the final minor release of the
+v1 major version. Its EOL date is yet to be determined. Until that time, it will
+continue to receive critical fixes only.
 
 ## Roadmap
 
