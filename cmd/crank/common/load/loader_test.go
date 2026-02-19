@@ -486,6 +486,15 @@ spec:
 				err: nil,
 			},
 		},
+		"HandleEmpty": {
+			reason: "Return empty unstructured array for empty documents",
+			args: args{
+				stream: [][]byte{[]byte{}},
+			},
+			want: want{
+				resources: []*unstructured.Unstructured{},
+			},
+		},
 	}
 
 	for name, tc := range cases {
