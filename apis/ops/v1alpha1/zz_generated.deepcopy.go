@@ -22,6 +22,7 @@ package v1alpha1
 
 import (
 	"github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -430,6 +431,13 @@ func (in *RequiredResourceSelector) DeepCopyInto(out *RequiredResourceSelector) 
 		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
+		}
+	}
+	if in.MatchExpressions != nil {
+		in, out := &in.MatchExpressions, &out.MatchExpressions
+		*out = make([]metav1.LabelSelectorRequirement, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.Namespace != nil {

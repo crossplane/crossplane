@@ -22,7 +22,10 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -198,8 +201,26 @@ func (e *ExistingRequiredResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.R
 		list := &kunstructured.UnstructuredList{}
 		list.SetAPIVersion(rs.GetApiVersion())
 		list.SetKind(rs.GetKind())
-		// If namespace is empty client.InNamespace will have no effect.
-		if err := e.client.List(ctx, list, client.MatchingLabels(match.MatchLabels.GetLabels()), client.InNamespace(rs.GetNamespace())); err != nil {
+
+		listOpts := []client.ListOption{
+			client.InNamespace(rs.GetNamespace()),
+		}
+
+		// Apply equality-based label matching.
+		if len(match.MatchLabels.GetLabels()) > 0 {
+			listOpts = append(listOpts, client.MatchingLabels(match.MatchLabels.GetLabels()))
+		}
+
+		// Convert set-based match expressions to a label selector.
+		if len(match.MatchLabels.GetExpressions()) > 0 {
+			selector, err := matchExpressionsToSelector(match.MatchLabels.GetExpressions())
+			if err != nil {
+				return nil, errors.Wrap(err, "cannot build label selector from match expressions")
+			}
+			listOpts = append(listOpts, client.MatchingLabelsSelector{Selector: selector})
+		}
+
+		if err := e.client.List(ctx, list, listOpts...); err != nil {
 			return nil, errors.Wrap(err, "cannot list required resources")
 		}
 
@@ -223,4 +244,39 @@ func (e *ExistingRequiredResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.R
 	}
 
 	return nil, errors.Errorf("unsupported required resource selector type %T", rs.GetMatch())
+}
+
+// matchExpressionsToSelector converts protobuf MatchExpressions to a
+// Kubernetes labels.Selector.
+func matchExpressionsToSelector(exprs []*fnv1.MatchExpression) (labels.Selector, error) {
+	selector := labels.NewSelector()
+	for _, expr := range exprs {
+		op, err := toSelectionOperator(expr.GetOperator())
+		if err != nil {
+			return nil, err
+		}
+		req, err := labels.NewRequirement(expr.GetKey(), op, expr.GetValues())
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid match expression for key %q", expr.GetKey())
+		}
+		selector = selector.Add(*req)
+	}
+	return selector, nil
+}
+
+// toSelectionOperator converts a string operator to a Kubernetes
+// selection.Operator.
+func toSelectionOperator(op string) (selection.Operator, error) {
+	switch metav1.LabelSelectorOperator(op) {
+	case metav1.LabelSelectorOpIn:
+		return selection.In, nil
+	case metav1.LabelSelectorOpNotIn:
+		return selection.NotIn, nil
+	case metav1.LabelSelectorOpExists:
+		return selection.Exists, nil
+	case metav1.LabelSelectorOpDoesNotExist:
+		return selection.DoesNotExist, nil
+	default:
+		return "", errors.Errorf("unsupported operator %q", op)
+	}
 }
