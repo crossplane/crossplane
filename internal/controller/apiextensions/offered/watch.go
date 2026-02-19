@@ -31,11 +31,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 // OffersClaim accepts any CompositeResourceDefinition that offers a claim.
+//
+//nolint:staticcheck // TODO(adamwg) Stop using resource.PredicateFn after the v2.2 release.
 func OffersClaim() resource.PredicateFn {
 	return func(obj runtime.Object) bool {
 		d, ok := obj.(*v1.CompositeResourceDefinition)
@@ -48,6 +50,8 @@ func OffersClaim() resource.PredicateFn {
 }
 
 // IsClaimCRD accepts any CustomResourceDefinition that represents a Claim.
+//
+//nolint:staticcheck // TODO(adamwg) Stop using resource.PredicateFn after the v2.2 release.
 func IsClaimCRD() resource.PredicateFn {
 	return func(obj runtime.Object) bool {
 		d, ok := obj.(*extv1.CustomResourceDefinition)

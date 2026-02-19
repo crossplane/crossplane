@@ -44,13 +44,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	extv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
-	extv1alpha1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
-	extv2 "github.com/crossplane/crossplane/v2/apis/apiextensions/v2"
-	opsv1alpha1 "github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
-	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
-	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
-	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	extv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	extv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	extv2 "github.com/crossplane/crossplane/apis/v2/apiextensions/v2"
+	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
+	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/v2/internal/converter"
 	"github.com/crossplane/crossplane/v2/internal/dag"
@@ -249,7 +249,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithLinter(xpkg.NewProviderLinter()),
 		WithValidator(xpkg.NewProviderValidator()),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithFeatureFlags(o.Features),
@@ -284,7 +284,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithLinter(xpkg.NewConfigurationLinter()),
 		WithValidator(xpkg.NewConfigurationValidator()),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithFeatureFlags(o.Features),
@@ -328,7 +328,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithLinter(xpkg.NewFunctionLinter()),
 		WithValidator(xpkg.NewFunctionValidator()),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithFeatureFlags(o.Features),

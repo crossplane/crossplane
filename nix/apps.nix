@@ -25,7 +25,8 @@
         inheritPath = false;
         text = ''
           export CGO_ENABLED=0
-          go test -covermode=count ./apis/... ./cmd/... ./internal/... "$@"
+          go test -covermode=count github.com/crossplane/crossplane/apis/v2/... "$@"
+          go test -covermode=count ./cmd/... ./internal/... "$@"
         '';
       }
     );
@@ -68,6 +69,7 @@
 
           echo "Formatting and linting Go..."
           golangci-lint run --fix "$@"
+          cd apis && golangci-lint run --config=../.golangci.yml --fix "$@"
         '';
       }
     );
@@ -101,6 +103,9 @@
           echo "Running go generate..."
           go generate -tags generate .
 
+          echo "Running go generate in apis/..."
+          pushd apis && go generate -tags generate . && popd
+
           echo "Patching CRDs..."
           kubectl patch --local --type=json \
             --patch-file cluster/crd-patches/pkg.crossplane.io_deploymentruntimeconfigs.yaml \
@@ -131,10 +136,18 @@
         inheritPath = false;
         text = ''
           export CGO_ENABLED=0
+
           echo "Running go mod tidy..."
           go mod tidy
           echo "Regenerating gomod2nix.toml..."
           gomod2nix generate --with-deps
+
+          echo "Running go mod tidy for apis/..."
+          cd apis
+          go mod tidy
+          echo "Regenerating apis/gomod2nix.toml..."
+          gomod2nix generate --with-deps
+
           echo "Done"
         '';
       }

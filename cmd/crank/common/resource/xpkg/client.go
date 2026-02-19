@@ -32,8 +32,8 @@ import (
 	xpresource "github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	xpunstructured "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
 
-	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
-	pkgv1beta1 "github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	pkgv1beta1 "github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )

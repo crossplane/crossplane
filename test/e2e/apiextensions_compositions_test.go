@@ -35,8 +35,8 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 
-	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/test/e2e/config"
 	"github.com/crossplane/crossplane/v2/test/e2e/funcs"
 )
@@ -381,6 +381,7 @@ func TestCircuitBreaker(t *testing.T) {
 					cm.SetName("circuit-breaker-configmap")
 					fieldpath.Pave(cm.Object).SetString("data.counter", fmt.Sprintf("%d", i))
 
+					//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
 					if err := cfg.Client().Resources().GetControllerRuntimeClient().Patch(ctx, cm, client.Apply, client.FieldOwner(FieldManager), client.ForceOwnership); err != nil {
 						t.Logf("SSA update %d failed: %v", i, err)
 					}

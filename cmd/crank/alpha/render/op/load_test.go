@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
 
-	opsv1alpha1 "github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 )
 
 func TestLoadOperation(t *testing.T) {
