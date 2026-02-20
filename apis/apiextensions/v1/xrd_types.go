@@ -204,6 +204,16 @@ type CompositeResourceDefinitionVersion struct {
 	// https://kubernetes.io/docs/reference/using-api/api-concepts/#receiving-resources-as-tables
 	// +optional
 	AdditionalPrinterColumns []extv1.CustomResourceColumnDefinition `json:"additionalPrinterColumns,omitempty"`
+
+	// SelectableFields specifies paths to fields that may be used as field selectors.
+	// A maximum of 8 selectable fields are allowed.
+	// See https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors
+	//
+	// +featureGate=CustomResourceFieldSelectors
+	// +optional
+	// +listType=atomic
+	// +kubebuilder:validation:MaxItems=8
+	SelectableFields []extv1.SelectableField `json:"selectableFields,omitempty"`
 }
 
 // CompositeResourceValidation is a list of validation methods for a composite
