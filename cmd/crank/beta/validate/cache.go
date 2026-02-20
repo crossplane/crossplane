@@ -90,7 +90,12 @@ func (c *LocalCache) Flush() error {
 
 // Load loads schemas from the cache directory.
 // image should be a validate image name with the format: <registry>/<image>:<tag>.
-func (c *LocalCache) Load(image string) ([]*unstructured.Unstructured, error) {
+func (c *LocalCache) Load(img string) ([]*unstructured.Unstructured, error) {
+	image, err := findImageTagForVersionConstraint(img)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot resolve image tag for %s", img)
+	}
+
 	cacheImagePath := c.getCachePath(image)
 
 	loader, err := load.NewLoader(cacheImagePath)
@@ -107,10 +112,15 @@ func (c *LocalCache) Load(image string) ([]*unstructured.Unstructured, error) {
 }
 
 // Exists checks if the cache contains the image and returns the path if it doesn't exist.
-func (c *LocalCache) Exists(image string) (string, error) {
+func (c *LocalCache) Exists(img string) (string, error) {
+	image, err := findImageTagForVersionConstraint(img)
+	if err != nil {
+		return "", errors.Wrapf(err, "cannot resolve image tag for %s", img)
+	}
+
 	path := c.getCachePath(image)
 
-	_, err := os.Stat(path)
+	_, err = os.Stat(path)
 	if err != nil && os.IsNotExist(err) {
 		return path, nil
 	} else if err != nil {

@@ -26,7 +26,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
 	conregv1 "github.com/google/go-containerregistry/pkg/v1"
@@ -150,16 +150,22 @@ func findImageTagForVersionConstraint(image string) (string, error) {
 	imageBase := strings.Join(parts[0:lastPart], ":")
 	imageTag := parts[lastPart]
 
-	// Check if the tag is a constraint
+	// Check if the tag is a constraint or already a valid semantic version
 	isConstraint := true
+	isExactVersion := true
 
 	c, err := semver.NewConstraint(imageTag)
 	if err != nil {
 		isConstraint = false
 	}
 
-	// Return original image if no constraint was detected
-	if !isConstraint {
+	_, err = semver.NewVersion(imageTag)
+	if err != nil {
+		isExactVersion = false
+	}
+
+	// Return original image if no constraint was detected or the tag is already an exact version
+	if !isConstraint || isExactVersion {
 		return image, nil
 	}
 

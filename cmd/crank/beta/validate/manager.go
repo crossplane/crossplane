@@ -144,7 +144,12 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 				return errors.Wrapf(err, "cannot get provider package image")
 			}
 
-			m.deps[image] = true
+			resolvedImage, err := findImageTagForVersionConstraint(image)
+			if err != nil {
+				return errors.Wrapf(err, "cannot resolve image tag for: %s", image)
+			}
+
+			m.deps[resolvedImage] = true
 
 		case schema.GroupKind{Group: "pkg.crossplane.io", Kind: "Function"}:
 			paved := fieldpath.Pave(e.Object)
@@ -154,7 +159,12 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 				return errors.Wrapf(err, "cannot get function package image")
 			}
 
-			m.deps[image] = true
+			resolvedImage, err := findImageTagForVersionConstraint(image)
+			if err != nil {
+				return errors.Wrapf(err, "cannot resolve image tag for: %s", image)
+			}
+
+			m.deps[resolvedImage] = true
 
 		case schema.GroupKind{Group: "pkg.crossplane.io", Kind: "Configuration"}:
 			paved := fieldpath.Pave(e.Object)
@@ -164,7 +174,12 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 				return errors.Wrapf(err, "cannot get package image")
 			}
 
-			m.confs[image] = nil
+			resolvedImage, err := findImageTagForVersionConstraint(image)
+			if err != nil {
+				return errors.Wrapf(err, "cannot resolve image tag for: %s", image)
+			}
+
+			m.confs[resolvedImage] = nil
 
 		case schema.GroupKind{Group: "meta.pkg.crossplane.io", Kind: "Configuration"}:
 			meta, err := e.MarshalJSON()
@@ -222,7 +237,12 @@ func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error 
 
 	deepConfs := make(map[string]*metav1.Configuration)
 
-	for image := range confs {
+	for img := range confs {
+		image, err := findImageTagForVersionConstraint(img)
+		if err != nil {
+			return errors.Wrapf(err, "cannot resolve image tag for %s", img)
+		}
+
 		cfg := m.confs[image]
 
 		if cfg == nil {
@@ -287,7 +307,12 @@ func (m *Manager) cacheDependencies() error {
 		return errors.Wrapf(err, "cannot initialize cache directory")
 	}
 
-	for image := range m.deps {
+	for img := range m.deps {
+		image, err := findImageTagForVersionConstraint(img)
+		if err != nil {
+			return errors.Wrapf(err, "cannot resolve image tag for %s", img)
+		}
+
 		path, err := m.cache.Exists(image) // returns the path if the image is not cached
 		if err != nil {
 			return errors.Wrapf(err, "cannot check if cache exists for %s", image)
