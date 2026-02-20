@@ -241,6 +241,26 @@ func TestToProtobufResourceSelector(t *testing.T) {
 				},
 			},
 		},
+		"OperationSelectorWithEmptyLabels": {
+			reason: "Empty matchLabels should select all resources of the kind, similar to kubectl get --selector",
+			args: args{
+				selector: &apiextensionsv1.RequiredResourceSelector{
+					RequirementName: "test-req",
+					APIVersion:      "v1",
+					Kind:            "ConfigMap",
+					MatchLabels:     map[string]string{},
+				},
+			},
+			want: want{
+				result: &fnv1.ResourceSelector{
+					ApiVersion: "v1",
+					Kind:       "ConfigMap",
+					Match: &fnv1.ResourceSelector_MatchLabels{
+						MatchLabels: &fnv1.MatchLabels{},
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
