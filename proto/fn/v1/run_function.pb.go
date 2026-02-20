@@ -1126,6 +1126,7 @@ func (*ResourceSelector_MatchLabels) isResourceSelector_Match() {}
 type MatchLabels struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Labels        map[string]string      `protobuf:"bytes,1,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Expressions   []*MatchExpression     `protobuf:"bytes,2,rep,name=expressions,proto3" json:"expressions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1163,6 +1164,49 @@ func (*MatchLabels) Descriptor() ([]byte, []int) {
 func (x *MatchLabels) GetLabels() map[string]string {
 	if x != nil {
 		return x.Labels
+	}
+	return nil
+}
+
+func (x *MatchLabels) GetExpressions() []*MatchExpression {
+	if x != nil {
+		return x.Expressions
+	}
+	return nil
+}
+
+// MatchExpression is a single set-based label selector requirement.
+type MatchExpression struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Operator      string                 `protobuf:"bytes,2,opt,name=operator,proto3" json:"operator,omitempty"`
+	Values        []string               `protobuf:"bytes,3,rep,name=values,proto3" json:"values,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MatchExpression) Reset()         { *x = MatchExpression{} }
+func (x *MatchExpression) String() string  { return protoimpl.X.MessageStringOf(x) }
+func (*MatchExpression) ProtoMessage()     {}
+func (x *MatchExpression) ProtoReflect() protoreflect.Message { return nil }
+
+func (x *MatchExpression) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *MatchExpression) GetOperator() string {
+	if x != nil {
+		return x.Operator
+	}
+	return ""
+}
+
+func (x *MatchExpression) GetValues() []string {
+	if x != nil {
+		return x.Values
 	}
 	return nil
 }
