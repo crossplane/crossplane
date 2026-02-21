@@ -707,10 +707,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should emit a warning when a namespaced XR composes a resource with a different namespace",
 			params: params{
 				c: &test.MockClient{
-					MockGet:                test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "NamespaceComposed"}, "")),
-					MockPatch:              test.NewMockPatchFn(nil),
-					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
-					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, true),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				uc: &test.MockClient{
 					MockGet: test.NewMockGetFn(errBoom),
@@ -724,7 +722,7 @@ func TestFunctionCompose(t *testing.T) {
 									"kind":       "NamespaceComposed",
 									"metadata": map[string]any{
 										"name":      "ns-resource",
-										"namespace": "other-namespace", // Different from XR's namespace
+										"namespace": "other-namespace",
 									},
 								}),
 							},
@@ -747,7 +745,7 @@ func TestFunctionCompose(t *testing.T) {
 			args: args{
 				xr: func() *composite.Unstructured {
 					xr := WithParentLabel()
-					xr.SetNamespace("test-namespace") // Make the XR namespaced
+					xr.SetNamespace("test-namespace")
 					return xr
 				}(),
 				req: CompositionRequest{
@@ -776,6 +774,70 @@ func TestFunctionCompose(t *testing.T) {
 							Target: CompositionTargetComposite,
 						},
 					},
+				},
+			},
+		},
+		"NamespacedXRNamespaceMatchesXR": {
+			reason: "We should not emit a warning when a namespaced XR composes a resource with the same namespace",
+			params: params{
+				c: &test.MockClient{
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+					d := &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							"ns-resource": {
+								Resource: MustStruct(map[string]any{
+									"apiVersion": "test.crossplane.io/v1",
+									"kind":       "NamespaceComposed",
+									"metadata": map[string]any{
+										"name":      "ns-resource",
+										"namespace": "test-namespace", // matches XR namespace
+									},
+								}),
+							},
+						},
+					}
+					return &fnv1.RunFunctionResponse{Desired: d}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: func() *composite.Unstructured {
+					xr := WithParentLabel()
+					xr.SetNamespace("test-namespace")
+					return xr
+				}(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{{ResourceName: "ns-resource", Ready: false, Synced: true}},
 				},
 			},
 		},
