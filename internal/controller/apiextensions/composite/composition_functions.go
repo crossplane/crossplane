@@ -85,6 +85,7 @@ const (
 	errFmtNamespacedXRClusterResource = "cannot apply cluster scoped composed resource %q (a %s named %s) for a namespaced composite resource."
 	errFmtFetchBootstrapRequirements  = "cannot fetch bootstrap required resources for requirement %q"
 	errFmtFetchBootstrapSchemas       = "cannot fetch bootstrap required schema for requirement %q"
+	errFmtNamespaceOverridden         = "cannot create composed resource %q in namespace %q, using XR namespace %q instead"
 )
 
 // Server-side-apply field owners. We need two of these because it's possible
@@ -491,6 +492,16 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			if !isNs {
 				return CompositionResult{}, errors.Errorf(errFmtNamespacedXRClusterResource, name, cd.GetKind(), cd.GetName())
 			}
+		}
+
+		// Emit a warning if the XR is namespaced and the composed resource has
+		// a different namespace. The namespace will be overwritten to match the
+		// XR's namespace.
+		if xr.GetNamespace() != "" && cd.GetNamespace() != "" && cd.GetNamespace() != xr.GetNamespace() {
+			events = append(events, TargetedEvent{
+				Event:  event.Warning(reasonNamespaceOverridden, errors.Errorf(errFmtNamespaceOverridden, name, cd.GetNamespace(), xr.GetNamespace())),
+				Target: CompositionTargetComposite,
+			})
 		}
 
 		// Set standard composed resource metadata that is derived from the XR.

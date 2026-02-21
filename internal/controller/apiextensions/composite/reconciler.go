@@ -83,14 +83,15 @@ const (
 
 // Event reasons.
 const (
-	reasonResolve event.Reason = "SelectComposition"
-	reasonCompose event.Reason = "ComposeResources"
-	reasonRBAC    event.Reason = "RoleBasedAccessControl"
-	reasonPublish event.Reason = "PublishConnectionSecret"
-	reasonWatch   event.Reason = "WatchComposedResources"
-	reasonInit    event.Reason = "InitializeCompositeResource"
-	reasonDelete  event.Reason = "DeleteCompositeResource"
-	reasonPaused  event.Reason = "ReconciliationPaused"
+	reasonResolve             event.Reason = "SelectComposition"
+	reasonCompose             event.Reason = "ComposeResources"
+	reasonRBAC                event.Reason = "RoleBasedAccessControl"
+	reasonPublish             event.Reason = "PublishConnectionSecret"
+	reasonWatch               event.Reason = "WatchComposedResources"
+	reasonInit                event.Reason = "InitializeCompositeResource"
+	reasonDelete              event.Reason = "DeleteCompositeResource"
+	reasonPaused              event.Reason = "ReconciliationPaused"
+	reasonNamespaceOverridden event.Reason = "NamespaceOverridden"
 )
 
 // Condition reasons.
