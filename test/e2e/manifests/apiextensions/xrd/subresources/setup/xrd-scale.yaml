@@ -1,0 +1,40 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: xnopresources.nop.example.org
+spec:
+  group: nop.example.org
+  names:
+    kind: XNopResource
+    plural: xnopresources
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    referenceable: true
+    subresources:
+      scale:
+        specReplicasPath: .spec.replicas
+        statusReplicasPath: .status.replicas
+        labelSelectorPath: .status.labelSelector
+    schema:
+      openAPIV3Schema:
+        description: Example is the Schema for the Example API.
+        properties:
+          spec:
+            description: ExampleSpec defines the desired state of Example.
+            properties:
+              replicas:
+                type: integer
+            type: object
+          status:
+            description: ExampleStatus defines the observed state of Example.
+            type: object
+            properties:
+              replicas:
+                type: integer
+              labelSelector:
+                type: string
+        required:
+        - spec
+        type: object
+    served: true

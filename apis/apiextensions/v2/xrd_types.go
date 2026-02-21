@@ -202,6 +202,18 @@ type CompositeResourceDefinitionVersion struct {
 	// https://kubernetes.io/docs/reference/using-api/api-concepts/#receiving-resources-as-tables
 	// +optional
 	AdditionalPrinterColumns []extv1.CustomResourceColumnDefinition `json:"additionalPrinterColumns,omitempty"`
+
+	// Subresources specifies what subresources this version of the defined Composite resource has.
+	// The composition authors have responsibility to implement the logic fulfilling the subresources.
+	// +optional
+	Subresources *CompositeResourceDefinitionVersionSubresources `json:"subresources,omitempty"`
+}
+
+// CompositeResourceDefinitionVersionSubresources defines scale subresource for CompositeResources.
+type CompositeResourceDefinitionVersionSubresources struct {
+	// Scale indicates the CRD should serve a `/scale` subresource that returns an `autoscaling/v1` Scale object.
+	// +optional
+	Scale *extv1.CustomResourceSubresourceScale `json:"scale,omitempty"`
 }
 
 // CompositeResourceValidation is a list of validation methods for a composite
