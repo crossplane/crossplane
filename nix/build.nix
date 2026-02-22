@@ -7,8 +7,13 @@
 #   pkgs.buildGoApplication - gomod2nix's Go builder (https://github.com/nix-community/gomod2nix)
 #   pkgs.dockerTools        - Build OCI images without Docker (https://nixos.org/manual/nixpkgs/stable/#sec-pkgs-dockerTools)
 #   pkgs.runCommand         - Run a shell script, capture output directory as $out
-{ pkgs, self }:
+{
+  pkgs,
+  self,
+  src,
+}:
 let
+
   # Build a Go binary for a specific platform.
   goBinary =
     {
@@ -22,10 +27,9 @@ let
     in
     pkgs.buildGoApplication {
       pname = "${pname}-${platform.os}-${platform.arch}";
-      inherit version;
-      src = self;
-      pwd = self;
-      modules = "${self}/gomod2nix.toml";
+      inherit version src;
+      pwd = src;
+      modules = "${src}/gomod2nix.toml";
       subPackages = [ subPackage ];
 
       # Cross-compile by merging GOOS/GOARCH into Go's attrset (// merges attrsets).
@@ -199,10 +203,9 @@ in
     { version }:
     pkgs.buildGoApplication {
       pname = "crossplane-e2e";
-      inherit version;
-      src = self;
-      pwd = self;
-      modules = "${self}/gomod2nix.toml";
+      inherit version src;
+      pwd = src;
+      modules = "${src}/gomod2nix.toml";
 
       CGO_ENABLED = "0";
 
