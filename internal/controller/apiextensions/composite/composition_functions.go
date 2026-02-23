@@ -635,6 +635,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	n := xr.GetName()
 	u := xr.GetUID()
 	cs := xr.GetConditions()
+	gen := xr.GetGeneration()
 
 	if err := xfn.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
@@ -650,7 +651,19 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// will set conditions to nil if it's not passed any arguments. SSA
 	// interprets this as null and rejects it, so we only set them if
 	// there's actually some to set.
+	//
+	// We also update each condition's ObservedGeneration to match the XR's
+	// current generation. When the XR is read from an informer cache, its
+	// conditions may have a stale ObservedGeneration from a previous
+	// generation. Without this update, applying stale conditions via SSA
+	// followed by the reconciler setting conditions with the current
+	// generation would create a reconciliation loop, as each update would
+	// trigger another reconcile that re-applies the stale cached
+	// conditions.
 	if len(cs) > 0 {
+		for i := range cs {
+			cs[i].ObservedGeneration = gen
+		}
 		xr.SetConditions(cs...)
 	}
 
