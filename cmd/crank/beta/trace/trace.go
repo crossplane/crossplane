@@ -44,6 +44,8 @@ import (
 
 const (
 	errGetResource            = "cannot get requested resource"
+	errGetResourceFmt         = "cannot get requested resource: kind=%s name=%s namespace=%s"
+	errGetResourceTreeFmt     = "cannot get resource tree: kind=%s name=%s namespace=%s"
 	errCliOutput              = "cannot print output"
 	errKubeConfig             = "failed to get kubeconfig"
 	errKubeNamespace          = "failed to get namespace from kubeconfig"
@@ -228,7 +230,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	// We should just surface any error getting the root resource immediately.
 	if err := resourceList.Error; err != nil {
-		return errors.Wrap(err, errGetResource)
+		return errors.Wrapf(err, errGetResourceFmt, mapping.GroupVersionKind.Kind, name, rootRef.Namespace)
 	}
 
 	for i := range resourceList.Items {
@@ -236,7 +238,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		root, err = c.getResourceTree(ctx, root, mapping, client, logger)
 		if err != nil {
 			logger.Debug(errGetResource, "error", err)
-			return errors.Wrap(err, errGetResource)
+			return errors.Wrapf(err, errGetResourceTreeFmt, root.Unstructured.GetKind(), root.Unstructured.GetName(), root.Unstructured.GetNamespace())
 		}
 
 		logger.Debug("Got resource tree", "root", root)
