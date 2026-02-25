@@ -22,24 +22,24 @@ import (
 )
 
 const (
-	// ResourceCredentialsSecretEndpointKey is the key inside a connection secret for the connection endpoint.
-	ResourceCredentialsSecretEndpointKey = "endpoint"
-	// ResourceCredentialsSecretPortKey is the key inside a connection secret for the connection port.
-	ResourceCredentialsSecretPortKey = "port"
-	// ResourceCredentialsSecretUserKey is the key inside a connection secret for the connection user.
-	ResourceCredentialsSecretUserKey = "username"
-	// ResourceCredentialsSecretPasswordKey is the key inside a connection secret for the connection password.
-	ResourceCredentialsSecretPasswordKey = "password"
-	// ResourceCredentialsSecretCAKey is the key inside a connection secret for the server CA certificate.
-	ResourceCredentialsSecretCAKey = "clusterCA"
-	// ResourceCredentialsSecretClientCertKey is the key inside a connection secret for the client certificate.
-	ResourceCredentialsSecretClientCertKey = "clientCert"
-	// ResourceCredentialsSecretClientKeyKey is the key inside a connection secret for the client key.
-	ResourceCredentialsSecretClientKeyKey = "clientKey"
-	// ResourceCredentialsSecretTokenKey is the key inside a connection secret for the bearer token value.
-	ResourceCredentialsSecretTokenKey = "token"
-	// ResourceCredentialsSecretKubeconfigKey is the key inside a connection secret for the raw kubeconfig yaml.
-	ResourceCredentialsSecretKubeconfigKey = "kubeconfig"
+	// CredentialsSecretEndpointKey is the key inside a connection secret for the connection endpoint.
+	CredentialsSecretEndpointKey = "endpoint"
+	// CredentialsSecretPortKey is the key inside a connection secret for the connection port.
+	CredentialsSecretPortKey = "port"
+	// CredentialsSecretUserKey is the key inside a connection secret for the connection user.
+	CredentialsSecretUserKey = "username"
+	// CredentialsSecretPasswordKey is the key inside a connection secret for the connection password.
+	CredentialsSecretPasswordKey = "password"
+	// CredentialsSecretCAKey is the key inside a connection secret for the server CA certificate.
+	CredentialsSecretCAKey = "clusterCA"
+	// CredentialsSecretClientCertKey is the key inside a connection secret for the client certificate.
+	CredentialsSecretClientCertKey = "clientCert"
+	// CredentialsSecretClientKeyKey is the key inside a connection secret for the client key.
+	CredentialsSecretClientKeyKey = "clientKey"
+	// CredentialsSecretTokenKey is the key inside a connection secret for the bearer token value.
+	CredentialsSecretTokenKey = "token"
+	// CredentialsSecretKubeconfigKey is the key inside a connection secret for the raw kubeconfig yaml.
+	CredentialsSecretKubeconfigKey = "kubeconfig"
 )
 
 // LabelKeyProviderKind is added to ProviderConfigUsages to relate them to their
