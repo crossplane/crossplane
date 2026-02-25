@@ -16,9 +16,9 @@ limitations under the License.
 
 package core
 
-// A NamespacedManagedResourceSpec defines the desired state of a
+// A ManagedResourceSpec defines the desired state of a
 // namespace-scoped managed resource.
-type NamespacedManagedResourceSpec struct {
+type ManagedResourceSpec struct {
 	// WriteConnectionSecretToReference specifies the namespace and name of a
 	// Secret to which any connection details for this managed resource should
 	// be written. Connection details frequently include the endpoint, username,
