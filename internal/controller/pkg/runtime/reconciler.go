@@ -220,7 +220,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
-		WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())),
+		WithRuntimeHooks(NewFunctionHooks(mgr.GetClient(), o.FunctionEndpointSuffix)),
 		WithFeatureFlags(o.Features),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 	)

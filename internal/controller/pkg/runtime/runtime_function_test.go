@@ -40,10 +40,11 @@ import (
 
 func TestFunctionPreHook(t *testing.T) {
 	type args struct {
-		client    client.Client
-		pkg       runtime.Object
-		rev       v1.PackageRevisionWithRuntime
-		manifests ManifestBuilder
+		client         client.Client
+		pkg            runtime.Object
+		rev            v1.PackageRevisionWithRuntime
+		manifests      ManifestBuilder
+		endpointSuffix string
 	}
 
 	type want struct {
@@ -115,11 +116,71 @@ func TestFunctionPreHook(t *testing.T) {
 				},
 			},
 		},
+		"SuccessWithEndpointSuffix": {
+			reason: "Successful run of pre hook with endpoint suffix.",
+			args: args{
+				endpointSuffix: "suffix.example.com",
+				pkg: &pkgmetav1.Function{
+					Spec: pkgmetav1.FunctionSpec{},
+				},
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							DesiredState: v1.PackageRevisionActive,
+						},
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSServerSecretName: ptr.To("some-server-secret"),
+						},
+					},
+				},
+				manifests: &MockManifestBuilder{
+					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
+						return &corev1.Service{}
+					},
+					TLSServerSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{}
+					},
+				},
+				client: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if svc, ok := obj.(*corev1.Service); ok {
+							svc.Name = "some-service"
+							svc.Namespace = "some-namespace"
+						}
+						return nil
+					},
+					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+						return nil
+					},
+				},
+			},
+			want: want{
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							DesiredState: v1.PackageRevisionActive,
+						},
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSServerSecretName: ptr.To("some-server-secret"),
+						},
+					},
+					Status: v1.FunctionRevisionStatus{
+						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "some-service", "some-namespace.suffix.example.com", revision.ServicePort),
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: ptr.To("some-server-secret"),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewFunctionHooks(tc.args.client)
+			h := NewFunctionHooks(tc.args.client, tc.args.endpointSuffix)
 
 			err := h.Pre(context.TODO(), tc.args.rev, tc.args.manifests)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -584,7 +645,7 @@ func TestFunctionPostHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewFunctionHooks(tc.args.client)
+			h := NewFunctionHooks(tc.args.client, "")
 
 			err := h.Post(context.TODO(), tc.args.rev, tc.args.manifests)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -689,7 +750,7 @@ func TestFunctionDeactivateHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewFunctionHooks(tc.args.client)
+			h := NewFunctionHooks(tc.args.client, "")
 
 			err := h.Deactivate(context.TODO(), tc.args.rev, tc.args.manifests)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

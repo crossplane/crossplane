@@ -46,4 +46,6 @@ type Options struct {
 	// MaxConcurrentPackageEstablishers is the maximum number of goroutines to use
 	// for establishing Providers, Configurations and Functions.
 	MaxConcurrentPackageEstablishers int
+
+	FunctionEndpointSuffix string
 }

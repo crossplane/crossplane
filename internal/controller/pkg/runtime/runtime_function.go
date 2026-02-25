@@ -48,16 +48,18 @@ const (
 
 // FunctionHooks performs runtime operations for function packages.
 type FunctionHooks struct {
-	client resource.ClientApplicator
+	client         resource.ClientApplicator
+	endpointSuffix string
 }
 
 // NewFunctionHooks returns a new FunctionHooks.
-func NewFunctionHooks(client client.Client) *FunctionHooks {
+func NewFunctionHooks(client client.Client, endpointSuffix string) *FunctionHooks {
 	return &FunctionHooks{
 		client: resource.ClientApplicator{
 			Client:     client,
 			Applicator: resource.NewAPIPatchingApplicator(client),
 		},
+		endpointSuffix: endpointSuffix,
 	}
 }
 
@@ -101,15 +103,24 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 		return errors.Errorf("cannot apply function package hooks to %T", pr)
 	}
 
-	fRev.Status.Endpoint = fmt.Sprintf(ServiceEndpointFmt, svc.Name, svc.Namespace, GRPCPort)
+	if h.endpointSuffix != "" {
+		fRev.Status.Endpoint = fmt.Sprintf(ServiceEndpointFmt, svc.Name, svc.Namespace+"."+h.endpointSuffix, GRPCPort)
+	} else {
+		fRev.Status.Endpoint = fmt.Sprintf(ServiceEndpointFmt, svc.Name, svc.Namespace, GRPCPort)
+	}
 
 	secServer := build.TLSServerSecret()
 	if err := h.client.Applicator.Apply(ctx, secServer); err != nil {
 		return errors.Wrap(err, errApplyFunctionSecret)
 	}
 
+	dnsNames := initializer.DNSNamesForService(svc.Name, svc.Namespace)
+	if h.endpointSuffix != "" {
+		dnsNames = append(dnsNames, svc.Name+"."+svc.Namespace+"."+h.endpointSuffix)
+	}
+
 	if err := initializer.NewTLSCertificateGenerator(secServer.Namespace, initializer.RootCACertSecretName,
-		initializer.TLSCertificateGeneratorWithServerSecretName(secServer.GetName(), initializer.DNSNamesForService(svc.Name, svc.Namespace)),
+		initializer.TLSCertificateGeneratorWithServerSecretName(secServer.GetName(), dnsNames),
 		initializer.TLSCertificateGeneratorWithOwner([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(pr, pr.GetObjectKind().GroupVersionKind()))})).Run(ctx, h.client.Client); err != nil {
 		return errors.Wrapf(err, "cannot generate TLS certificates for %q", pr.GetLabels()[v1.LabelParentPackage])
 	}

@@ -100,7 +100,8 @@ type startCommand struct {
 
 	XpkgCacheDir string `aliases:"cache-dir" default:"/cache/xpkg" env:"XPKG_CACHE_DIR,CACHE_DIR" help:"Directory used for caching package images." short:"c"`
 
-	PackageRuntime string `default:"Deployment" env:"PACKAGE_RUNTIME" help:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)" placeholder:"runtime | runtime1=package1;runtime2=package2"`
+	PackageRuntime         string `default:"Deployment" env:"PACKAGE_RUNTIME"          help:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)" placeholder:"runtime | runtime1=package1;runtime2=package2"`
+	FunctionEndpointSuffix string `env:"FUNCTION_ENDPOINT_SUFFIX" help:"DNS suffix appended to function service endpoints."`
 
 	SyncInterval                     time.Duration `default:"1h"                 help:"How often all resources will be double-checked for drift from the desired state."                  short:"s"`
 	PollInterval                     time.Duration `default:"1m"                 help:"How often individual resources will be checked for drift from the desired state."`
@@ -507,6 +508,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		FetcherOptions:                   []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
 		PackageRuntime:                   pr,
 		MaxConcurrentPackageEstablishers: c.MaxConcurrentPackageEstablishers,
+		FunctionEndpointSuffix:           c.FunctionEndpointSuffix,
 	}
 
 	// We need to set the TUF_ROOT environment variable so that the TUF client
