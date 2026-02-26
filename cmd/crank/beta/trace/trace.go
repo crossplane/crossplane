@@ -229,8 +229,12 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	}
 
 	// We should just surface any error getting the root resource immediately.
+	nameDisplay := name
+	if nameDisplay == "" {
+		nameDisplay = "<all>"
+	}
 	if err := resourceList.Error; err != nil {
-		return errors.Wrapf(err, errFmtGetResource, mapping.GroupVersionKind.Kind, name, rootRef.Namespace)
+		return errors.Wrapf(err, errFmtGetResource, mapping.GroupVersionKind.Kind, nameDisplay, rootRef.Namespace)
 	}
 
 	for i := range resourceList.Items {
