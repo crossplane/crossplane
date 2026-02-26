@@ -43,10 +43,10 @@ import (
 )
 
 const (
-	errGetResource        = "cannot get requested resource"
-	errFmtGetResource     = "cannot get requested resource: kind=%s name=%s namespace=%s"
-	errFmtGetResourceTree = "cannot get resource tree: kind=%s name=%s namespace=%s"
-	errCliOutput          = "cannot print output"
+	errGetResource            = "cannot get requested resource"
+	errFmtGetResource         = "cannot get requested resource: kind=%s name=%s namespace=%s"
+	errFmtGetResourceTree     = "cannot get resource tree: kind=%s name=%s namespace=%s"
+	errCliOutput              = "cannot print output"
 	errKubeConfig             = "failed to get kubeconfig"
 	errKubeNamespace          = "failed to get namespace from kubeconfig"
 	errInitKubeClient         = "cannot init kubeclient"
