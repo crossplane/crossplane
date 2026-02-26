@@ -255,7 +255,7 @@ func MatchExpressionsToSelector(exprs []*fnv1.MatchExpression) (labels.Selector,
 	for _, expr := range exprs {
 		op, err := ToSelectionOperator(expr.GetOperator())
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "invalid match expression operator for key %q", expr.GetKey())
 		}
 		req, err := labels.NewRequirement(expr.GetKey(), op, expr.GetValues())
 		if err != nil {
@@ -279,6 +279,6 @@ func ToSelectionOperator(op string) (selection.Operator, error) {
 	case metav1.LabelSelectorOpDoesNotExist:
 		return selection.DoesNotExist, nil
 	default:
-		return "", errors.Errorf("unsupported operator %q", op)
+		return "", errors.Errorf("unsupported match expression operator %q; supported operators are: In, NotIn, Exists, DoesNotExist", op)
 	}
 }
