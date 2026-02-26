@@ -44,8 +44,8 @@ import (
 
 const (
 	errGetResource            = "cannot get requested resource"
-	errFmtGetResource         = "cannot get requested resource: kind=%s name=%s namespace=%s"
-	errFmtGetResourceTree     = "cannot get resource tree: kind=%s name=%s namespace=%s"
+	errFmtGetResource         = "cannot get requested resource: kind=%s name=%s namespace=%s (verify context, namespace, and that the resource exists)"
+	errFmtGetResourceTree     = "cannot get resource tree: kind=%s name=%s namespace=%s (verify context, namespace, and that the resource exists)"
 	errCliOutput              = "cannot print output"
 	errKubeConfig             = "failed to get kubeconfig"
 	errKubeNamespace          = "failed to get namespace from kubeconfig"
