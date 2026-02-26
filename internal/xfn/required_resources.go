@@ -206,19 +206,21 @@ func (e *ExistingRequiredResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.R
 			client.InNamespace(rs.GetNamespace()),
 		}
 
-		// Apply equality-based label matching.
+		// Build a single combined label selector from both equality labels
+		// and set-based match expressions.
+		selector := labels.NewSelector()
 		if len(match.MatchLabels.GetLabels()) > 0 {
-			listOpts = append(listOpts, client.MatchingLabels(match.MatchLabels.GetLabels()))
+			selector = labels.SelectorFromSet(match.MatchLabels.GetLabels())
 		}
-
-		// Convert set-based match expressions to a label selector.
 		if len(match.MatchLabels.GetExpressions()) > 0 {
-			selector, err := matchExpressionsToSelector(match.MatchLabels.GetExpressions())
+			exprSelector, err := MatchExpressionsToSelector(match.MatchLabels.GetExpressions())
 			if err != nil {
 				return nil, errors.Wrap(err, "cannot build label selector from match expressions")
 			}
-			listOpts = append(listOpts, client.MatchingLabelsSelector{Selector: selector})
+			reqs, _ := exprSelector.Requirements()
+			selector = selector.Add(reqs...)
 		}
+		listOpts = append(listOpts, client.MatchingLabelsSelector{Selector: selector})
 
 		if err := e.client.List(ctx, list, listOpts...); err != nil {
 			return nil, errors.Wrap(err, "cannot list required resources")
@@ -246,12 +248,12 @@ func (e *ExistingRequiredResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.R
 	return nil, errors.Errorf("unsupported required resource selector type %T", rs.GetMatch())
 }
 
-// matchExpressionsToSelector converts protobuf MatchExpressions to a
+// MatchExpressionsToSelector converts protobuf MatchExpressions to a
 // Kubernetes labels.Selector.
-func matchExpressionsToSelector(exprs []*fnv1.MatchExpression) (labels.Selector, error) {
+func MatchExpressionsToSelector(exprs []*fnv1.MatchExpression) (labels.Selector, error) {
 	selector := labels.NewSelector()
 	for _, expr := range exprs {
-		op, err := toSelectionOperator(expr.GetOperator())
+		op, err := ToSelectionOperator(expr.GetOperator())
 		if err != nil {
 			return nil, err
 		}
@@ -264,9 +266,9 @@ func matchExpressionsToSelector(exprs []*fnv1.MatchExpression) (labels.Selector,
 	return selector, nil
 }
 
-// toSelectionOperator converts a string operator to a Kubernetes
+// ToSelectionOperator converts a string operator to a Kubernetes
 // selection.Operator.
-func toSelectionOperator(op string) (selection.Operator, error) {
+func ToSelectionOperator(op string) (selection.Operator, error) {
 	switch metav1.LabelSelectorOperator(op) {
 	case metav1.LabelSelectorOpIn:
 		return selection.In, nil

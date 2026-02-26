@@ -296,6 +296,37 @@ func TestToProtobufResourceSelector(t *testing.T) {
 				},
 			},
 		},
+		"CompositionSelectorWithExistsOperator": {
+			reason: "Should convert selector with Exists operator",
+			args: args{
+				selector: &apiextensionsv1.RequiredResourceSelector{
+					APIVersion: "v1",
+					Kind:       "ConfigMap",
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "feature-flag",
+							Operator: metav1.LabelSelectorOpExists,
+						},
+					},
+				},
+			},
+			want: want{
+				result: &fnv1.ResourceSelector{
+					ApiVersion: "v1",
+					Kind:       "ConfigMap",
+					Match: &fnv1.ResourceSelector_MatchLabels{
+						MatchLabels: &fnv1.MatchLabels{
+							Expressions: []*fnv1.MatchExpression{
+								{
+									Key:      "feature-flag",
+									Operator: "Exists",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 		"OperationSelectorWithMatchExpressions": {
 			reason: "Should convert ops selector with match expressions",
 			args: args{

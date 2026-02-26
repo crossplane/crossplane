@@ -30,7 +30,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/kube-openapi/pkg/spec3"
 
@@ -553,16 +552,13 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 			sel := labels.SelectorFromSet(rs.GetMatchLabels().GetLabels())
 
 			// Add set-based match expressions to the selector.
-			for _, expr := range rs.GetMatchLabels().GetExpressions() {
-				op, err := operatorToSelection(expr.GetOperator())
+			if exprs := rs.GetMatchLabels().GetExpressions(); len(exprs) > 0 {
+				exprSel, err := xfn.MatchExpressionsToSelector(exprs)
 				if err != nil {
-					return nil, errors.Wrapf(err, "invalid match expression operator for key %q", expr.GetKey())
+					return nil, errors.Wrap(err, "cannot build label selector from match expressions")
 				}
-				req, err := labels.NewRequirement(expr.GetKey(), op, expr.GetValues())
-				if err != nil {
-					return nil, errors.Wrapf(err, "invalid match expression for key %q", expr.GetKey())
-				}
-				sel = sel.Add(*req)
+				reqs, _ := exprSel.Requirements()
+				sel = sel.Add(reqs...)
 			}
 
 			if sel.Matches(labels.Set(er.GetLabels())) {
@@ -577,23 +573,6 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 	}
 
 	return out, nil
-}
-
-// operatorToSelection converts a string operator to a Kubernetes
-// selection.Operator for use in label selectors.
-func operatorToSelection(op string) (selection.Operator, error) {
-	switch metav1.LabelSelectorOperator(op) {
-	case metav1.LabelSelectorOpIn:
-		return selection.In, nil
-	case metav1.LabelSelectorOpNotIn:
-		return selection.NotIn, nil
-	case metav1.LabelSelectorOpExists:
-		return selection.Exists, nil
-	case metav1.LabelSelectorOpDoesNotExist:
-		return selection.DoesNotExist, nil
-	default:
-		return "", errors.Errorf("unsupported operator %q", op)
-	}
 }
 
 func conditionTime() metav1.Time {
