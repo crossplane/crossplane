@@ -129,7 +129,7 @@ Use your editor or IDE to write code, then validate with `nix.sh`:
 ./nix.sh run .#lint         # Run linters (with --fix)
 ./nix.sh run .#generate     # Run code generators
 ./nix.sh run .#e2e          # Run E2E tests (starts a kind cluster)
-./nix.sh run .#hack         # Start kind cluster with your local changes. Args can be passed as needed, e.g. HACK_CROSSPLANE_ARGS="--debug" ./nix.sh run .#hack
+./nix.sh run .#hack         # Start kind cluster with your local changes
 ./nix.sh build              # Build binaries and images (see the result/ dir)
 ./nix.sh flake check        # Run checks hermetically, like CI
 
