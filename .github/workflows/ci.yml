@@ -119,7 +119,7 @@ jobs:
   codeql:
     permissions:
       contents: read
-      security-events: write  # for github/codeql-action/analyze to upload SARIF
+      security-events: write
     runs-on: ubuntu-22.04
 
     steps:

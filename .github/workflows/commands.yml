@@ -10,9 +10,8 @@ jobs:
   # merge rather than on comment.
   backport:
     permissions:
-      contents: write  # for zeebe-io/backport-action to create branch
-      issues: write  # for comment reactions and label updates
-      pull-requests: write  # for zeebe-io/backport-action to create PR to backport
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-22.04
     if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/backport')
     steps:
@@ -41,9 +40,10 @@ jobs:
 
   fresh:
     permissions:
-      issues: write  # for removing stale label
+      issues: write
+      pull-requests: write
     runs-on: ubuntu-22.04
-    if: startsWith(github.event.comment.body, '/fresh')
+    if: startsWith(github.event.comment.body, '/fresh') && github.event.comment.author_association != 'NONE'
 
     steps:
     - name: Extract Command
