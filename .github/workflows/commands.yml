@@ -43,7 +43,7 @@ jobs:
       issues: write
       pull-requests: write
     runs-on: ubuntu-22.04
-    if: startsWith(github.event.comment.body, '/fresh')
+    if: startsWith(github.event.comment.body, '/fresh') && github.event.comment.author_association != 'NONE'
 
     steps:
     - name: Extract Command
