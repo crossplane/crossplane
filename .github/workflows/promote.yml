@@ -62,14 +62,23 @@ jobs:
 
       - name: Promote Images to DockerHub
         if: env.DOCKER_USR != ''
-        run: nix run .#promote-images -- crossplane/crossplane ${{ inputs.version }} ${{ inputs.channel }}
+        env:
+          VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel }}
+        run: nix run .#promote-images -- crossplane/crossplane "$VERSION" "$CHANNEL"
 
       - name: Promote Images to Upbound
         if: env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''
-        run: nix run .#promote-images -- xpkg.upbound.io/crossplane/crossplane ${{ inputs.version }} ${{ inputs.channel }}
+        env:
+          VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel }}
+        run: nix run .#promote-images -- xpkg.upbound.io/crossplane/crossplane "$VERSION" "$CHANNEL"
 
       - name: Promote Images to GitHub Container Registry
-        run: nix run .#promote-images -- ghcr.io/crossplane/crossplane ${{ inputs.version }} ${{ inputs.channel }}
+        env:
+          VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel }}
+        run: nix run .#promote-images -- ghcr.io/crossplane/crossplane "$VERSION" "$CHANNEL"
 
       - name: Promote Artifacts to S3
         if: env.AWS_USR != ''
@@ -77,9 +86,12 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
           AWS_DEFAULT_REGION: us-east-1
+          VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel }}
+          PRE_RELEASE: ${{ inputs.pre-release }}
         run: |
           PRERELEASE_FLAG=""
-          if [ "${{ inputs.pre-release }}" = "true" ]; then
+          if [ "$PRE_RELEASE" = "true" ]; then
             PRERELEASE_FLAG="--prerelease"
           fi
-          nix run .#promote-artifacts -- "${GITHUB_REF##*/}" ${{ inputs.version }} ${{ inputs.channel }} $PRERELEASE_FLAG
+          nix run .#promote-artifacts -- "${GITHUB_REF##*/}" "$VERSION" "$CHANNEL" $PRERELEASE_FLAG
