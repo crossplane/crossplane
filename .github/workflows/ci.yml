@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      security-events: write  # for github/codeql-action/analyze to upload SARIF
+      security-events: write
 
     steps:
       - name: Checkout
@@ -309,7 +309,7 @@ jobs:
   trivy-scan-fs:
     permissions:
       contents: read
-      security-events: write  # for github/codeql-action/upload-sarif to upload SARIF results
+      security-events: write
     runs-on: ubuntu-24.04
 
     steps:
