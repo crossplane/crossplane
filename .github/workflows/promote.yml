@@ -44,38 +44,51 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           version: ${{ env.EARTHLY_VERSION }}
 
-      - name: Promote Image to docker.io/crossplane/crossplane:${{ inputs.channel }}
+      - name: Promote Image to docker.io/crossplane/crossplane
         if: env.DOCKER_USR != ''
+        env:
+          VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel }}
         run: |
           earthly --strict \
             --push \
             --secret DOCKER_USER=${{ secrets.DOCKER_USR }} \
             --secret DOCKER_PASSWORD=${{ secrets.DOCKER_PSW }} \
-            +ci-promote-image --CHANNEL=${{ inputs.channel }} --CROSSPLANE_VERSION=${{ inputs.version }} --CROSSPLANE_REPO=docker.io/crossplane/crossplane
+            +ci-promote-image --CHANNEL="$CHANNEL" --CROSSPLANE_VERSION="$VERSION" --CROSSPLANE_REPO=docker.io/crossplane/crossplane
 
-      - name: Promote Image to ghcr.io/crossplane/crossplane:${{ inputs.channel }}
+      - name: Promote Image to ghcr.io/crossplane/crossplane
         if: env.GHCR_USR != ''
+        env:
+          VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel }}
         run: |
           earthly --strict \
             --push \
             --secret DOCKER_USER=${{ github.actor }} \
             --secret DOCKER_PASSWORD=${{ secrets.GITHUB_TOKEN }} \
-            +ci-promote-image --CHANNEL=${{ inputs.channel }} --CROSSPLANE_VERSION=${{ inputs.version }} --CROSSPLANE_REPO=ghcr.io/crossplane/crossplane
+            +ci-promote-image --CHANNEL="$CHANNEL" --CROSSPLANE_VERSION="$VERSION" --CROSSPLANE_REPO=ghcr.io/crossplane/crossplane
 
-      - name: Promote Image to xpkg.upbound.io/crossplane/crossplane:${{ inputs.channel }}
+      - name: Promote Image to xpkg.upbound.io/crossplane/crossplane
         if: env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''
+        env:
+          VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel }}
         run: |
           earthly --strict \
           --push \
           --secret DOCKER_USER=${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }} \
           --secret DOCKER_PASSWORD=${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_PSW }} \
-          +ci-promote-image --CHANNEL=${{ inputs.channel }} --CROSSPLANE_VERSION=${{ inputs.version }} --CROSSPLANE_REPO=xpkg.upbound.io/crossplane/crossplane
+          +ci-promote-image --CHANNEL="$CHANNEL" --CROSSPLANE_VERSION="$VERSION" --CROSSPLANE_REPO=xpkg.upbound.io/crossplane/crossplane
 
-      - name: Promote Build Artifacts to https://releases.crossplane.io/${{ inputs.channel }}
+      - name: Promote Build Artifacts
         if: env.AWS_USR != ''
+        env:
+          VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel }}
+          PRE_RELEASE: ${{ inputs.pre-release }}
         run: |
           earthly --strict \
             --push \
             --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
             --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
-            +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CHANNEL=${{ inputs.channel }} --BUILD_DIR=${GITHUB_REF##*/} --PRERELEASE=${{ inputs.pre-release }} --CROSSPLANE_VERSION=${{ inputs.version }}
+            +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CHANNEL="$CHANNEL" --BUILD_DIR=${GITHUB_REF##*/} --PRERELEASE="$PRE_RELEASE" --CROSSPLANE_VERSION="$VERSION"
