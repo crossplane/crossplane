@@ -601,15 +601,16 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				// We mark the resource as not synced, so that once we get to
 				// decide the XR's Synced condition, we can set it to false if
 				// any of the resources didn't sync successfully.
+				wrapped := errors.Wrapf(err, errFmtApplyCD, name)
 				events = append(events, TargetedEvent{
-					Event:  event.Warning(reasonCompose, errors.Wrapf(err, errFmtApplyCD, name)),
+					Event:  event.Warning(reasonCompose, wrapped),
 					Target: CompositionTargetComposite,
 				})
 				// NOTE(phisco): here we behave differently w.r.t. the native
 				// p&t composer, as we respect the readiness reported by
 				// functions, while there we defaulted to also set ready false
 				// in case of apply errors.
-				resources = append(resources, ComposedResource{ResourceName: name, Ready: cd.Ready, Synced: false})
+				resources = append(resources, ComposedResource{ResourceName: name, Ready: cd.Ready, Synced: false, SyncError: wrapped.Error()})
 
 				continue
 			}
