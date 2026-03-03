@@ -34,7 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/v2/apis/pkg"
+	"github.com/crossplane/crossplane/apis/v2/pkg"
 	"github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/printer"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource/xpkg"

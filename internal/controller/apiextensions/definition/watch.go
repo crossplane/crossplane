@@ -13,6 +13,8 @@ import (
 
 // IsCompositeResourceCRD accepts any CustomResourceDefinition that represents a
 // Composite Resource.
+//
+//nolint:staticcheck // TODO(adamwg) Stop using resource.PredicateFn after the v2.2 release.
 func IsCompositeResourceCRD() resource.PredicateFn {
 	return func(obj runtime.Object) bool {
 		crd, ok := obj.(*extv1.CustomResourceDefinition)

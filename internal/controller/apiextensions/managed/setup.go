@@ -28,7 +28,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
 	apiextensionscontroller "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
 )
@@ -40,7 +40,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 		WithManagedFieldsUpgrader(ssa.NewPatchingManagedFieldsUpgrader(
 			mgr.GetClient(),
 			ssa.ExactMatch(FieldOwnerMRD),

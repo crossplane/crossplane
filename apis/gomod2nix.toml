@@ -1,0 +1,214 @@
+schema = 3
+cachePackages = ["dario.cat/mergo", "github.com/crossplane/crossplane-runtime/v2/apis/common", "github.com/crossplane/crossplane-runtime/v2/apis/common/v1", "github.com/crossplane/crossplane-runtime/v2/pkg/errors", "github.com/crossplane/crossplane-runtime/v2/pkg/meta", "github.com/crossplane/crossplane-runtime/v2/pkg/resource", "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured", "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference", "github.com/davecgh/go-spew/spew", "github.com/emicklei/go-restful/v3", "github.com/emicklei/go-restful/v3/log", "github.com/evanphx/json-patch/v5", "github.com/fxamacker/cbor/v2", "github.com/go-logr/logr", "github.com/go-openapi/jsonpointer", "github.com/go-openapi/jsonreference", "github.com/go-openapi/swag", "github.com/go-openapi/swag/cmdutils", "github.com/go-openapi/swag/conv", "github.com/go-openapi/swag/fileutils", "github.com/go-openapi/swag/jsonname", "github.com/go-openapi/swag/jsonutils", "github.com/go-openapi/swag/jsonutils/adapters", "github.com/go-openapi/swag/jsonutils/adapters/ifaces", "github.com/go-openapi/swag/jsonutils/adapters/stdlib/json", "github.com/go-openapi/swag/loading", "github.com/go-openapi/swag/mangling", "github.com/go-openapi/swag/netutils", "github.com/go-openapi/swag/stringutils", "github.com/go-openapi/swag/typeutils", "github.com/go-openapi/swag/yamlutils", "github.com/google/gnostic-models/compiler", "github.com/google/gnostic-models/extensions", "github.com/google/gnostic-models/jsonschema", "github.com/google/gnostic-models/openapiv2", "github.com/google/gnostic-models/openapiv3", "github.com/google/go-cmp/cmp", "github.com/google/uuid", "github.com/json-iterator/go", "github.com/modern-go/concurrent", "github.com/modern-go/reflect2", "github.com/munnerz/goautoneg", "github.com/spf13/afero", "github.com/spf13/afero/mem", "github.com/x448/float16", "go.yaml.in/yaml/v2", "go.yaml.in/yaml/v3", "golang.org/x/net/http/httpguts", "golang.org/x/net/http2", "golang.org/x/net/http2/hpack", "golang.org/x/net/idna", "golang.org/x/oauth2", "golang.org/x/sys/unix", "golang.org/x/term", "golang.org/x/text/runes", "golang.org/x/text/secure/bidirule", "golang.org/x/text/transform", "golang.org/x/text/unicode/bidi", "golang.org/x/text/unicode/norm", "golang.org/x/time/rate", "google.golang.org/protobuf/encoding/protojson", "google.golang.org/protobuf/encoding/prototext", "google.golang.org/protobuf/encoding/protowire", "google.golang.org/protobuf/proto", "google.golang.org/protobuf/reflect/protoreflect", "google.golang.org/protobuf/reflect/protoregistry", "google.golang.org/protobuf/runtime/protoiface", "google.golang.org/protobuf/runtime/protoimpl", "google.golang.org/protobuf/types/descriptorpb", "google.golang.org/protobuf/types/known/anypb", "google.golang.org/protobuf/types/known/structpb", "gopkg.in/inf.v0", "k8s.io/api/admissionregistration/v1", "k8s.io/api/admissionregistration/v1alpha1", "k8s.io/api/admissionregistration/v1beta1", "k8s.io/api/apidiscovery/v2", "k8s.io/api/apidiscovery/v2beta1", "k8s.io/api/apiserverinternal/v1alpha1", "k8s.io/api/apps/v1", "k8s.io/api/apps/v1beta1", "k8s.io/api/apps/v1beta2", "k8s.io/api/authentication/v1", "k8s.io/api/authentication/v1alpha1", "k8s.io/api/authentication/v1beta1", "k8s.io/api/authorization/v1", "k8s.io/api/authorization/v1beta1", "k8s.io/api/autoscaling/v1", "k8s.io/api/autoscaling/v2", "k8s.io/api/autoscaling/v2beta1", "k8s.io/api/autoscaling/v2beta2", "k8s.io/api/batch/v1", "k8s.io/api/batch/v1beta1", "k8s.io/api/certificates/v1", "k8s.io/api/certificates/v1alpha1", "k8s.io/api/certificates/v1beta1", "k8s.io/api/coordination/v1", "k8s.io/api/coordination/v1alpha2", "k8s.io/api/coordination/v1beta1", "k8s.io/api/core/v1", "k8s.io/api/discovery/v1", "k8s.io/api/discovery/v1beta1", "k8s.io/api/events/v1", "k8s.io/api/events/v1beta1", "k8s.io/api/extensions/v1beta1", "k8s.io/api/flowcontrol/v1", "k8s.io/api/flowcontrol/v1beta1", "k8s.io/api/flowcontrol/v1beta2", "k8s.io/api/flowcontrol/v1beta3", "k8s.io/api/networking/v1", "k8s.io/api/networking/v1beta1", "k8s.io/api/node/v1", "k8s.io/api/node/v1alpha1", "k8s.io/api/node/v1beta1", "k8s.io/api/policy/v1", "k8s.io/api/policy/v1beta1", "k8s.io/api/rbac/v1", "k8s.io/api/rbac/v1alpha1", "k8s.io/api/rbac/v1beta1", "k8s.io/api/resource/v1", "k8s.io/api/resource/v1alpha3", "k8s.io/api/resource/v1beta1", "k8s.io/api/resource/v1beta2", "k8s.io/api/scheduling/v1", "k8s.io/api/scheduling/v1alpha1", "k8s.io/api/scheduling/v1beta1", "k8s.io/api/storage/v1", "k8s.io/api/storage/v1alpha1", "k8s.io/api/storage/v1beta1", "k8s.io/api/storagemigration/v1beta1", "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions", "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1", "k8s.io/apimachinery/pkg/api/equality", "k8s.io/apimachinery/pkg/api/errors", "k8s.io/apimachinery/pkg/api/meta", "k8s.io/apimachinery/pkg/api/operation", "k8s.io/apimachinery/pkg/api/resource", "k8s.io/apimachinery/pkg/api/safe", "k8s.io/apimachinery/pkg/api/validate", "k8s.io/apimachinery/pkg/api/validate/constraints", "k8s.io/apimachinery/pkg/api/validate/content", "k8s.io/apimachinery/pkg/api/validation", "k8s.io/apimachinery/pkg/apis/meta/v1", "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured", "k8s.io/apimachinery/pkg/apis/meta/v1/validation", "k8s.io/apimachinery/pkg/apis/meta/v1beta1", "k8s.io/apimachinery/pkg/conversion", "k8s.io/apimachinery/pkg/conversion/queryparams", "k8s.io/apimachinery/pkg/fields", "k8s.io/apimachinery/pkg/labels", "k8s.io/apimachinery/pkg/runtime", "k8s.io/apimachinery/pkg/runtime/schema", "k8s.io/apimachinery/pkg/runtime/serializer", "k8s.io/apimachinery/pkg/runtime/serializer/cbor", "k8s.io/apimachinery/pkg/runtime/serializer/cbor/direct", "k8s.io/apimachinery/pkg/runtime/serializer/json", "k8s.io/apimachinery/pkg/runtime/serializer/protobuf", "k8s.io/apimachinery/pkg/runtime/serializer/recognizer", "k8s.io/apimachinery/pkg/runtime/serializer/streaming", "k8s.io/apimachinery/pkg/runtime/serializer/versioning", "k8s.io/apimachinery/pkg/selection", "k8s.io/apimachinery/pkg/types", "k8s.io/apimachinery/pkg/util/dump", "k8s.io/apimachinery/pkg/util/errors", "k8s.io/apimachinery/pkg/util/framer", "k8s.io/apimachinery/pkg/util/intstr", "k8s.io/apimachinery/pkg/util/json", "k8s.io/apimachinery/pkg/util/managedfields", "k8s.io/apimachinery/pkg/util/mergepatch", "k8s.io/apimachinery/pkg/util/naming", "k8s.io/apimachinery/pkg/util/net", "k8s.io/apimachinery/pkg/util/runtime", "k8s.io/apimachinery/pkg/util/sets", "k8s.io/apimachinery/pkg/util/strategicpatch", "k8s.io/apimachinery/pkg/util/validation", "k8s.io/apimachinery/pkg/util/validation/field", "k8s.io/apimachinery/pkg/util/version", "k8s.io/apimachinery/pkg/util/wait", "k8s.io/apimachinery/pkg/util/yaml", "k8s.io/apimachinery/pkg/version", "k8s.io/apimachinery/pkg/watch", "k8s.io/apimachinery/third_party/forked/golang/json", "k8s.io/apimachinery/third_party/forked/golang/reflect", "k8s.io/client-go/discovery", "k8s.io/client-go/dynamic", "k8s.io/client-go/features", "k8s.io/client-go/kubernetes/scheme", "k8s.io/client-go/metadata", "k8s.io/client-go/openapi", "k8s.io/client-go/pkg/apis/clientauthentication", "k8s.io/client-go/pkg/apis/clientauthentication/install", "k8s.io/client-go/pkg/apis/clientauthentication/v1", "k8s.io/client-go/pkg/apis/clientauthentication/v1beta1", "k8s.io/client-go/pkg/version", "k8s.io/client-go/plugin/pkg/client/auth/exec", "k8s.io/client-go/rest", "k8s.io/client-go/rest/watch", "k8s.io/client-go/restmapper", "k8s.io/client-go/tools/clientcmd/api", "k8s.io/client-go/tools/metrics", "k8s.io/client-go/transport", "k8s.io/client-go/util/apply", "k8s.io/client-go/util/cert", "k8s.io/client-go/util/connrotation", "k8s.io/client-go/util/flowcontrol", "k8s.io/client-go/util/keyutil", "k8s.io/client-go/util/retry", "k8s.io/client-go/util/workqueue", "k8s.io/klog/v2", "k8s.io/kube-openapi/pkg/cached", "k8s.io/kube-openapi/pkg/common", "k8s.io/kube-openapi/pkg/handler3", "k8s.io/kube-openapi/pkg/schemaconv", "k8s.io/kube-openapi/pkg/spec3", "k8s.io/kube-openapi/pkg/util", "k8s.io/kube-openapi/pkg/util/proto", "k8s.io/kube-openapi/pkg/validation/spec", "k8s.io/utils/clock", "k8s.io/utils/net", "k8s.io/utils/ptr", "sigs.k8s.io/controller-runtime/pkg/client", "sigs.k8s.io/controller-runtime/pkg/client/apiutil", "sigs.k8s.io/controller-runtime/pkg/conversion", "sigs.k8s.io/controller-runtime/pkg/event", "sigs.k8s.io/controller-runtime/pkg/log", "sigs.k8s.io/controller-runtime/pkg/predicate", "sigs.k8s.io/controller-runtime/pkg/reconcile", "sigs.k8s.io/controller-runtime/pkg/scheme", "sigs.k8s.io/json", "sigs.k8s.io/randfill", "sigs.k8s.io/randfill/bytesource", "sigs.k8s.io/structured-merge-diff/v6/fieldpath", "sigs.k8s.io/structured-merge-diff/v6/merge", "sigs.k8s.io/structured-merge-diff/v6/schema", "sigs.k8s.io/structured-merge-diff/v6/typed", "sigs.k8s.io/structured-merge-diff/v6/value", "sigs.k8s.io/yaml"]
+
+[mod]
+  [mod."dario.cat/mergo"]
+    version = "v1.0.2"
+    hash = "sha256-p6jdiHlLEfZES8vJnDywG4aVzIe16p0CU6iglglIweA="
+  [mod."github.com/cenkalti/backoff/v5"]
+    version = "v5.0.3"
+    hash = "sha256-bKq43PPD8RM6e7HePxHaO27traqm76bkvHcTVTQ+jeY="
+  [mod."github.com/crossplane/crossplane-runtime/v2"]
+    version = "v2.3.0-rc.0"
+    hash = "sha256-LgBJwGP+jTzQff9ubwXRDKJ9IRQjlzD3xXegzKsJlfY="
+  [mod."github.com/davecgh/go-spew"]
+    version = "v1.1.2-0.20180830191138-d8f796af33cc"
+    hash = "sha256-fV9oI51xjHdOmEx6+dlq7Ku2Ag+m/bmbzPo6A4Y74qc="
+  [mod."github.com/emicklei/go-restful/v3"]
+    version = "v3.13.0"
+    hash = "sha256-lB2Z29RDLiVQE5NrsV1s2iHeQ4ciGwNj5OG1zJxwZV8="
+  [mod."github.com/evanphx/json-patch/v5"]
+    version = "v5.9.11"
+    hash = "sha256-DaWzRi5dIr3U7kJlV3Qm1DWoKh5W+FI2BW/ATXT40J4="
+  [mod."github.com/fatih/color"]
+    version = "v1.18.0"
+    hash = "sha256-pP5y72FSbi4j/BjyVq/XbAOFjzNjMxZt2R/lFFxGWvY="
+  [mod."github.com/fxamacker/cbor/v2"]
+    version = "v2.9.0"
+    hash = "sha256-/IZK76MRCrz9XCiilieH5tKaLnIWyPJhwxDoVKB8dFc="
+  [mod."github.com/go-logr/logr"]
+    version = "v1.4.3"
+    hash = "sha256-Nnp/dEVNMxLp3RSPDHZzGbI8BkSNuZMX0I0cjWKXXLA="
+  [mod."github.com/go-openapi/jsonpointer"]
+    version = "v0.22.4"
+    hash = "sha256-V76k+oQUyqkWcpa64bOirteoCfdn1Xm9TLH0/7W4Uxc="
+  [mod."github.com/go-openapi/jsonreference"]
+    version = "v0.21.4"
+    hash = "sha256-R+Q/MOSRTMiOaZutRmjv/qwbU9/cUWN59Hwr2LgDz2U="
+  [mod."github.com/go-openapi/swag"]
+    version = "v0.25.4"
+    hash = "sha256-aFQeLf95JC5gWLwIJXxhZHK9RxiGhh9IYV0MEYldDr4="
+  [mod."github.com/go-openapi/swag/cmdutils"]
+    version = "v0.25.4"
+    hash = "sha256-nhlq5w/ULjwy7nptKcRryjZPlv3QG0FmgcBSOclqRlA="
+  [mod."github.com/go-openapi/swag/conv"]
+    version = "v0.25.4"
+    hash = "sha256-uHgTdZC76LMSsq+x+RyeclnOgBsS0ID2cLgfjzFk0KQ="
+  [mod."github.com/go-openapi/swag/fileutils"]
+    version = "v0.25.4"
+    hash = "sha256-NWacswHRvNZ81WzazA8yUmeDymtne2l8zLdArBmeYAU="
+  [mod."github.com/go-openapi/swag/jsonname"]
+    version = "v0.25.4"
+    hash = "sha256-Z6uETeudh8W+/SGxFBnOB/VlJeRPRkFgCyJmntpz7bc="
+  [mod."github.com/go-openapi/swag/jsonutils"]
+    version = "v0.25.4"
+    hash = "sha256-TQGeMImUuL5BWDoBHKAjZ1BvvxPXkFrV3TMgb82IrLk="
+  [mod."github.com/go-openapi/swag/loading"]
+    version = "v0.25.4"
+    hash = "sha256-xr8OnFqB/kwBj3yf9HiLJwDcpL7I3/qJYlKb6VWbVFA="
+  [mod."github.com/go-openapi/swag/mangling"]
+    version = "v0.25.4"
+    hash = "sha256-NrmwNgRJIUlOaAGt+XutHWSHy9e1COMnVE8B0UY5+sQ="
+  [mod."github.com/go-openapi/swag/netutils"]
+    version = "v0.25.4"
+    hash = "sha256-wRMCQX/wIOvWm1g2UURobhzI47OldVqzlYYzwotLNTU="
+  [mod."github.com/go-openapi/swag/stringutils"]
+    version = "v0.25.4"
+    hash = "sha256-rVo5NBH+oLLX9kaemUYWILd+TKw/TDTB8UdSz+mn3m8="
+  [mod."github.com/go-openapi/swag/typeutils"]
+    version = "v0.25.4"
+    hash = "sha256-59RHnK6ugsAUc+A8DZCj7gZ3bJnt01Al7T/1kzM9PpA="
+  [mod."github.com/go-openapi/swag/yamlutils"]
+    version = "v0.25.4"
+    hash = "sha256-zba7QX7Ds05oZq1opP/vwRSBEDaJ1pKm+9DgrsOuR9w="
+  [mod."github.com/gobuffalo/flect"]
+    version = "v1.0.3"
+    hash = "sha256-gpA1fe9XTjZ9r+yYCysCgXKo1AmYNuNFwWn7ZQ4Ky1M="
+  [mod."github.com/google/gnostic-models"]
+    version = "v0.7.1"
+    hash = "sha256-dfSFaYzgD4HrdL6ZsN8V9w0SMzx0WXl38dIy4dnjhhc="
+  [mod."github.com/google/go-cmp"]
+    version = "v0.7.0"
+    hash = "sha256-JbxZFBFGCh/Rj5XZ1vG94V2x7c18L8XKB0N9ZD5F2rM="
+  [mod."github.com/google/uuid"]
+    version = "v1.6.0"
+    hash = "sha256-VWl9sqUzdOuhW0KzQlv0gwwUQClYkmZwSydHG2sALYw="
+  [mod."github.com/inconshreveable/mousetrap"]
+    version = "v1.1.0"
+    hash = "sha256-XWlYH0c8IcxAwQTnIi6WYqq44nOKUylSWxWO/vi+8pE="
+  [mod."github.com/json-iterator/go"]
+    version = "v1.1.12"
+    hash = "sha256-To8A0h+lbfZ/6zM+2PpRpY3+L6725OPC66lffq6fUoM="
+  [mod."github.com/kr/text"]
+    version = "v0.2.0"
+    hash = "sha256-fadcWxZOORv44oak3jTxm6YcITcFxdGt4bpn869HxUE="
+  [mod."github.com/mattn/go-colorable"]
+    version = "v0.1.14"
+    hash = "sha256-JC60PjKj7MvhZmUHTZ9p372FV72I9Mxvli3fivTbxuA="
+  [mod."github.com/mattn/go-isatty"]
+    version = "v0.0.20"
+    hash = "sha256-qhw9hWtU5wnyFyuMbKx+7RB8ckQaFQ8D+8GKPkN3HHQ="
+  [mod."github.com/modern-go/concurrent"]
+    version = "v0.0.0-20180306012644-bacd9c7ef1dd"
+    hash = "sha256-OTySieAgPWR4oJnlohaFTeK1tRaVp/b0d1rYY8xKMzo="
+  [mod."github.com/modern-go/reflect2"]
+    version = "v1.0.3-0.20250322232337-35a7c28c31ee"
+    hash = "sha256-0pkWWZRB3lGFyzmlxxrm0KWVQo9HNXNafaUu3k+rE1g="
+  [mod."github.com/munnerz/goautoneg"]
+    version = "v0.0.0-20191010083416-a7dc8b61c822"
+    hash = "sha256-79URDDFenmGc9JZu+5AXHToMrtTREHb3BC84b/gym9Q="
+  [mod."github.com/pmezard/go-difflib"]
+    version = "v1.0.1-0.20181226105442-5d4384ee4fb2"
+    hash = "sha256-XA4Oj1gdmdV/F/+8kMI+DBxKPthZ768hbKsO3d9Gx90="
+  [mod."github.com/spf13/afero"]
+    version = "v1.15.0"
+    hash = "sha256-LhcezbOqfuBzacytbqck0hNUxi6NbWNhifUc5/9uHQ8="
+  [mod."github.com/spf13/cobra"]
+    version = "v1.10.2"
+    hash = "sha256-nbRCTFiDCC2jKK7AHi79n7urYCMP5yDZnWtNVJrDi+k="
+  [mod."github.com/spf13/pflag"]
+    version = "v1.0.10"
+    hash = "sha256-uDPnWjHpSrzXr17KEYEA1yAbizfcsfo5AyztY2tS6ZU="
+  [mod."github.com/x448/float16"]
+    version = "v0.8.4"
+    hash = "sha256-VKzMTMS9pIB/cwe17xPftCSK9Mf4Y6EuBEJlB4by5mE="
+  [mod."go.yaml.in/yaml/v2"]
+    version = "v2.4.3"
+    hash = "sha256-WqfrOUQFvfuORgl1yyVOcsEXU/vwWQHkcVWx3vCxvaw="
+  [mod."go.yaml.in/yaml/v3"]
+    version = "v3.0.4"
+    hash = "sha256-NkGFiDPoCxbr3LFsI6OCygjjkY0rdmg5ggvVVwpyDQ4="
+  [mod."golang.org/x/mod"]
+    version = "v0.32.0"
+    hash = "sha256-4gbgIqTOo0vcYV3l4MIwmT/h8H9PXmcfrJ3z4B26Zl0="
+  [mod."golang.org/x/net"]
+    version = "v0.49.0"
+    hash = "sha256-arK6PWwO9tQUJVb57QXUEXfgcB6ISI6qjVB0eC4zcnw="
+  [mod."golang.org/x/oauth2"]
+    version = "v0.34.0"
+    hash = "sha256-5eqpGGxJ7FJsPmfRek6roeGmkWHBMJaWYXyz8gXJsS4="
+  [mod."golang.org/x/sync"]
+    version = "v0.19.0"
+    hash = "sha256-RbRZ+sKZUurOczGhhzOoY/sojTlta3H9XjL4PXX/cno="
+  [mod."golang.org/x/sys"]
+    version = "v0.40.0"
+    hash = "sha256-KDe+wMr7dfMFwKMJEljzk+f82pQWFFPoFHivjD7qJGg="
+  [mod."golang.org/x/term"]
+    version = "v0.39.0"
+    hash = "sha256-diP4VknZDlJmhGQdcsXwI2+sFayQdsILFuxK1FBPaUE="
+  [mod."golang.org/x/text"]
+    version = "v0.33.0"
+    hash = "sha256-XdA6D39ESuJkaaM/SRBnqZzjKUwi6Gbt1Si1nvauTr4="
+  [mod."golang.org/x/time"]
+    version = "v0.14.0"
+    hash = "sha256-fVjpq0ieUHVEOTSElDVleMWvfdcqojZchqdUXiC7NnY="
+  [mod."golang.org/x/tools"]
+    version = "v0.41.0"
+    hash = "sha256-/Plnksa1jSr4jYJc2oCH9fcjGbWocM7EYposMP0tScQ="
+  [mod."google.golang.org/protobuf"]
+    version = "v1.36.11"
+    hash = "sha256-7W+6jntfI/awWL3JP6yQedxqP5S9o3XvPgJ2XxxsIeE="
+  [mod."gopkg.in/inf.v0"]
+    version = "v0.9.1"
+    hash = "sha256-z84XlyeWLcoYOvWLxPkPFgLkpjyb2Y4pdeGMyySOZQI="
+  [mod."gopkg.in/yaml.v2"]
+    version = "v2.4.0"
+    hash = "sha256-uVEGglIedjOIGZzHW4YwN1VoRSTK8o0eGZqzd+TNdd0="
+  [mod."gopkg.in/yaml.v3"]
+    version = "v3.0.1"
+    hash = "sha256-FqL9TKYJ0XkNwJFnq9j0VvJ5ZUU1RvH/52h/f5bkYAU="
+  [mod."k8s.io/api"]
+    version = "v0.35.0"
+    hash = "sha256-eIie0MFXkmNsfiO58pg+ThJ1wPcYh3T7Gch9p2GrT64="
+  [mod."k8s.io/apiextensions-apiserver"]
+    version = "v0.35.0"
+    hash = "sha256-RZdGkV4SoCTY022pIzQbeVwaxIYhIpXapLZrD593gh8="
+  [mod."k8s.io/apimachinery"]
+    version = "v0.35.0"
+    hash = "sha256-+dplbHUOfaCaD2E9IS4F3lnjSCr/a4LjTgdB9de92Pw="
+  [mod."k8s.io/client-go"]
+    version = "v0.35.0"
+    hash = "sha256-s+o7ybLe83chueBIVvYRibI2HCk+QQoWTjfXqmzsjHs="
+  [mod."k8s.io/code-generator"]
+    version = "v0.35.0"
+    hash = "sha256-0F8vNVdF/quBPGxOpxBL/GhupnkMoTE8dcZYX57RZKk="
+  [mod."k8s.io/gengo/v2"]
+    version = "v2.0.0-20251215205346-5ee0d033ba5b"
+    hash = "sha256-FxD4b+cOzKuXsGI4NpsaUK/YTOMxugMGAh2jY3od3p8="
+  [mod."k8s.io/klog/v2"]
+    version = "v2.130.1"
+    hash = "sha256-n5vls1o1a0V0KYv+3SULq4q3R2Is15K8iDHhFlsSH4o="
+  [mod."k8s.io/kube-openapi"]
+    version = "v0.0.0-20260127142750-a19766b6e2d4"
+    hash = "sha256-NS8NvGTX3Ycoc4JU/jwLgtNlD5OOQ5zk2hzvFFSD/jM="
+  [mod."k8s.io/utils"]
+    version = "v0.0.0-20260108192941-914a6e750570"
+    hash = "sha256-eFcd1fZT9M7wc/foeEAUj3jgHJfEY9U3lVqQTkIVJ44="
+  [mod."sigs.k8s.io/controller-runtime"]
+    version = "v0.23.1"
+    hash = "sha256-iOaYAJgy/Q1Hi6afs5mLtP8K5J8Cs/MlDoGp8wE1GOY="
+  [mod."sigs.k8s.io/controller-tools"]
+    version = "v0.20.0"
+    hash = "sha256-1/v8hCCykTDMjhx4jM84/v+WJlQ8M1whdgpGfgmSRRU="
+  [mod."sigs.k8s.io/json"]
+    version = "v0.0.0-20250730193827-2d320260d730"
+    hash = "sha256-y3vUPJYL6oxu/8c0j4vgX6fzqHtVPSCjfyuWkZYf6+I="
+  [mod."sigs.k8s.io/randfill"]
+    version = "v1.0.0"
+    hash = "sha256-xldQxDwW84hmlihdSOFfjXyauhxEWV9KmIDLZMTcYNo="
+  [mod."sigs.k8s.io/structured-merge-diff/v6"]
+    version = "v6.3.2-0.20260122202528-d9cc6641c482"
+    hash = "sha256-4ZUkeHKvdhsZmFSSZKAL/1GZdPO6735BY6FqRc+8tog="
+  [mod."sigs.k8s.io/yaml"]
+    version = "v1.6.0"
+    hash = "sha256-49hg7IVPzwxeovp+HTMiWa/10NMMTSTjAdCmIv6p9dw="

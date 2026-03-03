@@ -42,8 +42,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
-	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	"github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/rbac/controller"
 )
 
@@ -83,7 +83,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	if o.AllowClusterRole == "" {
 		r := NewReconciler(mgr,
 			WithLogger(o.Logger.WithValues("controller", name)),
-			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)))
+			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...))) //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 
 		return ctrl.NewControllerManagedBy(mgr).
 			Named(name).
@@ -99,7 +99,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 		WithOrgDiffer(OrgDiffer{}))
 
 	return ctrl.NewControllerManagedBy(mgr).

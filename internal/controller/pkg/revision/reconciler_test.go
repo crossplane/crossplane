@@ -42,8 +42,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
-	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
+	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	verfake "github.com/crossplane/crossplane/v2/internal/version/fake"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
 	xpkgfake "github.com/crossplane/crossplane/v2/internal/xpkg/fake"

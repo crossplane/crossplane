@@ -44,8 +44,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 
-	legacy "github.com/crossplane/crossplane/v2/apis/apiextensions/v1beta1"
-	"github.com/crossplane/crossplane/v2/apis/protection/v1beta1"
+	legacy "github.com/crossplane/crossplane/apis/v2/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/apis/v2/protection/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/protection"
 	"github.com/crossplane/crossplane/v2/internal/protection/usage"
 	"github.com/crossplane/crossplane/v2/internal/xcrd"
@@ -106,7 +106,7 @@ func SetupUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 		func() protection.Usage { return &protection.InternalUsage{} },
 		f,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 		WithPollInterval(o.PollInterval))
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -123,7 +123,7 @@ func SetupClusterUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 		func() protection.Usage { return &protection.InternalClusterUsage{} },
 		f,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 		WithPollInterval(o.PollInterval))
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -141,7 +141,7 @@ func SetupLegacyUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 		func() protection.Usage { return &protection.InternalLegacyUsage{} },
 		f,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 		WithPollInterval(o.PollInterval))
 
 	return ctrl.NewControllerManagedBy(mgr).

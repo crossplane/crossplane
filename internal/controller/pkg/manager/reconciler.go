@@ -39,8 +39,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
-	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
@@ -176,7 +176,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionListFn(nrl),
 		WithClient(o.Client),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 	}
 
 	if o.PackageRuntime.For(v1.ProviderKind) == controller.PackageRuntimeDeployment {
@@ -206,7 +206,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionListFn(nrl),
 		WithClient(o.Client),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -232,7 +232,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionListFn(nrl),
 		WithClient(o.Client),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 	}
 
 	if o.PackageRuntime.For(v1.FunctionKind) == controller.PackageRuntimeDeployment {

@@ -26,7 +26,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
 )
 
 // DefaultManagedResourceActivationPolicy creates a "default" ManagedResourceActivationPolicy

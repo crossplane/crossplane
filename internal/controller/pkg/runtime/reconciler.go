@@ -39,8 +39,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
-	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
 	"github.com/crossplane/crossplane/v2/internal/features"
@@ -182,7 +182,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 	r := NewReconciler(mgr,
 		WithNewPackageRevisionWithRuntimeFn(nr),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithRuntimeHooks(NewProviderHooks(mgr.GetClient())),
@@ -217,7 +217,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 	r := NewReconciler(mgr,
 		WithNewPackageRevisionWithRuntimeFn(nr),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())),

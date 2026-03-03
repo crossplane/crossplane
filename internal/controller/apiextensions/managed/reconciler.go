@@ -34,7 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
 	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
@@ -142,6 +142,8 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 
 	// Server-side apply the CRD. This handles both create and update.
 	// The Patch call updates patch in-place with the server response.
+	//
+	//nolint:staticcheck // TODO(adamwg): Stop using client.Apply after the v2.2 release.
 	if err := r.client.Patch(ctx, patch, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerMRD)); err != nil {
 		log.Debug("cannot apply CustomResourceDefinition", "error", err)
 		r.record.Event(mrd, event.Warning(reasonApplyCRD, err))
