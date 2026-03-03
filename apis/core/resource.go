@@ -232,10 +232,8 @@ func (obj *TypedReference) GroupVersionKind() schema.GroupVersionKind {
 // GetObjectKind get the ObjectKind of a TypedReference.
 func (obj *TypedReference) GetObjectKind() schema.ObjectKind { return obj }
 
-// ResourceStatus represents the observed state of a managed resource.
-//
-//nolint:revive // This used to be common.ResourceStatus.
-type ResourceStatus struct {
+// ManagedResourceStatus represents the observed state of a managed resource.
+type ManagedResourceStatus struct {
 	ConditionedStatus `json:",inline"`
 	ObservedStatus    `json:",inline"`
 }
