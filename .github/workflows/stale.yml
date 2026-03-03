@@ -8,11 +8,13 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  issues: write
-  pull-requests: write
+  contents: read
 
 jobs:
   stale:
+    permissions:
+      issues: write  # for labeling/commenting on issues
+      pull-requests: write  # for labeling/commenting on PRs
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/stale@28ca1036281a5e5922ead5184a1bbf96e5fc984e # v9
