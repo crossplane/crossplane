@@ -11,6 +11,9 @@ on:
   schedule:
     - cron: '0 8 * * *'
 
+permissions:
+  contents: read
+
 env:
   LOG_LEVEL: "info"
 
