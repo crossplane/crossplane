@@ -12,6 +12,9 @@ on:
   pull_request: {}
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 env:
   # Common versions
   EARTHLY_VERSION: '0.8.16'
@@ -114,6 +117,9 @@ jobs:
         run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +lint
 
   codeql:
+    permissions:
+      contents: read
+      security-events: write
     runs-on: ubuntu-22.04
 
     steps:
@@ -348,6 +354,9 @@ jobs:
           path: _output/tests/**
 
   publish-artifacts:
+    permissions:
+      contents: read
+      packages: write  # for pushing to ghcr.io
     runs-on: ubuntu-22.04
 
     steps:
