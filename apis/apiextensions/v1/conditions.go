@@ -147,10 +147,10 @@ func WatchCircuitClosed() xpv2.Condition {
 }
 
 // IsSystemConditionType returns true if the condition type is a system
-// condition. This includes both crossplane-runtime system conditions and
+// condition. This includes both core system conditions and
 // apiextensions-specific system conditions like the circuit breaker.
 func IsSystemConditionType(t xpv2.ConditionType) bool {
-	// First check crossplane-runtime system conditions
+	// First check core system conditions
 	if xpv2.IsSystemConditionType(t) {
 		return true
 	}
