@@ -16,7 +16,11 @@ limitations under the License.
 
 package xfn
 
-import fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
+)
 
 // RequiredResourceSelector is a common interface for required resource selectors
 // that can be converted to protobuf ResourceSelector.
@@ -26,6 +30,7 @@ type RequiredResourceSelector interface { //nolint:interfacebloat // This interf
 	GetKind() string
 	GetName() *string
 	GetMatchLabels() map[string]string
+	GetMatchExpressions() []metav1.LabelSelectorRequirement
 	GetNamespace() *string
 }
 
@@ -38,7 +43,7 @@ func ToProtobufResourceSelector(r RequiredResourceSelector) *fnv1.ResourceSelect
 		Namespace:  r.GetNamespace(),
 	}
 
-	// You can only set one of name or matchLabels.
+	// You can only set one of name or matchLabels/matchExpressions.
 	if r.GetName() != nil {
 		selector.Match = &fnv1.ResourceSelector_MatchName{
 			MatchName: *r.GetName(),
@@ -46,11 +51,23 @@ func ToProtobufResourceSelector(r RequiredResourceSelector) *fnv1.ResourceSelect
 		return selector
 	}
 
-	if len(r.GetMatchLabels()) > 0 {
+	if len(r.GetMatchLabels()) > 0 || len(r.GetMatchExpressions()) > 0 {
+		ml := &fnv1.MatchLabels{}
+
+		if len(r.GetMatchLabels()) > 0 {
+			ml.Labels = r.GetMatchLabels()
+		}
+
+		for _, expr := range r.GetMatchExpressions() {
+			ml.Expressions = append(ml.Expressions, &fnv1.MatchExpression{
+				Key:      expr.Key,
+				Operator: string(expr.Operator),
+				Values:   expr.Values,
+			})
+		}
+
 		selector.Match = &fnv1.ResourceSelector_MatchLabels{
-			MatchLabels: &fnv1.MatchLabels{
-				Labels: r.GetMatchLabels(),
-			},
+			MatchLabels: ml,
 		}
 	}
 

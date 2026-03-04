@@ -145,7 +145,7 @@ type FunctionRequirements struct {
 
 // RequiredResourceSelector selects resources that should be fetched before
 // a pipeline step runs.
-// +kubebuilder:validation:XValidation:rule="(has(self.name) && !has(self.matchLabels)) || (!has(self.name) && has(self.matchLabels))",message="Either name or matchLabels must be specified, but not both"
+// +kubebuilder:validation:XValidation:rule="(has(self.name) && !has(self.matchLabels) && !has(self.matchExpressions)) || (!has(self.name) && (has(self.matchLabels) || has(self.matchExpressions)))",message="Either name or at least one of matchLabels/matchExpressions must be specified, but name cannot be combined with label selectors"
 type RequiredResourceSelector struct {
 	// RequirementName uniquely identifies this group of resources.
 	// This name will be used as the key in RunFunctionRequest.required_resources.
@@ -158,14 +158,19 @@ type RequiredResourceSelector struct {
 	Kind string `json:"kind"`
 
 	// Name matches a single resource by name. Only one of Name or
-	// MatchLabels may be specified.
+	// MatchLabels/MatchExpressions may be specified.
 	// +optional
 	Name *string `json:"name,omitempty"`
 
-	// MatchLabels matches resources by label selector. Only one of Name or
-	// MatchLabels may be specified.
+	// MatchLabels matches resources by equality-based label selector. Only
+	// one of Name or MatchLabels/MatchExpressions may be specified.
 	// +optional
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+
+	// MatchExpressions specifies set-based label selector requirements.
+	// Each expression is ANDed with any MatchLabels requirements.
+	// +optional
+	MatchExpressions []metav1.LabelSelectorRequirement `json:"matchExpressions,omitempty"`
 
 	// Namespace to search for resources. Optional for cluster-scoped resources.
 	// +optional
@@ -195,6 +200,11 @@ func (r *RequiredResourceSelector) GetName() *string {
 // GetMatchLabels returns the match labels.
 func (r *RequiredResourceSelector) GetMatchLabels() map[string]string {
 	return r.MatchLabels
+}
+
+// GetMatchExpressions returns the match expressions.
+func (r *RequiredResourceSelector) GetMatchExpressions() []metav1.LabelSelectorRequirement {
+	return r.MatchExpressions
 }
 
 // GetNamespace returns the namespace.
