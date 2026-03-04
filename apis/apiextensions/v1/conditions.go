@@ -156,10 +156,5 @@ func IsSystemConditionType(t xpv1.ConditionType) bool {
 	}
 
 	// Then check Crossplane-specific system conditions
-	switch t {
-	case TypeResponsive:
-		return true
-	default:
-		return false
-	}
+	return t == TypeResponsive
 }
