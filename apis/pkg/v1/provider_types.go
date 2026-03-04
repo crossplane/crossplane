@@ -19,7 +19,7 @@ package v1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // +kubebuilder:object:root=true
@@ -55,7 +55,7 @@ type ProviderSpec struct {
 
 // ProviderStatus represents the observed state of a Provider.
 type ProviderStatus struct {
-	xpv1.ConditionedStatus `json:",inline"`
+	xpv2.ConditionedStatus `json:",inline"`
 	PackageStatus          `json:",inline"`
 }
 

@@ -44,7 +44,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 
 	legacy "github.com/crossplane/crossplane/apis/v2/apiextensions/v1beta1"
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/protection/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/protection"
 	"github.com/crossplane/crossplane/v2/internal/protection/usage"
@@ -532,7 +532,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	status.MarkConditions(xpv1.Available())
+	status.MarkConditions(xpv2.Available())
 
 	// We are only watching the Usage itself but not using or used resources.
 	// So, we need to reconcile the Usage periodically to check if the using

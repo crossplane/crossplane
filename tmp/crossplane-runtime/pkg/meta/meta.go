@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
 
@@ -85,10 +85,10 @@ func ReferenceTo(o metav1.Object, of schema.GroupVersionKind) *corev1.ObjectRefe
 
 // TypedReferenceTo returns a typed object reference to the supplied object,
 // presumed to be of the supplied group, version, and kind.
-func TypedReferenceTo(o metav1.Object, of schema.GroupVersionKind) *xpv1.TypedReference {
+func TypedReferenceTo(o metav1.Object, of schema.GroupVersionKind) *xpv2.TypedReference {
 	v, k := of.ToAPIVersionAndKind()
 
-	return &xpv1.TypedReference{
+	return &xpv2.TypedReference{
 		APIVersion: v,
 		Kind:       k,
 		Name:       o.GetName(),
@@ -97,7 +97,7 @@ func TypedReferenceTo(o metav1.Object, of schema.GroupVersionKind) *xpv1.TypedRe
 }
 
 // AsOwner converts the supplied object reference to an owner reference.
-func AsOwner(r *xpv1.TypedReference) metav1.OwnerReference {
+func AsOwner(r *xpv2.TypedReference) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion: r.APIVersion,
 		Kind:       r.Kind,
@@ -108,7 +108,7 @@ func AsOwner(r *xpv1.TypedReference) metav1.OwnerReference {
 
 // AsController converts the supplied object reference to a controller
 // reference. You may also consider using metav1.NewControllerRef.
-func AsController(r *xpv1.TypedReference) metav1.OwnerReference {
+func AsController(r *xpv2.TypedReference) metav1.OwnerReference {
 	t := true
 	ref := AsOwner(r)
 	ref.Controller = &t

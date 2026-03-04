@@ -24,7 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
@@ -40,9 +40,9 @@ func TestOGConditionSetMark(t *testing.T) {
 
 	tests := map[string]struct {
 		reason string
-		start  []xpv1.Condition
-		mark   []xpv1.Condition
-		want   []xpv1.Condition
+		start  []xpv2.Condition
+		mark   []xpv2.Condition
+		want   []xpv2.Condition
 	}{
 		"ProvideNoConditions": {
 			reason: "If updating a resource without conditions with no new conditions, conditions should remain empty.",
@@ -53,26 +53,26 @@ func TestOGConditionSetMark(t *testing.T) {
 		"EmptyAppendCondition": {
 			reason: "If starting with a resource without conditions, and we mark a condition, it should propagate to conditions with the correct generation.",
 			start:  nil,
-			mark:   []xpv1.Condition{xpv1.ReconcileSuccess()},
-			want:   []xpv1.Condition{xpv1.ReconcileSuccess().WithObservedGeneration(42)},
+			mark:   []xpv2.Condition{xpv2.ReconcileSuccess()},
+			want:   []xpv2.Condition{xpv2.ReconcileSuccess().WithObservedGeneration(42)},
 		},
 		"ExistingMarkNothing": {
 			reason: "If the resource has a condition and we update nothing, nothing should change.",
-			start:  []xpv1.Condition{xpv1.Available().WithObservedGeneration(1)},
+			start:  []xpv2.Condition{xpv2.Available().WithObservedGeneration(1)},
 			mark:   nil,
-			want:   []xpv1.Condition{xpv1.Available().WithObservedGeneration(1)},
+			want:   []xpv2.Condition{xpv2.Available().WithObservedGeneration(1)},
 		},
 		"ExistingUpdated": {
 			reason: "If a resource starts with a condition, and we update it, we should see the observedGeneration be updated",
-			start:  []xpv1.Condition{xpv1.ReconcileSuccess().WithObservedGeneration(1)},
-			mark:   []xpv1.Condition{xpv1.ReconcileSuccess()},
-			want:   []xpv1.Condition{xpv1.ReconcileSuccess().WithObservedGeneration(42)},
+			start:  []xpv2.Condition{xpv2.ReconcileSuccess().WithObservedGeneration(1)},
+			mark:   []xpv2.Condition{xpv2.ReconcileSuccess()},
+			want:   []xpv2.Condition{xpv2.ReconcileSuccess().WithObservedGeneration(42)},
 		},
 		"ExistingAppended": {
 			reason: "If a resource has an existing condition and we make another condition, the new condition should merge into the conditions list.",
-			start:  []xpv1.Condition{xpv1.Available().WithObservedGeneration(1)},
-			mark:   []xpv1.Condition{xpv1.ReconcileSuccess()},
-			want:   []xpv1.Condition{xpv1.Available().WithObservedGeneration(1), xpv1.ReconcileSuccess().WithObservedGeneration(42)},
+			start:  []xpv2.Condition{xpv2.Available().WithObservedGeneration(1)},
+			mark:   []xpv2.Condition{xpv2.ReconcileSuccess()},
+			want:   []xpv2.Condition{xpv2.Available().WithObservedGeneration(1), xpv2.ReconcileSuccess().WithObservedGeneration(42)},
 		},
 	}
 	for name, tt := range tests {
@@ -93,7 +93,7 @@ func TestOGConditionSetMark(t *testing.T) {
 			t.Errorf("manager.For(nil) = %v, want non-nil", c)
 		}
 		// Test that Marking on a Manager that has a nil object does not end up panicking.
-		c.MarkConditions(xpv1.ReconcileSuccess())
+		c.MarkConditions(xpv2.ReconcileSuccess())
 		// Success!
 	})
 }
@@ -126,7 +126,7 @@ func TestOGManagerFor(t *testing.T) {
 	}
 }
 
-func newManaged(generation int64, conditions ...xpv1.Condition) *fake.Managed {
+func newManaged(generation int64, conditions ...xpv2.Condition) *fake.Managed {
 	mg := &fake.Managed{}
 	mg.Generation = generation
 	mg.SetConditions(conditions...)

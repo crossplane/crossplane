@@ -32,7 +32,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
@@ -78,7 +78,7 @@ func TestLocalConnectionSecretFor(t *testing.T) {
 						Name:      name,
 						UID:       uid,
 					},
-					Ref: &xpv1.LocalSecretReference{Name: secretName},
+					Ref: &xpv2.LocalSecretReference{Name: secretName},
 				},
 				kind: MockOwnerGVK,
 			},
@@ -132,7 +132,7 @@ func TestConnectionSecretFor(t *testing.T) {
 						Name:      name,
 						UID:       uid,
 					},
-					WriterTo: &xpv1.SecretReference{Namespace: namespace, Name: secretName},
+					WriterTo: &xpv2.SecretReference{Namespace: namespace, Name: secretName},
 				},
 				kind: MockOwnerGVK,
 			},
@@ -369,23 +369,23 @@ func TestIgnoreAny(t *testing.T) {
 
 func TestIsConditionTrue(t *testing.T) {
 	cases := map[string]struct {
-		c    xpv1.Condition
+		c    xpv2.Condition
 		want bool
 	}{
 		"IsTrue": {
-			c:    xpv1.Condition{Status: corev1.ConditionTrue},
+			c:    xpv2.Condition{Status: corev1.ConditionTrue},
 			want: true,
 		},
 		"IsFalse": {
-			c:    xpv1.Condition{Status: corev1.ConditionFalse},
+			c:    xpv2.Condition{Status: corev1.ConditionFalse},
 			want: false,
 		},
 		"IsUnknown": {
-			c:    xpv1.Condition{Status: corev1.ConditionUnknown},
+			c:    xpv2.Condition{Status: corev1.ConditionUnknown},
 			want: false,
 		},
 		"IsUnset": {
-			c:    xpv1.Condition{},
+			c:    xpv2.Condition{},
 			want: false,
 		},
 	}
@@ -626,7 +626,7 @@ func TestGetExternalTags(t *testing.T) {
 					Name: name,
 				},
 				TypedProviderConfigReferencer: fake.TypedProviderConfigReferencer{
-					Ref: &xpv1.ProviderConfigReference{Name: provName, Kind: "ProviderConfig"},
+					Ref: &xpv2.ProviderConfigReference{Name: provName, Kind: "ProviderConfig"},
 				},
 			},
 			want: map[string]string{
@@ -643,7 +643,7 @@ func TestGetExternalTags(t *testing.T) {
 					Namespace: namespace,
 				},
 				TypedProviderConfigReferencer: fake.TypedProviderConfigReferencer{
-					Ref: &xpv1.ProviderConfigReference{Name: provName, Kind: "ProviderConfig"},
+					Ref: &xpv2.ProviderConfigReference{Name: provName, Kind: "ProviderConfig"},
 				},
 			},
 			want: map[string]string{
@@ -659,7 +659,7 @@ func TestGetExternalTags(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: name,
 				},
-				LegacyProviderConfigReferencer: fake.LegacyProviderConfigReferencer{Ref: &xpv1.Reference{Name: provName}},
+				LegacyProviderConfigReferencer: fake.LegacyProviderConfigReferencer{Ref: &xpv2.Reference{Name: provName}},
 			},
 			want: map[string]string{
 				ExternalResourceTagKeyKind:     strings.ToLower((&fake.LegacyManaged{}).GetObjectKind().GroupVersionKind().GroupKind().String()),

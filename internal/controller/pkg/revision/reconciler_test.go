@@ -41,7 +41,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	verfake "github.com/crossplane/crossplane/v2/internal/version/fake"
@@ -53,7 +53,7 @@ import (
 var _ Establisher = &MockEstablisher{}
 
 type MockEstablisher struct {
-	MockEstablish  func(context.Context, []runtime.Object, v1.PackageRevision, bool) ([]xpv1.TypedReference, error)
+	MockEstablish  func(context.Context, []runtime.Object, v1.PackageRevision, bool) ([]xpv2.TypedReference, error)
 	MockRelinquish func() error
 }
 
@@ -64,8 +64,8 @@ func NewMockEstablisher() *MockEstablisher {
 	}
 }
 
-func NewMockEstablishFn(refs []xpv1.TypedReference, err error) func(context.Context, []runtime.Object, v1.PackageRevision, bool) ([]xpv1.TypedReference, error) {
-	return func(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+func NewMockEstablishFn(refs []xpv2.TypedReference, err error) func(context.Context, []runtime.Object, v1.PackageRevision, bool) ([]xpv2.TypedReference, error) {
+	return func(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv2.TypedReference, error) {
 		return refs, err
 	}
 }
@@ -74,7 +74,7 @@ func NewMockRelinquishFn(err error) func() error {
 	return func() error { return err }
 }
 
-func (e *MockEstablisher) Establish(ctx context.Context, objs []runtime.Object, pr v1.PackageRevision, ctrl bool) ([]xpv1.TypedReference, error) {
+func (e *MockEstablisher) Establish(ctx context.Context, objs []runtime.Object, pr v1.PackageRevision, ctrl bool) ([]xpv2.TypedReference, error) {
 	return e.MockEstablish(ctx, objs, pr, ctrl)
 }
 
@@ -786,7 +786,7 @@ func TestReconcile(t *testing.T) {
 						return &v1.ProviderRevision{
 							Status: v1.ProviderRevisionStatus{
 								PackageRevisionStatus: v1.PackageRevisionStatus{
-									ObjectRefs: []xpv1.TypedReference{
+									ObjectRefs: []xpv2.TypedReference{
 										{
 											APIVersion: "apiextensions.k8s.io/v1",
 											Kind:       "CustomResourceDefinition",
@@ -812,7 +812,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{
 									Status: v1.ProviderRevisionStatus{
 										PackageRevisionStatus: v1.PackageRevisionStatus{
-											ObjectRefs: []xpv1.TypedReference{
+											ObjectRefs: []xpv2.TypedReference{
 												{
 													APIVersion: "apiextensions.k8s.io/v1",
 													Kind:       "CustomResourceDefinition",
@@ -856,7 +856,7 @@ func TestReconcile(t *testing.T) {
 						return &v1.ProviderRevision{
 							Status: v1.ProviderRevisionStatus{
 								PackageRevisionStatus: v1.PackageRevisionStatus{
-									ObjectRefs: []xpv1.TypedReference{
+									ObjectRefs: []xpv2.TypedReference{
 										{
 											APIVersion: "apiextensions.k8s.io/v1",
 											Kind:       "CustomResourceDefinition",
@@ -882,7 +882,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{
 									Status: v1.ProviderRevisionStatus{
 										PackageRevisionStatus: v1.PackageRevisionStatus{
-											ObjectRefs: []xpv1.TypedReference{
+											ObjectRefs: []xpv2.TypedReference{
 												{
 													APIVersion: "apiextensions.k8s.io/v1",
 													Kind:       "CustomResourceDefinition",
@@ -937,7 +937,7 @@ func TestReconcile(t *testing.T) {
 								})
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+								want.SetConditions(xpv2.ReconcilePaused().WithMessage(reconcilePausedMsg))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)

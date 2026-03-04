@@ -17,47 +17,47 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // Condition types.
 const (
 	// A TypeSucceeded condition indicates whether an operation has Succeeded.
-	TypeSucceeded xpv1.ConditionType = "Succeeded"
+	TypeSucceeded xpv2.ConditionType = "Succeeded"
 
 	// A TypeValidPipeline Operation has a valid function pipeline.
-	TypeValidPipeline xpv1.ConditionType = "ValidPipeline"
+	TypeValidPipeline xpv2.ConditionType = "ValidPipeline"
 
 	// A TypeWatching condition indicates whether a WatchOperation is
 	// actively watching resources.
-	TypeWatching xpv1.ConditionType = "Watching"
+	TypeWatching xpv2.ConditionType = "Watching"
 
 	// A TypeScheduling condition indicates whether a CronOperation is
 	// actively scheduling operations.
-	TypeScheduling xpv1.ConditionType = "Scheduling"
+	TypeScheduling xpv2.ConditionType = "Scheduling"
 )
 
 // Reasons a package is or is not installed.
 const (
-	ReasonPipelineRunning xpv1.ConditionReason = "PipelineRunning"
-	ReasonPipelineSuccess xpv1.ConditionReason = "PipelineSuccess"
-	ReasonPipelineError   xpv1.ConditionReason = "PipelineError"
+	ReasonPipelineRunning xpv2.ConditionReason = "PipelineRunning"
+	ReasonPipelineSuccess xpv2.ConditionReason = "PipelineSuccess"
+	ReasonPipelineError   xpv2.ConditionReason = "PipelineError"
 
-	ReasonValidPipeline       xpv1.ConditionReason = "ValidPipeline"
-	ReasonMissingCapabilities xpv1.ConditionReason = "MissingCapabilities"
+	ReasonValidPipeline       xpv2.ConditionReason = "ValidPipeline"
+	ReasonMissingCapabilities xpv2.ConditionReason = "MissingCapabilities"
 
-	ReasonWatchActive xpv1.ConditionReason = "WatchActive"
-	ReasonWatchFailed xpv1.ConditionReason = "WatchFailed"
-	ReasonWatchPaused xpv1.ConditionReason = "WatchPaused"
+	ReasonWatchActive xpv2.ConditionReason = "WatchActive"
+	ReasonWatchFailed xpv2.ConditionReason = "WatchFailed"
+	ReasonWatchPaused xpv2.ConditionReason = "WatchPaused"
 
-	ReasonScheduleActive  xpv1.ConditionReason = "ScheduleActive"
-	ReasonScheduleInvalid xpv1.ConditionReason = "ScheduleInvalid"
-	ReasonSchedulePaused  xpv1.ConditionReason = "SchedulePaused"
+	ReasonScheduleActive  xpv2.ConditionReason = "ScheduleActive"
+	ReasonScheduleInvalid xpv2.ConditionReason = "ScheduleInvalid"
+	ReasonSchedulePaused  xpv2.ConditionReason = "SchedulePaused"
 )
 
 // Running indicates that an operation is running.
-func Running() xpv1.Condition {
-	return xpv1.Condition{
+func Running() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeSucceeded,
 		Status:             corev1.ConditionUnknown,
 		LastTransitionTime: metav1.Now(),
@@ -66,8 +66,8 @@ func Running() xpv1.Condition {
 }
 
 // Complete indicates that an operation is complete.
-func Complete() xpv1.Condition {
-	return xpv1.Condition{
+func Complete() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeSucceeded,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -76,8 +76,8 @@ func Complete() xpv1.Condition {
 }
 
 // Failed indicates that an operation has failed.
-func Failed(message string) xpv1.Condition {
-	return xpv1.Condition{
+func Failed(message string) xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeSucceeded,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -87,8 +87,8 @@ func Failed(message string) xpv1.Condition {
 }
 
 // ValidPipeline indicates that an operation has a valid function pipeline.
-func ValidPipeline() xpv1.Condition {
-	return xpv1.Condition{
+func ValidPipeline() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeValidPipeline,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -98,8 +98,8 @@ func ValidPipeline() xpv1.Condition {
 
 // MissingCapabilities indicates that an operation's functions are missing
 // required capabilities.
-func MissingCapabilities(message string) xpv1.Condition {
-	return xpv1.Condition{
+func MissingCapabilities(message string) xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeValidPipeline,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -109,8 +109,8 @@ func MissingCapabilities(message string) xpv1.Condition {
 }
 
 // WatchActive indicates that a WatchOperation is actively watching resources.
-func WatchActive() xpv1.Condition {
-	return xpv1.Condition{
+func WatchActive() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeWatching,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -120,8 +120,8 @@ func WatchActive() xpv1.Condition {
 
 // WatchFailed indicates that a WatchOperation failed to establish or maintain
 // its watch.
-func WatchFailed(message string) xpv1.Condition {
-	return xpv1.Condition{
+func WatchFailed(message string) xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeWatching,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -132,8 +132,8 @@ func WatchFailed(message string) xpv1.Condition {
 
 // WatchPaused indicates that a WatchOperation is paused and not
 // actively watching resources.
-func WatchPaused() xpv1.Condition {
-	return xpv1.Condition{
+func WatchPaused() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeWatching,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -143,8 +143,8 @@ func WatchPaused() xpv1.Condition {
 
 // ScheduleActive indicates that a CronOperation is actively scheduling
 // operations.
-func ScheduleActive() xpv1.Condition {
-	return xpv1.Condition{
+func ScheduleActive() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeScheduling,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -153,8 +153,8 @@ func ScheduleActive() xpv1.Condition {
 }
 
 // ScheduleInvalid indicates that a CronOperation has an invalid cron schedule.
-func ScheduleInvalid(message string) xpv1.Condition {
-	return xpv1.Condition{
+func ScheduleInvalid(message string) xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeScheduling,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -165,8 +165,8 @@ func ScheduleInvalid(message string) xpv1.Condition {
 
 // SchedulePaused indicates that a CronOperation is paused and not
 // actively scheduling operations.
-func SchedulePaused() xpv1.Condition {
-	return xpv1.Condition{
+func SchedulePaused() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeScheduling,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),

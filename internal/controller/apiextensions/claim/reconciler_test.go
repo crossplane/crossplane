@@ -38,7 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 func TestReconcile(t *testing.T) {
@@ -99,7 +99,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
 						cm.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
-						cm.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+						cm.SetConditions(xpv2.ReconcilePaused().WithMessage(reconcilePausedMsg))
 					})),
 				},
 			},
@@ -113,14 +113,14 @@ func TestReconcile(t *testing.T) {
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						// This claim was paused.
-						obj.(*claim.Unstructured).SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+						obj.(*claim.Unstructured).SetConditions(xpv2.ReconcilePaused().WithMessage(reconcilePausedMsg))
 						return nil
 					}),
 					MockList: test.NewMockListFn(nil),
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that our synced status condition changed
 						// from Paused to ReconcileSuccess.
-						cm.SetConditions(xpv1.ReconcileSuccess())
+						cm.SetConditions(xpv2.ReconcileSuccess())
 						cm.SetConditions(Waiting())
 					})),
 				},
@@ -158,7 +158,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
 						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
-						cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errGetComposite)))
+						cm.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errGetComposite)))
 					})),
 				},
 			},
@@ -189,7 +189,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
 						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
-						cm.SetConditions(xpv1.ReconcileError(errors.Errorf(errFmtUnbound, "", "some-other-claim")))
+						cm.SetConditions(xpv2.ReconcileError(errors.Errorf(errFmtUnbound, "", "some-other-claim")))
 					})),
 				},
 			},
@@ -220,8 +220,8 @@ func TestReconcile(t *testing.T) {
 						// Check that we set our status condition.
 						cm.SetDeletionTimestamp(&now)
 						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
-						cm.SetConditions(xpv1.Deleting())
-						cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errDeleteComposite)))
+						cm.SetConditions(xpv2.Deleting())
+						cm.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errDeleteComposite)))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -248,8 +248,8 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
 						cm.SetDeletionTimestamp(&now)
-						cm.SetConditions(xpv1.Deleting())
-						cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errRemoveFinalizer)))
+						cm.SetConditions(xpv2.Deleting())
+						cm.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errRemoveFinalizer)))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -276,8 +276,8 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
 						cm.SetDeletionTimestamp(&now)
-						cm.SetConditions(xpv1.Deleting())
-						cm.SetConditions(xpv1.ReconcileSuccess())
+						cm.SetConditions(xpv2.Deleting())
+						cm.SetConditions(xpv2.ReconcileSuccess())
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -302,7 +302,7 @@ func TestReconcile(t *testing.T) {
 							// references one.
 							o.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 							// We want to foreground delete.
-							fg := xpv1.CompositeDeleteForeground
+							fg := xpv2.CompositeDeleteForeground
 							o.SetCompositeDeletePolicy(&fg)
 						case *composite.Unstructured:
 							// Pretend the XR exists and is bound.
@@ -336,7 +336,7 @@ func TestReconcile(t *testing.T) {
 							// references one.
 							o.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 							// We want to foreground delete.
-							fg := xpv1.CompositeDeleteForeground
+							fg := xpv2.CompositeDeleteForeground
 							o.SetCompositeDeletePolicy(&fg)
 						case *composite.Unstructured:
 							// Pretend the XR exists and is bound, but is
@@ -351,12 +351,12 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						// We want to foreground delete.
-						fg := xpv1.CompositeDeleteForeground
+						fg := xpv2.CompositeDeleteForeground
 						cm.SetCompositeDeletePolicy(&fg)
 
 						// Check that we set our status condition.
 						cm.SetDeletionTimestamp(&now)
-						cm.SetConditions(xpv1.Deleting())
+						cm.SetConditions(xpv2.Deleting())
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -377,7 +377,7 @@ func TestReconcile(t *testing.T) {
 					MockList: test.NewMockListFn(nil),
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
-						cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errAddFinalizer)))
+						cm.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errAddFinalizer)))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -399,7 +399,7 @@ func TestReconcile(t *testing.T) {
 					MockList: test.NewMockListFn(nil),
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
-						cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errSync)))
+						cm.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errSync)))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -431,7 +431,7 @@ func TestReconcile(t *testing.T) {
 							// still being created.
 							o.SetCreationTimestamp(now)
 							o.SetClaimReference(&reference.Claim{})
-							o.SetConditions(xpv1.Creating())
+							o.SetConditions(xpv2.Creating())
 						}
 						return nil
 					}),
@@ -439,7 +439,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
 						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
-						cm.SetConditions(xpv1.ReconcileSuccess())
+						cm.SetConditions(xpv2.ReconcileSuccess())
 						cm.SetConditions(Waiting())
 					})),
 				},
@@ -468,7 +468,7 @@ func TestReconcile(t *testing.T) {
 							// Pretend the XR exists and is available.
 							o.SetCreationTimestamp(now)
 							o.SetClaimReference(&reference.Claim{})
-							o.SetConditions(xpv1.Available())
+							o.SetConditions(xpv2.Available())
 						}
 						return nil
 					}),
@@ -476,7 +476,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
 						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
-						cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errPropagateCDs)))
+						cm.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errPropagateCDs)))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -508,7 +508,7 @@ func TestReconcile(t *testing.T) {
 							// Pretend the XR exists and is available.
 							o.SetCreationTimestamp(now)
 							o.SetClaimReference(&reference.Claim{})
-							o.SetConditions(xpv1.Available())
+							o.SetConditions(xpv2.Available())
 						}
 						return nil
 					}),
@@ -517,8 +517,8 @@ func TestReconcile(t *testing.T) {
 						// Check that we set our status condition.
 						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						cm.SetConnectionDetailsLastPublishedTime(&now)
-						cm.SetConditions(xpv1.ReconcileSuccess())
-						cm.SetConditions(xpv1.Available())
+						cm.SetConditions(xpv2.ReconcileSuccess())
+						cm.SetConditions(xpv2.Available())
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -546,10 +546,10 @@ func TestReconcile(t *testing.T) {
 							// references one.
 							o.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 							// The system conditions are already set.
-							o.SetConditions(xpv1.ReconcileSuccess())
-							o.SetConditions(xpv1.Available())
+							o.SetConditions(xpv2.ReconcileSuccess())
+							o.SetConditions(xpv2.Available())
 							// Database was marked as creating in a prior reconciliation.
-							o.SetConditions(xpv1.Condition{
+							o.SetConditions(xpv2.Condition{
 								Type:   "DatabaseReady",
 								Status: corev1.ConditionFalse,
 								Reason: "Creating",
@@ -558,23 +558,23 @@ func TestReconcile(t *testing.T) {
 							// Pretend the XR exists and is available.
 							o.SetCreationTimestamp(now)
 							o.SetClaimReference(&reference.Claim{})
-							o.SetConditions(xpv1.Available())
+							o.SetConditions(xpv2.Available())
 							o.SetConditions(
 								// Database has become ready.
-								xpv1.Condition{
+								xpv2.Condition{
 									Type:   "DatabaseReady",
 									Status: corev1.ConditionTrue,
 									Reason: "Available",
 								},
 								// Bucket is a new condition.
-								xpv1.Condition{
+								xpv2.Condition{
 									Type:   "BucketReady",
 									Status: corev1.ConditionFalse,
 									Reason: "Creating",
 								},
 								// Internal condition should not be copied over as it is not in
 								// claimConditions.
-								xpv1.Condition{
+								xpv2.Condition{
 									Type:   "InternalSync",
 									Status: corev1.ConditionFalse,
 									Reason: "Syncing",
@@ -591,17 +591,17 @@ func TestReconcile(t *testing.T) {
 						// Check that we set our status condition.
 						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						cm.SetConnectionDetailsLastPublishedTime(&now)
-						cm.SetConditions(xpv1.ReconcileSuccess())
-						cm.SetConditions(xpv1.Available())
+						cm.SetConditions(xpv2.ReconcileSuccess())
+						cm.SetConditions(xpv2.Available())
 						cm.SetConditions(
 							// Database condition should have been updated to show ready.
-							xpv1.Condition{
+							xpv2.Condition{
 								Type:   "DatabaseReady",
 								Status: corev1.ConditionTrue,
 								Reason: "Available",
 							},
 							// Bucket condition should have been created.
-							xpv1.Condition{
+							xpv2.Condition{
 								Type:   "BucketReady",
 								Status: corev1.ConditionFalse,
 								Reason: "Creating",

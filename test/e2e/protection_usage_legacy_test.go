@@ -14,7 +14,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/test/e2e/config"
 	"github.com/crossplane/crossplane/v2/test/e2e/funcs"
@@ -36,7 +36,7 @@ func TestLegacyUsageStandalone(t *testing.T) {
 				// Create using and used managed resources together with a usage.
 				funcs.ApplyResources(FieldManager, manifests, "with-by/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "with-by/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "with-by/usage.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "with-by/usage.yaml", xpv2.Available()),
 
 				// Deletion of used resource should be blocked by usage.
 				funcs.DeletionBlockedByUsageWebhook(manifests, "with-by/used.yaml"),
@@ -56,7 +56,7 @@ func TestLegacyUsageStandalone(t *testing.T) {
 				// Create protected managed resources together with a usage.
 				funcs.ApplyResources(FieldManager, manifests, "with-reason/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "with-reason/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "with-reason/usage.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "with-reason/usage.yaml", xpv2.Available()),
 
 				// Deletion of protected resource should be blocked by usage.
 				funcs.DeletionBlockedByUsageWebhook(manifests, "with-reason/used.yaml"),
@@ -120,7 +120,7 @@ func TestLegacyUsageComposition(t *testing.T) {
 			Assess("ClaimCreatedAndReady", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv2.Available()),
 			)).
 			Assess("UsedResourceHasInUseLabel", funcs.AllOf(
 				funcs.ClaimComposedResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.labels[crossplane.io/in-use]", "true", func(object k8s.Object) bool {

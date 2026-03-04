@@ -19,7 +19,7 @@ package v1beta1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // A PackageType is a type of package.
@@ -165,20 +165,20 @@ type LockList struct {
 
 // LockStatus represents the status of the Lock.
 type LockStatus struct {
-	xpv1.ConditionedStatus `json:",inline"`
+	xpv2.ConditionedStatus `json:",inline"`
 }
 
 // GetCondition of this Lock.
-func (l *Lock) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (l *Lock) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return l.Status.GetCondition(ct)
 }
 
 // SetConditions of this Lock.
-func (l *Lock) SetConditions(c ...xpv1.Condition) {
+func (l *Lock) SetConditions(c ...xpv2.Condition) {
 	l.Status.SetConditions(c...)
 }
 
 // CleanConditions removes all conditions.
 func (l *Lock) CleanConditions() {
-	l.Status.Conditions = []xpv1.Condition{}
+	l.Status.Conditions = []xpv2.Condition{}
 }

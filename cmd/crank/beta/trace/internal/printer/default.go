@@ -29,7 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource/xpkg"
@@ -269,8 +269,8 @@ func (p *DefaultPrinter) printResourceTree(tw *tabwriter.Writer, root *resource.
 // getResourceStatus returns a string that represents an entire row of status
 // information for the resource.
 func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringer {
-	readyCond := r.GetCondition(xpv1.TypeReady)
-	syncedCond := r.GetCondition(xpv1.TypeSynced)
+	readyCond := r.GetCondition(xpv2.TypeReady)
+	syncedCond := r.GetCondition(xpv2.TypeSynced)
 
 	var status, m string
 

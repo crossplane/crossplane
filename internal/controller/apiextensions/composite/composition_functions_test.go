@@ -49,7 +49,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/xcrd"
 	"github.com/crossplane/crossplane/v2/internal/xerrors"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
@@ -191,7 +191,7 @@ func TestFunctionCompose(t *testing.T) {
 										{
 											Name:   "cool-secret",
 											Source: v1.FunctionCredentialsSourceSecret,
-											SecretRef: &xpv1.SecretReference{
+											SecretRef: &xpv2.SecretReference{
 												Namespace: "default",
 												Name:      "cool-secret",
 											},
@@ -346,7 +346,7 @@ func TestFunctionCompose(t *testing.T) {
 					Conditions: []TargetedCondition{
 						// The condition with minimum values.
 						{
-							Condition: xpv1.Condition{
+							Condition: xpv2.Condition{
 								Type:   "DatabaseReady",
 								Status: "False",
 								Reason: "Creating",
@@ -355,7 +355,7 @@ func TestFunctionCompose(t *testing.T) {
 						},
 						// The condition that provides all possible values.
 						{
-							Condition: xpv1.Condition{
+							Condition: xpv2.Condition{
 								Type:    "DeploymentReady",
 								Status:  "True",
 								Reason:  "Available",
@@ -1132,7 +1132,7 @@ func TestFunctionCompose(t *testing.T) {
 										{
 											Name:   "cool-secret",
 											Source: v1.FunctionCredentialsSourceSecret,
-											SecretRef: &xpv1.SecretReference{
+											SecretRef: &xpv2.SecretReference{
 												Namespace: "default",
 												Name:      "cool-secret",
 											},
@@ -1193,7 +1193,7 @@ func TestFunctionCompose(t *testing.T) {
 					Conditions: []TargetedCondition{
 						// The condition with minimum values.
 						{
-							Condition: xpv1.Condition{
+							Condition: xpv2.Condition{
 								Type:   "DatabaseReady",
 								Status: "False",
 								Reason: "Creating",
@@ -1202,7 +1202,7 @@ func TestFunctionCompose(t *testing.T) {
 						},
 						// The condition that provides all possible values.
 						{
-							Condition: xpv1.Condition{
+							Condition: xpv2.Condition{
 								Type:    "DeploymentReady",
 								Status:  "True",
 								Reason:  "Available",

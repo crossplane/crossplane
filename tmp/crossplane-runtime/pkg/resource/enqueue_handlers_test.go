@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 )
 
@@ -54,7 +54,7 @@ func TestAddProviderConfig(t *testing.T) {
 			handler: &EnqueueRequestForProviderConfig{},
 			obj: &fake.LegacyProviderConfigUsage{
 				RequiredProviderConfigReferencer: fake.RequiredProviderConfigReferencer{
-					Ref: xpv1.Reference{Name: name},
+					Ref: xpv2.Reference{Name: name},
 				},
 			},
 			queue: addFn(func(got any) {
@@ -72,7 +72,7 @@ func TestAddProviderConfig(t *testing.T) {
 					Namespace: "foo",
 				},
 				RequiredTypedProviderConfigReferencer: fake.RequiredTypedProviderConfigReferencer{
-					Ref: xpv1.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
+					Ref: xpv2.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
 				},
 			},
 			queue: addFn(func(got any) {
@@ -90,7 +90,7 @@ func TestAddProviderConfig(t *testing.T) {
 					Namespace: "foo",
 				},
 				RequiredTypedProviderConfigReferencer: fake.RequiredTypedProviderConfigReferencer{
-					Ref: xpv1.ProviderConfigReference{Name: name, Kind: "ClusterProviderConfig"},
+					Ref: xpv2.ProviderConfigReference{Name: name, Kind: "ClusterProviderConfig"},
 				},
 			},
 			queue: addFn(func(got any) {
@@ -108,7 +108,7 @@ func TestAddProviderConfig(t *testing.T) {
 					Namespace: "bar",
 				},
 				RequiredTypedProviderConfigReferencer: fake.RequiredTypedProviderConfigReferencer{
-					Ref: xpv1.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
+					Ref: xpv2.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
 				},
 			},
 			queue: addFn(func(got any) {
@@ -126,7 +126,7 @@ func TestAddProviderConfig(t *testing.T) {
 					Namespace: "bar",
 				},
 				RequiredTypedProviderConfigReferencer: fake.RequiredTypedProviderConfigReferencer{
-					Ref: xpv1.ProviderConfigReference{Name: name, Kind: "OtherProviderConfig"},
+					Ref: xpv2.ProviderConfigReference{Name: name, Kind: "OtherProviderConfig"},
 				},
 			},
 			queue: addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly for non-matching kind") }),
@@ -139,7 +139,7 @@ func TestAddProviderConfig(t *testing.T) {
 					Namespace: "baz",
 				},
 				RequiredTypedProviderConfigReferencer: fake.RequiredTypedProviderConfigReferencer{
-					Ref: xpv1.ProviderConfigReference{Name: name, Kind: ""},
+					Ref: xpv2.ProviderConfigReference{Name: name, Kind: ""},
 				},
 			},
 			queue: addFn(func(got any) {

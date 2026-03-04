@@ -34,14 +34,14 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 var _ ConnectionDetailsFetcher = &SecretConnectionDetailsFetcher{}
 
 func TestSecretConnectionDetailsFetcher(t *testing.T) {
 	errBoom := errors.New("boom")
-	sref := &xpv1.SecretReference{Name: "foo", Namespace: "bar"}
+	sref := &xpv2.SecretReference{Name: "foo", Namespace: "bar"}
 	s := &corev1.Secret{
 		Data: map[string][]byte{
 			"foo": []byte("a"),

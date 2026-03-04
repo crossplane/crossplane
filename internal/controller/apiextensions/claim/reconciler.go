@@ -40,7 +40,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/names"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
 )
@@ -322,7 +322,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// logging, publishing an event and updating the Synced status condition.
 	if meta.IsPaused(cm) {
 		r.record.Event(cm, event.Normal(reasonPaused, reconcilePausedMsg))
-		status.MarkConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+		status.MarkConditions(xpv2.ReconcilePaused().WithMessage(reconcilePausedMsg))
 		// If the pause annotation is removed, we will have a chance to
 		// reconcile again and resume and if status update fails, we will
 		// reconcile again to retry to update the status.
@@ -338,7 +338,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.client.Get(ctx, types.NamespacedName{Name: ref.Name}, xr); resource.IgnoreNotFound(err) != nil {
 			err = errors.Wrap(err, errGetComposite)
 			record.Event(cm, event.Warning(reasonBind, err))
-			status.MarkConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv2.ReconcileError(err))
 			_ = r.client.Status().Update(ctx, cm)
 
 			return reconcile.Result{}, err
@@ -359,7 +359,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if ref := xr.GetClaimReference(); meta.WasCreated(xr) && ref != nil && !cmp.Equal(cm.GetReference(), ref) {
 		err := errors.Errorf(errFmtUnbound, xr.GetName(), ref.Name)
 		record.Event(cm, event.Warning(reasonBind, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(ctx, cm)
 
 		// Returning nil is intentional - see comment above.
@@ -378,7 +378,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		err = errors.Wrap(err, errUpgradeManagedFields)
 		record.Event(cm, event.Warning(reasonBind, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(ctx, cm)
 
 		return reconcile.Result{}, err
@@ -387,11 +387,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if meta.WasDeleted(cm) {
 		log = log.WithValues("deletion-timestamp", cm.GetDeletionTimestamp())
 
-		status.MarkConditions(xpv1.Deleting())
+		status.MarkConditions(xpv2.Deleting())
 
 		if meta.WasCreated(xr) {
 			requiresForegroundDeletion := false
-			if cdp := cm.GetCompositeDeletePolicy(); cdp != nil && *cdp == xpv1.CompositeDeleteForeground {
+			if cdp := cm.GetCompositeDeletePolicy(); cdp != nil && *cdp == xpv2.CompositeDeleteForeground {
 				requiresForegroundDeletion = true
 			}
 
@@ -408,7 +408,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if err := r.client.Delete(ctx, xr, do); resource.IgnoreNotFound(err) != nil {
 				err = errors.Wrap(err, errDeleteComposite)
 				record.Event(cm, event.Warning(reasonDelete, err))
-				status.MarkConditions(xpv1.ReconcileError(err))
+				status.MarkConditions(xpv2.ReconcileError(err))
 				_ = r.client.Status().Update(ctx, cm)
 
 				return reconcile.Result{}, err
@@ -425,14 +425,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := r.claim.RemoveFinalizer(ctx, cm); err != nil {
 			err = errors.Wrap(err, errRemoveFinalizer)
 			record.Event(cm, event.Warning(reasonDelete, err))
-			status.MarkConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv2.ReconcileError(err))
 			_ = r.client.Status().Update(ctx, cm)
 
 			return reconcile.Result{}, err
 		}
 
 		log.Debug("Successfully deleted claim")
-		status.MarkConditions(xpv1.ReconcileSuccess())
+		status.MarkConditions(xpv2.ReconcileSuccess())
 
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
@@ -444,7 +444,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		err = errors.Wrap(err, errAddFinalizer)
 		record.Event(cm, event.Warning(reasonBind, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(ctx, cm)
 
 		return reconcile.Result{}, err
@@ -472,7 +472,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		err = errors.Wrap(err, errSync)
 		record.Event(cm, event.Warning(reasonBind, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(ctx, cm)
 
 		return reconcile.Result{}, err
@@ -483,7 +483,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		record.Event(cm, event.Normal(reasonBind, "Successfully bound composite resource"))
 	}
 
-	status.MarkConditions(xpv1.ReconcileSuccess())
+	status.MarkConditions(xpv2.ReconcileSuccess())
 
 	// Copy any custom status conditions from the XR to the claim.
 	for _, cType := range xr.GetClaimConditionTypes() {
@@ -491,7 +491,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		status.MarkConditions(c)
 	}
 
-	if !resource.IsConditionTrue(xr.GetCondition(xpv1.TypeReady)) {
+	if !resource.IsConditionTrue(xr.GetCondition(xpv2.TypeReady)) {
 		record.Event(cm, event.Normal(reasonBind, "Composite resource is not yet ready"))
 
 		// We should be watching the composite resource and will have a
@@ -505,7 +505,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		err = errors.Wrap(err, errPropagateCDs)
 		record.Event(cm, event.Warning(reasonPropagate, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(ctx, cm)
 
 		return reconcile.Result{}, err
@@ -518,19 +518,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// We have a watch on both the claim and its composite, so there's no
 	// need to requeue here.
-	status.MarkConditions(xpv1.Available())
+	status.MarkConditions(xpv2.Available())
 
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 }
 
 // Waiting returns a condition that indicates the composite resource claim is
 // currently waiting for its composite resource to become ready.
-func Waiting() xpv1.Condition {
-	return xpv1.Condition{
-		Type:               xpv1.TypeReady,
+func Waiting() xpv2.Condition {
+	return xpv2.Condition{
+		Type:               xpv2.TypeReady,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             xpv1.ConditionReason("Waiting"),
+		Reason:             xpv2.ConditionReason("Waiting"),
 		Message:            "Claim is waiting for composite resource to become Ready",
 	}
 }

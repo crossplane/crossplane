@@ -37,7 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	"github.com/crossplane/crossplane/v2/internal/ops/lifecycle"
 )
@@ -274,7 +274,7 @@ func NewOperation(wo *v1alpha1.WatchOperation, watched *unstructured.Unstructure
 	meta.AddAnnotations(op, annotations)
 
 	av, k := v1alpha1.WatchOperationGroupVersionKind.ToAPIVersionAndKind()
-	meta.AddOwnerReference(op, meta.AsController(&xpv1.TypedReference{
+	meta.AddOwnerReference(op, meta.AsController(&xpv2.TypedReference{
 		APIVersion: av,
 		Kind:       k,
 		Name:       wo.GetName(),

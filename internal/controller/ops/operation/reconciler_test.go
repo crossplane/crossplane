@@ -40,7 +40,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	v1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
@@ -198,7 +198,7 @@ func TestReconcile(t *testing.T) {
 												{
 													Name:   "doesnt-exist",
 													Source: v1alpha1.FunctionCredentialsSourceSecret,
-													SecretRef: &v1.SecretReference{
+													SecretRef: &xpv2.SecretReference{
 														Namespace: "default",
 														Name:      "creds",
 													},

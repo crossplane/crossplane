@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -56,14 +56,14 @@ const (
 
 // Condition types and reasons.
 const (
-	TypeTerminating xpv1.ConditionType   = "Terminating"
-	ReasonInUse     xpv1.ConditionReason = "InUse"
+	TypeTerminating xpv2.ConditionType   = "Terminating"
+	ReasonInUse     xpv2.ConditionReason = "InUse"
 )
 
 // Terminating indicates a ProviderConfig has been deleted, but that the
 // deletion is being blocked because it is still in use.
-func Terminating() xpv1.Condition {
-	return xpv1.Condition{
+func Terminating() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeTerminating,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -171,11 +171,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	l := r.newUsageList()
 
 	matchingLabels := client.MatchingLabels{
-		xpv1.LabelKeyProviderName: pc.GetName(),
+		xpv2.LabelKeyProviderName: pc.GetName(),
 	}
 
 	if !r.legacyPCU {
-		matchingLabels[xpv1.LabelKeyProviderKind] = pc.GetObjectKind().GroupVersionKind().Kind
+		matchingLabels[xpv2.LabelKeyProviderKind] = pc.GetObjectKind().GroupVersionKind().Kind
 	}
 
 	if err := r.client.List(ctx, l, matchingLabels); err != nil {

@@ -23,7 +23,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // Resource struct represents a kubernetes resource.
@@ -41,11 +41,11 @@ type ResourceList struct {
 }
 
 // GetCondition of this resource.
-func (r *Resource) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
-	conditioned := xpv1.ConditionedStatus{}
+func (r *Resource) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
+	conditioned := xpv2.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
 	if err := fieldpath.Pave(r.Unstructured.Object).GetValueInto("status", &conditioned); err != nil {
-		return xpv1.Condition{}
+		return xpv2.Condition{}
 	}
 	// We didn't use xpv1.CondidionedStatus.GetCondition because that's defaulting the
 	// status to unknown if the condition is not found at all.
@@ -55,5 +55,5 @@ func (r *Resource) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 		}
 	}
 
-	return xpv1.Condition{}
+	return xpv2.Condition{}
 }

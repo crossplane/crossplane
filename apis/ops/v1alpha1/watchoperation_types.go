@@ -19,7 +19,7 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // LabelWatchOperationName is the label Crossplane adds to Operations to
@@ -93,7 +93,7 @@ type WatchSpec struct {
 
 // WatchOperationStatus represents the observed state of a WatchOperation.
 type WatchOperationStatus struct {
-	xpv1.ConditionedStatus `json:",inline"`
+	xpv2.ConditionedStatus `json:",inline"`
 
 	// RunningOperationRefs is a list of currently running Operations.
 	// +optional
@@ -140,13 +140,13 @@ type WatchOperation struct {
 
 // SetConditions delegates to Status.SetConditions.
 // Implements Conditioned.SetConditions.
-func (wo *WatchOperation) SetConditions(cs ...xpv1.Condition) {
+func (wo *WatchOperation) SetConditions(cs ...xpv2.Condition) {
 	wo.Status.SetConditions(cs...)
 }
 
 // GetCondition delegates to Status.GetCondition.
 // Implements Conditioned.GetCondition.
-func (wo *WatchOperation) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (wo *WatchOperation) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return wo.Status.GetCondition(ct)
 }
 

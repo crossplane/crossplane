@@ -4,7 +4,7 @@
 package v1
 
 import (
-	core "github.com/crossplane/crossplane/apis/v2/core"
+	v2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -42,16 +42,6 @@ func (c *GeneratedRevisionSpecConverter) ToRevisionSpec(source CompositionSpec) 
 	}
 	return v1CompositionRevisionSpec
 }
-func (c *GeneratedRevisionSpecConverter) pCoreSecretReferenceToPCoreSecretReference(source *core.SecretReference) *core.SecretReference {
-	var pCoreSecretReference *core.SecretReference
-	if source != nil {
-		var coreSecretReference core.SecretReference
-		coreSecretReference.Name = (*source).Name
-		coreSecretReference.Namespace = (*source).Namespace
-		pCoreSecretReference = &coreSecretReference
-	}
-	return pCoreSecretReference
-}
 func (c *GeneratedRevisionSpecConverter) pRuntimeRawExtensionToPRuntimeRawExtension(source *runtime.RawExtension) *runtime.RawExtension {
 	var pRuntimeRawExtension *runtime.RawExtension
 	if source != nil {
@@ -80,6 +70,16 @@ func (c *GeneratedRevisionSpecConverter) pV1FunctionRequirementsToPV1FunctionReq
 	}
 	return pV1FunctionRequirements
 }
+func (c *GeneratedRevisionSpecConverter) pV2SecretReferenceToPV2SecretReference(source *v2.SecretReference) *v2.SecretReference {
+	var pV2SecretReference *v2.SecretReference
+	if source != nil {
+		var v2SecretReference v2.SecretReference
+		v2SecretReference.Name = (*source).Name
+		v2SecretReference.Namespace = (*source).Namespace
+		pV2SecretReference = &v2SecretReference
+	}
+	return pV2SecretReference
+}
 func (c *GeneratedRevisionSpecConverter) v1CompositionModeToV1CompositionMode(source CompositionMode) CompositionMode {
 	var v1CompositionMode CompositionMode
 	switch source {
@@ -104,7 +104,7 @@ func (c *GeneratedRevisionSpecConverter) v1FunctionCredentialsToV1FunctionCreden
 	var v1FunctionCredentials FunctionCredentials
 	v1FunctionCredentials.Name = source.Name
 	v1FunctionCredentials.Source = c.v1FunctionCredentialsSourceToV1FunctionCredentialsSource(source.Source)
-	v1FunctionCredentials.SecretRef = c.pCoreSecretReferenceToPCoreSecretReference(source.SecretRef)
+	v1FunctionCredentials.SecretRef = c.pV2SecretReferenceToPV2SecretReference(source.SecretRef)
 	return v1FunctionCredentials
 }
 func (c *GeneratedRevisionSpecConverter) v1FunctionReferenceToV1FunctionReference(source FunctionReference) FunctionReference {

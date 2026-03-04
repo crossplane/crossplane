@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
@@ -73,35 +73,35 @@ func TestConditions(t *testing.T) {
 	cases := map[string]struct {
 		reason  string
 		u       *Unstructured
-		set     []xpv1.Condition
-		get     xpv1.ConditionType
-		want    xpv1.Condition
-		wantAll []xpv1.Condition
+		set     []xpv2.Condition
+		get     xpv2.ConditionType
+		want    xpv2.Condition
+		wantAll []xpv2.Condition
 	}{
 		"NewCondition": {
 			reason:  "It should be possible to set a condition of an empty Unstructured.",
 			u:       New(),
-			set:     []xpv1.Condition{xpv1.Available(), xpv1.ReconcileSuccess()},
-			get:     xpv1.TypeReady,
-			want:    xpv1.Available(),
-			wantAll: []xpv1.Condition{xpv1.Available(), xpv1.ReconcileSuccess()},
+			set:     []xpv2.Condition{xpv2.Available(), xpv2.ReconcileSuccess()},
+			get:     xpv2.TypeReady,
+			want:    xpv2.Available(),
+			wantAll: []xpv2.Condition{xpv2.Available(), xpv2.ReconcileSuccess()},
 		},
 		"ExistingCondition": {
 			reason:  "It should be possible to overwrite a condition that is already set.",
-			u:       New(WithConditions(xpv1.Creating())),
-			set:     []xpv1.Condition{xpv1.Available()},
-			get:     xpv1.TypeReady,
-			want:    xpv1.Available(),
-			wantAll: []xpv1.Condition{xpv1.Available()},
+			u:       New(WithConditions(xpv2.Creating())),
+			set:     []xpv2.Condition{xpv2.Available()},
+			get:     xpv2.TypeReady,
+			want:    xpv2.Available(),
+			wantAll: []xpv2.Condition{xpv2.Available()},
 		},
 		"WeirdStatus": {
 			reason: "It should not be possible to set a condition when status is not an object.",
 			u: &Unstructured{Unstructured: unstructured.Unstructured{Object: map[string]any{
 				"status": "wat",
 			}}},
-			set:     []xpv1.Condition{xpv1.Available()},
-			get:     xpv1.TypeReady,
-			want:    xpv1.Condition{},
+			set:     []xpv2.Condition{xpv2.Available()},
+			get:     xpv2.TypeReady,
+			want:    xpv2.Condition{},
 			wantAll: nil,
 		},
 		"WeirdStatusConditions": {
@@ -111,10 +111,10 @@ func TestConditions(t *testing.T) {
 					"conditions": "wat",
 				},
 			}}},
-			set:     []xpv1.Condition{xpv1.Available()},
-			get:     xpv1.TypeReady,
-			want:    xpv1.Available(),
-			wantAll: []xpv1.Condition{xpv1.Available()},
+			set:     []xpv2.Condition{xpv2.Available()},
+			get:     xpv2.TypeReady,
+			want:    xpv2.Available(),
+			wantAll: []xpv2.Condition{xpv2.Available()},
 		},
 	}
 
@@ -139,39 +139,39 @@ func TestClaimConditionTypes(t *testing.T) {
 	cases := map[string]struct {
 		reason  string
 		u       *Unstructured
-		set     []xpv1.ConditionType
-		want    []xpv1.ConditionType
+		set     []xpv2.ConditionType
+		want    []xpv2.ConditionType
 		wantErr error
 	}{
 		"CannotSetSystemConditionTypes": {
 			reason: "Claim conditions API should fail to set conditions if a system condition is detected.",
 			u:      New(WithSchema(SchemaLegacy)),
-			set: []xpv1.ConditionType{
-				xpv1.ConditionType("DatabaseReady"),
-				xpv1.ConditionType("NetworkReady"),
+			set: []xpv2.ConditionType{
+				xpv2.ConditionType("DatabaseReady"),
+				xpv2.ConditionType("NetworkReady"),
 				// system condition
-				xpv1.ConditionType("Ready"),
+				xpv2.ConditionType("Ready"),
 			},
-			want:    []xpv1.ConditionType{},
+			want:    []xpv2.ConditionType{},
 			wantErr: errors.New("cannot set system condition Ready as a claim condition"),
 		},
 		"SetSingleCustomConditionType": {
 			reason: "Claim condition API should work with a single custom condition type.",
 			u:      New(WithSchema(SchemaLegacy)),
-			set:    []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
-			want:   []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
+			set:    []xpv2.ConditionType{xpv2.ConditionType("DatabaseReady")},
+			want:   []xpv2.ConditionType{xpv2.ConditionType("DatabaseReady")},
 		},
 		"SetMultipleCustomConditionTypes": {
 			reason: "Claim condition API should work with multiple custom condition types.",
 			u:      New(WithSchema(SchemaLegacy)),
-			set:    []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady"), xpv1.ConditionType("NetworkReady")},
-			want:   []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady"), xpv1.ConditionType("NetworkReady")},
+			set:    []xpv2.ConditionType{xpv2.ConditionType("DatabaseReady"), xpv2.ConditionType("NetworkReady")},
+			want:   []xpv2.ConditionType{xpv2.ConditionType("DatabaseReady"), xpv2.ConditionType("NetworkReady")},
 		},
 		"SetMultipleOfTheSameCustomConditionTypes": {
 			reason: "Claim condition API not add more than one of the same condition.",
 			u:      New(WithSchema(SchemaLegacy)),
-			set:    []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady"), xpv1.ConditionType("DatabaseReady")},
-			want:   []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
+			set:    []xpv2.ConditionType{xpv2.ConditionType("DatabaseReady"), xpv2.ConditionType("DatabaseReady")},
+			want:   []xpv2.ConditionType{xpv2.ConditionType("DatabaseReady")},
 		},
 		"WeirdStatus": {
 			reason: "It should not be possible to set a condition when status is not an object.",
@@ -181,8 +181,8 @@ func TestClaimConditionTypes(t *testing.T) {
 				}},
 				Schema: SchemaLegacy,
 			},
-			set:  []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
-			want: []xpv1.ConditionType{},
+			set:  []xpv2.ConditionType{xpv2.ConditionType("DatabaseReady")},
+			want: []xpv2.ConditionType{},
 		},
 		"WeirdStatusClaimConditionTypes": {
 			reason: "Claim conditions should be overwritten if they are not an object.",
@@ -194,8 +194,8 @@ func TestClaimConditionTypes(t *testing.T) {
 				}},
 				Schema: SchemaLegacy,
 			},
-			set:  []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
-			want: []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
+			set:  []xpv2.ConditionType{xpv2.ConditionType("DatabaseReady")},
+			want: []xpv2.ConditionType{xpv2.ConditionType("DatabaseReady")},
 		},
 	}
 
@@ -319,11 +319,11 @@ func TestCompositionRevisionSelector(t *testing.T) {
 }
 
 func TestCompositionUpdatePolicy(t *testing.T) {
-	p := xpv1.UpdateManual
+	p := xpv2.UpdateManual
 	cases := map[string]struct {
 		u    *Unstructured
-		set  *xpv1.UpdatePolicy
-		want *xpv1.UpdatePolicy
+		set  *xpv2.UpdatePolicy
+		want *xpv2.UpdatePolicy
 	}{
 		"NewRef": {
 			u:    New(),
@@ -397,11 +397,11 @@ func TestResourceReferences(t *testing.T) {
 }
 
 func TestWriteConnectionSecretToReference(t *testing.T) {
-	ref := &xpv1.SecretReference{Namespace: "ns", Name: "cool"}
+	ref := &xpv2.SecretReference{Namespace: "ns", Name: "cool"}
 	cases := map[string]struct {
 		u    *Unstructured
-		set  *xpv1.SecretReference
-		want *xpv1.SecretReference
+		set  *xpv2.SecretReference
+		want *xpv2.SecretReference
 	}{
 		"NewRef": {
 			u:    New(WithSchema(SchemaLegacy)),

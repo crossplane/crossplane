@@ -46,7 +46,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
@@ -95,7 +95,7 @@ const (
 
 // Condition reasons.
 const (
-	reasonFatalError xpv1.ConditionReason = "FatalError"
+	reasonFatalError xpv2.ConditionReason = "FatalError"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -274,7 +274,7 @@ func (e *TargetedEvent) AsDetailedEvent() event.Event {
 // A TargetedCondition represents a condition produced by the composition
 // process. It can target either the XR only, or both the XR and the claim.
 type TargetedCondition struct {
-	xpv1.Condition
+	xpv2.Condition
 
 	Target CompositionTarget
 }
@@ -573,7 +573,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// after logging, publishing an event and updating the SYNC status condition
 	if meta.IsPaused(xr) {
 		r.record.Event(xr, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
-		status.MarkConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+		status.MarkConditions(xpv2.ReconcilePaused().WithMessage(reconcilePausedMsg))
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
 		// and if status update fails, we will reconcile again to retry to update the status
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
@@ -582,7 +582,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if meta.WasDeleted(xr) {
 		log = log.WithValues("deletion-timestamp", xr.GetDeletionTimestamp())
 
-		status.MarkConditions(xpv1.Deleting())
+		status.MarkConditions(xpv2.Deleting())
 
 		if err := r.composite.RemoveFinalizer(ctx, xr); err != nil {
 			if kerrors.IsConflict(err) {
@@ -591,14 +591,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 			err = errors.Wrap(err, errRemoveFinalizer)
 			r.record.Event(xr, event.Warning(reasonDelete, err))
-			status.MarkConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv2.ReconcileError(err))
 			_ = r.client.Status().Update(updateCtx, xr)
 
 			return reconcile.Result{}, err
 		}
 
 		log.Debug("Successfully deleted composite resource")
-		status.MarkConditions(xpv1.ReconcileSuccess())
+		status.MarkConditions(xpv2.ReconcileSuccess())
 
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
@@ -610,7 +610,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(xr, event.Warning(reasonInit, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(ctx, xr)
 
 		return reconcile.Result{}, err
@@ -624,7 +624,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		err = errors.Wrap(err, errSelectComp)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(updateCtx, xr)
 
 		return reconcile.Result{}, err
@@ -641,7 +641,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errSelectCompRev)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(updateCtx, xr)
 
 		return reconcile.Result{}, err
@@ -664,7 +664,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		err = errors.Wrap(err, errFetchComp)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(updateCtx, xr)
 
 		return reconcile.Result{}, err
@@ -685,7 +685,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err := errors.Errorf("selected CompositionRevision %s does not have a valid function pipeline: %s", rev.GetName(), msg)
 
 		r.record.Event(xr, event.Warning(reasonCompose, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(ctx, xr)
 
 		return reconcile.Result{}, err
@@ -700,7 +700,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		err = errors.Wrap(err, errConfigure)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(updateCtx, xr)
 
 		return reconcile.Result{}, err
@@ -735,7 +735,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				}
 			}
 		}
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 
 		resultMeta := r.handleCommonCompositionResult(updateCtx, res, xr)
 		// We encountered a fatal error. For any custom status conditions that were
@@ -767,7 +767,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := r.engine.StartWatches(ctx, r.controllerName, ws...); err != nil {
 		err = errors.Wrap(err, errWatch)
 		r.record.Event(xr, event.Warning(reasonWatch, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(updateCtx, xr)
 
 		return reconcile.Result{}, err
@@ -783,7 +783,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		err = errors.Wrap(err, errPublish)
 		r.record.Event(xr, event.Warning(reasonPublish, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(updateCtx, xr)
 
 		return reconcile.Result{}, err
@@ -831,22 +831,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	synced := xpv1.ReconcileSuccess()
+	synced := xpv2.ReconcileSuccess()
 	if len(unsynced) > 0 {
-		synced = xpv1.ReconcileError(errors.New(errSyncResources)).WithMessage(fmt.Sprintf("Unsynced resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unsynced)))
+		synced = xpv2.ReconcileError(errors.New(errSyncResources)).WithMessage(fmt.Sprintf("Unsynced resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unsynced)))
 	}
 
-	ready := xpv1.Available()
+	ready := xpv2.Available()
 	if len(unready) > 0 {
-		ready = xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unready)))
+		ready = xpv2.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unready)))
 	}
 
 	// If the composer explicitly specified the XR's readiness it
 	// supersedes readiness derived from composed resources.
 	if res.Ready != nil {
-		ready = xpv1.Creating()
+		ready = xpv2.Creating()
 		if *res.Ready {
-			ready = xpv1.Available()
+			ready = xpv2.Available()
 		}
 	}
 
@@ -874,7 +874,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 type compositionResultMeta struct {
 	numWarningEvents   int
-	conditionTypesSeen map[xpv1.ConditionType]bool
+	conditionTypesSeen map[xpv2.ConditionType]bool
 }
 
 func (r *Reconciler) handleCommonCompositionResult(ctx context.Context, res CompositionResult, xr *composite.Unstructured) compositionResultMeta {
@@ -905,7 +905,7 @@ func (r *Reconciler) handleCommonCompositionResult(ctx context.Context, res Comp
 		}
 	}
 
-	conditionTypesSeen := make(map[xpv1.ConditionType]bool)
+	conditionTypesSeen := make(map[xpv2.ConditionType]bool)
 	for _, c := range res.Conditions {
 		if v1.IsSystemConditionType(c.Type) {
 			// Do not let users update system conditions.

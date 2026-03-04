@@ -6,7 +6,7 @@ import (
 
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/test/e2e/config"
 	"github.com/crossplane/crossplane/v2/test/e2e/funcs"
 )
@@ -29,7 +29,7 @@ func TestUsageStandaloneNamespaced(t *testing.T) {
 				// Create using and used resources together with a usage.
 				funcs.ApplyResources(FieldManager, manifests, "with-by/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "with-by/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "with-by/usage.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "with-by/usage.yaml", xpv2.Available()),
 
 				// Deletion of used resource should be blocked by usage.
 				funcs.DeletionBlockedByUsageWebhook(manifests, "with-by/used.yaml"),
@@ -49,7 +49,7 @@ func TestUsageStandaloneNamespaced(t *testing.T) {
 				// Create using and used resources together with a usage.
 				funcs.ApplyResources(FieldManager, manifests, "with-by-across-namespaces/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "with-by-across-namespaces/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "with-by-across-namespaces/usage.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "with-by-across-namespaces/usage.yaml", xpv2.Available()),
 
 				// Deletion of used resource should be blocked by usage.
 				funcs.DeletionBlockedByUsageWebhook(manifests, "with-by-across-namespaces/used.yaml"),
@@ -69,7 +69,7 @@ func TestUsageStandaloneNamespaced(t *testing.T) {
 				// Create protected resources together with a usage.
 				funcs.ApplyResources(FieldManager, manifests, "with-reason/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "with-reason/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "with-reason/usage.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "with-reason/usage.yaml", xpv2.Available()),
 
 				// Deletion of protected resource should be blocked by usage.
 				funcs.DeletionBlockedByUsageWebhook(manifests, "with-reason/used.yaml"),
@@ -120,7 +120,7 @@ func TestUsageStandaloneCluster(t *testing.T) {
 				// Create using and used resources together with a usage.
 				funcs.ApplyResources(FieldManager, manifests, "with-by/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "with-by/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "with-by/usage.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "with-by/usage.yaml", xpv2.Available()),
 
 				// Deletion of used resource should be blocked by usage.
 				funcs.DeletionBlockedByUsageWebhook(manifests, "with-by/used.yaml"),
@@ -140,7 +140,7 @@ func TestUsageStandaloneCluster(t *testing.T) {
 				// Create protected resources together with a usage.
 				funcs.ApplyResources(FieldManager, manifests, "with-reason/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "with-reason/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "with-reason/usage.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "with-reason/usage.yaml", xpv2.Available()),
 
 				// Deletion of protected resource should be blocked by usage.
 				funcs.DeletionBlockedByUsageWebhook(manifests, "with-reason/used.yaml"),

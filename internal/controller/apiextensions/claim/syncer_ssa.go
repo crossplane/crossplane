@@ -29,7 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/names"
 	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
@@ -134,7 +134,7 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// Propagate composition revision ref from the claim if the update policy is
 	// manual. When the update policy is manual the claim controller is
 	// authoritative for this field. See below for the automatic case.
-	if xr.GetCompositionUpdatePolicy() != nil && *xr.GetCompositionUpdatePolicy() == xpv1.UpdateManual {
+	if xr.GetCompositionUpdatePolicy() != nil && *xr.GetCompositionUpdatePolicy() == xpv2.UpdateManual {
 		delete(wellKnownClaimFields, xcrd.CompositionRevisionRef)
 	}
 
@@ -195,7 +195,7 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// automatic. When the update policy is automatic the XR controller is
 	// authoritative for this field. It will update the XR's ref as new
 	// revisions become available, and we want to propgate the ref XR -> claim.
-	if p := xr.GetCompositionUpdatePolicy(); p != nil && *p == xpv1.UpdateAutomatic && xr.GetCompositionRevisionReference() != nil {
+	if p := xr.GetCompositionUpdatePolicy(); p != nil && *p == xpv2.UpdateAutomatic && xr.GetCompositionRevisionReference() != nil {
 		cm.SetCompositionRevisionReference(xr.GetCompositionRevisionReference())
 	}
 
@@ -234,7 +234,7 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	}
 
 	// Preserve Crossplane machinery, like status conditions.
-	cmcs := xpv1.ConditionedStatus{}
+	cmcs := xpv2.ConditionedStatus{}
 	_ = fieldpath.Pave(cm.Object).GetValueInto("status", &cmcs)
 	pub := cm.GetConnectionDetailsLastPublishedTime()
 

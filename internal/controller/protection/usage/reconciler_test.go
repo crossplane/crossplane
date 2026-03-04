@@ -37,7 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/protection/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/protection"
 	"github.com/crossplane/crossplane/v2/internal/protection/usage"
@@ -406,7 +406,7 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
 								o := obj.(*v1beta1.Usage)
-								if o.Status.GetCondition(xpv1.TypeReady).Status != corev1.ConditionTrue {
+								if o.Status.GetCondition(xpv2.TypeReady).Status != corev1.ConditionTrue {
 									t.Fatalf("expected ready condition to be true")
 								}
 								return nil
@@ -456,7 +456,7 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
 								o := obj.(*v1beta1.Usage)
-								if o.Status.GetCondition(xpv1.TypeReady).Status != corev1.ConditionTrue {
+								if o.Status.GetCondition(xpv2.TypeReady).Status != corev1.ConditionTrue {
 									t.Fatalf("expected ready condition to be true")
 								}
 								return nil

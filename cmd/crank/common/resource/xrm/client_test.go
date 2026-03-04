@@ -29,7 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
 )
 
@@ -41,7 +41,7 @@ func withXRCRef(ref *reference.Composite) xrcOpt {
 	}
 }
 
-func withXRCSecretRef(ref *xpv1.LocalSecretReference) xrcOpt {
+func withXRCSecretRef(ref *xpv2.LocalSecretReference) xrcOpt {
 	return func(c *claim.Unstructured) {
 		c.SetWriteConnectionSecretToReference(ref)
 	}
@@ -263,7 +263,7 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 			args: args{
 				witSecrets: true,
 				resource: &resource.Resource{
-					Unstructured: *buildXRC("ns-1", "xrc", withXRCSecretRef(&xpv1.LocalSecretReference{
+					Unstructured: *buildXRC("ns-1", "xrc", withXRCSecretRef(&xpv2.LocalSecretReference{
 						Name: "secret-1",
 					}), withXRCRef(&reference.Composite{
 						APIVersion: "example.com/v1",
@@ -293,7 +293,7 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 			args: args{
 				witSecrets: false,
 				resource: &resource.Resource{
-					Unstructured: *buildXRC("ns-1", "xrc", withXRCSecretRef(&xpv1.LocalSecretReference{
+					Unstructured: *buildXRC("ns-1", "xrc", withXRCSecretRef(&xpv2.LocalSecretReference{
 						Name: "secret-1",
 					}), withXRCRef(&reference.Composite{
 						APIVersion: "example.com/v1",

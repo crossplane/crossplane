@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -35,8 +35,8 @@ import (
 // managed resource be resolved.
 type NamespacedResolutionRequest struct {
 	CurrentValue string
-	Reference    *xpv1.NamespacedReference
-	Selector     *xpv1.NamespacedSelector
+	Reference    *xpv2.NamespacedReference
+	Selector     *xpv2.NamespacedSelector
 	To           To
 	Extract      ExtractValueFn
 	Namespace    string
@@ -75,7 +75,7 @@ func (rr *NamespacedResolutionRequest) IsNoOp() bool {
 // returned values are always safe to set if resolution was successful.
 type NamespacedResolutionResponse struct {
 	ResolvedValue     string
-	ResolvedReference *xpv1.NamespacedReference
+	ResolvedReference *xpv2.NamespacedReference
 }
 
 // Validate this NamespacedResolutionResponse.
@@ -91,8 +91,8 @@ func (rr NamespacedResolutionResponse) Validate() error {
 // kind of managed resource be resolved.
 type MultiNamespacedResolutionRequest struct {
 	CurrentValues []string
-	References    []xpv1.NamespacedReference
-	Selector      *xpv1.NamespacedSelector
+	References    []xpv2.NamespacedReference
+	Selector      *xpv2.NamespacedSelector
 	To            To
 	Extract       ExtractValueFn
 	Namespace     string
@@ -136,7 +136,7 @@ func (rr *MultiNamespacedResolutionRequest) IsNoOp() bool {
 // successful.
 type MultiNamespacedResolutionResponse struct {
 	ResolvedValues     []string
-	ResolvedReferences []xpv1.NamespacedReference
+	ResolvedReferences []xpv2.NamespacedReference
 }
 
 // Validate this MultiNamespacedResolutionResponse.
@@ -213,7 +213,7 @@ func (r *APINamespacedResolver) Resolve(ctx context.Context, req NamespacedResol
 			continue
 		}
 
-		rsp := NamespacedResolutionResponse{ResolvedValue: req.Extract(to), ResolvedReference: &xpv1.NamespacedReference{Name: to.GetName(), Namespace: ns}}
+		rsp := NamespacedResolutionResponse{ResolvedValue: req.Extract(to), ResolvedReference: &xpv2.NamespacedReference{Name: to.GetName(), Namespace: ns}}
 
 		return rsp, getResolutionError(req.Selector.Policy, rsp.Validate())
 	}
@@ -267,13 +267,13 @@ func (r *APINamespacedResolver) ResolveMultiple(ctx context.Context, req MultiNa
 		return MultiNamespacedResolutionResponse{}, errors.Wrap(err, errListManaged)
 	}
 
-	valueMap := make(map[string]xpv1.NamespacedReference)
+	valueMap := make(map[string]xpv2.NamespacedReference)
 	for _, to := range req.To.List.GetItems() {
 		if ControllersMustMatchNamespaced(req.Selector) && !meta.HaveSameController(r.from, to) {
 			continue
 		}
 
-		valueMap[req.Extract(to)] = xpv1.NamespacedReference{Name: to.GetName(), Namespace: ns}
+		valueMap[req.Extract(to)] = xpv2.NamespacedReference{Name: to.GetName(), Namespace: ns}
 	}
 
 	sortedKeys, sortedRefs := sortGenericMapByKeys(valueMap)
@@ -297,7 +297,7 @@ func sortGenericMapByKeys[T any](m map[string]T) ([]string, []T) {
 // ControllersMustMatchNamespaced returns true if the supplied Selector requires that a
 // reference be to a managed resource whose controller reference matches the
 // referencing resource.
-func ControllersMustMatchNamespaced(s *xpv1.NamespacedSelector) bool {
+func ControllersMustMatchNamespaced(s *xpv2.NamespacedSelector) bool {
 	if s == nil {
 		return false
 	}

@@ -21,7 +21,7 @@ limitations under the License.
 package v1beta1
 
 import (
-	"github.com/crossplane/crossplane/apis/v2/core"
+	"github.com/crossplane/crossplane/apis/v2/core/v2"
 	"k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -954,7 +954,7 @@ func (in *PackageRevisionStatus) DeepCopyInto(out *PackageRevisionStatus) {
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
 	if in.ObjectRefs != nil {
 		in, out := &in.ObjectRefs, &out.ObjectRefs
-		*out = make([]core.TypedReference, len(*in))
+		*out = make([]v2.TypedReference, len(*in))
 		copy(*out, *in)
 	}
 	if in.AppliedImageConfigRefs != nil {

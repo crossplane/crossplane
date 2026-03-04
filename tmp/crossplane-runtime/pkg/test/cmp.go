@@ -22,7 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // EquateErrors returns true if the supplied errors are of the same type and
@@ -52,5 +52,5 @@ func EquateErrors() cmp.Option {
 
 // EquateConditions sorts any slices of Condition before comparing them.
 func EquateConditions() cmp.Option {
-	return cmpopts.SortSlices(func(i, j xpv1.Condition) bool { return i.Type < j.Type })
+	return cmpopts.SortSlices(func(i, j xpv2.Condition) bool { return i.Type < j.Type })
 }

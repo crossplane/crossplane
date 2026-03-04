@@ -21,7 +21,7 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/crossplane/crossplane/apis/v2/core"
+	"github.com/crossplane/crossplane/apis/v2/core/v2"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -124,7 +124,7 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 	}
 	if in.DefaultCompositeDeletePolicy != nil {
 		in, out := &in.DefaultCompositeDeletePolicy, &out.DefaultCompositeDeletePolicy
-		*out = new(core.CompositeDeletePolicy)
+		*out = new(v2.CompositeDeletePolicy)
 		**out = **in
 	}
 	if in.DefaultCompositionRef != nil {
@@ -144,7 +144,7 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 	}
 	if in.DefaultCompositionUpdatePolicy != nil {
 		in, out := &in.DefaultCompositionUpdatePolicy, &out.DefaultCompositionUpdatePolicy
-		*out = new(core.UpdatePolicy)
+		*out = new(v2.UpdatePolicy)
 		**out = **in
 	}
 	if in.Versions != nil {
@@ -482,7 +482,7 @@ func (in *FunctionCredentials) DeepCopyInto(out *FunctionCredentials) {
 	*out = *in
 	if in.SecretRef != nil {
 		in, out := &in.SecretRef, &out.SecretRef
-		*out = new(core.SecretReference)
+		*out = new(v2.SecretReference)
 		**out = **in
 	}
 }

@@ -41,7 +41,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 )
 
@@ -279,31 +279,31 @@ func TestReconcile(t *testing.T) {
 
 func TestDefinedResources(t *testing.T) {
 	cases := map[string]struct {
-		refs []xpv1.TypedReference
+		refs []xpv2.TypedReference
 		want []Resource
 	}{
 		"UnparseableAPIVersion": {
-			refs: []xpv1.TypedReference{{
+			refs: []xpv2.TypedReference{{
 				APIVersion: "too/many/slashes",
 			}},
 			want: []Resource{},
 		},
 		"WrongGroup": {
-			refs: []xpv1.TypedReference{{
+			refs: []xpv2.TypedReference{{
 				APIVersion: "example.org/v1",
 				Kind:       "CustomResourceDefinition",
 			}},
 			want: []Resource{},
 		},
 		"WrongKind": {
-			refs: []xpv1.TypedReference{{
+			refs: []xpv2.TypedReference{{
 				APIVersion: extv1.SchemeGroupVersion.String(),
 				Kind:       "ConversionReview",
 			}},
 			want: []Resource{},
 		},
 		"InvalidName": {
-			refs: []xpv1.TypedReference{{
+			refs: []xpv2.TypedReference{{
 				APIVersion: extv1.SchemeGroupVersion.String(),
 				Kind:       "CustomResourceDefinition",
 				Name:       "I'm different!",
@@ -311,7 +311,7 @@ func TestDefinedResources(t *testing.T) {
 			want: []Resource{},
 		},
 		"DefinedResource": {
-			refs: []xpv1.TypedReference{{
+			refs: []xpv2.TypedReference{{
 				APIVersion: extv1.SchemeGroupVersion.String(),
 				Kind:       "CustomResourceDefinition",
 				Name:       "pinballs.example.org",

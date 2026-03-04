@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/apis/changelogs/proto/v1alpha1"
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -94,16 +94,16 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
-							mg.SetDeletionPolicy(xpv1.DeletionOrphan)
+							mg.SetDeletionPolicy(xpv2.DeletionOrphan)
 
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetDeletionTimestamp(&now)
-							want.SetDeletionPolicy(xpv1.DeletionOrphan)
-							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
-							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+							want.SetDeletionPolicy(xpv2.DeletionOrphan)
+							want.SetConditions(xpv2.Deleting().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errBoom).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors unpublishing connection details should be reported as a conditioned status."
@@ -132,16 +132,16 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
-							mg.SetDeletionPolicy(xpv1.DeletionOrphan)
+							mg.SetDeletionPolicy(xpv2.DeletionOrphan)
 
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetDeletionTimestamp(&now)
-							want.SetDeletionPolicy(xpv1.DeletionOrphan)
-							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
-							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+							want.SetDeletionPolicy(xpv2.DeletionOrphan)
+							want.SetConditions(xpv2.Deleting().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errBoom).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors removing the managed resource finalizer should be reported as a conditioned status."
@@ -168,7 +168,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
-							mg.SetDeletionPolicy(xpv1.DeletionOrphan)
+							mg.SetDeletionPolicy(xpv2.DeletionOrphan)
 
 							return nil
 						}),
@@ -190,7 +190,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errBoom).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors initializing the managed resource should be reported as a conditioned status."
@@ -219,7 +219,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
-							mg.SetDeletionPolicy(xpv1.DeletionDelete)
+							mg.SetDeletionPolicy(xpv2.DeletionDelete)
 							mg.SetFinalizers([]string{FinalizerName, "finalizer2"})
 
 							return nil
@@ -263,8 +263,8 @@ func TestReconciler(t *testing.T) {
 							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, now.Time)
 							want.SetConditions(
-								xpv1.Creating().WithObservedGeneration(42),
-								xpv1.ReconcileError(errors.New(errCreateIncomplete)).WithObservedGeneration(42))
+								xpv2.Creating().WithObservedGeneration(42),
+								xpv2.ReconcileError(errors.New(errCreateIncomplete)).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "We should update our status when we're asked to reconcile a managed resource that is pending creation."
@@ -291,7 +291,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errBoom).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors during reference resolution should be reported as a conditioned status."
@@ -321,7 +321,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, got client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileConnect)).WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errReconcileConnect)).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								reason := "Errors connecting to the provider should be reported as a conditioned status."
@@ -351,7 +351,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful no-op reconcile should be reported as a conditioned status."
@@ -392,7 +392,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)).WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors observing the managed resource should be reported as a conditioned status."
@@ -469,8 +469,8 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetDeletionTimestamp(&now)
-							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileDelete)).WithObservedGeneration(42))
-							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errReconcileDelete)).WithObservedGeneration(42))
+							want.SetConditions(xpv2.Deleting().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "An error deleting an external resource should be reported as a conditioned status."
@@ -519,8 +519,8 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetDeletionTimestamp(&now)
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
-							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.Deleting().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A deleted external resource should be reported as a conditioned status."
@@ -569,8 +569,8 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetDeletionTimestamp(&now)
-							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
-							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+							want.SetConditions(xpv2.Deleting().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errBoom).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors unpublishing connection details should be reported as a conditioned status."
@@ -619,8 +619,8 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetDeletionTimestamp(&now)
-							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
-							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+							want.SetConditions(xpv2.Deleting().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errBoom).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors removing the managed resource finalizer should be reported as a conditioned status."
@@ -696,7 +696,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errBoom).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after observation should be reported as a conditioned status."
@@ -730,7 +730,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errBoom).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors adding a finalizer should be reported as a conditioned status."
@@ -763,8 +763,8 @@ func TestReconciler(t *testing.T) {
 							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
 							want.SetConditions(
-								xpv1.Creating().WithObservedGeneration(42),
-								xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManaged)).WithObservedGeneration(42))
+								xpv2.Creating().WithObservedGeneration(42),
+								xpv2.ReconcileError(errors.Wrap(errBoom, errUpdateManaged)).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Errors while creating an external resource should be reported as a conditioned status."
@@ -811,8 +811,8 @@ func TestReconciler(t *testing.T) {
 							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateFailed(want, time.Now())
-							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileCreate)).WithObservedGeneration(42))
-							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errReconcileCreate)).WithObservedGeneration(42))
+							want.SetConditions(xpv2.Creating().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Errors while creating an external resource should be reported as a conditioned status."
@@ -862,8 +862,8 @@ func TestReconciler(t *testing.T) {
 							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateSucceeded(want, time.Now())
-							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAnnotations)).WithObservedGeneration(42))
-							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAnnotations)).WithObservedGeneration(42))
+							want.SetConditions(xpv2.Creating().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Errors updating critical annotations after creation should be reported as a conditioned status."
@@ -911,8 +911,8 @@ func TestReconciler(t *testing.T) {
 							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateSucceeded(want, time.Now())
-							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
-							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errBoom).WithObservedGeneration(42))
+							want.SetConditions(xpv2.Creating().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Errors publishing connection details after creation should be reported as a conditioned status."
@@ -973,8 +973,8 @@ func TestReconciler(t *testing.T) {
 							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateSucceeded(want, time.Now())
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
-							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.Creating().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
@@ -1013,8 +1013,8 @@ func TestReconciler(t *testing.T) {
 							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateSucceeded(want, time.Now())
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
-							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.Creating().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
@@ -1047,7 +1047,7 @@ func TestReconciler(t *testing.T) {
 						MockUpdate: test.NewMockUpdateFn(errBoom),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManaged)).WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errUpdateManaged)).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors updating a managed resource should be reported as a conditioned status."
@@ -1088,7 +1088,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful no-op reconcile should be reported as a conditioned status."
@@ -1253,7 +1253,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileUpdate)).WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errReconcileUpdate)).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors while updating an external resource should be reported as a conditioned status."
@@ -1297,7 +1297,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errBoom).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after an update should be reported as a conditioned status."
@@ -1354,7 +1354,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
@@ -1398,7 +1398,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
@@ -1450,7 +1450,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
-							want.SetConditions(xpv1.ReconcilePaused().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcilePaused().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `If managed resource has the pause annotation with value "true", it should acquire "Synced" status condition with the status "False" and the reason "ReconcilePaused".`
@@ -1473,14 +1473,14 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{})
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{})
 
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetManagementPolicies(xpv1.ManagementPolicies{})
-							want.SetConditions(xpv1.ReconcilePaused().WithObservedGeneration(42))
+							want.SetManagementPolicies(xpv2.ManagementPolicies{})
+							want.SetConditions(xpv2.ReconcilePaused().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `If managed resource has the pause annotation with value "true", it should acquire "Synced" status condition with the status "False" and the reason "ReconcilePaused".`
@@ -1509,14 +1509,14 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
 							mg.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "false"})
-							mg.SetConditions(xpv1.ReconcilePaused())
+							mg.SetConditions(xpv2.ReconcilePaused())
 
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "false"})
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `Managed resource should acquire Synced=False/ReconcileSuccess status condition after a resume.`
@@ -1577,14 +1577,14 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionCreate})
 
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
-							want.SetConditions(xpv1.ReconcileError(fmt.Errorf(errFmtManagementPolicyNonDefault, xpv1.ManagementPolicies{xpv1.ManagementActionCreate})).WithObservedGeneration(42))
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionCreate})
+							want.SetConditions(xpv2.ReconcileError(fmt.Errorf(errFmtManagementPolicyNonDefault, xpv2.ManagementPolicies{xpv2.ManagementActionCreate})).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `If managed resource has a non default management policy but feature not enabled, it should return a proper error.`
@@ -1607,14 +1607,14 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionCreate})
 
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
-							want.SetConditions(xpv1.ReconcileError(fmt.Errorf(errFmtManagementPolicyNotSupported, xpv1.ManagementPolicies{xpv1.ManagementActionCreate})).WithObservedGeneration(42))
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionCreate})
+							want.SetConditions(xpv2.ReconcileError(fmt.Errorf(errFmtManagementPolicyNotSupported, xpv2.ManagementPolicies{xpv2.ManagementActionCreate})).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `If managed resource has non supported management policy, it should return a proper error.`
@@ -1640,14 +1640,14 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionAll})
 
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
-							want.SetConditions(xpv1.ReconcileError(fmt.Errorf(errFmtManagementPolicyNotSupported, xpv1.ManagementPolicies{xpv1.ManagementActionAll})).WithObservedGeneration(42))
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionAll})
+							want.SetConditions(xpv2.ReconcileError(fmt.Errorf(errFmtManagementPolicyNotSupported, xpv2.ManagementPolicies{xpv2.ManagementActionAll})).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `If managed resource has non supported management policy, it should return a proper error.`
@@ -1662,7 +1662,7 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithManagementPolicies(),
-					WithReconcilerSupportedManagementPolicies([]sets.Set[xpv1.ManagementAction]{sets.New(xpv1.ManagementActionObserve)}),
+					WithReconcilerSupportedManagementPolicies([]sets.Set[xpv2.ManagementAction]{sets.New(xpv2.ManagementActionObserve)}),
 				},
 			},
 			want: want{result: reconcile.Result{}},
@@ -1674,14 +1674,14 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve})
 
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
-							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errors.New(errExternalResourceNotExist), errReconcileObserve)).WithObservedGeneration(42))
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve})
+							want.SetConditions(xpv2.ReconcileError(errors.Wrap(errors.New(errExternalResourceNotExist), errReconcileObserve)).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Resource does not exist should be reported as a conditioned status when ObserveOnly."
@@ -1720,14 +1720,14 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve})
 
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
-							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve})
+							want.SetConditions(xpv2.ReconcileError(errBoom).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after observation should be reported as a conditioned status."
@@ -1771,14 +1771,14 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve})
 
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve})
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "With ObserveOnly, a successful managed resource observation should be reported as a conditioned status."
@@ -1823,18 +1823,18 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionAll})
 
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionAll})
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateSucceeded(want, time.Now())
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
-							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.Creating().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
@@ -1865,18 +1865,18 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionAll})
 
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionAll})
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateSucceeded(want, time.Now())
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
-							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.Creating().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
@@ -1907,15 +1907,15 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve, xpv2.ManagementActionLateInitialize, xpv2.ManagementActionCreate, xpv2.ManagementActionDelete})
 
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve, xpv2.ManagementActionLateInitialize, xpv2.ManagementActionCreate, xpv2.ManagementActionDelete})
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `Managed resource should acquire Synced=False/ReconcileSuccess status condition.`
@@ -1959,14 +1959,14 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionAll})
 
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionAll})
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
@@ -2010,14 +2010,14 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionAll})
 
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionAll})
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
@@ -2061,15 +2061,15 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionUpdate, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve, xpv2.ManagementActionUpdate, xpv2.ManagementActionCreate, xpv2.ManagementActionDelete})
 
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionUpdate, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve, xpv2.ManagementActionUpdate, xpv2.ManagementActionCreate, xpv2.ManagementActionDelete})
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors updating a managed resource should be reported as a conditioned status."
@@ -2110,7 +2110,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize})
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve, xpv2.ManagementActionLateInitialize})
 
 							return nil
 						}),
@@ -2136,10 +2136,10 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{
-								xpv1.ManagementActionObserve,
-								xpv1.ManagementActionUpdate,
-								xpv1.ManagementActionLateInitialize,
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{
+								xpv2.ManagementActionObserve,
+								xpv2.ManagementActionUpdate,
+								xpv2.ManagementActionLateInitialize,
 							})
 
 							return nil
@@ -2180,7 +2180,7 @@ func TestReconciler(t *testing.T) {
 func TestTestLegacyManagementPoliciesResolverIsPaused(t *testing.T) {
 	type args struct {
 		enabled bool
-		policy  xpv1.ManagementPolicies
+		policy  xpv2.ManagementPolicies
 	}
 
 	cases := map[string]struct {
@@ -2192,7 +2192,7 @@ func TestTestLegacyManagementPoliciesResolverIsPaused(t *testing.T) {
 			reason: "Should return false if management policies are disabled",
 			args: args{
 				enabled: false,
-				policy:  xpv1.ManagementPolicies{},
+				policy:  xpv2.ManagementPolicies{},
 			},
 			want: false,
 		},
@@ -2200,7 +2200,7 @@ func TestTestLegacyManagementPoliciesResolverIsPaused(t *testing.T) {
 			reason: "Should return true if the management policies are enabled and empty",
 			args: args{
 				enabled: true,
-				policy:  xpv1.ManagementPolicies{},
+				policy:  xpv2.ManagementPolicies{},
 			},
 			want: true,
 		},
@@ -2208,14 +2208,14 @@ func TestTestLegacyManagementPoliciesResolverIsPaused(t *testing.T) {
 			reason: "Should return true if the management policies are enabled and non empty",
 			args: args{
 				enabled: true,
-				policy:  xpv1.ManagementPolicies{xpv1.ManagementActionAll},
+				policy:  xpv2.ManagementPolicies{xpv2.ManagementActionAll},
 			},
 			want: false,
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewLegacyManagementPoliciesResolver(tc.args.enabled, tc.args.policy, xpv1.DeletionDelete)
+			r := NewLegacyManagementPoliciesResolver(tc.args.enabled, tc.args.policy, xpv2.DeletionDelete)
 			if diff := cmp.Diff(tc.want, r.IsPaused()); diff != "" {
 				t.Errorf("\nReason: %s\nIsPaused(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -2226,7 +2226,7 @@ func TestTestLegacyManagementPoliciesResolverIsPaused(t *testing.T) {
 func TestLegacyManagementPoliciesResolverValidate(t *testing.T) {
 	type args struct {
 		enabled bool
-		policy  xpv1.ManagementPolicies
+		policy  xpv2.ManagementPolicies
 	}
 
 	cases := map[string]struct {
@@ -2238,7 +2238,7 @@ func TestLegacyManagementPoliciesResolverValidate(t *testing.T) {
 			reason: "Should return nil if the management policy is enabled.",
 			args: args{
 				enabled: true,
-				policy:  xpv1.ManagementPolicies{},
+				policy:  xpv2.ManagementPolicies{},
 			},
 			want: nil,
 		},
@@ -2246,15 +2246,15 @@ func TestLegacyManagementPoliciesResolverValidate(t *testing.T) {
 			reason: "Should return error if the management policy is non-default and disabled.",
 			args: args{
 				enabled: false,
-				policy:  xpv1.ManagementPolicies{xpv1.ManagementActionCreate},
+				policy:  xpv2.ManagementPolicies{xpv2.ManagementActionCreate},
 			},
-			want: fmt.Errorf(errFmtManagementPolicyNonDefault, []xpv1.ManagementAction{xpv1.ManagementActionCreate}),
+			want: fmt.Errorf(errFmtManagementPolicyNonDefault, []xpv2.ManagementAction{xpv2.ManagementActionCreate}),
 		},
 		"DisabledDefault": {
 			reason: "Should return nil if the management policy is default and disabled.",
 			args: args{
 				enabled: false,
-				policy:  xpv1.ManagementPolicies{xpv1.ManagementActionAll},
+				policy:  xpv2.ManagementPolicies{xpv2.ManagementActionAll},
 			},
 			want: nil,
 		},
@@ -2262,7 +2262,7 @@ func TestLegacyManagementPoliciesResolverValidate(t *testing.T) {
 			reason: "Should return nil if the management policy is supported.",
 			args: args{
 				enabled: true,
-				policy:  xpv1.ManagementPolicies{xpv1.ManagementActionAll},
+				policy:  xpv2.ManagementPolicies{xpv2.ManagementActionAll},
 			},
 			want: nil,
 		},
@@ -2270,14 +2270,14 @@ func TestLegacyManagementPoliciesResolverValidate(t *testing.T) {
 			reason: "Should return err if the management policy is not supported.",
 			args: args{
 				enabled: true,
-				policy:  xpv1.ManagementPolicies{xpv1.ManagementActionDelete},
+				policy:  xpv2.ManagementPolicies{xpv2.ManagementActionDelete},
 			},
-			want: fmt.Errorf(errFmtManagementPolicyNotSupported, []xpv1.ManagementAction{xpv1.ManagementActionDelete}),
+			want: fmt.Errorf(errFmtManagementPolicyNotSupported, []xpv2.ManagementAction{xpv2.ManagementActionDelete}),
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewLegacyManagementPoliciesResolver(tc.args.enabled, tc.args.policy, xpv1.DeletionDelete)
+			r := NewLegacyManagementPoliciesResolver(tc.args.enabled, tc.args.policy, xpv2.DeletionDelete)
 			if diff := cmp.Diff(tc.want, r.Validate(), test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nIsNonDefault(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -2288,7 +2288,7 @@ func TestLegacyManagementPoliciesResolverValidate(t *testing.T) {
 func TestLegacyManagementPoliciesResolverShouldCreate(t *testing.T) {
 	type args struct {
 		managementPoliciesEnabled bool
-		policy                    xpv1.ManagementPolicies
+		policy                    xpv2.ManagementPolicies
 	}
 
 	cases := map[string]struct {
@@ -2307,7 +2307,7 @@ func TestLegacyManagementPoliciesResolverShouldCreate(t *testing.T) {
 			reason: "Should return true if management policies are enabled and managementPolicies has action Create",
 			args: args{
 				managementPoliciesEnabled: true,
-				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionCreate},
+				policy:                    xpv2.ManagementPolicies{xpv2.ManagementActionCreate},
 			},
 			want: true,
 		},
@@ -2315,7 +2315,7 @@ func TestLegacyManagementPoliciesResolverShouldCreate(t *testing.T) {
 			reason: "Should return true if management policies are enabled and managementPolicies has action All",
 			args: args{
 				managementPoliciesEnabled: true,
-				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionAll},
+				policy:                    xpv2.ManagementPolicies{xpv2.ManagementActionAll},
 			},
 			want: true,
 		},
@@ -2323,14 +2323,14 @@ func TestLegacyManagementPoliciesResolverShouldCreate(t *testing.T) {
 			reason: "Should return false if management policies are enabled and managementPolicies does not have Create",
 			args: args{
 				managementPoliciesEnabled: true,
-				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionObserve},
+				policy:                    xpv2.ManagementPolicies{xpv2.ManagementActionObserve},
 			},
 			want: false,
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewLegacyManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
+			r := NewLegacyManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv2.DeletionOrphan)
 			if diff := cmp.Diff(tc.want, r.ShouldCreate()); diff != "" {
 				t.Errorf("\nReason: %s\nShouldCreate(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -2341,7 +2341,7 @@ func TestLegacyManagementPoliciesResolverShouldCreate(t *testing.T) {
 func TestLegacyManagementPoliciesResolverShouldUpdate(t *testing.T) {
 	type args struct {
 		managementPoliciesEnabled bool
-		policy                    xpv1.ManagementPolicies
+		policy                    xpv2.ManagementPolicies
 	}
 
 	cases := map[string]struct {
@@ -2360,7 +2360,7 @@ func TestLegacyManagementPoliciesResolverShouldUpdate(t *testing.T) {
 			reason: "Should return true if management policies are enabled and managementPolicies has action Update",
 			args: args{
 				managementPoliciesEnabled: true,
-				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionUpdate},
+				policy:                    xpv2.ManagementPolicies{xpv2.ManagementActionUpdate},
 			},
 			want: true,
 		},
@@ -2368,7 +2368,7 @@ func TestLegacyManagementPoliciesResolverShouldUpdate(t *testing.T) {
 			reason: "Should return true if management policies are enabled and managementPolicies has action All",
 			args: args{
 				managementPoliciesEnabled: true,
-				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionAll},
+				policy:                    xpv2.ManagementPolicies{xpv2.ManagementActionAll},
 			},
 			want: true,
 		},
@@ -2376,14 +2376,14 @@ func TestLegacyManagementPoliciesResolverShouldUpdate(t *testing.T) {
 			reason: "Should return false if management policies are enabled and managementPolicies does not have Update",
 			args: args{
 				managementPoliciesEnabled: true,
-				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionObserve},
+				policy:                    xpv2.ManagementPolicies{xpv2.ManagementActionObserve},
 			},
 			want: false,
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewLegacyManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
+			r := NewLegacyManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv2.DeletionOrphan)
 			if diff := cmp.Diff(tc.want, r.ShouldUpdate()); diff != "" {
 				t.Errorf("\nReason: %s\nShouldUpdate(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -2394,7 +2394,7 @@ func TestLegacyManagementPoliciesResolverShouldUpdate(t *testing.T) {
 func TestLegacyManagementPoliciesResolverShouldLateInitialize(t *testing.T) {
 	type args struct {
 		managementPoliciesEnabled bool
-		policy                    xpv1.ManagementPolicies
+		policy                    xpv2.ManagementPolicies
 	}
 
 	cases := map[string]struct {
@@ -2413,7 +2413,7 @@ func TestLegacyManagementPoliciesResolverShouldLateInitialize(t *testing.T) {
 			reason: "Should return true if management policies are enabled and managementPolicies has action LateInitialize",
 			args: args{
 				managementPoliciesEnabled: true,
-				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionLateInitialize},
+				policy:                    xpv2.ManagementPolicies{xpv2.ManagementActionLateInitialize},
 			},
 			want: true,
 		},
@@ -2421,7 +2421,7 @@ func TestLegacyManagementPoliciesResolverShouldLateInitialize(t *testing.T) {
 			reason: "Should return true if management policies are enabled and managementPolicies has action All",
 			args: args{
 				managementPoliciesEnabled: true,
-				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionAll},
+				policy:                    xpv2.ManagementPolicies{xpv2.ManagementActionAll},
 			},
 			want: true,
 		},
@@ -2429,14 +2429,14 @@ func TestLegacyManagementPoliciesResolverShouldLateInitialize(t *testing.T) {
 			reason: "Should return false if management policies are enabled and managementPolicies does not have LateInitialize",
 			args: args{
 				managementPoliciesEnabled: true,
-				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionObserve},
+				policy:                    xpv2.ManagementPolicies{xpv2.ManagementActionObserve},
 			},
 			want: false,
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewLegacyManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
+			r := NewLegacyManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv2.DeletionOrphan)
 			if diff := cmp.Diff(tc.want, r.ShouldLateInitialize()); diff != "" {
 				t.Errorf("\nReason: %s\nShouldLateInitialize(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -2447,7 +2447,7 @@ func TestLegacyManagementPoliciesResolverShouldLateInitialize(t *testing.T) {
 func TestLegacyManagementPoliciesResolverOnlyObserve(t *testing.T) {
 	type args struct {
 		managementPoliciesEnabled bool
-		policy                    xpv1.ManagementPolicies
+		policy                    xpv2.ManagementPolicies
 	}
 
 	cases := map[string]struct {
@@ -2466,7 +2466,7 @@ func TestLegacyManagementPoliciesResolverOnlyObserve(t *testing.T) {
 			reason: "Should return true if management policies are enabled and managementPolicies has action LateInitialize",
 			args: args{
 				managementPoliciesEnabled: true,
-				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionObserve},
+				policy:                    xpv2.ManagementPolicies{xpv2.ManagementActionObserve},
 			},
 			want: true,
 		},
@@ -2474,14 +2474,14 @@ func TestLegacyManagementPoliciesResolverOnlyObserve(t *testing.T) {
 			reason: "Should return false if management policies are enabled and managementPolicies has multiple actions",
 			args: args{
 				managementPoliciesEnabled: true,
-				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionLateInitialize, xpv1.ManagementActionObserve},
+				policy:                    xpv2.ManagementPolicies{xpv2.ManagementActionLateInitialize, xpv2.ManagementActionObserve},
 			},
 			want: false,
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewLegacyManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
+			r := NewLegacyManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv2.DeletionOrphan)
 			if diff := cmp.Diff(tc.want, r.ShouldOnlyObserve()); diff != "" {
 				t.Errorf("\nReason: %s\nShouldOnlyObserve(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -2510,7 +2510,7 @@ func TestLegacyShouldDelete(t *testing.T) {
 				managementPoliciesEnabled: false,
 				managed: &fake.LegacyManaged{
 					Orphanable: fake.Orphanable{
-						Policy: xpv1.DeletionOrphan,
+						Policy: xpv2.DeletionOrphan,
 					},
 				},
 			},
@@ -2522,7 +2522,7 @@ func TestLegacyShouldDelete(t *testing.T) {
 				managementPoliciesEnabled: false,
 				managed: &fake.LegacyManaged{
 					Orphanable: fake.Orphanable{
-						Policy: xpv1.DeletionDelete,
+						Policy: xpv2.DeletionDelete,
 					},
 				},
 			},
@@ -2534,10 +2534,10 @@ func TestLegacyShouldDelete(t *testing.T) {
 				managementPoliciesEnabled: true,
 				managed: &fake.LegacyManaged{
 					Orphanable: fake.Orphanable{
-						Policy: xpv1.DeletionDelete,
+						Policy: xpv2.DeletionDelete,
 					},
 					Manageable: fake.Manageable{
-						Policy: xpv1.ManagementPolicies{xpv1.ManagementActionAll},
+						Policy: xpv2.ManagementPolicies{xpv2.ManagementActionAll},
 					},
 				},
 			},
@@ -2549,10 +2549,10 @@ func TestLegacyShouldDelete(t *testing.T) {
 				managementPoliciesEnabled: true,
 				managed: &fake.LegacyManaged{
 					Orphanable: fake.Orphanable{
-						Policy: xpv1.DeletionOrphan,
+						Policy: xpv2.DeletionOrphan,
 					},
 					Manageable: fake.Manageable{
-						Policy: xpv1.ManagementPolicies{xpv1.ManagementActionAll},
+						Policy: xpv2.ManagementPolicies{xpv2.ManagementActionAll},
 					},
 				},
 			},
@@ -2564,10 +2564,10 @@ func TestLegacyShouldDelete(t *testing.T) {
 				managementPoliciesEnabled: true,
 				managed: &fake.LegacyManaged{
 					Orphanable: fake.Orphanable{
-						Policy: xpv1.DeletionDelete,
+						Policy: xpv2.DeletionDelete,
 					},
 					Manageable: fake.Manageable{
-						Policy: xpv1.ManagementPolicies{xpv1.ManagementActionDelete},
+						Policy: xpv2.ManagementPolicies{xpv2.ManagementActionDelete},
 					},
 				},
 			},
@@ -2579,10 +2579,10 @@ func TestLegacyShouldDelete(t *testing.T) {
 				managementPoliciesEnabled: true,
 				managed: &fake.LegacyManaged{
 					Orphanable: fake.Orphanable{
-						Policy: xpv1.DeletionOrphan,
+						Policy: xpv2.DeletionOrphan,
 					},
 					Manageable: fake.Manageable{
-						Policy: xpv1.ManagementPolicies{xpv1.ManagementActionDelete},
+						Policy: xpv2.ManagementPolicies{xpv2.ManagementActionDelete},
 					},
 				},
 			},
@@ -2594,10 +2594,10 @@ func TestLegacyShouldDelete(t *testing.T) {
 				managementPoliciesEnabled: true,
 				managed: &fake.LegacyManaged{
 					Orphanable: fake.Orphanable{
-						Policy: xpv1.DeletionDelete,
+						Policy: xpv2.DeletionDelete,
 					},
 					Manageable: fake.Manageable{
-						Policy: xpv1.ManagementPolicies{xpv1.ManagementActionObserve},
+						Policy: xpv2.ManagementPolicies{xpv2.ManagementActionObserve},
 					},
 				},
 			},

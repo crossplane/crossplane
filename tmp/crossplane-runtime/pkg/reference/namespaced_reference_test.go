@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -20,19 +20,19 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
-func prepareTestExamplesNamespaced(numExamples int) ([]string, []xpv1.NamespacedReference, []*fake.Managed) {
+func prepareTestExamplesNamespaced(numExamples int) ([]string, []xpv2.NamespacedReference, []*fake.Managed) {
 	values := make([]string, numExamples)
-	refs := make([]xpv1.NamespacedReference, numExamples)
+	refs := make([]xpv2.NamespacedReference, numExamples)
 	controlledObj := make([]*fake.Managed, numExamples)
 	for i := range numExamples {
 		values[i] = fmt.Sprintf("%s%d", testValuePrefix, i)
-		refs[i] = xpv1.NamespacedReference{
+		refs[i] = xpv2.NamespacedReference{
 			Name: fmt.Sprintf("%s%d", testResourceNamePrefix, i),
 		}
 		controlled := &fake.Managed{}
 		controlled.SetName(refs[i].Name)
 		meta.SetExternalName(controlled, values[i])
-		_ = meta.AddControllerReference(controlled, meta.AsController(&xpv1.TypedReference{UID: testControllerUID}))
+		_ = meta.AddControllerReference(controlled, meta.AsController(&xpv2.TypedReference{UID: testControllerUID}))
 		controlledObj[i] = controlled
 	}
 	return values, refs, controlledObj
@@ -44,17 +44,17 @@ func TestNamespacedResolve(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
 	value := "coolv"
-	ref := &xpv1.NamespacedReference{Name: "cool", Namespace: "cool-ns"}
-	nsOmittedRef := &xpv1.NamespacedReference{Name: "cool"}
-	optionalPolicy := xpv1.ResolutionPolicyOptional
-	alwaysPolicy := xpv1.ResolvePolicyAlways
-	optionalRef := &xpv1.NamespacedReference{Name: "cool", Namespace: "cool-ns", Policy: &xpv1.Policy{Resolution: &optionalPolicy}}
-	alwaysRef := &xpv1.NamespacedReference{Name: "cool", Namespace: "cool-ns", Policy: &xpv1.Policy{Resolve: &alwaysPolicy}}
+	ref := &xpv2.NamespacedReference{Name: "cool", Namespace: "cool-ns"}
+	nsOmittedRef := &xpv2.NamespacedReference{Name: "cool"}
+	optionalPolicy := xpv2.ResolutionPolicyOptional
+	alwaysPolicy := xpv2.ResolvePolicyAlways
+	optionalRef := &xpv2.NamespacedReference{Name: "cool", Namespace: "cool-ns", Policy: &xpv2.Policy{Resolution: &optionalPolicy}}
+	alwaysRef := &xpv2.NamespacedReference{Name: "cool", Namespace: "cool-ns", Policy: &xpv2.Policy{Resolve: &alwaysPolicy}}
 
 	controlled := &fake.Managed{}
 	controlled.SetName(value)
 	meta.SetExternalName(controlled, value)
-	meta.AddControllerReference(controlled, meta.AsController(&xpv1.TypedReference{UID: types.UID("very-unique")}))
+	meta.AddControllerReference(controlled, meta.AsController(&xpv2.TypedReference{UID: types.UID("very-unique")}))
 
 	type args struct {
 		ctx context.Context
@@ -311,7 +311,7 @@ func TestNamespacedResolve(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: NamespacedResolutionRequest{
-					Selector: &xpv1.NamespacedSelector{},
+					Selector: &xpv2.NamespacedSelector{},
 				},
 			},
 			want: want{
@@ -327,7 +327,7 @@ func TestNamespacedResolve(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: NamespacedResolutionRequest{
-					Selector: &xpv1.NamespacedSelector{},
+					Selector: &xpv2.NamespacedSelector{},
 					To:       To{List: &FakeManagedList{}},
 				},
 			},
@@ -344,8 +344,8 @@ func TestNamespacedResolve(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: NamespacedResolutionRequest{
-					Selector: &xpv1.NamespacedSelector{
-						Policy: &xpv1.Policy{Resolution: &optionalPolicy},
+					Selector: &xpv2.NamespacedSelector{
+						Policy: &xpv2.Policy{Resolution: &optionalPolicy},
 					},
 					To: To{List: &FakeManagedList{}},
 				},
@@ -363,7 +363,7 @@ func TestNamespacedResolve(t *testing.T) {
 			from: controlled,
 			args: args{
 				req: NamespacedResolutionRequest{
-					Selector: &xpv1.NamespacedSelector{
+					Selector: &xpv2.NamespacedSelector{
 						MatchControllerRef: func() *bool { t := true; return &t }(),
 					},
 					To: To{List: &FakeManagedList{Items: []resource.Managed{
@@ -376,7 +376,7 @@ func TestNamespacedResolve(t *testing.T) {
 			want: want{
 				rsp: NamespacedResolutionResponse{
 					ResolvedValue:     value,
-					ResolvedReference: &xpv1.NamespacedReference{Name: value},
+					ResolvedReference: &xpv2.NamespacedReference{Name: value},
 				},
 				err: nil,
 			},
@@ -389,7 +389,7 @@ func TestNamespacedResolve(t *testing.T) {
 			from: controlled,
 			args: args{
 				req: NamespacedResolutionRequest{
-					Selector: &xpv1.NamespacedSelector{
+					Selector: &xpv2.NamespacedSelector{
 						MatchControllerRef: func() *bool { t := true; return &t }(),
 					},
 					To: To{List: &FakeManagedList{Items: []resource.Managed{
@@ -403,7 +403,7 @@ func TestNamespacedResolve(t *testing.T) {
 			want: want{
 				rsp: NamespacedResolutionResponse{
 					ResolvedValue:     value,
-					ResolvedReference: &xpv1.NamespacedReference{Name: value},
+					ResolvedReference: &xpv2.NamespacedReference{Name: value},
 				},
 				err: nil,
 			},
@@ -417,9 +417,9 @@ func TestNamespacedResolve(t *testing.T) {
 			from: controlled,
 			args: args{
 				req: NamespacedResolutionRequest{
-					Selector: &xpv1.NamespacedSelector{
+					Selector: &xpv2.NamespacedSelector{
 						MatchControllerRef: func() *bool { t := true; return &t }(),
-						Policy:             &xpv1.Policy{Resolve: &alwaysPolicy},
+						Policy:             &xpv2.Policy{Resolve: &alwaysPolicy},
 					},
 					To: To{List: &FakeManagedList{Items: []resource.Managed{
 						&fake.Managed{}, // A resource that does not match.
@@ -432,7 +432,7 @@ func TestNamespacedResolve(t *testing.T) {
 			want: want{
 				rsp: NamespacedResolutionResponse{
 					ResolvedValue:     value,
-					ResolvedReference: &xpv1.NamespacedReference{Name: value},
+					ResolvedReference: &xpv2.NamespacedReference{Name: value},
 				},
 				err: nil,
 			},
@@ -449,7 +449,7 @@ func TestNamespacedResolve(t *testing.T) {
 			args: args{
 				req: NamespacedResolutionRequest{
 					Reference: ref,
-					Selector: &xpv1.NamespacedSelector{
+					Selector: &xpv2.NamespacedSelector{
 						MatchControllerRef: func() *bool { t := true; return &t }(),
 					},
 					To:      To{Managed: &fake.Managed{}},
@@ -485,22 +485,22 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 	now := metav1.Now()
 	value := "coolv"
 	value2 := "cooler"
-	ref := xpv1.NamespacedReference{Name: "cool", Namespace: "cool-ns"}
-	nsOmittedRef := xpv1.NamespacedReference{Name: "cool"}
-	optionalPolicy := xpv1.ResolutionPolicyOptional
-	alwaysPolicy := xpv1.ResolvePolicyAlways
-	optionalRef := xpv1.NamespacedReference{Name: "cool", Policy: &xpv1.Policy{Resolution: &optionalPolicy}}
-	alwaysRef := xpv1.NamespacedReference{Name: "cool", Policy: &xpv1.Policy{Resolve: &alwaysPolicy}}
+	ref := xpv2.NamespacedReference{Name: "cool", Namespace: "cool-ns"}
+	nsOmittedRef := xpv2.NamespacedReference{Name: "cool"}
+	optionalPolicy := xpv2.ResolutionPolicyOptional
+	alwaysPolicy := xpv2.ResolvePolicyAlways
+	optionalRef := xpv2.NamespacedReference{Name: "cool", Policy: &xpv2.Policy{Resolution: &optionalPolicy}}
+	alwaysRef := xpv2.NamespacedReference{Name: "cool", Policy: &xpv2.Policy{Resolve: &alwaysPolicy}}
 
 	controlled := &fake.Managed{}
 	controlled.SetName(value)
 	meta.SetExternalName(controlled, value)
-	meta.AddControllerReference(controlled, meta.AsController(&xpv1.TypedReference{UID: types.UID("very-unique")}))
+	meta.AddControllerReference(controlled, meta.AsController(&xpv2.TypedReference{UID: types.UID("very-unique")}))
 
 	controlled2 := &fake.Managed{}
 	controlled2.SetName(value2)
 	meta.SetExternalName(controlled2, value2)
-	meta.AddControllerReference(controlled2, meta.AsController(&xpv1.TypedReference{UID: types.UID("very-unique")}))
+	meta.AddControllerReference(controlled2, meta.AsController(&xpv2.TypedReference{UID: types.UID("very-unique")}))
 
 	type args struct {
 		ctx context.Context
@@ -553,7 +553,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					References:    []xpv1.NamespacedReference{alwaysRef},
+					References:    []xpv2.NamespacedReference{alwaysRef},
 					To:            To{Managed: &fake.Managed{}},
 					Extract:       ExternalName(),
 					CurrentValues: []string{"oldValue"},
@@ -562,7 +562,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiNamespacedResolutionResponse{
 					ResolvedValues:     []string{value},
-					ResolvedReferences: []xpv1.NamespacedReference{alwaysRef},
+					ResolvedReferences: []xpv2.NamespacedReference{alwaysRef},
 				},
 				err: nil,
 			},
@@ -585,7 +585,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					References: []xpv1.NamespacedReference{ref},
+					References: []xpv2.NamespacedReference{ref},
 					To:         To{Managed: &fake.Managed{}},
 					Extract:    ExternalName(),
 				},
@@ -602,7 +602,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					References: []xpv1.NamespacedReference{ref},
+					References: []xpv2.NamespacedReference{ref},
 					To:         To{Managed: &fake.Managed{}},
 					Extract:    func(resource.Managed) string { return "" },
 				},
@@ -610,7 +610,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiNamespacedResolutionResponse{
 					ResolvedValues:     []string{""},
-					ResolvedReferences: []xpv1.NamespacedReference{ref},
+					ResolvedReferences: []xpv2.NamespacedReference{ref},
 				},
 				err: errors.New(errNoValue),
 			},
@@ -626,7 +626,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					References: []xpv1.NamespacedReference{ref},
+					References: []xpv2.NamespacedReference{ref},
 					To:         To{Managed: &fake.Managed{}},
 					Extract:    ExternalName(),
 				},
@@ -634,7 +634,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiNamespacedResolutionResponse{
 					ResolvedValues:     []string{value},
-					ResolvedReferences: []xpv1.NamespacedReference{ref},
+					ResolvedReferences: []xpv2.NamespacedReference{ref},
 				},
 			},
 		},
@@ -655,7 +655,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					References: []xpv1.NamespacedReference{ref},
+					References: []xpv2.NamespacedReference{ref},
 					To:         To{Managed: &fake.Managed{}},
 					Extract:    ExternalName(),
 				},
@@ -663,7 +663,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiNamespacedResolutionResponse{
 					ResolvedValues:     []string{value},
-					ResolvedReferences: []xpv1.NamespacedReference{ref},
+					ResolvedReferences: []xpv2.NamespacedReference{ref},
 				},
 			},
 		},
@@ -689,7 +689,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			},
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					References: []xpv1.NamespacedReference{nsOmittedRef},
+					References: []xpv2.NamespacedReference{nsOmittedRef},
 					To:         To{Managed: &fake.Managed{}},
 					Extract:    ExternalName(),
 				},
@@ -697,7 +697,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiNamespacedResolutionResponse{
 					ResolvedValues:     []string{value},
-					ResolvedReferences: []xpv1.NamespacedReference{nsOmittedRef},
+					ResolvedReferences: []xpv2.NamespacedReference{nsOmittedRef},
 				},
 			},
 		},
@@ -723,7 +723,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			},
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					References: []xpv1.NamespacedReference{ref},
+					References: []xpv2.NamespacedReference{ref},
 					To:         To{Managed: &fake.Managed{}},
 					Extract:    ExternalName(),
 				},
@@ -731,7 +731,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiNamespacedResolutionResponse{
 					ResolvedValues:     []string{value},
-					ResolvedReferences: []xpv1.NamespacedReference{ref},
+					ResolvedReferences: []xpv2.NamespacedReference{ref},
 				},
 			},
 		},
@@ -743,7 +743,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					References: []xpv1.NamespacedReference{optionalRef},
+					References: []xpv2.NamespacedReference{optionalRef},
 					To:         To{Managed: &fake.Managed{}},
 					Extract:    func(resource.Managed) string { return "" },
 				},
@@ -751,7 +751,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiNamespacedResolutionResponse{
 					ResolvedValues:     []string{""},
-					ResolvedReferences: []xpv1.NamespacedReference{optionalRef},
+					ResolvedReferences: []xpv2.NamespacedReference{optionalRef},
 				},
 				err: nil,
 			},
@@ -764,7 +764,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					Selector: &xpv1.NamespacedSelector{},
+					Selector: &xpv2.NamespacedSelector{},
 				},
 			},
 			want: want{
@@ -780,7 +780,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					Selector: &xpv1.NamespacedSelector{},
+					Selector: &xpv2.NamespacedSelector{},
 					To:       To{List: &FakeManagedList{}},
 				},
 			},
@@ -797,8 +797,8 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					Selector: &xpv1.NamespacedSelector{
-						Policy: &xpv1.Policy{Resolution: &optionalPolicy},
+					Selector: &xpv2.NamespacedSelector{
+						Policy: &xpv2.Policy{Resolution: &optionalPolicy},
 					},
 					To: To{List: &FakeManagedList{}},
 				},
@@ -816,7 +816,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			from: controlled,
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					Selector: &xpv1.NamespacedSelector{
+					Selector: &xpv2.NamespacedSelector{
 						MatchControllerRef: func() *bool { t := true; return &t }(),
 					},
 					To: To{List: &FakeManagedList{Items: []resource.Managed{
@@ -829,7 +829,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiNamespacedResolutionResponse{
 					ResolvedValues:     []string{value},
-					ResolvedReferences: []xpv1.NamespacedReference{{Name: value}},
+					ResolvedReferences: []xpv2.NamespacedReference{{Name: value}},
 				},
 				err: nil,
 			},
@@ -842,7 +842,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			from: controlled,
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					Selector: &xpv1.NamespacedSelector{
+					Selector: &xpv2.NamespacedSelector{
 						MatchControllerRef: func() *bool { t := true; return &t }(),
 					},
 					To: To{List: &FakeManagedList{Items: []resource.Managed{
@@ -856,7 +856,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiNamespacedResolutionResponse{
 					ResolvedValues:     []string{value},
-					ResolvedReferences: []xpv1.NamespacedReference{{Name: value}},
+					ResolvedReferences: []xpv2.NamespacedReference{{Name: value}},
 				},
 				err: nil,
 			},
@@ -870,9 +870,9 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			from: controlled,
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					Selector: &xpv1.NamespacedSelector{
+					Selector: &xpv2.NamespacedSelector{
 						MatchControllerRef: func() *bool { t := true; return &t }(),
-						Policy:             &xpv1.Policy{Resolve: &alwaysPolicy},
+						Policy:             &xpv2.Policy{Resolve: &alwaysPolicy},
 					},
 					To: To{List: &FakeManagedList{Items: []resource.Managed{
 						&fake.Managed{}, // A resource that does not match.
@@ -885,7 +885,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiNamespacedResolutionResponse{
 					ResolvedValues:     []string{value},
-					ResolvedReferences: []xpv1.NamespacedReference{{Name: value}},
+					ResolvedReferences: []xpv2.NamespacedReference{{Name: value}},
 				},
 				err: nil,
 			},
@@ -902,8 +902,8 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					References: []xpv1.NamespacedReference{ref},
-					Selector: &xpv1.NamespacedSelector{
+					References: []xpv2.NamespacedReference{ref},
+					Selector: &xpv2.NamespacedSelector{
 						MatchControllerRef: func() *bool { t := true; return &t }(),
 					},
 					To:      To{Managed: &fake.Managed{}},
@@ -913,7 +913,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiNamespacedResolutionResponse{
 					ResolvedValues:     []string{value},
-					ResolvedReferences: []xpv1.NamespacedReference{ref},
+					ResolvedReferences: []xpv2.NamespacedReference{ref},
 				},
 			},
 		},
@@ -925,7 +925,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			from: controlled,
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					Selector: &xpv1.NamespacedSelector{
+					Selector: &xpv2.NamespacedSelector{
 						MatchControllerRef: func() *bool { t := true; return &t }(),
 					},
 					To: To{List: &FakeManagedList{
@@ -942,7 +942,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiNamespacedResolutionResponse{
 					ResolvedValues:     []string{value2, value},
-					ResolvedReferences: []xpv1.NamespacedReference{{Name: value2}, {Name: value}},
+					ResolvedReferences: []xpv2.NamespacedReference{{Name: value2}, {Name: value}},
 				},
 				err: nil,
 			},
@@ -963,7 +963,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			from: controlled,
 			args: args{
 				req: MultiNamespacedResolutionRequest{
-					References: []xpv1.NamespacedReference{nsTestRefs[2], nsTestRefs[3], nsTestRefs[0], nsTestRefs[1]},
+					References: []xpv2.NamespacedReference{nsTestRefs[2], nsTestRefs[3], nsTestRefs[0], nsTestRefs[1]},
 					To: To{
 						Managed: &fake.Managed{},
 					},
@@ -973,7 +973,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiNamespacedResolutionResponse{
 					ResolvedValues:     []string{nsTestValues[2], nsTestValues[3], nsTestValues[0], nsTestValues[1]},
-					ResolvedReferences: []xpv1.NamespacedReference{nsTestRefs[2], nsTestRefs[3], nsTestRefs[0], nsTestRefs[1]},
+					ResolvedReferences: []xpv2.NamespacedReference{nsTestRefs[2], nsTestRefs[3], nsTestRefs[0], nsTestRefs[1]},
 				},
 				err: nil,
 			},
@@ -991,10 +991,10 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 			args: args{
 				req: MultiNamespacedResolutionRequest{
 					CurrentValues: []string{nsTestValues[1], nsTestValues[4]},
-					References:    []xpv1.NamespacedReference{nsTestRefs[1], nsTestRefs[4]},
-					Selector: &xpv1.NamespacedSelector{
+					References:    []xpv2.NamespacedReference{nsTestRefs[1], nsTestRefs[4]},
+					Selector: &xpv2.NamespacedSelector{
 						MatchControllerRef: func() *bool { t := true; return &t }(),
-						Policy:             &xpv1.Policy{Resolve: &alwaysPolicy},
+						Policy:             &xpv2.Policy{Resolve: &alwaysPolicy},
 					},
 					To: To{
 						Managed: &fake.Managed{},
@@ -1016,7 +1016,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 				rsp: MultiNamespacedResolutionResponse{
 					// expect ordered resolved values
 					ResolvedValues:     []string{nsTestValues[1], nsTestValues[2], nsTestValues[4]},
-					ResolvedReferences: []xpv1.NamespacedReference{nsTestRefs[1], nsTestRefs[2], nsTestRefs[4]},
+					ResolvedReferences: []xpv2.NamespacedReference{nsTestRefs[1], nsTestRefs[2], nsTestRefs[4]},
 				},
 			},
 		},
@@ -1039,7 +1039,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 
 func TestNamespacedControllersMustMatch(t *testing.T) {
 	cases := map[string]struct {
-		s    *xpv1.NamespacedSelector
+		s    *xpv2.NamespacedSelector
 		want bool
 	}{
 		"NilSelector": {
@@ -1047,15 +1047,15 @@ func TestNamespacedControllersMustMatch(t *testing.T) {
 			want: false,
 		},
 		"NilMatchControllerRef": {
-			s:    &xpv1.NamespacedSelector{},
+			s:    &xpv2.NamespacedSelector{},
 			want: false,
 		},
 		"False": {
-			s:    &xpv1.NamespacedSelector{MatchControllerRef: func() *bool { f := false; return &f }()},
+			s:    &xpv2.NamespacedSelector{MatchControllerRef: func() *bool { f := false; return &f }()},
 			want: false,
 		},
 		"True": {
-			s:    &xpv1.NamespacedSelector{MatchControllerRef: func() *bool { t := true; return &t }()},
+			s:    &xpv2.NamespacedSelector{MatchControllerRef: func() *bool { t := true; return &t }()},
 			want: true,
 		},
 	}

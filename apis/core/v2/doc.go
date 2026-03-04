@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package core contains common API types used by Crossplane resources.
+// Package v2 contains common API types used by Crossplane resources.
 //
 // +kubebuilder:object:generate=true
-package core
+package v2

@@ -24,7 +24,7 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 const (
@@ -132,8 +132,8 @@ type Package interface { //nolint:interfacebloat // TODO(negz): Could we break t
 	metav1.Object
 	runtime.Object
 
-	SetConditions(c ...xpv1.Condition)
-	GetCondition(ct xpv1.ConditionType) xpv1.Condition
+	SetConditions(c ...xpv2.Condition)
+	GetCondition(ct xpv2.ConditionType) xpv2.Condition
 	CleanConditions()
 
 	GetSource() string
@@ -175,18 +175,18 @@ type Package interface { //nolint:interfacebloat // TODO(negz): Could we break t
 }
 
 // GetCondition of this Provider.
-func (p *Provider) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (p *Provider) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return p.Status.GetCondition(ct)
 }
 
 // SetConditions of this Provider.
-func (p *Provider) SetConditions(c ...xpv1.Condition) {
+func (p *Provider) SetConditions(c ...xpv2.Condition) {
 	p.Status.SetConditions(c...)
 }
 
 // CleanConditions removes all conditions.
 func (p *Provider) CleanConditions() {
-	p.Status.Conditions = []xpv1.Condition{}
+	p.Status.Conditions = []xpv2.Condition{}
 }
 
 // GetSource of this Provider.
@@ -335,18 +335,18 @@ func (p *Provider) SetResolvedSource(s string) {
 }
 
 // GetCondition of this Configuration.
-func (p *Configuration) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (p *Configuration) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return p.Status.GetCondition(ct)
 }
 
 // SetConditions of this Configuration.
-func (p *Configuration) SetConditions(c ...xpv1.Condition) {
+func (p *Configuration) SetConditions(c ...xpv2.Condition) {
 	p.Status.SetConditions(c...)
 }
 
 // CleanConditions removes all conditions.
 func (p *Configuration) CleanConditions() {
-	p.Status.Conditions = []xpv1.Condition{}
+	p.Status.Conditions = []xpv2.Condition{}
 }
 
 // GetSource of this Configuration.
@@ -536,12 +536,12 @@ type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we
 	metav1.Object
 	runtime.Object
 
-	SetConditions(c ...xpv1.Condition)
-	GetCondition(ct xpv1.ConditionType) xpv1.Condition
+	SetConditions(c ...xpv2.Condition)
+	GetCondition(ct xpv2.ConditionType) xpv2.Condition
 	CleanConditions()
 
-	GetObjects() []xpv1.TypedReference
-	SetObjects(c []xpv1.TypedReference)
+	GetObjects() []xpv2.TypedReference
+	SetObjects(c []xpv2.TypedReference)
 
 	GetSource() string
 	SetSource(s string)
@@ -582,27 +582,27 @@ type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we
 }
 
 // GetCondition of this ProviderRevision.
-func (p *ProviderRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (p *ProviderRevision) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return p.Status.GetCondition(ct)
 }
 
 // SetConditions of this ProviderRevision.
-func (p *ProviderRevision) SetConditions(c ...xpv1.Condition) {
+func (p *ProviderRevision) SetConditions(c ...xpv2.Condition) {
 	p.Status.SetConditions(c...)
 }
 
 // CleanConditions removes all conditions.
 func (p *ProviderRevision) CleanConditions() {
-	p.Status.Conditions = []xpv1.Condition{}
+	p.Status.Conditions = []xpv2.Condition{}
 }
 
 // GetObjects of this ProviderRevision.
-func (p *ProviderRevision) GetObjects() []xpv1.TypedReference {
+func (p *ProviderRevision) GetObjects() []xpv2.TypedReference {
 	return p.Status.ObjectRefs
 }
 
 // SetObjects of this ProviderRevision.
-func (p *ProviderRevision) SetObjects(c []xpv1.TypedReference) {
+func (p *ProviderRevision) SetObjects(c []xpv2.TypedReference) {
 	p.Status.ObjectRefs = c
 }
 
@@ -784,27 +784,27 @@ func (p *ProviderRevision) SetCapabilities(caps []string) {
 }
 
 // GetCondition of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (p *ConfigurationRevision) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return p.Status.GetCondition(ct)
 }
 
 // SetConditions of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetConditions(c ...xpv1.Condition) {
+func (p *ConfigurationRevision) SetConditions(c ...xpv2.Condition) {
 	p.Status.SetConditions(c...)
 }
 
 // CleanConditions removes all conditions.
 func (p *ConfigurationRevision) CleanConditions() {
-	p.Status.Conditions = []xpv1.Condition{}
+	p.Status.Conditions = []xpv2.Condition{}
 }
 
 // GetObjects of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetObjects() []xpv1.TypedReference {
+func (p *ConfigurationRevision) GetObjects() []xpv2.TypedReference {
 	return p.Status.ObjectRefs
 }
 
 // SetObjects of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetObjects(c []xpv1.TypedReference) {
+func (p *ConfigurationRevision) SetObjects(c []xpv2.TypedReference) {
 	p.Status.ObjectRefs = c
 }
 
@@ -1005,18 +1005,18 @@ func GetSecretNameWithSuffix(name, suffix string) *string {
 }
 
 // GetCondition of this Function.
-func (f *Function) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (f *Function) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return f.Status.GetCondition(ct)
 }
 
 // SetConditions of this Function.
-func (f *Function) SetConditions(c ...xpv1.Condition) {
+func (f *Function) SetConditions(c ...xpv2.Condition) {
 	f.Status.SetConditions(c...)
 }
 
 // CleanConditions removes all conditions.
 func (f *Function) CleanConditions() {
-	f.Status.Conditions = []xpv1.Condition{}
+	f.Status.Conditions = []xpv2.Condition{}
 }
 
 // GetSource of this Function.
@@ -1165,27 +1165,27 @@ func (f *Function) SetResolvedSource(s string) {
 }
 
 // GetCondition of this FunctionRevision.
-func (r *FunctionRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (r *FunctionRevision) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return r.Status.GetCondition(ct)
 }
 
 // SetConditions of this FunctionRevision.
-func (r *FunctionRevision) SetConditions(c ...xpv1.Condition) {
+func (r *FunctionRevision) SetConditions(c ...xpv2.Condition) {
 	r.Status.SetConditions(c...)
 }
 
 // CleanConditions removes all conditions.
 func (r *FunctionRevision) CleanConditions() {
-	r.Status.Conditions = []xpv1.Condition{}
+	r.Status.Conditions = []xpv2.Condition{}
 }
 
 // GetObjects of this FunctionRevision.
-func (r *FunctionRevision) GetObjects() []xpv1.TypedReference {
+func (r *FunctionRevision) GetObjects() []xpv2.TypedReference {
 	return r.Status.ObjectRefs
 }
 
 // SetObjects of this FunctionRevision.
-func (r *FunctionRevision) SetObjects(c []xpv1.TypedReference) {
+func (r *FunctionRevision) SetObjects(c []xpv2.TypedReference) {
 	r.Status.ObjectRefs = c
 }
 

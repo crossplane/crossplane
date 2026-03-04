@@ -24,7 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kmetrics "k8s.io/component-base/metrics"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 )
 
@@ -108,7 +108,7 @@ func (r *MRMetricRecorder) recordUnchanged(name string) {
 }
 
 func (r *MRMetricRecorder) recordFirstTimeReconciled(managed resource.Managed) {
-	if managed.GetCondition(xpv1.TypeSynced).Status == corev1.ConditionUnknown {
+	if managed.GetCondition(xpv2.TypeSynced).Status == corev1.ConditionUnknown {
 		r.mrDetected.With(getLabels(managed)).Observe(time.Since(managed.GetCreationTimestamp().Time).Seconds())
 		r.firstObservation.Store(managed.GetName(), time.Now()) // this is the first time we reconciled on this resource
 	}
@@ -139,7 +139,7 @@ func (r *MRMetricRecorder) recordDeleted(managed resource.Managed) {
 func (r *MRMetricRecorder) recordFirstTimeReady(managed resource.Managed) {
 	// Note that providers may set the ready condition to "True", so we need
 	// to check the value here to send the ready metric
-	if managed.GetCondition(xpv1.TypeReady).Status == corev1.ConditionTrue {
+	if managed.GetCondition(xpv2.TypeReady).Status == corev1.ConditionTrue {
 		_, ok := r.firstObservation.Load(managed.GetName()) // This map is used to identify the first time to readiness
 		if !ok {
 			return

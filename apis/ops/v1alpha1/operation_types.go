@@ -19,7 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // A OperationMode determines what mode an operation uses.
@@ -109,7 +109,7 @@ type FunctionCredentials struct {
 	// A SecretRef is a reference to a secret containing credentials that should
 	// be supplied to the function.
 	// +optional
-	SecretRef *xpv1.SecretReference `json:"secretRef,omitempty"`
+	SecretRef *xpv2.SecretReference `json:"secretRef,omitempty"`
 }
 
 // A FunctionCredentialsSource is a source from which function
@@ -233,7 +233,7 @@ func (r *RequiredSchemaSelector) GetKind() string {
 
 // OperationStatus represents the observed state of an operation.
 type OperationStatus struct {
-	xpv1.ConditionedStatus `json:",inline"`
+	xpv2.ConditionedStatus `json:",inline"`
 
 	// Number of operation failures.
 	Failures int64 `json:"failures,omitempty"`
@@ -308,13 +308,13 @@ type Operation struct {
 
 // SetConditions delegates to Status.SetConditions.
 // Implements Conditioned.SetConditions.
-func (o *Operation) SetConditions(cs ...xpv1.Condition) {
+func (o *Operation) SetConditions(cs ...xpv2.Condition) {
 	o.Status.SetConditions(cs...)
 }
 
 // GetCondition delegates to Status.GetCondition.
 // Implements Conditioned.GetCondition.
-func (o *Operation) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (o *Operation) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return o.Status.GetCondition(ct)
 }
 

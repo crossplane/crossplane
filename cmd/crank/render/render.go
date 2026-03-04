@@ -41,7 +41,7 @@ import (
 	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
@@ -230,7 +230,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	d := &fnv1.State{}
 
 	results := make([]unstructured.Unstructured, 0)
-	conditions := make([]xpv1.Condition, 0)
+	conditions := make([]xpv2.Condition, 0)
 	requirements := make(map[string]fnv1.Requirements)
 
 	// The Function context starts empty.
@@ -336,11 +336,11 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 				status = corev1.ConditionUnknown
 			}
 
-			conditions = append(conditions, xpv1.Condition{
-				Type:               xpv1.ConditionType(c.GetType()),
+			conditions = append(conditions, xpv2.Condition{
+				Type:               xpv2.ConditionType(c.GetType()),
 				Status:             status,
 				LastTransitionTime: conditionTime(),
-				Reason:             xpv1.ConditionReason(c.GetReason()),
+				Reason:             xpv2.ConditionReason(c.GetReason()),
 				Message:            c.GetMessage(),
 			})
 		}
@@ -415,18 +415,18 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	xr.SetName(in.CompositeResource.GetName())
 	xr.SetNamespace(in.CompositeResource.GetNamespace())
 
-	xrCond := xpv1.Available()
+	xrCond := xpv2.Available()
 	if d.GetComposite().GetReady() == fnv1.Ready_READY_FALSE {
-		xrCond = xpv1.Creating()
+		xrCond = xpv2.Creating()
 	} else if d.GetComposite().GetReady() == fnv1.Ready_READY_UNSPECIFIED && len(unready) > 0 {
-		xrCond = xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unready)))
+		xrCond = xpv2.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unready)))
 	}
 
 	xrCond.LastTransitionTime = conditionTime()
 	xr.SetConditions(xrCond)
 
 	for _, c := range conditions {
-		if xpv1.IsSystemConditionType(c.Type) {
+		if xpv2.IsSystemConditionType(c.Type) {
 			// Do not let users update system conditions.
 			continue
 		}

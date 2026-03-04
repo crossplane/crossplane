@@ -42,7 +42,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/rbac/controller"
 )
@@ -322,7 +322,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 }
 
 // DefinedResources returns the resources defined by the supplied references.
-func DefinedResources(refs []xpv1.TypedReference) []Resource {
+func DefinedResources(refs []xpv2.TypedReference) []Resource {
 	out := make([]Resource, 0, len(refs))
 	for _, ref := range refs {
 		// This would only return an error if the APIVersion contained more than

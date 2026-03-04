@@ -23,7 +23,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
 	"github.com/crossplane/crossplane/v2/internal/xcrd"
@@ -67,7 +67,7 @@ func WithNamespace(namespace string) DummyManifestOpt {
 }
 
 // WithConditions sets the given conditions on the manifest.
-func WithConditions(conds ...xpv1.Condition) DummyManifestOpt {
+func WithConditions(conds ...xpv2.Condition) DummyManifestOpt {
 	return func(m *unstructured.Unstructured) {
 		fieldpath.Pave(m.Object).SetValue("status.conditions", conds)
 	}
@@ -101,15 +101,15 @@ func WithDesiredState(state v1.PackageRevisionDesiredState) DummyManifestOpt {
 }
 
 // DummyNamespacedResource returns an unstructured that has basic fields set to be used by other tests.
-func DummyNamespacedResource(kind, name, namespace string, conds ...xpv1.Condition) unstructured.Unstructured {
+func DummyNamespacedResource(kind, name, namespace string, conds ...xpv2.Condition) unstructured.Unstructured {
 	return DummyManifest(kind, name, WithConditions(conds...), WithNamespace(namespace))
 }
 
-func DummyClusterScopedResource(kind, name string, conds ...xpv1.Condition) unstructured.Unstructured {
+func DummyClusterScopedResource(kind, name string, conds ...xpv2.Condition) unstructured.Unstructured {
 	return DummyManifest(kind, name, WithConditions(conds...))
 }
 
-func DummyComposedResource(kind, name, resourceName string, conds ...xpv1.Condition) unstructured.Unstructured {
+func DummyComposedResource(kind, name, resourceName string, conds ...xpv2.Condition) unstructured.Unstructured {
 	return DummyManifest(kind, name, WithConditions(conds...), WithCompositionResourceName(resourceName))
 }
 
@@ -121,37 +121,37 @@ func DummyPackage(gvk schema.GroupVersionKind, name string, opts ...DummyManifes
 // GetComplexResource returns a complex resource with children.
 func GetComplexResource() *resource.Resource {
 	return &resource.Resource{
-		Unstructured: DummyNamespacedResource("ObjectStorage", "test-resource", "default", xpv1.Condition{
+		Unstructured: DummyNamespacedResource("ObjectStorage", "test-resource", "default", xpv2.Condition{
 			Type:   "Synced",
 			Status: "True",
-		}, xpv1.Condition{
+		}, xpv2.Condition{
 			Type:   "Ready",
 			Status: "True",
 		}),
 		Children: []*resource.Resource{
 			{
-				Unstructured: DummyClusterScopedResource("XObjectStorage", "test-resource-hash", xpv1.Condition{
+				Unstructured: DummyClusterScopedResource("XObjectStorage", "test-resource-hash", xpv2.Condition{
 					Type:   "Synced",
 					Status: "True",
-				}, xpv1.Condition{
+				}, xpv2.Condition{
 					Type:   "Ready",
 					Status: "True",
 				}),
 				Children: []*resource.Resource{
 					{
-						Unstructured: DummyComposedResource("Bucket", "test-resource-bucket-hash", "one", xpv1.Condition{
+						Unstructured: DummyComposedResource("Bucket", "test-resource-bucket-hash", "one", xpv2.Condition{
 							Type:   "Synced",
 							Status: "True",
-						}, xpv1.Condition{
+						}, xpv2.Condition{
 							Type:   "Ready",
 							Status: "True",
 						}),
 						Children: []*resource.Resource{
 							{
-								Unstructured: DummyComposedResource("User", "test-resource-child-1-bucket-hash", "two", xpv1.Condition{
+								Unstructured: DummyComposedResource("User", "test-resource-child-1-bucket-hash", "two", xpv2.Condition{
 									Type:   "Synced",
 									Status: "True",
-								}, xpv1.Condition{
+								}, xpv2.Condition{
 									Type:    "Ready",
 									Status:  "False",
 									Reason:  "SomethingWrongHappened",
@@ -159,22 +159,22 @@ func GetComplexResource() *resource.Resource {
 								}),
 							},
 							{
-								Unstructured: DummyComposedResource("User", "test-resource-child-mid-bucket-hash", "three", xpv1.Condition{
+								Unstructured: DummyComposedResource("User", "test-resource-child-mid-bucket-hash", "three", xpv2.Condition{
 									Type:    "Synced",
 									Status:  "False",
 									Reason:  "CantSync",
 									Message: "Sync error with bucket child mid",
-								}, xpv1.Condition{
+								}, xpv2.Condition{
 									Type:   "Ready",
 									Status: "True",
 									Reason: "AllGood",
 								}),
 							},
 							{
-								Unstructured: DummyComposedResource("User", "test-resource-child-2-bucket-hash", "four", xpv1.Condition{
+								Unstructured: DummyComposedResource("User", "test-resource-child-2-bucket-hash", "four", xpv2.Condition{
 									Type:   "Synced",
 									Status: "True",
-								}, xpv1.Condition{
+								}, xpv2.Condition{
 									Type:    "Ready",
 									Reason:  "SomethingWrongHappened",
 									Status:  "False",
@@ -182,7 +182,7 @@ func GetComplexResource() *resource.Resource {
 								}),
 								Children: []*resource.Resource{
 									{
-										Unstructured: DummyComposedResource("User", "test-resource-child-2-1-bucket-hash", "", xpv1.Condition{
+										Unstructured: DummyComposedResource("User", "test-resource-child-2-1-bucket-hash", "", xpv2.Condition{
 											Type:   "Synced",
 											Status: "True",
 										}),
@@ -192,10 +192,10 @@ func GetComplexResource() *resource.Resource {
 						},
 					},
 					{
-						Unstructured: DummyClusterScopedResource("User", "test-resource-user-hash", xpv1.Condition{
+						Unstructured: DummyClusterScopedResource("User", "test-resource-user-hash", xpv2.Condition{
 							Type:   "Ready",
 							Status: "True",
-						}, xpv1.Condition{
+						}, xpv2.Condition{
 							Type:   "Synced",
 							Status: "Unknown",
 						}),
@@ -209,28 +209,28 @@ func GetComplexResource() *resource.Resource {
 // GetSimpleResource returns a simple resource with children.
 func GetSimpleResource() *resource.Resource {
 	return &resource.Resource{
-		Unstructured: DummyNamespacedResource("SimpleResource", "simple-resource", "default", xpv1.Condition{
+		Unstructured: DummyNamespacedResource("SimpleResource", "simple-resource", "default", xpv2.Condition{
 			Type:   "Synced",
 			Status: "True",
-		}, xpv1.Condition{
+		}, xpv2.Condition{
 			Type:   "Ready",
 			Status: "True",
 		}),
 		Children: []*resource.Resource{
 			{
-				Unstructured: DummyClusterScopedResource("XSimpleResource", "simple-resource-hash", xpv1.Condition{
+				Unstructured: DummyClusterScopedResource("XSimpleResource", "simple-resource-hash", xpv2.Condition{
 					Type:   "Synced",
 					Status: "True",
-				}, xpv1.Condition{
+				}, xpv2.Condition{
 					Type:   "Ready",
 					Status: "True",
 				}),
 				Children: []*resource.Resource{
 					{
-						Unstructured: DummyComposedResource("Something", "simple-resource-something-hash", "something", xpv1.Condition{
+						Unstructured: DummyComposedResource("Something", "simple-resource-something-hash", "something", xpv2.Condition{
 							Type:   "Synced",
 							Status: "True",
-						}, xpv1.Condition{
+						}, xpv2.Condition{
 							Type:   "Ready",
 							Status: "True",
 						}),

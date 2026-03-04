@@ -6,23 +6,23 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 const (
 	// TypeResolved is the type for the Resolved condition.
-	TypeResolved xpv1.ConditionType = "Resolved"
+	TypeResolved xpv2.ConditionType = "Resolved"
 )
 
 // Reasons dependency resolution can fail.
 const (
-	ReasonFailed    xpv1.ConditionReason = "DependencyResolutionFailed"
-	ReasonSucceeded xpv1.ConditionReason = "DependencyResolutionSucceeded"
+	ReasonFailed    xpv2.ConditionReason = "DependencyResolutionFailed"
+	ReasonSucceeded xpv2.ConditionReason = "DependencyResolutionSucceeded"
 )
 
 // ResolutionFailed indicates that the dependency resolution process failed.
-func ResolutionFailed(err error) xpv1.Condition {
-	return xpv1.Condition{
+func ResolutionFailed(err error) xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeResolved,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -32,8 +32,8 @@ func ResolutionFailed(err error) xpv1.Condition {
 }
 
 // ResolutionSucceeded indicates that the dependency resolution process succeeded.
-func ResolutionSucceeded() xpv1.Condition {
-	return xpv1.Condition{
+func ResolutionSucceeded() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeResolved,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),

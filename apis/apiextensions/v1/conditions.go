@@ -22,46 +22,46 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // Condition types.
 const (
 	// A TypeEstablished XRD has created the CRD for its composite resource and
 	// started a controller to reconcile instances of said resource.
-	TypeEstablished xpv1.ConditionType = "Established"
+	TypeEstablished xpv2.ConditionType = "Established"
 
 	// A TypeOffered XRD has created the CRD for its composite resource claim
 	// and started a controller to reconcile instances of said claim.
-	TypeOffered xpv1.ConditionType = "Offered"
+	TypeOffered xpv2.ConditionType = "Offered"
 
 	// A TypeValidPipeline CompositionRevision has a valid function
 	// pipeline.
-	TypeValidPipeline xpv1.ConditionType = "ValidPipeline"
+	TypeValidPipeline xpv2.ConditionType = "ValidPipeline"
 
 	// A TypeResponsive indicates whether the resource is responsive to changes.
-	TypeResponsive xpv1.ConditionType = "Responsive"
+	TypeResponsive xpv2.ConditionType = "Responsive"
 )
 
 // Reasons a resource is or is not established or offered.
 const (
-	ReasonWatchingComposite xpv1.ConditionReason = "WatchingCompositeResource"
-	ReasonWatchingClaim     xpv1.ConditionReason = "WatchingCompositeResourceClaim"
+	ReasonWatchingComposite xpv2.ConditionReason = "WatchingCompositeResource"
+	ReasonWatchingClaim     xpv2.ConditionReason = "WatchingCompositeResourceClaim"
 
-	ReasonTerminatingComposite xpv1.ConditionReason = "TerminatingCompositeResource"
-	ReasonTerminatingClaim     xpv1.ConditionReason = "TerminatingCompositeResourceClaim"
+	ReasonTerminatingComposite xpv2.ConditionReason = "TerminatingCompositeResource"
+	ReasonTerminatingClaim     xpv2.ConditionReason = "TerminatingCompositeResourceClaim"
 
-	ReasonValidPipeline       xpv1.ConditionReason = "ValidPipeline"
-	ReasonMissingCapabilities xpv1.ConditionReason = "MissingCapabilities"
+	ReasonValidPipeline       xpv2.ConditionReason = "ValidPipeline"
+	ReasonMissingCapabilities xpv2.ConditionReason = "MissingCapabilities"
 
-	ReasonWatchCircuitOpen   xpv1.ConditionReason = "WatchCircuitOpen"
-	ReasonWatchCircuitClosed xpv1.ConditionReason = "WatchCircuitClosed"
+	ReasonWatchCircuitOpen   xpv2.ConditionReason = "WatchCircuitOpen"
+	ReasonWatchCircuitClosed xpv2.ConditionReason = "WatchCircuitClosed"
 )
 
 // WatchingComposite indicates that Crossplane has defined and is watching for a
 // new kind of composite resource.
-func WatchingComposite() xpv1.Condition {
-	return xpv1.Condition{
+func WatchingComposite() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeEstablished,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -71,8 +71,8 @@ func WatchingComposite() xpv1.Condition {
 
 // TerminatingComposite indicates that Crossplane is terminating the controller
 // for and removing the definition of a composite resource.
-func TerminatingComposite() xpv1.Condition {
-	return xpv1.Condition{
+func TerminatingComposite() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeEstablished,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -82,8 +82,8 @@ func TerminatingComposite() xpv1.Condition {
 
 // WatchingClaim indicates that Crossplane has defined and is watching for a
 // new kind of composite resource claim.
-func WatchingClaim() xpv1.Condition {
-	return xpv1.Condition{
+func WatchingClaim() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeOffered,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -93,8 +93,8 @@ func WatchingClaim() xpv1.Condition {
 
 // TerminatingClaim indicates that Crossplane is terminating the controller and
 // removing the definition of a composite resource claim.
-func TerminatingClaim() xpv1.Condition {
-	return xpv1.Condition{
+func TerminatingClaim() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeOffered,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -104,8 +104,8 @@ func TerminatingClaim() xpv1.Condition {
 
 // ValidPipeline indicates that all functions in the CompositionRevision's
 // pipeline are valid.
-func ValidPipeline() xpv1.Condition {
-	return xpv1.Condition{
+func ValidPipeline() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeValidPipeline,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -115,8 +115,8 @@ func ValidPipeline() xpv1.Condition {
 
 // MissingCapabilities indicates that one or more functions in the CompositionRevision's
 // pipeline are missing required capabilities.
-func MissingCapabilities(message string) xpv1.Condition {
-	return xpv1.Condition{
+func MissingCapabilities(message string) xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeValidPipeline,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -126,8 +126,8 @@ func MissingCapabilities(message string) xpv1.Condition {
 }
 
 // WatchCircuitOpen indicates the circuit breaker is open due to excessive watch events.
-func WatchCircuitOpen(triggeredBy string) xpv1.Condition {
-	return xpv1.Condition{
+func WatchCircuitOpen(triggeredBy string) xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeResponsive,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -137,8 +137,8 @@ func WatchCircuitOpen(triggeredBy string) xpv1.Condition {
 }
 
 // WatchCircuitClosed indicates the circuit breaker is closed (normal operation).
-func WatchCircuitClosed() xpv1.Condition {
-	return xpv1.Condition{
+func WatchCircuitClosed() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeResponsive,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -149,9 +149,9 @@ func WatchCircuitClosed() xpv1.Condition {
 // IsSystemConditionType returns true if the condition type is a system
 // condition. This includes both crossplane-runtime system conditions and
 // apiextensions-specific system conditions like the circuit breaker.
-func IsSystemConditionType(t xpv1.ConditionType) bool {
+func IsSystemConditionType(t xpv2.ConditionType) bool {
 	// First check crossplane-runtime system conditions
-	if xpv1.IsSystemConditionType(t) {
+	if xpv2.IsSystemConditionType(t) {
 		return true
 	}
 

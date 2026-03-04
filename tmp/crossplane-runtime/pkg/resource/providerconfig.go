@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 )
@@ -61,7 +61,7 @@ func IsMissingReference(err error) bool {
 type EnvLookupFn func(string) string
 
 // ExtractEnv extracts credentials from an environment variable.
-func ExtractEnv(_ context.Context, e EnvLookupFn, s xpv1.CommonCredentialSelectors) ([]byte, error) {
+func ExtractEnv(_ context.Context, e EnvLookupFn, s xpv2.CommonCredentialSelectors) ([]byte, error) {
 	if s.Env == nil {
 		return nil, errors.New(errExtractEnv)
 	}
@@ -70,7 +70,7 @@ func ExtractEnv(_ context.Context, e EnvLookupFn, s xpv1.CommonCredentialSelecto
 }
 
 // ExtractFs extracts credentials from the filesystem.
-func ExtractFs(_ context.Context, fs afero.Fs, s xpv1.CommonCredentialSelectors) ([]byte, error) {
+func ExtractFs(_ context.Context, fs afero.Fs, s xpv2.CommonCredentialSelectors) ([]byte, error) {
 	if s.Fs == nil {
 		return nil, errors.New(errExtractFs)
 	}
@@ -79,7 +79,7 @@ func ExtractFs(_ context.Context, fs afero.Fs, s xpv1.CommonCredentialSelectors)
 }
 
 // ExtractSecret extracts credentials from a Kubernetes secret.
-func ExtractSecret(ctx context.Context, client client.Client, s xpv1.CommonCredentialSelectors) ([]byte, error) {
+func ExtractSecret(ctx context.Context, client client.Client, s xpv2.CommonCredentialSelectors) ([]byte, error) {
 	if s.SecretRef == nil {
 		return nil, errors.New(errExtractSecretKey)
 	}
@@ -93,17 +93,17 @@ func ExtractSecret(ctx context.Context, client client.Client, s xpv1.CommonCrede
 }
 
 // CommonCredentialExtractor extracts credentials from common sources.
-func CommonCredentialExtractor(ctx context.Context, source xpv1.CredentialsSource, client client.Client, selector xpv1.CommonCredentialSelectors) ([]byte, error) {
+func CommonCredentialExtractor(ctx context.Context, source xpv2.CredentialsSource, client client.Client, selector xpv2.CommonCredentialSelectors) ([]byte, error) {
 	switch source {
-	case xpv1.CredentialsSourceEnvironment:
+	case xpv2.CredentialsSourceEnvironment:
 		return ExtractEnv(ctx, os.Getenv, selector)
-	case xpv1.CredentialsSourceFilesystem:
+	case xpv2.CredentialsSourceFilesystem:
 		return ExtractFs(ctx, afero.NewOsFs(), selector)
-	case xpv1.CredentialsSourceSecret:
+	case xpv2.CredentialsSourceSecret:
 		return ExtractSecret(ctx, client, selector)
-	case xpv1.CredentialsSourceNone:
+	case xpv2.CredentialsSourceNone:
 		return nil, nil
-	case xpv1.CredentialsSourceInjectedIdentity:
+	case xpv2.CredentialsSourceInjectedIdentity:
 		// There is no common injected identity extractor. Each provider must
 		// implement their own.
 		fallthrough
@@ -187,10 +187,10 @@ func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg ModernManaged
 
 	pcu.SetName(string(mg.GetUID()))
 	pcu.SetNamespace(mg.GetNamespace())
-	pcu.SetLabels(map[string]string{xpv1.LabelKeyProviderName: ref.Name, xpv1.LabelKeyProviderKind: ref.Kind})
+	pcu.SetLabels(map[string]string{xpv2.LabelKeyProviderName: ref.Name, xpv2.LabelKeyProviderKind: ref.Kind})
 	pcu.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(mg, gvk))})
-	pcu.SetProviderConfigReference(xpv1.ProviderConfigReference{Name: ref.Name, Kind: ref.Kind})
-	pcu.SetResourceReference(xpv1.TypedReference{
+	pcu.SetProviderConfigReference(xpv2.ProviderConfigReference{Name: ref.Name, Kind: ref.Kind})
+	pcu.SetResourceReference(xpv2.TypedReference{
 		APIVersion: gvk.GroupVersion().String(),
 		Kind:       gvk.Kind,
 		Name:       mg.GetName(),
@@ -237,10 +237,10 @@ func (u *LegacyProviderConfigUsageTracker) Track(ctx context.Context, mg LegacyM
 	}
 
 	pcu.SetName(string(mg.GetUID()))
-	pcu.SetLabels(map[string]string{xpv1.LabelKeyProviderName: ref.Name})
+	pcu.SetLabels(map[string]string{xpv2.LabelKeyProviderName: ref.Name})
 	pcu.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(mg, gvk))})
-	pcu.SetProviderConfigReference(xpv1.Reference{Name: ref.Name})
-	pcu.SetResourceReference(xpv1.TypedReference{
+	pcu.SetProviderConfigReference(xpv2.Reference{Name: ref.Name})
+	pcu.SetResourceReference(xpv2.TypedReference{
 		APIVersion: gvk.GroupVersion().String(),
 		Kind:       gvk.Kind,
 		Name:       mg.GetName(),

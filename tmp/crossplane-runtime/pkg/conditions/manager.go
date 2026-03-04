@@ -18,7 +18,7 @@ limitations under the License.
 package conditions
 
 import (
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 )
 
@@ -39,7 +39,7 @@ type ConditionSet interface {
 	// MarkConditions adds or updates the conditions onto the managed resource object. Unlike a "Set" method, this also
 	// can add contextual updates to the condition such as propagating the correct observedGeneration to the conditions
 	// being changed.
-	MarkConditions(condition ...xpv1.Condition)
+	MarkConditions(condition ...xpv2.Condition)
 }
 
 // ObservedGenerationPropagationManager is the top level factor for producing a ConditionSet
@@ -60,7 +60,7 @@ type observedGenerationPropagationConditionSet struct {
 }
 
 // MarkConditions implements ConditionSet.MarkConditions.
-func (c *observedGenerationPropagationConditionSet) MarkConditions(condition ...xpv1.Condition) {
+func (c *observedGenerationPropagationConditionSet) MarkConditions(condition ...xpv2.Condition) {
 	if c == nil || c.o == nil {
 		return
 	}

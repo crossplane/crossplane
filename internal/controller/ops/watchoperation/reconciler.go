@@ -35,7 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	opscontroller "github.com/crossplane/crossplane/v2/internal/controller/ops/controller"
 	"github.com/crossplane/crossplane/v2/internal/controller/ops/watched"
@@ -101,7 +101,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug("Cannot stop watched resource controller", "error", err)
 			err = errors.Wrap(err, "cannot stop watched resource controller")
 			r.record.Event(wo, event.Warning(reasonTerminateWatched, err))
-			status.MarkConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv2.ReconcileError(err))
 			_ = r.client.Status().Update(ctx, wo)
 			return reconcile.Result{}, err
 		}
@@ -112,7 +112,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug("Cannot remove watched resource finalizer", "error", err)
 			err = errors.Wrap(err, "cannot remove watched resource finalizer")
 			r.record.Event(wo, event.Warning(reasonTerminateWatched, err))
-			status.MarkConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv2.ReconcileError(err))
 			_ = r.client.Status().Update(ctx, wo)
 			return reconcile.Result{}, err
 		}
@@ -124,7 +124,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Cannot add watched resource finalizer", "error", err)
 		err = errors.Wrap(err, "cannot add watched resource finalizer")
 		r.record.Event(wo, event.Warning(reasonEstablishWatched, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(ctx, wo)
 		return reconcile.Result{}, err
 	}
@@ -132,7 +132,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Don't reconcile if the WatchOperation is paused.
 	if meta.IsPaused(wo) {
 		log.Debug("WatchOperation is paused")
-		status.MarkConditions(v1alpha1.WatchPaused(), xpv1.ReconcilePaused())
+		status.MarkConditions(v1alpha1.WatchPaused(), xpv2.ReconcilePaused())
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, wo), "cannot update status of WatchOperation")
 	}
 
@@ -142,7 +142,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Cannot list Operations", "error", err)
 		err = errors.Wrap(err, "cannot list Operations")
 		r.record.Event(wo, event.Warning(reasonEstablishWatched, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(ctx, wo)
 		return reconcile.Result{}, err
 	}
@@ -171,7 +171,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug("Cannot garbage collect Operation", "error", err, "operation", op.GetName())
 			err = errors.Wrapf(err, "cannot garbage collect Operation %q", op.GetName())
 			r.record.Event(wo, event.Warning(reasonGarbageCollect, err))
-			status.MarkConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv2.ReconcileError(err))
 			_ = r.client.Status().Update(ctx, wo)
 			return reconcile.Result{}, err
 		}
@@ -201,7 +201,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Cannot start watched resource controller", "error", err)
 		err = errors.Wrap(err, "cannot start watched resource controller")
 		r.record.Event(wo, event.Warning(reasonEstablishWatched, err))
-		status.MarkConditions(v1alpha1.WatchFailed(err.Error()), xpv1.ReconcileError(err))
+		status.MarkConditions(v1alpha1.WatchFailed(err.Error()), xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(ctx, wo)
 		return reconcile.Result{}, err
 	}
@@ -214,14 +214,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Cannot start watched resource controller watches", "error", err)
 		err = errors.Wrap(err, "cannot start watched resource controller watches")
 		r.record.Event(wo, event.Warning(reasonEstablishWatched, err))
-		status.MarkConditions(v1alpha1.WatchFailed(err.Error()), xpv1.ReconcileError(err))
+		status.MarkConditions(v1alpha1.WatchFailed(err.Error()), xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(ctx, wo)
 		return reconcile.Result{}, err
 	}
 
 	log.Debug("Started watched resource controller")
 
-	status.MarkConditions(v1alpha1.WatchActive(), xpv1.ReconcileSuccess())
+	status.MarkConditions(v1alpha1.WatchActive(), xpv2.ReconcileSuccess())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, wo), "cannot update status of WatchOperation")
 }
 

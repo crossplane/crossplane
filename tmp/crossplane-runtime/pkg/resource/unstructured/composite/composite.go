@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
@@ -57,7 +57,7 @@ func WithGroupVersionKind(gvk schema.GroupVersionKind) Option {
 }
 
 // WithConditions sets the supplied conditions on the composite resource.
-func WithConditions(c ...xpv1.Condition) Option {
+func WithConditions(c ...xpv2.Condition) Option {
 	return func(cr *Unstructured) {
 		cr.SetConditions(c...)
 	}
@@ -196,7 +196,7 @@ func (c *Unstructured) SetCompositionRevisionSelector(sel *metav1.LabelSelector)
 }
 
 // SetCompositionUpdatePolicy of this composite resource.
-func (c *Unstructured) SetCompositionUpdatePolicy(p *xpv1.UpdatePolicy) {
+func (c *Unstructured) SetCompositionUpdatePolicy(p *xpv2.UpdatePolicy) {
 	path := "spec.crossplane.compositionUpdatePolicy"
 	if c.Schema == SchemaLegacy {
 		path = "spec.compositionUpdatePolicy"
@@ -206,7 +206,7 @@ func (c *Unstructured) SetCompositionUpdatePolicy(p *xpv1.UpdatePolicy) {
 }
 
 // GetCompositionUpdatePolicy of this composite resource.
-func (c *Unstructured) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
+func (c *Unstructured) GetCompositionUpdatePolicy() *xpv2.UpdatePolicy {
 	path := "spec.crossplane.compositionUpdatePolicy"
 	if c.Schema == SchemaLegacy {
 		path = "spec.compositionUpdatePolicy"
@@ -217,7 +217,7 @@ func (c *Unstructured) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
 		return nil
 	}
 
-	out := xpv1.UpdatePolicy(p)
+	out := xpv2.UpdatePolicy(p)
 
 	return &out
 }
@@ -303,13 +303,13 @@ func (c *Unstructured) GetReference() *reference.Composite {
 // actually have a spec.crossplane.writeConnectionSecretToRef.namespace field.
 
 // GetWriteConnectionSecretToReference of this composite resource.
-func (c *Unstructured) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
+func (c *Unstructured) GetWriteConnectionSecretToReference() *xpv2.SecretReference {
 	// Only legacy XRs support connection secrets.
 	if c.Schema != SchemaLegacy {
 		return nil
 	}
 
-	out := &xpv1.SecretReference{}
+	out := &xpv2.SecretReference{}
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.writeConnectionSecretToRef", out); err != nil {
 		return nil
 	}
@@ -318,7 +318,7 @@ func (c *Unstructured) GetWriteConnectionSecretToReference() *xpv1.SecretReferen
 }
 
 // SetWriteConnectionSecretToReference of this composite resource.
-func (c *Unstructured) SetWriteConnectionSecretToReference(ref *xpv1.SecretReference) {
+func (c *Unstructured) SetWriteConnectionSecretToReference(ref *xpv2.SecretReference) {
 	// Only legacy XRs support connection secrets.
 	if c.Schema != SchemaLegacy {
 		return
@@ -328,19 +328,19 @@ func (c *Unstructured) SetWriteConnectionSecretToReference(ref *xpv1.SecretRefer
 }
 
 // GetCondition of this composite resource.
-func (c *Unstructured) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
-	conditioned := xpv1.ConditionedStatus{}
+func (c *Unstructured) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
+	conditioned := xpv2.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
 	if err := fieldpath.Pave(c.Object).GetValueInto("status", &conditioned); err != nil {
-		return xpv1.Condition{}
+		return xpv2.Condition{}
 	}
 
 	return conditioned.GetCondition(ct)
 }
 
 // SetConditions of this composite resource.
-func (c *Unstructured) SetConditions(conditions ...xpv1.Condition) {
-	conditioned := xpv1.ConditionedStatus{}
+func (c *Unstructured) SetConditions(conditions ...xpv2.Condition) {
+	conditioned := xpv2.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
 	_ = fieldpath.Pave(c.Object).GetValueInto("status", &conditioned)
 	conditioned.SetConditions(conditions...)
@@ -348,8 +348,8 @@ func (c *Unstructured) SetConditions(conditions ...xpv1.Condition) {
 }
 
 // GetConditions of this composite resource.
-func (c *Unstructured) GetConditions() []xpv1.Condition {
-	conditioned := xpv1.ConditionedStatus{}
+func (c *Unstructured) GetConditions() []xpv2.Condition {
+	conditioned := xpv2.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
 	_ = fieldpath.Pave(c.Object).GetValueInto("status", &conditioned)
 
@@ -383,7 +383,7 @@ func (c *Unstructured) SetConnectionDetailsLastPublishedTime(t *metav1.Time) {
 
 // SetObservedGeneration of this composite resource claim.
 func (c *Unstructured) SetObservedGeneration(generation int64) {
-	status := &xpv1.ObservedStatus{}
+	status := &xpv2.ObservedStatus{}
 	_ = fieldpath.Pave(c.Object).GetValueInto("status", status)
 	status.SetObservedGeneration(generation)
 	_ = fieldpath.Pave(c.Object).SetValue("status.observedGeneration", status.ObservedGeneration)
@@ -391,7 +391,7 @@ func (c *Unstructured) SetObservedGeneration(generation int64) {
 
 // GetObservedGeneration of this composite resource claim.
 func (c *Unstructured) GetObservedGeneration() int64 {
-	status := &xpv1.ObservedStatus{}
+	status := &xpv2.ObservedStatus{}
 	_ = fieldpath.Pave(c.Object).GetValueInto("status", status)
 
 	return status.GetObservedGeneration()
@@ -399,7 +399,7 @@ func (c *Unstructured) GetObservedGeneration() int64 {
 
 // SetClaimConditionTypes of this composite resource. You cannot set system
 // condition types such as Ready, Synced or Healthy as claim conditions.
-func (c *Unstructured) SetClaimConditionTypes(in ...xpv1.ConditionType) error {
+func (c *Unstructured) SetClaimConditionTypes(in ...xpv2.ConditionType) error {
 	// Only legacy XRs support claims.
 	if c.Schema != SchemaLegacy {
 		return nil
@@ -407,13 +407,13 @@ func (c *Unstructured) SetClaimConditionTypes(in ...xpv1.ConditionType) error {
 
 	ts := c.GetClaimConditionTypes()
 
-	m := make(map[xpv1.ConditionType]bool, len(ts))
+	m := make(map[xpv2.ConditionType]bool, len(ts))
 	for _, t := range ts {
 		m[t] = true
 	}
 
 	for _, t := range in {
-		if xpv1.IsSystemConditionType(t) {
+		if xpv2.IsSystemConditionType(t) {
 			return errors.Errorf("cannot set system condition %s as a claim condition", t)
 		}
 
@@ -431,13 +431,13 @@ func (c *Unstructured) SetClaimConditionTypes(in ...xpv1.ConditionType) error {
 }
 
 // GetClaimConditionTypes of this composite resource.
-func (c *Unstructured) GetClaimConditionTypes() []xpv1.ConditionType {
+func (c *Unstructured) GetClaimConditionTypes() []xpv2.ConditionType {
 	// Only legacy XRs support claims.
 	if c.Schema != SchemaLegacy {
 		return nil
 	}
 
-	cs := []xpv1.ConditionType{}
+	cs := []xpv2.ConditionType{}
 	_ = fieldpath.Pave(c.Object).GetValueInto("status.claimConditionTypes", &cs)
 
 	return cs

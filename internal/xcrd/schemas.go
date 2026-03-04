@@ -23,7 +23,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // Label keys.
@@ -74,7 +74,7 @@ func BaseProps() *extv1.JSONSchemaProps {
 
 // CompositeResourceSpecProps is a partial OpenAPIV3Schema for the spec fields
 // that Crossplane expects to be present for all defined composite resources.
-func CompositeResourceSpecProps(s v1.CompositeResourceScope, defaultPol *xpv1.UpdatePolicy) map[string]extv1.JSONSchemaProps {
+func CompositeResourceSpecProps(s v1.CompositeResourceScope, defaultPol *xpv2.UpdatePolicy) map[string]extv1.JSONSchemaProps {
 	props := map[string]extv1.JSONSchemaProps{
 		"compositionRef": {
 			Type:     "object",
@@ -208,7 +208,7 @@ func CompositeResourceSpecProps(s v1.CompositeResourceScope, defaultPol *xpv1.Up
 // CompositeResourceClaimSpecProps is a partial OpenAPIV3Schema for the spec
 // fields that Crossplane expects to be present for all published infrastructure
 // resources.
-func CompositeResourceClaimSpecProps(defaultPol *xpv1.CompositeDeletePolicy) map[string]extv1.JSONSchemaProps {
+func CompositeResourceClaimSpecProps(defaultPol *xpv2.CompositeDeletePolicy) map[string]extv1.JSONSchemaProps {
 	return map[string]extv1.JSONSchemaProps{
 		"compositionRef": {
 			Type:     "object",

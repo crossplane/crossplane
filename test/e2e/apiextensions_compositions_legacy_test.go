@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/test/e2e/config"
 	"github.com/crossplane/crossplane/v2/test/e2e/funcs"
@@ -54,7 +54,7 @@ func TestLegacyComposition(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
 			Assess("ClaimIsReady",
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv2.Available())).
 			Assess("ClaimHasPatchedField",
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOLER!"),
 			).
@@ -90,7 +90,7 @@ func TestLegacyPropagateFieldsRemovalToXR(t *testing.T) {
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyClaim(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv2.Available()),
 			)).
 			Assess("UpdateClaim", funcs.ApplyClaim(FieldManager, manifests, "claim-update.yaml")).
 			Assess("FieldsRemovalPropagatedToXR", funcs.AllOf(
@@ -146,7 +146,7 @@ func TestLegacyPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyClaim(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv2.Available()),
 			)).
 			// Note that unlike TestPropagateFieldsRemovalToXR above, here we
 			// enable SSA _after_ creating the claim. Our goal is to test that
@@ -207,7 +207,7 @@ func TestLegacyBindToExistingXR(t *testing.T) {
 			Assess("CreateXR", funcs.AllOf(
 				funcs.ApplyClaim(FieldManager, manifests, "xr.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv2.Available()),
 			)).
 			// Make sure our fields are set to the XR's values.
 			Assess("XRFieldHasOriginalValues", funcs.AllOf(
@@ -217,7 +217,7 @@ func TestLegacyBindToExistingXR(t *testing.T) {
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyClaim(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "claim.yaml", xpv2.Available()),
 			)).
 			Assess("XRIsBoundToClaim", funcs.AllOf(
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "spec.claimRef.name", "bind-existing-xr"),

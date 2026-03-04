@@ -19,7 +19,7 @@ package v1
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // PackageRevisionDesiredState is the desired state of the package revision.
@@ -84,10 +84,10 @@ type PackageRevisionSpec struct {
 
 // PackageRevisionStatus represents the observed state of a PackageRevision.
 type PackageRevisionStatus struct {
-	xpv1.ConditionedStatus `json:",inline"`
+	xpv2.ConditionedStatus `json:",inline"`
 
 	// References to objects owned by PackageRevision.
-	ObjectRefs []xpv1.TypedReference `json:"objectRefs,omitempty"`
+	ObjectRefs []xpv2.TypedReference `json:"objectRefs,omitempty"`
 
 	// Dependency information.
 	FoundDependencies     int64 `json:"foundDependencies,omitempty"`

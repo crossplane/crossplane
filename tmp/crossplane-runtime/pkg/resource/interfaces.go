@@ -24,15 +24,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 )
 
 // A Conditioned may have conditions set or retrieved. Conditions are typically
 // indicate the status of both a resource and its reconciliation process.
 type Conditioned interface {
-	SetConditions(c ...xpv1.Condition)
-	GetCondition(ct xpv1.ConditionType) xpv1.Condition
+	SetConditions(c ...xpv2.Condition)
+	GetCondition(ct xpv2.ConditionType) xpv2.Condition
 }
 
 // A ClaimReferencer may reference a resource claim.
@@ -50,60 +50,60 @@ type ManagedResourceReferencer interface {
 // A LocalConnectionSecretWriterTo may write a connection secret to its own
 // namespace.
 type LocalConnectionSecretWriterTo interface {
-	SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference)
-	GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference
+	SetWriteConnectionSecretToReference(r *xpv2.LocalSecretReference)
+	GetWriteConnectionSecretToReference() *xpv2.LocalSecretReference
 }
 
 // A ConnectionSecretWriterTo may write a connection secret to an arbitrary
 // namespace.
 type ConnectionSecretWriterTo interface {
-	SetWriteConnectionSecretToReference(r *xpv1.SecretReference)
-	GetWriteConnectionSecretToReference() *xpv1.SecretReference
+	SetWriteConnectionSecretToReference(r *xpv2.SecretReference)
+	GetWriteConnectionSecretToReference() *xpv2.SecretReference
 }
 
 // A Manageable resource may specify a ManagementPolicies.
 type Manageable interface {
-	SetManagementPolicies(p xpv1.ManagementPolicies)
-	GetManagementPolicies() xpv1.ManagementPolicies
+	SetManagementPolicies(p xpv2.ManagementPolicies)
+	GetManagementPolicies() xpv2.ManagementPolicies
 }
 
 // An Orphanable resource may specify a DeletionPolicy.
 type Orphanable interface {
-	SetDeletionPolicy(p xpv1.DeletionPolicy)
-	GetDeletionPolicy() xpv1.DeletionPolicy
+	SetDeletionPolicy(p xpv2.DeletionPolicy)
+	GetDeletionPolicy() xpv2.DeletionPolicy
 }
 
 // A ProviderConfigReferencer may reference a provider config resource.
 type ProviderConfigReferencer interface {
-	GetProviderConfigReference() *xpv1.Reference
-	SetProviderConfigReference(p *xpv1.Reference)
+	GetProviderConfigReference() *xpv2.Reference
+	SetProviderConfigReference(p *xpv2.Reference)
 }
 
 // A TypedProviderConfigReferencer may reference a provider config resource
 // with its kind.
 type TypedProviderConfigReferencer interface {
-	GetProviderConfigReference() *xpv1.ProviderConfigReference
-	SetProviderConfigReference(p *xpv1.ProviderConfigReference)
+	GetProviderConfigReference() *xpv2.ProviderConfigReference
+	SetProviderConfigReference(p *xpv2.ProviderConfigReference)
 }
 
 // A RequiredProviderConfigReferencer may reference a provider config resource.
 // Unlike ProviderConfigReferencer, the reference is required (i.e. not nil).
 type RequiredProviderConfigReferencer interface {
-	GetProviderConfigReference() xpv1.Reference
-	SetProviderConfigReference(p xpv1.Reference)
+	GetProviderConfigReference() xpv2.Reference
+	SetProviderConfigReference(p xpv2.Reference)
 }
 
 // A RequiredTypedProviderConfigReferencer may reference a provider config resource.
 // Unlike TypedProviderConfigReferencer, the reference is required (i.e. not nil).
 type RequiredTypedProviderConfigReferencer interface {
-	GetProviderConfigReference() xpv1.ProviderConfigReference
-	SetProviderConfigReference(p xpv1.ProviderConfigReference)
+	GetProviderConfigReference() xpv2.ProviderConfigReference
+	SetProviderConfigReference(p xpv2.ProviderConfigReference)
 }
 
 // A RequiredTypedResourceReferencer can reference a resource.
 type RequiredTypedResourceReferencer interface {
-	SetResourceReference(r xpv1.TypedReference)
-	GetResourceReference() xpv1.TypedReference
+	SetResourceReference(r xpv2.TypedReference)
+	GetResourceReference() xpv2.TypedReference
 }
 
 // A Finalizer manages the finalizers on the resource.
@@ -141,15 +141,15 @@ type CompositionRevisionSelector interface {
 // A CompositionUpdater uses a composition, and may update which revision of
 // that composition it uses.
 type CompositionUpdater interface {
-	SetCompositionUpdatePolicy(p *xpv1.UpdatePolicy)
-	GetCompositionUpdatePolicy() *xpv1.UpdatePolicy
+	SetCompositionUpdatePolicy(p *xpv2.UpdatePolicy)
+	GetCompositionUpdatePolicy() *xpv2.UpdatePolicy
 }
 
 // A CompositeResourceDeleter creates a composite, and controls the policy
 // used to delete the composite.
 type CompositeResourceDeleter interface {
-	SetCompositeDeletePolicy(policy *xpv1.CompositeDeletePolicy)
-	GetCompositeDeletePolicy() *xpv1.CompositeDeletePolicy
+	SetCompositeDeletePolicy(policy *xpv2.CompositeDeletePolicy)
+	GetCompositeDeletePolicy() *xpv2.CompositeDeletePolicy
 }
 
 // A ComposedResourcesReferencer may reference the resources it composes.

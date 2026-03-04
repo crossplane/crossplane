@@ -22,7 +22,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // ActivationPolicy matches on MRD names with wildcard prefix support.
@@ -44,7 +44,7 @@ type ManagedResourceActivationPolicySpec struct {
 
 // ManagedResourceActivationPolicyStatus shows the observed state of the policy.
 type ManagedResourceActivationPolicyStatus struct {
-	xpv1.ConditionedStatus `json:",inline"`
+	xpv2.ConditionedStatus `json:",inline"`
 
 	// Activated names the ManagedResourceDefinitions this policy has activated.
 	// +optional
@@ -85,12 +85,12 @@ type ManagedResourceActivationPolicy struct {
 }
 
 // GetCondition of this ManagedResourceActivationPolicy.
-func (p *ManagedResourceActivationPolicy) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (p *ManagedResourceActivationPolicy) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return p.Status.GetCondition(ct)
 }
 
 // SetConditions of this ManagedResourceActivationPolicy.
-func (p *ManagedResourceActivationPolicy) SetConditions(c ...xpv1.Condition) {
+func (p *ManagedResourceActivationPolicy) SetConditions(c ...xpv2.Condition) {
 	p.Status.SetConditions(c...)
 }
 

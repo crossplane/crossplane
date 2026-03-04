@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -200,8 +200,8 @@ func ExternalName() ExtractValueFn {
 // managed resource be resolved.
 type ResolutionRequest struct {
 	CurrentValue string
-	Reference    *xpv1.Reference
-	Selector     *xpv1.Selector
+	Reference    *xpv2.Reference
+	Selector     *xpv2.Selector
 	To           To
 	Extract      ExtractValueFn
 	Namespace    string
@@ -240,7 +240,7 @@ func (rr *ResolutionRequest) IsNoOp() bool {
 // returned values are always safe to set if resolution was successful.
 type ResolutionResponse struct {
 	ResolvedValue     string
-	ResolvedReference *xpv1.Reference
+	ResolvedReference *xpv2.Reference
 }
 
 // Validate this ResolutionResponse.
@@ -256,8 +256,8 @@ func (rr ResolutionResponse) Validate() error {
 // kind of managed resource be resolved.
 type MultiResolutionRequest struct {
 	CurrentValues []string
-	References    []xpv1.Reference
-	Selector      *xpv1.Selector
+	References    []xpv2.Reference
+	Selector      *xpv2.Selector
 	To            To
 	Extract       ExtractValueFn
 	Namespace     string
@@ -301,7 +301,7 @@ func (rr *MultiResolutionRequest) IsNoOp() bool {
 // successful.
 type MultiResolutionResponse struct {
 	ResolvedValues     []string
-	ResolvedReferences []xpv1.Reference
+	ResolvedReferences []xpv2.Reference
 }
 
 // Validate this MultiResolutionResponse.
@@ -367,7 +367,7 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 			continue
 		}
 
-		rsp := ResolutionResponse{ResolvedValue: req.Extract(to), ResolvedReference: &xpv1.Reference{Name: to.GetName()}}
+		rsp := ResolutionResponse{ResolvedValue: req.Extract(to), ResolvedReference: &xpv2.Reference{Name: to.GetName()}}
 
 		return rsp, getResolutionError(req.Selector.Policy, rsp.Validate())
 	}
@@ -411,13 +411,13 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 		return MultiResolutionResponse{}, errors.Wrap(err, errListManaged)
 	}
 
-	valueMap := make(map[string]xpv1.Reference)
+	valueMap := make(map[string]xpv2.Reference)
 	for _, to := range req.To.List.GetItems() {
 		if ControllersMustMatch(req.Selector) && !meta.HaveSameController(r.from, to) {
 			continue
 		}
 
-		valueMap[req.Extract(to)] = xpv1.Reference{Name: to.GetName()}
+		valueMap[req.Extract(to)] = xpv2.Reference{Name: to.GetName()}
 	}
 
 	sortedKeys, sortedRefs := sortMapByKeys(valueMap)
@@ -427,7 +427,7 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 	return rsp, getResolutionError(req.Selector.Policy, rsp.Validate())
 }
 
-func getResolutionError(p *xpv1.Policy, err error) error {
+func getResolutionError(p *xpv2.Policy, err error) error {
 	if !p.IsResolutionPolicyOptional() {
 		return err
 	}
@@ -435,10 +435,10 @@ func getResolutionError(p *xpv1.Policy, err error) error {
 	return nil
 }
 
-func sortMapByKeys(m map[string]xpv1.Reference) ([]string, []xpv1.Reference) {
+func sortMapByKeys(m map[string]xpv2.Reference) ([]string, []xpv2.Reference) {
 	keys := slices.Sorted(maps.Keys(m))
 
-	values := make([]xpv1.Reference, 0, len(keys))
+	values := make([]xpv2.Reference, 0, len(keys))
 	for _, k := range keys {
 		values = append(values, m[k])
 	}
@@ -449,7 +449,7 @@ func sortMapByKeys(m map[string]xpv1.Reference) ([]string, []xpv1.Reference) {
 // ControllersMustMatch returns true if the supplied Selector requires that a
 // reference be to a managed resource whose controller reference matches the
 // referencing resource.
-func ControllersMustMatch(s *xpv1.Selector) bool {
+func ControllersMustMatch(s *xpv2.Selector) bool {
 	if s == nil {
 		return false
 	}

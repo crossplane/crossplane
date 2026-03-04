@@ -25,7 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
@@ -36,7 +36,7 @@ func TestExtractEnv(t *testing.T) {
 
 	type args struct {
 		e     EnvLookupFn
-		creds xpv1.CommonCredentialSelectors
+		creds xpv2.CommonCredentialSelectors
 	}
 
 	type want struct {
@@ -53,8 +53,8 @@ func TestExtractEnv(t *testing.T) {
 			reason: "Successful extraction of credentials from environment variable",
 			args: args{
 				e: func(string) string { return string(credentials) },
-				creds: xpv1.CommonCredentialSelectors{
-					Env: &xpv1.EnvSelector{
+				creds: xpv2.CommonCredentialSelectors{
+					Env: &xpv2.EnvSelector{
 						Name: "SECRET_CREDS",
 					},
 				},
@@ -96,7 +96,7 @@ func TestExtractFs(t *testing.T) {
 
 	type args struct {
 		fs    afero.Fs
-		creds xpv1.CommonCredentialSelectors
+		creds xpv2.CommonCredentialSelectors
 	}
 
 	type want struct {
@@ -113,8 +113,8 @@ func TestExtractFs(t *testing.T) {
 			reason: "Successful extraction of credentials from filesystem",
 			args: args{
 				fs: mockFs,
-				creds: xpv1.CommonCredentialSelectors{
-					Fs: &xpv1.FsSelector{
+				creds: xpv2.CommonCredentialSelectors{
+					Fs: &xpv2.FsSelector{
 						Path: "credentials.txt",
 					},
 				},
@@ -153,7 +153,7 @@ func TestExtractSecret(t *testing.T) {
 
 	type args struct {
 		client client.Client
-		creds  xpv1.CommonCredentialSelectors
+		creds  xpv2.CommonCredentialSelectors
 	}
 
 	type want struct {
@@ -179,9 +179,9 @@ func TestExtractSecret(t *testing.T) {
 						return nil
 					}),
 				},
-				creds: xpv1.CommonCredentialSelectors{
-					SecretRef: &xpv1.SecretKeySelector{
-						SecretReference: xpv1.SecretReference{
+				creds: xpv2.CommonCredentialSelectors{
+					SecretRef: &xpv2.SecretKeySelector{
+						SecretReference: xpv2.SecretReference{
 							Name:      "super",
 							Namespace: "secret",
 						},
@@ -208,9 +208,9 @@ func TestExtractSecret(t *testing.T) {
 						return errBoom
 					}),
 				},
-				creds: xpv1.CommonCredentialSelectors{
-					SecretRef: &xpv1.SecretKeySelector{
-						SecretReference: xpv1.SecretReference{
+				creds: xpv2.CommonCredentialSelectors{
+					SecretRef: &xpv2.SecretKeySelector{
+						SecretReference: xpv2.SecretReference{
 							Name:      "super",
 							Namespace: "secret",
 						},
@@ -280,7 +280,7 @@ func TestTrackLegacy(t *testing.T) {
 						// new one we would apply.
 						current := &fake.LegacyProviderConfigUsage{
 							RequiredProviderConfigReferencer: fake.RequiredProviderConfigReferencer{
-								Ref: xpv1.Reference{Name: name},
+								Ref: xpv2.Reference{Name: name},
 							},
 						}
 						if err := fn(ctx, current, nil); err != nil {
@@ -295,7 +295,7 @@ func TestTrackLegacy(t *testing.T) {
 			args: args{
 				mg: &fake.LegacyManaged{
 					LegacyProviderConfigReferencer: fake.LegacyProviderConfigReferencer{
-						Ref: &xpv1.Reference{Name: name},
+						Ref: &xpv2.Reference{Name: name},
 					},
 				},
 			},
@@ -312,7 +312,7 @@ func TestTrackLegacy(t *testing.T) {
 			args: args{
 				mg: &fake.LegacyManaged{
 					LegacyProviderConfigReferencer: fake.LegacyProviderConfigReferencer{
-						Ref: &xpv1.Reference{Name: name},
+						Ref: &xpv2.Reference{Name: name},
 					},
 				},
 			},
@@ -375,7 +375,7 @@ func TestTrackModern(t *testing.T) {
 						// new one we would apply.
 						current := &fake.ProviderConfigUsage{
 							RequiredTypedProviderConfigReferencer: fake.RequiredTypedProviderConfigReferencer{
-								Ref: xpv1.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
+								Ref: xpv2.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
 							},
 						}
 						if err := fn(ctx, current, nil); err != nil {
@@ -390,7 +390,7 @@ func TestTrackModern(t *testing.T) {
 			args: args{
 				mg: &fake.ModernManaged{
 					TypedProviderConfigReferencer: fake.TypedProviderConfigReferencer{
-						Ref: &xpv1.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
+						Ref: &xpv2.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
 					},
 				},
 			},
@@ -407,7 +407,7 @@ func TestTrackModern(t *testing.T) {
 			args: args{
 				mg: &fake.ModernManaged{
 					TypedProviderConfigReferencer: fake.TypedProviderConfigReferencer{
-						Ref: &xpv1.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
+						Ref: &xpv2.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
 					},
 				},
 			},

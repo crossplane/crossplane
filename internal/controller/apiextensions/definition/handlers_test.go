@@ -18,7 +18,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 func TestCompositionRevisionMapFunc(t *testing.T) {
@@ -84,7 +84,7 @@ func TestCompositionRevisionMapFunc(t *testing.T) {
 						var obj1 composite.Unstructured
 						obj1.SetNamespace("ns")
 						obj1.SetName("obj1")
-						policy := xpv1.UpdateAutomatic
+						policy := xpv2.UpdateAutomatic
 						obj1.SetCompositionUpdatePolicy(&policy)
 						obj1.SetCompositionReference(&corev1.ObjectReference{Name: "dachshund"})
 
@@ -121,7 +121,7 @@ func TestCompositionRevisionMapFunc(t *testing.T) {
 						var obj1 composite.Unstructured
 						obj1.SetNamespace("ns")
 						obj1.SetName("obj1")
-						policy := xpv1.UpdateManual
+						policy := xpv2.UpdateManual
 						obj1.SetCompositionUpdatePolicy(&policy)
 						obj1.SetCompositionReference(&corev1.ObjectReference{Name: "dachshund"})
 
@@ -155,7 +155,7 @@ func TestCompositionRevisionMapFunc(t *testing.T) {
 						var obj1 composite.Unstructured
 						obj1.SetNamespace("ns")
 						obj1.SetName("obj1")
-						automatic := xpv1.UpdateAutomatic
+						automatic := xpv2.UpdateAutomatic
 						obj1.SetCompositionUpdatePolicy(&automatic)
 						obj1.SetCompositionReference(&corev1.ObjectReference{Name: "dachshund"})
 
@@ -168,7 +168,7 @@ func TestCompositionRevisionMapFunc(t *testing.T) {
 
 						obj4 := obj1.DeepCopy()
 						obj4.SetName("obj4")
-						manual := xpv1.UpdateManual
+						manual := xpv2.UpdateManual
 						obj4.SetCompositionUpdatePolicy(&manual)
 
 						list.(*kunstructured.UnstructuredList).Items = []kunstructured.Unstructured{

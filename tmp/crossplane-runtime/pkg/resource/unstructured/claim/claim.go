@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 )
@@ -41,7 +41,7 @@ func WithGroupVersionKind(gvk schema.GroupVersionKind) Option {
 
 // WithConditions returns an Option that sets the supplied conditions on an
 // unstructured composite resource claim.
-func WithConditions(c ...xpv1.Condition) Option {
+func WithConditions(c ...xpv2.Condition) Option {
 	return func(cr *Unstructured) {
 		cr.SetConditions(c...)
 	}
@@ -131,35 +131,35 @@ func (c *Unstructured) SetCompositionRevisionSelector(ref *metav1.LabelSelector)
 }
 
 // SetCompositionUpdatePolicy of this resource claim.
-func (c *Unstructured) SetCompositionUpdatePolicy(p *xpv1.UpdatePolicy) {
+func (c *Unstructured) SetCompositionUpdatePolicy(p *xpv2.UpdatePolicy) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionUpdatePolicy", p)
 }
 
 // GetCompositionUpdatePolicy of this resource claim.
-func (c *Unstructured) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
+func (c *Unstructured) GetCompositionUpdatePolicy() *xpv2.UpdatePolicy {
 	p, err := fieldpath.Pave(c.Object).GetString("spec.compositionUpdatePolicy")
 	if err != nil {
 		return nil
 	}
 
-	out := xpv1.UpdatePolicy(p)
+	out := xpv2.UpdatePolicy(p)
 
 	return &out
 }
 
 // SetCompositeDeletePolicy of this resource claim.
-func (c *Unstructured) SetCompositeDeletePolicy(p *xpv1.CompositeDeletePolicy) {
+func (c *Unstructured) SetCompositeDeletePolicy(p *xpv2.CompositeDeletePolicy) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.compositeDeletePolicy", p)
 }
 
 // GetCompositeDeletePolicy of this resource claim.
-func (c *Unstructured) GetCompositeDeletePolicy() *xpv1.CompositeDeletePolicy {
+func (c *Unstructured) GetCompositeDeletePolicy() *xpv2.CompositeDeletePolicy {
 	p, err := fieldpath.Pave(c.Object).GetString("spec.compositeDeletePolicy")
 	if err != nil {
 		return nil
 	}
 
-	out := xpv1.CompositeDeletePolicy(p)
+	out := xpv2.CompositeDeletePolicy(p)
 
 	return &out
 }
@@ -190,8 +190,8 @@ func (c *Unstructured) GetReference() *reference.Claim {
 }
 
 // GetWriteConnectionSecretToReference of this composite resource claim.
-func (c *Unstructured) GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference {
-	out := &xpv1.LocalSecretReference{}
+func (c *Unstructured) GetWriteConnectionSecretToReference() *xpv2.LocalSecretReference {
+	out := &xpv2.LocalSecretReference{}
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.writeConnectionSecretToRef", out); err != nil {
 		return nil
 	}
@@ -200,24 +200,24 @@ func (c *Unstructured) GetWriteConnectionSecretToReference() *xpv1.LocalSecretRe
 }
 
 // SetWriteConnectionSecretToReference of this composite resource claim.
-func (c *Unstructured) SetWriteConnectionSecretToReference(ref *xpv1.LocalSecretReference) {
+func (c *Unstructured) SetWriteConnectionSecretToReference(ref *xpv2.LocalSecretReference) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.writeConnectionSecretToRef", ref)
 }
 
 // GetCondition of this composite resource claim.
-func (c *Unstructured) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
-	conditioned := xpv1.ConditionedStatus{}
+func (c *Unstructured) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
+	conditioned := xpv2.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
 	if err := fieldpath.Pave(c.Object).GetValueInto("status", &conditioned); err != nil {
-		return xpv1.Condition{}
+		return xpv2.Condition{}
 	}
 
 	return conditioned.GetCondition(ct)
 }
 
 // SetConditions of this composite resource claim.
-func (c *Unstructured) SetConditions(conditions ...xpv1.Condition) {
-	conditioned := xpv1.ConditionedStatus{}
+func (c *Unstructured) SetConditions(conditions ...xpv2.Condition) {
+	conditioned := xpv2.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
 	_ = fieldpath.Pave(c.Object).GetValueInto("status", &conditioned)
 	conditioned.SetConditions(conditions...)
@@ -241,7 +241,7 @@ func (c *Unstructured) SetConnectionDetailsLastPublishedTime(t *metav1.Time) {
 
 // SetObservedGeneration of this composite resource claim.
 func (c *Unstructured) SetObservedGeneration(generation int64) {
-	status := &xpv1.ObservedStatus{}
+	status := &xpv2.ObservedStatus{}
 	_ = fieldpath.Pave(c.Object).GetValueInto("status", status)
 	status.SetObservedGeneration(generation)
 	_ = fieldpath.Pave(c.Object).SetValue("status.observedGeneration", status.ObservedGeneration)
@@ -249,7 +249,7 @@ func (c *Unstructured) SetObservedGeneration(generation int64) {
 
 // GetObservedGeneration of this composite resource claim.
 func (c *Unstructured) GetObservedGeneration() int64 {
-	status := &xpv1.ObservedStatus{}
+	status := &xpv2.ObservedStatus{}
 	_ = fieldpath.Pave(c.Object).GetValueInto("status", status)
 
 	return status.GetObservedGeneration()

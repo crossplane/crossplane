@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
@@ -94,7 +94,7 @@ func TestTypedReferenceTo(t *testing.T) {
 
 	tests := map[string]struct {
 		args
-		want *xpv1.TypedReference
+		want *xpv2.TypedReference
 	}{
 		"WithTypeMeta": {
 			args: args{
@@ -111,7 +111,7 @@ func TestTypedReferenceTo(t *testing.T) {
 					Kind:    kind,
 				},
 			},
-			want: &xpv1.TypedReference{
+			want: &xpv2.TypedReference{
 				APIVersion: groupVersion,
 				Kind:       kind,
 				Name:       name,
@@ -132,11 +132,11 @@ func TestTypedReferenceTo(t *testing.T) {
 
 func TestAsOwner(t *testing.T) {
 	tests := map[string]struct {
-		r    *xpv1.TypedReference
+		r    *xpv2.TypedReference
 		want metav1.OwnerReference
 	}{
 		"Successful": {
-			r: &xpv1.TypedReference{
+			r: &xpv2.TypedReference{
 				APIVersion: groupVersion,
 				Kind:       kind,
 				Name:       name,
@@ -165,11 +165,11 @@ func TestAsController(t *testing.T) {
 	flag := true
 
 	tests := map[string]struct {
-		r    *xpv1.TypedReference
+		r    *xpv2.TypedReference
 		want metav1.OwnerReference
 	}{
 		"Successful": {
-			r: &xpv1.TypedReference{
+			r: &xpv2.TypedReference{
 				APIVersion: groupVersion,
 				Kind:       kind,
 				Name:       name,
