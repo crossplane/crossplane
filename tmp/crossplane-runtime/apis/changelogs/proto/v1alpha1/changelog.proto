@@ -1,23 +1,23 @@
 /*
-Copyright 2024 The Crossplane Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+   Copyright 2024 The Crossplane Authors.
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+       http://www.apache.org/licenses/LICENSE-2.0
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
 */
 
 syntax = "proto3";
 
-import "google/protobuf/struct.proto";
-import "google/protobuf/timestamp.proto";
-
 // buf:lint:ignore PACKAGE_DIRECTORY_MATCH
 package changelogs.proto.v1alpha1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/crossplane/crossplane-runtime/v2/apis/changelogs/proto/v1alpha1";
 
@@ -25,7 +25,7 @@ option go_package = "github.com/crossplane/crossplane-runtime/v2/apis/changelogs
 // entries.
 service ChangeLogService {
   // SendChangeLog sends a change log entry to the change log service.
-  rpc SendChangeLog (SendChangeLogRequest) returns (SendChangeLogResponse) {}
+  rpc SendChangeLog(SendChangeLogRequest) returns (SendChangeLogResponse) {}
 }
 
 // SendChangeLogRequest represents a request to send a single change log entry.
