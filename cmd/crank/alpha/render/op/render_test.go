@@ -34,9 +34,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/cmd/crank/render"
@@ -146,7 +146,7 @@ func TestRender(t *testing.T) {
 										{
 											Name:   "secret-creds",
 											Source: opsv1alpha1.FunctionCredentialsSourceSecret,
-											SecretRef: &xpv1.SecretReference{
+											SecretRef: &xpv2.SecretReference{
 												Name:      "missing-secret",
 												Namespace: "default",
 											},

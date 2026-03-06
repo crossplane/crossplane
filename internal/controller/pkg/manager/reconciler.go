@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
@@ -39,6 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
@@ -176,7 +176,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionListFn(nrl),
 		WithClient(o.Client),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 	}
 
 	if o.PackageRuntime.For(v1.ProviderKind) == controller.PackageRuntimeDeployment {
@@ -206,7 +206,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionListFn(nrl),
 		WithClient(o.Client),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -232,7 +232,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionListFn(nrl),
 		WithClient(o.Client),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 	}
 
 	if o.PackageRuntime.For(v1.FunctionKind) == controller.PackageRuntimeDeployment {
@@ -289,13 +289,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// after logging, publishing an event and updating the SYNC status condition
 	if meta.IsPaused(p) {
 		r.record.Event(p, event.Normal(reasonPaused, reconcilePausedMsg))
-		status.MarkConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+		status.MarkConditions(xpv2.ReconcilePaused().WithMessage(reconcilePausedMsg))
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
 		// and if status update fails, we will reconcile again to retry to update the status
 		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, p), errUpdateStatus)
 	}
 
-	if c := p.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
+	if c := p.GetCondition(xpv2.ReconcilePaused().Type); c.Reason == xpv2.ReconcilePaused().Reason {
 		p.CleanConditions()
 		// Persist the removal of conditions and return. We'll be requeued
 		// with the updated status and resume reconciliation.

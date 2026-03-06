@@ -6,7 +6,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 
-	commonv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 func TestPackageHealth(t *testing.T) {
@@ -15,7 +15,7 @@ func TestPackageHealth(t *testing.T) {
 	}
 
 	type want struct {
-		condition commonv1.Condition
+		condition xpv2.Condition
 	}
 
 	cases := map[string]struct {
@@ -29,8 +29,8 @@ func TestPackageHealth(t *testing.T) {
 				pr: &ProviderRevision{
 					Status: ProviderRevisionStatus{
 						PackageRevisionStatus: PackageRevisionStatus{
-							ConditionedStatus: commonv1.ConditionedStatus{
-								Conditions: []commonv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:    TypeRevisionHealthy,
 										Status:  corev1.ConditionTrue,
@@ -58,8 +58,8 @@ func TestPackageHealth(t *testing.T) {
 			args: args{
 				pr: &ConfigurationRevision{
 					Status: PackageRevisionStatus{
-						ConditionedStatus: commonv1.ConditionedStatus{
-							Conditions: []commonv1.Condition{
+						ConditionedStatus: xpv2.ConditionedStatus{
+							Conditions: []xpv2.Condition{
 								{
 									Type:    TypeRevisionHealthy,
 									Status:  corev1.ConditionTrue,
@@ -81,8 +81,8 @@ func TestPackageHealth(t *testing.T) {
 				pr: &ProviderRevision{
 					Status: ProviderRevisionStatus{
 						PackageRevisionStatus: PackageRevisionStatus{
-							ConditionedStatus: commonv1.ConditionedStatus{
-								Conditions: []commonv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:    TypeRevisionHealthy,
 										Status:  corev1.ConditionFalse,
@@ -111,8 +111,8 @@ func TestPackageHealth(t *testing.T) {
 				pr: &ProviderRevision{
 					Status: ProviderRevisionStatus{
 						PackageRevisionStatus: PackageRevisionStatus{
-							ConditionedStatus: commonv1.ConditionedStatus{
-								Conditions: []commonv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:    TypeRevisionHealthy,
 										Status:  corev1.ConditionTrue,
@@ -141,8 +141,8 @@ func TestPackageHealth(t *testing.T) {
 				pr: &FunctionRevision{
 					Status: FunctionRevisionStatus{
 						PackageRevisionStatus: PackageRevisionStatus{
-							ConditionedStatus: commonv1.ConditionedStatus{
-								Conditions: []commonv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:    TypeRevisionHealthy,
 										Status:  corev1.ConditionFalse,
@@ -171,8 +171,8 @@ func TestPackageHealth(t *testing.T) {
 				pr: &ProviderRevision{
 					Status: ProviderRevisionStatus{
 						PackageRevisionStatus: PackageRevisionStatus{
-							ConditionedStatus: commonv1.ConditionedStatus{
-								Conditions: []commonv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   TypeRevisionHealthy,
 										Status: corev1.ConditionUnknown,
@@ -200,8 +200,8 @@ func TestPackageHealth(t *testing.T) {
 				pr: &ProviderRevision{
 					Status: ProviderRevisionStatus{
 						PackageRevisionStatus: PackageRevisionStatus{
-							ConditionedStatus: commonv1.ConditionedStatus{
-								Conditions: []commonv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:    TypeRevisionHealthy,
 										Status:  corev1.ConditionTrue,
@@ -228,8 +228,8 @@ func TestPackageHealth(t *testing.T) {
 			args: args{
 				pr: &ConfigurationRevision{
 					Status: PackageRevisionStatus{
-						ConditionedStatus: commonv1.ConditionedStatus{
-							Conditions: []commonv1.Condition{},
+						ConditionedStatus: xpv2.ConditionedStatus{
+							Conditions: []xpv2.Condition{},
 						},
 					},
 				},
@@ -244,8 +244,8 @@ func TestPackageHealth(t *testing.T) {
 				pr: &FunctionRevision{
 					Status: FunctionRevisionStatus{
 						PackageRevisionStatus: PackageRevisionStatus{
-							ConditionedStatus: commonv1.ConditionedStatus{
-								Conditions: []commonv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:    TypeRevisionHealthy,
 										Status:  corev1.ConditionTrue,

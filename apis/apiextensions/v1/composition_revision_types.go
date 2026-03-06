@@ -19,7 +19,7 @@ package v1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 const (
@@ -80,7 +80,7 @@ type CompositionRevisionSpec struct {
 // CompositionRevisionStatus shows the observed state of the composition
 // revision.
 type CompositionRevisionStatus struct {
-	xpv1.ConditionedStatus `json:",inline"`
+	xpv2.ConditionedStatus `json:",inline"`
 }
 
 // +kubebuilder:object:root=true
@@ -108,12 +108,12 @@ type CompositionRevision struct {
 }
 
 // GetCondition of this CompositionRevision.
-func (in *CompositionRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (in *CompositionRevision) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return in.Status.GetCondition(ct)
 }
 
 // SetConditions of this CompositionRevision.
-func (in *CompositionRevision) SetConditions(c ...xpv1.Condition) {
+func (in *CompositionRevision) SetConditions(c ...xpv2.Condition) {
 	in.Status.SetConditions(c...)
 }
 

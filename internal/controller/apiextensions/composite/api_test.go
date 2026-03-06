@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
@@ -38,6 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
@@ -45,7 +45,7 @@ func TestPublishConnection(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	owner := &fake.MockConnectionSecretOwner{
-		WriterTo: &xpv1.SecretReference{
+		WriterTo: &xpv2.SecretReference{
 			Namespace: "coolnamespace",
 			Name:      "coolsecret",
 		},
@@ -157,7 +157,7 @@ func TestPublishConnection(t *testing.T) {
 
 func TestFetchRevision(t *testing.T) {
 	errBoom := errors.New("boom")
-	manual := xpv1.UpdateManual
+	manual := xpv2.UpdateManual
 	uid := types.UID("no-you-id")
 	ctrl := true
 
@@ -499,7 +499,7 @@ func TestFetchRevision(t *testing.T) {
 func TestConfigure(t *testing.T) {
 	errBoom := errors.New("boom")
 
-	cs := fake.ConnectionSecretWriterTo{Ref: &xpv1.SecretReference{
+	cs := fake.ConnectionSecretWriterTo{Ref: &xpv2.SecretReference{
 		Name:      "foo",
 		Namespace: "bar",
 	}}

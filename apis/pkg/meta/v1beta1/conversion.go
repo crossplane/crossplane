@@ -17,10 +17,10 @@ limitations under the License.
 package v1beta1
 
 import (
+	"errors"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
-
-	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 )

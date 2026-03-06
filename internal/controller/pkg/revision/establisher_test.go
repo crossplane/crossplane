@@ -34,12 +34,12 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 )
 
@@ -59,7 +59,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 
 	type want struct {
 		err  error
-		refs []xpv1.TypedReference
+		refs []xpv2.TypedReference
 	}
 
 	cases := map[string]struct {
@@ -112,7 +112,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				control: true,
 			},
 			want: want{
-				refs: []xpv1.TypedReference{{Name: "ref-me"}},
+				refs: []xpv2.TypedReference{{Name: "ref-me"}},
 			},
 		},
 		"SuccessfulNotExistsEstablishControl": {
@@ -160,7 +160,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				control: true,
 			},
 			want: want{
-				refs: []xpv1.TypedReference{{Name: "ref-me"}},
+				refs: []xpv2.TypedReference{{Name: "ref-me"}},
 			},
 		},
 		"SuccessfulNotExistsEstablishControlWebhookEnabledActiveRevision": {
@@ -238,7 +238,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				control: true,
 			},
 			want: want{
-				refs: []xpv1.TypedReference{
+				refs: []xpv2.TypedReference{
 					{Name: "ref-me"},
 					{Name: "crossplane-provider-provider-name"},
 					{Name: "crossplane-provider-provider-name"},
@@ -263,7 +263,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				control: false,
 			},
 			want: want{
-				refs: []xpv1.TypedReference{{Name: "ref-me"}},
+				refs: []xpv2.TypedReference{{Name: "ref-me"}},
 			},
 		},
 		"SuccessfulNotExistsDoNotCreate": {
@@ -284,7 +284,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				control: false,
 			},
 			want: want{
-				refs: []xpv1.TypedReference{{Name: "ref-me"}},
+				refs: []xpv2.TypedReference{{Name: "ref-me"}},
 			},
 		},
 		"FailedTLSSecretNotPresent": {
@@ -598,7 +598,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				control: true,
 			},
 			want: want{
-				refs: []xpv1.TypedReference{
+				refs: []xpv2.TypedReference{
 					{Name: "test-mrd-unset"},
 					{Name: "test-mrd-active"},
 					{Name: "test-mrd-inactive"},
@@ -801,7 +801,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				control: true,
 			},
 			want: want{
-				refs: []xpv1.TypedReference{
+				refs: []xpv2.TypedReference{
 					{Name: "active-to-unset"},
 					{Name: "active-to-active"},
 					{Name: "active-to-inactive"},
@@ -820,7 +820,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			sort := cmpopts.SortSlices(func(x, y xpv1.TypedReference) bool {
+			sort := cmpopts.SortSlices(func(x, y xpv2.TypedReference) bool {
 				return x.Name < y.Name
 			})
 			if diff := cmp.Diff(tc.want.refs, refs, test.EquateErrors(), sort, cmpopts.EquateEmpty()); diff != "" {
@@ -863,7 +863,7 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					},
 					Status: v1.ProviderRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ObjectRefs: []xpv1.TypedReference{
+							ObjectRefs: []xpv2.TypedReference{
 								{
 									APIVersion: "apiextensions.k8s.io/v1",
 									Kind:       "CustomResourceDefinition",
@@ -892,7 +892,7 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					},
 					Status: v1.ProviderRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ObjectRefs: []xpv1.TypedReference{
+							ObjectRefs: []xpv2.TypedReference{
 								{
 									APIVersion: "apiextensions.k8s.io/v1",
 									Kind:       "CustomResourceDefinition",
@@ -941,7 +941,7 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					},
 					Status: v1.ProviderRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ObjectRefs: []xpv1.TypedReference{
+							ObjectRefs: []xpv2.TypedReference{
 								{
 									APIVersion: "apiextensions.k8s.io/v1",
 									Kind:       "CustomResourceDefinition",
@@ -1012,7 +1012,7 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					},
 					Status: v1.ProviderRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ObjectRefs: []xpv1.TypedReference{
+							ObjectRefs: []xpv2.TypedReference{
 								{
 									APIVersion: "apiextensions.k8s.io/v1",
 									Kind:       "CustomResourceDefinition",
@@ -1073,7 +1073,7 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					},
 					Status: v1.ProviderRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ObjectRefs: []xpv1.TypedReference{
+							ObjectRefs: []xpv2.TypedReference{
 								{
 									APIVersion: "apiextensions.k8s.io/v1",
 									Kind:       "CustomResourceDefinition",
@@ -1131,7 +1131,7 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					},
 					Status: v1.ProviderRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ObjectRefs: []xpv1.TypedReference{
+							ObjectRefs: []xpv2.TypedReference{
 								{
 									APIVersion: "apiextensions.k8s.io/v1",
 									Kind:       "CustomResourceDefinition",
@@ -1261,7 +1261,7 @@ func TestFilteringEstablisherEstablish(t *testing.T) {
 	}
 
 	type want struct {
-		refs []xpv1.TypedReference
+		refs []xpv2.TypedReference
 		err  error
 	}
 
@@ -1274,87 +1274,87 @@ func TestFilteringEstablisherEstablish(t *testing.T) {
 			reason: "Should only pass objects matching the filter to the wrapped establisher",
 			args: args{
 				wrap: &MockEstablisher{
-					MockEstablish: func(_ context.Context, objects []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+					MockEstablish: func(_ context.Context, objects []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv2.TypedReference, error) {
 						if diff := cmp.Diff([]runtime.Object{crd}, objects); diff != "" {
 							t.Errorf("\n%s\nMockEstablish(...): -want error, +got error:\n%s", "incorrect objects passed to wrapped establisher", diff)
 							return nil, errBoom
 						}
 
-						return []xpv1.TypedReference{{Name: "test-crd"}}, nil
+						return []xpv2.TypedReference{{Name: "test-crd"}}, nil
 					},
 				},
 				gks:  []schema.GroupKind{crd.GroupVersionKind().GroupKind()},
 				objs: []runtime.Object{crd, sa},
 			},
 			want: want{
-				refs: []xpv1.TypedReference{{Name: "test-crd"}},
+				refs: []xpv2.TypedReference{{Name: "test-crd"}},
 			},
 		},
 		"FilterFullMatch": {
 			reason: "Should pass all objects matching any of the filters to the wrapped establisher",
 			args: args{
 				wrap: &MockEstablisher{
-					MockEstablish: func(_ context.Context, objects []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+					MockEstablish: func(_ context.Context, objects []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv2.TypedReference, error) {
 						if diff := cmp.Diff([]runtime.Object{crd, sa}, objects); diff != "" {
 							t.Errorf("\n%s\nMockEstablish(...): -want error, +got error:\n%s", "incorrect objects passed to wrapped establisher", diff)
 							return nil, errBoom
 						}
 
-						return []xpv1.TypedReference{{Name: "test-crd"}, {Name: "test-sa"}}, nil
+						return []xpv2.TypedReference{{Name: "test-crd"}, {Name: "test-sa"}}, nil
 					},
 				},
 				gks:  []schema.GroupKind{crd.GroupVersionKind().GroupKind(), sa.GroupVersionKind().GroupKind()},
 				objs: []runtime.Object{crd, sa},
 			},
 			want: want{
-				refs: []xpv1.TypedReference{{Name: "test-crd"}, {Name: "test-sa"}},
+				refs: []xpv2.TypedReference{{Name: "test-crd"}, {Name: "test-sa"}},
 			},
 		},
 		"FilterNoMatches": {
 			reason: "Should pass no objects to the wrapped establisher if none match the filter",
 			args: args{
 				wrap: &MockEstablisher{
-					MockEstablish: func(_ context.Context, objects []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+					MockEstablish: func(_ context.Context, objects []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv2.TypedReference, error) {
 						if diff := cmp.Diff([]runtime.Object{}, objects); diff != "" {
 							t.Errorf("\n%s\nMockEstablish(...): -want error, +got error:\n%s", "incorrect objects passed to wrapped establisher", diff)
 							return nil, errBoom
 						}
 
-						return []xpv1.TypedReference{}, nil
+						return []xpv2.TypedReference{}, nil
 					},
 				},
 				gks:  []schema.GroupKind{{Group: "example.com", Kind: "CustomKind"}},
 				objs: []runtime.Object{crd, sa},
 			},
 			want: want{
-				refs: []xpv1.TypedReference{},
+				refs: []xpv2.TypedReference{},
 			},
 		},
 		"FilterEmpty": {
 			reason: "Should pass no objects to the wrapped establisher if empty filter is specified",
 			args: args{
 				wrap: &MockEstablisher{
-					MockEstablish: func(_ context.Context, objects []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+					MockEstablish: func(_ context.Context, objects []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv2.TypedReference, error) {
 						if diff := cmp.Diff([]runtime.Object{}, objects); diff != "" {
 							t.Errorf("\n%s\nMockEstablish(...): -want error, +got error:\n%s", "incorrect objects passed to wrapped establisher", diff)
 							return nil, errBoom
 						}
 
-						return []xpv1.TypedReference{}, nil
+						return []xpv2.TypedReference{}, nil
 					},
 				},
 				gks:  []schema.GroupKind{},
 				objs: []runtime.Object{crd, sa},
 			},
 			want: want{
-				refs: []xpv1.TypedReference{},
+				refs: []xpv2.TypedReference{},
 			},
 		},
 		"ErrorFromWrappedEstablisher": {
 			reason: "Should propagate errors from the wrapped establisher",
 			args: args{
 				wrap: &MockEstablisher{
-					MockEstablish: func(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+					MockEstablish: func(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv2.TypedReference, error) {
 						return nil, errBoom
 					},
 				},

@@ -36,12 +36,12 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 )
 
@@ -65,7 +65,7 @@ const (
 // API server by checking that control or ownership can be established for all
 // resources and then establishing it.
 type Establisher interface {
-	Establish(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error)
+	Establish(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv2.TypedReference, error)
 	ReleaseObjects(ctx context.Context, parent v1.PackageRevision) error
 }
 
@@ -78,7 +78,7 @@ func NewNopEstablisher() *NopEstablisher {
 type NopEstablisher struct{}
 
 // Establish does nothing.
-func (*NopEstablisher) Establish(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+func (*NopEstablisher) Establish(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv2.TypedReference, error) {
 	return nil, nil
 }
 
@@ -115,7 +115,7 @@ type currentDesired struct {
 
 // Establish checks that control or ownership of resources can be established by
 // parent, then establishes it.
-func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) {
+func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv2.TypedReference, error) {
 	err := e.addLabels(objs, parent)
 	if err != nil {
 		return nil, err
@@ -449,11 +449,11 @@ func (e *APIEstablisher) getWebhookTLSCert(ctx context.Context, parentWithRuntim
 	return webhookTLSCert, nil
 }
 
-func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired, parent client.Object, control bool) ([]xpv1.TypedReference, error) {
+func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired, parent client.Object, control bool) ([]xpv2.TypedReference, error) {
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(e.MaxConcurrentPackageEstablishers)
 
-	out := make(chan xpv1.TypedReference, len(allObjs))
+	out := make(chan xpv2.TypedReference, len(allObjs))
 	for _, cd := range allObjs {
 		g.Go(func() error {
 			if !cd.Exists {
@@ -493,7 +493,7 @@ func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired
 
 	close(out)
 
-	resourceRefs := []xpv1.TypedReference{}
+	resourceRefs := []xpv2.TypedReference{}
 	for ref := range out {
 		resourceRefs = append(resourceRefs, ref)
 	}
@@ -598,7 +598,7 @@ func NewFilteringEstablisher(wrap Establisher, gks ...schema.GroupKind) *Filteri
 
 // Establish filters objects, then uses the wrapped establisher to establish
 // them.
-func (e *FilteringEstablisher) Establish(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) {
+func (e *FilteringEstablisher) Establish(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv2.TypedReference, error) {
 	filtered := make([]runtime.Object, 0, len(objects))
 	for _, obj := range objects {
 		if slices.Contains(e.gks, obj.GetObjectKind().GroupVersionKind().GroupKind()) {

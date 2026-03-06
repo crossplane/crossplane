@@ -27,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
@@ -36,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
@@ -58,7 +58,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)), //nolint:staticcheck // TODO(adamwg) Update crossplane-runtime to the new events API.
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithCapabilityChecker(xfn.NewRevisionCapabilityChecker(mgr.GetClient())))
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -158,7 +158,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := r.functions.CheckCapabilities(ctx, []string{pkgmetav1.FunctionCapabilityComposition}, names...); err != nil {
 		log.Debug("Function capability check failed", "error", err)
 		r.record.Event(rev, event.Warning(reasonCheckCapabilities, err))
-		status.MarkConditions(xpv1.ReconcileSuccess(), v1.MissingCapabilities(err.Error()))
+		status.MarkConditions(xpv2.ReconcileSuccess(), v1.MissingCapabilities(err.Error()))
 
 		// Update status but don't return the error - capability failures are informational
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, rev), "cannot update CompositionRevision status")
@@ -166,7 +166,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	log.Debug("All functions have required composition capability")
 	r.record.Event(rev, event.Normal(reasonCheckCapabilities, "All functions have required composition capability"))
-	status.MarkConditions(xpv1.ReconcileSuccess(), v1.ValidPipeline())
+	status.MarkConditions(xpv2.ReconcileSuccess(), v1.ValidPipeline())
 
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, rev), "cannot update CompositionRevision status")
 }

@@ -19,7 +19,7 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // LabelCronOperationName is the label Crossplane adds to Operations to
@@ -59,7 +59,7 @@ type CronOperationSpec struct {
 
 // CronOperationStatus represents the observed state of a CronOperation.
 type CronOperationStatus struct {
-	xpv1.ConditionedStatus `json:",inline"`
+	xpv2.ConditionedStatus `json:",inline"`
 
 	// RunningOperationRefs is a list of currently running Operations.
 	// +optional
@@ -99,13 +99,13 @@ type CronOperation struct {
 
 // SetConditions delegates to Status.SetConditions.
 // Implements Conditioned.SetConditions.
-func (co *CronOperation) SetConditions(cs ...xpv1.Condition) {
+func (co *CronOperation) SetConditions(cs ...xpv2.Condition) {
 	co.Status.SetConditions(cs...)
 }
 
 // GetCondition delegates to Status.GetCondition.
 // Implements Conditioned.GetCondition.
-func (co *CronOperation) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (co *CronOperation) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return co.Status.GetCondition(ct)
 }
 

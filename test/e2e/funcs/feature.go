@@ -54,11 +54,12 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/yaml"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // DefaultPollInterval is the suggested poll interval for wait.For.
@@ -369,7 +370,7 @@ func ResourceDeletedWithin(d time.Duration, o k8s.Object) features.Func {
 // ResourceHasConditionWithin checks if a single resource becomes the supplied
 // conditions within the supplied duration. Comparison of conditions is modulo
 // messages.
-func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv1.Condition) features.Func {
+func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv2.Condition) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
@@ -387,10 +388,10 @@ func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv1.Condi
 		t.Logf("Waiting %s for %s to become %s...", d, identifier(o), desired)
 
 		ogReport := make(map[string]bool)
-		old := make([]xpv1.Condition, len(cds))
+		old := make([]xpv2.Condition, len(cds))
 		match := func(o k8s.Object) bool {
 			u := asUnstructured(o)
-			s := xpv1.ConditionedStatus{}
+			s := xpv2.ConditionedStatus{}
 			_ = fieldpath.Pave(u.Object).GetValueInto("status", &s)
 
 			for i, want := range cds {
@@ -451,7 +452,7 @@ func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv1.Condi
 // ResourcesHaveConditionWithin fails a test if the supplied resources do not
 // have (i.e. become) the supplied conditions within the supplied duration.
 // Comparison of conditions is modulo messages.
-func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...xpv1.Condition) features.Func {
+func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...xpv2.Condition) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
@@ -482,8 +483,8 @@ func or(a, b string) string {
 // established. Most of our Crossplane status conditions are defined elsewhere
 // (e.g. in the xpv1 package), but this isn't so we define it here for
 // convenience.
-func CRDInitialNamesAccepted() xpv1.Condition {
-	return xpv1.Condition{
+func CRDInitialNamesAccepted() xpv2.Condition {
+	return xpv2.Condition{
 		Type:   "Established",
 		Status: corev1.ConditionTrue,
 		Reason: "InitialNamesAccepted",
@@ -1195,7 +1196,7 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 		t.Helper()
 
 		// Wait for the XR to be available.
-		ResourcesHaveConditionWithin(d, dir, file, xpv1.Available(), xpv1.ReconcileSuccess())(ctx, t, c)
+		ResourcesHaveConditionWithin(d, dir, file, xpv2.Available(), xpv2.ReconcileSuccess())(ctx, t, c)
 
 		uxr := &composite.Unstructured{} // modern schema
 		if err := decoder.DecodeFile(os.DirFS(dir), file, uxr, options...); err != nil {
@@ -1357,7 +1358,7 @@ func LogResources(list k8s.ObjectList, listOptions ...resources.ListOption) feat
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
-		prev := map[string]map[xpv1.ConditionType]xpv1.Condition{}
+		prev := map[string]map[xpv2.ConditionType]xpv2.Condition{}
 
 		pollCtx, cancel := context.WithCancel(ctx)
 		t.Cleanup(cancel)
@@ -1386,10 +1387,10 @@ func LogResources(list k8s.ObjectList, listOptions ...resources.ListOption) feat
 				}
 
 				u := asUnstructured(obj)
-				s := xpv1.ConditionedStatus{}
+				s := xpv2.ConditionedStatus{}
 				_ = fieldpath.Pave(u.Object).GetValueInto("status", &s)
 
-				got := map[xpv1.ConditionType]xpv1.Condition{}
+				got := map[xpv2.ConditionType]xpv2.Condition{}
 				for _, c := range s.Conditions {
 					got[c.Type] = c
 				}

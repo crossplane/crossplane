@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
@@ -36,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	"github.com/crossplane/crossplane/v2/internal/ops/lifecycle"
 )
@@ -97,7 +97,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Don't reconcile if the CronOperation is paused.
 	if meta.IsPaused(co) {
 		log.Debug("CronOperation is paused")
-		status.MarkConditions(v1alpha1.SchedulePaused(), xpv1.ReconcilePaused())
+		status.MarkConditions(v1alpha1.SchedulePaused(), xpv2.ReconcilePaused())
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, co), "cannot update CronOperation status")
 	}
 
@@ -106,7 +106,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Cannot list Operations", "error", err)
 		err = errors.Wrap(err, "cannot list Operations")
 		r.record.Event(co, event.Warning(reasonListOperations, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(ctx, co)
 		return reconcile.Result{}, err
 	}
@@ -139,7 +139,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug("Cannot garbage collect Operation", "error", err, "operation", op.GetName())
 			err = errors.Wrapf(err, "cannot garbage collect Operation %q", op.GetName())
 			r.record.Event(co, event.Warning(reasonGarbageCollectOperations, err))
-			status.MarkConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv2.ReconcileError(err))
 			_ = r.client.Status().Update(ctx, co)
 			return reconcile.Result{}, err
 		}
@@ -150,7 +150,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.log.Info("Invalid cron schedule", "error", err, "schedule", co.Spec.Schedule)
 		err = errors.Wrapf(err, "cannot parse cron schedule %q", co.Spec.Schedule)
 		r.record.Event(co, event.Warning(reasonInvalidSchedule, err))
-		status.MarkConditions(v1alpha1.ScheduleInvalid(err.Error()), xpv1.ReconcileError(err))
+		status.MarkConditions(v1alpha1.ScheduleInvalid(err.Error()), xpv2.ReconcileError(err))
 
 		// We don't return the underlying error here because it's
 		// terminal. There's no point requeuing until someone fixes it.
@@ -200,7 +200,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 					log.Debug("Cannot delete running Operation", "error", err, "operation", op.GetName())
 					err = errors.Wrapf(err, "cannot delete running Operation %q", op.GetName())
 					r.record.Event(co, event.Warning(reasonReplaceRunningOperation, err))
-					status.MarkConditions(xpv1.ReconcileError(err))
+					status.MarkConditions(xpv2.ReconcileError(err))
 					_ = r.client.Status().Update(ctx, co)
 					return reconcile.Result{}, err
 				}
@@ -215,7 +215,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Cannot create scheduled Operation", "error", err, "operation", op.GetName())
 		err = errors.Wrapf(err, "cannot create scheduled Operation %q", op.GetName())
 		r.record.Event(co, event.Warning(reasonCreateOperation, err))
-		status.MarkConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(ctx, co)
 		return reconcile.Result{}, err
 	}
@@ -223,7 +223,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// We rely on our watch to add the new Operation to status at the top of
 	// the Reconcile.
 
-	status.MarkConditions(xpv1.ReconcileSuccess())
+	status.MarkConditions(xpv2.ReconcileSuccess())
 	return reconcile.Result{RequeueAfter: future.Sub(now)}, errors.Wrap(r.client.Status().Update(ctx, co), "cannot update CronOperation status")
 }
 
@@ -238,7 +238,7 @@ func NewOperation(co *v1alpha1.CronOperation, scheduled time.Time) *v1alpha1.Ope
 	meta.AddLabels(op, map[string]string{v1alpha1.LabelCronOperationName: co.GetName()})
 
 	av, k := v1alpha1.CronOperationGroupVersionKind.ToAPIVersionAndKind()
-	meta.AddOwnerReference(op, meta.AsController(&xpv1.TypedReference{
+	meta.AddOwnerReference(op, meta.AsController(&xpv2.TypedReference{
 		APIVersion: av,
 		Kind:       k,
 		Name:       co.GetName(),

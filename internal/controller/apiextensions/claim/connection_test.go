@@ -27,11 +27,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
+
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 var _ ConnectionPropagator = &APIConnectionPropagator{}
@@ -48,14 +49,14 @@ func TestPropagateConnection(t *testing.T) {
 
 	cp := &fake.Composite{
 		ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
-			Ref: &xpv1.SecretReference{Namespace: mgcsns, Name: mgcsname},
+			Ref: &xpv2.SecretReference{Namespace: mgcsns, Name: mgcsname},
 		},
 	}
 
 	cm := &fake.CompositeClaim{
 		ObjectMeta: metav1.ObjectMeta{Namespace: cmcsns},
 		LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
-			Ref: &xpv1.LocalSecretReference{Name: cmcsname},
+			Ref: &xpv2.LocalSecretReference{Name: cmcsname},
 		},
 	}
 

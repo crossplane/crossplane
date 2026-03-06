@@ -31,9 +31,8 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
-
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/test/e2e/config"
@@ -185,7 +184,7 @@ func TestProviderUpgrade(t *testing.T) {
 			).
 			Assess("UpgradeManagedResource", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "mr-upgrade.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mr-upgrade.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mr-upgrade.yaml", xpv2.Available()),
 			)).
 			WithTeardown("DeleteUpgradedManagedResource", funcs.AllOf(
 				funcs.DeleteResources(manifests, "mr-upgrade.yaml"),
@@ -221,7 +220,7 @@ func TestDeploymentRuntimeConfig(t *testing.T) {
 			// deployment runtime configuration are causing any disruptions to
 			// the functionality.
 			Assess("XRIsReady",
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available())).
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv2.Available())).
 			Assess("XRHasPatchedField",
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
 			).
@@ -400,7 +399,7 @@ func TestExternallyManagedServiceAccount(t *testing.T) {
 			// deployment runtime configuration are causing any disruptions to
 			// the functionality.
 			Assess("XRIsReady",
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available())).
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv2.Available())).
 			Assess("XRHasPatchedField",
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
 			).

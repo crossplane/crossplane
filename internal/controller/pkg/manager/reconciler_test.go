@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	commonv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
@@ -40,6 +39,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/xpkg"
 	"github.com/crossplane/crossplane/v2/internal/xpkg/fake"
@@ -891,7 +891,7 @@ func TestReconcile(t *testing.T) {
 								})
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								want.SetActivationPolicy(&v1.AutomaticActivation)
-								want.SetConditions(commonv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+								want.SetConditions(xpv2.ReconcilePaused().WithMessage(reconcilePausedMsg))
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -932,7 +932,7 @@ func TestReconcile(t *testing.T) {
 								p.SetName("test")
 								p.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								p.SetActivationPolicy(&v1.AutomaticActivation)
-								p.SetConditions(commonv1.ReconcilePaused())
+								p.SetConditions(xpv2.ReconcilePaused())
 								return nil
 							}),
 							MockList: test.NewMockListFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
@@ -941,7 +941,7 @@ func TestReconcile(t *testing.T) {
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								want.SetActivationPolicy(&v1.AutomaticActivation)
-								want.Status.Conditions = []commonv1.Condition{}
+								want.Status.Conditions = []xpv2.Condition{}
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}

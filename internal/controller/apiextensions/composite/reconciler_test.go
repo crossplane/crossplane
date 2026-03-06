@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
@@ -47,6 +46,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 )
@@ -105,7 +105,7 @@ func TestReconcile(t *testing.T) {
 					})),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetDeletionTimestamp(&now)
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.Deleting(), xpv1.ReconcileError(errors.Wrap(errBoom, errRemoveFinalizer)))
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.Deleting(), xpv2.ReconcileError(errors.Wrap(errBoom, errRemoveFinalizer)))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -130,7 +130,7 @@ func TestReconcile(t *testing.T) {
 					})),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetDeletionTimestamp(&now)
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.Deleting(), xpv1.ReconcileSuccess())
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.Deleting(), xpv2.ReconcileSuccess())
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -151,7 +151,7 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileError(errors.Wrap(errBoom, errAddFinalizer)))
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileError(errors.Wrap(errBoom, errAddFinalizer)))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -173,7 +173,7 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileError(errors.Wrap(errBoom, errSelectComp)))
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileError(errors.Wrap(errBoom, errSelectComp)))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -195,7 +195,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileError(errors.Wrap(errBoom, errFetchComp)))
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileError(errors.Wrap(errBoom, errFetchComp)))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -221,7 +221,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileError(errors.New("selected CompositionRevision test-revision does not have a valid function pipeline: pipeline status unknown")))
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileError(errors.New("selected CompositionRevision test-revision does not have a valid function pipeline: pipeline status unknown")))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -250,7 +250,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileError(errors.New("selected CompositionRevision test-revision does not have a valid function pipeline: function foo-function does not have the required composition capability")))
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileError(errors.New("selected CompositionRevision test-revision does not have a valid function pipeline: function foo-function does not have the required composition capability")))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -279,7 +279,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileError(errors.Wrap(errBoom, errConfigure)))
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileError(errors.Wrap(errBoom, errConfigure)))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -308,7 +308,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileError(errors.Wrap(errBoom, errCompose)))
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileError(errors.Wrap(errBoom, errCompose)))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -340,7 +340,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileError(errors.Wrap(errBoom, errPublish)))
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileError(errors.Wrap(errBoom, errPublish)))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -375,7 +375,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(xr *composite.Unstructured) {
 						xr.SetCompositionReference(&corev1.ObjectReference{})
-						xr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileSuccess(), xpv1.Available())
+						xr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileSuccess(), xpv2.Available())
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -416,7 +416,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileSuccess(), xpv1.Creating().WithMessage("Unready resources: cat, cow, elephant, and 1 more"))
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileSuccess(), xpv2.Creating().WithMessage("Unready resources: cat, cow, elephant, and 1 more"))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -485,7 +485,7 @@ func TestReconcile(t *testing.T) {
 							APIVersion: "example.org/v1",
 							Kind:       "ComposedResource",
 						}})
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileSuccess(), xpv1.Available())
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileSuccess(), xpv2.Available())
 						cr.SetConnectionDetailsLastPublishedTime(&now)
 					})),
 				},
@@ -538,7 +538,7 @@ func TestReconcile(t *testing.T) {
 					})),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcilePaused().WithMessage(reconcilePausedMsg))
 					})),
 				},
 			},
@@ -567,11 +567,11 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: ""})
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcilePaused())
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcilePaused())
 					})),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: ""})
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileSuccess(), xpv1.Available())
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileSuccess(), xpv2.Available())
 						cr.SetConnectionDetailsLastPublishedTime(&now)
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 					})),
@@ -607,10 +607,10 @@ func TestReconcile(t *testing.T) {
 					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						// no annotation atm
 						// (but reconciliations were already paused)
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcilePaused())
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcilePaused())
 					})),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileSuccess(), xpv1.Available())
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileSuccess(), xpv2.Available())
 						cr.SetConnectionDetailsLastPublishedTime(&now)
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 					})),
@@ -660,13 +660,13 @@ func TestReconcile(t *testing.T) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						cr.SetConditions(
 							v1.WatchCircuitClosed(),
-							xpv1.Condition{
+							xpv2.Condition{
 								Type:    "DatabaseReady",
 								Status:  corev1.ConditionTrue,
 								Reason:  "Available",
 								Message: "This is a condition for database availability.",
 							},
-							xpv1.Condition{
+							xpv2.Condition{
 								Type:               "InternalSync",
 								Status:             corev1.ConditionTrue,
 								LastTransitionTime: metav1.Time{},
@@ -674,8 +674,8 @@ func TestReconcile(t *testing.T) {
 								Message:            "This is a condition representing an internal sync process.",
 								ObservedGeneration: 0,
 							},
-							xpv1.ReconcileSuccess(),
-							xpv1.Available(),
+							xpv2.ReconcileSuccess(),
+							xpv2.Available(),
 						)
 						cr.SetClaimConditionTypes("DatabaseReady")
 						cr.SetClaimReference(&reference.Claim{})
@@ -763,7 +763,7 @@ func TestReconcile(t *testing.T) {
 							},
 							Conditions: []TargetedCondition{
 								{
-									Condition: xpv1.Condition{
+									Condition: xpv2.Condition{
 										Type:    "DatabaseReady",
 										Status:  corev1.ConditionTrue,
 										Reason:  "Available",
@@ -772,7 +772,7 @@ func TestReconcile(t *testing.T) {
 									Target: CompositionTargetCompositeAndClaim,
 								},
 								{
-									Condition: xpv1.Condition{
+									Condition: xpv2.Condition{
 										Type:               "InternalSync",
 										Status:             corev1.ConditionTrue,
 										LastTransitionTime: metav1.Time{},
@@ -799,7 +799,7 @@ func TestReconcile(t *testing.T) {
 						if xr, ok := obj.(*composite.Unstructured); ok {
 							// non-nil claim ref to trigger claim Get()
 							xr.SetClaimReference(&reference.Claim{})
-							xr.SetConditions(xpv1.Condition{
+							xr.SetConditions(xpv2.Condition{
 								Type:    "DatabaseReady",
 								Status:  corev1.ConditionTrue,
 								Reason:  "Available",
@@ -818,15 +818,15 @@ func TestReconcile(t *testing.T) {
 						cr.Schema = composite.SchemaLegacy
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						cr.SetConditions(
-							xpv1.Condition{
+							xpv2.Condition{
 								Type:    "DatabaseReady",
 								Status:  corev1.ConditionUnknown,
 								Reason:  "FatalError",
 								Message: "A fatal error occurred before the status of this condition could be determined.",
 							},
 							v1.WatchCircuitClosed(),
-							xpv1.ReconcileError(fmt.Errorf("cannot compose resources: %w", errBoom)),
-							xpv1.Condition{
+							xpv2.ReconcileError(fmt.Errorf("cannot compose resources: %w", errBoom)),
+							xpv2.Condition{
 								Type:               "InternalSync",
 								Status:             corev1.ConditionTrue,
 								LastTransitionTime: metav1.Time{},
@@ -834,7 +834,7 @@ func TestReconcile(t *testing.T) {
 								Message:            "This is a condition representing an internal sync process.",
 								ObservedGeneration: 0,
 							},
-							xpv1.Condition{
+							xpv2.Condition{
 								Type:               "BucketReady",
 								Status:             corev1.ConditionTrue,
 								LastTransitionTime: metav1.Time{},
@@ -954,7 +954,7 @@ func TestReconcile(t *testing.T) {
 							},
 							Conditions: []TargetedCondition{
 								{
-									Condition: xpv1.Condition{
+									Condition: xpv2.Condition{
 										Type:               "InternalSync",
 										Status:             corev1.ConditionTrue,
 										LastTransitionTime: metav1.Time{},
@@ -965,7 +965,7 @@ func TestReconcile(t *testing.T) {
 									Target: CompositionTargetComposite,
 								},
 								{
-									Condition: xpv1.Condition{
+									Condition: xpv2.Condition{
 										Type:               "BucketReady",
 										Status:             corev1.ConditionTrue,
 										LastTransitionTime: metav1.Time{},
@@ -994,14 +994,14 @@ func TestReconcile(t *testing.T) {
 							// non-nil claim ref to trigger claim Get()
 							xr.SetClaimReference(&reference.Claim{})
 							// The database condition already exists on the XR.
-							xr.SetConditions(xpv1.Condition{
+							xr.SetConditions(xpv2.Condition{
 								Type:    "DatabaseReady",
 								Status:  corev1.ConditionTrue,
 								Reason:  "Available",
 								Message: "This is a condition for database availability.",
 							})
 							// The bucket began in a non-ready state.
-							xr.SetConditions(xpv1.Condition{
+							xr.SetConditions(xpv2.Condition{
 								Type:    "BucketReady",
 								Status:  corev1.ConditionFalse,
 								Reason:  "Creating",
@@ -1023,7 +1023,7 @@ func TestReconcile(t *testing.T) {
 						cr.SetConditions(
 							// The database condition should exist even though it was not seen
 							// during this reconcile.
-							xpv1.Condition{
+							xpv2.Condition{
 								Type:    "DatabaseReady",
 								Status:  corev1.ConditionTrue,
 								Reason:  "Available",
@@ -1031,7 +1031,7 @@ func TestReconcile(t *testing.T) {
 							},
 							// The bucket condition should be updated to reflect the latest
 							// condition which is available.
-							xpv1.Condition{
+							xpv2.Condition{
 								Type:               "BucketReady",
 								Status:             corev1.ConditionTrue,
 								LastTransitionTime: metav1.Time{},
@@ -1040,7 +1040,7 @@ func TestReconcile(t *testing.T) {
 								ObservedGeneration: 0,
 							},
 							v1.WatchCircuitClosed(),
-							xpv1.Condition{
+							xpv2.Condition{
 								Type:               "InternalSync",
 								Status:             corev1.ConditionTrue,
 								LastTransitionTime: metav1.Time{},
@@ -1048,8 +1048,8 @@ func TestReconcile(t *testing.T) {
 								Message:            "This is a condition representing an internal sync process.",
 								ObservedGeneration: 0,
 							},
-							xpv1.ReconcileSuccess(),
-							xpv1.Available(),
+							xpv2.ReconcileSuccess(),
+							xpv2.Available(),
 						)
 						cr.SetClaimConditionTypes(
 							// The database claim condition should exist even though it was
@@ -1093,7 +1093,7 @@ func TestReconcile(t *testing.T) {
 							Conditions: []TargetedCondition{
 								// The database condition is not added to the XR again.
 								{
-									Condition: xpv1.Condition{
+									Condition: xpv2.Condition{
 										Type:               "InternalSync",
 										Status:             corev1.ConditionTrue,
 										LastTransitionTime: metav1.Time{},
@@ -1105,7 +1105,7 @@ func TestReconcile(t *testing.T) {
 								},
 								// The bucket is now ready.
 								{
-									Condition: xpv1.Condition{
+									Condition: xpv2.Condition{
 										Type:               "BucketReady",
 										Status:             corev1.ConditionTrue,
 										LastTransitionTime: metav1.Time{},
@@ -1143,7 +1143,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.Schema = composite.SchemaLegacy
 						cr.SetCompositionReference(&corev1.ObjectReference{})
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileSuccess(), xpv1.Creating())
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileSuccess(), xpv2.Creating())
 						cr.SetClaimReference(&reference.Claim{})
 					})),
 				},
@@ -1206,7 +1206,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.Schema = composite.SchemaLegacy
 						cr.SetCompositionReference(&corev1.ObjectReference{})
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileSuccess(), xpv1.Available())
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileSuccess(), xpv2.Available())
 						cr.SetClaimReference(&reference.Claim{})
 					})),
 				},
@@ -1274,7 +1274,7 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
-						cr.SetConditions(v1.WatchCircuitOpen("ConfigMap/test-config (default)"), xpv1.ReconcileError(errors.Wrap(errBoom, errAddFinalizer)))
+						cr.SetConditions(v1.WatchCircuitOpen("ConfigMap/test-config (default)"), xpv2.ReconcileError(errors.Wrap(errBoom, errAddFinalizer)))
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -1306,7 +1306,7 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
-						cr.SetConditions(v1.WatchCircuitClosed(), xpv1.ReconcileError(errors.Wrap(errBoom, errAddFinalizer)))
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileError(errors.Wrap(errBoom, errAddFinalizer)))
 					})),
 				},
 				opts: []ReconcilerOption{

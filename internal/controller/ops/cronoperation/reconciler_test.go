@@ -32,11 +32,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 )
 
@@ -303,8 +303,8 @@ func TestReconcile(t *testing.T) {
 										Name: "running-op",
 									},
 									Status: v1alpha1.OperationStatus{
-										ConditionedStatus: xpv1.ConditionedStatus{
-											Conditions: []xpv1.Condition{
+										ConditionedStatus: xpv2.ConditionedStatus{
+											Conditions: []xpv2.Condition{
 												{
 													Type:   v1alpha1.TypeSucceeded,
 													Status: "Unknown",
@@ -364,8 +364,8 @@ func TestReconcile(t *testing.T) {
 										Name: "running-op",
 									},
 									Status: v1alpha1.OperationStatus{
-										ConditionedStatus: xpv1.ConditionedStatus{
-											Conditions: []xpv1.Condition{
+										ConditionedStatus: xpv2.ConditionedStatus{
+											Conditions: []xpv2.Condition{
 												{
 													Type:   v1alpha1.TypeSucceeded,
 													Status: "Unknown",
@@ -537,8 +537,8 @@ func TestReconcile(t *testing.T) {
 										CreationTimestamp: metav1.Time{Time: past.Add(-2 * time.Hour)},
 									},
 									Status: v1alpha1.OperationStatus{
-										ConditionedStatus: xpv1.ConditionedStatus{
-											Conditions: []xpv1.Condition{
+										ConditionedStatus: xpv2.ConditionedStatus{
+											Conditions: []xpv2.Condition{
 												{
 													Type:   v1alpha1.TypeSucceeded,
 													Status: "True",
@@ -554,8 +554,8 @@ func TestReconcile(t *testing.T) {
 										CreationTimestamp: metav1.Time{Time: past.Add(-1 * time.Hour)},
 									},
 									Status: v1alpha1.OperationStatus{
-										ConditionedStatus: xpv1.ConditionedStatus{
-											Conditions: []xpv1.Condition{
+										ConditionedStatus: xpv2.ConditionedStatus{
+											Conditions: []xpv2.Condition{
 												{
 													Type:   v1alpha1.TypeSucceeded,
 													Status: "True",

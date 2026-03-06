@@ -28,12 +28,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 var (
@@ -179,7 +179,7 @@ func TestIsEstablished(t *testing.T) {
 }
 
 func TestForCompositeResource(t *testing.T) {
-	defaultCompositionUpdatePolicy := xpv1.UpdatePolicy("Automatic")
+	defaultCompositionUpdatePolicy := xpv2.UpdatePolicy("Automatic")
 
 	type args struct {
 		xrd *v1.CompositeResourceDefinition
@@ -2389,7 +2389,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 	claimSingular := "coolclaim"
 	claimPlural := "coolclaims"
 
-	defaultPolicy := xpv1.CompositeDeletePolicy("Background")
+	defaultPolicy := xpv2.CompositeDeletePolicy("Background")
 	schema := `
 {
 	"properties": {

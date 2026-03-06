@@ -33,7 +33,6 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
@@ -43,6 +42,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
 	"github.com/crossplane/crossplane/v2/internal/names"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
@@ -413,11 +413,11 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			}
 
 			conditions = append(conditions, TargetedCondition{
-				Condition: xpv1.Condition{
-					Type:               xpv1.ConditionType(c.GetType()),
+				Condition: xpv2.Condition{
+					Type:               xpv2.ConditionType(c.GetType()),
 					Status:             status,
 					LastTransitionTime: metav1.Now(),
-					Reason:             xpv1.ConditionReason(c.GetReason()),
+					Reason:             xpv2.ConditionReason(c.GetReason()),
 					Message:            c.GetMessage(),
 				},
 				Target: convertTarget(c.GetTarget()),

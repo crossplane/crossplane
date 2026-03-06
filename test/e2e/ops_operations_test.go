@@ -26,8 +26,7 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
-
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/test/e2e/config"
@@ -108,7 +107,7 @@ func TestOperationRetryLogic(t *testing.T) {
 			)).
 			Assess("OperationRetriesAndEventuallyFails", funcs.AllOf(
 				// Wait for Operation to start retrying - it should start with 0 failures
-				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "operation.yaml", xpv1.ReconcileSuccess()),
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "operation.yaml", xpv2.ReconcileSuccess()),
 				// Wait for Operation to accumulate failures as it retries (exponential backoff means this takes time)
 				// retryLimit is 3, so it should eventually reach 3 failures and be marked as failed
 				funcs.ResourcesHaveFieldValueWithin(3*time.Minute, manifests, "operation.yaml", "status.failures", int64(3)),
@@ -213,7 +212,7 @@ func TestCronOperationScheduling(t *testing.T) {
 						return false
 					})),
 				// Verify the CronOperation has the correct status and schedule is active
-				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "cronoperation.yaml", xpv1.ReconcileSuccess(), v1alpha1.ScheduleActive()),
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "cronoperation.yaml", xpv2.ReconcileSuccess(), v1alpha1.ScheduleActive()),
 			)).
 			Assess("FirstOperationSucceeds", funcs.AllOf(
 				// Capture the first lastSuccessfulTime when the first Operation completes
@@ -299,7 +298,7 @@ func TestWatchOperationResourceChanges(t *testing.T) {
 			)).
 			Assess("WatchOperationEstablishesWatching", funcs.AllOf(
 				// Wait for WatchOperation to become ready (controller started) and actively watching
-				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "watchoperation.yaml", xpv1.ReconcileSuccess(), v1alpha1.WatchActive()),
+				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "watchoperation.yaml", xpv2.ReconcileSuccess(), v1alpha1.WatchActive()),
 			)).
 			Assess("CreateWatchedResource", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "test-configmap.yaml"),

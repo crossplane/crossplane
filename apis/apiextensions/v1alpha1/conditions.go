@@ -20,34 +20,34 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // Condition types.
 const (
 	// A TypeEstablished XRD has created the CRD for its composite resource and
 	// started a controller to reconcile instances of said resource.
-	TypeEstablished xpv1.ConditionType = "Established"
+	TypeEstablished xpv2.ConditionType = "Established"
 
 	// A TypeHealthy indicates the resource is healthy and working.
-	TypeHealthy xpv1.ConditionType = "Healthy"
+	TypeHealthy xpv2.ConditionType = "Healthy"
 )
 
 // Reasons a resource is or is not healthy, established or offered.
 const (
-	ReasonHealthy                     xpv1.ConditionReason = "Running"
-	ReasonUnhealthy                   xpv1.ConditionReason = "EncounteredErrors"
-	EstablishedManagedResource        xpv1.ConditionReason = "EstablishedManagedResource"
-	ReasonPendingManaged              xpv1.ConditionReason = "PendingManagedResource"
-	ReasonInactiveManaged             xpv1.ConditionReason = "InactiveManagedResource"
-	ReasonBlockedActivationPolicy     xpv1.ConditionReason = "BlockedManagedResourceActivationPolicy"
-	ReasonTerminatingManaged          xpv1.ConditionReason = "TerminatingManagedResource"
-	ReasonTerminatingActivationPolicy xpv1.ConditionReason = "TerminatingManagedResourceActivationPolicy"
+	ReasonHealthy                     xpv2.ConditionReason = "Running"
+	ReasonUnhealthy                   xpv2.ConditionReason = "EncounteredErrors"
+	EstablishedManagedResource        xpv2.ConditionReason = "EstablishedManagedResource"
+	ReasonPendingManaged              xpv2.ConditionReason = "PendingManagedResource"
+	ReasonInactiveManaged             xpv2.ConditionReason = "InactiveManagedResource"
+	ReasonBlockedActivationPolicy     xpv2.ConditionReason = "BlockedManagedResourceActivationPolicy"
+	ReasonTerminatingManaged          xpv2.ConditionReason = "TerminatingManagedResource"
+	ReasonTerminatingActivationPolicy xpv2.ConditionReason = "TerminatingManagedResourceActivationPolicy"
 )
 
 // EstablishedManaged indicates that Crossplane has defined new kind of managed resource.
-func EstablishedManaged() xpv1.Condition {
-	return xpv1.Condition{
+func EstablishedManaged() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeEstablished,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -56,8 +56,8 @@ func EstablishedManaged() xpv1.Condition {
 }
 
 // InactiveManaged indicates this managed resource is in the inactive state.
-func InactiveManaged() xpv1.Condition {
-	return xpv1.Condition{
+func InactiveManaged() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeEstablished,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -67,8 +67,8 @@ func InactiveManaged() xpv1.Condition {
 
 // PendingManaged indicates that Crossplane has defined and is waiting for a
 // new kind of managed resource to become accepted.
-func PendingManaged() xpv1.Condition {
-	return xpv1.Condition{
+func PendingManaged() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeEstablished,
 		Status:             corev1.ConditionUnknown,
 		LastTransitionTime: metav1.Now(),
@@ -78,8 +78,8 @@ func PendingManaged() xpv1.Condition {
 
 // BlockedManaged indicates that Crossplane has encountered an error attempting to
 // reconcile a managed resource definition.
-func BlockedManaged() xpv1.Condition {
-	return xpv1.Condition{
+func BlockedManaged() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeEstablished,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -88,8 +88,8 @@ func BlockedManaged() xpv1.Condition {
 }
 
 // Healthy indicates that the controller is running as expected.
-func Healthy() xpv1.Condition {
-	return xpv1.Condition{
+func Healthy() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeHealthy,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -98,8 +98,8 @@ func Healthy() xpv1.Condition {
 }
 
 // Unhealthy indicates that the controller is running into issues.
-func Unhealthy() xpv1.Condition {
-	return xpv1.Condition{
+func Unhealthy() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeHealthy,
 		Status:             corev1.ConditionUnknown,
 		LastTransitionTime: metav1.Now(),
@@ -109,8 +109,8 @@ func Unhealthy() xpv1.Condition {
 
 // BlockedActivationPolicy indicates that Crossplane is blocked attempting to
 // reconcile of a managed resource activation policy.
-func BlockedActivationPolicy() xpv1.Condition {
-	return xpv1.Condition{
+func BlockedActivationPolicy() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeEstablished,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -121,8 +121,8 @@ func BlockedActivationPolicy() xpv1.Condition {
 // TerminatingActivationPolicy indicates that Crossplane is terminating the
 // controller for and removing the definition of a managed resource activation
 // policy.
-func TerminatingActivationPolicy() xpv1.Condition {
-	return xpv1.Condition{
+func TerminatingActivationPolicy() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeEstablished,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -132,8 +132,8 @@ func TerminatingActivationPolicy() xpv1.Condition {
 
 // TerminatingManaged indicates that Crossplane is terminating the controller
 // for and removing the definition of a managed resource.
-func TerminatingManaged() xpv1.Condition {
-	return xpv1.Condition{
+func TerminatingManaged() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeEstablished,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),

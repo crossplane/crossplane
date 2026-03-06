@@ -19,7 +19,7 @@ package v1beta1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // ResourceRef is a reference to a resource.
@@ -75,7 +75,7 @@ type UsageSpec struct {
 
 // UsageStatus defines the observed state of Usage.
 type UsageStatus struct {
-	xpv1.ConditionedStatus `json:",inline"`
+	xpv2.ConditionedStatus `json:",inline"`
 }
 
 // A Usage defines a deletion blocking relationship between two resources.

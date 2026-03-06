@@ -22,38 +22,38 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // Condition types.
 const (
 	// A TypeInstalled indicates whether a package has been installed.
-	TypeInstalled xpv1.ConditionType = "Installed"
+	TypeInstalled xpv2.ConditionType = "Installed"
 
 	// A TypeHealthy indicates whether a package is healthy.
-	TypeHealthy xpv1.ConditionType = "Healthy"
+	TypeHealthy xpv2.ConditionType = "Healthy"
 
 	// A TypeRevisionHealthy indicates whether a package revision is healthy.
-	TypeRevisionHealthy xpv1.ConditionType = "RevisionHealthy"
+	TypeRevisionHealthy xpv2.ConditionType = "RevisionHealthy"
 
 	// A TypeRuntimeHealthy indicates whether a package revision runtime is healthy.
-	TypeRuntimeHealthy xpv1.ConditionType = "RuntimeHealthy"
+	TypeRuntimeHealthy xpv2.ConditionType = "RuntimeHealthy"
 )
 
 // Reasons a package is or is not installed.
 const (
-	ReasonUnpacking     xpv1.ConditionReason = "UnpackingPackage"
-	ReasonInactive      xpv1.ConditionReason = "InactivePackageRevision"
-	ReasonActive        xpv1.ConditionReason = "ActivePackageRevision"
-	ReasonUnhealthy     xpv1.ConditionReason = "UnhealthyPackageRevision"
-	ReasonHealthy       xpv1.ConditionReason = "HealthyPackageRevision"
-	ReasonUnknownHealth xpv1.ConditionReason = "UnknownPackageRevisionHealth"
+	ReasonUnpacking     xpv2.ConditionReason = "UnpackingPackage"
+	ReasonInactive      xpv2.ConditionReason = "InactivePackageRevision"
+	ReasonActive        xpv2.ConditionReason = "ActivePackageRevision"
+	ReasonUnhealthy     xpv2.ConditionReason = "UnhealthyPackageRevision"
+	ReasonHealthy       xpv2.ConditionReason = "HealthyPackageRevision"
+	ReasonUnknownHealth xpv2.ConditionReason = "UnknownPackageRevisionHealth"
 )
 
 // Unpacking indicates that the package manager is waiting for a package
 // revision to be unpacked.
-func Unpacking() xpv1.Condition {
-	return xpv1.Condition{
+func Unpacking() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeInstalled,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -63,8 +63,8 @@ func Unpacking() xpv1.Condition {
 
 // Inactive indicates that the package manager is waiting for a package
 // revision to be transitioned to an active state.
-func Inactive() xpv1.Condition {
-	return xpv1.Condition{
+func Inactive() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeInstalled,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -74,8 +74,8 @@ func Inactive() xpv1.Condition {
 
 // Active indicates that the package manager has installed and activated
 // a package revision.
-func Active() xpv1.Condition {
-	return xpv1.Condition{
+func Active() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeInstalled,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -84,8 +84,8 @@ func Active() xpv1.Condition {
 }
 
 // Unhealthy indicates that the current revision is unhealthy.
-func Unhealthy() xpv1.Condition {
-	return xpv1.Condition{
+func Unhealthy() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeHealthy,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -94,8 +94,8 @@ func Unhealthy() xpv1.Condition {
 }
 
 // Healthy indicates that the current revision is healthy.
-func Healthy() xpv1.Condition {
-	return xpv1.Condition{
+func Healthy() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeHealthy,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -104,8 +104,8 @@ func Healthy() xpv1.Condition {
 }
 
 // UnknownHealth indicates that the health of the current revision is unknown.
-func UnknownHealth() xpv1.Condition {
-	return xpv1.Condition{
+func UnknownHealth() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeHealthy,
 		Status:             corev1.ConditionUnknown,
 		LastTransitionTime: metav1.Now(),
@@ -114,8 +114,8 @@ func UnknownHealth() xpv1.Condition {
 }
 
 // RevisionUnhealthy indicates that the current package revision is unhealthy.
-func RevisionUnhealthy() xpv1.Condition {
-	return xpv1.Condition{
+func RevisionUnhealthy() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeRevisionHealthy,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -124,8 +124,8 @@ func RevisionUnhealthy() xpv1.Condition {
 }
 
 // RevisionHealthy indicates that the current package revision is healthy.
-func RevisionHealthy() xpv1.Condition {
-	return xpv1.Condition{
+func RevisionHealthy() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeRevisionHealthy,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -134,8 +134,8 @@ func RevisionHealthy() xpv1.Condition {
 }
 
 // RevisionUnknownHealth indicates that the health of the current package revision is unknown.
-func RevisionUnknownHealth() xpv1.Condition {
-	return xpv1.Condition{
+func RevisionUnknownHealth() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeRevisionHealthy,
 		Status:             corev1.ConditionUnknown,
 		LastTransitionTime: metav1.Now(),
@@ -144,8 +144,8 @@ func RevisionUnknownHealth() xpv1.Condition {
 }
 
 // RuntimeUnhealthy indicates that the current package revision runtime is unhealthy.
-func RuntimeUnhealthy() xpv1.Condition {
-	return xpv1.Condition{
+func RuntimeUnhealthy() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeRuntimeHealthy,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -154,8 +154,8 @@ func RuntimeUnhealthy() xpv1.Condition {
 }
 
 // RuntimeHealthy indicates that the current package revision runtime is healthy.
-func RuntimeHealthy() xpv1.Condition {
-	return xpv1.Condition{
+func RuntimeHealthy() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeRuntimeHealthy,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -164,8 +164,8 @@ func RuntimeHealthy() xpv1.Condition {
 }
 
 // RuntimeUnknownHealth indicates that the health of the current package revision runtime is unknown.
-func RuntimeUnknownHealth() xpv1.Condition {
-	return xpv1.Condition{
+func RuntimeUnknownHealth() xpv2.Condition {
+	return xpv2.Condition{
 		Type:               TypeRuntimeHealthy,
 		Status:             corev1.ConditionUnknown,
 		LastTransitionTime: metav1.Now(),
@@ -178,7 +178,7 @@ func RuntimeUnknownHealth() xpv1.Condition {
 // conditions, and returns a healthy condition if both are healthy, an unhealthy
 // condition if either is unhealthy or an unknown health condition if the
 // health status is not clear.
-func PackageHealth(pr PackageRevision) xpv1.Condition {
+func PackageHealth(pr PackageRevision) xpv2.Condition {
 	revisionHealth := pr.GetCondition(TypeRevisionHealthy)
 	runtimeHealth := pr.GetCondition(TypeRuntimeHealthy)
 

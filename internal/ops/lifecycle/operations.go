@@ -23,8 +23,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
-
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 )
 
@@ -58,7 +57,7 @@ func LatestSucceededTransitionTime(ops ...v1alpha1.Operation) time.Time {
 
 // WithReason filters the supplied operations to only the ones that have the
 // supplied Succeeded condition reason.
-func WithReason(r xpv1.ConditionReason, ops ...v1alpha1.Operation) []v1alpha1.Operation {
+func WithReason(r xpv2.ConditionReason, ops ...v1alpha1.Operation) []v1alpha1.Operation {
 	out := make([]v1alpha1.Operation, 0)
 	for _, op := range ops {
 		if op.GetCondition(v1alpha1.TypeSucceeded).Reason == r {
