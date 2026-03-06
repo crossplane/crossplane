@@ -219,6 +219,10 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64
 
 	crdv.Schema.OpenAPIV3Schema.Properties["status"] = cStatus
 
+	if vr.Subresources != nil && vr.Subresources.Scale != nil {
+		crdv.Subresources.Scale = vr.Subresources.Scale
+	}
+
 	return &crdv, nil
 }
 
