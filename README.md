@@ -116,6 +116,7 @@ that you can find in the [Community Calendar][community calendar].
 - [#sig-e2e-testing][sig-e2e-testing-slack]
 - [#sig-observability][sig-observability-slack]
 - [#sig-observe-only][sig-observe-only-slack]
+- [#sig-prod-readiness][sig-prod-readiness-slack]
 - [#sig-provider-families][sig-provider-families-slack]
 - [#sig-secret-stores][sig-secret-stores-slack]
 - [#sig-upjet][sig-upjet-slack]
@@ -166,6 +167,7 @@ Crossplane is under the Apache 2.0 license.
 [sig-e2e-testing-slack]: https://crossplane.slack.com/archives/C05C8CCTVNV
 [sig-observability-slack]: https://crossplane.slack.com/archives/C061GNH3LA0
 [sig-observe-only-slack]: https://crossplane.slack.com/archives/C04D5988QEA
+[sig-prod-readiness-slack]: https://crossplane.slack.com/archives/C0AEYUFP9GQ
 [sig-provider-families-slack]: https://crossplane.slack.com/archives/C056YAQRV16
 [sig-secret-stores-slack]: https://crossplane.slack.com/archives/C05BY7DKFV2
 [sig-upjet-slack]: https://crossplane.slack.com/archives/C05T19TB729
