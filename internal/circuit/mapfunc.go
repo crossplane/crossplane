@@ -53,7 +53,13 @@ func NewMapFunc(wrapped handler.MapFunc, b Breaker) handler.MapFunc {
 			// is set. We don't record these events in circuit breaker state or
 			// metrics since they bypass circuit breaker logic entirely for
 			// correctness, not as a circuit breaker decision.
+			//
+			// We also reset the circuit breaker state for the target so that
+			// if a new resource is created with the same name it starts fresh
+			// instead of inheriting a potentially open circuit from the
+			// deleted resource.
 			if obj.GetDeletionTimestamp() != nil {
+				b.ResetTarget(ctx, req.NamespacedName)
 				keep = append(keep, req)
 				continue
 			}
