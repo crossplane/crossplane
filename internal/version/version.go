@@ -18,7 +18,7 @@ limitations under the License.
 package version
 
 import (
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 )
 
 var version string
