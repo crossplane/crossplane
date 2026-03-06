@@ -50,6 +50,11 @@ type Breaker interface {
 	// RecordEvent records a reconciliation event triggered by a watched resource.
 	// The eventType indicates how the circuit breaker handled the event.
 	RecordEvent(ctx context.Context, target types.NamespacedName, es EventSource, et EventType)
+
+	// ResetTarget removes all circuit breaker state for the given target. This
+	// should be called when a resource is deleted so that a new resource with
+	// the same name does not inherit stale circuit breaker state.
+	ResetTarget(ctx context.Context, target types.NamespacedName)
 }
 
 // Metrics records circuit breaker transitions and event outcomes.
@@ -107,4 +112,8 @@ func (n *NopBreaker) GetState(_ context.Context, _ types.NamespacedName) State {
 
 // RecordEvent does nothing.
 func (n *NopBreaker) RecordEvent(_ context.Context, _ types.NamespacedName, _ EventSource, _ EventType) {
+}
+
+// ResetTarget does nothing.
+func (n *NopBreaker) ResetTarget(_ context.Context, _ types.NamespacedName) {
 }
