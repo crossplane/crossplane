@@ -41,8 +41,9 @@ const (
 	ReasonPendingManaged              xpv2.ConditionReason = "PendingManagedResource"
 	ReasonInactiveManaged             xpv2.ConditionReason = "InactiveManagedResource"
 	ReasonBlockedActivationPolicy     xpv2.ConditionReason = "BlockedManagedResourceActivationPolicy"
-	ReasonTerminatingManaged          xpv2.ConditionReason = "TerminatingManagedResource"
-	ReasonTerminatingActivationPolicy xpv2.ConditionReason = "TerminatingManagedResourceActivationPolicy"
+	ReasonTerminatingManaged                xpv2.ConditionReason = "TerminatingManagedResource"
+	ReasonTerminatingActivationPolicy       xpv2.ConditionReason = "TerminatingManagedResourceActivationPolicy"
+	ReasonWaitingForManagedResourceDeletion xpv2.ConditionReason = "WaitingForManagedResourceDeletion"
 )
 
 // EstablishedManaged indicates that Crossplane has defined new kind of managed resource.
@@ -62,6 +63,17 @@ func InactiveManaged() xpv2.Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonInactiveManaged,
+	}
+}
+
+// WaitingForInstanceDeletion indicates that the MRD is inactive but its CRD
+// cannot be deleted because managed resource instances still exist.
+func WaitingForInstanceDeletion() xpv2.Condition {
+	return xpv2.Condition{
+		Type:               TypeEstablished,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonWaitingForManagedResourceDeletion,
 	}
 }
 
