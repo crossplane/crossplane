@@ -124,10 +124,11 @@ func (c *pushCmd) Run(logger logging.Logger) error {
 		images = append(images, packageImage{Image: img, Path: cleanPath})
 	}
 
-	t := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: c.InsecureSkipTLSVerify, //nolint:gosec // we need to support insecure connections if requested
-		},
+	t := http.DefaultTransport.(*http.Transport).Clone() //nolint:forcetypeassert // http.DefaultTransport is always *http.Transport
+	if c.InsecureSkipTLSVerify {
+		t.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true, //nolint:gosec // we need to support insecure connections if requested
+		}
 	}
 
 	options := []remote.Option{
