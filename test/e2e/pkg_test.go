@@ -1048,3 +1048,27 @@ func TestImageConfigRewrite(t *testing.T) {
 			)).Feature(),
 	)
 }
+
+func TestCommonAnnotationsAndLabels(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/provider"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that commonAnnotations and commonLabels are propagated down to provider revision objects.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("ApplyProviderWithCommonAnnotationsAndLabels", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-common-annotations-and-labels.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-common-annotations-and-labels.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-common-annotations-and-labels.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("AnnotationsPropagated", funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-provider-nop.yaml", "metadata.annotations.foo", "bar")).
+			Assess("LabelsPropagated", funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-provider-nop.yaml", "metadata.labels.baz", "qux")).
+			WithTeardown("DeleteProvider", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider-common-annotations-and-labels.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-common-annotations-and-labels.yaml"),
+				funcs.ResourceDeletedWithin(2*time.Minute, &k8sapiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}}),
+			)).
+			Feature(),
+	)
+}
