@@ -49,6 +49,7 @@ import (
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/engine"
+	"github.com/crossplane/crossplane/v2/internal/xmeta"
 )
 
 func TestReconcile(t *testing.T) {
@@ -1350,6 +1351,226 @@ func TestReconcile(t *testing.T) {
 				if diff := cmp.Diff(tr.Want, tr.Got); diff != "" {
 					t.Errorf("\n%s\nr.Reconcile(...): -want events, +got events:\n%s", tc.reason, diff)
 				}
+			}
+		})
+	}
+}
+
+func TestReconcilePollIntervalAnnotation(t *testing.T) {
+	now := metav1.Now()
+
+	cases := map[string]struct {
+		reason         string
+		pollInterval   time.Duration
+		annotation     string
+		wantApprox     time.Duration
+		wantTolerance  time.Duration
+	}{
+		"AnnotationOverridesPollInterval": {
+			reason:        "When a valid poll interval annotation is set, it should override the controller-level poll interval.",
+			pollInterval:  1 * time.Minute,
+			annotation:    "24h",
+			wantApprox:    24 * time.Hour,
+			wantTolerance: 3 * time.Hour,
+		},
+		"InvalidAnnotationFallsBack": {
+			reason:        "When an invalid poll interval annotation is set, the controller-level poll interval should be used.",
+			pollInterval:  5 * time.Minute,
+			annotation:    "not-a-duration",
+			wantApprox:    5 * time.Minute,
+			wantTolerance: 1 * time.Minute,
+		},
+		"BelowMinimumFallsBack": {
+			reason:        "When the poll interval annotation is below the minimum, the controller-level poll interval should be used.",
+			pollInterval:  5 * time.Minute,
+			annotation:    "1ms",
+			wantApprox:    5 * time.Minute,
+			wantTolerance: 1 * time.Minute,
+		},
+		"NoAnnotationUsesDefault": {
+			reason:        "When no poll interval annotation is set, the controller-level poll interval should be used.",
+			pollInterval:  10 * time.Minute,
+			annotation:    "",
+			wantApprox:    10 * time.Minute,
+			wantTolerance: 2 * time.Minute,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			annotations := map[string]string{}
+			if tc.annotation != "" {
+				annotations[xmeta.AnnotationKeyPollInterval] = tc.annotation
+			}
+
+			c := &test.MockClient{
+				MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
+					if len(annotations) > 0 {
+						cr.SetAnnotations(annotations)
+					}
+				})),
+				MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
+					cr.SetCompositionReference(&corev1.ObjectReference{})
+					if len(annotations) > 0 {
+						cr.SetAnnotations(annotations)
+					}
+					cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileSuccess(), xpv2.Available())
+					cr.SetConnectionDetailsLastPublishedTime(&now)
+				})),
+			}
+
+			opts := []ReconcilerOption{
+				WithPollInterval(tc.pollInterval),
+				WithCompositeFinalizer(resource.NewNopFinalizer()),
+				WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+					cr.SetCompositionReference(&corev1.ObjectReference{})
+					return nil
+				})),
+				WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
+					return NewCompositionRevision(), nil
+				})),
+				WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
+					return nil
+				})),
+				WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+					return CompositionResult{}, nil
+				})),
+				WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
+					return true, nil
+				})),
+			}
+
+			r := NewReconciler(c, schema.GroupVersionKind{}, opts...)
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
+			if err != nil {
+				t.Errorf("\n%s\nr.Reconcile(...): unexpected error: %v", tc.reason, err)
+			}
+
+			diff := got.RequeueAfter - tc.wantApprox
+			if diff < 0 {
+				diff = -diff
+			}
+			if diff > tc.wantTolerance {
+				t.Errorf("\n%s\nr.Reconcile(...): want RequeueAfter ~%v (±%v), got %v",
+					tc.reason, tc.wantApprox, tc.wantTolerance, got.RequeueAfter)
+			}
+		})
+	}
+}
+
+func TestReconcileRequestAnnotation(t *testing.T) {
+	now := metav1.Now()
+
+	type args struct {
+		c    client.Client
+		of   schema.GroupVersionKind
+		opts []ReconcilerOption
+	}
+
+	type want struct {
+		r   reconcile.Result
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NewReconcileRequestRecordsToken": {
+			reason: "A new reconcile-requested-at token should be recorded in status.lastHandledReconcileAt.",
+			args: args{
+				c: &test.MockClient{
+					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
+						cr.SetAnnotations(map[string]string{
+							xmeta.AnnotationKeyReconcileRequestedAt: "1705312200",
+						})
+					})),
+					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
+						cr.SetAnnotations(map[string]string{
+							xmeta.AnnotationKeyReconcileRequestedAt: "1705312200",
+						})
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileSuccess(), xpv2.Available())
+						cr.SetConnectionDetailsLastPublishedTime(&now)
+						xmeta.SetLastHandledReconcileAt(cr, "1705312200")
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
+						return NewCompositionRevision(), nil
+					})),
+					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
+						return nil
+					})),
+					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+						return CompositionResult{}, nil
+					})),
+					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
+						return true, nil
+					})),
+				},
+			},
+		},
+		"AlreadyHandledReconcileRequestIsNoOp": {
+			reason: "When the token matches lastHandledReconcileAt, status should remain unchanged.",
+			args: args{
+				c: &test.MockClient{
+					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
+						cr.SetAnnotations(map[string]string{
+							xmeta.AnnotationKeyReconcileRequestedAt: "already-handled",
+						})
+						xmeta.SetLastHandledReconcileAt(cr, "already-handled")
+					})),
+					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
+						cr.SetAnnotations(map[string]string{
+							xmeta.AnnotationKeyReconcileRequestedAt: "already-handled",
+						})
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileSuccess(), xpv2.Available())
+						cr.SetConnectionDetailsLastPublishedTime(&now)
+						xmeta.SetLastHandledReconcileAt(cr, "already-handled")
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
+						return NewCompositionRevision(), nil
+					})),
+					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
+						return nil
+					})),
+					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+						return CompositionResult{}, nil
+					})),
+					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
+						return true, nil
+					})),
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := NewReconciler(tc.args.c, tc.args.of, tc.args.opts...)
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
+
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.r, got); diff != "" {
+				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

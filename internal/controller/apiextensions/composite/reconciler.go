@@ -51,6 +51,7 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
 	"github.com/crossplane/crossplane/v2/internal/xerrors"
+	"github.com/crossplane/crossplane/v2/internal/xmeta"
 )
 
 const (
@@ -83,15 +84,16 @@ const (
 
 // Event reasons.
 const (
-	reasonResolve             event.Reason = "SelectComposition"
-	reasonCompose             event.Reason = "ComposeResources"
-	reasonRBAC                event.Reason = "RoleBasedAccessControl"
-	reasonPublish             event.Reason = "PublishConnectionSecret"
-	reasonWatch               event.Reason = "WatchComposedResources"
-	reasonInit                event.Reason = "InitializeCompositeResource"
-	reasonDelete              event.Reason = "DeleteCompositeResource"
-	reasonPaused              event.Reason = "ReconciliationPaused"
-	reasonNamespaceOverridden event.Reason = "NamespaceOverridden"
+	reasonResolve                 event.Reason = "SelectComposition"
+	reasonCompose                 event.Reason = "ComposeResources"
+	reasonRBAC                    event.Reason = "RoleBasedAccessControl"
+	reasonPublish                 event.Reason = "PublishConnectionSecret"
+	reasonWatch                   event.Reason = "WatchComposedResources"
+	reasonInit                    event.Reason = "InitializeCompositeResource"
+	reasonDelete                  event.Reason = "DeleteCompositeResource"
+	reasonPaused                  event.Reason = "ReconciliationPaused"
+	reasonNamespaceOverridden     event.Reason = "NamespaceOverridden"
+	reasonReconcileRequestHandled event.Reason = "ReconcileRequestHandled"
 )
 
 // Condition reasons.
@@ -537,6 +539,15 @@ type Reconciler struct {
 	pollInterval time.Duration
 }
 
+// effectivePollInterval returns the poll interval for the given resource,
+// taking into account any per-resource override via annotation.
+func (r *Reconciler) effectivePollInterval(o metav1.Object) time.Duration {
+	if d, ok := xmeta.GetPollInterval(o); ok {
+		return d
+	}
+	return r.pollInterval
+}
+
 // Reconcile a composite resource.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Reconcile methods are often very complex. Be wary.
 	log := r.log.WithValues("request", req)
@@ -578,6 +589,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
 		// and if status update fails, we will reconcile again to retry to update the status
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+	}
+
+	// Record the reconcile-requested-at annotation token in status so
+	// users can confirm the request was processed.
+	if token, ok := xmeta.GetReconcileRequest(xr); ok {
+		if xmeta.GetLastHandledReconcileAt(xr) != token {
+			log.Debug("Processing reconcile request", "token", token)
+			r.record.Event(xr, event.Normal(reasonReconcileRequestHandled, "Handling reconcile request", "token", token))
+			xmeta.SetLastHandledReconcileAt(xr, token)
+		}
 	}
 
 	if meta.WasDeleted(xr) {
@@ -855,7 +876,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Requeue after the configured poll interval by default. If realtime
 	// compositions is enabled this'll be RequeueAfter: 0, i.e. no requeue.
-	result := reconcile.Result{RequeueAfter: jitter(r.pollInterval)}
+	// A per-resource poll interval annotation takes precedence.
+	result := reconcile.Result{RequeueAfter: jitter(r.effectivePollInterval(xr))}
 
 	switch {
 	case !r.features.Enabled(features.EnableBetaRealtimeCompositions) && len(unsynced)+len(unready) > 0:
