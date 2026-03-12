@@ -121,6 +121,11 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 		return nil, err
 	}
 
+	err = e.addAnnotations(objs, parent)
+	if err != nil {
+		return nil, err
+	}
+
 	allObjs, err := e.validate(ctx, objs, parent, control)
 	if err != nil {
 		return nil, err
@@ -234,6 +239,29 @@ func (e *APIEstablisher) addLabels(objs []runtime.Object, parent v1.PackageRevis
 			maps.Copy(labels, commonLabels)
 		} else {
 			d.SetLabels(commonLabels)
+		}
+	}
+
+	return nil
+}
+
+func (e *APIEstablisher) addAnnotations(objs []runtime.Object, parent v1.PackageRevision) error {
+	commonAnnotations := parent.GetCommonAnnotations()
+
+	for _, obj := range objs {
+		// convert to resource.Object to be able to access metadata
+		d, ok := obj.(resource.Object)
+		if !ok {
+			return errors.New(errConfResourceObject)
+		}
+
+		annotations := d.GetAnnotations()
+		if annotations != nil {
+			for key, value := range commonAnnotations {
+				annotations[key] = value
+			}
+		} else {
+			d.SetAnnotations(commonAnnotations)
 		}
 	}
 

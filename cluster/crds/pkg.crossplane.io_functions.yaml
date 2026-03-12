@@ -60,6 +60,13 @@ spec:
           spec:
             description: FunctionSpec specifies the configuration of a Function.
             properties:
+              commonAnnotations:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Map of string keys and values that can be used to add annotate objects.
+                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+                type: object
               commonLabels:
                 additionalProperties:
                   type: string
@@ -301,6 +308,13 @@ spec:
           spec:
             description: FunctionSpec specifies the configuration of a Function.
             properties:
+              commonAnnotations:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Map of string keys and values that can be used to add annotate objects.
+                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+                type: object
               commonLabels:
                 additionalProperties:
                   type: string

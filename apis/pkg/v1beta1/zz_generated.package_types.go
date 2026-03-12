@@ -78,6 +78,11 @@ type PackageSpec struct {
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 	// +optional
 	CommonLabels map[string]string `json:"commonLabels,omitempty"`
+
+	// Map of string keys and values that can be used to add annotate objects.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+	// +optional
+	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty"`
 }
 
 // PackageStatus represents the observed state of a Package.
