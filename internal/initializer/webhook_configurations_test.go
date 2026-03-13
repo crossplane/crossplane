@@ -19,6 +19,7 @@ package initializer
 import (
 	"bytes"
 	"context"
+	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -37,11 +38,136 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
-func TestWebhookConfigurations(t *testing.T) {
+func TestSecretCAProvider(t *testing.T) {
 	type args struct {
 		kube client.Client
-		svc  admv1.ServiceReference
-		opts []WebhookConfigurationsOption
+		ref  types.NamespacedName
+	}
+
+	type want struct {
+		ca  []byte
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"Success": {
+			reason: "It should return the CA bundle from the secret.",
+			args: args{
+				ref: types.NamespacedName{Name: "my-secret", Namespace: "ns"},
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						s := &corev1.Secret{
+							Data: map[string][]byte{"tls.crt": []byte("CABUNDLE")},
+						}
+						s.DeepCopyInto(obj.(*corev1.Secret))
+						return nil
+					},
+				},
+			},
+			want: want{
+				ca: []byte("CABUNDLE"),
+			},
+		},
+		"GetError": {
+			reason: "It should return an error if the secret cannot be retrieved.",
+			args: args{
+				ref:  types.NamespacedName{Name: "my-secret", Namespace: "ns"},
+				kube: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetWebhookSecret),
+			},
+		},
+		"EmptyCert": {
+			reason: "It should return an error if the secret has no tls.crt data.",
+			args: args{
+				ref:  types.NamespacedName{Name: "my-secret", Namespace: "ns"},
+				kube: &test.MockClient{MockGet: test.NewMockGetFn(nil)},
+			},
+			want: want{
+				err: errors.Errorf(errFmtNoTLSCrtInSecret, "ns/my-secret"),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			p := &SecretCAProvider{SecretRef: tc.args.ref}
+			ca, err := p.GetCABundle(context.TODO(), tc.args.kube)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nGetCABundle(...): -want err, +got err:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.ca, ca); diff != "" {
+				t.Errorf("\n%s\nGetCABundle(...): -want ca, +got ca:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestFileCAProvider(t *testing.T) {
+	type want struct {
+		ca  []byte
+		err error
+	}
+
+	validDir := t.TempDir()
+	validPath := validDir + "/ca.crt"
+	_ = os.WriteFile(validPath, []byte("CABUNDLE"), 0o644)
+
+	emptyDir := t.TempDir()
+	emptyPath := emptyDir + "/ca.crt"
+	_ = os.WriteFile(emptyPath, []byte{}, 0o644)
+
+	cases := map[string]struct {
+		reason string
+		path   string
+		want   want
+	}{
+		"Success": {
+			reason: "It should return the CA bundle from the file.",
+			path:   validPath,
+			want: want{
+				ca: []byte("CABUNDLE"),
+			},
+		},
+		"FileNotFound": {
+			reason: "It should return an error if the file does not exist.",
+			path:   "/nonexistent/ca.crt",
+			want: want{
+				err: errors.Wrap(errors.New("open /nonexistent/ca.crt: no such file or directory"), errReadCABundleFile),
+			},
+		},
+		"EmptyFile": {
+			reason: "It should return an error if the file is empty.",
+			path:   emptyPath,
+			want: want{
+				err: errors.New(errEmptyCABundleFile),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			p := &FileCAProvider{Path: tc.path}
+			ca, err := p.GetCABundle(context.TODO(), nil)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nGetCABundle(...): -want err, +got err:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.ca, ca); diff != "" {
+				t.Errorf("\n%s\nGetCABundle(...): -want ca, +got ca:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestWebhookConfigurations(t *testing.T) {
+	type args struct {
+		kube       client.Client
+		caProvider WebhookCAProvider
+		svc        admv1.ServiceReference
+		opts       []WebhookConfigurationsOption
 	}
 
 	type want struct {
@@ -71,14 +197,23 @@ func TestWebhookConfigurations(t *testing.T) {
 		Port:      &p,
 	}
 
+	caDir := t.TempDir()
+	caFilePath := caDir + "/ca.crt"
+	_ = os.WriteFile(caFilePath, []byte("CABUNDLE"), 0o644)
+
+	emptyCADir := t.TempDir()
+	emptyCAPath := emptyCADir + "/ca.crt"
+	_ = os.WriteFile(emptyCAPath, []byte{}, 0o644)
+
 	cases := map[string]struct {
 		reason string
 		args
 		want
 	}{
-		"Success": {
-			reason: "If a proper webhook TLS is given, then webhook configurations should have the configs injected and operations should succeed",
+		"SecretCAProviderSuccess": {
+			reason: "If a proper webhook TLS secret is given, then webhook configurations should have the configs injected and operations should succeed",
 			args: args{
+				caProvider: &SecretCAProvider{SecretRef: types.NamespacedName{}},
 				opts: []WebhookConfigurationsOption{
 					WithWebhookConfigurationsFs(fs),
 				},
@@ -113,9 +248,10 @@ func TestWebhookConfigurations(t *testing.T) {
 				},
 			},
 		},
-		"CertNotFound": {
+		"SecretCAProviderCertNotFound": {
 			reason: "If TLS Secret cannot be found, then it should not proceed",
 			args: args{
+				caProvider: &SecretCAProvider{SecretRef: types.NamespacedName{}},
 				opts: []WebhookConfigurationsOption{
 					WithWebhookConfigurationsFs(fs),
 				},
@@ -127,9 +263,10 @@ func TestWebhookConfigurations(t *testing.T) {
 				err: errors.Wrap(errBoom, errGetWebhookSecret),
 			},
 		},
-		"CertKeyEmpty": {
+		"SecretCAProviderCertKeyEmpty": {
 			reason: "If the TLS Secret does not have a CA bundle, then it should not proceed",
 			args: args{
+				caProvider: &SecretCAProvider{SecretRef: types.NamespacedName{}},
 				opts: []WebhookConfigurationsOption{
 					WithWebhookConfigurationsFs(fs),
 				},
@@ -141,9 +278,10 @@ func TestWebhookConfigurations(t *testing.T) {
 				err: errors.Errorf(errFmtNoTLSCrtInSecret, "/"),
 			},
 		},
-		"ApplyFailed": {
+		"SecretCAProviderApplyFailed": {
 			reason: "If it cannot apply webhook configurations, then it should not proceed",
 			args: args{
+				caProvider: &SecretCAProvider{SecretRef: types.NamespacedName{}},
 				opts: []WebhookConfigurationsOption{
 					WithWebhookConfigurationsFs(fs),
 				},
@@ -165,6 +303,7 @@ func TestWebhookConfigurations(t *testing.T) {
 		"NonWebhookType": {
 			reason: "Only webhook configuration types can be processed",
 			args: args{
+				caProvider: &SecretCAProvider{SecretRef: types.NamespacedName{}},
 				opts: []WebhookConfigurationsOption{
 					WithWebhookConfigurationsFs(fsWithMixedTypes),
 				},
@@ -183,13 +322,73 @@ func TestWebhookConfigurations(t *testing.T) {
 				err: errors.Errorf("only MutatingWebhookConfiguration and ValidatingWebhookConfiguration kinds are accepted, got %s", "*v1.CustomResourceDefinition"),
 			},
 		},
+		"FileCAProviderSuccess": {
+			reason: "If a valid CA file is given via FileCAProvider, webhook configurations should be injected successfully",
+			args: args{
+				caProvider: &FileCAProvider{Path: caFilePath},
+				opts: []WebhookConfigurationsOption{
+					WithWebhookConfigurationsFs(fs),
+				},
+				svc: svc,
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
+					MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
+						switch c := obj.(type) {
+						case *admv1.ValidatingWebhookConfiguration:
+							for _, w := range c.Webhooks {
+								if !bytes.Equal(w.ClientConfig.CABundle, []byte("CABUNDLE")) {
+									t.Errorf("unexpected certificate bundle content: %s", string(w.ClientConfig.CABundle))
+								}
+							}
+						case *admv1.MutatingWebhookConfiguration:
+							for _, w := range c.Webhooks {
+								if !bytes.Equal(w.ClientConfig.CABundle, []byte("CABUNDLE")) {
+									t.Errorf("unexpected certificate bundle content: %s", string(w.ClientConfig.CABundle))
+								}
+							}
+						default:
+							t.Error("unexpected type")
+						}
+						return nil
+					},
+				},
+			},
+		},
+		"FileCAProviderFileNotFound": {
+			reason: "If the CA file does not exist, it should return an error",
+			args: args{
+				caProvider: &FileCAProvider{Path: "/nonexistent/ca.crt"},
+				opts: []WebhookConfigurationsOption{
+					WithWebhookConfigurationsFs(fs),
+				},
+				kube: &test.MockClient{},
+			},
+			want: want{
+				err: errors.Wrap(errors.New("open /nonexistent/ca.crt: no such file or directory"), errReadCABundleFile),
+			},
+		},
+		"FileCAProviderEmptyFile": {
+			reason: "If the CA file is empty, it should return an error",
+			args: args{
+				caProvider: &FileCAProvider{Path: emptyCAPath},
+				opts: []WebhookConfigurationsOption{
+					WithWebhookConfigurationsFs(fs),
+				},
+				kube: &test.MockClient{},
+			},
+			want: want{
+				err: errors.New(errEmptyCABundleFile),
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := NewWebhookConfigurations(
 				"/webhooks",
 				sch,
-				&SecretCAProvider{SecretRef: types.NamespacedName{}},
+				tc.args.caProvider,
 				tc.args.svc,
 				tc.opts...).Run(context.TODO(), tc.kube)
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
