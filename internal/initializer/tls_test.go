@@ -707,6 +707,37 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			},
 			want: want{err: nil},
 		},
+		"EmptyServerSecretNameIsNoOp": {
+			reason: "Passing an empty server secret name should not set tlsServerSecretName, so Run returns nil immediately.",
+			args: args{
+				kube: &test.MockClient{},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName("", []string{subject}),
+				},
+			},
+			want: want{err: nil},
+		},
+		"EmptyClientSecretNameIsNoOp": {
+			reason: "Passing an empty client secret name should not set tlsClientSecretName, so Run returns nil immediately.",
+			args: args{
+				kube: &test.MockClient{},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithClientSecretName("", []string{subject}),
+				},
+			},
+			want: want{err: nil},
+		},
+		"EmptyBothSecretNamesIsNoOp": {
+			reason: "Passing empty secret names for both server and client should result in no work done.",
+			args: args{
+				kube: &test.MockClient{},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName("", []string{subject}),
+					TLSCertificateGeneratorWithClientSecretName("", []string{subject}),
+				},
+			},
+			want: want{err: nil},
+		},
 		"OnlyClientCertificateSuccessfulGeneratedClientCert": {
 			reason: "It should be successful if the client certificate is generated and put into the Secret.",
 			args: args{
