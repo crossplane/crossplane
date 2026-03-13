@@ -166,6 +166,9 @@ type Package interface { //nolint:interfacebloat // TODO(negz): Could we break t
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
 
+	GetCommonAnnotations() map[string]string
+	SetCommonAnnotations(a map[string]string)
+
 	GetAppliedImageConfigRefs() []ImageConfigRef
 	SetAppliedImageConfigRefs(refs ...ImageConfigRef)
 	ClearAppliedImageConfigRef(reason ImageConfigRefReason)
@@ -297,6 +300,16 @@ func (p *Provider) GetCommonLabels() map[string]string {
 // SetCommonLabels of this Provider.
 func (p *Provider) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
+}
+
+// GetCommonAnnotations of this Provider.
+func (p *Provider) GetCommonAnnotations() map[string]string {
+	return p.Spec.CommonAnnotations
+}
+
+// SetCommonAnnotations of this Provider.
+func (p *Provider) SetCommonAnnotations(a map[string]string) {
+	p.Spec.CommonAnnotations = a
 }
 
 // GetTLSServerSecretName of this Provider.
@@ -449,6 +462,16 @@ func (p *Configuration) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
+// GetCommonAnnotations of this Configuration.
+func (p *Configuration) GetCommonAnnotations() map[string]string {
+	return p.Spec.CommonAnnotations
+}
+
+// SetCommonAnnotations of this Configuration.
+func (p *Configuration) SetCommonAnnotations(a map[string]string) {
+	p.Spec.CommonAnnotations = a
+}
+
 // GetAppliedImageConfigRefs of this Configuration.
 func (p *Configuration) GetAppliedImageConfigRefs() []ImageConfigRef {
 	return p.Status.AppliedImageConfigRefs
@@ -569,6 +592,9 @@ type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
+
+	GetCommonAnnotations() map[string]string
+	SetCommonAnnotations(a map[string]string)
 
 	GetAppliedImageConfigRefs() []ImageConfigRef
 	SetAppliedImageConfigRefs(refs ...ImageConfigRef)
@@ -748,6 +774,16 @@ func (p *ProviderRevision) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
+// GetCommonAnnotations of this ProviderRevision.
+func (p *ProviderRevision) GetCommonAnnotations() map[string]string {
+	return p.Spec.CommonAnnotations
+}
+
+// SetCommonAnnotations of this ProviderRevision.
+func (p *ProviderRevision) SetCommonAnnotations(a map[string]string) {
+	p.Spec.CommonAnnotations = a
+}
+
 // GetAppliedImageConfigRefs of this ProviderRevision.
 func (p *ProviderRevision) GetAppliedImageConfigRefs() []ImageConfigRef {
 	return p.Status.AppliedImageConfigRefs
@@ -898,6 +934,16 @@ func (p *ConfigurationRevision) GetCommonLabels() map[string]string {
 // SetCommonLabels of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
+}
+
+// GetCommonAnnotations of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetCommonAnnotations() map[string]string {
+	return p.Spec.CommonAnnotations
+}
+
+// SetCommonAnnotations of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetCommonAnnotations(a map[string]string) {
+	p.Spec.CommonAnnotations = a
 }
 
 // GetAppliedImageConfigRefs of this ConfigurationRevision.
@@ -1129,6 +1175,16 @@ func (f *Function) SetCommonLabels(l map[string]string) {
 	f.Spec.CommonLabels = l
 }
 
+// GetCommonAnnotations of this Function.
+func (f *Function) GetCommonAnnotations() map[string]string {
+	return f.Spec.CommonAnnotations
+}
+
+// SetCommonAnnotations of this Function.
+func (f *Function) SetCommonAnnotations(a map[string]string) {
+	f.Spec.CommonAnnotations = a
+}
+
 // GetTLSServerSecretName of this Function.
 func (f *Function) GetTLSServerSecretName() *string {
 	return GetSecretNameWithSuffix(f.GetName(), TLSServerSecretNameSuffix)
@@ -1329,6 +1385,16 @@ func (r *FunctionRevision) GetCommonLabels() map[string]string {
 // SetCommonLabels of this FunctionRevision.
 func (r *FunctionRevision) SetCommonLabels(l map[string]string) {
 	r.Spec.CommonLabels = l
+}
+
+// GetCommonAnnotations of this FunctionRevision.
+func (r *FunctionRevision) GetCommonAnnotations() map[string]string {
+	return r.Spec.CommonAnnotations
+}
+
+// SetCommonAnnotations of this FunctionRevision.
+func (r *FunctionRevision) SetCommonAnnotations(a map[string]string) {
+	r.Spec.CommonAnnotations = a
 }
 
 // GetAppliedImageConfigRefs of this FunctionRevision.

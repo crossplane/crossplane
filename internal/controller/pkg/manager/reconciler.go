@@ -442,6 +442,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetIgnoreCrossplaneConstraints(p.GetIgnoreCrossplaneConstraints())
 	pr.SetSkipDependencyResolution(p.GetSkipDependencyResolution())
 	pr.SetCommonLabels(p.GetCommonLabels())
+	pr.SetCommonAnnotations(p.GetCommonAnnotations())
 
 	if r.setPackageRuntimeManagedFields != nil {
 		r.setPackageRuntimeManagedFields(p, pr)
@@ -468,10 +469,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// Handle changes in labels
-	same := reflect.DeepEqual(pr.GetCommonLabels(), p.GetCommonLabels())
-	if !same {
+	// Handle changes in labels or annotations
+	sameLabels := reflect.DeepEqual(pr.GetCommonLabels(), p.GetCommonLabels())
+	sameAnnotations := reflect.DeepEqual(pr.GetCommonAnnotations(), p.GetCommonAnnotations())
+	if !sameLabels || !sameAnnotations {
 		pr.SetCommonLabels(p.GetCommonLabels())
+		pr.SetCommonAnnotations(p.GetCommonAnnotations())
 
 		if err := r.kube.Update(ctx, pr); err != nil {
 			if kerrors.IsConflict(err) {
