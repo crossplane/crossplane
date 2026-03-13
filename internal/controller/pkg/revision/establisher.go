@@ -257,9 +257,7 @@ func (e *APIEstablisher) addAnnotations(objs []runtime.Object, parent v1.Package
 
 		annotations := d.GetAnnotations()
 		if annotations != nil {
-			for key, value := range commonAnnotations {
-				annotations[key] = value
-			}
+			maps.Copy(annotations, commonAnnotations)
 		} else {
 			d.SetAnnotations(commonAnnotations)
 		}
