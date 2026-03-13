@@ -189,7 +189,7 @@ func TestWebhookConfigurations(t *testing.T) {
 			err := NewWebhookConfigurations(
 				"/webhooks",
 				sch,
-				types.NamespacedName{},
+				&SecretCAProvider{SecretRef: types.NamespacedName{}},
 				tc.args.svc,
 				tc.opts...).Run(context.TODO(), tc.kube)
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
