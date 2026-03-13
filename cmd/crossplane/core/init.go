@@ -19,6 +19,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	admv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -53,6 +54,9 @@ type initCommand struct {
 	TLSCASecretName         string `env:"TLS_CA_SECRET_NAME"        help:"The name of the Secret that the initializer will fill with TLS CA certificate."`
 	TLSServerSecretName     string `env:"TLS_SERVER_SECRET_NAME"    help:"The name of the Secret that the initializer will fill with TLS server certificates."`
 	TLSClientSecretName     string `env:"TLS_CLIENT_SECRET_NAME"    help:"The name of the Secret that the initializer will fill with TLS client certificates."`
+
+	WebhookTLSCertDir string `env:"WEBHOOK_TLS_CERT_DIR" help:"Directory containing TLS certificates for webhooks. When set, certificates are read from files instead of Secrets."`
+	WebhookTLSCACert  string `env:"WEBHOOK_TLS_CA_CERT"  help:"Filename of the CA certificate within the TLS cert directory."`
 }
 
 // Run starts the initialization process.
@@ -65,6 +69,10 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	cl, err := client.New(cfg, client.Options{Scheme: s})
 	if err != nil {
 		return errors.Wrap(err, "cannot create new kubernetes client")
+	}
+
+	if c.WebhookTLSCACert == "" {
+		c.WebhookTLSCACert = initializer.SecretKeyCACert
 	}
 
 	var steps []initializer.Step
@@ -91,18 +99,28 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 			),
 		)
 
-		nn := types.NamespacedName{
-			Name:      c.TLSServerSecretName,
-			Namespace: c.Namespace,
-		}
 		svc := admv1.ServiceReference{
 			Name:      c.WebhookServiceName,
 			Namespace: c.WebhookServiceNamespace,
 			Port:      &c.WebhookServicePort,
 		}
-		steps = append(steps,
-			initializer.NewCoreCRDs(c.CRDsPath, s, initializer.WithWebhookTLSSecretRef(nn)),
-			initializer.NewWebhookConfigurations(c.WebhookConfigurationsPath, s, nn, svc))
+
+		var caProvider initializer.WebhookCAProvider
+		if c.WebhookTLSCertDir != "" {
+			caProvider = &initializer.FileCAProvider{Path: filepath.Join(c.WebhookTLSCertDir, c.WebhookTLSCACert)}
+			steps = append(steps,
+				initializer.NewCoreCRDs(c.CRDsPath, s),
+				initializer.NewWebhookConfigurations(c.WebhookConfigurationsPath, s, caProvider, svc))
+		} else {
+			nn := types.NamespacedName{
+				Name:      c.TLSServerSecretName,
+				Namespace: c.Namespace,
+			}
+			caProvider = &initializer.SecretCAProvider{SecretRef: nn}
+			steps = append(steps,
+				initializer.NewCoreCRDs(c.CRDsPath, s, initializer.WithWebhookTLSSecretRef(nn)),
+				initializer.NewWebhookConfigurations(c.WebhookConfigurationsPath, s, caProvider, svc))
+		}
 	} else {
 		log.Info("Warning: Webhooks are disabled, so deprecated ValidatingWebhookConfigurations will not be automatically deleted.")
 		steps = append(steps,
