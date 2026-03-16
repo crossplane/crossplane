@@ -53,13 +53,7 @@ func NewMapFunc(wrapped handler.MapFunc, b Breaker) handler.MapFunc {
 			// is set. We don't record these events in circuit breaker state or
 			// metrics since they bypass circuit breaker logic entirely for
 			// correctness, not as a circuit breaker decision.
-			//
-			// We also reset the circuit breaker state for the target so that
-			// if a new resource is created with the same name it starts fresh
-			// instead of inheriting a potentially open circuit from the
-			// deleted resource.
 			if obj.GetDeletionTimestamp() != nil {
-				b.ResetTarget(ctx, req.NamespacedName)
 				keep = append(keep, req)
 				continue
 			}
@@ -86,5 +80,31 @@ func NewMapFunc(wrapped handler.MapFunc, b Breaker) handler.MapFunc {
 		}
 
 		return keep
+	}
+}
+
+// NewSelfDeleteResetMapFunc wraps a handler.MapFunc to reset circuit breaker
+// state when the watched object is being deleted. This should only be used for
+// self-watches where the watched object and the mapped target are the same
+// resource (e.g. an XR watching itself via SelfMapFunc).
+//
+// When the watched object has a deletionTimestamp, this wrapper calls
+// ResetTarget for each mapped request so that if a new resource is created with
+// the same name it starts with fresh circuit breaker state instead of
+// inheriting a potentially open circuit from the deleted resource.
+//
+// This wrapper does not filter requests — all requests from the wrapped
+// function are always passed through.
+func NewSelfDeleteResetMapFunc(wrapped handler.MapFunc, b Breaker) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		requests := wrapped(ctx, obj)
+
+		if obj.GetDeletionTimestamp() != nil {
+			for _, req := range requests {
+				b.ResetTarget(ctx, req.NamespacedName)
+			}
+		}
+
+		return requests
 	}
 }
