@@ -159,8 +159,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v0.0.0-20230304212654-82a0ddb27589"
     hash = "sha256-EWyO62fm/zhWdo4/96bscr3POG/5tKsWXYqp5mTwP0Y="
   [mod."github.com/cloudflare/circl"]
-    version = "v1.6.1"
-    hash = "sha256-Dc69V12eIFnJoUNmwg6VKXHfAMijbAeEVSDe8AiOaLo="
+    version = "v1.6.3"
+    hash = "sha256-XZm4EastgX67Dgm5BpOEW/PY4aLcHM/O8+Xbz26PuTY="
   [mod."github.com/containerd/errdefs"]
     version = "v1.0.0"
     hash = "sha256-wMZGoeqvRhuovYCJx0Js4P3qFCNTZ/6Atea/kNYoPMI="
