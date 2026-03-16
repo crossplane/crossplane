@@ -38,6 +38,17 @@ jobs:
       - name: Verify Generated Code
         run: nix build .#checks.x86_64-linux.generate --print-build-logs
 
+      - name: Check Diff
+        run: |
+          nix run .#generate
+          nix run .#tidy
+          echo "Checking that branch is clean..."
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --short
+            echo "ERROR: Generated files are out of date. Run 'nix run .#generate' and 'nix run .#tidy' and commit."
+            exit 1
+          fi
+
   lint:
     runs-on: ubuntu-24.04
 
