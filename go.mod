@@ -4,14 +4,6 @@ go 1.25.5
 
 replace github.com/crossplane/crossplane/apis/v2 => ./apis
 
-// We've temporarily copied crossplane-runtime into this repository so we can
-// update it to use the new apis module while simultaneously updating the apis
-// module not to depend on it, all without breaking the build.
-//
-// TOOD(adamwg): Remove this once changes have been propagated back to
-// crossplane-runtime.
-replace github.com/crossplane/crossplane-runtime/v2 => ./tmp/crossplane-runtime
-
 require (
 	dario.cat/mergo v1.0.2
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24
@@ -19,8 +11,8 @@ require (
 	github.com/alecthomas/kong v1.14.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/containerd/errdefs v1.0.0
-	github.com/crossplane/crossplane-runtime/v2 v2.3.0-rc.0
-	github.com/crossplane/crossplane/apis/v2 v2.0.0-00010101000000-000000000000
+	github.com/crossplane/crossplane-runtime/v2 v2.3.0-rc.0.0.20260317201831-866e713cd321
+	github.com/crossplane/crossplane/apis/v2 v2.0.0-20260306220439-153a39424689
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.6.0
 	github.com/emicklei/dot v1.10.0
