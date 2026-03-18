@@ -75,7 +75,7 @@ const (
 
 	// AnnotationKeyRuntimeDockerNetwork specifies which Docker network the
 	// Function container should be connected to. When set, the container is
-	// reached via its network IP on port 9443 rather than via host port
+	// reached via its Docker hostname on port 9443 rather than via host port
 	// bindings. This is useful when the render process itself runs inside a
 	// Docker container (e.g. a GitHub Actions container job) and function
 	// containers must be on the same network to be reachable.
@@ -160,7 +160,7 @@ type RuntimeDocker struct {
 	// Network is the Docker network to connect the Function container to.
 	// When empty (the default), the container uses the default Docker network
 	// and is reached via host port bindings. When set, the container joins
-	// the specified network and is reached via its IP on that network.
+	// the specified network and is reached via its Docker hostname on port 9443.
 	Network string
 }
 
@@ -285,8 +285,8 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 
 	if r.Network != "" {
 		// When a Docker network is specified, the function container joins
-		// that network and is reached directly via its container IP on the
-		// function port. No host port bindings are needed.
+		// that network and is reached via its Docker hostname on the function
+		// port. No host port bindings are needed.
 		ncfg = &network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{
 				r.Network: {},
@@ -322,8 +322,17 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 
 	rsp, err := cli.ContainerCreate(ctx, cfg, hcfg, ncfg, nil, r.Name)
 	if err != nil {
-		if !errdefs.IsNotFound(err) || r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyNever {
-			return "", errors.Wrapf(err, "cannot create Docker container for image %q on network %q; verify the network exists and is accessible by the Docker daemon", r.Image, r.Network)
+		if !errdefs.IsNotFound(err) {
+			// Non-image-not-found error: could be network misconfiguration,
+			// daemon permissions, etc.
+			if r.Network != "" {
+				return "", errors.Wrapf(err, "cannot create Docker container for image %q on network %q; verify the network exists and is accessible by the Docker daemon", r.Image, r.Network)
+			}
+			return "", errors.Wrapf(err, "cannot create Docker container for image %q", r.Image)
+		}
+		if r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyNever {
+			// Image not found and we're not allowed to pull it.
+			return "", errors.Wrapf(err, "cannot create Docker container: image %q not found and pull policy is %q", r.Image, r.PullPolicy)
 		}
 
 		// The image was not found, but we're allowed to pull it.
@@ -336,7 +345,10 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 
 		rsp, err = cli.ContainerCreate(ctx, cfg, hcfg, ncfg, nil, r.Name)
 		if err != nil {
-			return "", errors.Wrapf(err, "cannot create Docker container for image %q on network %q; verify the network exists and is accessible by the Docker daemon", r.Image, r.Network)
+			if r.Network != "" {
+				return "", errors.Wrapf(err, "cannot create Docker container for image %q on network %q; verify the network exists and is accessible by the Docker daemon", r.Image, r.Network)
+			}
+			return "", errors.Wrapf(err, "cannot create Docker container for image %q", r.Image)
 		}
 	}
 
