@@ -350,25 +350,24 @@ func (r *RuntimeDocker) startContainer(ctx context.Context, cli *client.Client, 
 		return "", errors.Wrap(err, "cannot start Docker container")
 	}
 
-	// Inspect the container to get the actual allocated port
+	// When using a Docker network, containers are resolvable by name within
+	// the network. Use the explicit container name if set, otherwise fall back
+	// to the container ID which Docker also resolves via its embedded DNS.
+	// This avoids an extra inspect call and any IP allocation timing issues.
+	if r.Network != "" {
+		hostname := containerID
+		if r.Name != "" {
+			hostname = r.Name
+		}
+		addr := net.JoinHostPort(hostname, fmt.Sprintf("%d", FunctionPort))
+		r.log.Debug("Function container reachable on network", "network", r.Network, "address", addr)
+		return addr, nil
+	}
+
+	// Inspect the container to get the actual allocated host port.
 	inspect, err := cli.ContainerInspect(ctx, containerID)
 	if err != nil {
 		return "", errors.Wrap(err, "cannot inspect Docker container")
-	}
-
-	// When using a Docker network, reach the container via its IP on that
-	// network at the well-known function port.
-	if r.Network != "" {
-		nw, ok := inspect.NetworkSettings.Networks[r.Network]
-		if !ok {
-			return "", errors.Errorf("container %q is not connected to network %q", containerID, r.Network)
-		}
-		if nw.IPAddress == "" {
-			return "", errors.Errorf("container %q has no IP address on network %q", containerID, r.Network)
-		}
-		addr := net.JoinHostPort(nw.IPAddress, fmt.Sprintf("%d", FunctionPort))
-		r.log.Debug("Function container reachable on network", "network", r.Network, "address", addr)
-		return addr, nil
 	}
 
 	// Look up the specific function port instead of taking the first one
