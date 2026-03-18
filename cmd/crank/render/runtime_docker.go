@@ -323,7 +323,7 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 	rsp, err := cli.ContainerCreate(ctx, cfg, hcfg, ncfg, nil, r.Name)
 	if err != nil {
 		if !errdefs.IsNotFound(err) || r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyNever {
-			return "", errors.Wrap(err, "cannot create Docker container")
+			return "", errors.Wrapf(err, "cannot create Docker container for image %q on network %q; verify the network exists and is accessible by the Docker daemon", r.Image, r.Network)
 		}
 
 		// The image was not found, but we're allowed to pull it.
@@ -336,7 +336,7 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 
 		rsp, err = cli.ContainerCreate(ctx, cfg, hcfg, ncfg, nil, r.Name)
 		if err != nil {
-			return "", errors.Wrap(err, "cannot create Docker container")
+			return "", errors.Wrapf(err, "cannot create Docker container for image %q on network %q; verify the network exists and is accessible by the Docker daemon", r.Image, r.Network)
 		}
 	}
 
@@ -351,13 +351,20 @@ func (r *RuntimeDocker) startContainer(ctx context.Context, cli *client.Client, 
 	}
 
 	// When using a Docker network, containers are resolvable by name within
-	// the network. Use the explicit container name if set, otherwise fall back
-	// to the container ID which Docker also resolves via its embedded DNS.
-	// This avoids an extra inspect call and any IP allocation timing issues.
+	// the network. Inspect the container to validate it is attached to the
+	// specified network and to get its DNS-resolvable name (Docker's embedded
+	// DNS resolves container names and hostnames, but not container IDs).
 	if r.Network != "" {
-		hostname := containerID
-		if r.Name != "" {
-			hostname = r.Name
+		inspect, err := cli.ContainerInspect(ctx, containerID)
+		if err != nil {
+			return "", errors.Wrap(err, "cannot inspect Docker container")
+		}
+		if _, ok := inspect.NetworkSettings.Networks[r.Network]; !ok {
+			return "", errors.Errorf("container %q is not connected to Docker network %q; verify the %q annotation value matches an existing network", strings.TrimPrefix(inspect.Name, "/"), r.Network, AnnotationKeyRuntimeDockerNetwork)
+		}
+		hostname := strings.TrimPrefix(inspect.Name, "/")
+		if hostname == "" {
+			return "", errors.Errorf("cannot determine hostname for container %q on network %q", containerID, r.Network)
 		}
 		addr := net.JoinHostPort(hostname, fmt.Sprintf("%d", FunctionPort))
 		r.log.Debug("Function container reachable on network", "network", r.Network, "address", addr)
