@@ -27,6 +27,7 @@ import (
 	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	typesimage "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -71,6 +72,14 @@ const (
 	// AnnotationKeyRuntimeDockerTarget configures the address that the render
 	// CLI should use to connect to the Function's Docker container.
 	AnnotationKeyRuntimeDockerTarget = "render.crossplane.io/runtime-docker-target"
+
+	// AnnotationKeyRuntimeDockerNetwork specifies which Docker network the
+	// Function container should be connected to. When set, the container is
+	// reached via its network IP on port 9443 rather than via host port
+	// bindings. This is useful when the render process itself runs inside a
+	// Docker container (e.g. a GitHub Actions container job) and function
+	// containers must be on the same network to be reachable.
+	AnnotationKeyRuntimeDockerNetwork = "render.crossplane.io/runtime-docker-network"
 )
 
 // DockerCleanup specifies what Docker should do with a Function container after
@@ -147,6 +156,12 @@ type RuntimeDocker struct {
 	// If empty, it defaults to the published HostIP from Docker inspect.
 	// When published on 0.0.0.0, set this explicitly (e.g. the remote Docker host).
 	Target string
+
+	// Network is the Docker network to connect the Function container to.
+	// When empty (the default), the container uses the default Docker network
+	// and is reached via host port bindings. When set, the container joins
+	// the specified network and is reached via its IP on that network.
+	Network string
 }
 
 // GetDockerPullPolicy extracts PullPolicy configuration from the supplied
@@ -227,6 +242,10 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 		r.Target = i
 	}
 
+	if i := fn.GetAnnotations()[AnnotationKeyRuntimeDockerNetwork]; i != "" {
+		r.Network = i
+	}
+
 	return r, nil
 }
 
@@ -261,13 +280,26 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 		ExposedPorts: nat.PortSet{port: struct{}{}},
 		Env:          r.Env,
 	}
-	hcfg := &container.HostConfig{
-		PortBindings: nat.PortMap{
+	hcfg := &container.HostConfig{}
+	var ncfg *network.NetworkingConfig
+
+	if r.Network != "" {
+		// When a Docker network is specified, the function container joins
+		// that network and is reached directly via its container IP on the
+		// function port. No host port bindings are needed.
+		ncfg = &network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{
+				r.Network: {},
+			},
+		}
+		r.log.Debug("Connecting container to Docker network", "network", r.Network)
+	} else {
+		hcfg.PortBindings = nat.PortMap{
 			port: []nat.PortBinding{{
 				HostIP:   r.BindAddress,
 				HostPort: "0", // "0" => engine allocates an ephemeral port
 			}},
-		},
+		}
 	}
 
 	options, err := r.getPullOptions()
@@ -286,9 +318,9 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 		}
 	}
 
-	r.log.Debug("Creating Docker container", "image", r.Image, "name", r.Name)
+	r.log.Debug("Creating Docker container", "image", r.Image, "name", r.Name, "network", r.Network)
 
-	rsp, err := cli.ContainerCreate(ctx, cfg, hcfg, nil, nil, r.Name)
+	rsp, err := cli.ContainerCreate(ctx, cfg, hcfg, ncfg, nil, r.Name)
 	if err != nil {
 		if !errdefs.IsNotFound(err) || r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyNever {
 			return "", errors.Wrap(err, "cannot create Docker container")
@@ -302,7 +334,7 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 			return "", errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
 		}
 
-		rsp, err = cli.ContainerCreate(ctx, cfg, hcfg, nil, nil, r.Name)
+		rsp, err = cli.ContainerCreate(ctx, cfg, hcfg, ncfg, nil, r.Name)
 		if err != nil {
 			return "", errors.Wrap(err, "cannot create Docker container")
 		}
@@ -322,6 +354,21 @@ func (r *RuntimeDocker) startContainer(ctx context.Context, cli *client.Client, 
 	inspect, err := cli.ContainerInspect(ctx, containerID)
 	if err != nil {
 		return "", errors.Wrap(err, "cannot inspect Docker container")
+	}
+
+	// When using a Docker network, reach the container via its IP on that
+	// network at the well-known function port.
+	if r.Network != "" {
+		nw, ok := inspect.NetworkSettings.Networks[r.Network]
+		if !ok {
+			return "", errors.Errorf("container %q is not connected to network %q", containerID, r.Network)
+		}
+		if nw.IPAddress == "" {
+			return "", errors.Errorf("container %q has no IP address on network %q", containerID, r.Network)
+		}
+		addr := net.JoinHostPort(nw.IPAddress, fmt.Sprintf("%d", FunctionPort))
+		r.log.Debug("Function container reachable on network", "network", r.Network, "address", addr)
+		return addr, nil
 	}
 
 	// Look up the specific function port instead of taking the first one
