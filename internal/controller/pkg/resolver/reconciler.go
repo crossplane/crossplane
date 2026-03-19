@@ -522,6 +522,10 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 		return digest, nil
 	}
 
+	if strings.HasPrefix(insVer, "sha256:") {
+		return "", errors.Errorf("installed version is a digest reference, cannot upgrade using semantic versioning")
+	}
+
 	// ListVersions handles ImageConfig path rewriting and pull secrets.
 	versions, err := r.pkg.ListVersions(ctx, ref.String())
 	if err != nil {

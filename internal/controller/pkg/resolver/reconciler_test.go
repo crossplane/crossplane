@@ -1208,6 +1208,30 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				err: errors.Errorf(errFmtDiffConstraintTypes, fmt.Sprintf("[%s v0.0.1]", digest1)),
 			},
 		},
+		"ErrorInstalledVersionDigest": {
+			reason: "We should return an error if the installed version is a digest (and not call ListVersions).",
+			args: args{
+				mgr:    &fake.Manager{Client: test.NewMockClient()},
+				insVer: digest1,
+				dep: &dag.DependencyNode{
+					Dependency: v1beta1.Dependency{
+						Package: "xpkg.crossplane.io/cool-repo/cool-image",
+						ParentConstraints: []string{
+							">=v1.0.0",
+							"v2.0.0",
+						},
+					},
+				},
+				rec: []ReconcilerOption{
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn(nil, errors.New("ListVersions should not be called")),
+					}),
+				},
+			},
+			want: want{
+				err: errors.Errorf("installed version is a digest reference, cannot upgrade using semantic versioning"),
+			},
+		},
 		"SuccessReturnVersion": {
 			reason: "We should be able to find the version to update.",
 			args: args{
