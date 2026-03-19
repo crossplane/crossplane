@@ -322,6 +322,11 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 
 	rsp, err := cli.ContainerCreate(ctx, cfg, hcfg, ncfg, nil, r.Name)
 	if err != nil {
+		// TODO: If Docker ever exposes a structured way to distinguish
+		// network-not-found from image-not-found (e.g. via errdefs or a typed
+		// error), handle the network case here to avoid an unnecessary image
+		// pull attempt. For now, both surface as errdefs.IsNotFound and
+		// string-matching on the daemon message is too fragile.
 		if !errdefs.IsNotFound(err) {
 			// Non-image-not-found error: could be network misconfiguration,
 			// daemon permissions, etc.
