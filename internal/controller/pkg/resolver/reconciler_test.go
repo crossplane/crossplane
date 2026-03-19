@@ -1040,7 +1040,10 @@ func TestReconcile(t *testing.T) {
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							p := &unstructured.Unstructured{}
 							p.SetName("this-is-a-cool-image")
+							// spec.package uses the original ref.
 							_ = fieldpath.Pave(p.Object).SetString("spec.package", "xpkg.crossplane.io/cool-repo/cool-image:v0.0.1")
+							// status.resolvedPackage uses the rewritten ref.
+							_ = fieldpath.Pave(p.Object).SetString("status.resolvedPackage", "registry.example.com/cool-repo/cool-image:v0.0.1")
 							l := obj.(*unstructured.UnstructuredList)
 							l.Items = []unstructured.Unstructured{*p}
 							return nil
@@ -1058,7 +1061,7 @@ func TestReconcile(t *testing.T) {
 							if ref.Context().String() != "registry.acme.co/cool-repo/cool-image" {
 								return nil, errors.Errorf("wrong ref %q passed to Tags", ref)
 							}
-							return []string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil
+							return []string{"v0.0.1", "v1.0.0", "v1.0.1", "v2.0.0"}, nil
 						},
 					}),
 					WithNewDagFn(func() dag.DAG {
