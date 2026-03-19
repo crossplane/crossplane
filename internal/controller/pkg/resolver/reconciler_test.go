@@ -924,7 +924,10 @@ func TestReconcile(t *testing.T) {
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							p := &unstructured.Unstructured{}
 							p.SetName("this-is-a-cool-image")
+							// spec.package uses the original ref.
 							_ = fieldpath.Pave(p.Object).SetString("spec.package", "xpkg.crossplane.io/cool-repo/cool-image:v0.0.1")
+							// status.resolvedPackage uses the rewritten ref.
+							_ = fieldpath.Pave(p.Object).SetString("status.resolvedPackage", "registry.example.com/cool-repo/cool-image:v0.0.1")
 							l := obj.(*unstructured.UnstructuredList)
 							l.Items = []unstructured.Unstructured{*p}
 							return nil
@@ -934,11 +937,7 @@ func TestReconcile(t *testing.T) {
 				rec: []ReconcilerOption{
 					WithFeatures(upgradesEnabled),
 					WithClient(&fakexpkg.MockClient{
-						MockListVersions: func(_ context.Context, _ string, _ ...xpkg.GetOption) ([]string, error) {
-							// Client handles ImageConfig rewriting internally.
-							// This test verifies versions are returned correctly.
-							return []string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil
-						},
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v0.0.1", "v1.0.0", "v1.0.1", "v2.0.0"}, nil),
 					}),
 					WithNewDagFn(func() dag.DAG {
 						return &fakedag.MockDag{
