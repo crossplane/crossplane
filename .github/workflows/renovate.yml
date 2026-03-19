@@ -45,7 +45,7 @@ jobs:
           # Use GitHub API to create commits
           RENOVATE_PLATFORM_COMMIT: "true"
           LOG_LEVEL: ${{ github.event.inputs.logLevel || env.LOG_LEVEL }}
-          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^nix .+", "^earthly .+"]'
+          RENOVATE_ALLOWED_COMMANDS: '["^nix .+", "^earthly .+"]'
         with:
           configurationFile: .github/renovate.json5
           token: '${{ steps.get-github-app-token.outputs.token }}'
