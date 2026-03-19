@@ -1359,6 +1359,7 @@ func TestReconcile(t *testing.T) {
 type MockCircuitBreaker struct {
 	MockGetState    func(ctx context.Context, target types.NamespacedName) circuit.State
 	MockRecordEvent func(ctx context.Context, target types.NamespacedName, es circuit.EventSource, et circuit.EventType)
+	MockResetTarget func(ctx context.Context, target types.NamespacedName)
 }
 
 // GetState calls MockGetState if set, otherwise returns a closed circuit.
@@ -1373,6 +1374,13 @@ func (m *MockCircuitBreaker) GetState(ctx context.Context, target types.Namespac
 func (m *MockCircuitBreaker) RecordEvent(ctx context.Context, target types.NamespacedName, es circuit.EventSource, et circuit.EventType) {
 	if m.MockRecordEvent != nil {
 		m.MockRecordEvent(ctx, target, es, et)
+	}
+}
+
+// ResetTarget calls MockResetTarget if set.
+func (m *MockCircuitBreaker) ResetTarget(ctx context.Context, target types.NamespacedName) {
+	if m.MockResetTarget != nil {
+		m.MockResetTarget(ctx, target)
 	}
 }
 

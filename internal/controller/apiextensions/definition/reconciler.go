@@ -622,7 +622,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	crmf := CompositionRevisionMapFunc(gvk, schema, r.engine.GetCached(), log)
 	crh := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(crmf, cb))
 
-	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(SelfMapFunc(), cb))
+	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(circuit.NewSelfDeleteResetMapFunc(SelfMapFunc(), cb), cb))
 
 	// StartWatches is idempotent - it only starts watches that don't already
 	// exist. We call it every reconcile to ensure watches are started, even if
