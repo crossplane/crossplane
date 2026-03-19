@@ -265,6 +265,25 @@ message ResourceSelector {
 // MatchLabels defines a set of labels to match resources against.
 message MatchLabels {
   map<string, string> labels = 1;
+
+  // Expressions is a list of set-based label selector requirements. The
+  // requirements are ANDed together with any label requirements.
+  repeated MatchExpression expressions = 2;
+}
+
+// MatchExpression is a single set-based label selector requirement.
+message MatchExpression {
+  // Key is the label key that the selector applies to.
+  string key = 1;
+
+  // Operator represents a key's relationship to a set of values. Valid
+  // operators are In, NotIn, Exists, and DoesNotExist.
+  string operator = 2;
+
+  // Values is an array of string values. If the operator is In or NotIn, the
+  // values array must be non-empty. If the operator is Exists or DoesNotExist,
+  // the values array must be empty.
+  repeated string values = 3;
 }
 
 // ResponseMeta contains metadata pertaining to a RunFunctionResponse.

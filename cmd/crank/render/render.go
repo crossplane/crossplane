@@ -553,7 +553,19 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 
 			return out, nil
 		case *fnv1.ResourceSelector_MatchLabels:
-			if !labels.SelectorFromSet(match.MatchLabels.GetLabels()).Matches(labels.Set(er.GetLabels())) {
+			sel := labels.SelectorFromSet(match.MatchLabels.GetLabels())
+
+			// Add set-based match expressions to the selector.
+			if exprs := match.MatchLabels.GetExpressions(); len(exprs) > 0 {
+				exprSel, err := xfn.MatchExpressionsToSelector(exprs)
+				if err != nil {
+					return nil, errors.Wrap(err, "cannot build label selector from match expressions")
+				}
+				reqs, _ := exprSel.Requirements()
+				sel = sel.Add(reqs...)
+			}
+
+			if !sel.Matches(labels.Set(er.GetLabels())) {
 				continue
 			}
 		default:
