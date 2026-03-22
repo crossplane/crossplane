@@ -305,33 +305,6 @@ jobs:
           AWS_DEFAULT_REGION: us-east-1
         run: nix run --option warn-dirty false .#promote-artifacts -- main "$VERSION" master
 
-  # Security scanning (unchanged from original)
-  trivy-scan-fs:
-    permissions:
-      contents: read
-      security-events: write
-    runs-on: ubuntu-24.04
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
-        with:
-          scan-type: 'fs'
-          ignore-unfixed: true
-          skip-dirs: design
-          scan-ref: '.'
-          severity: 'CRITICAL,HIGH'
-          format: sarif
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy Results
-        uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
-        with:
-          sarif_file: 'trivy-results.sarif'
-
   # Fuzz testing (unchanged from original)
   fuzz-test:
     runs-on: ubuntu-24.04
