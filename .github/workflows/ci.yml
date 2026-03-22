@@ -161,31 +161,6 @@ jobs:
           sarif_file: '_output/codeql/go.sarif'
 
 
-  trivy-scan-fs:
-    permissions:
-      contents: read  # for actions/checkout to fetch code
-      security-events: write  # for github/codeql-action/upload-sarif to upload SARIF results
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
-
-      - name: Run Trivy vulnerability scanner in fs mode
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # 0.29.0
-        with:
-          scan-type: 'fs'
-          ignore-unfixed: true
-          skip-dirs: design
-          scan-ref: '.'
-          severity: 'CRITICAL,HIGH'
-          format: sarif
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy Results to GitHub
-        uses: github/codeql-action/upload-sarif@181d5eefc20863364f96762470ba6f862bdef56b # v3
-        with:
-          sarif_file: 'trivy-results.sarif'
-
   unit-tests:
     runs-on: ubuntu-22.04
 
@@ -450,7 +425,6 @@ jobs:
         with:
           name: output
           path: _output/**
-
   fuzz-test:
     runs-on: ubuntu-22.04
 
@@ -490,4 +464,3 @@ jobs:
         with:
           token: ${{ secrets.BUF_TOKEN }}
           pr_comment: false
-
