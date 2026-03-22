@@ -31,7 +31,7 @@ require (
 	github.com/spf13/afero v1.15.0
 	github.com/willabides/kongplete v0.4.0
 	golang.org/x/sync v0.19.0
-	google.golang.org/grpc v1.78.0
+	google.golang.org/grpc v1.79.3
 	google.golang.org/protobuf v1.36.11
 	k8s.io/api v0.35.0
 	k8s.io/apiextensions-apiserver v0.35.0
