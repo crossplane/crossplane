@@ -145,7 +145,7 @@ type FunctionRequirements struct {
 
 // RequiredResourceSelector selects resources that should be fetched before
 // a pipeline step runs.
-// +kubebuilder:validation:XValidation:rule="(has(self.name) && !has(self.matchLabels)) || (!has(self.name) && has(self.matchLabels))",message="Either name or matchLabels must be specified, but not both"
+// +kubebuilder:validation:XValidation:rule="!(has(self.name) && has(self.matchLabels))",message="name and matchLabels are mutually exclusive"
 type RequiredResourceSelector struct {
 	// RequirementName uniquely identifies this group of resources.
 	// This name will be used as the key in RunFunctionRequest.required_resources.
