@@ -1244,8 +1244,8 @@ func TestAddLabels(t *testing.T) {
 			reason: "Objects should not be modified when no common labels are set.",
 			args: args{
 				objs: []runtime.Object{
-					&extv1.CustomResourceDefinition{
-						ObjectMeta: metav1.ObjectMeta{Name: "crd-a"},
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Name: "mrd-a"},
 					},
 				},
 				parent: &v1.ProviderRevision{},
@@ -1258,8 +1258,8 @@ func TestAddLabels(t *testing.T) {
 			reason: "Common labels should be set on an object that has no existing labels.",
 			args: args{
 				objs: []runtime.Object{
-					&extv1.CustomResourceDefinition{
-						ObjectMeta: metav1.ObjectMeta{Name: "crd-a"},
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Name: "mrd-a"},
 					},
 				},
 				parent: &v1.ProviderRevision{
@@ -1278,9 +1278,9 @@ func TestAddLabels(t *testing.T) {
 			reason: "Common labels should be merged with existing labels on an object.",
 			args: args{
 				objs: []runtime.Object{
-					&extv1.CustomResourceDefinition{
+					&v1alpha1.ManagedResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:   "crd-a",
+							Name:   "mrd-a",
 							Labels: map[string]string{"existing": "value"},
 						},
 					},
@@ -1301,9 +1301,9 @@ func TestAddLabels(t *testing.T) {
 			reason: "A common label should overwrite an existing label with the same key.",
 			args: args{
 				objs: []runtime.Object{
-					&extv1.CustomResourceDefinition{
+					&v1alpha1.ManagedResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:   "crd-a",
+							Name:   "mrd-a",
 							Labels: map[string]string{"env": "staging"},
 						},
 					},
@@ -1360,8 +1360,8 @@ func TestAddAnnotations(t *testing.T) {
 			reason: "Objects should not be modified when no common annotations are set.",
 			args: args{
 				objs: []runtime.Object{
-					&extv1.CustomResourceDefinition{
-						ObjectMeta: metav1.ObjectMeta{Name: "crd-a"},
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Name: "mrd-a"},
 					},
 				},
 				parent: &v1.ProviderRevision{},
@@ -1374,8 +1374,8 @@ func TestAddAnnotations(t *testing.T) {
 			reason: "Common annotations should be set on an object that has no existing annotations.",
 			args: args{
 				objs: []runtime.Object{
-					&extv1.CustomResourceDefinition{
-						ObjectMeta: metav1.ObjectMeta{Name: "crd-a"},
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Name: "mrd-a"},
 					},
 				},
 				parent: &v1.ProviderRevision{
@@ -1394,9 +1394,9 @@ func TestAddAnnotations(t *testing.T) {
 			reason: "Common annotations should be merged with existing annotations on an object.",
 			args: args{
 				objs: []runtime.Object{
-					&extv1.CustomResourceDefinition{
+					&v1alpha1.ManagedResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:        "crd-a",
+							Name:        "mrd-a",
 							Annotations: map[string]string{"existing": "value"},
 						},
 					},
@@ -1417,9 +1417,9 @@ func TestAddAnnotations(t *testing.T) {
 			reason: "A common annotation should overwrite an existing annotation with the same key.",
 			args: args{
 				objs: []runtime.Object{
-					&extv1.CustomResourceDefinition{
+					&v1alpha1.ManagedResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:        "crd-a",
+							Name:        "mrd-a",
 							Annotations: map[string]string{"owner": "team-b"},
 						},
 					},
