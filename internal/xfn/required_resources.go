@@ -173,33 +173,37 @@ func (e *ExistingRequiredResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.R
 
 		return &fnv1.Resources{Items: []*fnv1.Resource{{Resource: o}}}, nil
 	case *fnv1.ResourceSelector_MatchLabels:
-		// Fetch a list of resources.
-		list := &kunstructured.UnstructuredList{}
-		list.SetAPIVersion(rs.GetApiVersion())
-		list.SetKind(rs.GetKind())
-		// If namespace is empty client.InNamespace will have no effect.
-		if err := e.client.List(ctx, list, client.MatchingLabels(match.MatchLabels.GetLabels()), client.InNamespace(rs.GetNamespace())); err != nil {
-			return nil, errors.Wrap(err, "cannot list required resources")
-		}
+		return e.list(ctx, rs, client.MatchingLabels(match.MatchLabels.GetLabels()))
+	default:
+		// No match specified — list all resources of this apiVersion and kind.
+		return e.list(ctx, rs)
+	}
+}
 
-		// Sort items by resource name so that the order is stable across calls.
-		sort.Slice(list.Items, func(i, j int) bool {
-			return list.Items[i].GetName() < list.Items[j].GetName()
-		})
+func (e *ExistingRequiredResourcesFetcher) list(ctx context.Context, rs *fnv1.ResourceSelector, opts ...client.ListOption) (*fnv1.Resources, error) {
+	list := &kunstructured.UnstructuredList{}
+	list.SetAPIVersion(rs.GetApiVersion())
+	list.SetKind(rs.GetKind())
 
-		resources := make([]*fnv1.Resource, len(list.Items))
-
-		for i, r := range list.Items {
-			o, err := AsStruct(&r)
-			if err != nil {
-				return nil, errors.Wrap(err, "cannot encode required resource to protobuf Struct")
-			}
-
-			resources[i] = &fnv1.Resource{Resource: o}
-		}
-
-		return &fnv1.Resources{Items: resources}, nil
+	// If namespace is empty client.InNamespace will have no effect.
+	opts = append(opts, client.InNamespace(rs.GetNamespace()))
+	if err := e.client.List(ctx, list, opts...); err != nil {
+		return nil, errors.Wrap(err, "cannot list required resources")
 	}
 
-	return nil, errors.Errorf("unsupported required resource selector type %T", rs.GetMatch())
+	// Sort items by resource name so that the order is stable across calls.
+	sort.Slice(list.Items, func(i, j int) bool {
+		return list.Items[i].GetName() < list.Items[j].GetName()
+	})
+
+	resources := make([]*fnv1.Resource, len(list.Items))
+	for i, r := range list.Items {
+		o, err := AsStruct(&r)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot encode required resource to protobuf Struct")
+		}
+		resources[i] = &fnv1.Resource{Resource: o}
+	}
+
+	return &fnv1.Resources{Items: resources}, nil
 }

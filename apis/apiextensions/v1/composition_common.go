@@ -138,7 +138,7 @@ type FunctionRequirements struct {
 
 // RequiredResourceSelector selects a required resource.
 //
-// +kubebuilder:validation:XValidation:rule="(has(self.name) && !has(self.matchLabels)) || (!has(self.name) && has(self.matchLabels))",message="Either name or matchLabels must be specified, but not both"
+// +kubebuilder:validation:XValidation:rule="!(has(self.name) && has(self.matchLabels))",message="name and matchLabels are mutually exclusive"
 type RequiredResourceSelector struct {
 	// RequirementName is the unique name to identify this required resource
 	// in the Required Resources map in the function request.
