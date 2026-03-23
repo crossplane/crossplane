@@ -519,27 +519,36 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 			continue
 		}
 
-		if rs.GetMatchName() == er.GetName() {
+		switch match := rs.GetMatch().(type) {
+		case *fnv1.ResourceSelector_MatchName:
+			if match.MatchName != er.GetName() {
+				continue
+			}
+
 			o, err := xfn.AsStruct(&er)
 			if err != nil {
 				return nil, errors.Wrapf(err, "cannot marshal resource %q", er.GetName())
 			}
 
+			// There can only be one resource with a given name.
 			out.Items = []*fnv1.Resource{{Resource: o}}
 
 			return out, nil
-		}
-
-		if rs.GetMatchLabels() != nil {
-			if labels.SelectorFromSet(rs.GetMatchLabels().GetLabels()).Matches(labels.Set(er.GetLabels())) {
-				o, err := xfn.AsStruct(&er)
-				if err != nil {
-					return nil, errors.Wrapf(err, "cannot marshal resource %q", er.GetName())
-				}
-
-				out.Items = append(out.GetItems(), &fnv1.Resource{Resource: o})
+		case *fnv1.ResourceSelector_MatchLabels:
+			if !labels.SelectorFromSet(match.MatchLabels.GetLabels()).Matches(labels.Set(er.GetLabels())) {
+				continue
 			}
+		default:
+			// No match specified — match all resources of this
+			// apiVersion and kind.
 		}
+
+		o, err := xfn.AsStruct(&er)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot marshal resource %q", er.GetName())
+		}
+
+		out.Items = append(out.GetItems(), &fnv1.Resource{Resource: o})
 	}
 
 	return out, nil
