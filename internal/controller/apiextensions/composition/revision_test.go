@@ -87,7 +87,10 @@ func TestNewCompositionRevisionPropagatesLabelsAndAnnotations(t *testing.T) {
 	if diff := cmp.Diff(map[string]string{"foo": "bar"}, got.GetAnnotations()); diff != "" {
 		t.Errorf("NewCompositionRevision() annotations: -want, +got:\n%s", diff)
 	}
-	if diff := cmp.Diff(map[string]string{"baz": "qux"}, got.GetLabels()); diff != "" {
+	ignoreSystemLabels := cmpopts.IgnoreMapEntries(func(k, _ string) bool {
+		return k == v1.LabelCompositionName || k == v1.LabelCompositionHash
+	})
+	if diff := cmp.Diff(map[string]string{"baz": "qux"}, got.GetLabels(), ignoreSystemLabels); diff != "" {
 		t.Errorf("NewCompositionRevision() labels: -want, +got:\n%s", diff)
 	}
 }
