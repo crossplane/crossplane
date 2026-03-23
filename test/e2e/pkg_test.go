@@ -1062,8 +1062,8 @@ func TestCommonAnnotationsAndLabels(t *testing.T) {
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-common-annotations-and-labels.yaml"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-common-annotations-and-labels.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
-			Assess("AnnotationsPropagated", funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-provider-nop.yaml", "metadata.annotations.foo", "bar")).
-			Assess("LabelsPropagated", funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-provider-nop.yaml", "metadata.labels.baz", "qux")).
+			Assess("AnnotationsPropagated", funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "provider-revision-common-annotations-and-labels.yaml", "spec.commonAnnotations.foo", "bar")).
+			Assess("LabelsPropagated", funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "provider-revision-common-annotations-and-labels.yaml", "spec.commonLabels.baz", "qux")).
 			WithTeardown("DeleteProvider", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider-common-annotations-and-labels.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-common-annotations-and-labels.yaml"),
