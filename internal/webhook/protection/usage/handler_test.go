@@ -251,6 +251,71 @@ func TestHandle(t *testing.T) {
 				},
 			},
 		},
+		"DeleteBlockedWithUsageBySelector": {
+			reason: "We should reject a delete request if there are usages for the given object with \"by.resourceSelector\" defined.",
+			params: params{
+				client: &test.MockClient{
+					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
+				},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					usages := []protection.Usage{
+						&protection.InternalUsage{
+							Usage: v1beta1.Usage{
+								ObjectMeta: metav1.ObjectMeta{
+									Namespace: "default",
+									Name:      "used-by-selector",
+								},
+								Spec: v1beta1.UsageSpec{
+									Of: v1beta1.NamespacedResource{
+										APIVersion: "nop.crossplane.io/v1alpha1",
+										Kind:       "NopResource",
+										ResourceRef: &v1beta1.NamespacedResourceRef{
+											Name: "used-resource",
+										},
+									},
+									By: &v1beta1.Resource{
+										APIVersion: "nop.crossplane.io/v1alpha1",
+										Kind:       "NopResource",
+										ResourceSelector: &v1beta1.ResourceSelector{
+											MatchLabels: map[string]string{"app": "selector"},
+										},
+									},
+								},
+							},
+						},
+					}
+					return usages, nil
+				}),
+			},
+			args: args{
+				request: admission.Request{
+					AdmissionRequest: admissionv1.AdmissionRequest{
+						Operation: admissionv1.Delete,
+						OldObject: runtime.RawExtension{
+							Raw: []byte(`{
+								"apiVersion": "nop.crossplane.io/v1alpha1",
+								"kind": "NopResource",
+								"metadata": {
+									"name": "used-resource"
+								}}`),
+						},
+					},
+				},
+			},
+			want: want{
+				resp: admission.Response{
+					AdmissionResponse: admissionv1.AdmissionResponse{
+						Allowed: false,
+						Result: &metav1.Status{
+							Code:   int32(http.StatusConflict),
+							Reason: metav1.StatusReason("This resource is in-use by 1 usage(s), including the *v1beta1.Usage \"used-by-selector\" (in namespace \"default\") by resource selector NopResource."),
+						},
+					},
+				},
+			},
+		},
 		"DeleteBlockedWithUsageReason": {
 			reason: "We should reject a delete request if there are usages for the given object with \"reason\" defined.",
 			params: params{

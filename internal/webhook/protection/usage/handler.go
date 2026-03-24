@@ -171,7 +171,13 @@ func inUseMessage(u []protection.Usage) string {
 	}
 
 	if by != nil {
-		return fmt.Sprintf("This resource is in-use by %d usage(s), including the %T %s by resource %s/%s.", len(u), uu, id, by.Kind, by.ResourceRef.Name)
+		if by.ResourceRef != nil && by.ResourceRef.Name != "" {
+			return fmt.Sprintf("This resource is in-use by %d usage(s), including the %T %s by resource %s/%s.", len(u), uu, id, by.Kind, by.ResourceRef.Name)
+		}
+		if by.ResourceSelector != nil {
+			return fmt.Sprintf("This resource is in-use by %d usage(s), including the %T %s by resource selector %s.", len(u), uu, id, by.Kind)
+		}
+		return fmt.Sprintf("This resource is in-use by %d usage(s), including the %T %s by resource %s.", len(u), uu, id, by.Kind)
 	}
 
 	if r := ptr.Deref(first.GetReason(), ""); r != "" {
