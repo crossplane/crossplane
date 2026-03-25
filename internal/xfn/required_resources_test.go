@@ -89,6 +89,81 @@ func TestExistingRequiredResourcesFetcherFetch(t *testing.T) {
 				},
 			},
 		},
+		"SuccessMatchAll": {
+			reason: "We should return all resources of the requested apiVersion and kind when no match is specified",
+			args: args{
+				rs: &fnv1.ResourceSelector{
+					ApiVersion: "test.crossplane.io/v1",
+					Kind:       "Foo",
+					Namespace:  ptr.To("default"),
+				},
+				c: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						obj.(*kunstructured.UnstructuredList).Items = []kunstructured.Unstructured{
+							{
+								Object: map[string]any{
+									"apiVersion": "test.crossplane.io/v1",
+									"kind":       "Foo",
+									"metadata": map[string]any{
+										"name": "cool-resource",
+									},
+								},
+							},
+							{
+								Object: map[string]any{
+									"apiVersion": "test.crossplane.io/v1",
+									"kind":       "Foo",
+									"metadata": map[string]any{
+										"name": "cooler-resource",
+									},
+								},
+							},
+						}
+						return nil
+					}),
+				},
+			},
+			want: want{
+				res: &fnv1.Resources{
+					Items: []*fnv1.Resource{
+						{
+							Resource: MustStruct(map[string]any{
+								"apiVersion": "test.crossplane.io/v1",
+								"kind":       "Foo",
+								"metadata": map[string]any{
+									"name": "cool-resource",
+								},
+							}),
+						},
+						{
+							Resource: MustStruct(map[string]any{
+								"apiVersion": "test.crossplane.io/v1",
+								"kind":       "Foo",
+								"metadata": map[string]any{
+									"name": "cooler-resource",
+								},
+							}),
+						},
+					},
+				},
+			},
+		},
+		"ErrorMatchAll": {
+			reason: "We should return any error encountered when listing all resources",
+			args: args{
+				rs: &fnv1.ResourceSelector{
+					ApiVersion: "test.crossplane.io/v1",
+					Kind:       "Foo",
+				},
+				c: &test.MockClient{
+					MockList: test.NewMockListFn(errBoom),
+				},
+			},
+			want: want{
+				res: nil,
+				err: errBoom,
+			},
+		},
 		"SuccessMatchLabels": {
 			reason: "We should return a valid Resources when a resource is found by labels",
 			args: args{
