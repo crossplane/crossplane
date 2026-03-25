@@ -183,6 +183,21 @@ Reconcile 1:
 * Not all functions support deletion. Fall back. Remove finalizer, Kubernetes
   garbage collection cascades. Identical to today.
 
+### Templating-Based Functions
+
+This feature is most naturally used by functions written in general-purpose
+languages that already support ordered creation by gating desired state on
+observed state. Templating-based functions like `function-go-templating` and
+`function-kcl` don't typically gate on observed state today. These functions
+would simply not return `FUNCTION_CAPABILITY_DELETION`, and the pipeline would
+fall back to current behavior.
+
+If a templating-based function wanted to offer some level of deletion control,
+it could implement sync waves: let users annotate desired resources with a
+deletion wave number, and have the function's runtime (not the templates) handle
+the gating logic. This is a choice for individual function authors, not
+something this design prescribes.
+
 ### SDK Helpers
 
 Both function SDKs should provide helpers so that function authors don't need to
@@ -212,8 +227,10 @@ func To(req *v1.RunFunctionRequest, ttl time.Duration, caps ...v1.FunctionCapabi
 ```
 
 A `DefaultCapabilities()` helper would return the capabilities that most
-functions should advertise, including `FUNCTION_CAPABILITY_CAPABILITIES` and
-`FUNCTION_CAPABILITY_DELETION`.
+functions should advertise. This includes `FUNCTION_CAPABILITY_CAPABILITIES` but
+not `FUNCTION_CAPABILITY_DELETION`. Deletion support must be an explicit opt-in.
+Otherwise a function that bumps its SDK dependency would start advertising
+deletion support without implementing any deletion logic.
 
 **Python SDK (`function-sdk-python`)**
 
@@ -238,8 +255,9 @@ def to(
 ) -> fnv1.RunFunctionResponse:
 ```
 
-Where `DEFAULT_CAPABILITIES` includes `FUNCTION_CAPABILITY_CAPABILITIES` and
-`FUNCTION_CAPABILITY_DELETION`.
+Where `DEFAULT_CAPABILITIES` includes `FUNCTION_CAPABILITY_CAPABILITIES` but not
+`FUNCTION_CAPABILITY_DELETION`. Functions must explicitly opt in to deletion
+support.
 
 ### Edge Cases
 
