@@ -359,7 +359,9 @@ func TestImageConfigRuntimeConfig(t *testing.T) {
 			)).
 			WithTeardown("DeleteProvider", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider-dependency.yaml", metav1.DeletePropagationForeground),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-dependency.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "provider-dependency.yaml"),
+				// Ensure the CRD installed by provider-nop is also gone.
+				funcs.ResourceDeletedWithin(3*time.Minute, &k8sapiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}}),
 			)).
 			WithTeardown("DeleteFunction", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "function.yaml", metav1.DeletePropagationForeground),
