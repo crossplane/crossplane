@@ -147,9 +147,8 @@ func (e *ExistingRequiredResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.R
 		return nil, errors.New("you must specify a resource selector")
 	}
 
-	switch match := rs.GetMatch().(type) {
-	case *fnv1.ResourceSelector_MatchName:
-		// Fetch a single resource.
+	// Handle match by name — fetch a single resource.
+	if _, ok := rs.GetMatch().(*fnv1.ResourceSelector_MatchName); ok {
 		r := &kunstructured.Unstructured{}
 		r.SetAPIVersion(rs.GetApiVersion())
 		r.SetKind(rs.GetKind())
@@ -172,21 +171,19 @@ func (e *ExistingRequiredResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.R
 		}
 
 		return &fnv1.Resources{Items: []*fnv1.Resource{{Resource: o}}}, nil
-	case *fnv1.ResourceSelector_MatchLabels:
-		return e.list(ctx, rs, client.MatchingLabels(match.MatchLabels.GetLabels()))
-	default:
-		// No match specified — list all resources of this apiVersion and kind.
-		return e.list(ctx, rs)
 	}
-}
 
-func (e *ExistingRequiredResourcesFetcher) list(ctx context.Context, rs *fnv1.ResourceSelector, opts ...client.ListOption) (*fnv1.Resources, error) {
+	// List resources. If match labels are specified, filter by them. If no
+	// match is specified, list all resources of this apiVersion and kind.
 	list := &kunstructured.UnstructuredList{}
 	list.SetAPIVersion(rs.GetApiVersion())
 	list.SetKind(rs.GetKind())
 
-	// If namespace is empty client.InNamespace will have no effect.
-	opts = append(opts, client.InNamespace(rs.GetNamespace()))
+	opts := []client.ListOption{client.InNamespace(rs.GetNamespace())}
+	if match, ok := rs.GetMatch().(*fnv1.ResourceSelector_MatchLabels); ok {
+		opts = append(opts, client.MatchingLabels(match.MatchLabels.GetLabels()))
+	}
+
 	if err := e.client.List(ctx, list, opts...); err != nil {
 		return nil, errors.Wrap(err, "cannot list required resources")
 	}
