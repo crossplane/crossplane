@@ -209,9 +209,10 @@ func (e *ExistingRequiredResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.R
 		return nil, errors.Wrap(err, "cannot list required resources")
 	}
 
-	// Sort items by resource name so that the order is stable across calls.
+	// Sort items by namespace and name so that the order is stable across
+	// calls, even when listing across all namespaces.
 	sort.Slice(list.Items, func(i, j int) bool {
-		return list.Items[i].GetName() < list.Items[j].GetName()
+		return list.Items[i].GetNamespace()+"/"+list.Items[i].GetName() < list.Items[j].GetNamespace()+"/"+list.Items[j].GetName()
 	})
 
 	resources := make([]*fnv1.Resource, len(list.Items))
