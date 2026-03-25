@@ -260,22 +260,33 @@ function intended to control the order.
 authors can test their deletion logic locally by setting `deletionTimestamp` on
 the XR they feed into `crank render`.
 
-**Deletion propagation mode is irrelevant.** The XR's finalizer keeps it in the
-API server while functions manage teardown. By the time the finalizer is removed
-there are no composed resources left, so the deletion propagation mode
-(foreground vs background) on the original delete request has nothing to cascade
-to. Function-controlled deletion effectively forces foreground-like behavior
-regardless of what the user requested. This is inherent to the design: if you
-want ordered deletion you can't also have instant background deletion. Manually
-removing the finalizer is the escape hatch to bail out and fall back to
-Kubernetes GC.
+**Foreground deletion bypasses function-controlled ordering.** Composed
+resources have an [owner reference][owner-ref] to the XR with
+`blockOwnerDeletion: true`. It might seem like Kubernetes GC would immediately
+start deleting composed resources when the XR gets a `deletionTimestamp`, racing
+with the function pipeline. Whether this happens depends on the deletion
+propagation mode.
 
-Similarly, Crossplane loses the ability to propagate the user's deletion policy
-to composed resources. When Crossplane garbage collects a composed resource it
-uses `DeletePropagationForeground`, regardless of the propagation policy on the
-original delete request. In practice foreground is the right choice, especially
-for composed resources that are themselves XRs (it ensures depth-first
-deletion). But it's worth noting that the user's choice no longer flows through.
+With background deletion (the default for `kubectl delete`), the Kubernetes GC
+only deletes dependents after their owner is actually removed from the API
+server, not merely when it gets a `deletionTimestamp`. The XR's finalizer
+prevents it from being removed while the pipeline runs. The GC sees the owner
+still exists, leaves composed resources alone, and there is no race. By the time
+the finalizer is removed and the XR disappears, the pipeline has already cleaned
+up all composed resources and there is nothing left for the GC to cascade to.
+
+With explicit foreground deletion (`kubectl delete --cascade=foreground`), the
+GC behaves differently. It sees the owner has a `deletionTimestamp` and
+preemptively starts deleting dependents that have `blockOwnerDeletion: true`,
+regardless of whether the owner has been removed. This does race with the
+function pipeline and ordering guarantees are lost. These two intents are
+fundamentally contradictory: foreground deletion says "cascade delete dependents
+before the owner," while function-controlled deletion says "let me control the
+order." The result is that foreground deletion degrades to unordered deletion,
+which is the same behavior as today without this feature.
+
+[owner-ref]:
+https://github.com/crossplane/crossplane-runtime/blob/8fa945bd32c8fba420b88255eb6d0159371d11ee/pkg/meta/meta.go#L111
 
 **Composed resources with deletion timestamps.** When a composed resource is
 garbage collected using foreground propagation, it may linger in observed state
