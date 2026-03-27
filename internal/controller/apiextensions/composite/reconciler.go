@@ -51,7 +51,6 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
 	"github.com/crossplane/crossplane/v2/internal/xerrors"
-	"github.com/crossplane/crossplane/v2/internal/xmeta"
 )
 
 const (
@@ -329,6 +328,14 @@ func WithPollInterval(interval time.Duration) ReconcilerOption {
 	}
 }
 
+// WithMinPollInterval specifies the shortest poll interval a resource may
+// request via annotation. Annotation values below this floor are ignored.
+func WithMinPollInterval(d time.Duration) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.minPollInterval = d
+	}
+}
+
 // WithCompositionRevisionFetcher specifies how the composition to be used should be
 // fetched.
 func WithCompositionRevisionFetcher(f CompositionRevisionFetcher) ReconcilerOption {
@@ -536,14 +543,19 @@ type Reconciler struct {
 	record     event.Recorder
 	conditions conditions.Manager
 
-	pollInterval time.Duration
+	pollInterval    time.Duration
+	minPollInterval time.Duration
 }
 
 // effectivePollInterval returns the poll interval for the given resource,
-// taking into account any per-resource override via annotation.
+// taking into account any per-resource override via annotation. Overrides
+// below the configured minimum are clamped to the minimum.
 func (r *Reconciler) effectivePollInterval(o metav1.Object) time.Duration {
-	if d, ok := xmeta.GetPollInterval(o); ok {
-		return d
+	if d, ok := meta.GetPollInterval(o); ok {
+		if d >= r.minPollInterval {
+			return d
+		}
+		return r.minPollInterval
 	}
 	return r.pollInterval
 }
@@ -593,11 +605,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Record the reconcile-requested-at annotation token in status so
 	// users can confirm the request was processed.
-	if token, ok := xmeta.GetReconcileRequest(xr); ok {
-		if xmeta.GetLastHandledReconcileAt(xr) != token {
+	if token, ok := meta.GetReconcileRequest(xr); ok {
+		if xr.GetLastHandledReconcileAt() != token {
 			log.Debug("Processing reconcile request", "token", token)
 			r.record.Event(xr, event.Normal(reasonReconcileRequestHandled, "Handling reconcile request", "token", token))
-			xmeta.SetLastHandledReconcileAt(xr, token)
+			xr.SetLastHandledReconcileAt(token)
 		}
 	}
 

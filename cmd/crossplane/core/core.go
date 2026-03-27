@@ -111,6 +111,7 @@ type startCommand struct {
 
 	SyncInterval                     time.Duration `default:"1h"                 help:"How often all resources will be double-checked for drift from the desired state."                  short:"s"`
 	PollInterval                     time.Duration `default:"1m"                 help:"How often individual resources will be checked for drift from the desired state."`
+	MinPollInterval                  time.Duration `default:"1s"                 help:"Minimum per-resource poll interval allowed via the crossplane.io/poll-interval annotation."`
 	MaxConcurrentReconciles          int           `aliases:"max-reconcile-rate" default:"100"                                                                                            help:"The maximum number of concurrent reconcile operations (worker pool size)."`
 	MaxConcurrentPackageEstablishers int           `default:"10"                 help:"The maximum number of goroutines to use for establishing Providers, Configurations and Functions."`
 
@@ -526,6 +527,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		CircuitBreakerBurst:      c.CircuitBreakerBurst,
 		CircuitBreakerRefillRate: c.CircuitBreakerRefillRate,
 		CircuitBreakerCooldown:   c.CircuitBreakerCooldown,
+		MinPollInterval:          c.MinPollInterval,
 	}
 
 	if err := apiextensions.Setup(mgr, ao); err != nil {

@@ -49,7 +49,6 @@ import (
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/engine"
-	"github.com/crossplane/crossplane/v2/internal/xmeta"
 )
 
 func TestReconcile(t *testing.T) {
@@ -1356,6 +1355,74 @@ func TestReconcile(t *testing.T) {
 	}
 }
 
+func TestEffectivePollInterval(t *testing.T) {
+	cases := map[string]struct {
+		reason          string
+		pollInterval    time.Duration
+		minPollInterval time.Duration
+		annotation      string
+		want            time.Duration
+	}{
+		"NoAnnotationReturnsDefault": {
+			reason:          "When no annotation is set, the default poll interval is returned.",
+			pollInterval:    10 * time.Minute,
+			minPollInterval: 1 * time.Second,
+			annotation:      "",
+			want:            10 * time.Minute,
+		},
+		"ValidAnnotationAboveMinimumReturnsAnnotation": {
+			reason:          "When the annotation is at or above the minimum, it overrides the default.",
+			pollInterval:    10 * time.Minute,
+			minPollInterval: 1 * time.Second,
+			annotation:      "24h",
+			want:            24 * time.Hour,
+		},
+		"ValidAnnotationAtMinimumReturnsAnnotation": {
+			reason:          "When the annotation equals the minimum exactly, it is returned as-is.",
+			pollInterval:    10 * time.Minute,
+			minPollInterval: 30 * time.Second,
+			annotation:      "30s",
+			want:            30 * time.Second,
+		},
+		"ValidAnnotationBelowMinimumReturnsMinimum": {
+			reason:          "When the annotation is below the minimum, the minimum is returned rather than the default.",
+			pollInterval:    10 * time.Minute,
+			minPollInterval: 30 * time.Second,
+			annotation:      "1s",
+			want:            30 * time.Second,
+		},
+		"InvalidAnnotationReturnsDefault": {
+			reason:          "When the annotation cannot be parsed, the default poll interval is returned.",
+			pollInterval:    5 * time.Minute,
+			minPollInterval: 1 * time.Second,
+			annotation:      "not-a-duration",
+			want:            5 * time.Minute,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := &Reconciler{
+				pollInterval:    tc.pollInterval,
+				minPollInterval: tc.minPollInterval,
+			}
+
+			xr := NewComposite(func(cr *composite.Unstructured) {
+				if tc.annotation != "" {
+					cr.SetAnnotations(map[string]string{
+						meta.AnnotationKeyPollInterval: tc.annotation,
+					})
+				}
+			})
+
+			got := r.effectivePollInterval(xr)
+			if got != tc.want {
+				t.Errorf("\n%s\neffectivePollInterval(...): want %v, got %v", tc.reason, tc.want, got)
+			}
+		})
+	}
+}
+
 func TestReconcilePollIntervalAnnotation(t *testing.T) {
 	now := metav1.Now()
 
@@ -1380,12 +1447,12 @@ func TestReconcilePollIntervalAnnotation(t *testing.T) {
 			wantApprox:    5 * time.Minute,
 			wantTolerance: 1 * time.Minute,
 		},
-		"BelowMinimumFallsBack": {
-			reason:        "When the poll interval annotation is below the minimum, the controller-level poll interval should be used.",
+		"BelowMinimumClampedToMinimum": {
+			reason:        "When the poll interval annotation is below the minimum, the minimum poll interval should be used.",
 			pollInterval:  5 * time.Minute,
 			annotation:    "1ms",
-			wantApprox:    5 * time.Minute,
-			wantTolerance: 1 * time.Minute,
+			wantApprox:    1 * time.Second,
+			wantTolerance: 500 * time.Millisecond,
 		},
 		"NoAnnotationUsesDefault": {
 			reason:        "When no poll interval annotation is set, the controller-level poll interval should be used.",
@@ -1400,7 +1467,7 @@ func TestReconcilePollIntervalAnnotation(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			annotations := map[string]string{}
 			if tc.annotation != "" {
-				annotations[xmeta.AnnotationKeyPollInterval] = tc.annotation
+				annotations[meta.AnnotationKeyPollInterval] = tc.annotation
 			}
 
 			c := &test.MockClient{
@@ -1419,9 +1486,10 @@ func TestReconcilePollIntervalAnnotation(t *testing.T) {
 				})),
 			}
 
-			opts := []ReconcilerOption{
-				WithPollInterval(tc.pollInterval),
-				WithCompositeFinalizer(resource.NewNopFinalizer()),
+		opts := []ReconcilerOption{
+			WithPollInterval(tc.pollInterval),
+			WithMinPollInterval(1 * time.Second),
+			WithCompositeFinalizer(resource.NewNopFinalizer()),
 				WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 					cr.SetCompositionReference(&corev1.ObjectReference{})
 					return nil
@@ -1483,17 +1551,17 @@ func TestReconcileRequestAnnotation(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetAnnotations(map[string]string{
-							xmeta.AnnotationKeyReconcileRequestedAt: "1705312200",
+							meta.AnnotationKeyReconcileRequestedAt: "1705312200",
 						})
 					})),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetAnnotations(map[string]string{
-							xmeta.AnnotationKeyReconcileRequestedAt: "1705312200",
+							meta.AnnotationKeyReconcileRequestedAt: "1705312200",
 						})
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileSuccess(), xpv2.Available())
 						cr.SetConnectionDetailsLastPublishedTime(&now)
-						xmeta.SetLastHandledReconcileAt(cr, "1705312200")
+						cr.SetLastHandledReconcileAt("1705312200")
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -1523,18 +1591,18 @@ func TestReconcileRequestAnnotation(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetAnnotations(map[string]string{
-							xmeta.AnnotationKeyReconcileRequestedAt: "already-handled",
+							meta.AnnotationKeyReconcileRequestedAt: "already-handled",
 						})
-						xmeta.SetLastHandledReconcileAt(cr, "already-handled")
+						cr.SetLastHandledReconcileAt("already-handled")
 					})),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetAnnotations(map[string]string{
-							xmeta.AnnotationKeyReconcileRequestedAt: "already-handled",
+							meta.AnnotationKeyReconcileRequestedAt: "already-handled",
 						})
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileSuccess(), xpv2.Available())
 						cr.SetConnectionDetailsLastPublishedTime(&now)
-						xmeta.SetLastHandledReconcileAt(cr, "already-handled")
+						cr.SetLastHandledReconcileAt("already-handled")
 					})),
 				},
 				opts: []ReconcilerOption{
