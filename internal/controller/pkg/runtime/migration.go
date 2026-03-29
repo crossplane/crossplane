@@ -120,8 +120,8 @@ func (m *DeletingDeploymentSelectorMigrator) MigrateDeploymentSelector(ctx conte
 			"expected-deployment", expectedDeploy.Name,
 			"revision", pr.GetName())
 
-		if err := m.client.Delete(ctx, d); err != nil {
-			return errors.Wrap(err, "cannot delete existing deployment for name migration")
+		if err := m.client.Delete(ctx, d); err != nil && !kerrors.IsNotFound(err) {
+			return errors.Wrapf(err, "cannot delete stale deployment %q in namespace %q while migrating provider revision %q", d.GetName(), d.GetNamespace(), pr.GetName())
 		}
 	}
 
@@ -155,8 +155,8 @@ func (m *DeletingDeploymentSelectorMigrator) MigrateDeploymentSelector(ctx conte
 
 	// If the provider label is different, we need to delete the old deployment.
 	// The new deployment will be created in the Post hook.
-	if err := m.client.Delete(ctx, currentDeploy); err != nil {
-		return errors.Wrap(err, "cannot delete existing deployment for selector migration")
+	if err := m.client.Delete(ctx, currentDeploy); err != nil && !kerrors.IsNotFound(err) {
+		return errors.Wrapf(err, "cannot delete deployment %q in namespace %q while migrating provider revision %q", currentDeploy.GetName(), currentDeploy.GetNamespace(), pr.GetName())
 	}
 
 	return nil

@@ -511,7 +511,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 				builder: mockBuilder,
 			},
 			want: want{
-				err: errors.Wrap(errBoom, "cannot delete existing deployment for selector migration"),
+				err: errors.Wrapf(errBoom, "cannot delete deployment %q in namespace %q while migrating provider revision %q", testDeploymentName, testNamespaceName, ""),
 			},
 		},
 	}
