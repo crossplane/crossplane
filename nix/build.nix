@@ -143,6 +143,8 @@ let
         mkdir -p $out
         cp ${crankDrv}/bin/crank${ext} .
         cp ${crankDrv}/bin/crank${ext}.sha256 .
+        chmod 755 crank${ext}
+        chmod 644 crank${ext}.sha256
         tar -czvf $out/crank.tar.gz crank${ext} crank${ext}.sha256
         cd $out
         sha256sum crank.tar.gz | head -c 64 > crank.tar.gz.sha256
@@ -314,6 +316,8 @@ in
         mkdir -p $out/bin/${p.os}_${p.arch}
         cp ${crossplaneBins."${p.os}-${p.arch}"}/bin/* $out/bin/${p.os}_${p.arch}/
         cp ${crankBins."${p.os}-${p.arch}"}/bin/* $out/bin/${p.os}_${p.arch}/
+        chmod 755 $out/bin/${p.os}_${p.arch}/*
+        chmod 644 $out/bin/${p.os}_${p.arch}/*.sha256
       '') goPlatforms}
 
       ${pkgs.lib.concatMapStrings (p: ''
