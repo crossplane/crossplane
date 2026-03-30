@@ -316,8 +316,10 @@ in
         mkdir -p $out/bin/${p.os}_${p.arch}
         cp ${crossplaneBins."${p.os}-${p.arch}"}/bin/* $out/bin/${p.os}_${p.arch}/
         cp ${crankBins."${p.os}-${p.arch}"}/bin/* $out/bin/${p.os}_${p.arch}/
-        chmod 755 $out/bin/${p.os}_${p.arch}/*
-        chmod 644 $out/bin/${p.os}_${p.arch}/*.sha256
+        ${let ext = if p.os == "windows" then ".exe" else ""; in ''
+        chmod 755 $out/bin/${p.os}_${p.arch}/crossplane${ext} $out/bin/${p.os}_${p.arch}/crank${ext}
+        chmod 644 $out/bin/${p.os}_${p.arch}/crossplane${ext}.sha256 $out/bin/${p.os}_${p.arch}/crank${ext}.sha256
+        ''}
       '') goPlatforms}
 
       ${pkgs.lib.concatMapStrings (p: ''
