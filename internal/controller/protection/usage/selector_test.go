@@ -18,6 +18,7 @@ package usage
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -226,8 +227,8 @@ func TestResolveSelectors(t *testing.T) {
 				err: errors.Wrap(errors.Wrap(errBoom, errListResourceMatchingLabels), errResolveSelectorForUsingResource),
 			},
 		},
-		"CannotUpdateAfterResolvingUsed": {
-			reason: "We should return error if we cannot update the usage after resolving used resource.",
+		"CannotPatchAfterResolvingUsed": {
+			reason: "We should return error if we cannot patch the usage after resolving used resource.",
 			args: args{
 				client: &test.MockClient{
 					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
@@ -250,7 +251,7 @@ func TestResolveSelectors(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						return errBoom
 					},
 				},
@@ -271,11 +272,11 @@ func TestResolveSelectors(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errUpdateAfterResolveSelector),
+				err: errors.Wrap(errBoom, errPatchAfterResolveSelector),
 			},
 		},
-		"CannotUpdateAfterResolvingUsing": {
-			reason: "We should return error if we cannot update the usage after resolving using resource.",
+		"CannotPatchAfterResolvingUsing": {
+			reason: "We should return error if we cannot patch the usage after resolving using resource.",
 			args: args{
 				client: &test.MockClient{
 					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
@@ -298,7 +299,7 @@ func TestResolveSelectors(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						return errBoom
 					},
 				},
@@ -326,7 +327,101 @@ func TestResolveSelectors(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errUpdateAfterResolveSelector),
+				err: errors.Wrap(errBoom, errPatchAfterResolveSelector),
+			},
+		},
+		"PatchResolvedSelectorWithoutDroppingExplicitEmptyMatchLabels": {
+			reason: "We should patch only the resolved references so explicit empty matchLabels selectors are preserved.",
+			args: args{
+				client: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						l := list.(*composed.UnstructuredList)
+						switch l.GetKind() {
+						case "SomeKindList":
+							l.Items = []unstructured.Unstructured{
+								{
+									Object: map[string]any{
+										"apiVersion": "v1",
+										"kind":       "SomeKind",
+										"metadata": map[string]any{
+											"name": "some",
+										},
+									},
+								},
+							}
+						default:
+							t.Errorf("unexpected list kind: %s", l.GetKind())
+						}
+						return nil
+					},
+					MockPatch: func(_ context.Context, obj client.Object, p client.Patch, _ ...client.PatchOption) error {
+						data, err := p.Data(obj)
+						if err != nil {
+							t.Fatalf("p.Data(...): %v", err)
+						}
+
+						patch := map[string]any{}
+						if err := json.Unmarshal(data, &patch); err != nil {
+							t.Fatalf("json.Unmarshal(...): %v", err)
+						}
+
+						spec, ok := patch["spec"].(map[string]any)
+						if !ok {
+							t.Fatalf("patch missing spec: %s", string(data))
+						}
+
+						of, ok := spec["of"].(map[string]any)
+						if !ok {
+							t.Fatalf("patch missing spec.of: %s", string(data))
+						}
+
+						if _, ok := of["resourceSelector"]; ok {
+							t.Fatalf("patch unexpectedly modified spec.of.resourceSelector: %s", string(data))
+						}
+
+						ref, ok := of["resourceRef"].(map[string]any)
+						if !ok {
+							t.Fatalf("patch missing spec.of.resourceRef: %s", string(data))
+						}
+
+						if got := ref["name"]; got != "some" {
+							t.Fatalf("patch set unexpected spec.of.resourceRef.name: got %v, want some", got)
+						}
+
+						return nil
+					},
+				},
+				u: &protection.InternalUsage{
+					Usage: v1beta1.Usage{
+						Spec: v1beta1.UsageSpec{
+							Of: v1beta1.NamespacedResource{
+								APIVersion: "v1",
+								Kind:       "SomeKind",
+								ResourceSelector: &v1beta1.NamespacedResourceSelector{
+									MatchLabels: map[string]string{},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				u: &protection.InternalUsage{
+					Usage: v1beta1.Usage{
+						Spec: v1beta1.UsageSpec{
+							Of: v1beta1.NamespacedResource{
+								APIVersion: "v1",
+								Kind:       "SomeKind",
+								ResourceRef: &v1beta1.NamespacedResourceRef{
+									Name: "some",
+								},
+								ResourceSelector: &v1beta1.NamespacedResourceSelector{
+									MatchLabels: map[string]string{},
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 		"CannotResolveNoMatchingResources": {
@@ -382,7 +477,7 @@ func TestResolveSelectors(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
 				},
@@ -461,7 +556,7 @@ func TestResolveSelectors(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
 				},
