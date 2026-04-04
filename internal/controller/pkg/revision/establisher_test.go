@@ -1224,6 +1224,238 @@ func TestGetPackageOwnerReference(t *testing.T) {
 	}
 }
 
+func TestAddLabels(t *testing.T) {
+	type args struct {
+		objs   []runtime.Object
+		parent v1.PackageRevision
+	}
+
+	type want struct {
+		labels map[string]string
+		err    error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NoCommonLabels": {
+			reason: "Objects should not be modified when no common labels are set.",
+			args: args{
+				objs: []runtime.Object{
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Name: "mrd-a"},
+					},
+				},
+				parent: &v1.ProviderRevision{},
+			},
+			want: want{
+				labels: nil,
+			},
+		},
+		"SetsLabelsOnObjectWithoutLabels": {
+			reason: "Common labels should be set on an object that has no existing labels.",
+			args: args{
+				objs: []runtime.Object{
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Name: "mrd-a"},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							CommonLabels: map[string]string{"env": "prod"},
+						},
+					},
+				},
+			},
+			want: want{
+				labels: map[string]string{"env": "prod"},
+			},
+		},
+		"MergesLabelsOnObjectWithExistingLabels": {
+			reason: "Common labels should be merged with existing labels on an object.",
+			args: args{
+				objs: []runtime.Object{
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:   "mrd-a",
+							Labels: map[string]string{"existing": "value"},
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							CommonLabels: map[string]string{"env": "prod"},
+						},
+					},
+				},
+			},
+			want: want{
+				labels: map[string]string{"existing": "value", "env": "prod"},
+			},
+		},
+		"OverwritesExistingLabelWithCommonLabel": {
+			reason: "A common label should overwrite an existing label with the same key.",
+			args: args{
+				objs: []runtime.Object{
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:   "mrd-a",
+							Labels: map[string]string{"env": "staging"},
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							CommonLabels: map[string]string{"env": "prod"},
+						},
+					},
+				},
+			},
+			want: want{
+				labels: map[string]string{"env": "prod"},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			e := newAPIEstablisher(nil)
+			err := e.addLabels(tc.args.objs, tc.args.parent)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\naddLabels(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if err != nil {
+				return
+			}
+			obj := tc.args.objs[0].(metav1.Object)
+			if diff := cmp.Diff(tc.want.labels, obj.GetLabels()); diff != "" {
+				t.Errorf("\n%s\naddLabels(...): -want labels, +got labels:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAddAnnotations(t *testing.T) {
+	type args struct {
+		objs   []runtime.Object
+		parent v1.PackageRevision
+	}
+
+	type want struct {
+		annotations map[string]string
+		err         error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NoCommonAnnotations": {
+			reason: "Objects should not be modified when no common annotations are set.",
+			args: args{
+				objs: []runtime.Object{
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Name: "mrd-a"},
+					},
+				},
+				parent: &v1.ProviderRevision{},
+			},
+			want: want{
+				annotations: nil,
+			},
+		},
+		"SetsAnnotationsOnObjectWithoutAnnotations": {
+			reason: "Common annotations should be set on an object that has no existing annotations.",
+			args: args{
+				objs: []runtime.Object{
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Name: "mrd-a"},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							CommonAnnotations: map[string]string{"owner": "team-a"},
+						},
+					},
+				},
+			},
+			want: want{
+				annotations: map[string]string{"owner": "team-a"},
+			},
+		},
+		"MergesAnnotationsOnObjectWithExistingAnnotations": {
+			reason: "Common annotations should be merged with existing annotations on an object.",
+			args: args{
+				objs: []runtime.Object{
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        "mrd-a",
+							Annotations: map[string]string{"existing": "value"},
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							CommonAnnotations: map[string]string{"owner": "team-a"},
+						},
+					},
+				},
+			},
+			want: want{
+				annotations: map[string]string{"existing": "value", "owner": "team-a"},
+			},
+		},
+		"OverwritesExistingAnnotationWithCommonAnnotation": {
+			reason: "A common annotation should overwrite an existing annotation with the same key.",
+			args: args{
+				objs: []runtime.Object{
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        "mrd-a",
+							Annotations: map[string]string{"owner": "team-b"},
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							CommonAnnotations: map[string]string{"owner": "team-a"},
+						},
+					},
+				},
+			},
+			want: want{
+				annotations: map[string]string{"owner": "team-a"},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			e := newAPIEstablisher(nil)
+			err := e.addAnnotations(tc.args.objs, tc.args.parent)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\naddAnnotations(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if err != nil {
+				return
+			}
+			obj := tc.args.objs[0].(metav1.Object)
+			if diff := cmp.Diff(tc.want.annotations, obj.GetAnnotations()); diff != "" {
+				t.Errorf("\n%s\naddAnnotations(...): -want annotations, +got annotations:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func newAPIEstablisher(client client.Client) *APIEstablisher {
 	return &APIEstablisher{
 		client:                           client,

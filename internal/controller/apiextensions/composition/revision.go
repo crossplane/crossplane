@@ -57,6 +57,10 @@ func NewCompositionRevision(c *v1.Composition, revision int64) *v1.CompositionRe
 
 	maps.Copy(cr.Labels, c.GetLabels())
 
+	if annotations := c.GetAnnotations(); len(annotations) > 0 {
+		cr.SetAnnotations(maps.Clone(annotations))
+	}
+
 	return cr
 }
 
