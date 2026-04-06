@@ -21,12 +21,11 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"sigs.k8s.io/yaml"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
-
-	"sigs.k8s.io/yaml"
 )
 
 func TestYAMLPrinterPrint(t *testing.T) {
@@ -204,7 +203,7 @@ children:
 
 			// Check error
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("%s\nCliTableAddResource(): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("%s\nYAMLPrinter.Print(): -want, +got:\n%s", tc.reason, diff)
 			}
 			// Unmarshal expected and actual output to compare them as maps
 			// instead of strings, to avoid order dependent failures
@@ -218,7 +217,7 @@ children:
 			}
 			// Check table
 			if diff := cmp.Diff(output, got); diff != "" {
-				t.Errorf("%s\nCliTableAddResource(): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("%s\nYAMLPrinter.Print(): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -453,20 +452,20 @@ items:
 
 			// Check error
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("%s\nCliTableAddResource(): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("%s\nYAMLPrinter.PrintList(): -want, +got:\n%s", tc.reason, diff)
 			}
 			// Unmarshal expected and actual output to compare them as maps
 			// instead of strings, to avoid order dependent failures
 			var output, got map[string]any
 			if err := yaml.Unmarshal([]byte(tc.want.output), &output); err != nil {
-				t.Errorf("YAMLPrinter.Print() error unmarshalling expected output: %s", err)
+				t.Errorf("YAMLPrinter.PrintList() error unmarshalling expected output: %s", err)
 			}
 			if err := yaml.Unmarshal([]byte(gotYAML), &got); err != nil {
-				t.Errorf("YAMLPrinter.Print() error unmarshalling actual output: %s", err)
+				t.Errorf("YAMLPrinter.PrintList() error unmarshalling actual output: %s", err)
 			}
 			// Check table
 			if diff := cmp.Diff(output, got); diff != "" {
-				t.Errorf("%s\nCliTableAddResource(): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("%s\nYAMLPrinter.PrintList(): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
