@@ -20,12 +20,11 @@ import (
 	"bytes"
 	"testing"
 
-
-	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
 
 	"sigs.k8s.io/yaml"
 )
