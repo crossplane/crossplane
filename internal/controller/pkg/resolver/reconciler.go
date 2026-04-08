@@ -362,15 +362,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		for _, p := range l.Items {
-			// Start with spec.package, which should always be set.
+			// Packages in the lock are always referred to by their original
+			// sources, without any ImageConfig rewriting applied, so we need to
+			// match find packages using spec.package rather than
+			// status.resolvedPackage.
 			source, _ := fieldpath.Pave(p.Object).GetString("spec.package")
-
-			// If status.resolvedPackage is set, use that. This is
-			// the "real" package, as resolved by applying any
-			// ImageConfigs that might rewrite spec.package.
-			if resolved, err := fieldpath.Pave(p.Object).GetString("status.resolvedPackage"); err == nil && resolved != "" {
-				source = resolved
-			}
 
 			pref, err := name.ParseReference(source, name.StrictValidation)
 			if err != nil {
@@ -380,6 +376,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if pref.Context().Name() == ref.Context().Name() {
 				pkg = &p
 				installedVersion = pref.Identifier()
+				// Use the resolved package for the installed version if it is
+				// set, since the version could have been rewritten by an
+				// ImageConfig.
+				if resolved, err := fieldpath.Pave(p.Object).GetString("status.resolvedPackage"); err == nil && resolved != "" {
+					if rref, err := name.ParseReference(resolved, name.StrictValidation); err == nil {
+						installedVersion = rref.Identifier()
+					}
+				}
 			}
 		}
 	}
