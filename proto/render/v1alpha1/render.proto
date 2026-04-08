@@ -21,7 +21,8 @@ syntax = "proto3";
 // Crossplane reconciler. It accepts a RenderRequest on stdin and writes a
 // RenderResponse to stdout.
 
-package render.proto.v1alpha1;
+//buf:lint:ignore PACKAGE_DIRECTORY_MATCH
+package crossplane.render.v1alpha1;
 
 import "google/protobuf/struct.proto";
 
