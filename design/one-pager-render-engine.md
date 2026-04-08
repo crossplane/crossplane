@@ -78,6 +78,8 @@ cat input.json | crossplane internal render composite > output.json
 cat input.json | crossplane internal render operation > output.json
 ```
 
+The expected usage is that tools like `crossplane render`, `up project render`, and `crossplane-diff` shell out to this subcommand rather than maintaining their own render implementations. The caller handles UX concerns (file parsing, Docker container management, output formatting) and delegates the actual reconcile to the Crossplane binary via stdin/stdout.
+
 For composite resources, the input contains the XR, Composition, function gRPC
 addresses, and optionally observed resources, credentials, and context:
 
