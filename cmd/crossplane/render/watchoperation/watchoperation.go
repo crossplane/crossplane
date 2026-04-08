@@ -47,9 +47,9 @@ func (c *Command) Run(_ logging.Logger) error {
 
 	op := operation.NewFromWatchOperation(in)
 
-	out := &operation.TemplateOutput{
+	out := &operation.WatchOperationOutput{
 		APIVersion: operation.APIVersion,
-		Kind:       "OperationOutput",
+		Kind:       operation.KindWatchOperationOutput,
 		Operation:  *op,
 	}
 

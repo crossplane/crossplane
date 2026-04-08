@@ -84,7 +84,7 @@ addresses, and optionally observed resources, credentials, and context:
 ```json
 {
   "apiVersion": "render.crossplane.io/v1alpha1",
-  "kind": "RenderInput",
+  "kind": "CompositeInput",
   "compositeResource": {
     "apiVersion": "example.org/v1",
     "kind": "XBucket",
@@ -119,7 +119,7 @@ and events it would emit:
 ```json
 {
   "apiVersion": "render.crossplane.io/v1alpha1",
-  "kind": "RenderOutput",
+  "kind": "CompositeOutput",
   "compositeResource": {
     "apiVersion": "example.org/v1",
     "kind": "XBucket",

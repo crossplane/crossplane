@@ -47,9 +47,9 @@ func (c *Command) Run(_ logging.Logger) error {
 
 	op := operation.NewFromCronOperation(in)
 
-	out := &operation.TemplateOutput{
+	out := &operation.CronOperationOutput{
 		APIVersion: operation.APIVersion,
-		Kind:       "OperationOutput",
+		Kind:       operation.KindCronOperationOutput,
 		Operation:  *op,
 	}
 

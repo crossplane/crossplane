@@ -28,8 +28,8 @@ import (
 // API version and kind for the render input/output envelopes.
 const (
 	APIVersion = "render.crossplane.io/v1alpha1"
-	KindInput  = "RenderInput"
-	KindOutput = "RenderOutput"
+	KindInput  = "CompositeInput"
+	KindOutput = "CompositeOutput"
 )
 
 // Input is a structured envelope for all inputs to the composite resource

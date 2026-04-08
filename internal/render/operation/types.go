@@ -28,11 +28,13 @@ import (
 
 // API version and kind for the render input/output envelopes.
 const (
-	APIVersion              = "render.crossplane.io/v1alpha1"
-	KindInput               = "OperationRenderInput"
-	KindOutput              = "OperationRenderOutput"
-	KindCronOperationInput  = "CronOperationRenderInput"
-	KindWatchOperationInput = "WatchOperationRenderInput"
+	APIVersion               = "render.crossplane.io/v1alpha1"
+	KindInput                = "OperationInput"
+	KindOutput               = "OperationOutput"
+	KindCronOperationInput   = "CronOperationInput"
+	KindCronOperationOutput  = "CronOperationOutput"
+	KindWatchOperationInput  = "WatchOperationInput"
+	KindWatchOperationOutput = "WatchOperationOutput"
 )
 
 // Input is a structured envelope for all inputs to the Operation render
@@ -108,12 +110,22 @@ type WatchOperationInput struct {
 	WatchedResource unstructured.Unstructured `json:"watchedResource" yaml:"watchedResource"`
 }
 
-// TemplateOutput wraps an Operation produced by rendering a CronOperation or
-// WatchOperation template.
-type TemplateOutput struct {
+// CronOperationOutput wraps an Operation produced by rendering a
+// CronOperation.
+type CronOperationOutput struct {
 	APIVersion string `json:"apiVersion" yaml:"apiVersion"`
 	Kind       string `json:"kind"       yaml:"kind"`
 
-	// Operation is the Operation that would be created.
+	// Operation is the Operation the CronOperation would create.
+	Operation opsv1alpha1.Operation `json:"operation" yaml:"operation"`
+}
+
+// WatchOperationOutput wraps an Operation produced by rendering a
+// WatchOperation.
+type WatchOperationOutput struct {
+	APIVersion string `json:"apiVersion" yaml:"apiVersion"`
+	Kind       string `json:"kind"       yaml:"kind"`
+
+	// Operation is the Operation the WatchOperation would create.
 	Operation opsv1alpha1.Operation `json:"operation" yaml:"operation"`
 }
