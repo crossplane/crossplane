@@ -113,6 +113,11 @@ type FunctionComposer struct {
 	pipeline  FunctionRunner
 	resources xfn.RequiredResourcesFetcher
 	schemas   xfn.RequiredSchemasFetcher
+
+	// initialContext, if non-nil, seeds the function pipeline context. This
+	// allows callers (e.g. the render engine) to inject context values like
+	// the environment before the pipeline runs.
+	initialContext *structpb.Struct
 }
 
 type xr struct {
@@ -236,6 +241,17 @@ func WithRequiredSchemasFetcher(f xfn.RequiredSchemasFetcher) FunctionComposerOp
 	}
 }
 
+// WithInitialContext configures initial context values for the function
+// pipeline. If set, these values seed the function context before the first
+// pipeline step runs. This is useful for injecting values like the
+// environment when running outside of a real Crossplane cluster (e.g. during
+// local render).
+func WithInitialContext(ctx *structpb.Struct) FunctionComposerOption {
+	return func(p *FunctionComposer) {
+		p.initialContext = ctx
+	}
+}
+
 // NewFunctionComposer returns a new Composer that supports composing resources using
 // both Patch and Transform (P&T) logic and a pipeline of Composition Functions.
 func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...FunctionComposerOption) *FunctionComposer {
@@ -305,8 +321,12 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	events := []TargetedEvent{}
 	conditions := []TargetedCondition{}
 
-	// The Function context always starts empty.
+	// The Function context starts empty, unless initial context was configured
+	// (e.g. for local render with injected environment values).
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
+	if c.initialContext != nil {
+		fctx = c.initialContext
+	}
 
 	// Get the composition name for tracing attributes.
 	compositionName := ""

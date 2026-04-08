@@ -52,8 +52,9 @@ type cli struct {
 
 	Version versionFlag `help:"Print version and quit." short:"v"`
 
-	Core core.Command `cmd:"" default:"withargs"                                help:"Start core Crossplane controllers."`
-	Rbac rbac.Command `cmd:"" help:"Start Crossplane RBAC Manager controllers."`
+	Core     core.Command `cmd:"" default:"withargs"                                     help:"Start core Crossplane controllers."`
+	Rbac     rbac.Command `cmd:"" help:"Start Crossplane RBAC Manager controllers."`
+	Internal internalCmd  `cmd:"" help:"Internal commands. Not intended for direct use." hidden:""`
 }
 
 // BeforeApply binds the dev mode logger to the kong context
