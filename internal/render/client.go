@@ -14,7 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package composite
+// Package render provides shared infrastructure for rendering Crossplane
+// resources offline using the real reconciler engine backed by a fake
+// in-memory client.
+package render
 
 import (
 	"context"
@@ -101,9 +104,21 @@ func (c *InMemoryClient) Updated() []unstructured.Unstructured {
 	return out
 }
 
+// gvkFor returns the GVK of the given object, resolving it from the scheme if
+// the object doesn't carry its own GVK (e.g. typed Kubernetes structs).
+func (c *InMemoryClient) gvkFor(obj runtime.Object) schema.GroupVersionKind {
+	gvk := obj.GetObjectKind().GroupVersionKind()
+	if gvk.Empty() {
+		if gvks, _, err := c.scheme.ObjectKinds(obj); err == nil && len(gvks) > 0 {
+			return gvks[0]
+		}
+	}
+	return gvk
+}
+
 // Get retrieves a resource from the in-memory store.
 func (c *InMemoryClient) Get(_ context.Context, key client.ObjectKey, obj client.Object, _ ...client.GetOption) error {
-	gvk := obj.GetObjectKind().GroupVersionKind()
+	gvk := c.gvkFor(obj)
 	sk := storeKey{GroupVersionKind: gvk, NamespacedName: key}
 
 	stored, ok := c.store[sk]
@@ -174,7 +189,7 @@ func (c *InMemoryClient) List(_ context.Context, list client.ObjectList, opts ..
 
 // Create stores a new resource.
 func (c *InMemoryClient) Create(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
-	u := toUnstructured(obj)
+	u := toUnstructured(obj, c.scheme)
 	key := keyForUnstructured(u)
 	c.store[key] = *u
 	return nil
@@ -182,7 +197,7 @@ func (c *InMemoryClient) Create(_ context.Context, obj client.Object, _ ...clien
 
 // Update stores the updated resource and records it.
 func (c *InMemoryClient) Update(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
-	u := toUnstructured(obj)
+	u := toUnstructured(obj, c.scheme)
 	key := keyForUnstructured(u)
 	c.store[key] = *u
 	c.updated = append(c.updated, *u.DeepCopy())
@@ -192,7 +207,7 @@ func (c *InMemoryClient) Update(_ context.Context, obj client.Object, _ ...clien
 // Patch handles SSA Apply patches by capturing the applied resource. For other
 // patch types it behaves like Update.
 func (c *InMemoryClient) Patch(_ context.Context, obj client.Object, patch client.Patch, _ ...client.PatchOption) error {
-	u := toUnstructured(obj)
+	u := toUnstructured(obj, c.scheme)
 	key := keyForUnstructured(u)
 
 	if patch.Type() == types.ApplyPatchType {
@@ -207,7 +222,7 @@ func (c *InMemoryClient) Patch(_ context.Context, obj client.Object, patch clien
 
 // Delete removes the resource from the store and records the deletion.
 func (c *InMemoryClient) Delete(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
-	u := toUnstructured(obj)
+	u := toUnstructured(obj, c.scheme)
 	key := keyForUnstructured(u)
 
 	if stored, ok := c.store[key]; ok {
@@ -290,7 +305,7 @@ type inMemoryStatusWriter struct {
 // status, then writes the full merged resource (original spec + new status)
 // back into obj.
 func (w *inMemoryStatusWriter) Update(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-	u := toUnstructured(obj)
+	u := toUnstructured(obj, w.client.scheme)
 	key := keyForUnstructured(u)
 
 	merged := w.mergeStatus(key, u)
@@ -308,7 +323,7 @@ func (w *inMemoryStatusWriter) Update(_ context.Context, obj client.Object, _ ..
 // status, then writes the full merged resource (original spec + new status)
 // back into obj.
 func (w *inMemoryStatusWriter) Patch(_ context.Context, obj client.Object, _ client.Patch, _ ...client.SubResourcePatchOption) error {
-	u := toUnstructured(obj)
+	u := toUnstructured(obj, w.client.scheme)
 	key := keyForUnstructured(u)
 
 	merged := w.mergeStatus(key, u)
@@ -386,8 +401,10 @@ func (s *inMemorySubResourceClient) Apply(_ context.Context, _ runtime.ApplyConf
 	return nil
 }
 
-// toUnstructured converts a client.Object to *unstructured.Unstructured.
-func toUnstructured(obj client.Object) *unstructured.Unstructured {
+// toUnstructured converts a client.Object to *unstructured.Unstructured. If
+// the object is a typed Kubernetes resource (not already unstructured), its GVK
+// is resolved from the scheme since typed objects don't carry their GVK.
+func toUnstructured(obj client.Object, s *runtime.Scheme) *unstructured.Unstructured {
 	if u, ok := obj.(*unstructured.Unstructured); ok {
 		return u
 	}
@@ -400,7 +417,17 @@ func toUnstructured(obj client.Object) *unstructured.Unstructured {
 	}
 
 	u := &unstructured.Unstructured{Object: data}
-	u.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
+
+	// Typed Kubernetes objects don't carry their GVK -- resolve it from the
+	// scheme. Fall back to whatever GetObjectKind returns (which may be
+	// empty).
+	gvks, _, err := s.ObjectKinds(obj)
+	if err == nil && len(gvks) > 0 {
+		u.SetGroupVersionKind(gvks[0])
+	} else {
+		u.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
+	}
+
 	return u
 }
 

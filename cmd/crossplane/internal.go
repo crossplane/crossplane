@@ -24,5 +24,5 @@ import (
 // are implementation details that other tools (e.g. crossplane render, up
 // test) shell out to.
 type internalCmd struct {
-	Render render.Command `cmd:"" help:"Render a composite resource using the real reconciler engine. Not for direct use."`
+	Render render.Command `cmd:"" help:"Render resources using the real reconciler engine. Not for direct use."`
 }

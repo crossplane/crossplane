@@ -30,12 +30,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
-	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
+	xrreconciler "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/v2/internal/render"
 )
 
 var (
-	_ composite.FunctionRunner = &FunctionRunner{}
-	_ event.Recorder           = &EventRecorder{}
+	_ xrreconciler.FunctionRunner = &render.FunctionRunner{}
+	_ event.Recorder              = &render.EventRecorder{}
 )
 
 // ignoreConditionTimestamps filters out lastTransitionTime from condition maps
@@ -76,7 +77,7 @@ func TestRender(t *testing.T) {
 						Pipeline: []apiextensionsv1.PipelineStep{},
 					},
 				},
-				Functions: []FunctionInput{},
+				Functions: []render.FunctionInput{},
 			},
 			want: want{
 				out: &Output{
@@ -114,7 +115,7 @@ func TestRender(t *testing.T) {
 						},
 					}},
 					ComposedResources: []unstructured.Unstructured{},
-					Events: []OutputEvent{
+					Events: []render.OutputEvent{
 						{
 							Type:    "Normal",
 							Reason:  "SelectComposition",
@@ -144,7 +145,7 @@ func TestRender(t *testing.T) {
 						Pipeline: []apiextensionsv1.PipelineStep{},
 					},
 				},
-				Functions: []FunctionInput{},
+				Functions: []render.FunctionInput{},
 				ObservedResources: []unstructured.Unstructured{{Object: map[string]any{
 					"apiVersion": "s3.aws.upbound.io/v1beta1",
 					"kind":       "Bucket",
@@ -202,7 +203,7 @@ func TestRender(t *testing.T) {
 							},
 						},
 					}}},
-					Events: []OutputEvent{
+					Events: []render.OutputEvent{
 						{
 							Type:    "Normal",
 							Reason:  "SelectComposition",
@@ -280,7 +281,7 @@ func TestInputUnmarshal(t *testing.T) {
 							Pipeline: []apiextensionsv1.PipelineStep{},
 						},
 					},
-					Functions: []FunctionInput{},
+					Functions: []render.FunctionInput{},
 				},
 			},
 		},

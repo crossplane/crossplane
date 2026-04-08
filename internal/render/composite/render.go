@@ -24,8 +24,6 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -35,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	managed "github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	xpresource "github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -46,18 +43,10 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composition"
+	"github.com/crossplane/crossplane/v2/internal/render"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
-	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
-
-// Wait for the server to be ready before sending RPCs.
-const waitForReady = `{
-	"methodConfig":[{
-		"name": [{}],
-		"waitForReady": true
-	}]
-}`
 
 // Render runs one real XR reconcile loop using the real reconciler engine
 // backed by a fake in-memory client.
@@ -96,11 +85,11 @@ func Render(ctx context.Context, log logging.Logger, in *Input) (*Output, error)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot build store resources")
 	}
-	fakeClient := NewInMemoryClient(s, storeResources...)
+	fakeClient := render.NewInMemoryClient(s, storeResources...)
 
 	// Connect to function gRPC servers. The caller is responsible for
 	// starting function runtimes.
-	runner, err := NewFunctionRunner(in.Functions)
+	runner, err := render.NewFunctionRunner(in.Functions)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot connect to functions")
 	}
@@ -131,7 +120,7 @@ func Render(ctx context.Context, log logging.Logger, in *Input) (*Output, error)
 	)
 
 	// Build a recording event recorder to capture events for output.
-	recorder := &EventRecorder{}
+	recorder := &render.EventRecorder{}
 
 	// Build the real Reconciler with production logic and fake I/O
 	// dependencies.
@@ -237,53 +226,6 @@ func buildStoreResources(xr *ucomposite.Unstructured, rev *apiextensionsv1.Compo
 	return resources, nil
 }
 
-// A FunctionRunner runs composition functions by name via gRPC. It maps
-// function names to pre-established gRPC connections.
-type FunctionRunner struct {
-	conns map[string]*grpc.ClientConn
-}
-
-// NewFunctionRunner returns a FunctionRunner that connects to the supplied
-// functions. Each FunctionInput maps a function name to a gRPC address. The
-// caller is responsible for starting the function runtimes; this constructor
-// only establishes gRPC connections.
-func NewFunctionRunner(fns []FunctionInput) (*FunctionRunner, error) {
-	conns := make(map[string]*grpc.ClientConn, len(fns))
-
-	for _, fn := range fns {
-		conn, err := grpc.NewClient(fn.Address,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithDefaultServiceConfig(waitForReady))
-		if err != nil {
-			// Clean up any connections we already opened.
-			for _, c := range conns {
-				_ = c.Close()
-			}
-			return nil, errors.Wrapf(err, "cannot connect to function %q at %q", fn.Name, fn.Address)
-		}
-		conns[fn.Name] = conn
-	}
-
-	return &FunctionRunner{conns: conns}, nil
-}
-
-// RunFunction calls the named function via its gRPC connection.
-func (r *FunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	conn, ok := r.conns[name]
-	if !ok {
-		return nil, errors.Errorf("unknown function %q - is it listed in the render input?", name)
-	}
-	return xfn.NewBetaFallBackFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
-}
-
-// Close closes all gRPC connections.
-func (r *FunctionRunner) Close() error {
-	for _, c := range r.conns {
-		_ = c.Close()
-	}
-	return nil
-}
-
 // buildInitialContext converts the input context map to a structpb.Struct for
 // seeding the function pipeline.
 func buildInitialContext(inputCtx map[string]runtime.RawExtension) (*structpb.Struct, error) {
@@ -322,7 +264,7 @@ func CompositionSelector(comp *apiextensionsv1.Composition) composite.Compositio
 
 // BuildOutput assembles an Output from the fake client's captured state and
 // the event recorder.
-func BuildOutput(c *InMemoryClient, xrGVK schema.GroupVersionKind, recorder *EventRecorder) *Output {
+func BuildOutput(c *render.InMemoryClient, xrGVK schema.GroupVersionKind, recorder *render.EventRecorder) *Output {
 	out := &Output{
 		APIVersion:        APIVersion,
 		Kind:              KindOutput,
@@ -364,28 +306,7 @@ func BuildOutput(c *InMemoryClient, xrGVK schema.GroupVersionKind, recorder *Eve
 	out.DeletedResources = c.Deleted()
 
 	// Collect events.
-	out.Events = append(out.Events, recorder.events...)
+	out.Events = append(out.Events, recorder.Events()...)
 
 	return out
-}
-
-// An EventRecorder captures events emitted during reconciliation. It
-// satisfies the event.Recorder interface.
-type EventRecorder struct {
-	events []OutputEvent
-}
-
-// Event records an event.
-func (r *EventRecorder) Event(_ runtime.Object, e event.Event) {
-	r.events = append(r.events, OutputEvent{
-		Type:    string(e.Type),
-		Reason:  string(e.Reason),
-		Message: e.Message,
-	})
-}
-
-// WithAnnotations returns the same recorder. Annotation support is not needed
-// for render output.
-func (r *EventRecorder) WithAnnotations(_ ...string) event.Recorder {
-	return r
 }

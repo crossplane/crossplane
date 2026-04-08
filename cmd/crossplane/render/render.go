@@ -18,68 +18,12 @@ limitations under the License.
 package render
 
 import (
-	"context"
-	"encoding/json"
-	"io"
-	"os"
-	"time"
-
-	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
-
-	"github.com/crossplane/crossplane/v2/internal/render/composite"
+	"github.com/crossplane/crossplane/v2/cmd/crossplane/render/composite"
+	"github.com/crossplane/crossplane/v2/cmd/crossplane/render/operation"
 )
 
-// Command runs one real XR reconcile loop using the real reconciler engine
-// backed by a fake in-memory client. It reads composite.Input from stdin and
-// writes composite.Output to stdout.
+// Command routes to composite or operation render subcommands.
 type Command struct {
-	Timeout time.Duration `default:"2m" help:"Timeout for the render operation."`
-}
-
-// Run executes the render command.
-func (c *Command) Run(log logging.Logger) error {
-	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
-	defer cancel()
-
-	in, err := readInput(os.Stdin)
-	if err != nil {
-		return errors.Wrap(err, "cannot read render input from stdin")
-	}
-
-	out, err := composite.Render(ctx, log, in)
-	if err != nil {
-		return errors.Wrap(err, "cannot render")
-	}
-
-	return writeOutput(os.Stdout, out)
-}
-
-// readInput reads and decodes an Input from the reader.
-func readInput(r io.Reader) (*composite.Input, error) {
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot read input")
-	}
-
-	in := &composite.Input{}
-	if err := json.Unmarshal(data, in); err != nil {
-		return nil, errors.Wrap(err, "cannot unmarshal render input")
-	}
-
-	return in, nil
-}
-
-// writeOutput encodes and writes an Output to the writer.
-func writeOutput(w io.Writer, out *composite.Output) error {
-	out.APIVersion = composite.APIVersion
-	out.Kind = composite.KindOutput
-
-	data, err := json.Marshal(out)
-	if err != nil {
-		return errors.Wrap(err, "cannot marshal render output")
-	}
-
-	_, err = w.Write(data)
-	return errors.Wrap(err, "cannot write render output")
+	Composite composite.Command `cmd:"" help:"Render a composite resource using the real XR reconciler."`
+	Operation operation.Command `cmd:"" help:"Render an operation using the real Operation reconciler."`
 }
