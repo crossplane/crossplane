@@ -4,8 +4,6 @@ go 1.25.9
 
 replace github.com/crossplane/crossplane/apis/v2 => ./apis
 
-replace github.com/crossplane/crossplane-runtime/v2 => ../crossplane-runtime
-
 require (
 	dario.cat/mergo v1.0.2
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
