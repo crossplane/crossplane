@@ -22,53 +22,44 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
-	"github.com/crossplane/crossplane/v2/internal/render"
+	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
 )
-
-// ignoreConditionTimestamps filters out lastTransitionTime from condition maps
-// inside unstructured objects.
-var ignoreConditionTimestamps = cmpopts.IgnoreMapEntries(func(k string, _ any) bool {
-	return k == "lastTransitionTime"
-})
 
 func TestRender(t *testing.T) {
 	type want struct {
 		err error
-		out *Output
+		out *renderv1alpha1.OperationOutput
 	}
 
 	cases := map[string]struct {
 		reason string
-		input  *Input
+		input  *renderv1alpha1.OperationInput
 		want   want
 	}{
 		"EmptyPipeline": {
 			reason: "An Operation with an empty pipeline should reconcile successfully and be marked Complete.",
-			input: &Input{
-				APIVersion: APIVersion,
-				Kind:       KindInput,
-				Operation: opsv1alpha1.Operation{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-operation",
-						Namespace: "default",
+			input: &renderv1alpha1.OperationInput{
+				Operation: mustStruct(map[string]any{
+					"apiVersion": "ops.crossplane.io/v1alpha1",
+					"kind":       "Operation",
+					"metadata": map[string]any{
+						"name":      "my-operation",
+						"namespace": "default",
 					},
-					Spec: opsv1alpha1.OperationSpec{
-						Pipeline: []opsv1alpha1.PipelineStep{},
+					"spec": map[string]any{
+						"mode":     "",
+						"pipeline": []any{},
 					},
-				},
-				Functions: []render.FunctionInput{},
+				}),
 			},
 			want: want{
-				out: &Output{
-					APIVersion: APIVersion,
-					Kind:       KindOutput,
-					Operation: unstructured.Unstructured{Object: map[string]any{
+				out: &renderv1alpha1.OperationOutput{
+					Operation: mustStruct(map[string]any{
 						"apiVersion": "ops.crossplane.io/v1alpha1",
 						"kind":       "Operation",
 						"metadata": map[string]any{
@@ -82,25 +73,12 @@ func TestRender(t *testing.T) {
 						},
 						"status": map[string]any{
 							"conditions": []any{
-								map[string]any{
-									"type":   "Succeeded",
-									"status": "True",
-									"reason": "PipelineSuccess",
-								},
-								map[string]any{
-									"type":   "ValidPipeline",
-									"status": "True",
-									"reason": "ValidPipeline",
-								},
-								map[string]any{
-									"type":   "Synced",
-									"status": "True",
-									"reason": "ReconcileSuccess",
-								},
+								map[string]any{"type": "Succeeded", "status": "True", "reason": "PipelineSuccess"},
+								map[string]any{"type": "ValidPipeline", "status": "True", "reason": "ValidPipeline"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
 							},
 						},
-					}},
-					AppliedResources: []unstructured.Unstructured{},
+					}),
 				},
 			},
 		},
@@ -113,9 +91,39 @@ func TestRender(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRender(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.out, out, ignoreConditionTimestamps, cmpopts.EquateEmpty()); diff != "" {
+			stripTimestamps(out.GetOperation())
+			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty(), protocmp.Transform()); diff != "" {
 				t.Errorf("\n%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
+}
+
+// stripTimestamps recursively removes lastTransitionTime from a protobuf
+// Struct. Timestamps are non-deterministic and should not be compared.
+func stripTimestamps(s *structpb.Struct) {
+	if s == nil {
+		return
+	}
+	delete(s.GetFields(), "lastTransitionTime")
+	for _, v := range s.GetFields() {
+		if sv := v.GetStructValue(); sv != nil {
+			stripTimestamps(sv)
+		}
+		if lv := v.GetListValue(); lv != nil {
+			for _, item := range lv.GetValues() {
+				if sv := item.GetStructValue(); sv != nil {
+					stripTimestamps(sv)
+				}
+			}
+		}
+	}
+}
+
+func mustStruct(m map[string]any) *structpb.Struct {
+	s, err := structpb.NewStruct(m)
+	if err != nil {
+		panic(err)
+	}
+	return s
 }

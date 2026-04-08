@@ -1,0 +1,196 @@
+/*
+   Copyright 2025 The Crossplane Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
+syntax = "proto3";
+
+// This package defines the render protocol. The render engine runs one real
+// Reconcile() call against a fake in-memory client, backed by the real
+// Crossplane reconciler. It accepts a RenderRequest on stdin and writes a
+// RenderResponse to stdout.
+
+package render.proto.v1alpha1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/crossplane/crossplane/v2/proto/render/v1alpha1";
+
+// A RenderRequest asks the render engine to render a resource.
+message RenderRequest {
+  // Metadata pertaining to the render request.
+  RequestMeta meta = 1;
+
+  // The resource to render. Exactly one must be set.
+  oneof input {
+    CompositeInput composite = 2;
+    OperationInput operation = 3;
+    CronOperationInput cron_operation = 4;
+    WatchOperationInput watch_operation = 5;
+  }
+}
+
+// A RenderResponse is the result of rendering a resource.
+message RenderResponse {
+  // Metadata pertaining to the render response.
+  ResponseMeta meta = 1;
+
+  // The render result. The variant matches the input variant.
+  oneof output {
+    CompositeOutput composite = 2;
+    OperationOutput operation = 3;
+    CronOperationOutput cron_operation = 4;
+    WatchOperationOutput watch_operation = 5;
+  }
+}
+
+// RequestMeta contains metadata pertaining to a RenderRequest.
+message RequestMeta {}
+
+// ResponseMeta contains metadata pertaining to a RenderResponse.
+message ResponseMeta {}
+
+// A FunctionInput identifies a running composition function by name and gRPC
+// address. The caller is responsible for starting function runtimes and
+// providing their addresses.
+message FunctionInput {
+  // Name of the function, matching the pipeline step's functionRef.name.
+  string name = 1;
+
+  // gRPC address of the running function (e.g. "localhost:9443").
+  string address = 2;
+}
+
+// An Event represents a Kubernetes event the reconciler would emit.
+message Event {
+  // Type is Normal or Warning.
+  string type = 1;
+
+  // Reason is the short, machine-readable reason for the event.
+  string reason = 2;
+
+  // Message is the human-readable description of the event.
+  string message = 3;
+}
+
+// A CompositeInput contains all inputs needed to render a composite resource
+// (XR) using the real XR reconciler.
+message CompositeInput {
+  // The composite resource (XR) to reconcile.
+  google.protobuf.Struct composite_resource = 1;
+
+  // The Composition to use.
+  google.protobuf.Struct composition = 2;
+
+  // Functions to call in the pipeline.
+  repeated FunctionInput functions = 3;
+
+  // Existing composed resources from a previous reconcile. Optional.
+  repeated google.protobuf.Struct observed_resources = 4;
+
+  // Resources available for functions that request them via the Requirements
+  // protocol. Optional.
+  repeated google.protobuf.Struct required_resources = 5;
+
+  // Kubernetes Secrets for function credentials. Optional.
+  repeated google.protobuf.Struct credentials = 6;
+
+  // Key-value pairs to seed the function pipeline context. Optional.
+  google.protobuf.Struct context = 7;
+
+  // Additional resources to load into the fake client's store. Optional.
+  repeated google.protobuf.Struct extra_resources = 8;
+}
+
+// A CompositeOutput contains the results of rendering a composite resource.
+message CompositeOutput {
+  // The XR with desired status and conditions set by the reconciler.
+  google.protobuf.Struct composite_resource = 1;
+
+  // Composed resources the reconciler would apply via server-side apply.
+  repeated google.protobuf.Struct composed_resources = 2;
+
+  // Composed resources the reconciler would garbage collect.
+  repeated google.protobuf.Struct deleted_resources = 3;
+
+  // Events the reconciler would emit.
+  repeated Event events = 4;
+
+  // The function pipeline context after the last function ran.
+  google.protobuf.Struct context = 5;
+}
+
+// An OperationInput contains all inputs needed to render an Operation using the
+// real Operation reconciler.
+message OperationInput {
+  // The Operation to reconcile.
+  google.protobuf.Struct operation = 1;
+
+  // Functions to call in the pipeline.
+  repeated FunctionInput functions = 2;
+
+  // Resources available for functions that request them via the Requirements
+  // protocol. Optional.
+  repeated google.protobuf.Struct required_resources = 3;
+
+  // Kubernetes Secrets for function credentials. Optional.
+  repeated google.protobuf.Struct credentials = 4;
+
+  // Key-value pairs to seed the function pipeline context. Optional.
+  google.protobuf.Struct context = 5;
+}
+
+// An OperationOutput contains the results of rendering an Operation.
+message OperationOutput {
+  // The Operation with status set by the reconciler.
+  google.protobuf.Struct operation = 1;
+
+  // Resources the Operation would apply via server-side apply.
+  repeated google.protobuf.Struct applied_resources = 2;
+
+  // Events the reconciler would emit.
+  repeated Event events = 3;
+}
+
+// A CronOperationInput contains all inputs needed to produce the Operation a
+// CronOperation would create.
+message CronOperationInput {
+  // The CronOperation to render.
+  google.protobuf.Struct cron_operation = 1;
+
+  // Unix timestamp of the scheduled time. Defaults to now if 0.
+  int64 scheduled_unix = 2;
+}
+
+// A CronOperationOutput contains the Operation a CronOperation would create.
+message CronOperationOutput {
+  // The Operation the CronOperation would create.
+  google.protobuf.Struct operation = 1;
+}
+
+// A WatchOperationInput contains all inputs needed to produce the Operation a
+// WatchOperation would create in response to a watched resource change.
+message WatchOperationInput {
+  // The WatchOperation to render.
+  google.protobuf.Struct watch_operation = 1;
+
+  // The resource whose change triggered the WatchOperation.
+  google.protobuf.Struct watched_resource = 2;
+}
+
+// A WatchOperationOutput contains the Operation a WatchOperation would create.
+message WatchOperationOutput {
+  // The Operation the WatchOperation would create.
+  google.protobuf.Struct operation = 1;
+}

@@ -14,20 +14,90 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package render implements the 'crossplane internal render' subcommand.
+// Package render implements the 'crossplane internal render' subcommand. It
+// reads a protobuf RenderRequest from stdin, dispatches to the appropriate
+// render implementation based on the oneof variant, and writes a protobuf
+// RenderResponse to stdout.
 package render
 
 import (
-	"github.com/crossplane/crossplane/v2/cmd/crossplane/render/composite"
-	"github.com/crossplane/crossplane/v2/cmd/crossplane/render/cronoperation"
-	"github.com/crossplane/crossplane/v2/cmd/crossplane/render/operation"
-	"github.com/crossplane/crossplane/v2/cmd/crossplane/render/watchoperation"
+	"context"
+	"io"
+	"os"
+	"time"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+
+	"github.com/crossplane/crossplane/v2/internal/render/composite"
+	"github.com/crossplane/crossplane/v2/internal/render/operation"
+	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
 )
 
-// Command routes to resource-specific render subcommands.
+// Command renders a resource using the real reconciler engine backed by a fake
+// in-memory client. It reads a protobuf RenderRequest from stdin and writes a
+// protobuf RenderResponse to stdout.
 type Command struct {
-	Composite      composite.Command      `cmd:""               help:"Render a composite resource using the real XR reconciler."`
-	Operation      operation.Command      `cmd:""               help:"Render an operation using the real Operation reconciler."`
-	CronOperation  cronoperation.Command  `cmd:"cronoperation"  help:"Produce the Operation a CronOperation would create."`
-	WatchOperation watchoperation.Command `cmd:"watchoperation" help:"Produce the Operation a WatchOperation would create."`
+	Timeout time.Duration `default:"2m" help:"Timeout for the render operation."`
+}
+
+// Run executes the render command.
+func (c *Command) Run(log logging.Logger) error {
+	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+	defer cancel()
+
+	data, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return errors.Wrap(err, "cannot read render request from stdin")
+	}
+
+	req := &renderv1alpha1.RenderRequest{}
+	if err := proto.Unmarshal(data, req); err != nil {
+		return errors.Wrap(err, "cannot unmarshal render request")
+	}
+
+	rsp := &renderv1alpha1.RenderResponse{Meta: &renderv1alpha1.ResponseMeta{}}
+
+	switch in := req.GetInput().(type) {
+	case *renderv1alpha1.RenderRequest_Composite:
+		out, err := composite.Render(ctx, log, in.Composite)
+		if err != nil {
+			return errors.Wrap(err, "cannot render composite resource")
+		}
+		rsp.Output = &renderv1alpha1.RenderResponse_Composite{Composite: out}
+
+	case *renderv1alpha1.RenderRequest_Operation:
+		out, err := operation.Render(ctx, log, in.Operation)
+		if err != nil {
+			return errors.Wrap(err, "cannot render operation")
+		}
+		rsp.Output = &renderv1alpha1.RenderResponse_Operation{Operation: out}
+
+	case *renderv1alpha1.RenderRequest_CronOperation:
+		out, err := operation.NewFromCronOperation(in.CronOperation)
+		if err != nil {
+			return errors.Wrap(err, "cannot render cron operation")
+		}
+		rsp.Output = &renderv1alpha1.RenderResponse_CronOperation{CronOperation: out}
+
+	case *renderv1alpha1.RenderRequest_WatchOperation:
+		out, err := operation.NewFromWatchOperation(in.WatchOperation)
+		if err != nil {
+			return errors.Wrap(err, "cannot render watch operation")
+		}
+		rsp.Output = &renderv1alpha1.RenderResponse_WatchOperation{WatchOperation: out}
+
+	default:
+		return errors.New("render request has no input set")
+	}
+
+	out, err := proto.Marshal(rsp)
+	if err != nil {
+		return errors.Wrap(err, "cannot marshal render response")
+	}
+
+	_, err = os.Stdout.Write(out)
+	return errors.Wrap(err, "cannot write render response")
 }

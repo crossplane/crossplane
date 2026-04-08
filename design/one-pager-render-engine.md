@@ -70,103 +70,61 @@ code.
 
 ### Interface
 
-The subcommand reads a structured JSON envelope from stdin and writes one to
-stdout:
+The subcommand reads a protobuf `RenderRequest` from stdin and writes a protobuf
+`RenderResponse` to stdout:
 
 ```
-cat input.json | crossplane internal render composite > output.json
-cat input.json | crossplane internal render operation > output.json
+cat request.pb | crossplane internal render > response.pb
 ```
 
-The expected usage is that tools like `crossplane render`, `up project render`, and `crossplane-diff` shell out to this subcommand rather than maintaining their own render implementations. The caller handles UX concerns (file parsing, Docker container management, output formatting) and delegates the actual reconcile to the Crossplane binary via stdin/stdout.
+The expected usage is that tools like `crossplane render`, `up project render`,
+and `crossplane-diff` shell out to this subcommand rather than maintaining their
+own render implementations. The caller handles UX concerns (file parsing, Docker
+container management, output formatting) and delegates the actual reconcile to
+the Crossplane binary via stdin/stdout.
 
-For composite resources, the input contains the XR, Composition, function gRPC
-addresses, and optionally observed resources, credentials, and context:
+The schema is defined in `proto/render/v1alpha1/render.proto`. The request uses a
+protobuf `oneof` to select the resource type to render:
 
-```json
-{
-  "apiVersion": "render.crossplane.io/v1alpha1",
-  "kind": "CompositeInput",
-  "compositeResource": {
-    "apiVersion": "example.org/v1",
-    "kind": "XBucket",
-    "metadata": {"name": "my-bucket"},
-    "spec": {"region": "us-east-2"}
-  },
-  "composition": {
-    "metadata": {"name": "bucket-composition"},
-    "spec": {
-      "compositeTypeRef": {"apiVersion": "example.org/v1", "kind": "XBucket"},
-      "pipeline": [
-        {
-          "step": "create-bucket",
-          "functionRef": {"name": "function-auto-ready"}
-        }
-      ]
-    }
-  },
-  "functions": [
-    {"name": "function-auto-ready", "address": "localhost:9443"}
-  ],
-  "observedResources": [],
-  "credentials": [],
-  "context": {}
+```protobuf
+message RenderRequest {
+  RequestMeta meta = 1;
+  oneof input {
+    CompositeInput composite = 2;
+    OperationInput operation = 3;
+    CronOperationInput cron_operation = 4;
+    WatchOperationInput watch_operation = 5;
+  }
 }
 ```
 
-The output contains the rendered XR with status and conditions, composed
-resources the reconciler would apply, deleted resources it would garbage collect,
-and events it would emit:
+Each input variant contains the resource to render plus any supporting resources
+(functions, observed resources, credentials). Kubernetes resources are
+represented as `google.protobuf.Struct`, the same approach used by the function
+protocol. For example, `CompositeInput` contains the XR, Composition, function
+gRPC addresses, and optionally observed resources, credentials, and context.
 
-```json
-{
-  "apiVersion": "render.crossplane.io/v1alpha1",
-  "kind": "CompositeOutput",
-  "compositeResource": {
-    "apiVersion": "example.org/v1",
-    "kind": "XBucket",
-    "metadata": {"name": "my-bucket"},
-    "spec": {
-      "region": "us-east-2",
-      "crossplane": {
-        "resourceRefs": [
-          {"apiVersion": "s3.aws.upbound.io/v1beta2", "kind": "Bucket", "name": "my-bucket-a8b3c1d0e2f4"}
-        ]
-      }
-    },
-    "status": {
-      "conditions": [
-        {"type": "Ready", "status": "True", "reason": "Available"},
-        {"type": "Synced", "status": "True", "reason": "ReconcileSuccess"}
-      ]
-    }
-  },
-  "composedResources": [
-    {
-      "apiVersion": "s3.aws.upbound.io/v1beta2",
-      "kind": "Bucket",
-      "metadata": {
-        "name": "my-bucket-a8b3c1d0e2f4",
-        "generateName": "my-bucket-",
-        "labels": {"crossplane.io/composite": "my-bucket"},
-        "annotations": {"crossplane.io/composition-resource-name": "bucket"},
-        "ownerReferences": [{"apiVersion": "example.org/v1", "kind": "XBucket", "name": "my-bucket", "controller": true}]
-      },
-      "spec": {
-        "forProvider": {"region": "us-east-2"}
-      }
-    }
-  ],
-  "deletedResources": [],
-  "events": [
-    {"type": "Normal", "reason": "SelectComposition", "message": "Successfully selected composition: bucket-composition"}
-  ]
+The response mirrors the request with a corresponding output variant:
+
+```protobuf
+message RenderResponse {
+  ResponseMeta meta = 1;
+  oneof output {
+    CompositeOutput composite = 2;
+    OperationOutput operation = 3;
+    CronOperationOutput cron_operation = 4;
+    WatchOperationOutput watch_operation = 5;
+  }
 }
 ```
+
+Using protobuf gives us a well-defined, self-documenting schema that can generate
+client types in any language. If we want to expose this as a gRPC service in
+future, adding a service definition to the existing proto is trivial.
 
 Function runtime management (Docker containers, development servers) is the
 caller's responsibility. The render engine accepts gRPC addresses, not container
-images. The Operation render interface follows the same pattern.
+images.
 
 ### Version Pinning
 
@@ -224,5 +182,32 @@ moving render-related code to `crossplane-runtime`, where shared libraries
 conventionally live. That means two repos to update for every reconciler change.
 
 The stdin/stdout binary interface avoids this entirely. Downstream tools depend
-on a stable JSON envelope, not on Go types. It also enables version pinning,
+on a stable protobuf envelope, not on Go types. It also enables version pinning,
 which is impossible when the render logic is compiled into the caller.
+
+### gRPC or HashiCorp go-plugin
+
+We could expose the render engine as a gRPC server, either directly or via
+HashiCorp's [go-plugin] framework which adds version negotiation and process
+lifecycle management. We already spin up functions in Docker containers and call
+them via gRPC, so the machinery exists.
+
+The difference is that functions are gRPC servers because they run as long-lived
+services in production. It makes sense for their local development mode to match
+the production protocol. The render engine has no production deployment. It's
+only ever a plugin for other CLIs, spun up in a Docker container to handle one
+request and exit.
+
+A persistent gRPC server would be faster for batch use cases like
+crossplane-diff rendering many resources in a row, since it would avoid per-call
+container startup overhead. But it's unlikely to be fast enough to matter for
+the kinds of UXes we imagine building around this. The cost is server lifecycle
+management (startup, health checking, graceful shutdown) that every caller has to
+orchestrate.
+
+Protobuf over stdin gives us the schema benefits (generated types,
+self-documenting contract, language-agnostic) without the server lifecycle
+complexity. If we ever need a long-lived server, adding a gRPC service definition
+to the existing proto is a one-line change.
+
+[go-plugin]: https://github.com/hashicorp/go-plugin

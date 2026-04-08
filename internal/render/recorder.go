@@ -20,17 +20,19 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+
+	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
 )
 
 // An EventRecorder captures events emitted during reconciliation. It satisfies
 // the event.Recorder interface.
 type EventRecorder struct {
-	events []OutputEvent
+	events []*renderv1alpha1.Event
 }
 
 // Event records an event.
 func (r *EventRecorder) Event(_ runtime.Object, e event.Event) {
-	r.events = append(r.events, OutputEvent{
+	r.events = append(r.events, &renderv1alpha1.Event{
 		Type:    string(e.Type),
 		Reason:  string(e.Reason),
 		Message: e.Message,
@@ -38,8 +40,8 @@ func (r *EventRecorder) Event(_ runtime.Object, e event.Event) {
 }
 
 // Events returns all recorded events.
-func (r *EventRecorder) Events() []OutputEvent {
-	out := make([]OutputEvent, len(r.events))
+func (r *EventRecorder) Events() []*renderv1alpha1.Event {
+	out := make([]*renderv1alpha1.Event, len(r.events))
 	copy(out, r.events)
 	return out
 }

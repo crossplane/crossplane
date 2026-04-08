@@ -26,6 +26,7 @@ import (
 
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
+	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
 )
 
 // Wait for the server to be ready before sending RPCs.
@@ -46,11 +47,11 @@ type FunctionRunner struct {
 // functions. Each FunctionInput maps a function name to a gRPC address. The
 // caller is responsible for starting the function runtimes; this constructor
 // only establishes gRPC connections.
-func NewFunctionRunner(fns []FunctionInput) (*FunctionRunner, error) {
+func NewFunctionRunner(fns []*renderv1alpha1.FunctionInput) (*FunctionRunner, error) {
 	conns := make(map[string]*grpc.ClientConn, len(fns))
 
 	for _, fn := range fns {
-		conn, err := grpc.NewClient(fn.Address,
+		conn, err := grpc.NewClient(fn.GetAddress(),
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithDefaultServiceConfig(waitForReady))
 		if err != nil {
@@ -58,9 +59,9 @@ func NewFunctionRunner(fns []FunctionInput) (*FunctionRunner, error) {
 			for _, c := range conns {
 				_ = c.Close()
 			}
-			return nil, errors.Wrapf(err, "cannot connect to function %q at %q", fn.Name, fn.Address)
+			return nil, errors.Wrapf(err, "cannot connect to function %q at %q", fn.GetName(), fn.GetAddress())
 		}
-		conns[fn.Name] = conn
+		conns[fn.GetName()] = conn
 	}
 
 	return &FunctionRunner{conns: conns}, nil
