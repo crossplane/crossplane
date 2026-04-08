@@ -19,11 +19,15 @@ package render
 
 import (
 	"github.com/crossplane/crossplane/v2/cmd/crossplane/render/composite"
+	"github.com/crossplane/crossplane/v2/cmd/crossplane/render/cronoperation"
 	"github.com/crossplane/crossplane/v2/cmd/crossplane/render/operation"
+	"github.com/crossplane/crossplane/v2/cmd/crossplane/render/watchoperation"
 )
 
-// Command routes to composite or operation render subcommands.
+// Command routes to resource-specific render subcommands.
 type Command struct {
-	Composite composite.Command `cmd:"" help:"Render a composite resource using the real XR reconciler."`
-	Operation operation.Command `cmd:"" help:"Render an operation using the real Operation reconciler."`
+	Composite      composite.Command      `cmd:""               help:"Render a composite resource using the real XR reconciler."`
+	Operation      operation.Command      `cmd:""               help:"Render an operation using the real Operation reconciler."`
+	CronOperation  cronoperation.Command  `cmd:"cronoperation"  help:"Produce the Operation a CronOperation would create."`
+	WatchOperation watchoperation.Command `cmd:"watchoperation" help:"Produce the Operation a WatchOperation would create."`
 }

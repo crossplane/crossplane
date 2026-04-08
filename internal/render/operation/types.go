@@ -18,6 +18,7 @@ package operation
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -27,9 +28,11 @@ import (
 
 // API version and kind for the render input/output envelopes.
 const (
-	APIVersion = "render.crossplane.io/v1alpha1"
-	KindInput  = "OperationRenderInput"
-	KindOutput = "OperationRenderOutput"
+	APIVersion              = "render.crossplane.io/v1alpha1"
+	KindInput               = "OperationRenderInput"
+	KindOutput              = "OperationRenderOutput"
+	KindCronOperationInput  = "CronOperationRenderInput"
+	KindWatchOperationInput = "WatchOperationRenderInput"
 )
 
 // Input is a structured envelope for all inputs to the Operation render
@@ -73,4 +76,44 @@ type Output struct {
 
 	// Events are the Kubernetes events the reconciler would emit.
 	Events []render.OutputEvent `json:"events,omitempty" yaml:"events,omitempty"`
+}
+
+// CronOperationInput is the input for rendering a CronOperation. The output
+// is the Operation the CronOperation would create.
+type CronOperationInput struct {
+	APIVersion string `json:"apiVersion" yaml:"apiVersion"`
+	Kind       string `json:"kind"       yaml:"kind"`
+
+	// CronOperation to render.
+	CronOperation opsv1alpha1.CronOperation `json:"cronOperation" yaml:"cronOperation"`
+
+	// ScheduledTime is the time to use for the Operation's name. If not
+	// set, the current time is used.
+	ScheduledTime *metav1.Time `json:"scheduledTime,omitempty" yaml:"scheduledTime,omitempty"`
+}
+
+// WatchOperationInput is the input for rendering a WatchOperation. The output
+// is the Operation the WatchOperation would create in response to a change to
+// the watched resource.
+type WatchOperationInput struct {
+	APIVersion string `json:"apiVersion" yaml:"apiVersion"`
+	Kind       string `json:"kind"       yaml:"kind"`
+
+	// WatchOperation to render.
+	WatchOperation opsv1alpha1.WatchOperation `json:"watchOperation" yaml:"watchOperation"`
+
+	// WatchedResource is the resource whose change triggered the
+	// WatchOperation. It is injected into every pipeline step's requirements
+	// as "ops.crossplane.io/watched-resource".
+	WatchedResource unstructured.Unstructured `json:"watchedResource" yaml:"watchedResource"`
+}
+
+// TemplateOutput wraps an Operation produced by rendering a CronOperation or
+// WatchOperation template.
+type TemplateOutput struct {
+	APIVersion string `json:"apiVersion" yaml:"apiVersion"`
+	Kind       string `json:"kind"       yaml:"kind"`
+
+	// Operation is the Operation that would be created.
+	Operation opsv1alpha1.Operation `json:"operation" yaml:"operation"`
 }
