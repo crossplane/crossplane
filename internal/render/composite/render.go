@@ -210,15 +210,15 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 	return BuildOutput(fakeClient, isXR, recorder)
 }
 
-// InjectResourceRefs adds spec.resourceRefs to the XR for each observed
+// InjectResourceRefs sets spec.resourceRefs on the XR for each observed
 // resource. The real ExistingComposedResourceObserver reads these refs to
-// discover existing composed resources.
+// discover existing composed resources. Any preexisting refs are replaced.
 func InjectResourceRefs(xr *ucomposite.Unstructured, observed []kunstructured.Unstructured) {
 	if len(observed) == 0 {
 		return
 	}
 
-	refs := xr.GetResourceReferences()
+	refs := make([]corev1.ObjectReference, 0, len(observed))
 	for _, o := range observed {
 		refs = append(refs, corev1.ObjectReference{
 			APIVersion: o.GetAPIVersion(),
