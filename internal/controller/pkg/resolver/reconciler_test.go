@@ -1232,7 +1232,7 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errors.New("Invalid Semantic Version"), "installed dependency version %q is not a valid semantic version or digest", "latest"),
+				err: errors.Wrapf(errors.New("Invalid Semantic Version"), "cannot resolve dependency %q with installed version %q: use a semantic version tag (for example v1.2.3) or a digest reference (sha256:...)", "xpkg.crossplane.io/cool-repo/cool-image", "latest"),
 			},
 		},
 		"ErrorMixedParentConstraints": {
