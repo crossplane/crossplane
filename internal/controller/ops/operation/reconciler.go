@@ -76,10 +76,11 @@ type Reconciler struct {
 	record     event.Recorder
 	conditions conditions.Manager
 
-	pipeline  xfn.FunctionRunner
-	functions xfn.CapabilityChecker
-	resources xfn.RequiredResourcesFetcher
-	schemas   xfn.RequiredSchemasFetcher
+	pipeline       xfn.FunctionRunner
+	functions      xfn.CapabilityChecker
+	resources      xfn.RequiredResourcesFetcher
+	schemas        xfn.RequiredSchemasFetcher
+	initialContext *structpb.Struct
 }
 
 // Reconcile an Operation by running its function pipeline.
@@ -172,7 +173,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	d := &fnv1.State{}
 
 	// The function context starts empty.
-	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
+	fctx := r.initialContext
 
 	// Generate a trace ID for this pipeline execution. All steps in this
 	// reconciliation will share this trace ID for correlation.
