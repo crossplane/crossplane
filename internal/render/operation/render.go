@@ -118,7 +118,13 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 		return nil, errors.Wrap(err, "reconcile failed")
 	}
 
-	return BuildOutput(fakeClient, recorder)
+	opGVK := opsv1alpha1.OperationGroupVersionKind
+	isOp := func(u kunstructured.Unstructured) bool {
+		return u.GroupVersionKind() == opGVK &&
+			u.GetNamespace() == opUnstructured.GetNamespace() &&
+			u.GetName() == opUnstructured.GetName()
+	}
+	return BuildOutput(fakeClient, isOp, recorder)
 }
 
 // NewFromCronOperation produces the Operation a CronOperation would create.
@@ -165,14 +171,14 @@ func NewFromWatchOperation(in *renderv1alpha1.WatchOperationInput) (*renderv1alp
 }
 
 // BuildOutput assembles an OperationOutput from the fake client's captured
-// state.
-func BuildOutput(c *render.InMemoryClient, recorder *render.EventRecorder) (*renderv1alpha1.OperationOutput, error) {
+// state. The isPrimary predicate identifies the primary resource (the
+// Operation) so it can be separated from applied resources.
+func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstructured) bool, recorder *render.EventRecorder) (*renderv1alpha1.OperationOutput, error) {
 	out := &renderv1alpha1.OperationOutput{}
 
-	opGVK := opsv1alpha1.OperationGroupVersionKind
 	for i := len(c.Updated()) - 1; i >= 0; i-- {
 		u := c.Updated()[i]
-		if u.GroupVersionKind() == opGVK {
+		if isPrimary(u) {
 			s, err := xfn.AsStruct(&u)
 			if err != nil {
 				return nil, errors.Wrap(err, "cannot convert Operation to protobuf")
@@ -183,7 +189,7 @@ func BuildOutput(c *render.InMemoryClient, recorder *render.EventRecorder) (*ren
 	}
 
 	for _, u := range c.Applied() {
-		if u.GroupVersionKind() == opGVK {
+		if isPrimary(u) {
 			continue
 		}
 		s, err := xfn.AsStruct(&u)

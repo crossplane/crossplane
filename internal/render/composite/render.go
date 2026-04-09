@@ -202,7 +202,12 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		return nil, errors.Wrap(err, "reconcile failed")
 	}
 
-	return BuildOutput(fakeClient, gvk, recorder)
+	isXR := func(u kunstructured.Unstructured) bool {
+		return u.GroupVersionKind() == gvk &&
+			u.GetNamespace() == xr.GetNamespace() &&
+			u.GetName() == xr.GetName()
+	}
+	return BuildOutput(fakeClient, isXR, recorder)
 }
 
 // InjectResourceRefs adds spec.resourceRefs to the XR for each observed
@@ -238,15 +243,16 @@ func CompositionSelector(comp *apiextensionsv1.Composition) composite.Compositio
 }
 
 // BuildOutput assembles a CompositeOutput from the fake client's captured
-// state and the event recorder.
-func BuildOutput(c *render.InMemoryClient, xrGVK schema.GroupVersionKind, recorder *render.EventRecorder) (*renderv1alpha1.CompositeOutput, error) {
+// state and the event recorder. The isPrimary predicate identifies the
+// primary resource (the XR) so it can be separated from composed resources.
+func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstructured) bool, recorder *render.EventRecorder) (*renderv1alpha1.CompositeOutput, error) {
 	out := &renderv1alpha1.CompositeOutput{}
 
 	// Find the final XR state. It's the last Status().Update or
-	// Status().Patch call for the XR's GVK.
+	// Status().Patch call for the XR.
 	for i := len(c.Updated()) - 1; i >= 0; i-- {
 		u := c.Updated()[i]
-		if u.GroupVersionKind() == xrGVK {
+		if isPrimary(u) {
 			s, err := xfn.AsStruct(&u)
 			if err != nil {
 				return nil, errors.Wrap(err, "cannot convert composite resource to protobuf")
@@ -261,7 +267,7 @@ func BuildOutput(c *render.InMemoryClient, xrGVK schema.GroupVersionKind, record
 	if out.GetCompositeResource() == nil {
 		for i := len(c.Applied()) - 1; i >= 0; i-- {
 			u := c.Applied()[i]
-			if u.GroupVersionKind() == xrGVK {
+			if isPrimary(u) {
 				s, err := xfn.AsStruct(&u)
 				if err != nil {
 					return nil, errors.Wrap(err, "cannot convert composite resource to protobuf")
@@ -273,9 +279,9 @@ func BuildOutput(c *render.InMemoryClient, xrGVK schema.GroupVersionKind, record
 	}
 
 	// Collect composed resources from applied (SSA Patch). Exclude the XR
-	// itself and the XR resourceRefs patch (which has the XR's GVK).
+	// itself and the XR resourceRefs patch.
 	for _, u := range c.Applied() {
-		if u.GroupVersionKind() == xrGVK {
+		if isPrimary(u) {
 			continue
 		}
 		s, err := xfn.AsStruct(&u)
