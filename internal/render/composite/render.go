@@ -23,7 +23,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -75,14 +74,18 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 	xr.SetResourceVersion("999")
 
 	// Convert observed resources from protobuf.
-	observed, err := structsToUnstructureds(in.GetObservedResources())
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot convert observed resources from protobuf")
+	observed := make([]kunstructured.Unstructured, 0, len(in.GetObservedResources()))
+	for _, s := range in.GetObservedResources() {
+		u := &kunstructured.Unstructured{}
+		if err := xfn.FromStruct(u, s); err != nil {
+			return nil, errors.Wrap(err, "cannot convert observed resource from protobuf")
+		}
+		observed = append(observed, *u)
 	}
 
 	// Inject spec.resourceRefs for observed resources so the real
 	// ExistingComposedResourceObserver can find them via client.Get.
-	injectResourceRefs(xr, observed)
+	InjectResourceRefs(xr, observed)
 
 	// Convert the Composition from protobuf.
 	comp := &apiextensionsv1.Composition{}
@@ -95,10 +98,37 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 	rev.Status.SetConditions(apiextensionsv1.ValidPipeline())
 
 	// Build the in-memory store with all input resources.
-	storeResources, err := buildStoreResources(xr, rev, observed, in)
+	storeResources := []kunstructured.Unstructured{xr.Unstructured}
+
+	revData, err := runtime.DefaultUnstructuredConverter.ToUnstructured(rev)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot build store resources")
+		return nil, errors.Wrap(err, "cannot convert CompositionRevision to unstructured")
 	}
+	revU := kunstructured.Unstructured{Object: revData}
+	revU.SetGroupVersionKind(apiextensionsv1.CompositionRevisionGroupVersionKind)
+	storeResources = append(storeResources, revU)
+
+	storeResources = append(storeResources, observed...)
+
+	for _, s := range in.GetRequiredResources() {
+		u := &kunstructured.Unstructured{}
+		if err := xfn.FromStruct(u, s); err != nil {
+			return nil, errors.Wrap(err, "cannot convert required resource from protobuf")
+		}
+		storeResources = append(storeResources, *u)
+	}
+
+	for _, s := range in.GetCredentials() {
+		u := &kunstructured.Unstructured{}
+		if err := xfn.FromStruct(u, s); err != nil {
+			return nil, errors.Wrap(err, "cannot convert credential from protobuf")
+		}
+		if u.GetKind() == "" {
+			u.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "Secret"})
+		}
+		storeResources = append(storeResources, *u)
+	}
+
 	fakeClient := render.NewInMemoryClient(s, storeResources...)
 
 	// Connect to function gRPC servers. The caller is responsible for
@@ -113,15 +143,9 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 	fetcher := xfn.NewExistingRequiredResourcesFetcher(fakeClient)
 	fetchingRunner := xfn.NewFetchingFunctionRunner(runner, fetcher, xfn.NopRequiredSchemasFetcher{})
 
-	// Build the initial function context from input.
-	initialCtx := in.GetContext()
-	if initialCtx == nil {
-		initialCtx = &structpb.Struct{Fields: map[string]*structpb.Value{}}
-	}
-
 	// Build the real FunctionComposer with real implementations backed by
 	// the fake client.
-	fc := composite.NewFunctionComposer(fakeClient, fakeClient, fetchingRunner,
+	composerOpts := []composite.FunctionComposerOption{
 		composite.WithComposedResourceObserver(
 			composite.NewExistingComposedResourceObserver(fakeClient, fakeClient,
 				composite.NewSecretConnectionDetailsFetcher(fakeClient))),
@@ -130,8 +154,11 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		composite.WithCompositeConnectionDetailsFetcher(
 			composite.NewSecretConnectionDetailsFetcher(fakeClient)),
 		composite.WithManagedFieldsUpgrader(&ssa.NopManagedFieldsUpgrader{}),
-		composite.WithInitialContext(initialCtx),
-	)
+	}
+	if ctx := in.GetContext(); ctx != nil {
+		composerOpts = append(composerOpts, composite.WithInitialContext(ctx))
+	}
+	fc := composite.NewFunctionComposer(fakeClient, fakeClient, fetchingRunner, composerOpts...)
 
 	// Build a recording event recorder to capture events for output.
 	recorder := &render.EventRecorder{}
@@ -175,13 +202,13 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		return nil, errors.Wrap(err, "reconcile failed")
 	}
 
-	return buildOutput(fakeClient, gvk, recorder)
+	return BuildOutput(fakeClient, gvk, recorder)
 }
 
-// injectResourceRefs adds spec.resourceRefs to the XR for each observed
+// InjectResourceRefs adds spec.resourceRefs to the XR for each observed
 // resource. The real ExistingComposedResourceObserver reads these refs to
 // discover existing composed resources.
-func injectResourceRefs(xr *ucomposite.Unstructured, observed []kunstructured.Unstructured) {
+func InjectResourceRefs(xr *ucomposite.Unstructured, observed []kunstructured.Unstructured) {
 	if len(observed) == 0 {
 		return
 	}
@@ -199,56 +226,6 @@ func injectResourceRefs(xr *ucomposite.Unstructured, observed []kunstructured.Un
 	xr.SetResourceReferences(refs)
 }
 
-// buildStoreResources assembles all resources to load into the fake client's
-// in-memory store.
-func buildStoreResources(xr *ucomposite.Unstructured, rev *apiextensionsv1.CompositionRevision, observed []kunstructured.Unstructured, in *renderv1alpha1.CompositeInput) ([]kunstructured.Unstructured, error) {
-	resources := make([]kunstructured.Unstructured, 0,
-		2+len(observed)+len(in.GetRequiredResources())+len(in.GetExtraResources())+len(in.GetCredentials()))
-
-	// The XR itself.
-	resources = append(resources, xr.Unstructured)
-
-	// The synthesized CompositionRevision.
-	revData, err := runtime.DefaultUnstructuredConverter.ToUnstructured(rev)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot convert CompositionRevision to unstructured")
-	}
-	u := kunstructured.Unstructured{Object: revData}
-	u.SetGroupVersionKind(apiextensionsv1.CompositionRevisionGroupVersionKind)
-	resources = append(resources, u)
-
-	// Observed composed resources.
-	resources = append(resources, observed...)
-
-	// Required resources.
-	required, err := structsToUnstructureds(in.GetRequiredResources())
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot convert required resources from protobuf")
-	}
-	resources = append(resources, required...)
-
-	// Extra resources.
-	extra, err := structsToUnstructureds(in.GetExtraResources())
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot convert extra resources from protobuf")
-	}
-	resources = append(resources, extra...)
-
-	// Credential secrets.
-	creds, err := structsToUnstructureds(in.GetCredentials())
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot convert credentials from protobuf")
-	}
-	for i := range creds {
-		if creds[i].GetKind() == "" {
-			creds[i].SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "Secret"})
-		}
-	}
-	resources = append(resources, creds...)
-
-	return resources, nil
-}
-
 // CompositionSelector returns a CompositionSelectorFn that sets the
 // composition reference on the XR to point to the supplied Composition.
 func CompositionSelector(comp *apiextensionsv1.Composition) composite.CompositionSelectorFn {
@@ -260,9 +237,9 @@ func CompositionSelector(comp *apiextensionsv1.Composition) composite.Compositio
 	}
 }
 
-// buildOutput assembles a CompositeOutput from the fake client's captured
+// BuildOutput assembles a CompositeOutput from the fake client's captured
 // state and the event recorder.
-func buildOutput(c *render.InMemoryClient, xrGVK schema.GroupVersionKind, recorder *render.EventRecorder) (*renderv1alpha1.CompositeOutput, error) {
+func BuildOutput(c *render.InMemoryClient, xrGVK schema.GroupVersionKind, recorder *render.EventRecorder) (*renderv1alpha1.CompositeOutput, error) {
 	out := &renderv1alpha1.CompositeOutput{}
 
 	// Find the final XR state. It's the last Status().Update or
@@ -320,19 +297,5 @@ func buildOutput(c *render.InMemoryClient, xrGVK schema.GroupVersionKind, record
 	// Collect events.
 	out.Events = append(out.Events, recorder.Events()...)
 
-	return out, nil
-}
-
-// structsToUnstructureds converts a slice of protobuf Structs to unstructured
-// Kubernetes resources.
-func structsToUnstructureds(structs []*structpb.Struct) ([]kunstructured.Unstructured, error) {
-	out := make([]kunstructured.Unstructured, 0, len(structs))
-	for _, s := range structs {
-		u := &kunstructured.Unstructured{}
-		if err := xfn.FromStruct(u, s); err != nil {
-			return nil, err
-		}
-		out = append(out, *u)
-	}
 	return out, nil
 }

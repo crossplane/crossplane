@@ -62,9 +62,23 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 	opUnstructured.SetResourceVersion("999")
 
 	// Build the in-memory store with all input resources.
-	storeResources, err := buildStoreResources(opUnstructured, in)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot build store resources")
+	storeResources := []kunstructured.Unstructured{*opUnstructured}
+	for _, s := range in.GetRequiredResources() {
+		u := &kunstructured.Unstructured{}
+		if err := xfn.FromStruct(u, s); err != nil {
+			return nil, errors.Wrap(err, "cannot convert required resource from protobuf")
+		}
+		storeResources = append(storeResources, *u)
+	}
+	for _, s := range in.GetCredentials() {
+		u := &kunstructured.Unstructured{}
+		if err := xfn.FromStruct(u, s); err != nil {
+			return nil, errors.Wrap(err, "cannot convert credential from protobuf")
+		}
+		if u.GetKind() == "" {
+			u.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "Secret"})
+		}
+		storeResources = append(storeResources, *u)
 	}
 	fakeClient := render.NewInMemoryClient(s, storeResources...)
 
@@ -82,12 +96,9 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 	// Build the recording event recorder.
 	recorder := &render.EventRecorder{}
 
-	// Build the real Operation Reconciler with the fake client and
-	// injected dependencies.
-	r := oprec.NewReconciler(nil,
-		oprec.WithClient(fakeClient),
+	// Build the real Operation Reconciler with the fake client.
+	r := oprec.NewReconciler(fakeClient,
 		oprec.WithFunctionRunner(fetchingRunner),
-		oprec.WithRequiredResourcesFetcher(fetcher),
 		oprec.WithCapabilityChecker(xfn.CapabilityCheckerFn(
 			func(_ context.Context, _ []string, _ ...string) error {
 				return nil
@@ -107,7 +118,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 		return nil, errors.Wrap(err, "reconcile failed")
 	}
 
-	return buildOutput(fakeClient, recorder)
+	return BuildOutput(fakeClient, recorder)
 }
 
 // NewFromCronOperation produces the Operation a CronOperation would create.
@@ -118,8 +129,8 @@ func NewFromCronOperation(in *renderv1alpha1.CronOperationInput) (*renderv1alpha
 	}
 
 	scheduled := time.Now()
-	if in.GetScheduledUnix() != 0 {
-		scheduled = time.Unix(in.GetScheduledUnix(), 0)
+	if in.GetScheduledTime() != nil {
+		scheduled = in.GetScheduledTime().AsTime()
 	}
 
 	op := cronrec.NewOperation(co, scheduled)
@@ -153,37 +164,9 @@ func NewFromWatchOperation(in *renderv1alpha1.WatchOperationInput) (*renderv1alp
 	return &renderv1alpha1.WatchOperationOutput{Operation: opStruct}, nil
 }
 
-// buildStoreResources assembles all resources to load into the fake client.
-func buildStoreResources(op *kunstructured.Unstructured, in *renderv1alpha1.OperationInput) ([]kunstructured.Unstructured, error) {
-	resources := make([]kunstructured.Unstructured, 0, 1+len(in.GetRequiredResources())+len(in.GetCredentials()))
-
-	resources = append(resources, *op)
-
-	for _, s := range in.GetRequiredResources() {
-		u := &kunstructured.Unstructured{}
-		if err := xfn.FromStruct(u, s); err != nil {
-			return nil, errors.Wrap(err, "cannot convert required resource from protobuf")
-		}
-		resources = append(resources, *u)
-	}
-
-	for _, s := range in.GetCredentials() {
-		u := &kunstructured.Unstructured{}
-		if err := xfn.FromStruct(u, s); err != nil {
-			return nil, errors.Wrap(err, "cannot convert credential from protobuf")
-		}
-		if u.GetKind() == "" {
-			u.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "Secret"})
-		}
-		resources = append(resources, *u)
-	}
-
-	return resources, nil
-}
-
-// buildOutput assembles an OperationOutput from the fake client's captured
+// BuildOutput assembles an OperationOutput from the fake client's captured
 // state.
-func buildOutput(c *render.InMemoryClient, recorder *render.EventRecorder) (*renderv1alpha1.OperationOutput, error) {
+func BuildOutput(c *render.InMemoryClient, recorder *render.EventRecorder) (*renderv1alpha1.OperationOutput, error) {
 	out := &renderv1alpha1.OperationOutput{}
 
 	opGVK := opsv1alpha1.OperationGroupVersionKind

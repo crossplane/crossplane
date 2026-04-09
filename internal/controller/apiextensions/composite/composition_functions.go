@@ -268,9 +268,10 @@ func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...
 			ManagedFieldsUpgrader:            ssa.NewPatchingManagedFieldsUpgrader(cached, ssa.PrefixMatch(FieldOwnerComposedPrefix)),
 		},
 
-		pipeline:  r,
-		resources: xfn.NewExistingRequiredResourcesFetcher(cached),
-		schemas:   xfn.NopRequiredSchemasFetcher{},
+		pipeline:       r,
+		resources:      xfn.NewExistingRequiredResourcesFetcher(cached),
+		schemas:        xfn.NopRequiredSchemasFetcher{},
+		initialContext: &structpb.Struct{Fields: map[string]*structpb.Value{}},
 	}
 
 	for _, fn := range o {
@@ -321,12 +322,10 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	events := []TargetedEvent{}
 	conditions := []TargetedCondition{}
 
-	// The Function context starts empty, unless initial context was configured
-	// (e.g. for local render with injected environment values).
-	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
-	if c.initialContext != nil {
-		fctx = c.initialContext
-	}
+	// The Function context starts with whatever initial context was configured.
+	// It defaults to empty unless seeded via WithInitialContext (e.g. for local
+	// render with injected environment values).
+	fctx := c.initialContext
 
 	// Get the composition name for tracing attributes.
 	compositionName := ""
