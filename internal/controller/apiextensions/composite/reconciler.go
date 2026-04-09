@@ -34,6 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
@@ -554,6 +556,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
 	}
 
+	xrBefore := xr.DeepCopyObject()
+
 	log = log.WithValues(
 		"uid", xr.GetUID(),
 		"version", xr.GetResourceVersion(),
@@ -870,7 +874,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		result = reconcile.Result{RequeueAfter: jitter(res.TTL)}
 	}
 
-	return result, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+	if !cmp.Equal(xr, xrBefore) {
+		return result, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+	}
+	return result, nil
 }
 
 type compositionResultMeta struct {

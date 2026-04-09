@@ -27,6 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
@@ -135,6 +137,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get CompositionRevision")
 	}
 
+	statusBefore := rev.Status.DeepCopy()
 	status := r.conditions.For(rev)
 
 	if meta.WasDeleted(rev) {
@@ -161,12 +164,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		status.MarkConditions(xpv2.ReconcileSuccess(), v1.MissingCapabilities(err.Error()))
 
 		// Update status but don't return the error - capability failures are informational
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, rev), "cannot update CompositionRevision status")
+		if !cmp.Equal(statusBefore, &rev.Status) {
+			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, rev), "cannot update CompositionRevision status")
+		}
+		return reconcile.Result{}, nil
 	}
 
 	log.Debug("All functions have required composition capability")
 	r.record.Event(rev, event.Normal(reasonCheckCapabilities, "All functions have required composition capability"))
 	status.MarkConditions(xpv2.ReconcileSuccess(), v1.ValidPipeline())
 
-	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, rev), "cannot update CompositionRevision status")
+	if !cmp.Equal(statusBefore, &rev.Status) {
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, rev), "cannot update CompositionRevision status")
+	}
+	return reconcile.Result{}, nil
 }
