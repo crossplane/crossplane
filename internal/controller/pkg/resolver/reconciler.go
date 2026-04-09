@@ -556,6 +556,28 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 	}
 
 	sort.Sort(semver.Collection(availableVersions))
+
+	// The installed version may be a digest reference (e.g. sha256:abc123...)
+	// rather than a semver tag. In that case we cannot compare versions, so
+	// we return the lowest available version that satisfies all parent
+	// constraints.
+	if _, err := conregv1.NewHash(insVer); err == nil {
+		for _, v := range availableVersions {
+			valid := true
+			for _, c := range parentConstraints {
+				if !c.Check(v) {
+					valid = false
+					break
+				}
+			}
+			if valid {
+				return v.Original(), nil
+			}
+		}
+		log.Debug(errFindDependencyUpgrade, "error", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.GetParentConstraints()))
+		return "", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.GetParentConstraints())
+	}
+
 	currentVersion := semver.MustParse(insVer)
 
 	var targetVersion *semver.Version

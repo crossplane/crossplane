@@ -1188,6 +1188,30 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				version: digest1,
 			},
 		},
+		"SuccessDigestInstalledVersion": {
+			reason: "We should find the lowest valid version when the installed version is a digest.",
+			args: args{
+				mgr:    &fake.Manager{Client: test.NewMockClient()},
+				insVer: digest1,
+				dep: &dag.DependencyNode{
+					Dependency: v1beta1.Dependency{
+						Package: "xpkg.crossplane.io/cool-repo/cool-image",
+						ParentConstraints: []string{
+							">=v1.0.0",
+							"<v3.0.0",
+						},
+					},
+				},
+				rec: []ReconcilerOption{
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v1.0.0", "v2.0.0", "v3.0.0"}, nil),
+					}),
+				},
+			},
+			want: want{
+				version: "v1.0.0",
+			},
+		},
 		"ErrorMixedParentConstraints": {
 			reason: "We should return an error if parent constraints are mixed.",
 			args: args{
