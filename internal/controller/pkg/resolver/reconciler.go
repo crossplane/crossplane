@@ -578,7 +578,10 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 		return "", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.GetParentConstraints())
 	}
 
-	currentVersion := semver.MustParse(insVer)
+	currentVersion, err := semver.NewVersion(insVer)
+	if err != nil {
+		return "", errors.Wrapf(err, "installed dependency version %q is not a valid semantic version or digest", insVer)
+	}
 
 	var targetVersion *semver.Version
 
