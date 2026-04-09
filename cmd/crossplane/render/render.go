@@ -90,7 +90,7 @@ func (c *Command) Run(log logging.Logger) error {
 		rsp.Output = &renderv1alpha1.RenderResponse_WatchOperation{WatchOperation: out}
 
 	default:
-		return errors.New("render request has no input set")
+		return errors.New("render request must set exactly one of: composite, operation, cron_operation, watch_operation")
 	}
 
 	out, err := proto.Marshal(rsp)
