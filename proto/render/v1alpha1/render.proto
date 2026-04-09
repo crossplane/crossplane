@@ -25,6 +25,7 @@ syntax = "proto3";
 package crossplane.render.v1alpha1;
 
 import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/crossplane/crossplane/v2/proto/render/v1alpha1";
 
@@ -109,9 +110,6 @@ message CompositeInput {
 
   // Key-value pairs to seed the function pipeline context. Optional.
   google.protobuf.Struct context = 7;
-
-  // Additional resources to load into the fake client's store. Optional.
-  repeated google.protobuf.Struct extra_resources = 8;
 }
 
 // A CompositeOutput contains the results of rendering a composite resource.
@@ -170,8 +168,8 @@ message CronOperationInput {
   // The CronOperation to render.
   google.protobuf.Struct cron_operation = 1;
 
-  // Unix timestamp of the scheduled time. Defaults to now if 0.
-  int64 scheduled_unix = 2;
+  // The scheduled time. Defaults to now if not set.
+  optional google.protobuf.Timestamp scheduled_time = 2;
 }
 
 // A CronOperationOutput contains the Operation a CronOperation would create.

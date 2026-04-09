@@ -32,6 +32,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	structpb "google.golang.org/protobuf/types/known/structpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -509,11 +510,9 @@ type CompositeInput struct {
 	// Kubernetes Secrets for function credentials. Optional.
 	Credentials []*structpb.Struct `protobuf:"bytes,6,rep,name=credentials,proto3" json:"credentials,omitempty"`
 	// Key-value pairs to seed the function pipeline context. Optional.
-	Context *structpb.Struct `protobuf:"bytes,7,opt,name=context,proto3" json:"context,omitempty"`
-	// Additional resources to load into the fake client's store. Optional.
-	ExtraResources []*structpb.Struct `protobuf:"bytes,8,rep,name=extra_resources,json=extraResources,proto3" json:"extra_resources,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	Context       *structpb.Struct `protobuf:"bytes,7,opt,name=context,proto3" json:"context,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CompositeInput) Reset() {
@@ -591,13 +590,6 @@ func (x *CompositeInput) GetCredentials() []*structpb.Struct {
 func (x *CompositeInput) GetContext() *structpb.Struct {
 	if x != nil {
 		return x.Context
-	}
-	return nil
-}
-
-func (x *CompositeInput) GetExtraResources() []*structpb.Struct {
-	if x != nil {
-		return x.ExtraResources
 	}
 	return nil
 }
@@ -838,8 +830,8 @@ type CronOperationInput struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The CronOperation to render.
 	CronOperation *structpb.Struct `protobuf:"bytes,1,opt,name=cron_operation,json=cronOperation,proto3" json:"cron_operation,omitempty"`
-	// Unix timestamp of the scheduled time. Defaults to now if 0.
-	ScheduledUnix int64 `protobuf:"varint,2,opt,name=scheduled_unix,json=scheduledUnix,proto3" json:"scheduled_unix,omitempty"`
+	// The scheduled time. Defaults to now if not set.
+	ScheduledTime *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=scheduled_time,json=scheduledTime,proto3,oneof" json:"scheduled_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -881,11 +873,11 @@ func (x *CronOperationInput) GetCronOperation() *structpb.Struct {
 	return nil
 }
 
-func (x *CronOperationInput) GetScheduledUnix() int64 {
+func (x *CronOperationInput) GetScheduledTime() *timestamppb.Timestamp {
 	if x != nil {
-		return x.ScheduledUnix
+		return x.ScheduledTime
 	}
-	return 0
+	return nil
 }
 
 // A CronOperationOutput contains the Operation a CronOperation would create.
@@ -1040,7 +1032,7 @@ var File_proto_render_v1alpha1_render_proto protoreflect.FileDescriptor
 
 const file_proto_render_v1alpha1_render_proto_rawDesc = "" +
 	"\n" +
-	"\"proto/render/v1alpha1/render.proto\x12\x1acrossplane.render.v1alpha1\x1a\x1cgoogle/protobuf/struct.proto\"\xa2\x03\n" +
+	"\"proto/render/v1alpha1/render.proto\x12\x1acrossplane.render.v1alpha1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa2\x03\n" +
 	"\rRenderRequest\x12;\n" +
 	"\x04meta\x18\x01 \x01(\v2'.crossplane.render.v1alpha1.RequestMetaR\x04meta\x12J\n" +
 	"\tcomposite\x18\x02 \x01(\v2*.crossplane.render.v1alpha1.CompositeInputH\x00R\tcomposite\x12J\n" +
@@ -1063,7 +1055,7 @@ const file_proto_render_v1alpha1_render_proto_rawDesc = "" +
 	"\x05Event\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\x9c\x04\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\xda\x03\n" +
 	"\x0eCompositeInput\x12F\n" +
 	"\x12composite_resource\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x11compositeResource\x129\n" +
 	"\vcomposition\x18\x02 \x01(\v2\x17.google.protobuf.StructR\vcomposition\x12G\n" +
@@ -1071,8 +1063,7 @@ const file_proto_render_v1alpha1_render_proto_rawDesc = "" +
 	"\x12observed_resources\x18\x04 \x03(\v2\x17.google.protobuf.StructR\x11observedResources\x12F\n" +
 	"\x12required_resources\x18\x05 \x03(\v2\x17.google.protobuf.StructR\x11requiredResources\x129\n" +
 	"\vcredentials\x18\x06 \x03(\v2\x17.google.protobuf.StructR\vcredentials\x121\n" +
-	"\acontext\x18\a \x01(\v2\x17.google.protobuf.StructR\acontext\x12@\n" +
-	"\x0fextra_resources\x18\b \x03(\v2\x17.google.protobuf.StructR\x0eextraResources\"\xd5\x02\n" +
+	"\acontext\x18\a \x01(\v2\x17.google.protobuf.StructR\acontext\"\xd5\x02\n" +
 	"\x0fCompositeOutput\x12F\n" +
 	"\x12composite_resource\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x11compositeResource\x12F\n" +
 	"\x12composed_resources\x18\x02 \x03(\v2\x17.google.protobuf.StructR\x11composedResources\x12D\n" +
@@ -1088,10 +1079,11 @@ const file_proto_render_v1alpha1_render_proto_rawDesc = "" +
 	"\x0fOperationOutput\x125\n" +
 	"\toperation\x18\x01 \x01(\v2\x17.google.protobuf.StructR\toperation\x12D\n" +
 	"\x11applied_resources\x18\x02 \x03(\v2\x17.google.protobuf.StructR\x10appliedResources\x129\n" +
-	"\x06events\x18\x03 \x03(\v2!.crossplane.render.v1alpha1.EventR\x06events\"{\n" +
+	"\x06events\x18\x03 \x03(\v2!.crossplane.render.v1alpha1.EventR\x06events\"\xaf\x01\n" +
 	"\x12CronOperationInput\x12>\n" +
-	"\x0ecron_operation\x18\x01 \x01(\v2\x17.google.protobuf.StructR\rcronOperation\x12%\n" +
-	"\x0escheduled_unix\x18\x02 \x01(\x03R\rscheduledUnix\"L\n" +
+	"\x0ecron_operation\x18\x01 \x01(\v2\x17.google.protobuf.StructR\rcronOperation\x12F\n" +
+	"\x0escheduled_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\rscheduledTime\x88\x01\x01B\x11\n" +
+	"\x0f_scheduled_time\"L\n" +
 	"\x13CronOperationOutput\x125\n" +
 	"\toperation\x18\x01 \x01(\v2\x17.google.protobuf.StructR\toperation\"\x9b\x01\n" +
 	"\x13WatchOperationInput\x12@\n" +
@@ -1114,21 +1106,22 @@ func file_proto_render_v1alpha1_render_proto_rawDescGZIP() []byte {
 
 var file_proto_render_v1alpha1_render_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_proto_render_v1alpha1_render_proto_goTypes = []any{
-	(*RenderRequest)(nil),        // 0: crossplane.render.v1alpha1.RenderRequest
-	(*RenderResponse)(nil),       // 1: crossplane.render.v1alpha1.RenderResponse
-	(*RequestMeta)(nil),          // 2: crossplane.render.v1alpha1.RequestMeta
-	(*ResponseMeta)(nil),         // 3: crossplane.render.v1alpha1.ResponseMeta
-	(*FunctionInput)(nil),        // 4: crossplane.render.v1alpha1.FunctionInput
-	(*Event)(nil),                // 5: crossplane.render.v1alpha1.Event
-	(*CompositeInput)(nil),       // 6: crossplane.render.v1alpha1.CompositeInput
-	(*CompositeOutput)(nil),      // 7: crossplane.render.v1alpha1.CompositeOutput
-	(*OperationInput)(nil),       // 8: crossplane.render.v1alpha1.OperationInput
-	(*OperationOutput)(nil),      // 9: crossplane.render.v1alpha1.OperationOutput
-	(*CronOperationInput)(nil),   // 10: crossplane.render.v1alpha1.CronOperationInput
-	(*CronOperationOutput)(nil),  // 11: crossplane.render.v1alpha1.CronOperationOutput
-	(*WatchOperationInput)(nil),  // 12: crossplane.render.v1alpha1.WatchOperationInput
-	(*WatchOperationOutput)(nil), // 13: crossplane.render.v1alpha1.WatchOperationOutput
-	(*structpb.Struct)(nil),      // 14: google.protobuf.Struct
+	(*RenderRequest)(nil),         // 0: crossplane.render.v1alpha1.RenderRequest
+	(*RenderResponse)(nil),        // 1: crossplane.render.v1alpha1.RenderResponse
+	(*RequestMeta)(nil),           // 2: crossplane.render.v1alpha1.RequestMeta
+	(*ResponseMeta)(nil),          // 3: crossplane.render.v1alpha1.ResponseMeta
+	(*FunctionInput)(nil),         // 4: crossplane.render.v1alpha1.FunctionInput
+	(*Event)(nil),                 // 5: crossplane.render.v1alpha1.Event
+	(*CompositeInput)(nil),        // 6: crossplane.render.v1alpha1.CompositeInput
+	(*CompositeOutput)(nil),       // 7: crossplane.render.v1alpha1.CompositeOutput
+	(*OperationInput)(nil),        // 8: crossplane.render.v1alpha1.OperationInput
+	(*OperationOutput)(nil),       // 9: crossplane.render.v1alpha1.OperationOutput
+	(*CronOperationInput)(nil),    // 10: crossplane.render.v1alpha1.CronOperationInput
+	(*CronOperationOutput)(nil),   // 11: crossplane.render.v1alpha1.CronOperationOutput
+	(*WatchOperationInput)(nil),   // 12: crossplane.render.v1alpha1.WatchOperationInput
+	(*WatchOperationOutput)(nil),  // 13: crossplane.render.v1alpha1.WatchOperationOutput
+	(*structpb.Struct)(nil),       // 14: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
 }
 var file_proto_render_v1alpha1_render_proto_depIdxs = []int32{
 	2,  // 0: crossplane.render.v1alpha1.RenderRequest.meta:type_name -> crossplane.render.v1alpha1.RequestMeta
@@ -1148,21 +1141,21 @@ var file_proto_render_v1alpha1_render_proto_depIdxs = []int32{
 	14, // 14: crossplane.render.v1alpha1.CompositeInput.required_resources:type_name -> google.protobuf.Struct
 	14, // 15: crossplane.render.v1alpha1.CompositeInput.credentials:type_name -> google.protobuf.Struct
 	14, // 16: crossplane.render.v1alpha1.CompositeInput.context:type_name -> google.protobuf.Struct
-	14, // 17: crossplane.render.v1alpha1.CompositeInput.extra_resources:type_name -> google.protobuf.Struct
-	14, // 18: crossplane.render.v1alpha1.CompositeOutput.composite_resource:type_name -> google.protobuf.Struct
-	14, // 19: crossplane.render.v1alpha1.CompositeOutput.composed_resources:type_name -> google.protobuf.Struct
-	14, // 20: crossplane.render.v1alpha1.CompositeOutput.deleted_resources:type_name -> google.protobuf.Struct
-	5,  // 21: crossplane.render.v1alpha1.CompositeOutput.events:type_name -> crossplane.render.v1alpha1.Event
-	14, // 22: crossplane.render.v1alpha1.CompositeOutput.context:type_name -> google.protobuf.Struct
-	14, // 23: crossplane.render.v1alpha1.OperationInput.operation:type_name -> google.protobuf.Struct
-	4,  // 24: crossplane.render.v1alpha1.OperationInput.functions:type_name -> crossplane.render.v1alpha1.FunctionInput
-	14, // 25: crossplane.render.v1alpha1.OperationInput.required_resources:type_name -> google.protobuf.Struct
-	14, // 26: crossplane.render.v1alpha1.OperationInput.credentials:type_name -> google.protobuf.Struct
-	14, // 27: crossplane.render.v1alpha1.OperationInput.context:type_name -> google.protobuf.Struct
-	14, // 28: crossplane.render.v1alpha1.OperationOutput.operation:type_name -> google.protobuf.Struct
-	14, // 29: crossplane.render.v1alpha1.OperationOutput.applied_resources:type_name -> google.protobuf.Struct
-	5,  // 30: crossplane.render.v1alpha1.OperationOutput.events:type_name -> crossplane.render.v1alpha1.Event
-	14, // 31: crossplane.render.v1alpha1.CronOperationInput.cron_operation:type_name -> google.protobuf.Struct
+	14, // 17: crossplane.render.v1alpha1.CompositeOutput.composite_resource:type_name -> google.protobuf.Struct
+	14, // 18: crossplane.render.v1alpha1.CompositeOutput.composed_resources:type_name -> google.protobuf.Struct
+	14, // 19: crossplane.render.v1alpha1.CompositeOutput.deleted_resources:type_name -> google.protobuf.Struct
+	5,  // 20: crossplane.render.v1alpha1.CompositeOutput.events:type_name -> crossplane.render.v1alpha1.Event
+	14, // 21: crossplane.render.v1alpha1.CompositeOutput.context:type_name -> google.protobuf.Struct
+	14, // 22: crossplane.render.v1alpha1.OperationInput.operation:type_name -> google.protobuf.Struct
+	4,  // 23: crossplane.render.v1alpha1.OperationInput.functions:type_name -> crossplane.render.v1alpha1.FunctionInput
+	14, // 24: crossplane.render.v1alpha1.OperationInput.required_resources:type_name -> google.protobuf.Struct
+	14, // 25: crossplane.render.v1alpha1.OperationInput.credentials:type_name -> google.protobuf.Struct
+	14, // 26: crossplane.render.v1alpha1.OperationInput.context:type_name -> google.protobuf.Struct
+	14, // 27: crossplane.render.v1alpha1.OperationOutput.operation:type_name -> google.protobuf.Struct
+	14, // 28: crossplane.render.v1alpha1.OperationOutput.applied_resources:type_name -> google.protobuf.Struct
+	5,  // 29: crossplane.render.v1alpha1.OperationOutput.events:type_name -> crossplane.render.v1alpha1.Event
+	14, // 30: crossplane.render.v1alpha1.CronOperationInput.cron_operation:type_name -> google.protobuf.Struct
+	15, // 31: crossplane.render.v1alpha1.CronOperationInput.scheduled_time:type_name -> google.protobuf.Timestamp
 	14, // 32: crossplane.render.v1alpha1.CronOperationOutput.operation:type_name -> google.protobuf.Struct
 	14, // 33: crossplane.render.v1alpha1.WatchOperationInput.watch_operation:type_name -> google.protobuf.Struct
 	14, // 34: crossplane.render.v1alpha1.WatchOperationInput.watched_resource:type_name -> google.protobuf.Struct
@@ -1191,6 +1184,7 @@ func file_proto_render_v1alpha1_render_proto_init() {
 		(*RenderResponse_CronOperation)(nil),
 		(*RenderResponse_WatchOperation)(nil),
 	}
+	file_proto_render_v1alpha1_render_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
