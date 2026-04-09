@@ -97,7 +97,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 	recorder := &render.EventRecorder{}
 
 	// Build the real Operation Reconciler with the fake client.
-	reconcilerOpts := []oprec.ReconcilerOption{
+	r := oprec.NewReconciler(fakeClient,
 		oprec.WithFunctionRunner(fetchingRunner),
 		oprec.WithCapabilityChecker(xfn.CapabilityCheckerFn(
 			func(_ context.Context, _ []string, _ ...string) error {
@@ -106,11 +106,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 		)),
 		oprec.WithRecorder(recorder),
 		oprec.WithLogger(log),
-	}
-	if ctx := in.GetContext(); ctx != nil {
-		reconcilerOpts = append(reconcilerOpts, oprec.WithInitialContext(ctx))
-	}
-	r := oprec.NewReconciler(fakeClient, reconcilerOpts...)
+	)
 
 	// Run one reconcile loop.
 	req := reconcile.Request{NamespacedName: types.NamespacedName{

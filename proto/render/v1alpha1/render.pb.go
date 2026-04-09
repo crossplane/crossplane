@@ -508,9 +508,7 @@ type CompositeInput struct {
 	// protocol. Optional.
 	RequiredResources []*structpb.Struct `protobuf:"bytes,5,rep,name=required_resources,json=requiredResources,proto3" json:"required_resources,omitempty"`
 	// Kubernetes Secrets for function credentials. Optional.
-	Credentials []*structpb.Struct `protobuf:"bytes,6,rep,name=credentials,proto3" json:"credentials,omitempty"`
-	// Key-value pairs to seed the function pipeline context. Optional.
-	Context       *structpb.Struct `protobuf:"bytes,7,opt,name=context,proto3" json:"context,omitempty"`
+	Credentials   []*structpb.Struct `protobuf:"bytes,6,rep,name=credentials,proto3" json:"credentials,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -587,13 +585,6 @@ func (x *CompositeInput) GetCredentials() []*structpb.Struct {
 	return nil
 }
 
-func (x *CompositeInput) GetContext() *structpb.Struct {
-	if x != nil {
-		return x.Context
-	}
-	return nil
-}
-
 // A CompositeOutput contains the results of rendering a composite resource.
 type CompositeOutput struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -604,9 +595,7 @@ type CompositeOutput struct {
 	// Composed resources the reconciler would garbage collect.
 	DeletedResources []*structpb.Struct `protobuf:"bytes,3,rep,name=deleted_resources,json=deletedResources,proto3" json:"deleted_resources,omitempty"`
 	// Events the reconciler would emit.
-	Events []*Event `protobuf:"bytes,4,rep,name=events,proto3" json:"events,omitempty"`
-	// The function pipeline context after the last function ran.
-	Context       *structpb.Struct `protobuf:"bytes,5,opt,name=context,proto3" json:"context,omitempty"`
+	Events        []*Event `protobuf:"bytes,4,rep,name=events,proto3" json:"events,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -669,13 +658,6 @@ func (x *CompositeOutput) GetEvents() []*Event {
 	return nil
 }
 
-func (x *CompositeOutput) GetContext() *structpb.Struct {
-	if x != nil {
-		return x.Context
-	}
-	return nil
-}
-
 // An OperationInput contains all inputs needed to render an Operation using the
 // real Operation reconciler.
 type OperationInput struct {
@@ -688,9 +670,7 @@ type OperationInput struct {
 	// protocol. Optional.
 	RequiredResources []*structpb.Struct `protobuf:"bytes,3,rep,name=required_resources,json=requiredResources,proto3" json:"required_resources,omitempty"`
 	// Kubernetes Secrets for function credentials. Optional.
-	Credentials []*structpb.Struct `protobuf:"bytes,4,rep,name=credentials,proto3" json:"credentials,omitempty"`
-	// Key-value pairs to seed the function pipeline context. Optional.
-	Context       *structpb.Struct `protobuf:"bytes,5,opt,name=context,proto3" json:"context,omitempty"`
+	Credentials   []*structpb.Struct `protobuf:"bytes,4,rep,name=credentials,proto3" json:"credentials,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -749,13 +729,6 @@ func (x *OperationInput) GetRequiredResources() []*structpb.Struct {
 func (x *OperationInput) GetCredentials() []*structpb.Struct {
 	if x != nil {
 		return x.Credentials
-	}
-	return nil
-}
-
-func (x *OperationInput) GetContext() *structpb.Struct {
-	if x != nil {
-		return x.Context
 	}
 	return nil
 }
@@ -1055,27 +1028,24 @@ const file_proto_render_v1alpha1_render_proto_rawDesc = "" +
 	"\x05Event\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\xda\x03\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\xa7\x03\n" +
 	"\x0eCompositeInput\x12F\n" +
 	"\x12composite_resource\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x11compositeResource\x129\n" +
 	"\vcomposition\x18\x02 \x01(\v2\x17.google.protobuf.StructR\vcomposition\x12G\n" +
 	"\tfunctions\x18\x03 \x03(\v2).crossplane.render.v1alpha1.FunctionInputR\tfunctions\x12F\n" +
 	"\x12observed_resources\x18\x04 \x03(\v2\x17.google.protobuf.StructR\x11observedResources\x12F\n" +
 	"\x12required_resources\x18\x05 \x03(\v2\x17.google.protobuf.StructR\x11requiredResources\x129\n" +
-	"\vcredentials\x18\x06 \x03(\v2\x17.google.protobuf.StructR\vcredentials\x121\n" +
-	"\acontext\x18\a \x01(\v2\x17.google.protobuf.StructR\acontext\"\xd5\x02\n" +
+	"\vcredentials\x18\x06 \x03(\v2\x17.google.protobuf.StructR\vcredentials\"\xa2\x02\n" +
 	"\x0fCompositeOutput\x12F\n" +
 	"\x12composite_resource\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x11compositeResource\x12F\n" +
 	"\x12composed_resources\x18\x02 \x03(\v2\x17.google.protobuf.StructR\x11composedResources\x12D\n" +
 	"\x11deleted_resources\x18\x03 \x03(\v2\x17.google.protobuf.StructR\x10deletedResources\x129\n" +
-	"\x06events\x18\x04 \x03(\v2!.crossplane.render.v1alpha1.EventR\x06events\x121\n" +
-	"\acontext\x18\x05 \x01(\v2\x17.google.protobuf.StructR\acontext\"\xc6\x02\n" +
+	"\x06events\x18\x04 \x03(\v2!.crossplane.render.v1alpha1.EventR\x06events\"\x93\x02\n" +
 	"\x0eOperationInput\x125\n" +
 	"\toperation\x18\x01 \x01(\v2\x17.google.protobuf.StructR\toperation\x12G\n" +
 	"\tfunctions\x18\x02 \x03(\v2).crossplane.render.v1alpha1.FunctionInputR\tfunctions\x12F\n" +
 	"\x12required_resources\x18\x03 \x03(\v2\x17.google.protobuf.StructR\x11requiredResources\x129\n" +
-	"\vcredentials\x18\x04 \x03(\v2\x17.google.protobuf.StructR\vcredentials\x121\n" +
-	"\acontext\x18\x05 \x01(\v2\x17.google.protobuf.StructR\acontext\"\xc9\x01\n" +
+	"\vcredentials\x18\x04 \x03(\v2\x17.google.protobuf.StructR\vcredentials\"\xc9\x01\n" +
 	"\x0fOperationOutput\x125\n" +
 	"\toperation\x18\x01 \x01(\v2\x17.google.protobuf.StructR\toperation\x12D\n" +
 	"\x11applied_resources\x18\x02 \x03(\v2\x17.google.protobuf.StructR\x10appliedResources\x129\n" +
@@ -1140,31 +1110,28 @@ var file_proto_render_v1alpha1_render_proto_depIdxs = []int32{
 	14, // 13: crossplane.render.v1alpha1.CompositeInput.observed_resources:type_name -> google.protobuf.Struct
 	14, // 14: crossplane.render.v1alpha1.CompositeInput.required_resources:type_name -> google.protobuf.Struct
 	14, // 15: crossplane.render.v1alpha1.CompositeInput.credentials:type_name -> google.protobuf.Struct
-	14, // 16: crossplane.render.v1alpha1.CompositeInput.context:type_name -> google.protobuf.Struct
-	14, // 17: crossplane.render.v1alpha1.CompositeOutput.composite_resource:type_name -> google.protobuf.Struct
-	14, // 18: crossplane.render.v1alpha1.CompositeOutput.composed_resources:type_name -> google.protobuf.Struct
-	14, // 19: crossplane.render.v1alpha1.CompositeOutput.deleted_resources:type_name -> google.protobuf.Struct
-	5,  // 20: crossplane.render.v1alpha1.CompositeOutput.events:type_name -> crossplane.render.v1alpha1.Event
-	14, // 21: crossplane.render.v1alpha1.CompositeOutput.context:type_name -> google.protobuf.Struct
-	14, // 22: crossplane.render.v1alpha1.OperationInput.operation:type_name -> google.protobuf.Struct
-	4,  // 23: crossplane.render.v1alpha1.OperationInput.functions:type_name -> crossplane.render.v1alpha1.FunctionInput
-	14, // 24: crossplane.render.v1alpha1.OperationInput.required_resources:type_name -> google.protobuf.Struct
-	14, // 25: crossplane.render.v1alpha1.OperationInput.credentials:type_name -> google.protobuf.Struct
-	14, // 26: crossplane.render.v1alpha1.OperationInput.context:type_name -> google.protobuf.Struct
-	14, // 27: crossplane.render.v1alpha1.OperationOutput.operation:type_name -> google.protobuf.Struct
-	14, // 28: crossplane.render.v1alpha1.OperationOutput.applied_resources:type_name -> google.protobuf.Struct
-	5,  // 29: crossplane.render.v1alpha1.OperationOutput.events:type_name -> crossplane.render.v1alpha1.Event
-	14, // 30: crossplane.render.v1alpha1.CronOperationInput.cron_operation:type_name -> google.protobuf.Struct
-	15, // 31: crossplane.render.v1alpha1.CronOperationInput.scheduled_time:type_name -> google.protobuf.Timestamp
-	14, // 32: crossplane.render.v1alpha1.CronOperationOutput.operation:type_name -> google.protobuf.Struct
-	14, // 33: crossplane.render.v1alpha1.WatchOperationInput.watch_operation:type_name -> google.protobuf.Struct
-	14, // 34: crossplane.render.v1alpha1.WatchOperationInput.watched_resource:type_name -> google.protobuf.Struct
-	14, // 35: crossplane.render.v1alpha1.WatchOperationOutput.operation:type_name -> google.protobuf.Struct
-	36, // [36:36] is the sub-list for method output_type
-	36, // [36:36] is the sub-list for method input_type
-	36, // [36:36] is the sub-list for extension type_name
-	36, // [36:36] is the sub-list for extension extendee
-	0,  // [0:36] is the sub-list for field type_name
+	14, // 16: crossplane.render.v1alpha1.CompositeOutput.composite_resource:type_name -> google.protobuf.Struct
+	14, // 17: crossplane.render.v1alpha1.CompositeOutput.composed_resources:type_name -> google.protobuf.Struct
+	14, // 18: crossplane.render.v1alpha1.CompositeOutput.deleted_resources:type_name -> google.protobuf.Struct
+	5,  // 19: crossplane.render.v1alpha1.CompositeOutput.events:type_name -> crossplane.render.v1alpha1.Event
+	14, // 20: crossplane.render.v1alpha1.OperationInput.operation:type_name -> google.protobuf.Struct
+	4,  // 21: crossplane.render.v1alpha1.OperationInput.functions:type_name -> crossplane.render.v1alpha1.FunctionInput
+	14, // 22: crossplane.render.v1alpha1.OperationInput.required_resources:type_name -> google.protobuf.Struct
+	14, // 23: crossplane.render.v1alpha1.OperationInput.credentials:type_name -> google.protobuf.Struct
+	14, // 24: crossplane.render.v1alpha1.OperationOutput.operation:type_name -> google.protobuf.Struct
+	14, // 25: crossplane.render.v1alpha1.OperationOutput.applied_resources:type_name -> google.protobuf.Struct
+	5,  // 26: crossplane.render.v1alpha1.OperationOutput.events:type_name -> crossplane.render.v1alpha1.Event
+	14, // 27: crossplane.render.v1alpha1.CronOperationInput.cron_operation:type_name -> google.protobuf.Struct
+	15, // 28: crossplane.render.v1alpha1.CronOperationInput.scheduled_time:type_name -> google.protobuf.Timestamp
+	14, // 29: crossplane.render.v1alpha1.CronOperationOutput.operation:type_name -> google.protobuf.Struct
+	14, // 30: crossplane.render.v1alpha1.WatchOperationInput.watch_operation:type_name -> google.protobuf.Struct
+	14, // 31: crossplane.render.v1alpha1.WatchOperationInput.watched_resource:type_name -> google.protobuf.Struct
+	14, // 32: crossplane.render.v1alpha1.WatchOperationOutput.operation:type_name -> google.protobuf.Struct
+	33, // [33:33] is the sub-list for method output_type
+	33, // [33:33] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_proto_render_v1alpha1_render_proto_init() }

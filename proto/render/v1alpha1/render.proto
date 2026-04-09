@@ -107,9 +107,6 @@ message CompositeInput {
 
   // Kubernetes Secrets for function credentials. Optional.
   repeated google.protobuf.Struct credentials = 6;
-
-  // Key-value pairs to seed the function pipeline context. Optional.
-  google.protobuf.Struct context = 7;
 }
 
 // A CompositeOutput contains the results of rendering a composite resource.
@@ -125,9 +122,6 @@ message CompositeOutput {
 
   // Events the reconciler would emit.
   repeated Event events = 4;
-
-  // The function pipeline context after the last function ran.
-  google.protobuf.Struct context = 5;
 }
 
 // An OperationInput contains all inputs needed to render an Operation using the
@@ -145,9 +139,6 @@ message OperationInput {
 
   // Kubernetes Secrets for function credentials. Optional.
   repeated google.protobuf.Struct credentials = 4;
-
-  // Key-value pairs to seed the function pipeline context. Optional.
-  google.protobuf.Struct context = 5;
 }
 
 // An OperationOutput contains the results of rendering an Operation.

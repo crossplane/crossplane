@@ -145,7 +145,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 
 	// Build the real FunctionComposer with real implementations backed by
 	// the fake client.
-	composerOpts := []composite.FunctionComposerOption{
+	fc := composite.NewFunctionComposer(fakeClient, fakeClient, fetchingRunner,
 		composite.WithComposedResourceObserver(
 			composite.NewExistingComposedResourceObserver(fakeClient, fakeClient,
 				composite.NewSecretConnectionDetailsFetcher(fakeClient))),
@@ -154,11 +154,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		composite.WithCompositeConnectionDetailsFetcher(
 			composite.NewSecretConnectionDetailsFetcher(fakeClient)),
 		composite.WithManagedFieldsUpgrader(&ssa.NopManagedFieldsUpgrader{}),
-	}
-	if ctx := in.GetContext(); ctx != nil {
-		composerOpts = append(composerOpts, composite.WithInitialContext(ctx))
-	}
-	fc := composite.NewFunctionComposer(fakeClient, fakeClient, fetchingRunner, composerOpts...)
+	)
 
 	// Build a recording event recorder to capture events for output.
 	recorder := &render.EventRecorder{}
