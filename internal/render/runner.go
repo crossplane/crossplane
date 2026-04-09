@@ -51,6 +51,9 @@ func NewFunctionRunner(fns []*renderv1alpha1.FunctionInput) (*FunctionRunner, er
 	conns := make(map[string]*grpc.ClientConn, len(fns))
 
 	for _, fn := range fns {
+		if _, ok := conns[fn.GetName()]; ok {
+			continue
+		}
 		conn, err := grpc.NewClient(fn.GetAddress(),
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithDefaultServiceConfig(waitForReady))
