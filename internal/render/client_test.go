@@ -111,6 +111,7 @@ func TestInMemoryClientPatch(t *testing.T) {
 		patch client.Patch
 	}
 	type want struct {
+		err     error
 		applied []unstructured.Unstructured
 	}
 
@@ -149,8 +150,11 @@ func TestInMemoryClientPatch(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := NewInMemoryClient(runtime.NewScheme())
 			obj := tc.args.obj.DeepCopy()
-			_ = c.Patch(context.Background(), obj, tc.args.patch, client.ForceOwnership)
+			err := c.Patch(context.Background(), obj, tc.args.patch, client.ForceOwnership)
 
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nPatch(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
 			if diff := cmp.Diff(tc.want.applied, c.Applied(), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nPatch(...): -want applied, +got:\n%s", tc.reason, diff)
 			}
