@@ -21,8 +21,8 @@ import (
 )
 
 // internalCmd groups subcommands that are not intended for direct use. They
-// are implementation details that other tools (e.g. crossplane render, up
-// test) shell out to.
+// are implementation details that other tools (e.g. crossplane render) shell
+// out to.
 type internalCmd struct {
 	Render render.Command `cmd:"" help:"Render resources using the real reconciler engine. Not for direct use."`
 }

@@ -30,6 +30,23 @@ import (
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
 )
 
+// ignoreTimestamps ignores any map entry keyed "lastTransitionTime" at any
+// nesting depth. This works with protocmp.Transform() because it matches on
+// the path structure, not value types.
+var ignoreTimestamps = cmp.FilterPath(func(p cmp.Path) bool {
+	for _, s := range p {
+		mi, ok := s.(cmp.MapIndex)
+		if !ok {
+			continue
+		}
+		k, ok := mi.Key().Interface().(string)
+		if ok && k == "lastTransitionTime" {
+			return true
+		}
+	}
+	return false
+}, cmp.Ignore())
+
 func TestRender(t *testing.T) {
 	type want struct {
 		err error
@@ -94,32 +111,10 @@ func TestRender(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRender(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
-			stripTimestamps(out.GetCompositeResource())
-			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty(), protocmp.Transform()); diff != "" {
+			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty(), protocmp.Transform(), ignoreTimestamps); diff != "" {
 				t.Errorf("\n%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
-	}
-}
-
-// stripTimestamps recursively removes lastTransitionTime from a protobuf
-// Struct. Timestamps are non-deterministic and should not be compared.
-func stripTimestamps(s *structpb.Struct) {
-	if s == nil {
-		return
-	}
-	delete(s.GetFields(), "lastTransitionTime")
-	for _, v := range s.GetFields() {
-		if sv := v.GetStructValue(); sv != nil {
-			stripTimestamps(sv)
-		}
-		if lv := v.GetListValue(); lv != nil {
-			for _, item := range lv.GetValues() {
-				if sv := item.GetStructValue(); sv != nil {
-					stripTimestamps(sv)
-				}
-			}
-		}
 	}
 }
 
