@@ -29,11 +29,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
@@ -60,8 +58,8 @@ func TestReconcile(t *testing.T) {
 	past := now.Add(-time.Hour)
 
 	type params struct {
-		mgr  manager.Manager
-		opts []ReconcilerOption
+		client client.Client
+		opts   []ReconcilerOption
 	}
 
 	type want struct {
@@ -77,10 +75,8 @@ func TestReconcile(t *testing.T) {
 		"NotFound": {
 			reason: "We should return early if the CronOperation was not found.",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-					},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 			},
 			want: want{
@@ -90,10 +86,8 @@ func TestReconcile(t *testing.T) {
 		"GetError": {
 			reason: "We should return an error if we can't get the CronOperation",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(errors.New("boom")),
-					},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(errors.New("boom")),
 				},
 			},
 			want: want{
@@ -104,18 +98,16 @@ func TestReconcile(t *testing.T) {
 		"Deleted": {
 			reason: "We should return early if the CronOperation was deleted.",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							co := &v1alpha1.CronOperation{
-								ObjectMeta: metav1.ObjectMeta{
-									DeletionTimestamp: ptr.To(metav1.Now()),
-								},
-							}
-							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
-							return nil
-						}),
-					},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						co := &v1alpha1.CronOperation{
+							ObjectMeta: metav1.ObjectMeta{
+								DeletionTimestamp: ptr.To(metav1.Now()),
+							},
+						}
+						co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+						return nil
+					}),
 				},
 			},
 			want: want{
@@ -125,21 +117,19 @@ func TestReconcile(t *testing.T) {
 		"Paused": {
 			reason: "We should return early if the CronOperation is paused.",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							co := &v1alpha1.CronOperation{
-								ObjectMeta: metav1.ObjectMeta{
-									Annotations: map[string]string{
-										"crossplane.io/paused": "true",
-									},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						co := &v1alpha1.CronOperation{
+							ObjectMeta: metav1.ObjectMeta{
+								Annotations: map[string]string{
+									"crossplane.io/paused": "true",
 								},
-							}
-							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
+							},
+						}
+						co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 			},
 			want: want{
@@ -149,23 +139,21 @@ func TestReconcile(t *testing.T) {
 		"ListOperationsError": {
 			reason: "We should return an error if we can't list Operations",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							co := &v1alpha1.CronOperation{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "test-cron",
-								},
-								Spec: v1alpha1.CronOperationSpec{
-									Schedule: "0 * * * *",
-								},
-							}
-							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
-							return nil
-						}),
-						MockList:         test.NewMockListFn(errors.New("boom")),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						co := &v1alpha1.CronOperation{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "test-cron",
+							},
+							Spec: v1alpha1.CronOperationSpec{
+								Schedule: "0 * * * *",
+							},
+						}
+						co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+						return nil
+					}),
+					MockList:         test.NewMockListFn(errors.New("boom")),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 			},
 			want: want{
@@ -176,23 +164,21 @@ func TestReconcile(t *testing.T) {
 		"InvalidSchedule": {
 			reason: "We should return an error if the cron schedule is invalid",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							co := &v1alpha1.CronOperation{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "test-cron",
-								},
-								Spec: v1alpha1.CronOperationSpec{
-									Schedule: "invalid-schedule",
-								},
-							}
-							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
-							return nil
-						}),
-						MockList:         test.NewMockListFn(nil),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(errors.New("status update failed")),
-					},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						co := &v1alpha1.CronOperation{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "test-cron",
+							},
+							Spec: v1alpha1.CronOperationSpec{
+								Schedule: "invalid-schedule",
+							},
+						}
+						co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+						return nil
+					}),
+					MockList:         test.NewMockListFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(errors.New("status update failed")),
 				},
 				opts: []ReconcilerOption{
 					WithScheduler(SchedulerFn(func(_ string, _ time.Time) (time.Time, error) {
@@ -208,24 +194,22 @@ func TestReconcile(t *testing.T) {
 		"NextScheduledInFuture": {
 			reason: "We should requeue when the next scheduled operation is in the future",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							co := &v1alpha1.CronOperation{
-								ObjectMeta: metav1.ObjectMeta{
-									Name:              "test-cron",
-									CreationTimestamp: metav1.Time{Time: past},
-								},
-								Spec: v1alpha1.CronOperationSpec{
-									Schedule: "0 * * * *",
-								},
-							}
-							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
-							return nil
-						}),
-						MockList:         test.NewMockListFn(nil),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						co := &v1alpha1.CronOperation{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "test-cron",
+								CreationTimestamp: metav1.Time{Time: past},
+							},
+							Spec: v1alpha1.CronOperationSpec{
+								Schedule: "0 * * * *",
+							},
+						}
+						co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+						return nil
+					}),
+					MockList:         test.NewMockListFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
 					WithScheduler(SchedulerFn(func(_ string, _ time.Time) (time.Time, error) {
@@ -240,25 +224,23 @@ func TestReconcile(t *testing.T) {
 		"MissedDeadline": {
 			reason: "We should requeue for future when we missed the deadline",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							co := &v1alpha1.CronOperation{
-								ObjectMeta: metav1.ObjectMeta{
-									Name:              "test-cron",
-									CreationTimestamp: metav1.Time{Time: past},
-								},
-								Spec: v1alpha1.CronOperationSpec{
-									Schedule:                "0 * * * *",
-									StartingDeadlineSeconds: ptr.To(int64(60)), // 1 minute deadline
-								},
-							}
-							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
-							return nil
-						}),
-						MockList:         test.NewMockListFn(nil),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						co := &v1alpha1.CronOperation{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "test-cron",
+								CreationTimestamp: metav1.Time{Time: past},
+							},
+							Spec: v1alpha1.CronOperationSpec{
+								Schedule:                "0 * * * *",
+								StartingDeadlineSeconds: ptr.To(int64(60)), // 1 minute deadline
+							},
+						}
+						co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+						return nil
+					}),
+					MockList:         test.NewMockListFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
 					WithScheduler(SchedulerFn(func(_ string, last time.Time) (time.Time, error) {
@@ -278,48 +260,46 @@ func TestReconcile(t *testing.T) {
 		"ConcurrencyPolicyForbid": {
 			reason: "We should requeue for future when concurrency policy forbids and operations are running",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							co := &v1alpha1.CronOperation{
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						co := &v1alpha1.CronOperation{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "test-cron",
+								CreationTimestamp: metav1.Time{Time: past},
+							},
+							Spec: v1alpha1.CronOperationSpec{
+								Schedule:          "0 * * * *",
+								ConcurrencyPolicy: ptr.To(v1alpha1.ConcurrencyPolicyForbid),
+							},
+						}
+						co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+						return nil
+					}),
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						list := obj.(*v1alpha1.OperationList)
+						// Add a running operation
+						list.Items = []v1alpha1.Operation{
+							{
 								ObjectMeta: metav1.ObjectMeta{
-									Name:              "test-cron",
-									CreationTimestamp: metav1.Time{Time: past},
+									Name: "running-op",
 								},
-								Spec: v1alpha1.CronOperationSpec{
-									Schedule:          "0 * * * *",
-									ConcurrencyPolicy: ptr.To(v1alpha1.ConcurrencyPolicyForbid),
-								},
-							}
-							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
-							return nil
-						}),
-						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-							list := obj.(*v1alpha1.OperationList)
-							// Add a running operation
-							list.Items = []v1alpha1.Operation{
-								{
-									ObjectMeta: metav1.ObjectMeta{
-										Name: "running-op",
-									},
-									Status: v1alpha1.OperationStatus{
-										ConditionedStatus: xpv2.ConditionedStatus{
-											Conditions: []xpv2.Condition{
-												{
-													Type:   v1alpha1.TypeSucceeded,
-													Status: "Unknown",
-													Reason: v1alpha1.ReasonPipelineRunning,
-												},
+								Status: v1alpha1.OperationStatus{
+									ConditionedStatus: xpv2.ConditionedStatus{
+										Conditions: []xpv2.Condition{
+											{
+												Type:   v1alpha1.TypeSucceeded,
+												Status: "Unknown",
+												Reason: v1alpha1.ReasonPipelineRunning,
 											},
 										},
 									},
 								},
-							}
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						MockDelete:       test.NewMockDeleteFn(nil),
-					},
+							},
+						}
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					MockDelete:       test.NewMockDeleteFn(nil),
 				},
 				opts: []ReconcilerOption{
 					WithScheduler(SchedulerFn(func(_ string, last time.Time) (time.Time, error) {
@@ -339,48 +319,46 @@ func TestReconcile(t *testing.T) {
 		"ConcurrencyPolicyReplaceDeleteError": {
 			reason: "We should return an error if we can't delete running operations for replace policy",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							co := &v1alpha1.CronOperation{
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						co := &v1alpha1.CronOperation{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "test-cron",
+								CreationTimestamp: metav1.Time{Time: past},
+							},
+							Spec: v1alpha1.CronOperationSpec{
+								Schedule:          "0 * * * *",
+								ConcurrencyPolicy: ptr.To(v1alpha1.ConcurrencyPolicyReplace),
+							},
+						}
+						co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+						return nil
+					}),
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						list := obj.(*v1alpha1.OperationList)
+						// Add a running operation
+						list.Items = []v1alpha1.Operation{
+							{
 								ObjectMeta: metav1.ObjectMeta{
-									Name:              "test-cron",
-									CreationTimestamp: metav1.Time{Time: past},
+									Name: "running-op",
 								},
-								Spec: v1alpha1.CronOperationSpec{
-									Schedule:          "0 * * * *",
-									ConcurrencyPolicy: ptr.To(v1alpha1.ConcurrencyPolicyReplace),
-								},
-							}
-							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
-							return nil
-						}),
-						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-							list := obj.(*v1alpha1.OperationList)
-							// Add a running operation
-							list.Items = []v1alpha1.Operation{
-								{
-									ObjectMeta: metav1.ObjectMeta{
-										Name: "running-op",
-									},
-									Status: v1alpha1.OperationStatus{
-										ConditionedStatus: xpv2.ConditionedStatus{
-											Conditions: []xpv2.Condition{
-												{
-													Type:   v1alpha1.TypeSucceeded,
-													Status: "Unknown",
-													Reason: v1alpha1.ReasonPipelineRunning,
-												},
+								Status: v1alpha1.OperationStatus{
+									ConditionedStatus: xpv2.ConditionedStatus{
+										Conditions: []xpv2.Condition{
+											{
+												Type:   v1alpha1.TypeSucceeded,
+												Status: "Unknown",
+												Reason: v1alpha1.ReasonPipelineRunning,
 											},
 										},
 									},
 								},
-							}
-							return nil
-						}),
-						MockDelete:       test.NewMockDeleteFn(errors.New("boom")),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
+							},
+						}
+						return nil
+					}),
+					MockDelete:       test.NewMockDeleteFn(errors.New("boom")),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
 					WithScheduler(SchedulerFn(func(_ string, _ time.Time) (time.Time, error) {
@@ -397,38 +375,36 @@ func TestReconcile(t *testing.T) {
 		"CreateOperationError": {
 			reason: "We should return an error if we can't create the scheduled Operation",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							co := &v1alpha1.CronOperation{
-								ObjectMeta: metav1.ObjectMeta{
-									Name:              "test-cron",
-									CreationTimestamp: metav1.Time{Time: past},
-								},
-								Spec: v1alpha1.CronOperationSpec{
-									Schedule: "0 * * * *",
-									OperationTemplate: v1alpha1.OperationTemplate{
-										Spec: v1alpha1.OperationSpec{
-											Mode: v1alpha1.OperationModePipeline,
-											Pipeline: []v1alpha1.PipelineStep{
-												{
-													Step: "test-step",
-													FunctionRef: v1alpha1.FunctionReference{
-														Name: "test-function",
-													},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						co := &v1alpha1.CronOperation{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "test-cron",
+								CreationTimestamp: metav1.Time{Time: past},
+							},
+							Spec: v1alpha1.CronOperationSpec{
+								Schedule: "0 * * * *",
+								OperationTemplate: v1alpha1.OperationTemplate{
+									Spec: v1alpha1.OperationSpec{
+										Mode: v1alpha1.OperationModePipeline,
+										Pipeline: []v1alpha1.PipelineStep{
+											{
+												Step: "test-step",
+												FunctionRef: v1alpha1.FunctionReference{
+													Name: "test-function",
 												},
 											},
 										},
 									},
 								},
-							}
-							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
-							return nil
-						}),
-						MockList:         test.NewMockListFn(nil),
-						MockCreate:       test.NewMockCreateFn(errors.New("boom")),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
+							},
+						}
+						co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+						return nil
+					}),
+					MockList:         test.NewMockListFn(nil),
+					MockCreate:       test.NewMockCreateFn(errors.New("boom")),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
 					WithScheduler(SchedulerFn(func(_ string, _ time.Time) (time.Time, error) {
@@ -445,52 +421,50 @@ func TestReconcile(t *testing.T) {
 		"Success": {
 			reason: "We should successfully create an operation and update status",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							co := &v1alpha1.CronOperation{
-								ObjectMeta: metav1.ObjectMeta{
-									Name:              "test-cron",
-									UID:               types.UID("test-uid"),
-									CreationTimestamp: metav1.Time{Time: past},
-								},
-								Spec: v1alpha1.CronOperationSpec{
-									Schedule: "0 * * * *",
-									OperationTemplate: v1alpha1.OperationTemplate{
-										Spec: v1alpha1.OperationSpec{
-											Mode: v1alpha1.OperationModePipeline,
-											Pipeline: []v1alpha1.PipelineStep{
-												{
-													Step: "test-step",
-													FunctionRef: v1alpha1.FunctionReference{
-														Name: "test-function",
-													},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						co := &v1alpha1.CronOperation{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "test-cron",
+								UID:               types.UID("test-uid"),
+								CreationTimestamp: metav1.Time{Time: past},
+							},
+							Spec: v1alpha1.CronOperationSpec{
+								Schedule: "0 * * * *",
+								OperationTemplate: v1alpha1.OperationTemplate{
+									Spec: v1alpha1.OperationSpec{
+										Mode: v1alpha1.OperationModePipeline,
+										Pipeline: []v1alpha1.PipelineStep{
+											{
+												Step: "test-step",
+												FunctionRef: v1alpha1.FunctionReference{
+													Name: "test-function",
 												},
 											},
 										},
 									},
 								},
-							}
-							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
-							return nil
-						}),
-						MockList: test.NewMockListFn(nil),
-						MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
-							// Verify the created operation has the right properties
-							op := obj.(*v1alpha1.Operation)
-							if op.Name != "test-cron--2147483648" { // Unix timestamp will be negative due to past time
-								t.Errorf("Expected operation name to contain cron name, got: %s", op.Name)
-							}
-							if op.Labels[v1alpha1.LabelCronOperationName] != "test-cron" {
-								t.Errorf("Expected operation to have cron operation label")
-							}
-							if len(op.OwnerReferences) != 1 || op.OwnerReferences[0].Name != "test-cron" {
-								t.Errorf("Expected operation to have owner reference to cron operation")
-							}
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
+							},
+						}
+						co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+						return nil
+					}),
+					MockList: test.NewMockListFn(nil),
+					MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
+						// Verify the created operation has the right properties
+						op := obj.(*v1alpha1.Operation)
+						if op.Name != "test-cron--2147483648" { // Unix timestamp will be negative due to past time
+							t.Errorf("Expected operation name to contain cron name, got: %s", op.Name)
+						}
+						if op.Labels[v1alpha1.LabelCronOperationName] != "test-cron" {
+							t.Errorf("Expected operation to have cron operation label")
+						}
+						if len(op.OwnerReferences) != 1 || op.OwnerReferences[0].Name != "test-cron" {
+							t.Errorf("Expected operation to have owner reference to cron operation")
+						}
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
 					WithScheduler(SchedulerFn(func(_ string, last time.Time) (time.Time, error) {
@@ -510,67 +484,65 @@ func TestReconcile(t *testing.T) {
 		"GarbageCollectionError": {
 			reason: "We should return an error if we can't garbage collect old operations",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							co := &v1alpha1.CronOperation{
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						co := &v1alpha1.CronOperation{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "test-cron",
+								CreationTimestamp: metav1.Time{Time: past},
+							},
+							Spec: v1alpha1.CronOperationSpec{
+								Schedule:               "0 * * * *",
+								SuccessfulHistoryLimit: ptr.To(int32(1)),
+								FailedHistoryLimit:     ptr.To(int32(1)),
+							},
+						}
+						co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+						return nil
+					}),
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						list := obj.(*v1alpha1.OperationList)
+						// Add old operations that should be garbage collected
+						list.Items = []v1alpha1.Operation{
+							{
 								ObjectMeta: metav1.ObjectMeta{
-									Name:              "test-cron",
-									CreationTimestamp: metav1.Time{Time: past},
+									Name:              "old-op",
+									CreationTimestamp: metav1.Time{Time: past.Add(-2 * time.Hour)},
 								},
-								Spec: v1alpha1.CronOperationSpec{
-									Schedule:               "0 * * * *",
-									SuccessfulHistoryLimit: ptr.To(int32(1)),
-									FailedHistoryLimit:     ptr.To(int32(1)),
-								},
-							}
-							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
-							return nil
-						}),
-						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-							list := obj.(*v1alpha1.OperationList)
-							// Add old operations that should be garbage collected
-							list.Items = []v1alpha1.Operation{
-								{
-									ObjectMeta: metav1.ObjectMeta{
-										Name:              "old-op",
-										CreationTimestamp: metav1.Time{Time: past.Add(-2 * time.Hour)},
-									},
-									Status: v1alpha1.OperationStatus{
-										ConditionedStatus: xpv2.ConditionedStatus{
-											Conditions: []xpv2.Condition{
-												{
-													Type:   v1alpha1.TypeSucceeded,
-													Status: "True",
-													Reason: v1alpha1.ReasonPipelineSuccess,
-												},
+								Status: v1alpha1.OperationStatus{
+									ConditionedStatus: xpv2.ConditionedStatus{
+										Conditions: []xpv2.Condition{
+											{
+												Type:   v1alpha1.TypeSucceeded,
+												Status: "True",
+												Reason: v1alpha1.ReasonPipelineSuccess,
 											},
 										},
 									},
 								},
-								{
-									ObjectMeta: metav1.ObjectMeta{
-										Name:              "newer-op",
-										CreationTimestamp: metav1.Time{Time: past.Add(-1 * time.Hour)},
-									},
-									Status: v1alpha1.OperationStatus{
-										ConditionedStatus: xpv2.ConditionedStatus{
-											Conditions: []xpv2.Condition{
-												{
-													Type:   v1alpha1.TypeSucceeded,
-													Status: "True",
-													Reason: v1alpha1.ReasonPipelineSuccess,
-												},
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name:              "newer-op",
+									CreationTimestamp: metav1.Time{Time: past.Add(-1 * time.Hour)},
+								},
+								Status: v1alpha1.OperationStatus{
+									ConditionedStatus: xpv2.ConditionedStatus{
+										Conditions: []xpv2.Condition{
+											{
+												Type:   v1alpha1.TypeSucceeded,
+												Status: "True",
+												Reason: v1alpha1.ReasonPipelineSuccess,
 											},
 										},
 									},
 								},
-							}
-							return nil
-						}),
-						MockDelete:       test.NewMockDeleteFn(errors.New("boom")),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
+							},
+						}
+						return nil
+					}),
+					MockDelete:       test.NewMockDeleteFn(errors.New("boom")),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
 					WithScheduler(SchedulerFn(func(_ string, _ time.Time) (time.Time, error) {
@@ -587,7 +559,7 @@ func TestReconcile(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.params.mgr, tc.params.opts...)
+			r := NewReconciler(tc.params.client, tc.params.opts...)
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{
 				NamespacedName: types.NamespacedName{Name: "test-cron"},
