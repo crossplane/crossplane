@@ -19,7 +19,6 @@ package operation
 import (
 	"strings"
 
-	"google.golang.org/protobuf/types/known/structpb"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -98,26 +97,16 @@ func WithRequiredSchemasFetcher(f xfn.RequiredSchemasFetcher) ReconcilerOption {
 	}
 }
 
-// WithInitialContext configures initial context values for the function
-// pipeline. If set, these values seed the function context before the first
-// pipeline step runs.
-func WithInitialContext(ctx *structpb.Struct) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.initialContext = ctx
-	}
-}
-
 // NewReconciler returns a Reconciler of Operations.
 func NewReconciler(c client.Client, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		client:         c,
-		log:            logging.NewNopLogger(),
-		record:         event.NewNopRecorder(),
-		conditions:     conditions.ObservedGenerationPropagationManager{},
-		functions:      xfn.NewRevisionCapabilityChecker(c),
-		resources:      xfn.NewExistingRequiredResourcesFetcher(c),
-		schemas:        xfn.NopRequiredSchemasFetcher{},
-		initialContext: &structpb.Struct{Fields: map[string]*structpb.Value{}},
+		client:     c,
+		log:        logging.NewNopLogger(),
+		record:     event.NewNopRecorder(),
+		conditions: conditions.ObservedGenerationPropagationManager{},
+		functions:  xfn.NewRevisionCapabilityChecker(c),
+		resources:  xfn.NewExistingRequiredResourcesFetcher(c),
+		schemas:    xfn.NopRequiredSchemasFetcher{},
 	}
 
 	for _, f := range opts {
