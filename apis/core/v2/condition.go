@@ -45,6 +45,11 @@ const (
 	// as a system condition. See the tracking issue for more details
 	// https://github.com/crossplane/crossplane/issues/5643.
 	TypeHealthy ConditionType = "Healthy"
+
+	// TypeUpToDate resources are believed to accurately represent the remote resource state.
+	// The condition is controlled by the ResourceUpToDate return value from the Observe method
+	// in the managed reconciler.
+	TypeUpToDate ConditionType = "UpToDate"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -63,6 +68,14 @@ const (
 	ReasonReconcileSuccess ConditionReason = "ReconcileSuccess"
 	ReasonReconcileError   ConditionReason = "ReconcileError"
 	ReasonReconcilePaused  ConditionReason = "ReconcilePaused"
+)
+
+// Reasons a resource is or is not up to date.
+const (
+	ReasonUpdateRestricted ConditionReason = "UpdateRestricted"
+	ReasonObserveMatched   ConditionReason = "ObserveMatched"
+	ReasonUpdateFailed     ConditionReason = "UpdateFailed"
+	ReasonUpdateRequested  ConditionReason = "UpdateRequested"
 )
 
 // See https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
@@ -130,7 +143,7 @@ func (c Condition) WithObservedGeneration(gen int64) Condition {
 // Crossplane system (e.g, Ready, Synced, Healthy).
 func IsSystemConditionType(t ConditionType) bool {
 	switch t {
-	case TypeReady, TypeSynced, TypeHealthy:
+	case TypeReady, TypeSynced, TypeHealthy, TypeUpToDate:
 		return true
 	}
 
@@ -308,6 +321,61 @@ func ReconcilePaused() Condition {
 	return Condition{
 		Type:               TypeSynced,
 		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonReconcilePaused,
+	}
+}
+
+// ObserveMatched returns a condition that indicates the Observe
+// method returned true.
+func ObserveMatched() Condition {
+	return Condition{
+		Type:               TypeUpToDate,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonObserveMatched,
+	}
+}
+
+// UpdateRequested returns a condition that indicates the Observe
+// method returned false and the Update method was called successfully.
+func UpdateRequested() Condition {
+	return Condition{
+		Type:               TypeUpToDate,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonUpdateRequested,
+	}
+}
+
+// UpdateRestricted returns a condition that indicates the Observe
+// method returned false and the Update method is not allowed.
+func UpdateRestricted() Condition {
+	return Condition{
+		Type:               TypeUpToDate,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonUpdateRestricted,
+	}
+}
+
+// UpdateFailed returns a condition that indicates the Observe
+// method returned false and the Update method was unsuccessful in synchronizing the resource state.
+func UpdateFailed() Condition {
+	return Condition{
+		Type:               TypeUpToDate,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonUpdateFailed,
+	}
+}
+
+// PausedUnknown returns a condition that indicates the Observe
+// method was not called because reconciliation is paused so the status is unknown.
+func PausedUnknown() Condition {
+	return Condition{
+		Type:               TypeUpToDate,
+		Status:             corev1.ConditionUnknown,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonReconcilePaused,
 	}
