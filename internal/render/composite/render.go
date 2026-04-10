@@ -50,7 +50,6 @@ import (
 // Render runs one real XR reconcile loop using the real reconciler engine
 // backed by a fake in-memory client.
 func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.CompositeInput) (*renderv1alpha1.CompositeOutput, error) {
-	// Build the scheme for the fake client.
 	s := runtime.NewScheme()
 	if err := corev1.AddToScheme(s); err != nil {
 		return nil, errors.Wrap(err, "cannot add core/v1 to scheme")
@@ -100,24 +99,24 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 	rev.Status.SetConditions(apiextensionsv1.ValidPipeline())
 
 	// Build the in-memory store with all input resources.
-	storeResources := []kunstructured.Unstructured{xr.Unstructured}
+	store := []kunstructured.Unstructured{xr.Unstructured}
 
 	revData, err := runtime.DefaultUnstructuredConverter.ToUnstructured(rev)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot convert CompositionRevision to unstructured")
 	}
-	revU := kunstructured.Unstructured{Object: revData}
-	revU.SetGroupVersionKind(apiextensionsv1.CompositionRevisionGroupVersionKind)
-	storeResources = append(storeResources, revU)
+	ru := kunstructured.Unstructured{Object: revData}
+	ru.SetGroupVersionKind(apiextensionsv1.CompositionRevisionGroupVersionKind)
+	store = append(store, ru)
 
-	storeResources = append(storeResources, observed...)
+	store = append(store, observed...)
 
 	for _, s := range in.GetRequiredResources() {
 		u := &kunstructured.Unstructured{}
 		if err := xfn.FromStruct(u, s); err != nil {
 			return nil, errors.Wrap(err, "cannot convert required resource from protobuf")
 		}
-		storeResources = append(storeResources, *u)
+		store = append(store, *u)
 	}
 
 	for _, s := range in.GetCredentials() {
@@ -128,42 +127,39 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		if u.GetKind() == "" {
 			u.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "Secret"})
 		}
-		storeResources = append(storeResources, *u)
+		store = append(store, *u)
 	}
 
-	fakeClient := render.NewInMemoryClient(s, storeResources...)
+	c := render.NewInMemoryClient(s, store...)
 
-	// Connect to function gRPC servers. The caller is responsible for
-	// starting function runtimes.
 	runner, err := render.NewFunctionRunner(in.GetFunctions())
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot connect to functions")
 	}
 	defer runner.Close() //nolint:errcheck // Best-effort cleanup.
 
-	// Build the fetching runner for the requirements protocol.
-	fetcher := xfn.NewExistingRequiredResourcesFetcher(fakeClient)
-	fetchingRunner := xfn.NewFetchingFunctionRunner(runner, fetcher, xfn.NopRequiredSchemasFetcher{})
+	oc, err := render.NewInMemoryOpenAPIClient(in.GetRequiredSchemas())
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot build OpenAPI client from input schemas")
+	}
+	sf := xfn.NewOpenAPIRequiredSchemasFetcher(oc)
 
-	// Build the real FunctionComposer with real implementations backed by
-	// the fake client.
-	fc := composite.NewFunctionComposer(fakeClient, fakeClient, fetchingRunner,
+	fc := composite.NewFunctionComposer(c, c,
+		xfn.NewFetchingFunctionRunner(runner, xfn.NewExistingRequiredResourcesFetcher(c), sf),
 		composite.WithComposedResourceObserver(
-			composite.NewExistingComposedResourceObserver(fakeClient, fakeClient,
-				composite.NewSecretConnectionDetailsFetcher(fakeClient))),
+			composite.NewExistingComposedResourceObserver(c, c,
+				composite.NewSecretConnectionDetailsFetcher(c))),
 		composite.WithComposedResourceGarbageCollector(
-			composite.NewDeletingComposedResourceGarbageCollector(fakeClient)),
+			composite.NewDeletingComposedResourceGarbageCollector(c)),
 		composite.WithCompositeConnectionDetailsFetcher(
-			composite.NewSecretConnectionDetailsFetcher(fakeClient)),
+			composite.NewSecretConnectionDetailsFetcher(c)),
 		composite.WithManagedFieldsUpgrader(&ssa.NopManagedFieldsUpgrader{}),
+		composite.WithRequiredSchemasFetcher(sf),
 	)
 
-	// Build a recording event recorder to capture events for output.
-	recorder := &render.EventRecorder{}
+	rec := &render.EventRecorder{}
 
-	// Build the real Reconciler with production logic and fake I/O
-	// dependencies.
-	r := composite.NewReconciler(fakeClient, gvk,
+	r := composite.NewReconciler(c, gvk,
 		composite.WithComposer(fc),
 		composite.WithCompositeFinalizer(xpresource.NewNopFinalizer()),
 		composite.WithCompositionSelector(CompositionSelector(comp)),
@@ -176,8 +172,8 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 			},
 		)),
 		composite.WithConfigurator(composite.NewConfiguratorChain(
-			composite.NewAPINamingConfigurator(fakeClient),
-			composite.NewAPIConfigurator(fakeClient),
+			composite.NewAPINamingConfigurator(c),
+			composite.NewAPIConfigurator(c),
 		)),
 		composite.WithConnectionPublishers(composite.ConnectionPublisherFn(
 			func(_ context.Context, _ composite.ConnectionSecretOwner, _ managed.ConnectionDetails) (bool, error) {
@@ -186,11 +182,10 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		)),
 		composite.WithWatchStarter("render", nil, &composite.NopWatchStarter{}),
 		composite.WithCircuitBreaker(&circuit.NopBreaker{}),
-		composite.WithRecorder(recorder),
+		composite.WithRecorder(rec),
 		composite.WithLogger(log),
 	)
 
-	// Run one reconcile loop.
 	req := reconcile.Request{NamespacedName: types.NamespacedName{
 		Namespace: xr.GetNamespace(),
 		Name:      xr.GetName(),
@@ -200,12 +195,11 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		return nil, errors.Wrap(err, "reconcile failed")
 	}
 
-	isXR := func(u kunstructured.Unstructured) bool {
+	return BuildOutput(c, func(u kunstructured.Unstructured) bool {
 		return u.GroupVersionKind() == gvk &&
 			u.GetNamespace() == xr.GetNamespace() &&
 			u.GetName() == xr.GetName()
-	}
-	return BuildOutput(fakeClient, isXR, recorder)
+	}, rec)
 }
 
 // InjectResourceRefs sets spec.resourceRefs on the XR for each observed
@@ -243,7 +237,7 @@ func CompositionSelector(comp *apiextensionsv1.Composition) composite.Compositio
 // BuildOutput assembles a CompositeOutput from the fake client's captured
 // state and the event recorder. The isPrimary predicate identifies the
 // primary resource (the XR) so it can be separated from composed resources.
-func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstructured) bool, recorder *render.EventRecorder) (*renderv1alpha1.CompositeOutput, error) {
+func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstructured) bool, rec *render.EventRecorder) (*renderv1alpha1.CompositeOutput, error) {
 	out := &renderv1alpha1.CompositeOutput{}
 
 	// Find the final XR state. It's the last Status().Update or
@@ -299,7 +293,7 @@ func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstruct
 	}
 
 	// Collect events.
-	out.Events = append(out.Events, recorder.Events()...)
+	out.Events = append(out.Events, rec.Events()...)
 
 	return out, nil
 }

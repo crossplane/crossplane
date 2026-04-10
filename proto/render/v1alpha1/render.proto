@@ -107,6 +107,11 @@ message CompositeInput {
 
   // Kubernetes Secrets for function credentials. Optional.
   repeated google.protobuf.Struct credentials = 6;
+
+  // OpenAPI v3 documents providing schemas for resource kinds. Functions can
+  // request schemas via the Requirements protocol. Each entry is a full OpenAPI
+  // v3 document as JSON. Optional.
+  repeated google.protobuf.Struct required_schemas = 7;
 }
 
 // A CompositeOutput contains the results of rendering a composite resource.
@@ -139,6 +144,11 @@ message OperationInput {
 
   // Kubernetes Secrets for function credentials. Optional.
   repeated google.protobuf.Struct credentials = 4;
+
+  // OpenAPI v3 documents providing schemas for resource kinds. Functions can
+  // request schemas via the Requirements protocol. Each entry is a full OpenAPI
+  // v3 document as JSON. Optional.
+  repeated google.protobuf.Struct required_schemas = 5;
 }
 
 // An OperationOutput contains the results of rendering an Operation.

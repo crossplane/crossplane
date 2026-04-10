@@ -53,22 +53,21 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 		return nil, errors.Wrap(err, "cannot add Crossplane APIs to scheme")
 	}
 
-	// Convert the Operation from protobuf Struct to unstructured.
-	opUnstructured := &kunstructured.Unstructured{}
-	if err := xfn.FromStruct(opUnstructured, in.GetOperation()); err != nil {
+	op := &kunstructured.Unstructured{}
+	if err := xfn.FromStruct(op, in.GetOperation()); err != nil {
 		return nil, errors.Wrap(err, "cannot convert Operation from protobuf")
 	}
-	opUnstructured.SetGroupVersionKind(opsv1alpha1.OperationGroupVersionKind)
-	opUnstructured.SetResourceVersion("999")
+	op.SetGroupVersionKind(opsv1alpha1.OperationGroupVersionKind)
+	op.SetResourceVersion("999")
 
 	// Build the in-memory store with all input resources.
-	storeResources := []kunstructured.Unstructured{*opUnstructured}
+	store := []kunstructured.Unstructured{*op}
 	for _, s := range in.GetRequiredResources() {
 		u := &kunstructured.Unstructured{}
 		if err := xfn.FromStruct(u, s); err != nil {
 			return nil, errors.Wrap(err, "cannot convert required resource from protobuf")
 		}
-		storeResources = append(storeResources, *u)
+		store = append(store, *u)
 	}
 	for _, s := range in.GetCredentials() {
 		u := &kunstructured.Unstructured{}
@@ -78,40 +77,39 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 		if u.GetKind() == "" {
 			u.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "Secret"})
 		}
-		storeResources = append(storeResources, *u)
+		store = append(store, *u)
 	}
-	fakeClient := render.NewInMemoryClient(s, storeResources...)
+	c := render.NewInMemoryClient(s, store...)
 
-	// Connect to function gRPC servers.
 	runner, err := render.NewFunctionRunner(in.GetFunctions())
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot connect to functions")
 	}
 	defer runner.Close() //nolint:errcheck // Best-effort cleanup.
 
-	// Build the fetching runner for the requirements protocol.
-	fetcher := xfn.NewExistingRequiredResourcesFetcher(fakeClient)
-	fetchingRunner := xfn.NewFetchingFunctionRunner(runner, fetcher, xfn.NopRequiredSchemasFetcher{})
+	oc, err := render.NewInMemoryOpenAPIClient(in.GetRequiredSchemas())
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot build OpenAPI client from input schemas")
+	}
+	sf := xfn.NewOpenAPIRequiredSchemasFetcher(oc)
 
-	// Build the recording event recorder.
-	recorder := &render.EventRecorder{}
+	rec := &render.EventRecorder{}
 
-	// Build the real Operation Reconciler with the fake client.
-	r := oprec.NewReconciler(fakeClient,
-		oprec.WithFunctionRunner(fetchingRunner),
+	r := oprec.NewReconciler(c,
+		oprec.WithFunctionRunner(xfn.NewFetchingFunctionRunner(runner, xfn.NewExistingRequiredResourcesFetcher(c), sf)),
 		oprec.WithCapabilityChecker(xfn.CapabilityCheckerFn(
 			func(_ context.Context, _ []string, _ ...string) error {
 				return nil
 			},
 		)),
-		oprec.WithRecorder(recorder),
+		oprec.WithRequiredSchemasFetcher(sf),
+		oprec.WithRecorder(rec),
 		oprec.WithLogger(log),
 	)
 
-	// Run one reconcile loop.
 	req := reconcile.Request{NamespacedName: types.NamespacedName{
-		Namespace: opUnstructured.GetNamespace(),
-		Name:      opUnstructured.GetName(),
+		Namespace: op.GetNamespace(),
+		Name:      op.GetName(),
 	}}
 
 	if _, err := r.Reconcile(ctx, req); err != nil {
@@ -119,12 +117,11 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 	}
 
 	opGVK := opsv1alpha1.OperationGroupVersionKind
-	isOp := func(u kunstructured.Unstructured) bool {
+	return buildOutput(c, func(u kunstructured.Unstructured) bool {
 		return u.GroupVersionKind() == opGVK &&
-			u.GetNamespace() == opUnstructured.GetNamespace() &&
-			u.GetName() == opUnstructured.GetName()
-	}
-	return BuildOutput(fakeClient, isOp, recorder)
+			u.GetNamespace() == op.GetNamespace() &&
+			u.GetName() == op.GetName()
+	}, rec)
 }
 
 // NewFromCronOperation produces the Operation a CronOperation would create.
@@ -160,8 +157,7 @@ func NewFromWatchOperation(in *renderv1alpha1.WatchOperationInput) (*renderv1alp
 		return nil, errors.Wrap(err, "cannot convert watched resource from protobuf")
 	}
 
-	name := watchrec.OperationName(wo, watched)
-	op := watchrec.NewOperation(wo, watched, name)
+	op := watchrec.NewOperation(wo, watched, watchrec.OperationName(wo, watched))
 	opStruct, err := xfn.AsStruct(op)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot convert Operation to protobuf")
@@ -170,10 +166,10 @@ func NewFromWatchOperation(in *renderv1alpha1.WatchOperationInput) (*renderv1alp
 	return &renderv1alpha1.WatchOperationOutput{Operation: opStruct}, nil
 }
 
-// BuildOutput assembles an OperationOutput from the fake client's captured
+// buildOutput assembles an OperationOutput from the fake client's captured
 // state. The isPrimary predicate identifies the primary resource (the
 // Operation) so it can be separated from applied resources.
-func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstructured) bool, recorder *render.EventRecorder) (*renderv1alpha1.OperationOutput, error) {
+func buildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstructured) bool, rec *render.EventRecorder) (*renderv1alpha1.OperationOutput, error) {
 	out := &renderv1alpha1.OperationOutput{}
 
 	for i := len(c.Updated()) - 1; i >= 0; i-- {
@@ -199,7 +195,7 @@ func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstruct
 		out.AppliedResources = append(out.AppliedResources, s)
 	}
 
-	out.Events = append(out.Events, recorder.Events()...)
+	out.Events = append(out.Events, rec.Events()...)
 
 	return out, nil
 }
