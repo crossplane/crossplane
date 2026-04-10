@@ -67,8 +67,10 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 	gvk := xr.GroupVersionKind()
 
 	// Set a deterministic fake UID. The NameGenerator uses the owner UID for
-	// deterministic name generation of composed resources.
-	xr.SetUID(types.UID(uuid.NewSHA1(uuid.Nil, []byte(gvk.String()+xr.GetName())).String()))
+	// deterministic name generation of composed resources. The namespace is
+	// included so that two namespaced XRs with the same GVK and name in
+	// different namespaces produce different composed resource names.
+	xr.SetUID(types.UID(uuid.NewSHA1(uuid.Nil, []byte(gvk.String()+"\x00"+xr.GetNamespace()+"\x00"+xr.GetName())).String()))
 
 	// Set a resourceVersion to avoid "object has no resource version" errors.
 	xr.SetResourceVersion("999")
