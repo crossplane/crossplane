@@ -21,6 +21,7 @@ package render
 
 import (
 	"context"
+	"slices"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -84,24 +85,18 @@ func NewInMemoryClient(s *runtime.Scheme, resources ...unstructured.Unstructured
 
 // Applied returns all resources that were written via SSA Patch calls.
 func (c *InMemoryClient) Applied() []unstructured.Unstructured {
-	out := make([]unstructured.Unstructured, len(c.applied))
-	copy(out, c.applied)
-	return out
+	return slices.Clone(c.applied)
 }
 
 // Deleted returns all resources that were removed via Delete calls.
 func (c *InMemoryClient) Deleted() []unstructured.Unstructured {
-	out := make([]unstructured.Unstructured, len(c.deleted))
-	copy(out, c.deleted)
-	return out
+	return slices.Clone(c.deleted)
 }
 
 // Updated returns all resources that were written via Update or
 // Status().Update() calls.
 func (c *InMemoryClient) Updated() []unstructured.Unstructured {
-	out := make([]unstructured.Unstructured, len(c.updated))
-	copy(out, c.updated)
-	return out
+	return slices.Clone(c.updated)
 }
 
 // gvkFor returns the GVK of the given object, resolving it from the scheme if
