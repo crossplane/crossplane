@@ -96,8 +96,9 @@ type batchCmd struct {
 	OutputDir       string   `help:"Path of the package output directory."                                                                                                     optional:""                                                                                                              short:"o"`
 	StorePackages   []string `help:"Smaller provider names whose provider package should be stored under the package output directory specified with the --output-dir option." optional:""`
 
-	PackageMetadataTemplate string            `default:"./package/crossplane.yaml.tmpl"                                                   help:"Smaller provider metadata template. The template variables {{ .Service }} and {{ .Name }} will be substituted when the template is executed among with the supplied template variable substitutions." type:"path"`
+	PackageMetadataTemplate string            `default:"./package/crossplane.yaml.tmpl"                                                                                                                                                                                                                                                                                                                               help:"Smaller provider metadata template. The template variables {{ .Service }} and {{ .Name }} are always set; optional variables may be supplied via --template-metadata-file and --template-var (the latter overrides on key conflicts)." type:"path"`
 	TemplateVar             map[string]string `help:"Smaller provider metadata template variables to be used for the specified template."`
+	TemplateMetadataFile    string            `help:"Optional YAML file of per smaller-provider template variables. Top-level keys are smaller provider names (e.g. ec2, elb). Each entry is a map of variable names to scalars or lists; values are merged into the package metadata template as-is. Templates may use generic helpers toYAML and indent (YAML via gopkg.in/yaml.v3). Merged before --template-var." optional:""                                                                                                                                                                                                                                  type:"path"`
 
 	ExamplesGroupOverride map[string]string `help:"Overrides for the location of the example manifests folder of a smaller provider." optional:""`
 	CRDGroupOverride      map[string]string `help:"Overrides for the locations of the CRD folders of the smaller providers."          optional:""`
@@ -109,10 +110,16 @@ type batchCmd struct {
 	BuildOnly    bool     `default:"false"                                             help:"Only build the smaller provider packages and do not attempt to push them to a package repository."`
 
 	ProviderNameSuffixForPush string `env:"PROVIDER_NAME_SUFFIX_FOR_PUSH" help:"Suffix for provider name during pushing the packages. This suffix is added to the end of the provider name. If there is a service name for the corresponded provider, then the suffix will be added to the base provider name and the service-scoped name will be after this suffix.  Examples: provider-family-aws-suffix, provider-aws-suffix-s3" optional:""`
+
+	perServiceTemplateVars map[string]map[string]any // loaded from TemplateMetadataFile in Run
 }
 
 // Run executes the batch command.
 func (c *batchCmd) Run(logger logging.Logger) error {
+	if err := c.loadTemplateMetadata(); err != nil {
+		return err
+	}
+
 	ctx := context.Background()
 	baseImgMap, err := makeBaseImgMap(ctx, c.Platform, c.FamilyBaseImage)
 	if err != nil {
@@ -495,17 +502,24 @@ func (c *batchCmd) getCRDPrefix(service string) string {
 // variable substitution to create the final package metadata file (i.e.,
 // crossplane.yaml).
 func (c *batchCmd) getPackageMetadata(service string) (string, error) {
-	tmpl, err := template.New(filepath.Base(c.PackageMetadataTemplate)).ParseFiles(c.PackageMetadataTemplate)
+	tmpl, err := template.New(filepath.Base(c.PackageMetadataTemplate)).
+		Funcs(packageMetadataFuncMap()).
+		ParseFiles(c.PackageMetadataTemplate)
 	if err != nil {
 		return "", errors.Wrap(err, errInvalidTemplate)
 	}
 
-	// prepare template var substitutions
-	data := make(map[string]string, len(c.TemplateVar)+2)
+	data := make(map[string]any, len(c.TemplateVar)+2)
 	data["Service"] = service
 	data["Name"] = c.getPackageRepo(service)
-	// copy substitutions passed from the command-line
-	maps.Copy(data, c.TemplateVar)
+	if c.perServiceTemplateVars != nil {
+		if m, ok := c.perServiceTemplateVars[service]; ok {
+			maps.Copy(data, m)
+		}
+	}
+	for k, v := range c.TemplateVar {
+		data[k] = v
+	}
 
 	buff := &bytes.Buffer{}
 	err = tmpl.Execute(buff, data)
