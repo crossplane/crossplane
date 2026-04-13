@@ -1,5 +1,5 @@
 /*
-Copyright 2025 The Crossplane Authors.
+Copyright 2026 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -96,9 +96,9 @@ type batchCmd struct {
 	OutputDir       string   `help:"Path of the package output directory."                                                                                                     optional:""                                                                                                              short:"o"`
 	StorePackages   []string `help:"Smaller provider names whose provider package should be stored under the package output directory specified with the --output-dir option." optional:""`
 
-	PackageMetadataTemplate string            `default:"./package/crossplane.yaml.tmpl"                                                                                                                                                                                                                                                                                                                               help:"Smaller provider metadata template. The template variables {{ .Service }} and {{ .Name }} are always set; optional variables may be supplied via --template-metadata-file and --template-var (the latter overrides on key conflicts)." type:"path"`
+	PackageMetadataTemplate string            `default:"./package/crossplane.yaml.tmpl"                                                                                                                                                                                                                                                                                                                               help:"Smaller provider metadata template. The template variables {{ .Service }} and {{ .Name }} are always set; optional variables may be supplied via --service-metadata and --template-var (the latter overrides on key conflicts)." type:"path"`
 	TemplateVar             map[string]string `help:"Smaller provider metadata template variables to be used for the specified template."`
-	TemplateMetadataFile    string            `help:"Optional YAML file of per smaller-provider template variables. Top-level keys are smaller provider names (e.g. ec2, elb). Each entry is a map of variable names to scalars or lists; values are merged into the package metadata template as-is. Templates may use generic helpers toYAML and indent (YAML via gopkg.in/yaml.v3). Merged before --template-var." optional:""                                                                                                                                                                                                                                  type:"path"`
+	ServiceMetadataFile     string            `help:"Optional YAML file of per smaller-provider template variables. Top-level keys are smaller provider names (e.g. ec2, elb). Each entry is a map of variable names to scalars or lists; values are merged into the package metadata template as-is. Templates may use generic helpers toYAML and indent (YAML via gopkg.in/yaml.v3). Merged before --template-var." name:"service-metadata"                                                                                                                                                                                                                optional:"" type:"path"`
 
 	ExamplesGroupOverride map[string]string `help:"Overrides for the location of the example manifests folder of a smaller provider." optional:""`
 	CRDGroupOverride      map[string]string `help:"Overrides for the locations of the CRD folders of the smaller providers."          optional:""`
@@ -111,12 +111,12 @@ type batchCmd struct {
 
 	ProviderNameSuffixForPush string `env:"PROVIDER_NAME_SUFFIX_FOR_PUSH" help:"Suffix for provider name during pushing the packages. This suffix is added to the end of the provider name. If there is a service name for the corresponded provider, then the suffix will be added to the base provider name and the service-scoped name will be after this suffix.  Examples: provider-family-aws-suffix, provider-aws-suffix-s3" optional:""`
 
-	perServiceTemplateVars map[string]map[string]any // loaded from TemplateMetadataFile in Run
+	perServiceTemplateVars map[string]map[string]any // loaded from ServiceMetadataFile in Run
 }
 
 // Run executes the batch command.
 func (c *batchCmd) Run(logger logging.Logger) error {
-	if err := c.loadTemplateMetadata(); err != nil {
+	if err := c.loadServiceMetadata(); err != nil {
 		return err
 	}
 

@@ -1,5 +1,5 @@
 /*
-Copyright 2025 The Crossplane Authors.
+Copyright 2026 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,30 +25,22 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
 
-const (
-	errTemplateMetadata = "failed to load template metadata file; check the file path and YAML syntax"
-	errNestedMapping    = "template metadata value is a nested mapping or object; allowed YAML value types are string, number, boolean, null, and lists of those. " +
-		"Flatten nested data or serialize it (for example to a string) before adding it to metadata YAML."
-	errUnsupportedValue = "template metadata value has an unsupported form; allowed YAML value types are string, number, boolean, null, and lists of those. " +
-		"Convert or serialize this value to one of those forms before including it in metadata YAML."
-)
-
-// loadTemplateMetadata reads TemplateMetadataFile into perServiceTemplateVars.
+// loadServiceMetadata reads ServiceMetadataFile into perServiceTemplateVars.
 // Each top-level key is a smaller provider name; the value is a map of template
 // variable names to values suitable for text/template (scalars and []any lists;
 // lists are preserved so templates can use {{ range .ServiceCategories }}).
-func (c *batchCmd) loadTemplateMetadata() error {
+func (c *batchCmd) loadServiceMetadata() error {
 	c.perServiceTemplateVars = nil
-	if c.TemplateMetadataFile == "" {
+	if c.ServiceMetadataFile == "" {
 		return nil
 	}
-	b, err := os.ReadFile(filepath.Clean(c.TemplateMetadataFile))
+	b, err := os.ReadFile(filepath.Clean(c.ServiceMetadataFile))
 	if err != nil {
-		return errors.Wrap(err, errTemplateMetadata)
+		return errors.Wrap(err, "failed to load service metadata file; check the file path and YAML syntax")
 	}
 	var raw map[string]map[string]any
 	if err := yaml.Unmarshal(b, &raw); err != nil {
-		return errors.Wrap(err, errTemplateMetadata)
+		return errors.Wrap(err, "failed to load service metadata file; check the file path and YAML syntax")
 	}
 	out := make(map[string]map[string]any, len(raw))
 	for svc, vars := range raw {
@@ -57,7 +49,7 @@ func (c *batchCmd) loadTemplateMetadata() error {
 		}
 		sm, err := validateTemplateMetadataVars(vars)
 		if err != nil {
-			return errors.Wrapf(err, "%s: service %q", errTemplateMetadata, svc)
+			return errors.Wrapf(err, "invalid service metadata (service %q)", svc)
 		}
 		out[svc] = sm
 	}
@@ -105,14 +97,18 @@ func validateTemplateMetadataValue(v any) (any, error) {
 				return nil, err
 			}
 			if _, ok := ne.([]any); ok {
-				return nil, errors.New("nested lists in template metadata are not supported")
+				return nil, errors.New("invalid service metadata: lists cannot contain nested lists; allowed YAML value types are string, " +
+					"number, boolean, null, and flat lists of those scalars. Flatten nested list structure or serialize it " +
+					"(for example to a string) before adding it to metadata YAML.")
 			}
 			out[i] = ne
 		}
 		return out, nil
 	case map[string]any:
-		return nil, errors.New(errNestedMapping)
+		return nil, errors.New("invalid service metadata: value is a nested mapping or object; allowed YAML value types are string, " +
+			"number, boolean, null, and lists of those. Flatten nested data or serialize it (for example to a string) before adding it to metadata YAML.")
 	default:
-		return nil, errors.New(errUnsupportedValue)
+		return nil, errors.New("invalid service metadata: value has an unsupported form; allowed YAML value types are string, number, boolean, " +
+			"null, and lists of those. Convert or serialize this value to one of those forms before including it in metadata YAML.")
 	}
 }

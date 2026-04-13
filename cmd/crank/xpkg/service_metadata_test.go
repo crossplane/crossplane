@@ -1,5 +1,5 @@
 /*
-Copyright 2025 The Crossplane Authors.
+Copyright 2026 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ func TestValidateTemplateMetadataValue(t *testing.T) {
 	}
 }
 
-func TestBatchCmdLoadTemplateMetadata(t *testing.T) {
+func TestBatchCmdLoadServiceMetadata(t *testing.T) {
 	t.Parallel()
 	cases := map[string]struct {
 		reason      string
@@ -85,7 +85,7 @@ ec2:
 				if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 					t.Fatal(err)
 				}
-				return &batchCmd{TemplateMetadataFile: path}
+				return &batchCmd{ServiceMetadataFile: path}
 			},
 			wantVars: map[string]map[string]any{
 				"elb": {
@@ -98,7 +98,7 @@ ec2:
 			},
 		},
 		"EmptyPath": {
-			reason: "empty TemplateMetadataFile leaves batchCmd.perServiceTemplateVars nil",
+			reason: "empty ServiceMetadataFile leaves batchCmd.perServiceTemplateVars nil",
 			prepare: func(t *testing.T) *batchCmd {
 				t.Helper()
 				return &batchCmd{}
@@ -106,11 +106,11 @@ ec2:
 			wantVarsNil: true,
 		},
 		"FileNotFound": {
-			reason: "missing file errors from batchCmd.loadTemplateMetadata and clears prior perServiceTemplateVars",
+			reason: "missing file errors from batchCmd.loadServiceMetadata and clears prior perServiceTemplateVars",
 			prepare: func(t *testing.T) *batchCmd {
 				t.Helper()
 				return &batchCmd{
-					TemplateMetadataFile: filepath.Join(t.TempDir(), "does-not-exist.yaml"),
+					ServiceMetadataFile: filepath.Join(t.TempDir(), "does-not-exist.yaml"),
 					perServiceTemplateVars: map[string]map[string]any{
 						"prior": {"k": "v"},
 					},
@@ -129,7 +129,7 @@ ec2:
 					t.Fatal(err)
 				}
 				return &batchCmd{
-					TemplateMetadataFile: path,
+					ServiceMetadataFile: path,
 					perServiceTemplateVars: map[string]map[string]any{
 						"prior": {"k": "v"},
 					},
@@ -152,7 +152,7 @@ ec2:
 					t.Fatal(err)
 				}
 				return &batchCmd{
-					TemplateMetadataFile: path,
+					ServiceMetadataFile: path,
 					perServiceTemplateVars: map[string]map[string]any{
 						"prior": {"k": "v"},
 					},
@@ -166,9 +166,9 @@ ec2:
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			cmd := tc.prepare(t)
-			err := cmd.loadTemplateMetadata()
+			err := cmd.loadServiceMetadata()
 			if diff := cmp.Diff(tc.wantErr, err, cmpopts.EquateErrors()); diff != "" {
-				t.Fatalf("(*batchCmd).loadTemplateMetadata (%s): -want +got errors:\n%s", tc.reason, diff)
+				t.Fatalf("(*batchCmd).loadServiceMetadata (%s): -want +got errors:\n%s", tc.reason, diff)
 			}
 			if tc.wantVarsNil {
 				if cmd.perServiceTemplateVars != nil {
@@ -237,10 +237,10 @@ func TestBatchCmd_getPackageMetadata_ServiceCategoriesList(t *testing.T) {
 	c := &batchCmd{
 		PackageMetadataTemplate: tmplPath,
 		ProviderName:            "provider-aws",
-		TemplateMetadataFile:    metaPath,
+		ServiceMetadataFile:     metaPath,
 	}
-	if err := c.loadTemplateMetadata(); err != nil {
-		t.Fatalf("loadTemplateMetadata: %v", err)
+	if err := c.loadServiceMetadata(); err != nil {
+		t.Fatalf("loadServiceMetadata: %v", err)
 	}
 	got, err := c.getPackageMetadata("ec2")
 	if err != nil {
@@ -255,7 +255,7 @@ func TestBatchCmd_getPackageMetadata_ServiceCategoriesList(t *testing.T) {
 	}
 }
 
-// TestBatchCmd_getPackageMetadata_perServiceDistinct exercises loadTemplateMetadata
+// TestBatchCmd_getPackageMetadata_perServiceDistinct exercises loadServiceMetadata
 // and getPackageMetadata together: each smaller provider must render its own
 // ServiceDescription (same path as xpkg batch uses when building packages).
 func TestBatchCmd_getPackageMetadata_perServiceDistinct(t *testing.T) {
@@ -285,10 +285,10 @@ metadata:
 	c := &batchCmd{
 		PackageMetadataTemplate: tmplPath,
 		ProviderName:            "provider-aws",
-		TemplateMetadataFile:    metaPath,
+		ServiceMetadataFile:     metaPath,
 	}
-	if err := c.loadTemplateMetadata(); err != nil {
-		t.Fatalf("loadTemplateMetadata: %v", err)
+	if err := c.loadServiceMetadata(); err != nil {
+		t.Fatalf("loadServiceMetadata: %v", err)
 	}
 
 	elbYAML, err := c.getPackageMetadata("elb")
