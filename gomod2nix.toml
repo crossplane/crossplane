@@ -66,23 +66,23 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v0.0.0-20230301143203-a9d515a09cc2"
     hash = "sha256-UCENzt1c1tFgsAzK2TNq5s2g0tQMQ5PxFaQKe8hTL/A="
   [mod."github.com/aws/aws-sdk-go-v2"]
-    version = "v1.41.0"
-    hash = "sha256-cTFa0GPh/PU5mA1ZEd2n1OfY4MYJlRjiKMEt7p1jjCc="
+    version = "v1.41.1"
+    hash = "sha256-umafTZB+cuy8+Kzpl2WrlygJO3tR3D2WkTC0eTY5G/g="
   [mod."github.com/aws/aws-sdk-go-v2/config"]
-    version = "v1.32.5"
-    hash = "sha256-8RTWMzXAjGWItSZ+ZC3YWBMFLCJPbPjKvlm1k8XIN8U="
+    version = "v1.32.7"
+    hash = "sha256-z61nfA0WteEqNmhF0K5dRwJwicSQWS+/oOoHqxc+LiU="
   [mod."github.com/aws/aws-sdk-go-v2/credentials"]
-    version = "v1.19.5"
-    hash = "sha256-Oks5+IuuGX3sPUQluMJabstC0hBVwE/zZYo3HT4JY/o="
+    version = "v1.19.7"
+    hash = "sha256-2E23PbP2twoY03jLWgQYoHveXZ7r7/7cZYtWNPMTc+I="
   [mod."github.com/aws/aws-sdk-go-v2/feature/ec2/imds"]
-    version = "v1.18.16"
-    hash = "sha256-UcwhhFCPfs7oDe5KZQtjFQJwZZ9PccADm2S2kPxmL1I="
+    version = "v1.18.17"
+    hash = "sha256-eMquC4Ggfeg7a644kcwxHUUHIwY6O/XrSymrCqmflhE="
   [mod."github.com/aws/aws-sdk-go-v2/internal/configsources"]
-    version = "v1.4.16"
-    hash = "sha256-V8KSxmnku2liBxa0fWI7zK0vTbdsyk1gxlYgsxp0t+g="
+    version = "v1.4.17"
+    hash = "sha256-W+d0WDYBrVJxdfRSvoe3cvZYgIgUSVyXsVdQlMcIZvc="
   [mod."github.com/aws/aws-sdk-go-v2/internal/endpoints/v2"]
-    version = "v2.7.16"
-    hash = "sha256-2FIb59SM2YKzwpXGfbRwFyPug/u5LHJHu4lu+a6WG8g="
+    version = "v2.7.17"
+    hash = "sha256-dKJx0+K1DKi2LJKQNwnTofZH4GWLDgY6/ZI2XR2oCGI="
   [mod."github.com/aws/aws-sdk-go-v2/internal/ini"]
     version = "v1.8.4"
     hash = "sha256-okyFQwcEqbwKwkGK5xp/VYE0fGg9cqG6AuLijIuf5xg="
@@ -96,20 +96,20 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v1.13.4"
     hash = "sha256-Rm6czqOnOULP080D97WQQSqkBhmN6ei1qZaTa51SRj8="
   [mod."github.com/aws/aws-sdk-go-v2/service/internal/presigned-url"]
-    version = "v1.13.16"
-    hash = "sha256-ACVw9W+nGqp0K6Rq9yKhtrC3Yr/oLpRbz0kJbNDwvUM="
+    version = "v1.13.17"
+    hash = "sha256-qS7Db9S/KQ24kvJdL8qH4gnoN116J1ezwOnbovCiFEI="
   [mod."github.com/aws/aws-sdk-go-v2/service/signin"]
-    version = "v1.0.4"
-    hash = "sha256-2LEq//DhBh+waRkE6vmt86pjKQN/dCbn/qrhAdQhrVg="
+    version = "v1.0.5"
+    hash = "sha256-d9Ju310g1j8i9+ylDPnRHZEC6GoRGOjmbL+yRpDvjoU="
   [mod."github.com/aws/aws-sdk-go-v2/service/sso"]
-    version = "v1.30.7"
-    hash = "sha256-94d/NZUT9YzjZ5ib58c25ie0ed8r28WlvmCLEKZ8uXg="
+    version = "v1.30.9"
+    hash = "sha256-cC4k8KAPEu3Pb3AyRjsuNB4KyVhdJPVf1pr00KZ7sE4="
   [mod."github.com/aws/aws-sdk-go-v2/service/ssooidc"]
-    version = "v1.35.12"
-    hash = "sha256-m2hboee3VLOrs6zZqMfWO9Ojpc2s4Ei1VCA/m9tf4BU="
+    version = "v1.35.13"
+    hash = "sha256-bmEmJ7nNjHoVKVvsQ9WmlzkuJjL0mS/Wd2V+otPIue0="
   [mod."github.com/aws/aws-sdk-go-v2/service/sts"]
-    version = "v1.41.5"
-    hash = "sha256-/dF+PVj7+JIm+UxsjXTFV8Q4g2hNwoURbsHHgsmZuhk="
+    version = "v1.41.6"
+    hash = "sha256-vT36v9lPKBhesIVm4KRp/+nHPD6S6DaZIhCl/HHldrc="
   [mod."github.com/aws/smithy-go"]
     version = "v1.24.0"
     hash = "sha256-ZPFhf2Yv3BQpUn3cN4wSnoO7uBki8oCisZxL6F09nnE="
@@ -561,8 +561,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v1.3.0"
     hash = "sha256-ZHLft/o+xyJrUlaCwnCDqbjkPj6iIxlOuA0fFBuwVvM="
   [mod."github.com/sigstore/cosign/v3"]
-    version = "v3.0.4"
-    hash = "sha256-vKqTcSUgY2Hj1IlunX0dq6snFlMCTCCctyCiMOWaZ8M="
+    version = "v3.0.5"
+    hash = "sha256-wN5iAfcBCDTvhbvSar4DBw7w1sxIFWcMKv8qkx07mfo="
   [mod."github.com/sigstore/protobuf-specs"]
     version = "v0.5.0"
     hash = "sha256-nImiBItjCQwskGHqYYthBjUfHHxy8VnVwSMWkK6GiNo="
@@ -570,8 +570,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v1.5.0"
     hash = "sha256-4iHI86GGqCOQqUN2rkCFTjkRsHUh3/UYs7PFzNfDXOU="
   [mod."github.com/sigstore/rekor-tiles/v2"]
-    version = "v2.0.1"
-    hash = "sha256-d8DVVdevVrFuDRndh99RS/1DKqoY6jXGSfUDKOuCK9c="
+    version = "v2.2.0"
+    hash = "sha256-RJ/TFZ2pWp7E+nEpnedz+mnXznbMvUgeTX8tZ03Peu8="
   [mod."github.com/sigstore/sigstore"]
     version = "v1.10.4"
     hash = "sha256-eRJFozhehtpsiOSJ1z6a4SmyfGd7hl+IjQ4QD3yW0h0="
@@ -741,13 +741,13 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v3.0.1"
     hash = "sha256-FqL9TKYJ0XkNwJFnq9j0VvJ5ZUU1RvH/52h/f5bkYAU="
   [mod."k8s.io/api"]
-    version = "v0.35.0"
-    hash = "sha256-eIie0MFXkmNsfiO58pg+ThJ1wPcYh3T7Gch9p2GrT64="
+    version = "v0.35.1"
+    hash = "sha256-lOfx98TObjLpO9Xg+PcR7G567x5pY/iiChXFhbpRclQ="
   [mod."k8s.io/apiextensions-apiserver"]
     version = "v0.35.0"
     hash = "sha256-RZdGkV4SoCTY022pIzQbeVwaxIYhIpXapLZrD593gh8="
   [mod."k8s.io/apimachinery"]
-    version = "v0.35.0"
+    version = "v0.35.1"
     hash = "sha256-+dplbHUOfaCaD2E9IS4F3lnjSCr/a4LjTgdB9de92Pw="
   [mod."k8s.io/apiserver"]
     version = "v0.35.0"
@@ -756,8 +756,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v0.34.1"
     hash = "sha256-s5yRTk0QmBoV0wSZT5jCJfKTRbBcAjEpCTmm1TxX4jo="
   [mod."k8s.io/client-go"]
-    version = "v0.35.0"
-    hash = "sha256-s+o7ybLe83chueBIVvYRibI2HCk+QQoWTjfXqmzsjHs="
+    version = "v0.35.1"
+    hash = "sha256-QEQ7TLUviAXDbvp2s6tT3HZtXy7pLjj5qSDu89iC9ek="
   [mod."k8s.io/code-generator"]
     version = "v0.35.0"
     hash = "sha256-0F8vNVdF/quBPGxOpxBL/GhupnkMoTE8dcZYX57RZKk="
