@@ -36,18 +36,18 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
+	verfake "github.com/crossplane/crossplane-runtime/v2/pkg/version/fake"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
+	xpkgfake "github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/fake"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/parser"
+	xpkgyaml "github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/parser/yaml"
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
-	verfake "github.com/crossplane/crossplane/v2/internal/version/fake"
-	"github.com/crossplane/crossplane/v2/internal/xpkg"
-	xpkgfake "github.com/crossplane/crossplane/v2/internal/xpkg/fake"
-	xpkgyaml "github.com/crossplane/crossplane/v2/internal/xpkg/parser/yaml"
 )
 
 var _ Establisher = &MockEstablisher{}

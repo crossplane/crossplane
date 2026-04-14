@@ -42,13 +42,13 @@ import (
 	xpresource "github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
 	legacy "github.com/crossplane/crossplane/apis/v2/apiextensions/v1beta1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/protection/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/protection"
 	"github.com/crossplane/crossplane/v2/internal/protection/usage"
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 const (

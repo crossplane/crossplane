@@ -38,11 +38,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/fake"
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
-	"github.com/crossplane/crossplane/v2/internal/xpkg"
-	"github.com/crossplane/crossplane/v2/internal/xpkg/fake"
 )
 
 func TestReconcile(t *testing.T) {
