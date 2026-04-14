@@ -32,10 +32,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/names"
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 func TestServerSideSync(t *testing.T) {

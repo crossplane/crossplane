@@ -47,10 +47,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
 	"github.com/crossplane/crossplane/v2/internal/xerrors"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"

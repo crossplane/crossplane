@@ -22,11 +22,11 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 // DummyManifestOpt can be passed to customize a dummy manifest.

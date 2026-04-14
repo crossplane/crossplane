@@ -36,8 +36,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
-
-	"github.com/crossplane/crossplane/v2/internal/xpkg"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
 )
 
 const (

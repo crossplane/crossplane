@@ -40,8 +40,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/version"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/parser"
 
 	extv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	extv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
@@ -55,8 +57,6 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/converter"
 	"github.com/crossplane/crossplane/v2/internal/dag"
 	"github.com/crossplane/crossplane/v2/internal/features"
-	"github.com/crossplane/crossplane/v2/internal/version"
-	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 const (

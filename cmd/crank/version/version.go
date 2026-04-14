@@ -25,7 +25,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/pkg/errors"
 
-	"github.com/crossplane/crossplane/v2/internal/version"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/version"
 )
 
 const (
