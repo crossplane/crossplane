@@ -198,8 +198,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v0.6.0"
     hash = "sha256-gr4tL+qz4jKyAtl8LINcxMSanztdt+pybj1T+2ulQv4="
   [mod."github.com/docker/cli"]
-    version = "v29.0.3+incompatible"
-    hash = "sha256-TUFZYeLpRPgPdOzmerLrKjNdl1N36evEVdcId6lH5nk="
+    version = "v29.2.0+incompatible"
+    hash = "sha256-zVW24ojlYWJ2SLGBH1RkpRw0pr0FhkN27CZRfqzTyes="
   [mod."github.com/docker/distribution"]
     version = "v2.8.3+incompatible"
     hash = "sha256-XhRURCGNpJC83QZTtgCxHHFL76HaxIxjt70HwUa847E="
