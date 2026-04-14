@@ -38,7 +38,7 @@ let
       doCheck = false;
 
       preBuild = ''
-        ldflags="-s -w -X=github.com/crossplane/crossplane/v2/internal/version.version=${version}"
+        ldflags="-s -w -X=github.com/crossplane/crossplane-runtime/v2/pkg/version.version=${version}"
       '';
 
       postInstall = ''
