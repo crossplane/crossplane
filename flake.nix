@@ -6,6 +6,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
     # TODO(negz): Unpin once https://github.com/nix-community/gomod2nix/pull/231 is released.
     gomod2nix = {
@@ -18,6 +19,7 @@
     {
       self,
       nixpkgs,
+      nixpkgs-unstable,
       gomod2nix,
     }:
     let
@@ -87,7 +89,13 @@
           inherit system;
           pkgs = import nixpkgs {
             inherit system;
-            overlays = [ gomod2nix.overlays.default ];
+            overlays = [
+              gomod2nix.overlays.default
+              (final: prev: {
+                go = nixpkgs-unstable.legacyPackages.${system}.go_1_25;
+                go_1_25 = nixpkgs-unstable.legacyPackages.${system}.go_1_25;
+              })
+            ];
           };
         };
 

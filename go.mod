@@ -1,6 +1,6 @@
 module github.com/crossplane/crossplane/v2
 
-go 1.25.5
+go 1.25.9
 
 replace github.com/crossplane/crossplane/apis/v2 => ./apis
 
