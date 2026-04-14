@@ -325,6 +325,10 @@ func TestIsSystemConditionType(t *testing.T) {
 			c:    Condition{Type: ConditionType("Custom")},
 			want: false,
 		},
+		"UpToDate": {
+			c:    Condition{Type: ConditionType("UpToDate")},
+			want: true,
+		},
 	}
 
 	for name, tc := range cases {
