@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -43,12 +42,13 @@ import (
 	xpresource "github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
-	legacy "github.com/crossplane/crossplane/v2/apis/apiextensions/v1beta1"
-	"github.com/crossplane/crossplane/v2/apis/protection/v1beta1"
+	legacy "github.com/crossplane/crossplane/apis/v2/apiextensions/v1beta1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
+	"github.com/crossplane/crossplane/apis/v2/protection/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/protection"
 	"github.com/crossplane/crossplane/v2/internal/protection/usage"
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 const (
@@ -532,7 +532,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	status.MarkConditions(xpv1.Available())
+	status.MarkConditions(xpv2.Available())
 
 	// We are only watching the Usage itself but not using or used resources.
 	// So, we need to reconcile the Usage periodically to check if the using

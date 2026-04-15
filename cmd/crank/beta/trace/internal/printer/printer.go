@@ -39,6 +39,7 @@ const (
 	TypeWide    Type = "wide"
 	TypeJSON    Type = "json"
 	TypeDot     Type = "dot"
+	TypeYAML    Type = "yaml"
 )
 
 // Printer implements the interface which is used by all printers in this package.
@@ -62,6 +63,8 @@ func New(typeStr string) (Printer, error) {
 		p = &JSONPrinter{}
 	case TypeDot:
 		p = &DotPrinter{}
+	case TypeYAML:
+		p = &YAMLPrinter{}
 	default:
 		return nil, errors.Errorf(errFmtUnknownPrinterType, typeStr)
 	}

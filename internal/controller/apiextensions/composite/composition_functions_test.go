@@ -38,7 +38,6 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
@@ -48,9 +47,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
+	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/xerrors"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
@@ -191,7 +191,7 @@ func TestFunctionCompose(t *testing.T) {
 										{
 											Name:   "cool-secret",
 											Source: v1.FunctionCredentialsSourceSecret,
-											SecretRef: &xpv1.SecretReference{
+											SecretRef: &xpv2.SecretReference{
 												Namespace: "default",
 												Name:      "cool-secret",
 											},
@@ -346,7 +346,7 @@ func TestFunctionCompose(t *testing.T) {
 					Conditions: []TargetedCondition{
 						// The condition with minimum values.
 						{
-							Condition: xpv1.Condition{
+							Condition: xpv2.Condition{
 								Type:   "DatabaseReady",
 								Status: "False",
 								Reason: "Creating",
@@ -355,7 +355,7 @@ func TestFunctionCompose(t *testing.T) {
 						},
 						// The condition that provides all possible values.
 						{
-							Condition: xpv1.Condition{
+							Condition: xpv2.Condition{
 								Type:    "DeploymentReady",
 								Status:  "True",
 								Reason:  "Available",
@@ -682,6 +682,144 @@ func TestFunctionCompose(t *testing.T) {
 				xr: func() *composite.Unstructured {
 					xr := WithParentLabel()
 					xr.SetNamespace("test-namespace") // Make the XR namespaced
+					return xr
+				}(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{{ResourceName: "ns-resource", Ready: false, Synced: true}},
+				},
+			},
+		},
+		"NamespacedXRNamespaceOverridden": {
+			reason: "We should emit a warning when a namespaced XR composes a resource with a different namespace",
+			params: params{
+				c: &test.MockClient{
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+					d := &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							"ns-resource": {
+								Resource: MustStruct(map[string]any{
+									"apiVersion": "test.crossplane.io/v1",
+									"kind":       "NamespaceComposed",
+									"metadata": map[string]any{
+										"name":      "ns-resource",
+										"namespace": "other-namespace",
+									},
+								}),
+							},
+						},
+					}
+					return &fnv1.RunFunctionResponse{Desired: d}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: func() *composite.Unstructured {
+					xr := WithParentLabel()
+					xr.SetNamespace("test-namespace")
+					return xr
+				}(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{{ResourceName: "ns-resource", Ready: false, Synced: true}},
+					Events: []TargetedEvent{
+						{
+							Event: event.Event{
+								Type:    "Warning",
+								Reason:  reasonNamespaceOverridden,
+								Message: "cannot create composed resource \"ns-resource\" in namespace \"other-namespace\", using XR namespace \"test-namespace\" instead",
+							},
+							Target: CompositionTargetComposite,
+						},
+					},
+				},
+			},
+		},
+		"NamespacedXRNamespaceMatchesXR": {
+			reason: "We should not emit a warning when a namespaced XR composes a resource with the same namespace",
+			params: params{
+				c: &test.MockClient{
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+					d := &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							"ns-resource": {
+								Resource: MustStruct(map[string]any{
+									"apiVersion": "test.crossplane.io/v1",
+									"kind":       "NamespaceComposed",
+									"metadata": map[string]any{
+										"name":      "ns-resource",
+										"namespace": "test-namespace", // matches XR namespace
+									},
+								}),
+							},
+						},
+					}
+					return &fnv1.RunFunctionResponse{Desired: d}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: func() *composite.Unstructured {
+					xr := WithParentLabel()
+					xr.SetNamespace("test-namespace")
 					return xr
 				}(),
 				req: CompositionRequest{
@@ -1132,7 +1270,7 @@ func TestFunctionCompose(t *testing.T) {
 										{
 											Name:   "cool-secret",
 											Source: v1.FunctionCredentialsSourceSecret,
-											SecretRef: &xpv1.SecretReference{
+											SecretRef: &xpv2.SecretReference{
 												Namespace: "default",
 												Name:      "cool-secret",
 											},
@@ -1193,7 +1331,7 @@ func TestFunctionCompose(t *testing.T) {
 					Conditions: []TargetedCondition{
 						// The condition with minimum values.
 						{
-							Condition: xpv1.Condition{
+							Condition: xpv2.Condition{
 								Type:   "DatabaseReady",
 								Status: "False",
 								Reason: "Creating",
@@ -1202,7 +1340,7 @@ func TestFunctionCompose(t *testing.T) {
 						},
 						// The condition that provides all possible values.
 						{
-							Condition: xpv1.Condition{
+							Condition: xpv2.Condition{
 								Type:    "DeploymentReady",
 								Status:  "True",
 								Reason:  "Available",

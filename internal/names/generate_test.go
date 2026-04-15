@@ -32,8 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
-
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 )
 
 func TestGenerateName(t *testing.T) {

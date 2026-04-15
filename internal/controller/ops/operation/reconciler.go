@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
@@ -41,8 +40,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
-	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
-	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
+	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
@@ -123,7 +123,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	limit := ptr.Deref(op.Spec.RetryLimit, DefaultRetryLimit)
 	if op.Status.Failures >= limit {
 		log.Debug("Operation failure limit reached. Not running again.", "limit", limit)
-		status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.Failed(fmt.Sprintf("failure limit of %d reached", limit)))
+		status.MarkConditions(xpv2.ReconcileSuccess(), v1alpha1.Failed(fmt.Sprintf("failure limit of %d reached", limit)))
 
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
 	}
@@ -159,7 +159,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Function capability check failed", "error", err, "failures", op.Status.Failures)
 		err = errors.Wrap(err, "function capability check failed")
 		r.record.Event(op, event.Warning(reasonInvalidPipeline, err))
-		status.MarkConditions(xpv1.ReconcileError(err), v1alpha1.MissingCapabilities(err.Error()))
+		status.MarkConditions(xpv2.ReconcileError(err), v1alpha1.MissingCapabilities(err.Error()))
 		_ = r.client.Status().Update(ctx, op)
 
 		return reconcile.Result{}, err
@@ -193,7 +193,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 				// An unmarshalable input requires human intervention to fix, so
 				// we immediately fail this operation without retrying.
-				status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.Failed(fmt.Sprintf("cannot unmarshal input for operation pipeline step %q", fn.Step)))
+				status.MarkConditions(xpv2.ReconcileSuccess(), v1alpha1.Failed(fmt.Sprintf("cannot unmarshal input for operation pipeline step %q", fn.Step)))
 				_ = r.client.Status().Update(ctx, op)
 
 				return reconcile.Result{}, errors.Wrapf(err, "cannot unmarshal input for operation pipeline step %q", fn.Step)
@@ -216,7 +216,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				log.Debug("Cannot get Operation pipeline step credential", "error", err, "failures", op.Status.Failures, "credential", cs.Name)
 				err = errors.Wrapf(err, "cannot get operation pipeline step %q credential %q from Secret", fn.Step, cs.Name)
 				r.record.Event(op, event.Warning(reasonFunctionInvocation, err))
-				status.MarkConditions(xpv1.ReconcileError(err))
+				status.MarkConditions(xpv2.ReconcileError(err))
 				_ = r.client.Status().Update(ctx, op)
 
 				return reconcile.Result{}, err
@@ -244,7 +244,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 					log.Debug("Cannot fetch bootstrap required resources", "error", err, "failures", op.Status.Failures, "requirement", sel.RequirementName)
 					err = errors.Wrapf(err, "cannot fetch bootstrap required resources for requirement %q", sel.RequirementName)
 					r.record.Event(op, event.Warning(reasonBootstrapRequirements, err))
-					status.MarkConditions(xpv1.ReconcileError(err))
+					status.MarkConditions(xpv2.ReconcileError(err))
 					_ = r.client.Status().Update(ctx, op)
 
 					return reconcile.Result{}, err
@@ -263,7 +263,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 					log.Debug("Cannot fetch bootstrap required schema", "error", err, "failures", op.Status.Failures, "requirement", sel.RequirementName)
 					err = errors.Wrapf(err, "cannot fetch bootstrap required schema for requirement %q", sel.RequirementName)
 					r.record.Event(op, event.Warning(reasonBootstrapRequirements, err))
-					status.MarkConditions(xpv1.ReconcileError(err))
+					status.MarkConditions(xpv2.ReconcileError(err))
 					_ = r.client.Status().Update(ctx, op)
 
 					return reconcile.Result{}, err
@@ -285,7 +285,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug("Cannot run operation pipeline step", "error", err, "failures", op.Status.Failures)
 			err = errors.Wrapf(err, "failed to invoke pipeline step %q", fn.Step)
 			r.record.Event(op, event.Warning(reasonFunctionInvocation, err))
-			status.MarkConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv2.ReconcileError(err))
 			_ = r.client.Status().Update(ctx, op)
 
 			return reconcile.Result{}, err
@@ -308,7 +308,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				log.Debug("Pipeline step returned a fatal result", "error", rs.GetMessage(), "failures", op.Status.Failures)
 				err = errors.New(rs.GetMessage())
 				r.record.Event(op, event.Warning(reasonFunctionInvocation, err))
-				status.MarkConditions(xpv1.ReconcileError(err))
+				status.MarkConditions(xpv2.ReconcileError(err))
 				_ = r.client.Status().Update(ctx, op)
 
 				return reconcile.Result{}, err
@@ -332,7 +332,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				log.Debug("Cannot marshal pipeline step output to JSON", "error", err, "failures", op.Status.Failures)
 				err = errors.Wrapf(err, "cannot marshal pipeline step %q output to JSON", fn.Step)
 				r.record.Event(op, event.Warning(reasonInvalidOutput, err))
-				status.MarkConditions(xpv1.ReconcileError(err))
+				status.MarkConditions(xpv2.ReconcileError(err))
 				_ = r.client.Status().Update(ctx, op)
 
 				return reconcile.Result{}, err
@@ -352,7 +352,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug("Cannot load desired resource from protobuf struct", "error", err, "failures", op.Status.Failures, "resource-name", name)
 			err = errors.Wrapf(err, "cannot load desired resource %q from protobuf struct", name)
 			r.record.Event(op, event.Warning(reasonInvalidResource, err))
-			status.MarkConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv2.ReconcileError(err))
 			_ = r.client.Status().Update(ctx, op)
 
 			return reconcile.Result{}, err
@@ -362,13 +362,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// always be operating on a resource some other controller owns.
 		// TODO(negz): Do we ever want to be an owner reference of these
 		// resources?
+		//
+		//nolint:staticcheck // TODO(adamwg): Stop using client.Apply after the v2.2 release.
 		if err := r.client.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerPrefix+op.GetUID())); err != nil {
 			op.Status.Failures++
 			log.Debug("Cannot apply desired resource", "error", err, "failures", op.Status.Failures, "resource-name", name)
 
 			err = errors.Wrap(err, "cannot apply desired resource")
 			r.record.Event(op, event.Warning(reasonInvalidResource, err))
-			status.MarkConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv2.ReconcileError(err))
 			_ = r.client.Status().Update(ctx, op)
 
 			return reconcile.Result{}, err
@@ -381,7 +383,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		op.Status.AppliedResourceRefs = AddResourceRef(op.Status.AppliedResourceRefs, u)
 	}
 
-	status.MarkConditions(xpv1.ReconcileSuccess(), v1alpha1.Complete())
+	status.MarkConditions(xpv2.ReconcileSuccess(), v1alpha1.Complete())
 
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
 }

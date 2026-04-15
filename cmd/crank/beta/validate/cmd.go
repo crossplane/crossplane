@@ -29,9 +29,9 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/version"
 
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/load"
-	"github.com/crossplane/crossplane/v2/internal/version"
 )
 
 // Cmd arguments and flags for render subcommand.

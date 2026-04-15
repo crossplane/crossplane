@@ -28,7 +28,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 
-	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
 )
 
 // CRDAsUnstructured builds an Unstructured CRD from an MRD.

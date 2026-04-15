@@ -25,9 +25,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
-
-	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
+	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 )
 
 func TestLatestCreateTime(t *testing.T) {
@@ -140,8 +139,8 @@ func TestLatestSucceededTransitionTime(t *testing.T) {
 				ops: []v1alpha1.Operation{
 					{
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:               v1alpha1.TypeSucceeded,
 										LastTransitionTime: metav1.Time{Time: now},
@@ -162,8 +161,8 @@ func TestLatestSucceededTransitionTime(t *testing.T) {
 				ops: []v1alpha1.Operation{
 					{
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:               v1alpha1.TypeSucceeded,
 										LastTransitionTime: metav1.Time{Time: earlier},
@@ -174,8 +173,8 @@ func TestLatestSucceededTransitionTime(t *testing.T) {
 					},
 					{
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:               v1alpha1.TypeSucceeded,
 										LastTransitionTime: metav1.Time{Time: later},
@@ -186,8 +185,8 @@ func TestLatestSucceededTransitionTime(t *testing.T) {
 					},
 					{
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:               v1alpha1.TypeSucceeded,
 										LastTransitionTime: metav1.Time{Time: now},
@@ -208,8 +207,8 @@ func TestLatestSucceededTransitionTime(t *testing.T) {
 				ops: []v1alpha1.Operation{
 					{
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:               "Other",
 										LastTransitionTime: metav1.Time{Time: now},
@@ -238,7 +237,7 @@ func TestLatestSucceededTransitionTime(t *testing.T) {
 
 func TestWithReason(t *testing.T) {
 	type args struct {
-		reason xpv1.ConditionReason
+		reason xpv2.ConditionReason
 		ops    []v1alpha1.Operation
 	}
 	type want struct {
@@ -268,8 +267,8 @@ func TestWithReason(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{Name: "op1"},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Reason: v1alpha1.ReasonPipelineRunning,
@@ -292,8 +291,8 @@ func TestWithReason(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{Name: "op1"},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Reason: v1alpha1.ReasonPipelineSuccess,
@@ -305,8 +304,8 @@ func TestWithReason(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{Name: "op2"},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Reason: v1alpha1.ReasonPipelineRunning,
@@ -318,8 +317,8 @@ func TestWithReason(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{Name: "op3"},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Reason: v1alpha1.ReasonPipelineSuccess,
@@ -335,8 +334,8 @@ func TestWithReason(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{Name: "op1"},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Reason: v1alpha1.ReasonPipelineSuccess,
@@ -348,8 +347,8 @@ func TestWithReason(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{Name: "op3"},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Reason: v1alpha1.ReasonPipelineSuccess,
@@ -401,8 +400,8 @@ func TestMarkGarbage(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{Name: "op1"},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionTrue,
@@ -414,8 +413,8 @@ func TestMarkGarbage(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{Name: "op2"},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionFalse,
@@ -431,8 +430,8 @@ func TestMarkGarbage(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{Name: "op1"},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionTrue,
@@ -444,8 +443,8 @@ func TestMarkGarbage(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{Name: "op2"},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionFalse,
@@ -469,8 +468,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: latest},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionTrue,
@@ -485,8 +484,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: earlier},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionTrue,
@@ -501,8 +500,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: now},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionFalse,
@@ -521,8 +520,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: earlier},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionTrue,
@@ -537,8 +536,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: now},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionFalse,
@@ -562,8 +561,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: latest},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionFalse,
@@ -578,8 +577,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: earlier},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionFalse,
@@ -598,8 +597,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: earlier},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionFalse,
@@ -624,8 +623,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: latest},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionTrue,
@@ -640,8 +639,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: now},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionTrue,
@@ -656,8 +655,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: earlier},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionTrue,
@@ -673,8 +672,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: now.Add(-30 * time.Minute)},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionFalse,
@@ -690,8 +689,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: now.Add(-15 * time.Minute)},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionUnknown,
@@ -707,8 +706,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: now.Add(-45 * time.Minute)},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{},
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{},
 							},
 						},
 					},
@@ -723,8 +722,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: now.Add(-30 * time.Minute)},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionFalse,
@@ -740,8 +739,8 @@ func TestMarkGarbage(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: earlier},
 						},
 						Status: v1alpha1.OperationStatus{
-							ConditionedStatus: xpv1.ConditionedStatus{
-								Conditions: []xpv1.Condition{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
 									{
 										Type:   v1alpha1.TypeSucceeded,
 										Status: corev1.ConditionTrue,

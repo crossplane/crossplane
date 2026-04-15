@@ -33,8 +33,7 @@ import (
 	celconfig "k8s.io/apiserver/pkg/apis/cel"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
-
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 )
 
 const (

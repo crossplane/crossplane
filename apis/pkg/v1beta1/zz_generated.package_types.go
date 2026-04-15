@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Generated from apis/pkg/v1/package_types.go by ./hack/duplicate_api_type.sh. DO NOT EDIT.
+// Generated from pkg/v1/package_types.go by ./hack/duplicate_api_type.sh. DO NOT EDIT.
 
 package v1beta1
 
@@ -78,6 +78,11 @@ type PackageSpec struct {
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 	// +optional
 	CommonLabels map[string]string `json:"commonLabels,omitempty"`
+
+	// Map of string keys and values that can be used to annotate objects.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+	// +optional
+	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty"`
 }
 
 // PackageStatus represents the observed state of a Package.

@@ -19,23 +19,23 @@ package v1
 import (
 	"testing"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 func TestIsSystemConditionType(t *testing.T) {
 	cases := map[string]struct {
 		reason        string
-		conditionType xpv1.ConditionType
+		conditionType xpv2.ConditionType
 		want          bool
 	}{
 		"CrossplaneRuntimeSystemCondition": {
 			reason:        "builtin ready condition should be system type",
-			conditionType: xpv1.TypeReady,
+			conditionType: xpv2.TypeReady,
 			want:          true,
 		},
 		"CrossplaneRuntimeSystemConditionSynced": {
 			reason:        "builtin synced condition should be system type",
-			conditionType: xpv1.TypeSynced,
+			conditionType: xpv2.TypeSynced,
 			want:          true,
 		},
 		"CrossplaneCircuitCondition": {

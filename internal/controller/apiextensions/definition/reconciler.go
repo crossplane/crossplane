@@ -47,15 +47,15 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/watch"
 	apiextensionscontroller "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 )
 
@@ -186,6 +186,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.CompositeResourceDefinition{}).
+		//nolint:staticcheck // TODO(adamwg) Stop using resource.NewPredicates after the v2.2 release.
 		Owns(&extv1.CustomResourceDefinition{}, builder.WithPredicates(resource.NewPredicates(IsCompositeResourceCRD()))).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(errors.WithSilentRequeueOnConflict(r))
@@ -534,6 +535,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		schema = ucomposite.SchemaLegacy
 	}
 
+	//nolint:staticcheck // TODO(adamwg) Stop using meta.ReferenceTo after the v2.2 release.
 	defaultCompositionSelector := composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record)
 
 	ro := []composite.ReconcilerOption{
@@ -627,7 +629,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	crmf := CompositionRevisionMapFunc(gvk, schema, r.engine.GetCached(), log)
 	crh := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(crmf, cb))
 
-	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(SelfMapFunc(), cb))
+	h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(circuit.NewSelfDeleteResetMapFunc(SelfMapFunc(), cb), cb))
 
 	// StartWatches is idempotent - it only starts watches that don't already
 	// exist. We call it every reconcile to ensure watches are started, even if

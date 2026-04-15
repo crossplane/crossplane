@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // CompositeResourceScope specifies the scope of a composite resource.
@@ -89,7 +89,7 @@ type CompositeResourceDefinitionSpec struct {
 	// that is associated with the Claim if no policy has been specified.
 	// +optional
 	// +kubebuilder:default=Background
-	DefaultCompositeDeletePolicy *xpv1.CompositeDeletePolicy `json:"defaultCompositeDeletePolicy,omitempty"`
+	DefaultCompositeDeletePolicy *xpv2.CompositeDeletePolicy `json:"defaultCompositeDeletePolicy,omitempty"`
 
 	// DefaultCompositionRef refers to the Composition resource that will be used
 	// in case no composition selector is given.
@@ -111,7 +111,7 @@ type CompositeResourceDefinitionSpec struct {
 	// Composition Revision has been created if no policy has been specified on the composite.
 	// +optional
 	// +kubebuilder:default=Automatic
-	DefaultCompositionUpdatePolicy *xpv1.UpdatePolicy `json:"defaultCompositionUpdatePolicy,omitempty"`
+	DefaultCompositionUpdatePolicy *xpv2.UpdatePolicy `json:"defaultCompositionUpdatePolicy,omitempty"`
 
 	// Versions is the list of all API versions of the defined composite
 	// resource. Version names are used to compute the order in which served
@@ -204,6 +204,18 @@ type CompositeResourceDefinitionVersion struct {
 	// https://kubernetes.io/docs/reference/using-api/api-concepts/#receiving-resources-as-tables
 	// +optional
 	AdditionalPrinterColumns []extv1.CustomResourceColumnDefinition `json:"additionalPrinterColumns,omitempty"`
+
+	// Subresources specifies what subresources this version of the defined Composite resource has.
+	// The composition authors have responsibility to implement the logic fulfilling the subresources.
+	// +optional
+	Subresources *CompositeResourceDefinitionVersionSubresources `json:"subresources,omitempty"`
+}
+
+// CompositeResourceDefinitionVersionSubresources defines scale subresource for CompositeResources.
+type CompositeResourceDefinitionVersionSubresources struct {
+	// Scale indicates the CRD should serve a `/scale` subresource that returns an `autoscaling/v1` Scale object.
+	// +optional
+	Scale *extv1.CustomResourceSubresourceScale `json:"scale,omitempty"`
 }
 
 // CompositeResourceValidation is a list of validation methods for a composite
@@ -217,7 +229,7 @@ type CompositeResourceValidation struct {
 
 // CompositeResourceDefinitionStatus shows the observed state of the definition.
 type CompositeResourceDefinitionStatus struct {
-	xpv1.ConditionedStatus `json:",inline"`
+	xpv2.ConditionedStatus `json:",inline"`
 
 	// Controllers represents the status of the controllers that power this
 	// composite resource definition.
@@ -268,13 +280,13 @@ type CompositeResourceDefinition struct {
 
 // SetConditions delegates to Status.SetConditions.
 // Implements Conditioned.SetConditions.
-func (c *CompositeResourceDefinition) SetConditions(cs ...xpv1.Condition) {
+func (c *CompositeResourceDefinition) SetConditions(cs ...xpv2.Condition) {
 	c.Status.SetConditions(cs...)
 }
 
 // GetCondition delegates to Status.GetCondition.
 // Implements Conditioned.GetCondition.
-func (c *CompositeResourceDefinition) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (c *CompositeResourceDefinition) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return c.Status.GetCondition(ct)
 }
 

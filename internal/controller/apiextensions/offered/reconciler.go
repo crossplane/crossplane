@@ -42,15 +42,15 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/claim"
 	apiextensionscontroller "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
 	"github.com/crossplane/crossplane/v2/internal/names"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 const (
@@ -156,7 +156,9 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
+		//nolint:staticcheck // TODO(adamwg) Stop using resource.NewPredicates after the v2.2 release.
 		For(&v1.CompositeResourceDefinition{}, builder.WithPredicates(resource.NewPredicates(OffersClaim()))).
+		//nolint:staticcheck // TODO(adamwg) Stop using resource.NewPredicates after the v2.2 release.
 		Owns(&extv1.CustomResourceDefinition{}, builder.WithPredicates(resource.NewPredicates(IsClaimCRD()))).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(errors.WithSilentRequeueOnConflict(r))

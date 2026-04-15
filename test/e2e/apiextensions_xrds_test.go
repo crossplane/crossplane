@@ -22,7 +22,7 @@ import (
 
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
-	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	"github.com/crossplane/crossplane/v2/test/e2e/config"
 	"github.com/crossplane/crossplane/v2/test/e2e/funcs"
 )
@@ -133,6 +133,38 @@ func TestXRDReferenceableVersionChange(t *testing.T) {
 				funcs.DeleteResources(manifests, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "xrd-*.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestXRDSubresources(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/xrd/subresources"
+
+	environment.Test(t,
+		features.NewWithDescription(
+			"XRDSubresourcesScale",
+			"A XRD with Scale subresource should generate a CRD with Scale subresource.",
+		).
+			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreateXRDWithSubresourcesScale", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/xrd-scale.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/xrd-scale.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/xrd-scale.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateCRDWithSubresourcesScale", funcs.AllOf(
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "crd-scale.yaml"),
+				// Generated CRD should have a Scale subresource
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-scale.yaml", "spec.versions[0].subresources.scale.labelSelectorPath", ".status.labelSelector"),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-scale.yaml", "spec.versions[0].subresources.scale.specReplicasPath", ".spec.replicas"),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-scale.yaml", "spec.versions[0].subresources.scale.statusReplicasPath", ".status.replicas"),
+			)).
+			WithTeardown("DeleteXRDWithSubresources", funcs.AllOf(
+				funcs.DeleteResources(manifests, "setup/xrd-scale.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "setup/xrd-scale.yaml"),
 			)).
 			Feature(),
 	)

@@ -14,14 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Generated from apis/pkg/v1/revision_types.go by ./hack/duplicate_api_type.sh. DO NOT EDIT.
+// Generated from pkg/v1/revision_types.go by ./hack/duplicate_api_type.sh. DO NOT EDIT.
 
 package v1beta1
 
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // PackageRevisionDesiredState is the desired state of the package revision.
@@ -82,14 +82,19 @@ type PackageRevisionSpec struct {
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 	// +optional
 	CommonLabels map[string]string `json:"commonLabels,omitempty"`
+
+	// Map of string keys and values that can be used to annotate objects.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+	// +optional
+	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty"`
 }
 
 // PackageRevisionStatus represents the observed state of a PackageRevision.
 type PackageRevisionStatus struct {
-	xpv1.ConditionedStatus `json:",inline"`
+	xpv2.ConditionedStatus `json:",inline"`
 
 	// References to objects owned by PackageRevision.
-	ObjectRefs []xpv1.TypedReference `json:"objectRefs,omitempty"`
+	ObjectRefs []xpv2.TypedReference `json:"objectRefs,omitempty"`
 
 	// Dependency information.
 	FoundDependencies     int64 `json:"foundDependencies,omitempty"`

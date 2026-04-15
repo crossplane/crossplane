@@ -257,3 +257,19 @@ func (b *TokenBucketBreaker) GetState(_ context.Context, target types.Namespaced
 		NextAllowedAt: state.lastAllowed.Add(b.config.halfOpenInterval),
 	}
 }
+
+// ResetTarget removes all circuit breaker state for the given target. This
+// should be called when a resource is deleted so that if a new resource is
+// created with the same name it starts with a fresh circuit breaker state
+// instead of inheriting a potentially open circuit from the deleted resource.
+//
+// ResetTarget does not record any metrics. It is called during deletion event
+// handling, which bypasses circuit breaker logic entirely for correctness. A
+// deletion is not a circuit breaker decision, so it should not appear in
+// circuit breaker metrics.
+func (b *TokenBucketBreaker) ResetTarget(_ context.Context, target types.NamespacedName) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	delete(b.targets, target)
+}

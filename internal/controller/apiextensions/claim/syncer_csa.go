@@ -25,16 +25,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/names"
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 const (
@@ -113,7 +113,7 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// based on the Update policy. If the policy is `Manual`, we need to remove
 	// CompositionRevisionRef from wellKnownClaimFields, so it is propagated
 	// from the claim to the XR.
-	if xr.GetCompositionUpdatePolicy() != nil && *xr.GetCompositionUpdatePolicy() == xpv1.UpdateManual {
+	if xr.GetCompositionUpdatePolicy() != nil && *xr.GetCompositionUpdatePolicy() == xpv2.UpdateManual {
 		delete(wellKnownClaimFields, xcrd.CompositionRevisionRef)
 	}
 
@@ -233,7 +233,7 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// based on the Update policy. If the policy is `Automatic`, we need to
 	// overwrite the claim's value with the XR's which should be the
 	// `currentRevision`
-	if xr.GetCompositionUpdatePolicy() != nil && *xr.GetCompositionUpdatePolicy() == xpv1.UpdateAutomatic {
+	if xr.GetCompositionUpdatePolicy() != nil && *xr.GetCompositionUpdatePolicy() == xpv2.UpdateAutomatic {
 		cm.SetCompositionRevisionReference(xr.GetCompositionRevisionReference())
 	}
 

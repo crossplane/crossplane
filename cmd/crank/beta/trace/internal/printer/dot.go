@@ -8,10 +8,10 @@ import (
 	"github.com/emicklei/dot"
 	"github.com/pkg/errors"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
+	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource/xpkg"
 )
@@ -193,8 +193,8 @@ func printGraphQueue(g *dot.Graph, queue []*queueItem) {
 				namespace:  item.resource.Unstructured.GetNamespace(),
 				apiVersion: item.resource.Unstructured.GetObjectKind().GroupVersionKind().GroupVersion().String(),
 				name:       fmt.Sprintf("%s/%s", item.resource.Unstructured.GetKind(), item.resource.Unstructured.GetName()),
-				ready:      string(item.resource.GetCondition(xpv1.TypeReady).Status),
-				synced:     string(item.resource.GetCondition(xpv1.TypeSynced).Status),
+				ready:      string(item.resource.GetCondition(xpv2.TypeReady).Status),
+				synced:     string(item.resource.GetCondition(xpv2.TypeSynced).Status),
 			}
 		}
 

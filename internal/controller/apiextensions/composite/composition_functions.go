@@ -33,7 +33,6 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
@@ -41,12 +40,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
 	"github.com/crossplane/crossplane/v2/internal/names"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
 	"github.com/crossplane/crossplane/v2/internal/xerrors"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
@@ -85,6 +85,7 @@ const (
 	errFmtNamespacedXRClusterResource = "cannot apply cluster scoped composed resource %q (a %s named %s) for a namespaced composite resource."
 	errFmtFetchBootstrapRequirements  = "cannot fetch bootstrap required resources for requirement %q"
 	errFmtFetchBootstrapSchemas       = "cannot fetch bootstrap required schema for requirement %q"
+	errFmtNamespaceOverridden         = "cannot create composed resource %q in namespace %q, using XR namespace %q instead"
 )
 
 // Server-side-apply field owners. We need two of these because it's possible
@@ -413,11 +414,11 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			}
 
 			conditions = append(conditions, TargetedCondition{
-				Condition: xpv1.Condition{
-					Type:               xpv1.ConditionType(c.GetType()),
+				Condition: xpv2.Condition{
+					Type:               xpv2.ConditionType(c.GetType()),
 					Status:             status,
 					LastTransitionTime: metav1.Now(),
-					Reason:             xpv1.ConditionReason(c.GetReason()),
+					Reason:             xpv2.ConditionReason(c.GetReason()),
 					Message:            c.GetMessage(),
 				},
 				Target: convertTarget(c.GetTarget()),
@@ -493,6 +494,16 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			}
 		}
 
+		// Emit a warning if the XR is namespaced and the composed resource has
+		// a different namespace. The namespace will be overwritten to match the
+		// XR's namespace.
+		if xr.GetNamespace() != "" && cd.GetNamespace() != "" && cd.GetNamespace() != xr.GetNamespace() {
+			events = append(events, TargetedEvent{
+				Event:  event.Warning(reasonNamespaceOverridden, errors.Errorf(errFmtNamespaceOverridden, name, cd.GetNamespace(), xr.GetNamespace())),
+				Target: CompositionTargetComposite,
+			})
+		}
+
 		// Set standard composed resource metadata that is derived from the XR.
 		if err := RenderComposedResourceMetadata(cd, xr, ResourceName(name)); err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtRenderMetadata, name)
@@ -554,6 +565,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// atomic replace of the entire array. Note that we're relying on the status
 	// patch that immediately follows to load the latest version of uxr from the
 	// API server.
+	//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
 	if err := c.client.Patch(ctx, refs, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerXR)); err != nil {
 		// It's important we don't proceed if this fails, because we need to be
 		// sure we've persisted our resource references before we create any new
@@ -591,6 +603,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// NOTE(phisco): We need to set a field owner unique for each XR here,
 		// this prevents multiple XRs composing the same resource to be
 		// continuously alternated as controllers.
+		//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
 		if err := c.client.Patch(ctx, cd.Resource, client.Apply, client.ForceOwnership, client.FieldOwner(ComposedFieldOwnerName(xr))); err != nil {
 			if kerrors.IsInvalid(err) {
 				// We tried applying an invalid resource, we can't tell whether
@@ -656,6 +669,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 	// NOTE(phisco): Here we are fine using a hardcoded field owner as there is
 	// no risk of conflict between different XRs.
+	//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
 	if err := c.client.Status().Patch(ctx, xr, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerXR)); err != nil {
 		// Note(phisco): here we are fine with this error being terminal, as
 		// there is no other resource to apply that might eventually resolve
@@ -901,6 +915,7 @@ func UpdateResourceRefs(xr resource.Composite, desired ComposedResourceStates) {
 
 	refs := make([]corev1.ObjectReference, 0, len(desired))
 	for _, dr := range desired {
+		//nolint:staticcheck // TODO(adamwg) Stop using meta.ReferenceTo after the v2.2 release.
 		ref := meta.ReferenceTo(dr.Resource, dr.Resource.GetObjectKind().GroupVersionKind())
 
 		// If the XR is namespaced it can only compose resources in its own

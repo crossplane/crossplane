@@ -30,15 +30,15 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
+	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // Error strings.
@@ -160,7 +160,7 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 
 	// We've already selected a revision, and our update policy is manual.
 	// Just fetch and return the selected revision.
-	if current != nil && pol != nil && *pol == xpv1.UpdateManual {
+	if current != nil && pol != nil && *pol == xpv2.UpdateManual {
 		rev := &v1.CompositionRevision{}
 		err := f.client.Get(ctx, types.NamespacedName{Name: current.Name}, rev)
 
@@ -200,7 +200,7 @@ func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr 
 	rl := &v1.CompositionRevisionList{}
 	ml := client.MatchingLabels{}
 
-	if cr.GetCompositionUpdatePolicy() != nil && *cr.GetCompositionUpdatePolicy() == xpv1.UpdateAutomatic &&
+	if cr.GetCompositionUpdatePolicy() != nil && *cr.GetCompositionUpdatePolicy() == xpv2.UpdateAutomatic &&
 		cr.GetCompositionRevisionSelector() != nil {
 		ml = cr.GetCompositionRevisionSelector().MatchLabels
 	}
@@ -432,7 +432,7 @@ func (c *APIConfigurator) Configure(ctx context.Context, cp resource.Composite, 
 		return nil
 	}
 
-	lcp.SetWriteConnectionSecretToReference(&xpv1.SecretReference{
+	lcp.SetWriteConnectionSecretToReference(&xpv2.SecretReference{
 		Name:      string(cp.GetUID()),
 		Namespace: *rev.Spec.WriteConnectionSecretsToNamespace,
 	})

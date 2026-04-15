@@ -36,12 +36,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	"github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
+	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
@@ -198,7 +198,7 @@ func TestReconcile(t *testing.T) {
 												{
 													Name:   "doesnt-exist",
 													Source: v1alpha1.FunctionCredentialsSourceSecret,
-													SecretRef: &v1.SecretReference{
+													SecretRef: &xpv2.SecretReference{
 														Namespace: "default",
 														Name:      "creds",
 													},

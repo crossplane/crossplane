@@ -20,7 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // MatchType is the method used to match the image.
@@ -135,7 +135,7 @@ type CosignVerificationConfig struct {
 // A LocalSecretKeySelector is a reference to a secret key in a predefined
 // namespace.
 type LocalSecretKeySelector struct {
-	xpv1.LocalSecretReference `json:",inline"`
+	xpv2.LocalSecretReference `json:",inline"`
 
 	// The key to select.
 	Key string `json:"key"`

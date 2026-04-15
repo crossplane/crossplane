@@ -40,11 +40,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
+	fakexpkg "github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/fake"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
-	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/features"
-	fakexpkg "github.com/crossplane/crossplane/v2/internal/xpkg/fake"
 )
 
 const (

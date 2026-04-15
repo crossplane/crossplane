@@ -34,29 +34,29 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/version"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/parser"
 
-	extv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
-	extv1alpha1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
-	extv2 "github.com/crossplane/crossplane/v2/apis/apiextensions/v2"
-	opsv1alpha1 "github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
-	pkgmetav1 "github.com/crossplane/crossplane/v2/apis/pkg/meta/v1"
-	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
-	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	extv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	extv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	extv2 "github.com/crossplane/crossplane/apis/v2/apiextensions/v2"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
+	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
+	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/v2/internal/converter"
 	"github.com/crossplane/crossplane/v2/internal/dag"
 	"github.com/crossplane/crossplane/v2/internal/features"
-	"github.com/crossplane/crossplane/v2/internal/version"
-	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 const (
@@ -387,7 +387,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// after logging, publishing an event and updating the SYNC status condition
 	if meta.IsPaused(pr) {
 		r.record.Event(pr, event.Normal(reasonPaused, reconcilePausedMsg))
-		status.MarkConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+		status.MarkConditions(xpv2.ReconcilePaused().WithMessage(reconcilePausedMsg))
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
 		// and if status update fails, we will reconcile again to retry to update the status
 		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, pr), errUpdateStatus)
@@ -427,7 +427,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	if c := pr.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
+	if c := pr.GetCondition(xpv2.ReconcilePaused().Type); c.Reason == xpv2.ReconcilePaused().Reason {
 		pr.CleanConditions()
 		// Persist the removal of conditions and return. We'll be requeued
 		// with the updated status and resume reconciliation.
@@ -720,6 +720,6 @@ func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevisi
 
 // uniqueResourceIdentifier returns a unique identifier for a resource in a
 // package, consisting of the group, version, kind, and name.
-func uniqueResourceIdentifier(ref xpv1.TypedReference) string {
+func uniqueResourceIdentifier(ref xpv2.TypedReference) string {
 	return strings.Join([]string{ref.GroupVersionKind().String(), ref.Name}, "/")
 }

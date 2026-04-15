@@ -31,8 +31,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
-
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 )
 
 func TestRenderFromJSON(t *testing.T) {

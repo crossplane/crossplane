@@ -206,10 +206,8 @@ spec:
                             - requirementName
                             type: object
                             x-kubernetes-validations:
-                            - message: Either name or matchLabels must be specified,
-                                but not both
-                              rule: (has(self.name) && !has(self.matchLabels)) ||
-                                (!has(self.name) && has(self.matchLabels))
+                            - message: name and matchLabels are mutually exclusive
+                              rule: '!(has(self.name) && has(self.matchLabels))'
                           type: array
                           x-kubernetes-list-map-keys:
                           - requirementName

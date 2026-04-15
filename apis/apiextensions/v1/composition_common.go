@@ -20,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 /*
@@ -108,7 +108,7 @@ type FunctionCredentials struct {
 	// A SecretRef is a reference to a secret containing credentials that should
 	// be supplied to the function.
 	// +optional
-	SecretRef *xpv1.SecretReference `json:"secretRef,omitempty"`
+	SecretRef *xpv2.SecretReference `json:"secretRef,omitempty"`
 }
 
 // A FunctionCredentialsSource is a source from which function
@@ -145,7 +145,7 @@ type FunctionRequirements struct {
 
 // RequiredResourceSelector selects a required resource.
 //
-// +kubebuilder:validation:XValidation:rule="(has(self.name) && !has(self.matchLabels)) || (!has(self.name) && has(self.matchLabels))",message="Either name or matchLabels must be specified, but not both"
+// +kubebuilder:validation:XValidation:rule="!(has(self.name) && has(self.matchLabels))",message="name and matchLabels are mutually exclusive"
 type RequiredResourceSelector struct {
 	// RequirementName is the unique name to identify this required resource
 	// in the Required Resources map in the function request.

@@ -7,12 +7,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
-
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 )
 
 // IsCompositeResourceCRD accepts any CustomResourceDefinition that represents a
 // Composite Resource.
+//
+//nolint:staticcheck // TODO(adamwg) Stop using resource.PredicateFn after the v2.2 release.
 func IsCompositeResourceCRD() resource.PredicateFn {
 	return func(obj runtime.Object) bool {
 		crd, ok := obj.(*extv1.CustomResourceDefinition)

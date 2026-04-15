@@ -37,11 +37,10 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
-
-	"github.com/crossplane/crossplane/v2/internal/xpkg"
-	"github.com/crossplane/crossplane/v2/internal/xpkg/parser/examples"
-	"github.com/crossplane/crossplane/v2/internal/xpkg/parser/yaml"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/parser"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/parser/examples"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/parser/yaml"
 )
 
 const (

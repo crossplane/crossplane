@@ -23,8 +23,8 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"k8s.io/utils/ptr"
 
-	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
-	opsv1alpha1 "github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
@@ -237,6 +237,26 @@ func TestToProtobufResourceSelector(t *testing.T) {
 								"tier": "frontend",
 							},
 						},
+					},
+				},
+			},
+		},
+		"OperationSelectorWithEmptyLabels": {
+			reason: "Empty matchLabels should select all resources of the kind, similar to kubectl get --selector",
+			args: args{
+				selector: &apiextensionsv1.RequiredResourceSelector{
+					RequirementName: "test-req",
+					APIVersion:      "v1",
+					Kind:            "ConfigMap",
+					MatchLabels:     map[string]string{},
+				},
+			},
+			want: want{
+				result: &fnv1.ResourceSelector{
+					ApiVersion: "v1",
+					Kind:       "ConfigMap",
+					Match: &fnv1.ResourceSelector_MatchLabels{
+						MatchLabels: &fnv1.MatchLabels{},
 					},
 				},
 			},

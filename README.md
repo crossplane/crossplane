@@ -22,14 +22,15 @@ Currently maintained releases, as well as the next few upcoming releases are
 listed below. For more information take a look at the Crossplane [release cycle
 documentation].
 
-| Release | Release Date  |   EOL    |
-|:-------:|:-------------:|:--------:|
-|  v1.20  | May 21, 2025  | TBD      |
-|  v2.0   |  Aug 8, 2025  | May 2026 |
-|  v2.1   |  Nov 5, 2025  | Aug 2026 |
-|  v2.2   | Early Feb '26 | Nov 2026 |
-|  v2.3   | Early May '26 | Feb 2027 |
-|  v2.4   | Early Aug '26 | May 2027 |
+| Release | Release Date |   EOL    |
+|:-------:|:------------:|:--------:|
+|  v1.20  | May 21, 2025 |   TBD    |
+|  v2.0   | Aug 8, 2025  | May 2026 |
+|  v2.1   | Nov 5, 2025  | Aug 2026 |
+|  v2.2   | Feb 18, 2026 | Nov 2026 |
+|  v2.3   |   May 2026   | Feb 2027 |
+|  v2.4   |   Aug 2026   | May 2027 |
+|  v2.5   |   Nov 2026   | Aug 2027 |
 
 You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
@@ -116,6 +117,7 @@ that you can find in the [Community Calendar][community calendar].
 - [#sig-e2e-testing][sig-e2e-testing-slack]
 - [#sig-observability][sig-observability-slack]
 - [#sig-observe-only][sig-observe-only-slack]
+- [#sig-prod-readiness][sig-prod-readiness-slack]
 - [#sig-provider-families][sig-provider-families-slack]
 - [#sig-secret-stores][sig-secret-stores-slack]
 - [#sig-upjet][sig-upjet-slack]
@@ -166,6 +168,7 @@ Crossplane is under the Apache 2.0 license.
 [sig-e2e-testing-slack]: https://crossplane.slack.com/archives/C05C8CCTVNV
 [sig-observability-slack]: https://crossplane.slack.com/archives/C061GNH3LA0
 [sig-observe-only-slack]: https://crossplane.slack.com/archives/C04D5988QEA
+[sig-prod-readiness-slack]: https://crossplane.slack.com/archives/C0AEYUFP9GQ
 [sig-provider-families-slack]: https://crossplane.slack.com/archives/C056YAQRV16
 [sig-secret-stores-slack]: https://crossplane.slack.com/archives/C05BY7DKFV2
 [sig-upjet-slack]: https://crossplane.slack.com/archives/C05T19TB729

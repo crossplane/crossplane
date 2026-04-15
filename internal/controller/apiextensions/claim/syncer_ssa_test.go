@@ -25,7 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -33,9 +32,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/names"
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 func TestServerSideSync(t *testing.T) {
@@ -282,7 +282,7 @@ func TestServerSideSync(t *testing.T) {
 
 					// Patch the XR. Make sure it has a valid status.
 					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
-						obj.(*composite.Unstructured).SetConditions(xpv1.Creating())
+						obj.(*composite.Unstructured).SetConditions(xpv2.Creating())
 						return nil
 					}),
 
@@ -326,7 +326,7 @@ func TestServerSideSync(t *testing.T) {
 						Namespace: "default",
 						Name:      "cool-claim",
 					})
-					xr.SetConditions(xpv1.Creating())
+					xr.SetConditions(xpv2.Creating())
 				}),
 				err: errors.Wrap(errBoom, errUpdateClaimStatus),
 			},
@@ -377,7 +377,7 @@ func TestServerSideSync(t *testing.T) {
 
 					// Make sure these don't get lost when we propagate status
 					// from the XR.
-					cm.SetConditions(xpv1.ReconcileSuccess(), Waiting())
+					cm.SetConditions(xpv2.ReconcileSuccess(), Waiting())
 					cm.SetConnectionDetailsLastPublishedTime(&now)
 				}),
 				xr: NewComposite(),
@@ -403,7 +403,7 @@ func TestServerSideSync(t *testing.T) {
 					cm.Object["status"] = map[string]any{
 						"userDefinedField": "status",
 					}
-					cm.SetConditions(xpv1.ReconcileSuccess(), Waiting())
+					cm.SetConditions(xpv2.ReconcileSuccess(), Waiting())
 					cm.SetConnectionDetailsLastPublishedTime(&now)
 				}),
 				xr: NewComposite(func(xr *composite.Unstructured) {
@@ -462,7 +462,7 @@ func TestServerSideSync(t *testing.T) {
 								// Types of custom conditions that were copied from the
 								// Composite to the Claim.
 								"claimConditionTypes": []string{"ExampleCustomStatus"},
-								"conditions": []xpv1.Condition{
+								"conditions": []xpv2.Condition{
 									{
 										Type:               "ExampleCustomStatus",
 										Status:             "True",
@@ -509,10 +509,10 @@ func TestServerSideSync(t *testing.T) {
 					// from the XR.
 					cm.SetConditions(
 						// Crossplane system conditions.
-						xpv1.ReconcileSuccess(),
+						xpv2.ReconcileSuccess(),
 						Waiting(),
 						// User custom conditions from the Composite.
-						xpv1.Condition{
+						xpv2.Condition{
 							Type:               "ExampleCustomStatus",
 							Status:             "True",
 							Reason:             "SomeReason",
@@ -546,9 +546,9 @@ func TestServerSideSync(t *testing.T) {
 						"userDefinedField": "status",
 					}
 					cm.SetConditions(
-						xpv1.ReconcileSuccess(),
+						xpv2.ReconcileSuccess(),
 						Waiting(),
-						xpv1.Condition{
+						xpv2.Condition{
 							Type:               "ExampleCustomStatus",
 							Status:             "True",
 							Reason:             "SomeReason",
@@ -579,7 +579,7 @@ func TestServerSideSync(t *testing.T) {
 					xr.Object["status"] = map[string]any{
 						"userDefinedField":    "status",
 						"claimConditionTypes": []string{"ExampleCustomStatus"},
-						"conditions": []xpv1.Condition{
+						"conditions": []xpv2.Condition{
 							{
 								Type:               "ExampleCustomStatus",
 								Status:             "True",

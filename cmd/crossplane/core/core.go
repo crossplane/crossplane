@@ -51,10 +51,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/parser"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/signature"
 
-	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions"
 	apiextensionscontroller "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
@@ -73,8 +75,6 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	xfncached "github.com/crossplane/crossplane/v2/internal/xfn/cached"
 	"github.com/crossplane/crossplane/v2/internal/xfn/inspected"
-	"github.com/crossplane/crossplane/v2/internal/xpkg"
-	"github.com/crossplane/crossplane/v2/internal/xpkg/signature"
 )
 
 // Command runs the core crossplane controllers.

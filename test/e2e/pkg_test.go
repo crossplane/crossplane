@@ -31,11 +31,10 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
-
-	apiextensionsv1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
-	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/test/e2e/config"
 	"github.com/crossplane/crossplane/v2/test/e2e/funcs"
 )
@@ -185,7 +184,7 @@ func TestProviderUpgrade(t *testing.T) {
 			).
 			Assess("UpgradeManagedResource", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "mr-upgrade.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mr-upgrade.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mr-upgrade.yaml", xpv2.Available()),
 			)).
 			WithTeardown("DeleteUpgradedManagedResource", funcs.AllOf(
 				funcs.DeleteResources(manifests, "mr-upgrade.yaml"),
@@ -221,7 +220,7 @@ func TestDeploymentRuntimeConfig(t *testing.T) {
 			// deployment runtime configuration are causing any disruptions to
 			// the functionality.
 			Assess("XRIsReady",
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available())).
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv2.Available())).
 			Assess("XRHasPatchedField",
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
 			).
@@ -360,7 +359,9 @@ func TestImageConfigRuntimeConfig(t *testing.T) {
 			)).
 			WithTeardown("DeleteProvider", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider-dependency.yaml", metav1.DeletePropagationForeground),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-dependency.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "provider-dependency.yaml"),
+				// Ensure the CRD installed by provider-nop is also gone.
+				funcs.ResourceDeletedWithin(3*time.Minute, &k8sapiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}}),
 			)).
 			WithTeardown("DeleteFunction", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "function.yaml", metav1.DeletePropagationForeground),
@@ -400,7 +401,7 @@ func TestExternallyManagedServiceAccount(t *testing.T) {
 			// deployment runtime configuration are causing any disruptions to
 			// the functionality.
 			Assess("XRIsReady",
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv1.Available())).
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv2.Available())).
 			Assess("XRHasPatchedField",
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
 			).
@@ -1047,5 +1048,29 @@ func TestImageConfigRewrite(t *testing.T) {
 				// including all revisions.
 				funcs.ResourceDeletedWithin(2*time.Minute, &k8sapiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}}),
 			)).Feature(),
+	)
+}
+
+func TestCommonAnnotationsAndLabels(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/provider"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that commonAnnotations and commonLabels are propagated down to provider revision objects.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("ApplyProviderWithCommonAnnotationsAndLabels", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-common-annotations-and-labels.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-common-annotations-and-labels.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-common-annotations-and-labels.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("AnnotationsPropagated", funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "provider-revision-common-annotations-and-labels.yaml", "spec.commonAnnotations.foo", "bar")).
+			Assess("LabelsPropagated", funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "provider-revision-common-annotations-and-labels.yaml", "spec.commonLabels.baz", "qux")).
+			WithTeardown("DeleteProvider", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider-common-annotations-and-labels.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-common-annotations-and-labels.yaml"),
+				funcs.ResourceDeletedWithin(2*time.Minute, &k8sapiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}}),
+			)).
+			Feature(),
 	)
 }

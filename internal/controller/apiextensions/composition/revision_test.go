@@ -24,7 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 )
 
 func TestNewCompositionRevision(t *testing.T) {
@@ -67,5 +67,30 @@ func TestNewCompositionRevision(t *testing.T) {
 	got := NewCompositionRevision(comp, rev)
 	if diff := cmp.Diff(want, got, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("NewCompositionRevision(): -want, +got:\n%s", diff)
+	}
+}
+
+func TestNewCompositionRevisionPropagatesLabelsAndAnnotations(t *testing.T) {
+	comp := &v1.Composition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "coolcomp",
+			Annotations: map[string]string{
+				"foo": "bar",
+			},
+			Labels: map[string]string{
+				"baz": "qux",
+			},
+		},
+	}
+
+	got := NewCompositionRevision(comp, 1)
+	if diff := cmp.Diff(map[string]string{"foo": "bar"}, got.GetAnnotations()); diff != "" {
+		t.Errorf("NewCompositionRevision() annotations: -want, +got:\n%s", diff)
+	}
+	ignoreSystemLabels := cmpopts.IgnoreMapEntries(func(k, _ string) bool {
+		return k == v1.LabelCompositionName || k == v1.LabelCompositionHash
+	})
+	if diff := cmp.Diff(map[string]string{"baz": "qux"}, got.GetLabels(), ignoreSystemLabels); diff != "" {
+		t.Errorf("NewCompositionRevision() labels: -want, +got:\n%s", diff)
 	}
 }

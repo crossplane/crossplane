@@ -28,7 +28,34 @@
       checkPhase = ''
         runHook preCheck
         export HOME=$TMPDIR
-        go test -covermode=count -coverprofile=coverage.txt ./apis/... ./cmd/... ./internal/...
+        go test -covermode=count -coverprofile=coverage.txt ./cmd/... ./internal/...
+        runHook postCheck
+      '';
+
+      installPhase = ''
+        mkdir -p $out
+        cp coverage.txt $out/
+      '';
+    };
+
+  # Run Go unit tests with coverage for the apis module.
+  testAPIs =
+    { version }:
+    pkgs.buildGoApplication {
+      pname = "crossplane-apis-test";
+      inherit version;
+      src = "${self}/apis";
+      pwd = "${self}/apis";
+      modules = "${self}/apis/gomod2nix.toml";
+
+      CGO_ENABLED = "0";
+
+      dontBuild = true;
+
+      checkPhase = ''
+        runHook preCheck
+        export HOME=$TMPDIR
+        go test -covermode=count -coverprofile=coverage.txt ./...
         runHook postCheck
       '';
 
@@ -59,6 +86,36 @@
         export HOME=$TMPDIR
         export GOLANGCI_LINT_CACHE=$TMPDIR/.cache/golangci-lint
         golangci-lint run
+        runHook postCheck
+      '';
+
+      installPhase = ''
+        mkdir -p $out
+        touch $out/.lint-passed
+      '';
+    };
+
+  # Run golangci-lint (without --fix, since source is read-only) for the apis module.
+  goLintAPIs =
+    { version }:
+    pkgs.buildGoApplication {
+      pname = "crossplane-apis-go-lint";
+      inherit version;
+      src = "${self}/apis";
+      pwd = "${self}/apis";
+      modules = "${self}/apis/gomod2nix.toml";
+
+      CGO_ENABLED = "0";
+
+      nativeBuildInputs = [ pkgs.golangci-lint ];
+
+      dontBuild = true;
+
+      checkPhase = ''
+        runHook preCheck
+        export HOME=$TMPDIR
+        export GOLANGCI_LINT_CACHE=$TMPDIR/.cache/golangci-lint
+        golangci-lint run --config=${self}/.golangci.yml
         runHook postCheck
       '';
 
@@ -112,13 +169,6 @@
         echo "Running go generate..."
         go generate -tags generate .
 
-        echo "Patching CRDs..."
-        kubectl patch --local --type=json \
-          --patch-file cluster/crd-patches/pkg.crossplane.io_deploymentruntimeconfigs.yaml \
-          --filename cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml \
-          --output=yaml > /tmp/patched.yaml \
-          && mv /tmp/patched.yaml cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml
-
         echo "Generating Helm chart docs..."
         helm-docs --chart-search-root=cluster/charts
 
@@ -129,6 +179,64 @@
            ! diff -rq cluster/crds ${self}/cluster/crds > /dev/null 2>&1 || \
            ! diff -rq cluster/webhookconfigurations ${self}/cluster/webhookconfigurations > /dev/null 2>&1 || \
            ! diff -rq cluster/charts ${self}/cluster/charts > /dev/null 2>&1; then
+          echo "ERROR: Generated code is out of date. Run 'nix run .#generate' and commit."
+          exit 1
+        fi
+
+        runHook postCheck
+      '';
+
+      installPhase = ''
+        mkdir -p $out
+        touch $out/.generate-passed
+      '';
+    };
+
+  # Verify generated code matches committed code for the apis module.
+  generateAPIs =
+    { version }:
+    pkgs.buildGoApplication {
+      pname = "crossplane-apis-generate-check";
+      inherit version;
+      src = "${self}/apis";
+      pwd = "${self}/apis";
+      modules = "${self}/apis/gomod2nix.toml";
+
+      CGO_ENABLED = "0";
+
+      nativeBuildInputs = [
+        pkgs.kubectl
+        pkgs.helm-docs
+        pkgs.goverter
+        pkgs.kubernetes-controller-tools
+      ];
+
+      dontBuild = true;
+
+      checkPhase = ''
+        runHook preCheck
+        export HOME=$TMPDIR
+
+        # cluster/webhookconfigurations contains some non-generated files. Copy
+        # the existing version into our build context so we can detect changes
+        # from generate, considering the manually populated bits.
+        mkdir ../cluster
+        cp -R ${self}/cluster/webhookconfigurations ../cluster/
+
+        echo "Running go generate..."
+        go generate -tags generate .
+
+        echo "Patching CRDs..."
+        kubectl patch --local --type=json \
+          --patch-file ${self}/cluster/crd-patches/pkg.crossplane.io_deploymentruntimeconfigs.yaml \
+          --filename ../cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml \
+          --output=yaml > /tmp/patched.yaml \
+          && mv /tmp/patched.yaml ../cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml
+
+        echo "Comparing against committed source..."
+        if ! diff -rq --exclude vendor . ${self}/apis > /dev/null 2>&1 || \
+           ! diff -rq ../cluster/crds ${self}/cluster/crds > /dev/null 2>&1 || \
+           ! diff -rq ../cluster/webhookconfigurations ${self}/cluster/webhookconfigurations > /dev/null 2>&1; then
           echo "ERROR: Generated code is out of date. Run 'nix run .#generate' and commit."
           exit 1
         fi

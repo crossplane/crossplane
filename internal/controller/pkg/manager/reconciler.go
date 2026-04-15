@@ -31,18 +31,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
-	"github.com/crossplane/crossplane/v2/apis/pkg/v1beta1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
+	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
-	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 const (
@@ -289,13 +289,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// after logging, publishing an event and updating the SYNC status condition
 	if meta.IsPaused(p) {
 		r.record.Event(p, event.Normal(reasonPaused, reconcilePausedMsg))
-		status.MarkConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+		status.MarkConditions(xpv2.ReconcilePaused().WithMessage(reconcilePausedMsg))
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
 		// and if status update fails, we will reconcile again to retry to update the status
 		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, p), errUpdateStatus)
 	}
 
-	if c := p.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
+	if c := p.GetCondition(xpv2.ReconcilePaused().Type); c.Reason == xpv2.ReconcilePaused().Reason {
 		p.CleanConditions()
 		// Persist the removal of conditions and return. We'll be requeued
 		// with the updated status and resume reconciliation.
@@ -442,6 +442,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetIgnoreCrossplaneConstraints(p.GetIgnoreCrossplaneConstraints())
 	pr.SetSkipDependencyResolution(p.GetSkipDependencyResolution())
 	pr.SetCommonLabels(p.GetCommonLabels())
+	pr.SetCommonAnnotations(p.GetCommonAnnotations())
 
 	if r.setPackageRuntimeManagedFields != nil {
 		r.setPackageRuntimeManagedFields(p, pr)
@@ -468,10 +469,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// Handle changes in labels
-	same := reflect.DeepEqual(pr.GetCommonLabels(), p.GetCommonLabels())
-	if !same {
+	// Handle changes in labels or annotations
+	sameLabels := reflect.DeepEqual(pr.GetCommonLabels(), p.GetCommonLabels())
+	sameAnnotations := reflect.DeepEqual(pr.GetCommonAnnotations(), p.GetCommonAnnotations())
+	if !sameLabels || !sameAnnotations {
 		pr.SetCommonLabels(p.GetCommonLabels())
+		pr.SetCommonAnnotations(p.GetCommonAnnotations())
 
 		if err := r.kube.Update(ctx, pr); err != nil {
 			if kerrors.IsConflict(err) {

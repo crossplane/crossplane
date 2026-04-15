@@ -26,11 +26,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
-	v1 "github.com/crossplane/crossplane/v2/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // CompositionRevisionMapFunc returns a MapFunc that maps CompositionRevisions to affected XRs.
@@ -76,7 +76,7 @@ func CompositionRevisionMapFunc(of schema.GroupVersionKind, s composite.Schema, 
 
 			// We only care about XRs that would
 			// automatically update to this new revision.
-			if pol := xr.GetCompositionUpdatePolicy(); pol != nil && *pol == xpv1.UpdateManual {
+			if pol := xr.GetCompositionUpdatePolicy(); pol != nil && *pol == xpv2.UpdateManual {
 				continue
 			}
 

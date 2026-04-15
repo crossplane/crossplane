@@ -34,7 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	"github.com/crossplane/crossplane/v2/apis/pkg"
+	"github.com/crossplane/crossplane/apis/v2/pkg"
 	"github.com/crossplane/crossplane/v2/cmd/crank/beta/trace/internal/printer"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource"
 	"github.com/crossplane/crossplane/v2/cmd/crank/common/resource/xpkg"
@@ -44,6 +44,8 @@ import (
 
 const (
 	errGetResource            = "cannot get requested resource"
+	errFmtGetResource         = "cannot get requested resource: kind=%s name=%s namespace=%s (verify context, namespace, and that the resource exists)"
+	errFmtGetResourceTree     = "cannot get resource tree: kind=%s name=%s namespace=%s (verify context, namespace, and that the resource exists)"
 	errCliOutput              = "cannot print output"
 	errKubeConfig             = "failed to get kubeconfig"
 	errKubeNamespace          = "failed to get namespace from kubeconfig"
@@ -64,7 +66,7 @@ type Cmd struct {
 	// TODO(phisco): add support for all the usual kubectl flags; configFlags := genericclioptions.NewConfigFlags(true).AddFlags(...)
 	Context                   string `default:""                                    help:"Kubernetes context."                             name:"context"                                                             predictor:"context"              short:"c"`
 	Namespace                 string `default:""                                    help:"Namespace of the resource."                      name:"namespace"                                                           predictor:"namespace"            short:"n"`
-	Output                    string `default:"default"                             enum:"default,wide,json,dot"                           help:"Output format. One of: default, wide, json, dot."                    name:"output"                    short:"o"`
+	Output                    string `default:"default"                             enum:"default,wide,json,dot,yaml"                      help:"Output format. One of: default, wide, json, dot, yaml."              name:"output"                    short:"o"`
 	ShowConnectionSecrets     bool   `help:"Show connection secrets in the output." name:"show-connection-secrets"                         short:"s"`
 	ShowPackageDependencies   string `default:"unique"                              enum:"unique,all,none"                                 help:"Show package dependencies in the output. One of: unique, all, none." name:"show-package-dependencies"`
 	ShowPackageRevisions      string `default:"active"                              enum:"active,all,none"                                 help:"Show package revisions in the output. One of: active, all, none."    name:"show-package-revisions"`
@@ -227,16 +229,21 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	}
 
 	// We should just surface any error getting the root resource immediately.
+	nameDisplay := name
+	if nameDisplay == "" {
+		nameDisplay = "<all>"
+	}
 	if err := resourceList.Error; err != nil {
-		return errors.Wrap(err, errGetResource)
+		return errors.Wrapf(err, errFmtGetResource, mapping.GroupVersionKind.Kind, nameDisplay, rootRef.Namespace)
 	}
 
 	for i := range resourceList.Items {
 		root := resourceList.Items[i]
+		itemKind, itemName, itemNamespace := root.Unstructured.GetKind(), root.Unstructured.GetName(), root.Unstructured.GetNamespace()
 		root, err = c.getResourceTree(ctx, root, mapping, client, logger)
 		if err != nil {
 			logger.Debug(errGetResource, "error", err)
-			return errors.Wrap(err, errGetResource)
+			return errors.Wrapf(err, errFmtGetResourceTree, itemKind, itemName, itemNamespace)
 		}
 
 		logger.Debug("Got resource tree", "root", root)

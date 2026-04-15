@@ -125,6 +125,9 @@ linters:
           paramsOnly: true
         rangeValCopy:
           sizeThreshold: 32
+    gomoddirectives:
+      # Allow replace for the local ./apis module.
+      replace-local: true
     govet:
       disable:
         - shadow
@@ -236,6 +239,14 @@ linters:
       - linters:
           - staticcheck
         text: 'SA1019: .+ is deprecated: Specify an apiVersion'
+
+      # controller-runtime has marked the events API we use as deprecated, and
+      # it will be a big lift to move to the new API. We'll ignore the warnings
+      # about this globally until we have time to introduce the new API
+      # everywhere.
+      - linters:
+          - staticcheck
+        text: 'SA1019: .+ is deprecated: this uses the old events API and will be removed in a future release. Please use GetEventRecorder instead.'
 
       # We include a 'common' package under crank, which revive doesn't like.
       - linters:

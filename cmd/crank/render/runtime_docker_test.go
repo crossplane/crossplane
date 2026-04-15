@@ -28,7 +28,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
-	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 )
 
 type mockPullClient struct {
@@ -66,6 +66,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 							AnnotationKeyRuntimeDockerPullPolicy:     string(AnnotationValueRuntimeDockerPullPolicyAlways),
 							AnnotationKeyRuntimeDockerImage:          "test-image-from-annotation",
 							AnnotationKeyRuntimeEnvironmentVariables: "KCL_DEFAULT_REGISTRY=registry.example.com,ANOTHER_ENV_VAR=another-value",
+							AnnotationKeyRuntimeDockerNetwork:        "test-network",
 						},
 					},
 					Spec: pkgv1.FunctionSpec{
@@ -82,6 +83,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 					PullPolicy:  AnnotationValueRuntimeDockerPullPolicyAlways,
 					Env:         []string{"KCL_DEFAULT_REGISTRY=registry.example.com", "ANOTHER_ENV_VAR=another-value"},
 					BindAddress: "127.0.0.1",
+					Network:     "test-network",
 				},
 			},
 		},
@@ -202,6 +204,32 @@ func TestGetRuntimeDocker(t *testing.T) {
 					PullPolicy:  AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
 					Env:         nil,
 					BindAddress: "127.0.0.1",
+				},
+			},
+		},
+		"SuccessWithNetwork": {
+			reason: "should return a RuntimeDocker with Network set when the network annotation is provided",
+			args: args{
+				fn: pkgv1.Function{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							AnnotationKeyRuntimeDockerNetwork: "my-custom-network",
+						},
+					},
+					Spec: pkgv1.FunctionSpec{
+						PackageSpec: pkgv1.PackageSpec{
+							Package: "test-package",
+						},
+					},
+				},
+			},
+			want: want{
+				rd: &RuntimeDocker{
+					Image:       "test-package",
+					Cleanup:     AnnotationValueRuntimeDockerCleanupRemove,
+					PullPolicy:  AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
+					BindAddress: "127.0.0.1",
+					Network:     "my-custom-network",
 				},
 			},
 		},
