@@ -307,12 +307,7 @@ func (m *Manager) cacheDependencies() error {
 		return errors.Wrapf(err, "cannot initialize cache directory")
 	}
 
-	for img := range m.deps {
-		image, err := findImageTagForVersionConstraint(img)
-		if err != nil {
-			return errors.Wrapf(err, "cannot resolve image tag for %s", img)
-		}
-
+	for image := range m.deps {
 		path, err := m.cache.Exists(image) // returns the path if the image is not cached
 		if err != nil {
 			return errors.Wrapf(err, "cannot check if cache exists for %s", image)
@@ -328,11 +323,11 @@ func (m *Manager) cacheDependencies() error {
 
 		var schemas [][]byte
 		// handling for packages
-		layer, err := m.fetcher.FetchBaseLayer(image)
+		resolvedImage, layer, err := m.fetcher.FetchBaseLayer(image)
 		switch {
 		case IsErrBaseLayerNotFound(err):
 			// We fall back to fetching the image if the base layer is not found
-			layers, err := m.fetcher.FetchImage(image)
+			_, layers, err := m.fetcher.FetchImage(image)
 			if err != nil {
 				return errors.Wrapf(err, "cannot extract crds")
 			}

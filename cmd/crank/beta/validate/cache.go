@@ -95,12 +95,7 @@ func (c *LocalCache) Flush() error {
 
 // Load loads schemas from the cache directory.
 // image should be a validate image name with the format: <registry>/<image>:<tag>.
-func (c *LocalCache) Load(img string) ([]*unstructured.Unstructured, error) {
-	image, err := findImageTagForVersionConstraint(img)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot resolve image tag for %s", img)
-	}
-
+func (c *LocalCache) Load(image string) ([]*unstructured.Unstructured, error) {
 	cacheImagePath := c.getCachePath(image)
 
 	loader, err := load.NewLoader(cacheImagePath)
@@ -117,69 +112,14 @@ func (c *LocalCache) Load(img string) ([]*unstructured.Unstructured, error) {
 }
 
 // Exists checks if the cache contains the image and returns the path if it doesn't exist.
-// If the image tag is a version constraint,
-// check cache for latest version that matches the constraint
-func (c *LocalCache) Exists(img string) (string, error) {
-	isConstraint := true
-	imageBase, imageTag := separateImageTag(img)
+func (c *LocalCache) Exists(image string) (string, error) {
+	path := c.getCachePath(image)
 
-	constraint, err := semver.NewConstraint(imageTag)
-	if err != nil {
-		isConstraint = false
-	}
-
-	cachePath := c.getCachePath(img)
-
-	if isConstraint {
-		// search cache-directory for tags
-		cacheDir := filepath.Dir(cachePath)
-
-		tags := []string{}
-		err := filepath.WalkDir(cacheDir, func(p string, d fs.DirEntry, err error) error {
-			if d.IsDir() && strings.HasPrefix(d.Name(), path.Base(imageBase)) {
-				i := strings.Index(d.Name(), "@")
-				if i == -1 {
-					return errors.New(fmt.Sprintf("the cache entry '%s' does not contain a tag", d.Name()))
-				}
-
-				tags = append(tags, d.Name()[i+1:])
-			}
-
-			return nil
-		})
-		if err != nil {
-			return "", errors.Wrapf(err, "failed to search cache-directory %s for existing tag", cacheDir)
-		}
-
-		if len(tags) == 0 {
-			return "", nil
-		}
-
-		vs := convertToSemver(tags)
-
-		sort.Sort(sort.Reverse(semver.Collection(vs)))
-
-		var latestVersionInConstraint string
-		for _, v := range vs {
-			if constraint.Check(v) {
-				latestVersionInConstraint = v.Original()
-			}
-		}
-
-		if latestVersionInConstraint == "" {
-			// no version that is valid for constraint exist
-			return "", nil
-		}
-
-		// replace the constraint with latest version
-		return strings.Replace(cachePath, imageTag, latestVersionInConstraint, 0), nil
-	}
-
-	_, err = os.Stat(cachePath)
+	_, err := os.Stat(path)
 	if err != nil && os.IsNotExist(err) {
-		return cachePath, nil
+		return path, nil
 	} else if err != nil {
-		return "", errors.Wrapf(err, "cannot stat file %s", cachePath)
+		return "", errors.Wrapf(err, "cannot stat file %s", path)
 	}
 
 	return "", nil
@@ -189,4 +129,62 @@ func (c *LocalCache) Exists(img string) (string, error) {
 func (c *LocalCache) getCachePath(image string) string {
 	cacheImagePath := strings.ReplaceAll(image, ":", "@")
 	return filepath.Join(c.cacheDir, cacheImagePath)
+}
+
+// getLatestSemanticVersionCachePath scans the cache for an entry with the latest tag that matches the image version constraint
+// and if found, returns the cache-path to it.
+// image must be a valid image name with the format: <registry>/<image>:<tag>, where tag can be a semantic version constraint
+func (c *LocalCache) findCachedVersionForConstraint(image string) (string, error) {
+	imageBase, imageTag := separateImageTag(image)
+
+	constraint, err := semver.NewConstraint(imageTag)
+	if err != nil {
+		// silently fail
+		return "", nil
+	}
+
+	cachePath := c.getCachePath(image)
+
+	// search cache-directory for tags
+	cacheDir := filepath.Dir(cachePath)
+
+	tags := []string{}
+	err = filepath.WalkDir(cacheDir, func(p string, d fs.DirEntry, err error) error {
+		if d.IsDir() && strings.HasPrefix(d.Name(), path.Base(imageBase)) {
+			i := strings.Index(d.Name(), "@")
+			if i == -1 {
+				return errors.New(fmt.Sprintf("the cache entry '%s' does not contain a tag", d.Name()))
+			}
+
+			tags = append(tags, d.Name()[i+1:])
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to search cache-directory %s for existing tag", cacheDir)
+	}
+
+	if len(tags) == 0 {
+		return "", nil
+	}
+
+	vs := convertToSemver(tags)
+
+	sort.Sort(sort.Reverse(semver.Collection(vs)))
+
+	var latestVersionInConstraint string
+	for _, v := range vs {
+		if constraint.Check(v) {
+			latestVersionInConstraint = v.Original()
+		}
+	}
+
+	if latestVersionInConstraint == "" {
+		// no version that is valid for constraint exist
+		return "", nil
+	}
+
+	// return the cache-path with the latest valid version instead of the constraint
+	return strings.Replace(cachePath, imageTag, latestVersionInConstraint, 0), nil
 }
