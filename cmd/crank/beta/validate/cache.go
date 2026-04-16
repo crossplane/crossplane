@@ -17,10 +17,15 @@ limitations under the License.
 package validate
 
 import (
+	"fmt"
+	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -112,19 +117,69 @@ func (c *LocalCache) Load(img string) ([]*unstructured.Unstructured, error) {
 }
 
 // Exists checks if the cache contains the image and returns the path if it doesn't exist.
+// If the image tag is a version constraint,
+// check cache for latest version that matches the constraint
 func (c *LocalCache) Exists(img string) (string, error) {
-	image, err := findImageTagForVersionConstraint(img)
+	isConstraint := true
+	imageBase, imageTag := separateImageTag(img)
+
+	constraint, err := semver.NewConstraint(imageTag)
 	if err != nil {
-		return "", errors.Wrapf(err, "cannot resolve image tag for %s", img)
+		isConstraint = false
 	}
 
-	path := c.getCachePath(image)
+	cachePath := c.getCachePath(img)
 
-	_, err = os.Stat(path)
+	if isConstraint {
+		// search cache-directory for tags
+		cacheDir := filepath.Dir(cachePath)
+
+		tags := []string{}
+		err := filepath.WalkDir(cacheDir, func(p string, d fs.DirEntry, err error) error {
+			if d.IsDir() && strings.HasPrefix(d.Name(), path.Base(imageBase)) {
+				i := strings.Index(d.Name(), "@")
+				if i == -1 {
+					return errors.New(fmt.Sprintf("the cache entry '%s' does not contain a tag", d.Name()))
+				}
+
+				tags = append(tags, d.Name()[i+1:])
+			}
+
+			return nil
+		})
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to search cache-directory %s for existing tag", cacheDir)
+		}
+
+		if len(tags) == 0 {
+			return "", nil
+		}
+
+		vs := convertToSemver(tags)
+
+		sort.Sort(sort.Reverse(semver.Collection(vs)))
+
+		var latestVersionInConstraint string
+		for _, v := range vs {
+			if constraint.Check(v) {
+				latestVersionInConstraint = v.Original()
+			}
+		}
+
+		if latestVersionInConstraint == "" {
+			// no version that is valid for constraint exist
+			return "", nil
+		}
+
+		// replace the constraint with latest version
+		return strings.Replace(cachePath, imageTag, latestVersionInConstraint, 0), nil
+	}
+
+	_, err = os.Stat(cachePath)
 	if err != nil && os.IsNotExist(err) {
-		return path, nil
+		return cachePath, nil
 	} else if err != nil {
-		return "", errors.Wrapf(err, "cannot stat file %s", path)
+		return "", errors.Wrapf(err, "cannot stat file %s", cachePath)
 	}
 
 	return "", nil
