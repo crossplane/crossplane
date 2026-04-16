@@ -41,33 +41,33 @@ const maxDecompressedSize = 200 * 1024 * 1024 // 200 MB
 
 // ImageFetcher defines an interface for fetching images.
 type ImageFetcher interface {
-	FetchBaseLayer(image string) (*conregv1.Layer, error)
-	FetchImage(image string) ([]conregv1.Layer, error)
+	FetchBaseLayer(image string) (string, *conregv1.Layer, error)
+	FetchImage(image string) (string, []conregv1.Layer, error)
 }
 
 // Fetcher implements the ImageFetcher interface.
 type Fetcher struct{}
 
 // FetchImage pulls the full image and extracts the CRDs folder to fetch .yaml files.
-func (f *Fetcher) FetchImage(image string) ([]conregv1.Layer, error) {
+func (f *Fetcher) FetchImage(image string) (string, []conregv1.Layer, error) {
 	image, err := prepareImageReference(image)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to prepare image reference")
+		return "", nil, errors.Wrap(err, "failed to prepare image reference")
 	}
 
 	// Pull the image
 	img, err := crane.Pull(image)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to pull image")
+		return "", nil, errors.Wrapf(err, "failed to pull image")
 	}
 
 	// Extract the layers of the image into the temporary directory
 	layers, err := img.Layers()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get image layers")
+		return "", nil, errors.Wrapf(err, "failed to get image layers")
 	}
 
-	return layers, nil
+	return image, layers, nil
 }
 
 // BaseLayerNotFoundError is returned when the base layer of the image could not be found.
@@ -92,32 +92,32 @@ func IsErrBaseLayerNotFound(err error) bool {
 }
 
 // FetchBaseLayer fetches the base layer of the image which contains the 'package.yaml' file.
-func (f *Fetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
+func (f *Fetcher) FetchBaseLayer(image string) (string, *conregv1.Layer, error) {
 	image, err := prepareImageReference(image)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to prepare image reference")
+		return "", nil, errors.Wrap(err, "failed to prepare image reference")
 	}
 
 	ref, err := name.ParseReference(image)
 	if err != nil {
-		return nil, errors.Wrapf(err, "invalid image reference: %s", image)
+		return "", nil, errors.Wrapf(err, "invalid image reference: %s", image)
 	}
 
 	repoName := ref.Context().Name()
 
 	cBytes, err := crane.Config(image)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot get config")
+		return image, nil, errors.Wrapf(err, "cannot get config")
 	}
 
 	cfg := &conregv1.ConfigFile{}
 	if err := yaml.Unmarshal(cBytes, cfg); err != nil {
-		return nil, errors.Wrapf(err, "cannot unmarshal image config")
+		return image, nil, errors.Wrapf(err, "cannot unmarshal image config")
 	}
 
 	// TODO(ezgidemirel): consider using the annotations instead of labels to find out the base layer like package managed
 	if cfg.Config.Labels == nil {
-		return nil, errors.New("cannot get image labels")
+		return image, nil, errors.New("cannot get image labels")
 	}
 
 	var label string
@@ -130,25 +130,46 @@ func (f *Fetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
 	}
 
 	if label == "" {
-		return nil, NewBaseLayerNotFoundError(image)
+		return image, nil, NewBaseLayerNotFoundError(image)
 	}
 
 	lDigest := strings.SplitN(label, ":", 2)[1] // e.g.: sha256:0158764f65dc2a68728fdffa6ee6f2c9ef158f2dfed35abbd4f5bef8973e4b59
 
 	ll, err := crane.PullLayer(fmt.Sprintf(refFmt, repoName, lDigest))
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot pull base layer %s", lDigest)
+		return image, nil, errors.Wrapf(err, "cannot pull base layer %s", lDigest)
 	}
 
-	return &ll, nil
+	return image, &ll, nil
+}
+
+// Separate the image base and the image tag
+func separateImageTag(image string) (imageBase, imageTag string) {
+	parts := strings.Split(image, ":")
+	lastPart := len(parts) - 1
+
+	return strings.Join(parts[0:lastPart], ":"), parts[lastPart]
+}
+
+// Convert tags to semver versions.
+// Silently skips tags that are not valid semantic versions
+func convertToSemver(tags []string) []*semver.Version {
+	vs := []*semver.Version{}
+	for _, r := range tags {
+		v, err := semver.NewVersion(r)
+		if err != nil {
+			// We skip any tags that are not valid semantic versions
+			continue
+		}
+
+		vs = append(vs, v)
+	}
+
+	return vs
 }
 
 func findImageTagForVersionConstraint(image string) (string, error) {
-	// Separate the image base and the image tag
-	parts := strings.Split(image, ":")
-	lastPart := len(parts) - 1
-	imageBase := strings.Join(parts[0:lastPart], ":")
-	imageTag := parts[lastPart]
+	imageBase, imageTag := separateImageTag(image)
 
 	// Check if the tag is a constraint or already a valid semantic version
 	isConstraint := true
@@ -175,17 +196,7 @@ func findImageTagForVersionConstraint(image string) (string, error) {
 		return "", errors.Wrapf(err, "cannot fetch tags for the image %s", imageBase)
 	}
 
-	// Convert tags to semver versions
-	vs := []*semver.Version{}
-	for _, r := range tags {
-		v, err := semver.NewVersion(r)
-		if err != nil {
-			// We skip any tags that are not valid semantic versions
-			continue
-		}
-
-		vs = append(vs, v)
-	}
+	vs := convertToSemver(tags)
 
 	// Sort all versions and find the last version complient with the constraint
 	sort.Sort(sort.Reverse(semver.Collection(vs)))
