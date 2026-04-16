@@ -17,6 +17,7 @@ limitations under the License.
 package render
 
 import (
+	"github.com/crossplane/function-sdk-go/resource"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -28,14 +29,13 @@ import (
 	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
-	"github.com/crossplane/crossplane/v2/internal/xfn"
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
 )
 
 // buildCompositeRequest builds a RenderRequest for a composite resource from
 // the supplied inputs and function addresses.
 func buildCompositeRequest(in CompositionInputs) (*renderv1alpha1.RenderRequest, error) {
-	xrStruct, err := xfn.AsStruct(in.CompositeResource)
+	xrStruct, err := resource.AsStruct(in.CompositeResource)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot convert composite resource to protobuf")
 	}
@@ -93,7 +93,7 @@ func buildCompositeRequest(in CompositionInputs) (*renderv1alpha1.RenderRequest,
 func parseCompositeResponse(out *renderv1alpha1.CompositeOutput) (CompositionOutputs, error) {
 	xr := ucomposite.New()
 	if s := out.GetCompositeResource(); s != nil {
-		if err := xfn.FromStruct(xr, s); err != nil {
+		if err := resource.AsObject(s, xr); err != nil {
 			return CompositionOutputs{}, errors.Wrap(err, "cannot convert composite resource from protobuf")
 		}
 	}
@@ -101,7 +101,7 @@ func parseCompositeResponse(out *renderv1alpha1.CompositeOutput) (CompositionOut
 	cds := make([]composed.Unstructured, 0, len(out.GetComposedResources()))
 	for _, s := range out.GetComposedResources() {
 		cd := composed.New()
-		if err := xfn.FromStruct(cd, s); err != nil {
+		if err := resource.AsObject(s, cd); err != nil {
 			return CompositionOutputs{}, errors.Wrap(err, "cannot convert composed resource from protobuf")
 		}
 		cds = append(cds, *cd)
@@ -175,7 +175,8 @@ func BuildOperationRequest(in OperationInputs) (*renderv1alpha1.RenderRequest, e
 func ParseOperationResponse(out *renderv1alpha1.OperationOutput) (OperationOutputs, error) {
 	var op *opsv1alpha1.Operation
 	if s := out.GetOperation(); s != nil {
-		if err := xfn.FromStruct(op, s); err != nil {
+		op = &opsv1alpha1.Operation{}
+		if err := resource.AsObject(s, op); err != nil {
 			return OperationOutputs{}, errors.Wrap(err, "cannot convert Operation from protobuf")
 		}
 	}
@@ -183,7 +184,7 @@ func ParseOperationResponse(out *renderv1alpha1.OperationOutput) (OperationOutpu
 	applied := make([]kunstructured.Unstructured, 0, len(out.GetAppliedResources()))
 	for _, s := range out.GetAppliedResources() {
 		u := &kunstructured.Unstructured{}
-		if err := xfn.FromStruct(u, s); err != nil {
+		if err := resource.AsObject(s, u); err != nil {
 			return OperationOutputs{}, errors.Wrap(err, "cannot convert applied resource from protobuf")
 		}
 		applied = append(applied, *u)
@@ -213,13 +214,13 @@ func asStructFromTyped(o runtime.Object) (*structpb.Struct, error) {
 		return nil, errors.Wrap(err, "cannot convert typed object to unstructured")
 	}
 	u := &kunstructured.Unstructured{Object: data}
-	return xfn.AsStruct(u)
+	return resource.AsStruct(u)
 }
 
 func composedToStructs(resources []composed.Unstructured) ([]*structpb.Struct, error) {
 	out := make([]*structpb.Struct, 0, len(resources))
 	for i := range resources {
-		s, err := xfn.AsStruct(&resources[i])
+		s, err := resource.AsStruct(&resources[i])
 		if err != nil {
 			return nil, err
 		}
@@ -231,7 +232,7 @@ func composedToStructs(resources []composed.Unstructured) ([]*structpb.Struct, e
 func unstructuredToStructs(resources []kunstructured.Unstructured) ([]*structpb.Struct, error) {
 	out := make([]*structpb.Struct, 0, len(resources))
 	for i := range resources {
-		s, err := xfn.AsStruct(&resources[i])
+		s, err := resource.AsStruct(&resources[i])
 		if err != nil {
 			return nil, err
 		}
