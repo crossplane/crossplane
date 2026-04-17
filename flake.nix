@@ -89,23 +89,22 @@
           inherit system;
           pkgs = import nixpkgs {
             inherit system;
-            overlays = [
-              gomod2nix.overlays.default
-              (_final: _prev: {
-                go = nixpkgs-unstable.legacyPackages.${system}.go_1_25;
-                inherit (nixpkgs-unstable.legacyPackages.${system}) go_1_25;
-              })
-            ];
+            overlays = [ gomod2nix.overlays.default ];
           };
+          # We use the go toolchain from unstable because it's been updated to
+          # v1.25.9. However, we thread this through only to our build targets
+          # rather than add it to the global overlay so that we can still use
+          # pre-built binaries for Go-based tools from nixpkgs.
+          unstableGo = nixpkgs-unstable.legacyPackages.${system}.go_1_25;
         };
 
     in
     {
       # Build outputs (nix build).
       packages = forAllSystems (
-        { pkgs, ... }:
+        { pkgs, unstableGo, ... }:
         let
-          build = import ./nix/build.nix { inherit pkgs self; };
+          build = import ./nix/build.nix { inherit pkgs self unstableGo; };
         in
         {
           default = build.release {
@@ -120,9 +119,9 @@
 
       # CI checks (nix flake check).
       checks = forAllSystems (
-        { pkgs, ... }:
+        { pkgs, unstableGo, ... }:
         let
-          checks = import ./nix/checks.nix { inherit pkgs self; };
+          checks = import ./nix/checks.nix { inherit pkgs self unstableGo; };
         in
         {
           test = checks.test { inherit version; };
@@ -136,10 +135,10 @@
 
       # Development commands (nix run .#<app>).
       apps = forAllSystems (
-        { pkgs, ... }:
+        { pkgs, unstableGo, ... }:
         let
-          build = import ./nix/build.nix { inherit pkgs self; };
-          apps = import ./nix/apps.nix { inherit pkgs; };
+          build = import ./nix/build.nix { inherit pkgs self unstableGo; };
+          apps = import ./nix/apps.nix { inherit pkgs unstableGo; };
           nativeArch = if pkgs.stdenv.hostPlatform.isAarch64 then "arm64" else "amd64";
           images = build.images {
             inherit version;
@@ -186,14 +185,14 @@
 
       # Development shell (nix develop).
       devShells = forAllSystems (
-        { pkgs, ... }:
+        { pkgs, unstableGo, ... }:
         {
           default = pkgs.mkShell {
             buildInputs = [
               pkgs.coreutils
               pkgs.gnused
               pkgs.ncurses
-              pkgs.go
+              unstableGo
               pkgs.golangci-lint
               pkgs.kubectl
               pkgs.kubernetes-helm

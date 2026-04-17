@@ -7,7 +7,11 @@
 #   pkgs.buildGoApplication - gomod2nix's Go builder (https://github.com/nix-community/gomod2nix)
 #   pkgs.dockerTools        - Build OCI images without Docker (https://nixos.org/manual/nixpkgs/stable/#sec-pkgs-dockerTools)
 #   pkgs.runCommand         - Run a shell script, capture output directory as $out
-{ pkgs, self }:
+{
+  pkgs,
+  self,
+  unstableGo,
+}:
 let
   # Build a Go binary for a specific platform.
   goBinary =
@@ -29,7 +33,7 @@ let
       subPackages = [ subPackage ];
 
       # Cross-compile by merging GOOS/GOARCH into Go's attrset (// merges attrsets).
-      go = pkgs.go // {
+      go = unstableGo // {
         GOOS = platform.os;
         GOARCH = platform.arch;
       };
@@ -203,6 +207,7 @@ in
       src = self;
       pwd = self;
       modules = "${self}/gomod2nix.toml";
+      go = unstableGo;
 
       CGO_ENABLED = "0";
 
