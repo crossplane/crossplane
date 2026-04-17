@@ -232,6 +232,8 @@ func (c *LocalCache) findLatestCachedVersionForConstraint(image string) (string,
 	for _, v := range vs {
 		if constraint.Check(v) {
 			latestVersionInConstraint = v.Original()
+
+			break
 		}
 	}
 
