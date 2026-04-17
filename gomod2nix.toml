@@ -462,8 +462,8 @@ cachePackages = ["cel.dev/expr", "cloud.google.com/go/compute/metadata", "dario.
     version = "v1.3.1"
     hash = "sha256-xwSNLmMagzywdGJIuhrWl1r7cIWBYCOMNYbuDDT6Jhs="
   [mod."github.com/moby/spdystream"]
-    version = "v0.5.0"
-    hash = "sha256-9gVkh6e3y75zBlCBhnwO3k+TL8jnRYg+hGYSFJRA42Y="
+    version = "v0.5.1"
+    hash = "sha256-2vAgWBcBoG+DRVG+3rHsSnzovw68oTYb0DFozh1uBUI="
   [mod."github.com/moby/sys/sequential"]
     version = "v0.6.0"
     hash = "sha256-ZNWZuuvn+iDYMsL08IU6wvXC4OfAa7rol4kaCvytZ64="
