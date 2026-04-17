@@ -21,7 +21,7 @@
     program = pkgs.lib.getExe (
       pkgs.writeShellApplication {
         name = "crossplane-test";
-        runtimeInputs = [ pkgs.go ];
+        runtimeInputs = [ pkgs.go-unstable ];
         inheritPath = false;
         text = ''
           export CGO_ENABLED=0
@@ -40,7 +40,7 @@
         name = "crossplane-lint";
         runtimeInputs = [
           pkgs.findutils
-          pkgs.go
+          pkgs.go-unstable
           pkgs.golangci-lint
           pkgs.statix
           pkgs.deadnix
@@ -83,7 +83,7 @@
         runtimeInputs = [
           pkgs.coreutils
           pkgs.gnused
-          pkgs.go
+          pkgs.go-unstable
           pkgs.kubectl
           pkgs.helm-docs
 
@@ -125,7 +125,7 @@
       pkgs.writeShellApplication {
         name = "crossplane-tidy";
         runtimeInputs = [
-          pkgs.go
+          pkgs.go-unstable
           pkgs.gomod2nix
         ];
         inheritPath = false;
@@ -165,7 +165,7 @@
           name = "crossplane-e2e";
           runtimeInputs = [
             pkgs.coreutils
-            pkgs.go
+            pkgs.go-unstable
             pkgs.docker-client
             pkgs.gotestsum
             pkgs.kind
