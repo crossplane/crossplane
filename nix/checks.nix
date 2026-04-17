@@ -9,11 +9,7 @@
 #
 # All checks are builder functions that take an attrset of arguments and return
 # a derivation. The actual check definitions live in flake.nix.
-{
-  pkgs,
-  self,
-  unstableGo,
-}:
+{ pkgs, self }:
 {
   # Run Go unit tests with coverage
   test =
@@ -24,7 +20,7 @@
       src = self;
       pwd = self;
       modules = ../gomod2nix.toml;
-      go = unstableGo;
+      go = pkgs.go-unstable;
 
       CGO_ENABLED = "0";
 
@@ -52,7 +48,7 @@
       src = "${self}/apis";
       pwd = "${self}/apis";
       modules = "${self}/apis/gomod2nix.toml";
-      go = unstableGo;
+      go = pkgs.go-unstable;
 
       CGO_ENABLED = "0";
 
@@ -80,7 +76,7 @@
       src = self;
       pwd = self;
       modules = ../gomod2nix.toml;
-      go = unstableGo;
+      go = pkgs.go-unstable;
 
       CGO_ENABLED = "0";
 
@@ -111,7 +107,7 @@
       src = "${self}/apis";
       pwd = "${self}/apis";
       modules = "${self}/apis/gomod2nix.toml";
-      go = unstableGo;
+      go = pkgs.go-unstable;
 
       CGO_ENABLED = "0";
 
@@ -155,7 +151,7 @@
       src = self;
       pwd = self;
       modules = ../gomod2nix.toml;
-      go = unstableGo;
+      go = pkgs.go-unstable;
 
       CGO_ENABLED = "0";
 
@@ -210,7 +206,7 @@
       src = "${self}/apis";
       pwd = "${self}/apis";
       modules = "${self}/apis/gomod2nix.toml";
-      go = unstableGo;
+      go = pkgs.go-unstable;
 
       CGO_ENABLED = "0";
 

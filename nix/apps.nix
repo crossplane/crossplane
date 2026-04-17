@@ -12,7 +12,7 @@
 #
 # Each app declares its tool dependencies via runtimeInputs, with inheritPath
 # set to false. This ensures apps only use explicitly declared tools.
-{ pkgs, unstableGo }:
+{ pkgs }:
 {
   # Run Go unit tests.
   test = _: {
@@ -21,7 +21,7 @@
     program = pkgs.lib.getExe (
       pkgs.writeShellApplication {
         name = "crossplane-test";
-        runtimeInputs = [ unstableGo ];
+        runtimeInputs = [ pkgs.go-unstable ];
         inheritPath = false;
         text = ''
           export CGO_ENABLED=0
@@ -41,7 +41,7 @@
         name = "crossplane-lint";
         runtimeInputs = [
           pkgs.findutils
-          unstableGo
+          pkgs.go-unstable
           pkgs.golangci-lint
           pkgs.statix
           pkgs.deadnix
@@ -85,7 +85,7 @@
         runtimeInputs = [
           pkgs.coreutils
           pkgs.gnused
-          unstableGo
+          pkgs.go-unstable
           pkgs.kubectl
           pkgs.helm-docs
 
@@ -130,7 +130,7 @@
       pkgs.writeShellApplication {
         name = "crossplane-tidy";
         runtimeInputs = [
-          unstableGo
+          pkgs.go-unstable
           pkgs.gomod2nix
         ];
         inheritPath = false;
@@ -178,7 +178,7 @@
           name = "crossplane-e2e";
           runtimeInputs = [
             pkgs.coreutils
-            unstableGo
+            pkgs.go-unstable
             pkgs.docker-client
             pkgs.gotestsum
             pkgs.kind
