@@ -169,7 +169,7 @@ func (c *LocalCache) getCachePath(image string) string {
 	return filepath.Join(c.cacheDir, cacheImagePath)
 }
 
-// isConstraint checks if a string is a semantic version constraint, but not an exact version.
+// isRangedConstraint checks if a string is a semantic version constraint, but not an exact version.
 func isRangedConstraint(tag string) bool {
 	if _, err := semver.NewVersion(tag); err == nil {
 		return false
