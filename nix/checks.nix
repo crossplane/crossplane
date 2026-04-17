@@ -20,6 +20,7 @@
       src = self;
       pwd = self;
       modules = ../gomod2nix.toml;
+      go = pkgs.go-unstable;
 
       CGO_ENABLED = "0";
 
@@ -47,6 +48,7 @@
       src = "${self}/apis";
       pwd = "${self}/apis";
       modules = "${self}/apis/gomod2nix.toml";
+      go = pkgs.go-unstable;
 
       CGO_ENABLED = "0";
 
@@ -74,6 +76,7 @@
       src = self;
       pwd = self;
       modules = ../gomod2nix.toml;
+      go = pkgs.go-unstable;
 
       CGO_ENABLED = "0";
 
@@ -104,6 +107,7 @@
       src = "${self}/apis";
       pwd = "${self}/apis";
       modules = "${self}/apis/gomod2nix.toml";
+      go = pkgs.go-unstable;
 
       CGO_ENABLED = "0";
 
@@ -147,6 +151,7 @@
       src = self;
       pwd = self;
       modules = ../gomod2nix.toml;
+      go = pkgs.go-unstable;
 
       CGO_ENABLED = "0";
 
@@ -201,6 +206,7 @@
       src = "${self}/apis";
       pwd = "${self}/apis";
       modules = "${self}/apis/gomod2nix.toml";
+      go = pkgs.go-unstable;
 
       CGO_ENABLED = "0";
 

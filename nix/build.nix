@@ -29,7 +29,7 @@ let
       subPackages = [ subPackage ];
 
       # Cross-compile by merging GOOS/GOARCH into Go's attrset (// merges attrsets).
-      go = pkgs.go // {
+      go = pkgs.go-unstable // {
         GOOS = platform.os;
         GOARCH = platform.arch;
       };
@@ -205,6 +205,7 @@ in
       src = self;
       pwd = self;
       modules = "${self}/gomod2nix.toml";
+      go = pkgs.go-unstable;
 
       CGO_ENABLED = "0";
 
