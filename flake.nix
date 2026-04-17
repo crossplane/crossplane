@@ -91,9 +91,9 @@
             inherit system;
             overlays = [
               gomod2nix.overlays.default
-              (final: prev: {
+              (_final: _prev: {
                 go = nixpkgs-unstable.legacyPackages.${system}.go_1_25;
-                go_1_25 = nixpkgs-unstable.legacyPackages.${system}.go_1_25;
+                inherit (nixpkgs-unstable.legacyPackages.${system}) go_1_25;
               })
             ];
           };
