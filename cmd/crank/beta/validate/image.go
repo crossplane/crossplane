@@ -143,16 +143,15 @@ func (f *Fetcher) FetchBaseLayer(image string) (string, *conregv1.Layer, error) 
 	return image, &ll, nil
 }
 
-// Separate the image base and the image tag
+// Separate the image base and the image tag based on ':'.
 func separateImageTag(image string) (imageBase, imageTag string) {
 	parts := strings.Split(image, ":")
 	lastPart := len(parts) - 1
-
 	return strings.Join(parts[0:lastPart], ":"), parts[lastPart]
 }
 
 // Convert tags to semver versions.
-// Silently skips tags that are not valid semantic versions
+// Silently skips tags that are not valid semantic versions.
 func convertToSemver(tags []string) []*semver.Version {
 	vs := []*semver.Version{}
 	for _, r := range tags {
@@ -168,6 +167,10 @@ func convertToSemver(tags []string) []*semver.Version {
 	return vs
 }
 
+// findImageTagForVersionConstraint fetches the latest tag for an image with a version constraint.
+// image should be a validated image name with the format: <registry>/<image>:<tag>.
+// where <tag> can be a version constraint.
+// if <tag> is already an exact version, the same image string is returned back.
 func findImageTagForVersionConstraint(image string) (string, error) {
 	imageBase, imageTag := separateImageTag(image)
 

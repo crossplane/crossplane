@@ -117,27 +117,26 @@ func TestConfigurationTypeSupport(t *testing.T) {
 	fd := static.NewLayer(funcYaml, types.OCILayer)
 	f2 := static.NewLayer(func2Yaml, types.OCILayer)
 
-	fetchMockFunc := func(image string) (*conregv1.Layer, error) {
+	fetchMockFunc := func(image string) (string, *conregv1.Layer, error) {
 		switch image {
 		case "config-pkg:v1.3.0":
-			return &confpkg, nil
+			return "config-pkg:v1.3.0", &confpkg, nil
 		case "provider-dep-1:v1.3.0":
-			return &pd, nil
+			return "provider-dep-1-:v1.3.0", &pd, nil
 		case "provider-test:v1.3.0":
-			return &p2, nil
+			return "provider-test:v1.3.0", &p2, nil
 		case "function-dep-1:v1.3.0":
-			return &fd, nil
+			return "function-dep-1:v1.3.0", &fd, nil
 		case "function-test:v1.3.0":
-			return &f2, nil
-
+			return "function-test:v1.3.0", &f2, nil
 		default:
-			return nil, fmt.Errorf("unknown image: %s", image)
+			return "", nil, fmt.Errorf("unknown image: %s", image)
 		}
 	}
 
 	type args struct {
 		extensions []*unstructured.Unstructured
-		fetchMock  func(image string) (*conregv1.Layer, error)
+		fetchMock  func(image string) (string, *conregv1.Layer, error)
 	}
 
 	type want struct {
@@ -366,29 +365,29 @@ func TestAddDependencies(t *testing.T) {
 	fd1 := static.NewLayer(funcYaml, types.OCILayer)
 	crossplaneLayer := static.NewLayer([]byte("crossplane content"), types.OCILayer)
 
-	fetchMockFunc := func(image string) (*conregv1.Layer, error) {
+	fetchMockFunc := func(image string) (string, *conregv1.Layer, error) {
 		switch image {
 		case "config-dep-1:v1.3.0":
-			return &cd1, nil
+			return image, &cd1, nil
 		case "config-dep-2:v1.3.0":
-			return &cd2, nil
+			return image, &cd2, nil
 		case "provider-dep-1:v1.3.0":
-			return &pd1, nil
+			return image, &pd1, nil
 		case "function-dep-1:v1.3.0":
-			return &fd1, nil
+			return image, &fd1, nil
 		case "xpkg.crossplane.io/crossplane/crossplane:v1.16.0":
-			return &crossplaneLayer, nil
+			return "xpkg.crossplane.io/crossplane/crossplane:v1.16.0", &crossplaneLayer, nil
 		default:
-			return nil, fmt.Errorf("unknown image: %s", image)
+			return "", nil, fmt.Errorf("unknown image: %s", image)
 		}
 	}
 
-	fetchImageMockFunc := func(image string) ([]conregv1.Layer, error) {
+	fetchImageMockFunc := func(image string) (string, []conregv1.Layer, error) {
 		switch image {
 		case "xpkg.crossplane.io/crossplane/crossplane:v1.16.0":
-			return []conregv1.Layer{crossplaneLayer}, nil
+			return "xpkg.crossplane.io/crossplane/crossplane:v1.16.0", []conregv1.Layer{crossplaneLayer}, nil
 		default:
-			return nil, fmt.Errorf("unknown image: %s", image)
+			return "", nil, fmt.Errorf("unknown image: %s", image)
 		}
 	}
 
@@ -501,18 +500,18 @@ func TestAddDependencies(t *testing.T) {
 }
 
 type MockFetcher struct {
-	fetchBaseLayer func(image string) (*conregv1.Layer, error)
-	fetchImage     func(image string) ([]conregv1.Layer, error)
+	fetchBaseLayer func(image string) (string, *conregv1.Layer, error)
+	fetchImage     func(image string) (string, []conregv1.Layer, error)
 }
 
-func (m *MockFetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
+func (m *MockFetcher) FetchBaseLayer(image string) (string, *conregv1.Layer, error) {
 	return m.fetchBaseLayer(image)
 }
 
-func (m *MockFetcher) FetchImage(image string) ([]conregv1.Layer, error) {
+func (m *MockFetcher) FetchImage(image string) (string, []conregv1.Layer, error) {
 	if m.fetchImage != nil {
 		return m.fetchImage(image)
 	}
 
-	return nil, nil // or a sensible default/mock behavior
+	return "", nil, nil // or a sensible default/mock behavior
 }

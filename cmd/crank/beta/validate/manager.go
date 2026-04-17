@@ -237,18 +237,13 @@ func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error 
 
 	deepConfs := make(map[string]*metav1.Configuration)
 
-	for img := range confs {
-		image, err := findImageTagForVersionConstraint(img)
-		if err != nil {
-			return errors.Wrapf(err, "cannot resolve image tag for %s", img)
-		}
-
+	for image := range confs {
 		cfg := m.confs[image]
 
 		if cfg == nil {
 			m.deps[image] = true // we need to download the configuration package for the XRDs
 
-			layer, err := m.fetcher.FetchBaseLayer(image)
+			_, layer, err := m.fetcher.FetchBaseLayer(image)
 			if err != nil {
 				return errors.Wrapf(err, "cannot download package %s", image)
 			}
@@ -327,7 +322,9 @@ func (m *Manager) cacheDependencies() error {
 		switch {
 		case IsErrBaseLayerNotFound(err):
 			// We fall back to fetching the image if the base layer is not found
-			_, layers, err := m.fetcher.FetchImage(image)
+			var layers []regv1.Layer
+			var err error
+			resolvedImage, layers, err = m.fetcher.FetchImage(image)
 			if err != nil {
 				return errors.Wrapf(err, "cannot extract crds")
 			}
@@ -345,7 +342,7 @@ func (m *Manager) cacheDependencies() error {
 			}
 		}
 
-		if err := m.cache.Store(schemas, path); err != nil {
+		if err := m.cache.Store(schemas, resolvedImage); err != nil {
 			return errors.Wrapf(err, "cannot store base layer")
 		}
 	}

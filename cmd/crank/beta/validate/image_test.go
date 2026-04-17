@@ -156,3 +156,68 @@ func TestIsErrBaseLayerNotFound(t *testing.T) {
 		})
 	}
 }
+
+func TestSeparateImageTag(t *testing.T) {
+	type args struct {
+		image string
+	}
+
+	type want struct {
+		imageBase string
+		imageTag  string
+	}
+
+	tests := map[string]struct {
+		args args
+		want want
+	}{
+		"ImageWithDigest": {
+			args: args{
+				image: "my-registry:1234/crossplane/crossplane:v2.0.0@sha256:abc1234",
+			},
+			want: want{
+				imageBase: "my-registry:1234/crossplane/crossplane:v2.0.0@sha256",
+				imageTag:  "abc1234",
+			},
+		},
+		"RegistryWithPort": {
+			args: args{
+				image: "my-registry:1234/crossplane/crossplane:v2.0.0",
+			},
+			want: want{
+				imageBase: "my-registry:1234/crossplane/crossplane",
+				imageTag:  "v2.0.0",
+			},
+		},
+		"ColonSeparatedImage": {
+			args: args{
+				image: "ghcr.io/crossplane/crossplane:v2.0.0",
+			},
+			want: want{
+				imageBase: "ghcr.io/crossplane/crossplane",
+				imageTag:  "v2.0.0",
+			},
+		},
+		"EmptyTag": {
+			args: args{
+				image: "ghcr.io/crossplane/crossplane:",
+			},
+			want: want{
+				imageBase: "ghcr.io/crossplane/crossplane",
+				imageTag:  "",
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			imageBase, imageTag := separateImageTag(tt.args.image)
+			if imageBase != tt.want.imageBase || imageTag != tt.want.imageTag {
+				t.Errorf("separateImageTag() want %v got %v", tt.want, want{
+					imageBase: imageBase,
+					imageTag:  imageTag,
+				})
+			}
+		})
+	}
+}
