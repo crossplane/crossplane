@@ -2184,6 +2184,80 @@ func TestFilterResources(t *testing.T) {
 				err: nil,
 			},
 		},
+		"MatchAll": {
+			reason: "Should return all resources matching apiVersion and kind when no match is specified",
+			params: params{
+				ers: []unstructured.Unstructured{
+					{
+						Object: MustLoadJSON(`{
+							"apiVersion": "test.crossplane.io/v1",
+							"kind": "Foo",
+							"metadata": {
+								"name": "foo-resource"
+							}
+						}`),
+					},
+					{
+						Object: MustLoadJSON(`{
+							"apiVersion": "test.crossplane.io/v1",
+							"kind": "Bar",
+							"metadata": {
+								"name": "bar-resource-1"
+							}
+						}`),
+					},
+					{
+						Object: MustLoadJSON(`{
+							"apiVersion": "test.crossplane.io/v1",
+							"kind": "Bar",
+							"metadata": {
+								"name": "bar-resource-2"
+							}
+						}`),
+					},
+					{
+						Object: MustLoadJSON(`{
+							"apiVersion": "test.crossplane.io/v1beta1",
+							"kind": "Bar",
+							"metadata": {
+								"name": "wrong-api-version"
+							}
+						}`),
+					},
+				},
+			},
+			args: args{
+				selector: &fnv1.ResourceSelector{
+					ApiVersion: "test.crossplane.io/v1",
+					Kind:       "Bar",
+				},
+			},
+			want: want{
+				out: &fnv1.Resources{
+					Items: []*fnv1.Resource{
+						{
+							Resource: MustStructJSON(`{
+								"apiVersion": "test.crossplane.io/v1",
+								"kind": "Bar",
+								"metadata": {
+									"name": "bar-resource-1"
+								}
+							}`),
+						},
+						{
+							Resource: MustStructJSON(`{
+								"apiVersion": "test.crossplane.io/v1",
+								"kind": "Bar",
+								"metadata": {
+									"name": "bar-resource-2"
+								}
+							}`),
+						},
+					},
+				},
+				err: nil,
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
