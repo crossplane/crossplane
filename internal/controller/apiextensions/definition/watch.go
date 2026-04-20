@@ -13,7 +13,7 @@ import (
 
 // IsCompositeResourceCRD accepts any CustomResourceDefinition that represents a
 // Composite Resource.
-func IsCompositeResourceCRD() resource.PredicateFn {
+func IsCompositeResourceCRD() resource.PredicateFn { //nolint:staticcheck // SA1019: resource.PredicateFn is deprecated; already migrated on main.
 	return func(obj runtime.Object) bool {
 		crd, ok := obj.(*extv1.CustomResourceDefinition)
 		if !ok {
