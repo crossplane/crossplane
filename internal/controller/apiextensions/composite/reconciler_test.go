@@ -1427,11 +1427,11 @@ func TestReconcilePollIntervalAnnotation(t *testing.T) {
 	now := metav1.Now()
 
 	cases := map[string]struct {
-		reason         string
-		pollInterval   time.Duration
-		annotation     string
-		wantApprox     time.Duration
-		wantTolerance  time.Duration
+		reason        string
+		pollInterval  time.Duration
+		annotation    string
+		wantApprox    time.Duration
+		wantTolerance time.Duration
 	}{
 		"AnnotationOverridesPollInterval": {
 			reason:        "When a valid poll interval annotation is set, it should override the controller-level poll interval.",
@@ -1486,10 +1486,10 @@ func TestReconcilePollIntervalAnnotation(t *testing.T) {
 				})),
 			}
 
-		opts := []ReconcilerOption{
-			WithPollInterval(tc.pollInterval),
-			WithMinPollInterval(1 * time.Second),
-			WithCompositeFinalizer(resource.NewNopFinalizer()),
+			opts := []ReconcilerOption{
+				WithPollInterval(tc.pollInterval),
+				WithMinPollInterval(1 * time.Second),
+				WithCompositeFinalizer(resource.NewNopFinalizer()),
 				WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 					cr.SetCompositionReference(&corev1.ObjectReference{})
 					return nil
