@@ -195,7 +195,7 @@ func (c *LocalCache) findLatestCachedVersionForConstraint(image string) (string,
 	cacheDir := filepath.Dir(cachePath)
 
 	tags := []string{}
-	err = filepath.WalkDir(cacheDir, func(_ string, d iofs.DirEntry, err error) error {
+	err = iofs.WalkDir(afero.NewIOFS(c.fs), cacheDir, func(_ string, d iofs.DirEntry, err error) error {
 		if err != nil {
 			if errors.Is(err, iofs.ErrNotExist) {
 				// the walk will fail on first run (directories dont exist) - ignore it
