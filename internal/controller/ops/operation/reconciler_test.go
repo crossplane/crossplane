@@ -33,11 +33,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
@@ -48,8 +46,8 @@ import (
 
 func TestReconcile(t *testing.T) {
 	type params struct {
-		mgr  manager.Manager
-		opts []ReconcilerOption
+		client client.Client
+		opts   []ReconcilerOption
 	}
 
 	type want struct {
@@ -65,10 +63,8 @@ func TestReconcile(t *testing.T) {
 		"NotFound": {
 			reason: "We should return early if the Operation was not found.",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-					},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 			},
 			want: want{
@@ -78,10 +74,8 @@ func TestReconcile(t *testing.T) {
 		"GetError": {
 			reason: "We should return an error if we can't get the Operation",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(errors.New("boom")),
-					},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(errors.New("boom")),
 				},
 			},
 			want: want{
@@ -92,19 +86,17 @@ func TestReconcile(t *testing.T) {
 		"Deleted": {
 			reason: "We should return early if the Operation was deleted.",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							op := &v1alpha1.Operation{
-								ObjectMeta: metav1.ObjectMeta{
-									DeletionTimestamp: ptr.To(metav1.Now()),
-								},
-							}
-							op.DeepCopyInto(obj.(*v1alpha1.Operation))
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						op := &v1alpha1.Operation{
+							ObjectMeta: metav1.ObjectMeta{
+								DeletionTimestamp: ptr.To(metav1.Now()),
+							},
+						}
+						op.DeepCopyInto(obj.(*v1alpha1.Operation))
 
-							return nil
-						}),
-					},
+						return nil
+					}),
 				},
 			},
 			want: want{
@@ -114,16 +106,14 @@ func TestReconcile(t *testing.T) {
 		"Complete": {
 			reason: "We should return early if the Operation is complete.",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							op := &v1alpha1.Operation{}
-							op.SetConditions(v1alpha1.Complete())
-							op.DeepCopyInto(obj.(*v1alpha1.Operation))
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						op := &v1alpha1.Operation{}
+						op.SetConditions(v1alpha1.Complete())
+						op.DeepCopyInto(obj.(*v1alpha1.Operation))
 
-							return nil
-						}),
-					},
+						return nil
+					}),
 				},
 			},
 			want: want{
@@ -133,23 +123,21 @@ func TestReconcile(t *testing.T) {
 		"RetryLimitReached": {
 			reason: "We should return early if the Operation retry limit was reached.",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							op := &v1alpha1.Operation{
-								Spec: v1alpha1.OperationSpec{
-									RetryLimit: ptr.To[int64](3),
-								},
-								Status: v1alpha1.OperationStatus{
-									Failures: 3,
-								},
-							}
-							op.DeepCopyInto(obj.(*v1alpha1.Operation))
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						op := &v1alpha1.Operation{
+							Spec: v1alpha1.OperationSpec{
+								RetryLimit: ptr.To[int64](3),
+							},
+							Status: v1alpha1.OperationStatus{
+								Failures: 3,
+							},
+						}
+						op.DeepCopyInto(obj.(*v1alpha1.Operation))
 
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 			},
 			want: want{
@@ -159,16 +147,14 @@ func TestReconcile(t *testing.T) {
 		"UpdateStatusToRunningError": {
 			reason: "We should return an error if we can't update the Operation's status to indicate it's running.",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							op := &v1alpha1.Operation{}
-							op.DeepCopyInto(obj.(*v1alpha1.Operation))
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						op := &v1alpha1.Operation{}
+						op.DeepCopyInto(obj.(*v1alpha1.Operation))
 
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(errors.New("boom")),
-					},
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(errors.New("boom")),
 				},
 			},
 			want: want{
@@ -179,41 +165,39 @@ func TestReconcile(t *testing.T) {
 		"GetCredentialSecretError": {
 			reason: "We should return an error if we can't get function credentials from a Secret",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							if _, ok := obj.(*corev1.Secret); ok {
-								return errors.New("boom")
-							}
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errors.New("boom")
+						}
 
-							op := &v1alpha1.Operation{
-								Spec: v1alpha1.OperationSpec{
-									Pipeline: []v1alpha1.PipelineStep{
-										{
-											Step: "get-creds",
-											FunctionRef: v1alpha1.FunctionReference{
-												Name: "function-cool",
-											},
-											Credentials: []v1alpha1.FunctionCredentials{
-												{
-													Name:   "doesnt-exist",
-													Source: v1alpha1.FunctionCredentialsSourceSecret,
-													SecretRef: &xpv2.SecretReference{
-														Namespace: "default",
-														Name:      "creds",
-													},
+						op := &v1alpha1.Operation{
+							Spec: v1alpha1.OperationSpec{
+								Pipeline: []v1alpha1.PipelineStep{
+									{
+										Step: "get-creds",
+										FunctionRef: v1alpha1.FunctionReference{
+											Name: "function-cool",
+										},
+										Credentials: []v1alpha1.FunctionCredentials{
+											{
+												Name:   "doesnt-exist",
+												Source: v1alpha1.FunctionCredentialsSourceSecret,
+												SecretRef: &xpv2.SecretReference{
+													Namespace: "default",
+													Name:      "creds",
 												},
 											},
 										},
 									},
 								},
-							}
-							op.DeepCopyInto(obj.(*v1alpha1.Operation))
+							},
+						}
+						op.DeepCopyInto(obj.(*v1alpha1.Operation))
 
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
 					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error {
@@ -229,31 +213,29 @@ func TestReconcile(t *testing.T) {
 		"RunFunctionError": {
 			reason: "We should return an error if we can't run a function",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							if _, ok := obj.(*corev1.Secret); ok {
-								return errors.New("boom")
-							}
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errors.New("boom")
+						}
 
-							op := &v1alpha1.Operation{
-								Spec: v1alpha1.OperationSpec{
-									Pipeline: []v1alpha1.PipelineStep{
-										{
-											Step: "get-creds",
-											FunctionRef: v1alpha1.FunctionReference{
-												Name: "function-cool",
-											},
+						op := &v1alpha1.Operation{
+							Spec: v1alpha1.OperationSpec{
+								Pipeline: []v1alpha1.PipelineStep{
+									{
+										Step: "get-creds",
+										FunctionRef: v1alpha1.FunctionReference{
+											Name: "function-cool",
 										},
 									},
 								},
-							}
-							op.DeepCopyInto(obj.(*v1alpha1.Operation))
+							},
+						}
+						op.DeepCopyInto(obj.(*v1alpha1.Operation))
 
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
 					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error {
@@ -272,31 +254,29 @@ func TestReconcile(t *testing.T) {
 		"FatalResultError": {
 			reason: "We should return an error if a function returns a fatal result.",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							if _, ok := obj.(*corev1.Secret); ok {
-								return errors.New("boom")
-							}
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errors.New("boom")
+						}
 
-							op := &v1alpha1.Operation{
-								Spec: v1alpha1.OperationSpec{
-									Pipeline: []v1alpha1.PipelineStep{
-										{
-											Step: "get-creds",
-											FunctionRef: v1alpha1.FunctionReference{
-												Name: "function-cool",
-											},
+						op := &v1alpha1.Operation{
+							Spec: v1alpha1.OperationSpec{
+								Pipeline: []v1alpha1.PipelineStep{
+									{
+										Step: "get-creds",
+										FunctionRef: v1alpha1.FunctionReference{
+											Name: "function-cool",
 										},
 									},
 								},
-							}
-							op.DeepCopyInto(obj.(*v1alpha1.Operation))
+							},
+						}
+						op.DeepCopyInto(obj.(*v1alpha1.Operation))
 
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
 					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error {
@@ -323,32 +303,30 @@ func TestReconcile(t *testing.T) {
 		"PatchResourceError": {
 			reason: "We should return an error if we can't patch a desired resource",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							if _, ok := obj.(*corev1.Secret); ok {
-								return errors.New("boom")
-							}
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errors.New("boom")
+						}
 
-							op := &v1alpha1.Operation{
-								Spec: v1alpha1.OperationSpec{
-									Pipeline: []v1alpha1.PipelineStep{
-										{
-											Step: "get-creds",
-											FunctionRef: v1alpha1.FunctionReference{
-												Name: "function-cool",
-											},
+						op := &v1alpha1.Operation{
+							Spec: v1alpha1.OperationSpec{
+								Pipeline: []v1alpha1.PipelineStep{
+									{
+										Step: "get-creds",
+										FunctionRef: v1alpha1.FunctionReference{
+											Name: "function-cool",
 										},
 									},
 								},
-							}
-							op.DeepCopyInto(obj.(*v1alpha1.Operation))
+							},
+						}
+						op.DeepCopyInto(obj.(*v1alpha1.Operation))
 
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						MockPatch:        test.NewMockPatchFn(errors.New("boom")),
-					},
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					MockPatch:        test.NewMockPatchFn(errors.New("boom")),
 				},
 				opts: []ReconcilerOption{
 					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error {
@@ -385,27 +363,25 @@ func TestReconcile(t *testing.T) {
 		"CapabilityCheckError": {
 			reason: "We should increment failures and return an error if a function doesn't have the required operation capability",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							op := &v1alpha1.Operation{
-								Spec: v1alpha1.OperationSpec{
-									Pipeline: []v1alpha1.PipelineStep{
-										{
-											Step: "check-caps",
-											FunctionRef: v1alpha1.FunctionReference{
-												Name: "function-missing-caps",
-											},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						op := &v1alpha1.Operation{
+							Spec: v1alpha1.OperationSpec{
+								Pipeline: []v1alpha1.PipelineStep{
+									{
+										Step: "check-caps",
+										FunctionRef: v1alpha1.FunctionReference{
+											Name: "function-missing-caps",
 										},
 									},
 								},
-							}
-							op.DeepCopyInto(obj.(*v1alpha1.Operation))
+							},
+						}
+						op.DeepCopyInto(obj.(*v1alpha1.Operation))
 
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
 					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error {
@@ -421,37 +397,35 @@ func TestReconcile(t *testing.T) {
 		"BootstrapRequirementsFetchError": {
 			reason: "We should return an error if we can't fetch bootstrap requirements",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							op := &v1alpha1.Operation{
-								Spec: v1alpha1.OperationSpec{
-									Pipeline: []v1alpha1.PipelineStep{
-										{
-											Step: "requires-resources",
-											FunctionRef: v1alpha1.FunctionReference{
-												Name: "function-cool",
-											},
-											Requirements: &v1alpha1.FunctionRequirements{
-												RequiredResources: []v1alpha1.RequiredResourceSelector{
-													{
-														RequirementName: "test-resources",
-														APIVersion:      "v1",
-														Kind:            "ConfigMap",
-														Name:            ptr.To("missing-configmap"),
-													},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						op := &v1alpha1.Operation{
+							Spec: v1alpha1.OperationSpec{
+								Pipeline: []v1alpha1.PipelineStep{
+									{
+										Step: "requires-resources",
+										FunctionRef: v1alpha1.FunctionReference{
+											Name: "function-cool",
+										},
+										Requirements: &v1alpha1.FunctionRequirements{
+											RequiredResources: []v1alpha1.RequiredResourceSelector{
+												{
+													RequirementName: "test-resources",
+													APIVersion:      "v1",
+													Kind:            "ConfigMap",
+													Name:            ptr.To("missing-configmap"),
 												},
 											},
 										},
 									},
 								},
-							}
-							op.DeepCopyInto(obj.(*v1alpha1.Operation))
+							},
+						}
+						op.DeepCopyInto(obj.(*v1alpha1.Operation))
 
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					},
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
 					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error {
@@ -470,32 +444,31 @@ func TestReconcile(t *testing.T) {
 		"Success": {
 			reason: "We shouldn't return an error if we successfully run the Operation",
 			params: params{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							if _, ok := obj.(*corev1.Secret); ok {
-								return errors.New("boom")
-							}
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errors.New("boom")
+						}
 
-							op := &v1alpha1.Operation{
-								Spec: v1alpha1.OperationSpec{
-									Pipeline: []v1alpha1.PipelineStep{
-										{
-											Step: "get-creds",
-											FunctionRef: v1alpha1.FunctionReference{
-												Name: "function-cool",
-											},
+						op := &v1alpha1.Operation{
+							Spec: v1alpha1.OperationSpec{
+								Pipeline: []v1alpha1.PipelineStep{
+									{
+										Step: "get-creds",
+										FunctionRef: v1alpha1.FunctionReference{
+											Name: "function-cool",
 										},
 									},
 								},
-							}
-							op.DeepCopyInto(obj.(*v1alpha1.Operation))
+							},
+						}
+						op.DeepCopyInto(obj.(*v1alpha1.Operation))
 
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
-							want := MustUnstructJSON(`{
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+						want := MustUnstructJSON(`{
 								"apiVersion": "example.org/v1",
 								"kind": "Test",
 								"metadata": {
@@ -505,13 +478,12 @@ func TestReconcile(t *testing.T) {
 									"cool": true
 								}
 							}`)
-							if diff := cmp.Diff(want, obj); diff != "" {
-								t.Errorf("Patch(...): -want object, +got object:\n%s", diff)
-							}
+						if diff := cmp.Diff(want, obj); diff != "" {
+							t.Errorf("Patch(...): -want object, +got object:\n%s", diff)
+						}
 
-							return nil
-						}),
-					},
+						return nil
+					}),
 				},
 				opts: []ReconcilerOption{
 					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error {
@@ -548,7 +520,7 @@ func TestReconcile(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.params.mgr, tc.params.opts...)
+			r := NewReconciler(tc.params.client, tc.params.opts...)
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
