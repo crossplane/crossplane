@@ -313,7 +313,7 @@ func TestIsRangedConstraint(t *testing.T) {
 			},
 		},
 		"InvalidString": {
-			reason: "A string that is not a semantic version version should return false",
+			reason: "A string that is not a semantic version should return false",
 			args: args{
 				in: "v2abc",
 			},

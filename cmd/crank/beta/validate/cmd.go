@@ -41,12 +41,12 @@ type Cmd struct {
 	Resources  string `arg:"" help:"Resource sources as a comma-separated list of files, directories, or '-' for standard input."`
 
 	// Flags. Keep them in alphabetical order.
-	CacheDir              string `default:"~/.crossplane/cache"                                                       help:"Absolute path to the cache directory where downloaded schemas are stored." predictor:"directory"`
+	CacheDir              string `default:"~/.crossplane/cache"                                                       help:"Absolute path to the cache directory where downloaded schemas are stored."                                                                                                                                                                                        predictor:"directory"`
 	CleanCache            bool   `help:"Clean the cache directory before downloading package schemas."`
 	CrossplaneImage       string `help:"Specify the Crossplane image to be used for validating the built-in schemas."`
 	ErrorOnMissingSchemas bool   `default:"false"                                                                     help:"Return non zero exit code if not all schemas are provided."`
 	SkipSuccessResults    bool   `help:"Skip printing success results."`
-	UpdateCache           bool   `default:"false" help:"Update cached schemas by downloading the latest version that satisfies a constraint. May be useful if you are using semantic version constraints and want to get the latest version, but this will slow down the cache lookup due to the required network calls."`
+	UpdateCache           bool   `default:"false"                                                                     help:"Update cached schemas by downloading the latest version that satisfies a constraint. May be useful if you are using semantic version constraints and want to get the latest version, but this will slow down the cache lookup due to the required network calls."`
 
 	fs afero.Fs
 }
