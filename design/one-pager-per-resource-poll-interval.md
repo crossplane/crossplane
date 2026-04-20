@@ -65,8 +65,8 @@ metadata:
 * Enforces a configurable minimum via a `--min-poll-interval` flag (defaults to
   `1s`) to prevent tight reconciliation loops. This is similar to how
   `--max-function-cache-ttl` lets operators cap the function cache TTL.
-* Invalid or below-minimum values are silently ignored — the controller default
-  is used and a debug log is emitted.
+* Invalid values fall back to the controller default. Values below
+  `--min-poll-interval` are clamped to the configured minimum.
 * When absent, the controller-level `--poll-interval` applies as today.
 * The same ±10% jitter that applies to the controller default also applies to
   annotation-specified intervals.
@@ -131,8 +131,8 @@ difference is purely in where the reconciler code lives.
 Annotation constants and parsing helpers live in crossplane-runtime's `pkg/meta`
 package so they are shared by both reconcilers:
 
-* `GetPollInterval(obj) (time.Duration, error)` — parses and validates the
-  annotation.
+* `GetPollInterval(obj) (time.Duration, bool)` — parses the annotation and
+  returns the duration and whether a valid interval was present.
 * `GetReconcileRequest(obj) (string, bool)` — reads the reconcile-requested-at
   token.
 * `SetReconcileRequest(obj, token)` — sets the token (for programmatic use).

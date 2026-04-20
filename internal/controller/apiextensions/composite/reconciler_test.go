@@ -1582,6 +1582,35 @@ func TestReconcileRequestAnnotation(t *testing.T) {
 					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
 						return true, nil
 					})),
+					WithRecorder(newTestRecorder(
+						eventArgs{
+							Kind: compositeKind,
+							Event: event.Event{
+								Type:        event.TypeNormal,
+								Reason:      "ReconcileRequestHandled",
+								Message:     "Handling reconcile request",
+								Annotations: map[string]string{"token": "1705312200"},
+							},
+						},
+						eventArgs{
+							Kind: compositeKind,
+							Event: event.Event{
+								Type:        event.TypeNormal,
+								Reason:      "SelectComposition",
+								Message:     "Successfully selected composition: ",
+								Annotations: map[string]string{},
+							},
+						},
+						eventArgs{
+							Kind: compositeKind,
+							Event: event.Event{
+								Type:        event.TypeNormal,
+								Reason:      "PublishConnectionSecret",
+								Message:     "Successfully published connection details",
+								Annotations: map[string]string{},
+							},
+						},
+					)),
 				},
 			},
 		},
@@ -1623,6 +1652,26 @@ func TestReconcileRequestAnnotation(t *testing.T) {
 					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
 						return true, nil
 					})),
+					WithRecorder(newTestRecorder(
+						eventArgs{
+							Kind: compositeKind,
+							Event: event.Event{
+								Type:        event.TypeNormal,
+								Reason:      "SelectComposition",
+								Message:     "Successfully selected composition: ",
+								Annotations: map[string]string{},
+							},
+						},
+						eventArgs{
+							Kind: compositeKind,
+							Event: event.Event{
+								Type:        event.TypeNormal,
+								Reason:      "PublishConnectionSecret",
+								Message:     "Successfully published connection details",
+								Annotations: map[string]string{},
+							},
+						},
+					)),
 				},
 			},
 		},
@@ -1639,6 +1688,12 @@ func TestReconcileRequestAnnotation(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.r, got); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+
+			if tr, ok := r.record.(*testRecorder); ok {
+				if diff := cmp.Diff(tr.Want, tr.Got); diff != "" {
+					t.Errorf("\n%s\nr.Reconcile(...): -want events, +got events:\n%s", tc.reason, diff)
+				}
 			}
 		})
 	}
