@@ -858,7 +858,7 @@ func UpdateResourceRefs(xr resource.Composite, desired ComposedResourceStates) {
 
 	refs := make([]corev1.ObjectReference, 0, len(desired))
 	for _, dr := range desired {
-		ref := meta.ReferenceTo(dr.Resource, dr.Resource.GetObjectKind().GroupVersionKind())
+		ref := meta.ReferenceTo(dr.Resource, dr.Resource.GetObjectKind().GroupVersionKind()) //nolint:staticcheck // SA1019: meta.ReferenceTo is deprecated; already migrated on main.
 
 		// If the XR is namespaced it can only compose resources in its own
 		// namespace. Its OpenAPI schema won't allow including a namespace in
