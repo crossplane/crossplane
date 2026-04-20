@@ -549,6 +549,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		composite.WithLogger(r.log.WithValues("controller", controllerName)),
 		composite.WithRecorder(r.record.WithAnnotations("controller", controllerName)),
 		composite.WithPollInterval(r.options.PollInterval),
+		composite.WithMinPollInterval(r.options.MinPollInterval),
 		composite.WithCircuitBreaker(cb),
 		composite.WithAuthorizer(r.engine),
 		composite.WithComposer(fc),
