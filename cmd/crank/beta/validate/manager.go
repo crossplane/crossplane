@@ -45,9 +45,10 @@ const (
 
 // Manager defines a Manager for preparing Crossplane packages for validation.
 type Manager struct {
-	fetcher ImageFetcher
-	cache   Cache
-	writer  io.Writer
+	fetcher     ImageFetcher
+	cache       Cache
+	writer      io.Writer
+	updateCache bool
 
 	crds  []*extv1.CustomResourceDefinition
 	deps  map[string]bool                  // Dependency images
@@ -65,6 +66,14 @@ func WithCrossplaneImage(image string) Option {
 		}
 
 		m.deps[image] = true
+	}
+}
+
+// WithUpdateCache forces re-downloading packages with ranged semver
+// constraints even when a matching version is already cached.
+func WithUpdateCache(update bool) Option {
+	return func(m *Manager) {
+		m.updateCache = update
 	}
 }
 
@@ -293,11 +302,19 @@ func (m *Manager) cacheDependencies() error {
 			return errors.Wrapf(err, "cannot check if cache exists for %s", image)
 		}
 
+		// cache hit -> skip unless the image contains a ranged version constraint and update-cache option is enabled
 		if path == "" {
-			continue
+			_, imageTag := separateImageTag(image)
+			if !isRangedConstraint(imageTag) || !m.updateCache {
+				continue
+			}
 		}
 
-		if _, err := fmt.Fprintln(m.writer, "schemas does not exist, downloading: ", image); err != nil {
+		msg := "schemas does not exist, downloading: "
+		if path == "" {
+			msg = "updating cached schemas: "
+		}
+		if _, err := fmt.Fprintln(m.writer, msg, image); err != nil {
 			return errors.Wrapf(err, errWriteOutput)
 		}
 

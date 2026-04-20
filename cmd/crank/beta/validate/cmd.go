@@ -46,6 +46,7 @@ type Cmd struct {
 	CrossplaneImage       string `help:"Specify the Crossplane image to be used for validating the built-in schemas."`
 	ErrorOnMissingSchemas bool   `default:"false"                                                                     help:"Return non zero exit code if not all schemas are provided."`
 	SkipSuccessResults    bool   `help:"Skip printing success results."`
+	UpdateCache           bool   `default:"false" help:"Update cached schemas by downloading the latest version that satisfies a constraint. May be useful if you are using semantic version constraints and want to get the latest version, but this will slow down the cache lookup due to the required network calls."`
 
 	fs afero.Fs
 }
@@ -131,7 +132,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		c.CacheDir = filepath.Join(homeDir, c.CacheDir[2:])
 	}
 
-	m := NewManager(c.CacheDir, c.fs, k.Stdout, WithCrossplaneImage(c.CrossplaneImage))
+	m := NewManager(c.CacheDir, c.fs, k.Stdout, WithCrossplaneImage(c.CrossplaneImage), WithUpdateCache(c.UpdateCache))
 
 	// Convert XRDs/CRDs to CRDs and add package dependencies
 	if err := m.PrepExtensions(extensions); err != nil {

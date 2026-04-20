@@ -270,3 +270,74 @@ func TestLocalCacheStore(t *testing.T) {
 		})
 	}
 }
+
+func TestIsRangedConstraint(t *testing.T) {
+	type args struct {
+		in string
+	}
+
+	type want struct {
+		result bool
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ValidConstraint": {
+			reason: "A valid constraint should return true",
+			args: args{
+				in: ">v2.0.0",
+			},
+			want: want{
+				result: true,
+			},
+		},
+		"ValidRangedConstraint": {
+			reason: "A valid ranged constraint should return true",
+			args: args{
+				in: ">v2.0.0, <v3.0.0",
+			},
+			want: want{
+				result: true,
+			},
+		},
+		"ValidExactVersion": {
+			reason: "A valid exact version should return false",
+			args: args{
+				in: "v2.0.0",
+			},
+			want: want{
+				result: false,
+			},
+		},
+		"InvalidString": {
+			reason: "A string that is not a semantic version version should return false",
+			args: args{
+				in: "v2abc",
+			},
+			want: want{
+				result: false,
+			},
+		},
+		"ValidExactVersionWithDigest": {
+			reason: "A valid exact version with digest should return false",
+			args: args{
+				in: "v0.6.3@sha256:a37a591901b6718b2f160b64b4e172bb4eb5a7cde03e30f1967df987c7bf64ae",
+			},
+			want: want{
+				result: false,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := isRangedConstraint(tc.args.in)
+			if got != tc.want.result {
+				t.Errorf("isRangedConstraint(...): %s\n -want: '%v', +got '%v'", tc.reason, got, tc.want.result)
+			}
+		})
+	}
+}
