@@ -43,10 +43,11 @@ type Cmd struct {
 	// Flags. Keep them in alphabetical order.
 	CacheDir              string `default:"~/.crossplane/cache"                                                       help:"Absolute path to the cache directory where downloaded schemas are stored." predictor:"directory"`
 	CleanCache            bool   `help:"Clean the cache directory before downloading package schemas."`
-	SkipSuccessResults    bool   `help:"Skip printing success results."`
 	CrossplaneImage       string `help:"Specify the Crossplane image to be used for validating the built-in schemas."`
 	ErrorOnMissingSchemas bool   `default:"false"                                                                     help:"Return non zero exit code if not all schemas are provided."`
-	fs                    afero.Fs
+	SkipSuccessResults    bool   `help:"Skip printing success results."`
+
+	fs afero.Fs
 }
 
 // Help prints out the help for the validate command.
