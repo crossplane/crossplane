@@ -18,6 +18,10 @@ package render
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 
@@ -38,6 +42,17 @@ type dockerRenderEngine struct {
 	network string
 
 	log logging.Logger
+}
+
+func (e *dockerRenderEngine) CheckContextSupport() error {
+	if runtime.GOOS == "windows" {
+		return errors.New("context handling via --context-values/--context-files/--include-context is not supported Windows")
+	}
+	if host := os.Getenv("DOCKER_HOST"); host != "" && !strings.HasPrefix(host, "unix://") {
+		return errors.New("context handling via --context-values/--context-files/--include-context requires a local Docker daemon or Crossplane controller binary")
+	}
+
+	return nil
 }
 
 // Setup creates a temporary Docker network, records its name so the render
@@ -87,6 +102,17 @@ func (e *dockerRenderEngine) Render(ctx context.Context, req *renderv1alpha1.Ren
 		opts = append(opts, docker.RunWithNetworkName(e.network))
 	}
 
+	// Bind-mount the directory of every unix-socket function target into the
+	// render container at the same path so unix:// targets are reachable.
+	for _, fn := range getFunctionInputs(req) {
+		addr := fn.GetAddress()
+		if !strings.HasPrefix(addr, "unix://") {
+			continue
+		}
+		dir := filepath.Dir(strings.TrimPrefix(addr, "unix://"))
+		opts = append(opts, docker.RunWithBindMount(dir, dir))
+	}
+
 	e.log.Debug("Running crossplane internal render in Docker", "image", e.image, "network", e.network)
 
 	stdout, _, err := docker.RunContainer(ctx, e.image, opts...)
@@ -100,4 +126,17 @@ func (e *dockerRenderEngine) Render(ctx context.Context, req *renderv1alpha1.Ren
 	}
 
 	return rsp, nil
+}
+
+// getFunctionInputs returns the FunctionInput list regardless of which oneof
+// variant the RenderRequest carries.
+func getFunctionInputs(req *renderv1alpha1.RenderRequest) []*renderv1alpha1.FunctionInput {
+	switch in := req.GetInput().(type) {
+	case *renderv1alpha1.RenderRequest_Composite:
+		return in.Composite.GetFunctions()
+	case *renderv1alpha1.RenderRequest_Operation:
+		return in.Operation.GetFunctions()
+	default:
+		return nil
+	}
 }

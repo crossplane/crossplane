@@ -32,7 +32,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
+	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	"github.com/crossplane/crossplane/v2/cmd/crank/render"
+	"github.com/crossplane/crossplane/v2/cmd/crank/render/contextfn"
 )
 
 // Cmd arguments and flags for alpha render op subcommand.
@@ -160,12 +162,6 @@ func (c *Cmd) AfterApply() error {
 
 // Run alpha render op.
 func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit // Orchestration is inherently complex.
-	// Warn about flags not yet supported by the render engine.
-	// TODO(negz): Extend the render proto to support these.
-	if c.IncludeContext {
-		log.Info("Warning: --include-context is not yet supported by the render engine and will be ignored")
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
@@ -232,6 +228,41 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	}
 
 	engine := c.NewEngine(log)
+
+	seedCtx := len(c.ContextValues) > 0 || len(c.ContextFiles) > 0
+	captureCtx := c.IncludeContext
+
+	var ctxHandle *contextfn.Handle
+	if seedCtx || captureCtx {
+		if err := engine.CheckContextSupport(); err != nil {
+			return err
+		}
+
+		raw, err := render.BuildContextData(c.fs, c.ContextFiles, c.ContextValues)
+		if err != nil {
+			return errors.Wrap(err, "cannot build context data")
+		}
+
+		parsed, err := render.ParseContextData(raw)
+		if err != nil {
+			return errors.Wrap(err, "cannot parse context data")
+		}
+
+		ctxHandle, err = contextfn.Start(ctx, log, parsed)
+		if err != nil {
+			return errors.Wrap(err, "cannot start context function")
+		}
+		defer ctxHandle.Stop()
+
+		fns = append(fns, ctxHandle.Function())
+		if seedCtx {
+			op.Spec.Pipeline = append([]opsv1alpha1.PipelineStep{ctxHandle.OperationSeedStep()}, op.Spec.Pipeline...)
+		}
+		if captureCtx {
+			op.Spec.Pipeline = append(op.Spec.Pipeline, ctxHandle.OperationCaptureStep())
+		}
+	}
+
 	cleanup, err := engine.Setup(ctx, fns)
 	if err != nil {
 		return err
@@ -245,10 +276,15 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	}
 	defer render.StopFunctionRuntimes(log, fnAddrs)
 
+	addrs := fnAddrs.Addresses()
+	if ctxHandle != nil {
+		addrs[contextfn.FunctionName] = ctxHandle.Target
+	}
+
 	// Build and execute the render request.
 	in := render.OperationInputs{
 		Operation:           op,
-		FunctionAddrs:       fnAddrs.Addresses(),
+		FunctionAddrs:       addrs,
 		RequiredResources:   rrs,
 		RequiredSchemas:     rsc,
 		FunctionCredentials: fcreds,
@@ -271,6 +307,16 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	out, err := render.ParseOperationResponse(operationOut)
 	if err != nil {
 		return errors.Wrap(err, "cannot parse render response")
+	}
+
+	if captureCtx && ctxHandle != nil {
+		if s := ctxHandle.Captured(); s != nil {
+			out.Context = &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "render.crossplane.io/v1beta1",
+				"kind":       "Context",
+				"fields":     s.AsMap(),
+			}}
+		}
 	}
 
 	// Output results
@@ -304,6 +350,13 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 			if err := s.Encode(&res, k.Stdout); err != nil {
 				return errors.Wrap(err, "cannot marshal result to YAML")
 			}
+		}
+	}
+
+	if c.IncludeContext && out.Context != nil {
+		_, _ = fmt.Fprintln(k.Stdout, "---")
+		if err := s.Encode(out.Context, k.Stdout); err != nil {
+			return errors.Wrap(err, "cannot marshal context to YAML")
 		}
 	}
 

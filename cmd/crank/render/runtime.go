@@ -44,8 +44,23 @@ const (
 	// must be running with the --insecure flag, i.e. without transport security.
 	AnnotationValueRuntimeDevelopment RuntimeType = "Development"
 
+	// AnnotationValueRuntimeInProcess indicates that the Function is hosted
+	// in-process by the CLI itself. The CLI owns the listener lifecycle and
+	// injects the real target post-hoc; the runtime's Start is a no-op.
+	AnnotationValueRuntimeInProcess RuntimeType = "InProcess"
+
 	AnnotationValueRuntimeDefault = AnnotationValueRuntimeDocker
 )
+
+// RuntimeInProcess is a no-op runtime for functions the CLI hosts in-process.
+// The real target is injected by the caller after StartFunctionRuntimes
+// returns.
+type RuntimeInProcess struct{}
+
+// Start does nothing and returns an empty target.
+func (RuntimeInProcess) Start(_ context.Context) (RuntimeContext, error) {
+	return RuntimeContext{Stop: func(_ context.Context) error { return nil }}, nil
+}
 
 // A Runtime runs a Function.
 type Runtime interface {
@@ -69,6 +84,8 @@ func GetRuntime(fn pkgv1.Function, log logging.Logger) (Runtime, error) {
 		return GetRuntimeDocker(fn, log)
 	case AnnotationValueRuntimeDevelopment:
 		return GetRuntimeDevelopment(fn, log), nil
+	case AnnotationValueRuntimeInProcess:
+		return RuntimeInProcess{}, nil
 	default:
 		return nil, errors.Errorf("unsupported %q annotation value %q (unknown runtime)", AnnotationKeyRuntime, r)
 	}

@@ -33,6 +33,10 @@ const DefaultCrossplaneImage = "xpkg.crossplane.io/crossplane/crossplane"
 // An Engine executes a crossplane internal render request and returns the
 // response.
 type Engine interface {
+	// CheckContextSupport validates whether context injection and collection
+	// works with this engine in the current runtime environment.
+	CheckContextSupport() error
+
 	// Setup performs engine-specific pre-render preparation, such as
 	// creating Docker networks and annotating functions so their containers
 	// can reach the render engine. It may mutate fns. The returned cleanup

@@ -36,6 +36,10 @@ type localRenderEngine struct {
 	BinaryPath string
 }
 
+func (e *localRenderEngine) CheckContextSupport() error {
+	return nil
+}
+
 // Setup is a no-op for the local engine. Function containers publish ports to
 // localhost, so there's nothing extra to configure.
 func (e *localRenderEngine) Setup(_ context.Context, _ []pkgv1.Function) (func(), error) {

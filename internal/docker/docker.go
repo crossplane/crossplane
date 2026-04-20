@@ -368,6 +368,13 @@ func RunWithExtraHosts(hosts []string) RunContainerOption {
 	}
 }
 
+// RunWithBindMount adds a bind mount to the container.
+func RunWithBindMount(hostPath, containerPath string) RunContainerOption {
+	return func(cfg *runContainerConfig) {
+		cfg.hostConfig.Binds = append(cfg.hostConfig.Binds, fmt.Sprintf("%s:%s", hostPath, containerPath))
+	}
+}
+
 // RunContainer creates a container, optionally pipes stdin, waits for it to
 // exit, and returns stdout and stderr. The container is always removed on
 // return. This is intended for short-lived "run to completion" containers.

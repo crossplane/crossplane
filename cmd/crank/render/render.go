@@ -83,6 +83,7 @@ type OperationOutputs struct {
 	Operation        *opsv1alpha1.Operation
 	AppliedResources []kunstructured.Unstructured
 	Results          []kunstructured.Unstructured
+	Context          *kunstructured.Unstructured
 }
 
 // FunctionAddresses maps function names to their gRPC target addresses.

@@ -36,8 +36,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
-	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/v2/cmd/crank/render/contextfn"
 )
 
 // Cmd arguments and flags for render subcommand.
@@ -172,12 +173,6 @@ func (c *Cmd) AfterApply() error {
 
 // Run render.
 func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit // Orchestration is inherently complex.
-	// Warn about flags not yet supported by the render engine.
-	// TODO(negz): Extend the render proto to support these.
-	if c.IncludeContext {
-		log.Info("Warning: --include-context is not yet supported by the render engine and will be ignored")
-	}
-
 	xr, err := LoadCompositeResource(c.fs, c.CompositeResource)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load composite resource from %q", c.CompositeResource)
@@ -216,7 +211,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		}
 	}
 
-	if comp.Spec.Mode != v1.CompositionModePipeline {
+	if comp.Spec.Mode != apiextensionsv1.CompositionModePipeline {
 		return errors.Errorf("render only supports Composition Function pipelines: Composition %q must use spec.mode: Pipeline", comp.GetName())
 	}
 
@@ -294,6 +289,41 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	defer cancel()
 
 	engine := c.NewEngine(log)
+
+	seedCtx := len(c.ContextValues) > 0 || len(c.ContextFiles) > 0
+	captureCtx := c.IncludeContext
+
+	var ctxHandle *contextfn.Handle
+	if seedCtx || captureCtx {
+		if err := engine.CheckContextSupport(); err != nil {
+			return err
+		}
+
+		raw, err := BuildContextData(c.fs, c.ContextFiles, c.ContextValues)
+		if err != nil {
+			return errors.Wrap(err, "cannot build context data")
+		}
+
+		parsed, err := ParseContextData(raw)
+		if err != nil {
+			return errors.Wrap(err, "cannot parse context data")
+		}
+
+		ctxHandle, err = contextfn.Start(ctx, log, parsed)
+		if err != nil {
+			return errors.Wrap(err, "cannot start context function")
+		}
+		defer ctxHandle.Stop()
+
+		fns = append(fns, ctxHandle.Function())
+		if seedCtx {
+			comp.Spec.Pipeline = append([]apiextensionsv1.PipelineStep{ctxHandle.CompositeSeedStep()}, comp.Spec.Pipeline...)
+		}
+		if captureCtx {
+			comp.Spec.Pipeline = append(comp.Spec.Pipeline, ctxHandle.CompositeCaptureStep())
+		}
+	}
+
 	cleanup, err := engine.Setup(ctx, fns)
 	if err != nil {
 		return err
@@ -307,11 +337,16 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	}
 	defer StopFunctionRuntimes(log, fnAddrs)
 
+	addrs := fnAddrs.Addresses()
+	if ctxHandle != nil {
+		addrs[contextfn.FunctionName] = ctxHandle.Target
+	}
+
 	// Build and execute the render request.
 	in := CompositionInputs{
 		CompositeResource:   xr,
 		Composition:         comp,
-		FunctionAddrs:       fnAddrs.Addresses(),
+		FunctionAddrs:       addrs,
 		ObservedResources:   ors,
 		RequiredResources:   rrs,
 		RequiredSchemas:     rsc,
@@ -335,6 +370,16 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	out, err := parseCompositeResponse(compositeOut)
 	if err != nil {
 		return errors.Wrap(err, "cannot parse render response")
+	}
+
+	if captureCtx && ctxHandle != nil {
+		if s := ctxHandle.Captured(); s != nil {
+			out.Context = &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "render.crossplane.io/v1beta1",
+				"kind":       "Context",
+				"fields":     s.AsMap(),
+			}}
+		}
 	}
 
 	s := json.NewSerializerWithOptions(json.DefaultMetaFactory, nil, nil, json.SerializerOptions{Yaml: true})
@@ -377,6 +422,13 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 			if err := s.Encode(&out.Results[i], k.Stdout); err != nil {
 				return errors.Wrap(err, "cannot marshal result to YAML")
 			}
+		}
+	}
+
+	if c.IncludeContext && out.Context != nil {
+		_, _ = fmt.Fprintln(k.Stdout, "---")
+		if err := s.Encode(out.Context, k.Stdout); err != nil {
+			return errors.Wrap(err, "cannot marshal context to YAML")
 		}
 	}
 
