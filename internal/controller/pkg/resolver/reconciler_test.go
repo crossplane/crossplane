@@ -1188,8 +1188,8 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				version: digest1,
 			},
 		},
-		"SuccessDigestInstalledVersion": {
-			reason: "We should find the lowest valid version when the installed version is a digest.",
+		"ErrorDigestInstalledVersionWithSemverConstraints": {
+			reason: "We should return an error if the installed version is a digest and a semver constraint is requested, rather than silently switching the pinned package to a semver tag.",
 			args: args{
 				mgr:    &fake.Manager{Client: test.NewMockClient()},
 				insVer: digest1,
@@ -1209,7 +1209,7 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				},
 			},
 			want: want{
-				version: "v1.0.0",
+				err: errors.Errorf(errFmtInstalledDigestVsSemver, "xpkg.crossplane.io/cool-repo/cool-image", digest1, []string{">=v1.0.0", "<v3.0.0"}),
 			},
 		},
 		"ErrorNonSemverInstalledVersion": {
