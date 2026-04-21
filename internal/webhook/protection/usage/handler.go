@@ -171,7 +171,16 @@ func inUseMessage(u []protection.Usage) string {
 	}
 
 	if by != nil {
-		return fmt.Sprintf("This resource is in-use by %d usage(s), including the %T %s by resource %s/%s.", len(u), uu, id, by.Kind, by.ResourceRef.Name)
+		// spec.by validates as "either resourceRef or resourceSelector
+		// should be set", so ResourceRef can legitimately be nil on a
+		// selector-based reference (#7243). Only format the referenced
+		// object when we actually have a name - otherwise fall back to
+		// the kind-only form so the webhook does not nil-deref and
+		// panic under recover.
+		if by.ResourceRef != nil {
+			return fmt.Sprintf("This resource is in-use by %d usage(s), including the %T %s by resource %s/%s.", len(u), uu, id, by.Kind, by.ResourceRef.Name)
+		}
+		return fmt.Sprintf("This resource is in-use by %d usage(s), including the %T %s by a %s selected via resourceSelector.", len(u), uu, id, by.Kind)
 	}
 
 	if r := ptr.Deref(first.GetReason(), ""); r != "" {
