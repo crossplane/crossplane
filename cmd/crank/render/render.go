@@ -35,7 +35,6 @@ import (
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
-	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
 )
 
@@ -56,7 +55,6 @@ type CompositionInputs struct {
 	ObservedResources   []composed.Unstructured
 	RequiredResources   []kunstructured.Unstructured
 	RequiredSchemas     []spec3.OpenAPI
-	Context             map[string][]byte
 }
 
 // CompositionOutputs contains all outputs from the render process.
@@ -65,7 +63,6 @@ type CompositionOutputs struct {
 	ComposedResources []composed.Unstructured
 	Results           []kunstructured.Unstructured
 	Context           *kunstructured.Unstructured
-	Requirements      map[string]fnv1.Requirements
 }
 
 // OperationInputs contains all inputs to the render process for an operation.
@@ -75,7 +72,6 @@ type OperationInputs struct {
 	FunctionCredentials []corev1.Secret
 	RequiredResources   []kunstructured.Unstructured
 	RequiredSchemas     []spec3.OpenAPI
-	Context             map[string][]byte
 }
 
 // OperationOutputs contains all outputs from the render process.
