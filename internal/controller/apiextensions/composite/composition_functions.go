@@ -931,7 +931,7 @@ func UpdateResourceRefs(xr resource.Composite, desired ComposedResourceStates) {
 	// We want to ensure our refs are stable.
 	sort.Slice(refs, func(i, j int) bool {
 		ri, rj := refs[i], refs[j]
-		return ri.APIVersion+ri.Kind+ri.Name < rj.APIVersion+rj.Kind+rj.Name
+		return ri.APIVersion+ri.Kind+ri.Name+ri.Namespace < rj.APIVersion+rj.Kind+rj.Name+rj.Namespace
 	})
 
 	xr.SetResourceReferences(refs)
