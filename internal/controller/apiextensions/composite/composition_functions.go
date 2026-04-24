@@ -627,7 +627,13 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				continue
 			}
 
-			return CompositionResult{}, xerrors.ComposedResourceError{
+			// Include events and resources accumulated so far (e.g. from
+			// IsInvalid errors on other resources) so they're not lost when
+			// the caller handles this error.
+			return CompositionResult{
+				Events:   events,
+				Composed: resources,
+			}, xerrors.ComposedResourceError{
 				Message:  fmt.Sprintf(errFmtApplyCD, name),
 				Composed: cd.Resource,
 				Err:      err,
