@@ -302,12 +302,9 @@ func (m *Manager) cacheDependencies() error {
 			return errors.Wrapf(err, "cannot check if cache exists for %s", image)
 		}
 
-		// cache hit -> skip unless the image contains a ranged version constraint and update-cache option is enabled
-		if path == "" {
-			_, imageTag := separateImageTag(image)
-			if !isRangedConstraint(imageTag) || !m.updateCache {
-				continue
-			}
+		// cache hit, skip unless update-cache option is enabled
+		if path == "" && !m.updateCache {
+			continue
 		}
 
 		msg := "schemas does not exist, downloading: "
