@@ -28,6 +28,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -794,6 +795,16 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 				// We believe we created this resource, but it no longer exists.
 				continue
 			}
+		}
+
+		// If the CRD backing the reference no longer exists (e.g. an API
+		// version was dropped during an operator upgrade) we can never
+		// observe the resource — and because the ref is stale the compose
+		// pipeline has no way to reconcile it away either. Skip it so the
+		// function pipeline gets a chance to run and produce a corrected
+		// desired state. See crossplane/crossplane#7284.
+		if kmeta.IsNoMatchError(err) {
+			continue
 		}
 
 		if err != nil {

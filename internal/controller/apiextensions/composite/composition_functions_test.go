@@ -30,6 +30,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -1573,6 +1574,34 @@ func TestGetComposedResources(t *testing.T) {
 					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
 						Refs: []corev1.ObjectReference{
 							{Name: "cool-resource"},
+						},
+					},
+				},
+			},
+		},
+		"ComposedResourceCRDMissing": {
+			reason: "We should skip resources whose CRD no longer exists (NoMatchError) rather than abort the reconciliation. See crossplane/crossplane#7284.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(&kmeta.NoKindMatchError{
+						GroupKind: schema.GroupKind{Group: "external-secrets.io", Kind: "ExternalSecret"},
+					}),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(&kmeta.NoKindMatchError{
+						GroupKind: schema.GroupKind{Group: "external-secrets.io", Kind: "ExternalSecret"},
+					}),
+				},
+			},
+			args: args{
+				xr: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
+						Refs: []corev1.ObjectReference{
+							{
+								APIVersion: "external-secrets.io/v1beta1",
+								Kind:       "ExternalSecret",
+								Name:       "stale-ref",
+							},
 						},
 					},
 				},
