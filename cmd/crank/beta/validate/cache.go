@@ -228,20 +228,13 @@ func (c *LocalCache) findLatestCachedVersionForConstraint(image string) (string,
 
 	sort.Sort(sort.Reverse(semver.Collection(vs)))
 
-	var latestVersionInConstraint string
 	for _, v := range vs {
 		if constraint.Check(v) {
-			latestVersionInConstraint = v.Original()
-
-			break
+			// return the cache-path with the latest valid semantic version
+			return strings.ReplaceAll(cachePath, imageTag, v.Original()), nil
 		}
 	}
 
-	if latestVersionInConstraint == "" {
-		// no version that is valid for constraint exist
-		return "", nil
-	}
+	return "", nil
 
-	// return the cache-path with the latest valid version instead of the constraint
-	return strings.ReplaceAll(cachePath, imageTag, latestVersionInConstraint), nil
 }
