@@ -194,34 +194,26 @@ func (c *LocalCache) findLatestCachedVersionForConstraint(image string) (string,
 	// search cache-directory for tags
 	cacheDir := filepath.Dir(cachePath)
 
-	tags := []string{}
-	err = iofs.WalkDir(afero.NewIOFS(c.fs), cacheDir, func(_ string, d iofs.DirEntry, err error) error {
-		if err != nil {
-			if errors.Is(err, iofs.ErrNotExist) {
-				// the walk will fail on first run (directories dont exist) - ignore it
-				return nil
-			}
-
-			return err
-		}
-
-		if d.IsDir() && strings.HasPrefix(d.Name(), path.Base(imageBase)) {
-			i := strings.Index(d.Name(), "@")
-			if i == -1 {
-				return errors.Errorf("the cache entry '%s' does not contain a tag", d.Name())
-			}
-
-			tags = append(tags, d.Name()[i+1:])
-		}
-
-		return nil
-	})
+	dirEntries, err := afero.ReadDir(c.fs, cacheDir)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to search cache-directory %s for existing tag", cacheDir)
+		if errors.Is(err, iofs.ErrNotExist) {
+			// the directory wont exist if it hasnt been cached yet, in which case its a normal cache miss
+			return "", nil
+		}
+
+		return "", err
 	}
 
-	if len(tags) == 0 {
-		return "", nil
+	tags := []string{}
+	for _, entry := range dirEntries {
+		if entry.IsDir() && strings.HasPrefix(entry.Name(), path.Base(imageBase)) {
+			i := strings.Index(entry.Name(), "@")
+			if i == -1 {
+				return "", errors.Errorf("the cache entry '%s' does not contain a tag", entry.Name())
+			}
+
+			tags = append(tags, entry.Name()[i+1:])
+		}
 	}
 
 	vs := convertToSemver(tags)
@@ -236,5 +228,4 @@ func (c *LocalCache) findLatestCachedVersionForConstraint(image string) (string,
 	}
 
 	return "", nil
-
 }
