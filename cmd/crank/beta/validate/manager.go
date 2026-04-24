@@ -45,9 +45,10 @@ const (
 
 // Manager defines a Manager for preparing Crossplane packages for validation.
 type Manager struct {
-	fetcher ImageFetcher
-	cache   Cache
-	writer  io.Writer
+	fetcher     ImageFetcher
+	cache       Cache
+	writer      io.Writer
+	updateCache bool
 
 	crds  []*extv1.CustomResourceDefinition
 	deps  map[string]bool                  // Dependency images
@@ -65,6 +66,14 @@ func WithCrossplaneImage(image string) Option {
 		}
 
 		m.deps[image] = true
+	}
+}
+
+// WithUpdateCache forces re-downloading packages with ranged semver
+// constraints even when a matching version is already cached.
+func WithUpdateCache(update bool) Option {
+	return func(m *Manager) {
+		m.updateCache = update
 	}
 }
 
@@ -228,7 +237,7 @@ func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error 
 		if cfg == nil {
 			m.deps[image] = true // we need to download the configuration package for the XRDs
 
-			layer, err := m.fetcher.FetchBaseLayer(image)
+			_, layer, err := m.fetcher.FetchBaseLayer(image)
 			if err != nil {
 				return errors.Wrapf(err, "cannot download package %s", image)
 			}
@@ -293,21 +302,28 @@ func (m *Manager) cacheDependencies() error {
 			return errors.Wrapf(err, "cannot check if cache exists for %s", image)
 		}
 
-		if path == "" {
+		// cache hit, skip unless update-cache option is enabled
+		if path == "" && !m.updateCache {
 			continue
 		}
 
-		if _, err := fmt.Fprintln(m.writer, "schemas does not exist, downloading: ", image); err != nil {
+		msg := "schemas does not exist, downloading: "
+		if path == "" {
+			msg = "updating cached schemas: "
+		}
+		if _, err := fmt.Fprintln(m.writer, msg, image); err != nil {
 			return errors.Wrapf(err, errWriteOutput)
 		}
 
 		var schemas [][]byte
 		// handling for packages
-		layer, err := m.fetcher.FetchBaseLayer(image)
+		resolvedImage, layer, err := m.fetcher.FetchBaseLayer(image)
 		switch {
 		case IsErrBaseLayerNotFound(err):
 			// We fall back to fetching the image if the base layer is not found
-			layers, err := m.fetcher.FetchImage(image)
+			var layers []regv1.Layer
+			var err error
+			resolvedImage, layers, err = m.fetcher.FetchImage(image)
 			if err != nil {
 				return errors.Wrapf(err, "cannot extract crds")
 			}
@@ -325,7 +341,7 @@ func (m *Manager) cacheDependencies() error {
 			}
 		}
 
-		if err := m.cache.Store(schemas, path); err != nil {
+		if err := m.cache.Store(schemas, resolvedImage); err != nil {
 			return errors.Wrapf(err, "cannot store base layer")
 		}
 	}
