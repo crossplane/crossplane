@@ -20,6 +20,7 @@ import (
 	"context"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -279,6 +280,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: &Reconciler{
+					pollInterval:           defaultPollInterval,
 					newPackage:             func() v1.Package { return &v1.Configuration{} },
 					newPackageRevision:     func() v1.PackageRevision { return &v1.ConfigurationRevision{} },
 					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
@@ -328,7 +330,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: pullWait},
+				r: reconcile.Result{RequeueAfter: defaultPollInterval},
 			},
 		},
 		"SuccessfulNoExistingRevisionsManualActivate": {
@@ -981,6 +983,52 @@ func TestReconcile(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestPullBasedRequeue(t *testing.T) {
+	pullAlways := corev1.PullAlways
+	pullIfNotPresent := corev1.PullIfNotPresent
+
+	cases := map[string]struct {
+		reason       string
+		pollInterval time.Duration
+		policy       *corev1.PullPolicy
+		want         reconcile.Result
+	}{
+		"PullAlwaysHonorsConfiguredInterval": {
+			reason:       "When pull policy is Always, the requeue interval should match the configured pollInterval.",
+			pollInterval: 5 * time.Minute,
+			policy:       &pullAlways,
+			want:         reconcile.Result{RequeueAfter: 5 * time.Minute},
+		},
+		"PullAlwaysWithDefaultInterval": {
+			reason:       "When pull policy is Always and no override is set, the default pollInterval is used.",
+			pollInterval: defaultPollInterval,
+			policy:       &pullAlways,
+			want:         reconcile.Result{RequeueAfter: defaultPollInterval},
+		},
+		"PullIfNotPresentDoesNotRequeue": {
+			reason:       "When pull policy is not Always, no requeue is scheduled regardless of pollInterval.",
+			pollInterval: 5 * time.Minute,
+			policy:       &pullIfNotPresent,
+			want:         reconcile.Result{Requeue: false},
+		},
+		"NilPolicyDoesNotRequeue": {
+			reason:       "When pull policy is nil, no requeue is scheduled regardless of pollInterval.",
+			pollInterval: 5 * time.Minute,
+			policy:       nil,
+			want:         reconcile.Result{Requeue: false},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := &Reconciler{pollInterval: tc.pollInterval}
+			if diff := cmp.Diff(tc.want, r.pullBasedRequeue(tc.policy)); diff != "" {
+				t.Errorf("\n%s\nr.pullBasedRequeue(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
