@@ -70,6 +70,7 @@ const (
 	errAddDetailsAnnotation = "cannot update usage resource with details annotation"
 	errAddInUseLabel        = "cannot add in use label to the used resource"
 	errRemoveInUseLabel     = "cannot remove in use label from the used resource"
+	errUnsupportedUsage     = "namespaced usage cannot reference a cluster-scoped resource"
 	errAddFinalizer         = "cannot add finalizer"
 	errRemoveFinalizer      = "cannot remove finalizer"
 	errUpdateStatus         = "cannot update status of usage"
@@ -86,6 +87,7 @@ const (
 	reasonOwnerRefToUsage  event.Reason = "AddOwnerRefToUsage"
 	reasonAddInUseLabel    event.Reason = "AddInUseLabel"
 	reasonRemoveInUseLabel event.Reason = "RemoveInUseLabel"
+	reasonUnsupportedUsage event.Reason = "UnsupportedUsage"
 	reasonAddFinalizer     event.Reason = "AddFinalizer"
 	reasonRemoveFinalizer  event.Reason = "RemoveFinalizer"
 	reasonReplayDeletion   event.Reason = "ReplayDeletion"
@@ -468,6 +470,46 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetUsed, "error", err)
 		err = errors.Wrap(err, errGetUsed)
 		r.record.Event(uu, event.Warning(reasonGetUsed, err))
+
+		return reconcile.Result{}, err
+	}
+
+	if uu.GetNamespace() != "" && used.GetNamespace() == "" {
+		if used.GetLabels()[inUseLabelKey] == "true" {
+			usages, err := r.resource.FindUsageOf(ctx, used)
+			if err != nil {
+				log.Debug(errFindUsages, "error", err)
+				err = errors.Wrap(err, errFindUsages)
+				r.record.Event(uu, event.Warning(reasonFindUsages, err))
+
+				return reconcile.Result{}, err
+			}
+
+			// Finder does not return this invalid namespaced Usage for a
+			// cluster-scoped resource, so zero matches means the label is only
+			// misleading and should be removed.
+			if len(usages) == 0 {
+				meta.RemoveLabels(used, inUseLabelKey)
+
+				if err := r.client.Update(ctx, used); err != nil {
+					log.Debug(errRemoveInUseLabel, "error", err)
+
+					if kerrors.IsConflict(err) {
+						return reconcile.Result{Requeue: true}, nil
+					}
+
+					err = errors.Wrap(err, errRemoveInUseLabel)
+					r.record.Event(uu, event.Warning(reasonRemoveInUseLabel, err))
+
+					return reconcile.Result{}, err
+				}
+			}
+		}
+
+		err := errors.Errorf("%s: Usage %q in namespace %q references cluster-scoped %s %q; use ClusterUsage instead", errUnsupportedUsage, uu.GetName(), uu.GetNamespace(), used.GetKind(), used.GetName())
+		status.MarkConditions(xpv2.ReconcileError(err))
+		_ = r.client.Status().Update(ctx, uu)
+		r.record.Event(uu, event.Warning(reasonUnsupportedUsage, err))
 
 		return reconcile.Result{}, err
 	}
