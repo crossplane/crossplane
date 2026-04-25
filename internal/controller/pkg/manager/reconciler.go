@@ -48,17 +48,18 @@ import (
 const (
 	reconcileTimeout = 1 * time.Minute
 
-	// pullWait is the time after which the package manager will check for
-	// updated content for the given package reference. This behavior is only
-	// enabled when the packagePullPolicy is Always.
-	pullWait = 1 * time.Minute
+	// defaultPollInterval is the default interval after which the package
+	// manager will check for updated content for the given package reference,
+	// when no --poll-interval is configured. This behavior is only enabled
+	// when the packagePullPolicy is Always.
+	defaultPollInterval = 1 * time.Minute
 
 	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
 )
 
-func pullBasedRequeue(p *corev1.PullPolicy) reconcile.Result {
+func (r *Reconciler) pullBasedRequeue(p *corev1.PullPolicy) reconcile.Result {
 	if p != nil && *p == corev1.PullAlways {
-		return reconcile.Result{RequeueAfter: pullWait}
+		return reconcile.Result{RequeueAfter: r.pollInterval}
 	}
 
 	return reconcile.Result{Requeue: false}
@@ -130,6 +131,14 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
+// WithPollInterval specifies how often the Reconciler should requeue after a
+// successful reconcile when the package's pull policy is Always.
+func WithPollInterval(d time.Duration) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.pollInterval = d
+	}
+}
+
 // WithManagingRevisionRuntimeSpec will allow this reconciler to propagate the
 // runtime spec fields to revisions.
 func WithManagingRevisionRuntimeSpec() ReconcilerOption {
@@ -155,6 +164,8 @@ type Reconciler struct {
 	record     event.Recorder
 	conditions conditions.Manager
 
+	pollInterval time.Duration
+
 	setPackageRuntimeManagedFields func(p v1.Package, pr v1.PackageRevision)
 
 	newPackage             func() v1.Package
@@ -177,6 +188,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithClient(o.Client),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithPollInterval(o.PollInterval),
 	}
 
 	if o.PackageRuntime.For(v1.ProviderKind) == controller.PackageRuntimeDeployment {
@@ -207,6 +219,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		WithClient(o.Client),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithPollInterval(o.PollInterval),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -233,6 +246,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		WithClient(o.Client),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithPollInterval(o.PollInterval),
 	}
 
 	if o.PackageRuntime.For(v1.FunctionKind) == controller.PackageRuntimeDeployment {
@@ -255,9 +269,10 @@ func NewReconciler(mgr ctrl.Manager, opts ...ReconcilerOption) *Reconciler {
 			Client:     mgr.GetClient(),
 			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
 		},
-		log:        logging.NewNopLogger(),
-		record:     event.NewNopRecorder(),
-		conditions: conditions.ObservedGenerationPropagationManager{},
+		log:          logging.NewNopLogger(),
+		record:       event.NewNopRecorder(),
+		conditions:   conditions.ObservedGenerationPropagationManager{},
+		pollInterval: defaultPollInterval,
 	}
 
 	for _, f := range opts {
@@ -499,5 +514,5 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// package, the health of the package is not set until the revision reports
 	// its health. If updating from an existing revision, the package health
 	// will match the health of the old revision until the next reconcile.
-	return pullBasedRequeue(p.GetPackagePullPolicy()), errors.Wrap(r.kube.Status().Update(ctx, p), errUpdateStatus)
+	return r.pullBasedRequeue(p.GetPackagePullPolicy()), errors.Wrap(r.kube.Status().Update(ctx, p), errUpdateStatus)
 }
