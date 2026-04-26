@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/daemon"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/spf13/afero"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,6 +46,7 @@ const (
 	errPullRuntimeImage        = "failed to pull runtime image"
 	errLoadRuntimeTarball      = "failed to load runtime tarball"
 	errGetRuntimeBaseImageOpts = "failed to get runtime base image options"
+	errParseAnnotations        = "failed to parse annotations"
 )
 
 // AfterApply constructs and binds context to any subcommands
@@ -94,12 +96,13 @@ func (c *buildCmd) AfterApply() error {
 // buildCmd builds a crossplane package.
 type buildCmd struct {
 	// Flags. Keep sorted alphabetically.
-	EmbedRuntimeImage        string   `help:"An OCI image to embed in the package as its runtime."                                                                                                    placeholder:"NAME"                                                     xor:"runtime-image"`
-	EmbedRuntimeImageTarball string   `help:"An OCI image tarball to embed in the package as its runtime."                                                                                            placeholder:"PATH"                                                     predictor:"file"      type:"existingfile" xor:"runtime-image"`
-	ExamplesRoot             string   `default:"./examples"                                                                                                                                           help:"A directory of example YAML files to include in the package."    predictor:"directory" short:"e"           type:"path"`
+	Annotation               []string `help:"An OCI manifest annotation to add to the package in key=value format. Repeatable. Overrides matching keys from the package's crossplane.yaml metadata.annotations." placeholder:"KEY=VALUE" short:"a"`
+	EmbedRuntimeImage        string   `help:"An OCI image to embed in the package as its runtime."                                                                                                placeholder:"NAME"      xor:"runtime-image"`
+	EmbedRuntimeImageTarball string   `help:"An OCI image tarball to embed in the package as its runtime."                                                                                        placeholder:"PATH"      predictor:"file"      type:"existingfile" xor:"runtime-image"`
+	ExamplesRoot             string   `default:"./examples"                                                                                                                                       help:"A directory of example YAML files to include in the package." predictor:"directory" short:"e"           type:"path"`
 	Ignore                   []string `help:"Comma-separated file paths, specified relative to --package-root, to exclude from the package. Wildcards are supported. Directories cannot be excluded." placeholder:"PATH"`
-	PackageFile              string   `help:"The file to write the package to. Defaults to a generated filename in --package-root."                                                                   placeholder:"PATH"                                                     predictor:"xpkg_file" short:"o"           type:"path"`
-	PackageRoot              string   `default:"."                                                                                                                                                    help:"The directory that contains the package's crossplane.yaml file." predictor:"directory" short:"f"           type:"existingdir"`
+	PackageFile              string   `help:"The file to write the package to. Defaults to a generated filename in --package-root."                                                               placeholder:"PATH"      predictor:"xpkg_file" short:"o"           type:"path"`
+	PackageRoot              string   `default:"."                                                                                                                                                help:"The directory that contains the package's crossplane.yaml file." predictor:"directory" short:"f"           type:"existingdir"`
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
 	fs      afero.Fs
@@ -184,6 +187,20 @@ func (c *buildCmd) Run(logger logging.Logger) error {
 	img, meta, err := c.builder.Build(context.Background(), buildOpts...)
 	if err != nil {
 		return errors.Wrap(err, errBuildPackage)
+	}
+
+	// Collect OCI manifest annotations from crossplane.yaml metadata.annotations
+	// first, then from --annotation flags (flags take precedence).
+	var metaAnnotations map[string]string
+	if pkgMeta, ok := meta.(metav1.Object); ok {
+		metaAnnotations = pkgMeta.GetAnnotations()
+	}
+	anns, err := mergeAnnotations(metaAnnotations, c.Annotation)
+	if err != nil {
+		return errors.Wrap(err, errParseAnnotations)
+	}
+	if len(anns) > 0 {
+		img = mutate.Annotations(img, anns).(v1.Image)
 	}
 
 	hash, err := img.Digest()
