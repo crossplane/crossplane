@@ -126,7 +126,8 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 			reason: "Should return nil when no existing deployment is found.",
 			args: args{
 				client: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet:  test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockList: test.NewMockListFn(nil),
 				},
 				pr: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
@@ -170,6 +171,159 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 				err: errors.Wrap(errBoom, "cannot get existing deployment"),
 			},
 		},
+		"ErrorListingDeployments": {
+			reason: "Should return an error when listing existing deployments fails.",
+			args: args{
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
+						return errBoom
+					}),
+				},
+				pr: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "provider-nop-v1.0.0",
+						Labels: map[string]string{
+							v1.LabelParentPackage: "crossplane-provider-nop",
+						},
+					},
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+				},
+				builder: mockBuilder,
+			},
+			want: want{
+				err: errors.Wrap(errBoom, "cannot list existing deployments"),
+			},
+		},
+		"DeleteStaleDeploymentWhenExpectedNameChanges": {
+			reason: "Should delete a stale deployment owned by the same revision when the runtime config changes the deployment name.",
+			args: args{
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						l := obj.(*appsv1.DeploymentList)
+						l.Items = []appsv1.Deployment{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name:      "old-deployment",
+									Namespace: testNamespaceName,
+								},
+								Spec: appsv1.DeploymentSpec{
+									Selector: &metav1.LabelSelector{
+										MatchLabels: map[string]string{
+											v1.LabelRevision: "provider-nop-v1.0.0",
+										},
+									},
+								},
+							},
+						}
+						return nil
+					}),
+					MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
+						deploy := o.(*appsv1.Deployment)
+						if deploy.GetName() != "old-deployment" {
+							t.Errorf("expected stale deployment to be deleted, got %q", deploy.GetName())
+						}
+						return nil
+					}),
+				},
+				pr: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "provider-nop-v1.0.0",
+						Labels: map[string]string{
+							v1.LabelParentPackage: "crossplane-provider-nop",
+						},
+					},
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+				},
+				builder: mockBuilder,
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"DeleteStaleDeploymentWhenExpectedDeploymentExists": {
+			reason: "Should delete stale deployments owned by the same revision even when the current deployment already exists.",
+			args: args{
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+						deploy := o.(*appsv1.Deployment)
+						deploy.Name = testDeploymentName
+						deploy.Namespace = testNamespaceName
+						deploy.Spec.Selector = &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								v1.LabelProvider: "crossplane-provider-nop",
+							},
+						}
+						return nil
+					}),
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						l := obj.(*appsv1.DeploymentList)
+						l.Items = []appsv1.Deployment{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name:      testDeploymentName,
+									Namespace: testNamespaceName,
+								},
+								Spec: appsv1.DeploymentSpec{
+									Selector: &metav1.LabelSelector{
+										MatchLabels: map[string]string{
+											v1.LabelRevision: "provider-nop-v1.0.0",
+										},
+									},
+								},
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name:      "old-deployment",
+									Namespace: testNamespaceName,
+								},
+								Spec: appsv1.DeploymentSpec{
+									Selector: &metav1.LabelSelector{
+										MatchLabels: map[string]string{
+											v1.LabelRevision: "provider-nop-v1.0.0",
+										},
+									},
+								},
+							},
+						}
+						return nil
+					}),
+					MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
+						deploy := o.(*appsv1.Deployment)
+						if deploy.GetName() != "old-deployment" {
+							t.Errorf("expected stale deployment to be deleted, got %q", deploy.GetName())
+						}
+						return nil
+					}),
+				},
+				pr: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "provider-nop-v1.0.0",
+						Labels: map[string]string{
+							v1.LabelParentPackage: "crossplane-provider-nop",
+						},
+					},
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+				},
+				builder: mockBuilder,
+			},
+			want: want{
+				err: nil,
+			},
+		},
 		"NoSelectorInDeployment": {
 			reason: "Should return nil when deployment has no selector.",
 			args: args{
@@ -181,6 +335,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						deploy.Spec.Selector = nil
 						return nil
 					}),
+					MockList: test.NewMockListFn(nil),
 				},
 				pr: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
@@ -213,6 +368,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						}
 						return nil
 					}),
+					MockList: test.NewMockListFn(nil),
 				},
 				pr: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
@@ -247,6 +403,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						}
 						return nil
 					}),
+					MockList: test.NewMockListFn(nil),
 				},
 				pr: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
@@ -281,6 +438,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						}
 						return nil
 					}),
+					MockList: test.NewMockListFn(nil),
 					MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
 						want := &appsv1.Deployment{
 							ObjectMeta: metav1.ObjectMeta{
@@ -335,6 +493,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						}
 						return nil
 					}),
+					MockList:   test.NewMockListFn(nil),
 					MockDelete: test.NewMockDeleteFn(errBoom),
 				},
 				pr: &v1.ProviderRevision{
@@ -352,7 +511,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 				builder: mockBuilder,
 			},
 			want: want{
-				err: errors.Wrap(errBoom, "cannot delete existing deployment for selector migration"),
+				err: errors.Wrapf(errBoom, "cannot delete deployment %q in namespace %q while migrating provider revision %q", testDeploymentName, testNamespaceName, ""),
 			},
 		},
 	}
