@@ -24,6 +24,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -48,6 +49,10 @@ const (
 	reasonReconcile event.Reason = "Reconcile"
 	reasonPaused    event.Reason = "ReconciliationPaused"
 	reasonApplyCRD  event.Reason = "ApplyCustomResourceDefinition"
+)
+
+const (
+	errDemoteControllerRefs = "cannot demote stale controller ownerReferences on CRD"
 )
 
 // FieldOwnerMRD is the field manager name used when applying CRDs.
@@ -116,6 +121,31 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		return reconcile.Result{}, errors.Wrap(err, "cannot get CustomResourceDefinition")
 	}
 
+	// Demote any stale controller ownerReferences that are not from the
+	// ManagedResourceDefinition. Previously, the ProviderRevision controlling
+	// the MRD was propagated as controller:true on the CRD. During provider
+	// upgrades the old and new revisions both transiently had controller:true,
+	// causing Kubernetes to reject the update. This migration step demotes
+	// those stale refs so the MRD can safely claim controller ownership.
+	if meta.WasCreated(crd) && demoteStaleControllerRefs(crd) {
+		if err := r.client.Update(ctx, crd); err != nil {
+			log.Debug("cannot demote stale controller references on CRD", "error", err)
+			r.record.Event(mrd, event.Warning(reasonReconcile, err))
+			status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to fix CRD controller references, see events"))
+			_ = r.client.Status().Update(ogctx, mrd)
+			return reconcile.Result{}, errors.Wrap(err, errDemoteControllerRefs)
+		}
+		// Re-read to pick up the new resourceVersion before the managed
+		// fields upgrade, which uses the resource version for its patch.
+		if err := r.client.Get(ctx, types.NamespacedName{Name: mrd.GetName()}, crd); resource.IgnoreNotFound(err) != nil {
+			log.Debug("cannot get CustomResourceDefinition", "error", err)
+			r.record.Event(mrd, event.Warning(reasonReconcile, err))
+			status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to get CustomResourceDefinition, see events"))
+			_ = r.client.Status().Update(ogctx, mrd)
+			return reconcile.Result{}, errors.Wrap(err, "cannot get CustomResourceDefinition")
+		}
+	}
+
 	// Upgrade the CRD's managed fields from client-side to server-side
 	// apply. This is necessary when a CRD was previously managed using
 	// client-side apply, but should now be managed using server-side apply.
@@ -170,4 +200,21 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 
 	status.MarkConditions(v1alpha1.EstablishedManaged())
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+}
+
+// demoteStaleControllerRefs sets controller:false on any ownerReference that
+// claims controller status but is not from a ManagedResourceDefinition. This
+// is a migration step: older Crossplane versions propagated the controlling
+// ProviderRevision as controller:true on the CRD, which caused "only one
+// reference can have Controller set to true" errors when the revision changed.
+// Returns true if any references were modified.
+func demoteStaleControllerRefs(crd *extv1.CustomResourceDefinition) bool {
+	changed := false
+	for i := range crd.OwnerReferences {
+		if ptr.Deref(crd.OwnerReferences[i].Controller, false) && crd.OwnerReferences[i].Kind != v1alpha1.ManagedResourceDefinitionKind {
+			crd.OwnerReferences[i].Controller = ptr.To(false)
+			changed = true
+		}
+	}
+	return changed
 }

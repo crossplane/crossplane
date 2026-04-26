@@ -535,3 +535,92 @@ func (r *testRecorder) Event(_ runtime.Object, e event.Event) {
 func (r *testRecorder) WithAnnotations(_ ...string) event.Recorder {
 	return r
 }
+
+func TestDemoteStaleControllerRefs(t *testing.T) {
+	trueVal := true
+	falseVal := false
+
+	cases := map[string]struct {
+		reason  string
+		crd     *extv1.CustomResourceDefinition
+		want    []metav1.OwnerReference
+		changed bool
+	}{
+		"NoOwnerRefs": {
+			reason:  "Should return false when there are no ownerReferences",
+			crd:     &extv1.CustomResourceDefinition{},
+			want:    nil,
+			changed: false,
+		},
+		"MRDControllerOnly": {
+			reason: "Should return false when the only controller is the ManagedResourceDefinition",
+			crd: &extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{Kind: "ManagedResourceDefinition", Controller: &trueVal},
+					},
+				},
+			},
+			want:    []metav1.OwnerReference{{Kind: "ManagedResourceDefinition", Controller: &trueVal}},
+			changed: false,
+		},
+		"ProviderRevisionController": {
+			reason: "Should demote a ProviderRevision with controller:true",
+			crd: &extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{Kind: "ProviderRevision", Controller: &trueVal},
+						{Kind: "ManagedResourceDefinition", Controller: &falseVal},
+					},
+				},
+			},
+			want: []metav1.OwnerReference{
+				{Kind: "ProviderRevision", Controller: &falseVal},
+				{Kind: "ManagedResourceDefinition", Controller: &falseVal},
+			},
+			changed: true,
+		},
+		"MultipleStaleControllers": {
+			reason: "Should demote all non-MRD controller refs",
+			crd: &extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{Kind: "ProviderRevision", Name: "old", Controller: &trueVal},
+						{Kind: "ProviderRevision", Name: "older", Controller: &trueVal},
+						{Kind: "ManagedResourceDefinition", Controller: &trueVal},
+					},
+				},
+			},
+			want: []metav1.OwnerReference{
+				{Kind: "ProviderRevision", Name: "old", Controller: &falseVal},
+				{Kind: "ProviderRevision", Name: "older", Controller: &falseVal},
+				{Kind: "ManagedResourceDefinition", Controller: &trueVal},
+			},
+			changed: true,
+		},
+		"NonControllerProviderRevision": {
+			reason: "Should not modify a ProviderRevision that is already controller:false",
+			crd: &extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{Kind: "ProviderRevision", Controller: &falseVal},
+					},
+				},
+			},
+			want:    []metav1.OwnerReference{{Kind: "ProviderRevision", Controller: &falseVal}},
+			changed: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := demoteStaleControllerRefs(tc.crd)
+			if diff := cmp.Diff(tc.changed, got); diff != "" {
+				t.Errorf("\n%s\ndemoteStaleControllerRefs(...): -want changed, +got changed:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want, tc.crd.OwnerReferences); diff != "" {
+				t.Errorf("\n%s\ndemoteStaleControllerRefs(...): -want refs, +got refs:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
