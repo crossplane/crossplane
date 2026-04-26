@@ -19,6 +19,7 @@ package managed
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -211,10 +212,16 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 func demoteStaleControllerRefs(crd *extv1.CustomResourceDefinition) bool {
 	changed := false
 	for i := range crd.OwnerReferences {
-		if ptr.Deref(crd.OwnerReferences[i].Controller, false) && crd.OwnerReferences[i].Kind != v1alpha1.ManagedResourceDefinitionKind {
-			crd.OwnerReferences[i].Controller = ptr.To(false)
-			changed = true
+		ref := &crd.OwnerReferences[i]
+		if !ptr.Deref(ref.Controller, false) {
+			continue
 		}
+		group, _, _ := strings.Cut(ref.APIVersion, "/")
+		if ref.Kind == v1alpha1.ManagedResourceDefinitionKind && group == v1alpha1.Group {
+			continue
+		}
+		ref.Controller = ptr.To(false)
+		changed = true
 	}
 	return changed
 }
