@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -451,6 +452,119 @@ func TestReconcile(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
+		"StaleCRDControllerRefDemoteError": {
+			reason: "We should return an error and set BlockedManaged when demoting stale controller ownerReferences fails",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						switch o := obj.(type) {
+						case *v1alpha1.ManagedResourceDefinition:
+							return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+								mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
+							}))(ctx, key, o)
+						case *extv1.CustomResourceDefinition:
+							o.CreationTimestamp = metav1.Now()
+							o.OwnerReferences = []metav1.OwnerReference{{
+								APIVersion: "pkg.crossplane.io/v1",
+								Kind:       "ProviderRevision",
+								Controller: ptr.To(true),
+							}}
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
+					MockUpdate: test.NewMockUpdateFn(errBoom),
+					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
+						mrd.SetConditions(v1alpha1.BlockedManaged().WithMessage("unable to fix CRD controller references, see events"))
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithRecorder(&testRecorder{}),
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"StaleCRDControllerRefDemoted": {
+			reason: "We should demote stale controller ownerReferences, re-read the CRD, and continue to reconcile successfully",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func() func(context.Context, client.ObjectKey, client.Object) error {
+						crdGetCall := 0
+						return func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+							switch o := obj.(type) {
+							case *v1alpha1.ManagedResourceDefinition:
+								return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+									mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
+									mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+										Group: "example.com",
+										Names: extv1.CustomResourceDefinitionNames{
+											Plural: "databases",
+											Kind:   "Database",
+										},
+										Scope:    extv1.ClusterScoped,
+										Versions: []v1alpha1.CustomResourceDefinitionVersion{{Name: "v1", Served: true, Storage: true}},
+									}
+								}))(ctx, key, o)
+							case *extv1.CustomResourceDefinition:
+								crdGetCall++
+								if crdGetCall == 1 {
+									// First Get: CRD exists with a stale ProviderRevision controller ownerRef.
+									o.CreationTimestamp = metav1.Now()
+									o.OwnerReferences = []metav1.OwnerReference{{
+										APIVersion: "pkg.crossplane.io/v1",
+										Kind:       "ProviderRevision",
+										Controller: ptr.To(true),
+									}}
+								}
+								// Second Get (after Update): clean CRD, no stale refs.
+								return nil
+							default:
+								return kerrors.NewNotFound(schema.GroupResource{}, "")
+							}
+						}
+					}(),
+					MockUpdate: test.NewMockUpdateFn(nil),
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						u, ok := obj.(*unstructured.Unstructured)
+						if !ok {
+							return nil
+						}
+						u.Object["status"] = map[string]any{
+							"conditions": []any{
+								map[string]any{
+									"type":   string(extv1.Established),
+									"status": string(extv1.ConditionTrue),
+								},
+							},
+						}
+						return nil
+					},
+					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
+						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+							Group: "example.com",
+							Names: extv1.CustomResourceDefinitionNames{
+								Plural: "databases",
+								Kind:   "Database",
+							},
+							Scope:    extv1.ClusterScoped,
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{{Name: "v1", Served: true, Storage: true}},
+						}
+						mrd.SetConditions(v1alpha1.EstablishedManaged())
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithRecorder(&testRecorder{}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -534,4 +648,114 @@ func (r *testRecorder) Event(_ runtime.Object, e event.Event) {
 
 func (r *testRecorder) WithAnnotations(_ ...string) event.Recorder {
 	return r
+}
+
+func TestDemoteStaleControllerRefs(t *testing.T) {
+	cases := map[string]struct {
+		reason  string
+		crd     *extv1.CustomResourceDefinition
+		want    []metav1.OwnerReference
+		changed bool
+	}{
+		"NoOwnerRefs": {
+			reason:  "Should return false when there are no ownerReferences",
+			crd:     &extv1.CustomResourceDefinition{},
+			want:    nil,
+			changed: false,
+		},
+		"MRDControllerOnly": {
+			reason: "Should return false when the only controller is the ManagedResourceDefinition",
+			crd: &extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{APIVersion: "apiextensions.crossplane.io/v1alpha1", Kind: "ManagedResourceDefinition", Controller: ptr.To(true)},
+					},
+				},
+			},
+			want:    []metav1.OwnerReference{{APIVersion: "apiextensions.crossplane.io/v1alpha1", Kind: "ManagedResourceDefinition", Controller: ptr.To(true)}},
+			changed: false,
+		},
+		"SameKindDifferentGroup": {
+			reason: "Should demote an ownerRef with Kind=ManagedResourceDefinition but a different group",
+			crd: &extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{APIVersion: "other.io/v1", Kind: "ManagedResourceDefinition", Controller: ptr.To(true)},
+					},
+				},
+			},
+			want:    []metav1.OwnerReference{{APIVersion: "other.io/v1", Kind: "ManagedResourceDefinition", Controller: ptr.To(false)}},
+			changed: true,
+		},
+		"ProviderRevisionController": {
+			reason: "Should demote a ProviderRevision with controller:true",
+			crd: &extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{APIVersion: "pkg.crossplane.io/v1", Kind: "ProviderRevision", Controller: ptr.To(true)},
+						{APIVersion: "apiextensions.crossplane.io/v1alpha1", Kind: "ManagedResourceDefinition", Controller: ptr.To(false)},
+					},
+				},
+			},
+			want: []metav1.OwnerReference{
+				{APIVersion: "pkg.crossplane.io/v1", Kind: "ProviderRevision", Controller: ptr.To(false)},
+				{APIVersion: "apiextensions.crossplane.io/v1alpha1", Kind: "ManagedResourceDefinition", Controller: ptr.To(false)},
+			},
+			changed: true,
+		},
+		"MultipleStaleControllers": {
+			reason: "Should demote all non-MRD controller refs",
+			crd: &extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{APIVersion: "pkg.crossplane.io/v1", Kind: "ProviderRevision", Name: "old", Controller: ptr.To(true)},
+						{APIVersion: "pkg.crossplane.io/v1", Kind: "ProviderRevision", Name: "older", Controller: ptr.To(true)},
+						{APIVersion: "apiextensions.crossplane.io/v1alpha1", Kind: "ManagedResourceDefinition", Controller: ptr.To(true)},
+					},
+				},
+			},
+			want: []metav1.OwnerReference{
+				{APIVersion: "pkg.crossplane.io/v1", Kind: "ProviderRevision", Name: "old", Controller: ptr.To(false)},
+				{APIVersion: "pkg.crossplane.io/v1", Kind: "ProviderRevision", Name: "older", Controller: ptr.To(false)},
+				{APIVersion: "apiextensions.crossplane.io/v1alpha1", Kind: "ManagedResourceDefinition", Controller: ptr.To(true)},
+			},
+			changed: true,
+		},
+		"NilControllerPointer": {
+			reason: "Should treat Controller==nil as non-controller and leave the ref unchanged",
+			crd: &extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{APIVersion: "pkg.crossplane.io/v1", Kind: "ProviderRevision", Controller: nil},
+					},
+				},
+			},
+			want:    []metav1.OwnerReference{{APIVersion: "pkg.crossplane.io/v1", Kind: "ProviderRevision", Controller: nil}},
+			changed: false,
+		},
+		"NonControllerProviderRevision": {
+			reason: "Should not modify a ProviderRevision that is already controller:false",
+			crd: &extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{APIVersion: "pkg.crossplane.io/v1", Kind: "ProviderRevision", Controller: ptr.To(false)},
+					},
+				},
+			},
+			want:    []metav1.OwnerReference{{APIVersion: "pkg.crossplane.io/v1", Kind: "ProviderRevision", Controller: ptr.To(false)}},
+			changed: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := demoteStaleControllerRefs(tc.crd)
+			if diff := cmp.Diff(tc.changed, got); diff != "" {
+				t.Errorf("\n%s\ndemoteStaleControllerRefs(...): -want changed, +got changed:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want, tc.crd.OwnerReferences); diff != "" {
+				t.Errorf("\n%s\ndemoteStaleControllerRefs(...): -want refs, +got refs:\n%s", tc.reason, diff)
+			}
+		})
+	}
 }
