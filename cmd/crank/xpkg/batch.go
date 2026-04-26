@@ -274,7 +274,7 @@ func (c *batchCmd) pushWithRetry(logger logging.Logger, imgs []packageImage, s s
 	retryMsg := ""
 	for i := range tries {
 		logger.Info(fmt.Sprintf("Pushing xpkg to %s.%s", t, retryMsg))
-		err := pushImages(logger, imgs, t)
+		err := pushImages(logger, imgs, t, nil)
 		if err == nil {
 			break
 		}
