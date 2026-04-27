@@ -63,25 +63,26 @@ const (
 	lockName  = "lock"
 	finalizer = "lock.pkg.crossplane.io"
 
-	errGetLock                = "cannot get package lock"
-	errAddFinalizer           = "cannot add lock finalizer"
-	errRemoveFinalizer        = "cannot remove lock finalizer"
-	errBuildDAG               = "cannot build DAG"
-	errSortDAG                = "cannot sort DAG"
-	errFmtMissingDependency   = "missing package (%s) is not a dependency"
-	errInvalidConstraint      = "version constraint on dependency is invalid"
-	errInvalidDependency      = "dependency package is not valid"
-	errFindDependency         = "cannot find dependency version to install"
-	errFetchTags              = "cannot fetch dependency package tags"
-	errFindDependencyUpgrade  = "cannot find dependency version to upgrade"
-	errFmtNoValidVersion      = "dependency (%s) does not have a valid version to upgrade that satisfies all constraints. If there is a valid version that requires downgrade, manual intervention is required. Constraints: %v"
-	errGetDependency          = "cannot get dependency package"
-	errConstructDependency    = "cannot construct dependency package"
-	errCreateDependency       = "cannot create dependency package"
-	errUpdateDependency       = "cannot update dependency package"
-	errFmtDiffConstraintTypes = "a dependency package has different types of parent constraints (%v)"
-	errFmtDiffDigests         = "a dependency package has different digests in parent constraints (%v)"
-	errCannotUpdateStatus     = "cannot update status"
+	errGetLock                    = "cannot get package lock"
+	errAddFinalizer               = "cannot add lock finalizer"
+	errRemoveFinalizer            = "cannot remove lock finalizer"
+	errBuildDAG                   = "cannot build DAG"
+	errSortDAG                    = "cannot sort DAG"
+	errFmtMissingDependency       = "missing package (%s) is not a dependency"
+	errInvalidConstraint          = "version constraint on dependency is invalid"
+	errInvalidDependency          = "dependency package is not valid"
+	errFindDependency             = "cannot find dependency version to install"
+	errFetchTags                  = "cannot fetch dependency package tags"
+	errFindDependencyUpgrade      = "cannot find dependency version to upgrade"
+	errFmtNoValidVersion          = "dependency (%s) does not have a valid version to upgrade that satisfies all constraints. If there is a valid version that requires downgrade, manual intervention is required. Constraints: %v"
+	errFmtInstalledDigestVsSemver = "dependency (%s) is installed at digest %q but the parent constraint(s) (%v) require a semantic version; a digest-pinned package cannot be resolved against a semver range. Update the parent package(s) to request the same digest, or reinstall the package with a semver tag"
+	errGetDependency              = "cannot get dependency package"
+	errConstructDependency        = "cannot construct dependency package"
+	errCreateDependency           = "cannot create dependency package"
+	errUpdateDependency           = "cannot update dependency package"
+	errFmtDiffConstraintTypes     = "a dependency package has different types of parent constraints (%v)"
+	errFmtDiffDigests             = "a dependency package has different digests in parent constraints (%v)"
+	errCannotUpdateStatus         = "cannot update status"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -556,7 +557,22 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 	}
 
 	sort.Sort(semver.Collection(availableVersions))
-	currentVersion := semver.MustParse(insVer)
+
+	// If the installed version is a digest reference (e.g. sha256:abc...)
+	// the package has been explicitly pinned — either by the user or by a
+	// digest-pinned parent constraint that was already reconciled by
+	// findDigestToUpdate above. We cannot resolve a semver range against a
+	// digest without loading every candidate manifest, and silently
+	// switching a digest-pinned package to a semver tag would violate the
+	// operator's intent. Surface the conflict as an actionable error.
+	if _, err := conregv1.NewHash(insVer); err == nil {
+		return "", errors.Errorf(errFmtInstalledDigestVsSemver, dep.Identifier(), insVer, dep.GetParentConstraints())
+	}
+
+	currentVersion, err := semver.NewVersion(insVer)
+	if err != nil {
+		return "", errors.Wrapf(err, "cannot resolve dependency %q with installed version %q: use a semantic version tag (for example v1.2.3) or a digest reference (sha256:...)", dep.Identifier(), insVer)
+	}
 
 	var targetVersion *semver.Version
 

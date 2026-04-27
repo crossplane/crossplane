@@ -1188,6 +1188,53 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				version: digest1,
 			},
 		},
+		"ErrorDigestInstalledVersionWithSemverConstraints": {
+			reason: "We should return an error if the installed version is a digest and a semver constraint is requested, rather than silently switching the pinned package to a semver tag.",
+			args: args{
+				mgr:    &fake.Manager{Client: test.NewMockClient()},
+				insVer: digest1,
+				dep: &dag.DependencyNode{
+					Dependency: v1beta1.Dependency{
+						Package: "xpkg.crossplane.io/cool-repo/cool-image",
+						ParentConstraints: []string{
+							">=v1.0.0",
+							"<v3.0.0",
+						},
+					},
+				},
+				rec: []ReconcilerOption{
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v1.0.0", "v2.0.0", "v3.0.0"}, nil),
+					}),
+				},
+			},
+			want: want{
+				err: errors.Errorf(errFmtInstalledDigestVsSemver, "xpkg.crossplane.io/cool-repo/cool-image", digest1, []string{">=v1.0.0", "<v3.0.0"}),
+			},
+		},
+		"ErrorNonSemverInstalledVersion": {
+			reason: "We should return an error if the installed version is not a valid semver or digest.",
+			args: args{
+				mgr:    &fake.Manager{Client: test.NewMockClient()},
+				insVer: "latest",
+				dep: &dag.DependencyNode{
+					Dependency: v1beta1.Dependency{
+						Package: "xpkg.crossplane.io/cool-repo/cool-image",
+						ParentConstraints: []string{
+							">=v1.0.0",
+						},
+					},
+				},
+				rec: []ReconcilerOption{
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v1.0.0"}, nil),
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errors.New("Invalid Semantic Version"), "cannot resolve dependency %q with installed version %q: use a semantic version tag (for example v1.2.3) or a digest reference (sha256:...)", "xpkg.crossplane.io/cool-repo/cool-image", "latest"),
+			},
+		},
 		"ErrorMixedParentConstraints": {
 			reason: "We should return an error if parent constraints are mixed.",
 			args: args{
