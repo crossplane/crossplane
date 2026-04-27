@@ -261,7 +261,13 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.RestrictNamespacedEvents {
 		eventFilterFns = append(eventFilterFns, func(obj runtime.Object, _ event.Event) bool {
 			m, err := kmeta.Accessor(obj)
-			return (err == nil && m.GetNamespace() != "" && m.GetNamespace() != "default")
+			if err != nil {
+				log.Debug("failed to get object metadata", "error", err, "object", obj)
+				return false // do not filter on error, maybe the event was legitimate
+			}
+
+			namespace := m.GetNamespace()
+			return namespace == "default" || namespace == ""
 		})
 	}
 
@@ -370,12 +376,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			}
 			log.Debug("Watch error - probably due to CRD being uninstalled", "error", err)
 		},
-	}
-
-	if c.WatchCacheNamespaced {
-		cacheOptionsAPIExt.DefaultNamespaces = map[string]cache.Config{
-			c.Namespace: {},
-		}
 	}
 
 	// Claim and XR controllers are started and stopped dynamically by the
