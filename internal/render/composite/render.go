@@ -23,6 +23,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -143,9 +146,11 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		return nil, errors.Wrap(err, "cannot build OpenAPI client from input schemas")
 	}
 	sf := xfn.NewOpenAPIRequiredSchemasFetcher(oc)
+	rsf := render.NewRecordingRequiredSchemasFetcher(sf)
+	rrf := render.NewRecordingRequiredResourcesFetcher(xfn.NewExistingRequiredResourcesFetcher(c))
 
 	fc := composite.NewFunctionComposer(c, c,
-		xfn.NewFetchingFunctionRunner(runner, xfn.NewExistingRequiredResourcesFetcher(c), sf),
+		xfn.NewFetchingFunctionRunner(runner, rrf, rsf),
 		composite.WithComposedResourceObserver(
 			composite.NewExistingComposedResourceObserver(c, c,
 				composite.NewSecretConnectionDetailsFetcher(c))),
@@ -154,7 +159,8 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		composite.WithCompositeConnectionDetailsFetcher(
 			composite.NewSecretConnectionDetailsFetcher(c)),
 		composite.WithManagedFieldsUpgrader(&ssa.NopManagedFieldsUpgrader{}),
-		composite.WithRequiredSchemasFetcher(sf),
+		composite.WithRequiredSchemasFetcher(rsf),
+		composite.WithRequiredResourcesFetcher(rrf),
 	)
 
 	rec := &render.EventRecorder{}
@@ -199,7 +205,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		return u.GroupVersionKind() == gvk &&
 			u.GetNamespace() == xr.GetNamespace() &&
 			u.GetName() == xr.GetName()
-	}, rec)
+	}, rec, rrf, rsf)
 }
 
 // InjectResourceRefs sets spec.resourceRefs on the XR for each observed
@@ -237,7 +243,7 @@ func CompositionSelector(comp *apiextensionsv1.Composition) composite.Compositio
 // BuildOutput assembles a CompositeOutput from the fake client's captured
 // state and the event recorder. The isPrimary predicate identifies the
 // primary resource (the XR) so it can be separated from composed resources.
-func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstructured) bool, rec *render.EventRecorder) (*renderv1alpha1.CompositeOutput, error) {
+func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstructured) bool, rec *render.EventRecorder, rrf *render.RecordingRequiredResourcesFetcher, rsf *render.RecordingRequiredSchemasFetcher) (*renderv1alpha1.CompositeOutput, error) {
 	out := &renderv1alpha1.CompositeOutput{}
 
 	// Find the final XR state. It's the last Status().Update or
@@ -295,5 +301,36 @@ func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstruct
 	// Collect events.
 	out.Events = append(out.Events, rec.Events()...)
 
+	// Collect required resource selectors.
+	for _, rs := range rrf.GetResourceSelectors() {
+		s, err := messageToStruct(rs)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot convert required resource selector to struct")
+		}
+		out.RequiredResources = append(out.RequiredResources, s)
+	}
+
+	// Collect required schmea selectors.
+	for _, ss := range rsf.GetSchemaSelectors() {
+		s, err := messageToStruct(ss)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot convert required schema selector to struct")
+		}
+		out.RequiredSchemas = append(out.RequiredSchemas, s)
+	}
+
 	return out, nil
+}
+
+func messageToStruct(m proto.Message) (*structpb.Struct, error) {
+	bs, err := protojson.Marshal(m)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot marshal message to json")
+	}
+	s := &structpb.Struct{}
+	if err := s.UnmarshalJSON(bs); err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal message from json")
+	}
+
+	return s, nil
 }

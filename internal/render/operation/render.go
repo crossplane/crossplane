@@ -22,6 +22,9 @@ import (
 	"context"
 	"time"
 
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -92,17 +95,20 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 		return nil, errors.Wrap(err, "cannot build OpenAPI client from input schemas")
 	}
 	sf := xfn.NewOpenAPIRequiredSchemasFetcher(oc)
+	rsf := render.NewRecordingRequiredSchemasFetcher(sf)
+	rrf := render.NewRecordingRequiredResourcesFetcher(xfn.NewExistingRequiredResourcesFetcher(c))
 
 	rec := &render.EventRecorder{}
 
 	r := oprec.NewReconciler(c,
-		oprec.WithFunctionRunner(xfn.NewFetchingFunctionRunner(runner, xfn.NewExistingRequiredResourcesFetcher(c), sf)),
+		oprec.WithFunctionRunner(xfn.NewFetchingFunctionRunner(runner, rrf, rsf)),
 		oprec.WithCapabilityChecker(xfn.CapabilityCheckerFn(
 			func(_ context.Context, _ []string, _ ...string) error {
 				return nil
 			},
 		)),
-		oprec.WithRequiredSchemasFetcher(sf),
+		oprec.WithRequiredResourcesFetcher(rrf),
+		oprec.WithRequiredSchemasFetcher(rsf),
 		oprec.WithRecorder(rec),
 		oprec.WithLogger(log),
 	)
@@ -121,7 +127,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 		return u.GroupVersionKind() == opGVK &&
 			u.GetNamespace() == op.GetNamespace() &&
 			u.GetName() == op.GetName()
-	}, rec)
+	}, rec, rrf, rsf)
 }
 
 // NewFromCronOperation produces the Operation a CronOperation would create.
@@ -169,7 +175,7 @@ func NewFromWatchOperation(in *renderv1alpha1.WatchOperationInput) (*renderv1alp
 // buildOutput assembles an OperationOutput from the fake client's captured
 // state. The isPrimary predicate identifies the primary resource (the
 // Operation) so it can be separated from applied resources.
-func buildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstructured) bool, rec *render.EventRecorder) (*renderv1alpha1.OperationOutput, error) {
+func buildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstructured) bool, rec *render.EventRecorder, rrf *render.RecordingRequiredResourcesFetcher, rsf *render.RecordingRequiredSchemasFetcher) (*renderv1alpha1.OperationOutput, error) {
 	out := &renderv1alpha1.OperationOutput{}
 
 	for i := len(c.Updated()) - 1; i >= 0; i-- {
@@ -197,5 +203,36 @@ func buildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstruct
 
 	out.Events = append(out.Events, rec.Events()...)
 
+	// Collect required resource selectors.
+	for _, rs := range rrf.GetResourceSelectors() {
+		s, err := messageToStruct(rs)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot convert required resource selector to struct")
+		}
+		out.RequiredResources = append(out.RequiredResources, s)
+	}
+
+	// Collect required schmea selectors.
+	for _, ss := range rsf.GetSchemaSelectors() {
+		s, err := messageToStruct(ss)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot convert required schema selector to struct")
+		}
+		out.RequiredSchemas = append(out.RequiredSchemas, s)
+	}
+
 	return out, nil
+}
+
+func messageToStruct(m proto.Message) (*structpb.Struct, error) {
+	bs, err := protojson.Marshal(m)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot marshal message to json")
+	}
+	s := &structpb.Struct{}
+	if err := s.UnmarshalJSON(bs); err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal message from json")
+	}
+
+	return s, nil
 }

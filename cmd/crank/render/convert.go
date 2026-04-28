@@ -18,6 +18,8 @@ package render
 
 import (
 	"github.com/crossplane/function-sdk-go/resource"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -29,6 +31,7 @@ import (
 	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
+	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
 )
 
@@ -118,11 +121,39 @@ func parseCompositeResponse(out *renderv1alpha1.CompositeOutput) (CompositionOut
 		}})
 	}
 
+	rrs := make([]*fnv1.ResourceSelector, len(out.GetRequiredResources()))
+	for i, s := range out.GetRequiredResources() {
+		rs := &fnv1.ResourceSelector{}
+		if err := messageFromStruct(rs, s); err != nil {
+			return CompositionOutputs{}, errors.Wrap(err, "cannot convert resource selectors from structs")
+		}
+		rrs[i] = rs
+	}
+
+	rss := make([]*fnv1.SchemaSelector, len(out.GetRequiredSchemas()))
+	for i, s := range out.GetRequiredSchemas() {
+		ss := &fnv1.SchemaSelector{}
+		if err := messageFromStruct(ss, s); err != nil {
+			return CompositionOutputs{}, errors.Wrap(err, "cannot convert schema selectors from structs")
+		}
+		rss[i] = ss
+	}
+
 	return CompositionOutputs{
 		CompositeResource: xr,
 		ComposedResources: cds,
 		Results:           results,
+		RequiredResources: rrs,
+		RequiredSchemas:   rss,
 	}, nil
+}
+
+func messageFromStruct(m proto.Message, s *structpb.Struct) error {
+	bs, err := s.MarshalJSON()
+	if err != nil {
+		return errors.Wrap(err, "cannot marshal struct to json")
+	}
+	return errors.Wrap(protojson.Unmarshal(bs, m), "cannot unmarshal message from json")
 }
 
 // BuildOperationRequest builds a RenderRequest for an Operation from the
@@ -201,10 +232,30 @@ func ParseOperationResponse(out *renderv1alpha1.OperationOutput) (OperationOutpu
 		}})
 	}
 
+	rrs := make([]*fnv1.ResourceSelector, len(out.GetRequiredResources()))
+	for i, s := range out.GetRequiredResources() {
+		rs := &fnv1.ResourceSelector{}
+		if err := messageFromStruct(rs, s); err != nil {
+			return OperationOutputs{}, errors.Wrap(err, "cannot convert resource selectors from structs")
+		}
+		rrs[i] = rs
+	}
+
+	rss := make([]*fnv1.SchemaSelector, len(out.GetRequiredSchemas()))
+	for i, s := range out.GetRequiredSchemas() {
+		ss := &fnv1.SchemaSelector{}
+		if err := messageFromStruct(ss, s); err != nil {
+			return OperationOutputs{}, errors.Wrap(err, "cannot convert schema selectors from structs")
+		}
+		rss[i] = ss
+	}
+
 	return OperationOutputs{
-		Operation:        op,
-		AppliedResources: applied,
-		Results:          results,
+		Operation:         op,
+		AppliedResources:  applied,
+		Results:           results,
+		RequiredResources: rrs,
+		RequiredSchemas:   rss,
 	}, nil
 }
 

@@ -127,6 +127,14 @@ message CompositeOutput {
 
   // Events the reconciler would emit.
   repeated Event events = 4;
+
+  // Required resources that were requested by the function pipeline. The
+  // structs are fnv1.ResourceSelector messages.
+  repeated google.protobuf.Struct required_resources = 5;
+
+  // Required schemas that were requested by the function pipeline. The structs
+  // are fnv1.SchemaSelector messages.
+  repeated google.protobuf.Struct required_schemas = 6;
 }
 
 // An OperationInput contains all inputs needed to render an Operation using the
@@ -161,6 +169,14 @@ message OperationOutput {
 
   // Events the reconciler would emit.
   repeated Event events = 3;
+
+  // Required resources that were requested by the function pipeline. The
+  // structs are fnv1.ResourceSelector messages.
+  repeated google.protobuf.Struct required_resources = 4;
+
+  // Required schemas that were requested by the function pipeline. The structs
+  // are fnv1.SchemaSelector messages.
+  repeated google.protobuf.Struct required_schemas = 5;
 }
 
 // A CronOperationInput contains all inputs needed to produce the Operation a

@@ -35,6 +35,7 @@ import (
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
 )
 
@@ -63,6 +64,8 @@ type CompositionOutputs struct {
 	ComposedResources []composed.Unstructured
 	Results           []kunstructured.Unstructured
 	Context           *kunstructured.Unstructured
+	RequiredResources []*fnv1.ResourceSelector
+	RequiredSchemas   []*fnv1.SchemaSelector
 }
 
 // OperationInputs contains all inputs to the render process for an operation.
@@ -76,10 +79,12 @@ type OperationInputs struct {
 
 // OperationOutputs contains all outputs from the render process.
 type OperationOutputs struct {
-	Operation        *opsv1alpha1.Operation
-	AppliedResources []kunstructured.Unstructured
-	Results          []kunstructured.Unstructured
-	Context          *kunstructured.Unstructured
+	Operation         *opsv1alpha1.Operation
+	AppliedResources  []kunstructured.Unstructured
+	Results           []kunstructured.Unstructured
+	Context           *kunstructured.Unstructured
+	RequiredResources []*fnv1.ResourceSelector
+	RequiredSchemas   []*fnv1.SchemaSelector
 }
 
 // FunctionAddresses maps function names to their gRPC target addresses.
