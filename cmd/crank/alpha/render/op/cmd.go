@@ -30,14 +30,17 @@ import (
 	"k8s.io/kube-openapi/pkg/spec3"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
+	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	"github.com/crossplane/crossplane/v2/cmd/crank/render"
+	"github.com/crossplane/crossplane/v2/cmd/crank/render/contextfn"
 )
 
 // Cmd arguments and flags for alpha render op subcommand.
 type Cmd struct {
+	render.EngineFlags `prefix:""`
+
 	// Arguments.
 	Operation string `arg:"" help:"A YAML file specifying the Operation to render."                                                           predictor:"yaml_file"              type:"existingfile"`
 	Functions string `arg:"" help:"A YAML file or directory of YAML files specifying the operation functions to use to render the Operation." predictor:"yaml_file_or_directory" type:"path"`
@@ -63,10 +66,10 @@ type Cmd struct {
 func (c *Cmd) Help() string {
 	return `
 This command shows you what resources an Operation would create or mutate by
-printing them to stdout. It doesn't talk to Crossplane. Instead it runs the
-operation function pipeline specified by the Operation locally.
+printing them to stdout. It runs the Crossplane render engine to produce
+high-fidelity output that matches what the real reconciler would produce.
 
-For Operations, it runs the operation function pipeline directly and shows what
+For Operations, it runs the operation function pipeline and shows what
 resources the operation would mutate.
 
 Functions are pulled and run using Docker by default. You can add
@@ -104,6 +107,14 @@ Examples:
 
   # Render an Operation.
   crossplane alpha render op operation.yaml functions.yaml
+
+  # Pin the Crossplane version used for rendering.
+  crossplane alpha render op operation.yaml functions.yaml \
+    --crossplane-version=v2.2.1
+
+  # Use a local crossplane binary instead of Docker.
+  crossplane alpha render op operation.yaml functions.yaml \
+    --crossplane-binary=/usr/local/bin/crossplane
 
   # Pass context values to the function pipeline.
   crossplane alpha render op operation.yaml functions.yaml \
@@ -150,7 +161,7 @@ func (c *Cmd) AfterApply() error {
 }
 
 // Run alpha render op.
-func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit // Only a touch over.
+func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit // Orchestration is inherently complex.
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
@@ -216,66 +227,132 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		}
 	}
 
-	// Build context data from files and values
-	contextData := make(map[string][]byte)
-	for k, filename := range c.ContextFiles {
-		data, err := afero.ReadFile(c.fs, filename)
-		if err != nil {
-			return errors.Wrapf(err, "cannot read context value for key %q", k)
+	engine := c.NewEngine(log)
+
+	seedCtx := len(c.ContextValues) > 0 || len(c.ContextFiles) > 0
+	captureCtx := c.IncludeContext
+
+	var ctxHandle *contextfn.Handle
+	if seedCtx || captureCtx {
+		if err := engine.CheckContextSupport(); err != nil {
+			return err
 		}
-		contextData[k] = data
+
+		raw, err := render.BuildContextData(c.fs, c.ContextFiles, c.ContextValues)
+		if err != nil {
+			return errors.Wrap(err, "cannot build context data")
+		}
+
+		parsed, err := render.ParseContextData(raw)
+		if err != nil {
+			return errors.Wrap(err, "cannot parse context data")
+		}
+
+		ctxHandle, err = contextfn.Start(ctx, log, parsed)
+		if err != nil {
+			return errors.Wrap(err, "cannot start context function")
+		}
+		defer ctxHandle.Stop()
+
+		fns = append(fns, ctxHandle.Function())
+		if seedCtx {
+			op.Spec.Pipeline = append([]opsv1alpha1.PipelineStep{ctxHandle.OperationSeedStep()}, op.Spec.Pipeline...)
+		}
+		if captureCtx {
+			op.Spec.Pipeline = append(op.Spec.Pipeline, ctxHandle.OperationCaptureStep())
+		}
 	}
 
-	for k, data := range c.ContextValues {
-		contextData[k] = []byte(data)
-	}
-
-	// Render the operation
-	out, err := Render(ctx, log, Inputs{
-		Operation:           op,
-		Functions:           fns,
-		FunctionCredentials: fcreds,
-		RequiredResources:   rrs,
-		RequiredSchemas:     rsc,
-		Context:             contextData,
-	})
+	cleanup, err := engine.Setup(ctx, fns)
 	if err != nil {
 		return err
+	}
+	defer cleanup()
+
+	// Start function runtimes to get their addresses.
+	fnAddrs, err := render.StartFunctionRuntimes(ctx, log, fns)
+	if err != nil {
+		return errors.Wrap(err, "cannot start function runtimes")
+	}
+	defer render.StopFunctionRuntimes(log, fnAddrs)
+
+	addrs := fnAddrs.Addresses()
+	if ctxHandle != nil {
+		addrs[contextfn.FunctionName] = ctxHandle.Target
+	}
+
+	// Build and execute the render request.
+	in := render.OperationInputs{
+		Operation:           op,
+		FunctionAddrs:       addrs,
+		RequiredResources:   rrs,
+		RequiredSchemas:     rsc,
+		FunctionCredentials: fcreds,
+	}
+	req, err := render.BuildOperationRequest(in)
+	if err != nil {
+		return errors.Wrap(err, "cannot build render request")
+	}
+
+	rsp, err := engine.Render(ctx, req)
+	if err != nil {
+		return errors.Wrap(err, "cannot render operation")
+	}
+
+	operationOut := rsp.GetOperation()
+	if operationOut == nil {
+		return errors.New("render response does not contain an operation output")
+	}
+
+	out, err := render.ParseOperationResponse(operationOut)
+	if err != nil {
+		return errors.Wrap(err, "cannot parse render response")
+	}
+
+	if captureCtx && ctxHandle != nil {
+		if s := ctxHandle.Captured(); s != nil {
+			out.Context = &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "render.crossplane.io/v1beta1",
+				"kind":       "Context",
+				"fields":     s.AsMap(),
+			}}
+		}
 	}
 
 	// Output results
 	s := kjson.NewSerializerWithOptions(kjson.DefaultMetaFactory, nil, nil, kjson.SerializerOptions{Yaml: true})
 
 	// Only include spec when IncludeFullOperation flag is set
-	if c.IncludeFullOperation {
-		_ = fieldpath.Pave(out.Operation.Object).SetValue("spec", *op.Spec.DeepCopy())
+	if c.IncludeFullOperation && out.Operation != nil {
+		out.Operation.Spec = *op.Spec.DeepCopy()
 	}
 
 	// Always output the Operation (with metadata and status, optionally with spec)
-	_, _ = fmt.Fprintln(k.Stdout, "---")
-	if err := s.Encode(out.Operation, k.Stdout); err != nil {
-		return errors.Wrapf(err, "cannot marshal operation %q to YAML", op.GetName())
+	if out.Operation != nil {
+		_, _ = fmt.Fprintln(k.Stdout, "---")
+		if err := s.Encode(out.Operation, k.Stdout); err != nil {
+			return errors.Wrapf(err, "cannot marshal operation %q to YAML", op.GetName())
+		}
 	}
 
-	// Output rendered resources
-	for i := range out.Resources {
+	// Output applied resources
+	for _, res := range out.AppliedResources {
 		_, _ = fmt.Fprintln(k.Stdout, "---")
-		if err := s.Encode(&out.Resources[i], k.Stdout); err != nil {
-			return errors.Wrap(err, "cannot marshal desired resource to YAML")
+		if err := s.Encode(&res, k.Stdout); err != nil {
+			return errors.Wrap(err, "cannot marshal applied resource to YAML")
 		}
 	}
 
 	// Output results if requested
 	if c.IncludeFunctionResults {
-		for i := range out.Results {
+		for _, res := range out.Results {
 			_, _ = fmt.Fprintln(k.Stdout, "---")
-			if err := s.Encode(&out.Results[i], k.Stdout); err != nil {
+			if err := s.Encode(&res, k.Stdout); err != nil {
 				return errors.Wrap(err, "cannot marshal result to YAML")
 			}
 		}
 	}
 
-	// Output context if requested
 	if c.IncludeContext && out.Context != nil {
 		_, _ = fmt.Fprintln(k.Stdout, "---")
 		if err := s.Encode(out.Context, k.Stdout); err != nil {

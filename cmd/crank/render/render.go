@@ -18,19 +18,11 @@ package render
 
 import (
 	"context"
-	"fmt"
-	"sort"
-	"sync"
+	"strings"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/yaml"
+	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/kube-openapi/pkg/spec3"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -41,22 +33,11 @@ import (
 	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
-	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
+	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
-	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
-	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
+	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
 )
-
-// Wait for the server to be ready before sending RPCs. Notably this gives
-// Docker containers time to start before we make a request. See
-// https://grpc.io/docs/guides/wait-for-ready/
-const waitForReady = `{
-	"methodConfig":[{
-		"name": [{}],
-		"waitForReady": true
-	}]
-}`
 
 // Annotations added to composed resources.
 const (
@@ -66,114 +47,101 @@ const (
 	AnnotationKeyClaimName               = "crossplane.io/claim-name"
 )
 
-// Inputs contains all inputs to the render process.
-type Inputs struct {
+// CompositionInputs contains all inputs to the render process.
+type CompositionInputs struct {
 	CompositeResource   *ucomposite.Unstructured
 	Composition         *apiextensionsv1.Composition
-	Functions           []pkgv1.Function
+	FunctionAddrs       map[string]string
 	FunctionCredentials []corev1.Secret
 	ObservedResources   []composed.Unstructured
-	ExtraResources      []unstructured.Unstructured
-	RequiredResources   []unstructured.Unstructured
+	RequiredResources   []kunstructured.Unstructured
 	RequiredSchemas     []spec3.OpenAPI
-	Context             map[string][]byte
-
-	// TODO(negz): Allow supplying observed XR and composed resource connection
-	// details. Maybe as Secrets? What if secret stores are in use?
 }
 
-// Outputs contains all outputs from the render process.
-type Outputs struct {
-	// The rendered XR
+// CompositionOutputs contains all outputs from the render process.
+type CompositionOutputs struct {
 	CompositeResource *ucomposite.Unstructured
-	// The rendered downstream resources (typically MRs) derived from the XR
 	ComposedResources []composed.Unstructured
-	// The Function results (not render results)
-	Results []unstructured.Unstructured
-	// The Crossplane context object
-	Context *unstructured.Unstructured
-	// The Function requirements
-	Requirements map[string]fnv1.Requirements
-
-	// TODO(negz): Allow returning desired XR connection details. Maybe as a
-	// Secret? Should we honor writeConnectionSecretToRef? What if secret stores
-	// are in use?
+	Results           []kunstructured.Unstructured
+	Context           *kunstructured.Unstructured
+	RequiredResources []*fnv1.ResourceSelector
+	RequiredSchemas   []*fnv1.SchemaSelector
 }
 
-// A RuntimeFunctionRunner is a composite.FunctionRunner that runs functions
-// locally, using the runtime configured in their annotations (e.g. Docker).
-type RuntimeFunctionRunner struct {
+// OperationInputs contains all inputs to the render process for an operation.
+type OperationInputs struct {
+	Operation           *opsv1alpha1.Operation
+	FunctionAddrs       map[string]string
+	FunctionCredentials []corev1.Secret
+	RequiredResources   []kunstructured.Unstructured
+	RequiredSchemas     []spec3.OpenAPI
+}
+
+// OperationOutputs contains all outputs from the render process.
+type OperationOutputs struct {
+	Operation         *opsv1alpha1.Operation
+	AppliedResources  []kunstructured.Unstructured
+	Results           []kunstructured.Unstructured
+	Context           *kunstructured.Unstructured
+	RequiredResources []*fnv1.ResourceSelector
+	RequiredSchemas   []*fnv1.SchemaSelector
+}
+
+// FunctionAddresses maps function names to their gRPC target addresses.
+type FunctionAddresses struct {
+	addrs    map[string]string
 	contexts map[string]RuntimeContext
-	conns    map[string]*grpc.ClientConn
-	mx       sync.Mutex
 }
 
-// NewRuntimeFunctionRunner returns a FunctionRunner that runs functions
-// locally, using the runtime configured in their annotations (e.g. Docker). It
-// starts all the functions and creates gRPC connections when called.
-func NewRuntimeFunctionRunner(ctx context.Context, log logging.Logger, fns []pkgv1.Function) (*RuntimeFunctionRunner, error) {
-	contexts := map[string]RuntimeContext{}
-	conns := map[string]*grpc.ClientConn{}
+// Addresses returns the function name to gRPC address map.
+func (fa *FunctionAddresses) Addresses() map[string]string {
+	return fa.addrs
+}
+
+// Stop all function runtimes.
+func (fa *FunctionAddresses) Stop(ctx context.Context) error {
+	for name, rctx := range fa.contexts {
+		if err := rctx.Stop(ctx); err != nil {
+			return errors.Wrapf(err, "cannot stop function %q runtime (target %q)", name, rctx.Target)
+		}
+	}
+	return nil
+}
+
+// StartFunctionRuntimes starts the runtime for each function and returns their
+// gRPC addresses. The caller must call Stop on the returned FunctionAddresses
+// when done.
+func StartFunctionRuntimes(ctx context.Context, log logging.Logger, fns []pkgv1.Function) (*FunctionAddresses, error) {
+	addrs := make(map[string]string, len(fns))
+	contexts := make(map[string]RuntimeContext, len(fns))
 
 	for _, fn := range fns {
-		runtime, err := GetRuntime(fn, log)
+		rt, err := GetRuntime(fn, log)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot get runtime for Function %q", fn.GetName())
 		}
 
-		rctx, err := runtime.Start(ctx)
+		rctx, err := rt.Start(ctx)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot start Function %q", fn.GetName())
 		}
 
+		addrs[fn.GetName()] = rctx.Target
 		contexts[fn.GetName()] = rctx
-
-		conn, err := grpc.NewClient(rctx.Target,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithDefaultServiceConfig(waitForReady))
-		if err != nil {
-			return nil, errors.Wrapf(err, "cannot dial Function %q at address %q", fn.GetName(), rctx.Target)
-		}
-
-		conns[fn.GetName()] = conn
 	}
 
-	return &RuntimeFunctionRunner{contexts: contexts, conns: conns}, nil
+	return &FunctionAddresses{addrs: addrs, contexts: contexts}, nil
 }
 
-// RunFunction runs the named function.
-func (r *RuntimeFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	r.mx.Lock()
-	defer r.mx.Unlock()
-
-	conn, ok := r.conns[name]
-	if !ok {
-		return nil, errors.Errorf("unknown Function %q - does it exist in your Functions file?", name)
+// RewriteAddressesForDocker rewrites function addresses so they are reachable
+// from inside a Docker container. Addresses targeting localhost or 127.0.0.1
+// are rewritten to host.docker.internal.
+func RewriteAddressesForDocker(fns []*renderv1alpha1.FunctionInput) []*renderv1alpha1.FunctionInput {
+	for _, fn := range fns {
+		fn.Address = strings.Replace(fn.GetAddress(), "localhost:", "host.docker.internal:", 1)
+		fn.Address = strings.Replace(fn.GetAddress(), "127.0.0.1:", "host.docker.internal:", 1)
 	}
-
-	return xfn.NewBetaFallBackFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
-}
-
-// Stop all of the runner's runtimes, and close its gRPC connections.
-func (r *RuntimeFunctionRunner) Stop(ctx context.Context) error {
-	r.mx.Lock()
-	defer r.mx.Unlock()
-
-	for name, conn := range r.conns {
-		_ = conn.Close()
-
-		delete(r.conns, name)
-	}
-
-	for name, rctx := range r.contexts {
-		if err := rctx.Stop(ctx); err != nil {
-			return errors.Wrapf(err, "cannot stop function %q runtime (target %q)", name, rctx.Target)
-		}
-
-		delete(r.contexts, name)
-	}
-
-	return nil
+	return fns
 }
 
 // GetSecret retrieves the secret with the specified name and namespace from the provided list of secrets.
@@ -187,294 +155,19 @@ func GetSecret(name string, nameSpace string, secrets []corev1.Secret) (*corev1.
 	return nil, errors.Errorf("secret %q not found", name)
 }
 
-// Render the desired XR and composed resources, sorted by resource name, given the supplied inputs.
-func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) { //nolint:gocognit // TODO(negz): Should we refactor to break this up a bit?
-	runtimes, err := NewRuntimeFunctionRunner(ctx, log, in.Functions)
-	if err != nil {
-		return Outputs{}, errors.Wrap(err, "cannot start function runtimes")
-	}
-
-	defer func() { //nolint:contextcheck // See comment on next line.
-		// Don't use the main context, since it may be cancelled by the time we
-		// get to cleanup (e.g., if render times out).
-		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		if err := runtimes.Stop(stopCtx); err != nil {
-			log.Info("Error stopping function runtimes", "error", err)
-		}
-	}()
-
-	schemaFetcher := NewFilteringSchemaFetcher(in.RequiredSchemas)
-	runner := xfn.NewFetchingFunctionRunner(runtimes, NewFilteringFetcher(append(in.ExtraResources, in.RequiredResources...)...), schemaFetcher)
-
-	observed := composite.ComposedResourceStates{}
-
-	for i, cd := range in.ObservedResources {
-		name := cd.GetAnnotations()[AnnotationKeyCompositionResourceName]
-		observed[composite.ResourceName(name)] = composite.ComposedResourceState{
-			Resource:          &in.ObservedResources[i],
-			ConnectionDetails: nil, // We don't support passing in observed connection details.
-			Ready:             false,
-		}
-	}
-
-	// TODO(negz): Support passing in optional observed connection details for
-	// both the XR and composed resources.
-	o, err := composite.AsState(in.CompositeResource, nil, observed)
-	if err != nil {
-		return Outputs{}, errors.Wrap(err, "cannot build observed composite and composed resources for RunFunctionRequest")
-	}
-
-	// The Function pipeline starts with empty desired state.
-	d := &fnv1.State{}
-
-	results := make([]unstructured.Unstructured, 0)
-	conditions := make([]xpv2.Condition, 0)
-	requirements := make(map[string]fnv1.Requirements)
-
-	// The Function context starts empty.
-	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
-
-	// Load user-supplied context.
-	for k, data := range in.Context {
-		var jv any
-
-		err := yaml.Unmarshal(data, &jv)
-		if err != nil {
-			return Outputs{}, errors.Wrapf(err, "cannot unmarshal YAML/JSON for context key %q", k)
-		}
-
-		v, err := structpb.NewValue(jv)
-		if err != nil {
-			return Outputs{}, errors.Wrapf(err, "cannot store YAML/JSON value for context key %q", k)
-		}
-
-		fctx.Fields[k] = v
-	}
-
-	// Run any Composition Functions in the pipeline. Each Function may mutate
-	// the desired state returned by the last, and each Function may produce
-	// results.
-	for _, fn := range in.Composition.Spec.Pipeline {
-		// The request to send to the function, will be updated at each iteration if needed.
-		req := &fnv1.RunFunctionRequest{Observed: o, Desired: d, Context: fctx}
-
-		if fn.Input != nil {
-			in := &structpb.Struct{}
-			if err := in.UnmarshalJSON(fn.Input.Raw); err != nil {
-				return Outputs{}, errors.Wrapf(err, "cannot unmarshal input for Composition pipeline step %q", fn.Step)
-			}
-
-			req.Input = in
-		}
-
-		req.Credentials = map[string]*fnv1.Credentials{}
-		for _, cs := range fn.Credentials {
-			// For now we only support loading credentials from secrets.
-			if cs.Source != apiextensionsv1.FunctionCredentialsSourceSecret || cs.SecretRef == nil {
-				continue
-			}
-
-			s, err := GetSecret(cs.SecretRef.Name, cs.SecretRef.Namespace, in.FunctionCredentials)
-			if err != nil {
-				return Outputs{}, errors.Wrapf(err, "cannot get credentials from secret %q", cs.SecretRef.Name)
-			}
-
-			req.Credentials[cs.Name] = &fnv1.Credentials{
-				Source: &fnv1.Credentials_CredentialData{
-					CredentialData: &fnv1.CredentialData{
-						Data: s.Data,
-					},
-				},
-			}
-		}
-
-		// Handle bootstrap requirements
-		if fn.Requirements != nil {
-			req.RequiredResources = map[string]*fnv1.Resources{}
-			for _, sel := range fn.Requirements.RequiredResources {
-				resources, err := NewFilteringFetcher(in.RequiredResources...).Fetch(ctx, xfn.ToProtobufResourceSelector(&sel))
-				if err != nil {
-					return Outputs{}, errors.Wrapf(err, "cannot fetch bootstrap required resources for requirement %q", sel.RequirementName)
-				}
-				req.RequiredResources[sel.RequirementName] = resources
-			}
-			req.RequiredSchemas = map[string]*fnv1.Schema{}
-			for _, sel := range fn.Requirements.RequiredSchemas {
-				schema, err := schemaFetcher.Fetch(ctx, xfn.ToProtobufSchemaSelector(&sel))
-				if err != nil {
-					return Outputs{}, errors.Wrapf(err, "cannot fetch bootstrap required schema for requirement %q", sel.RequirementName)
-				}
-				req.RequiredSchemas[sel.RequirementName] = schema
-			}
-		}
-
-		req.Meta = &fnv1.RequestMeta{Capabilities: xfn.SupportedCapabilities()}
-
-		rsp, err := runner.RunFunction(ctx, fn.FunctionRef.Name, req)
-		if err != nil {
-			return Outputs{}, errors.Wrapf(err, "cannot run pipeline step %q", fn.Step)
-		}
-
-		// Pass the desired state returned by this Function to the next one.
-		d = rsp.GetDesired()
-
-		// Pass the Function context returned by this Function to the next one.
-		// We intentionally discard/ignore this after the last Function runs.
-		fctx = rsp.GetContext()
-
-		for _, c := range rsp.GetConditions() {
-			var status corev1.ConditionStatus
-
-			switch c.GetStatus() {
-			case fnv1.Status_STATUS_CONDITION_TRUE:
-				status = corev1.ConditionTrue
-			case fnv1.Status_STATUS_CONDITION_FALSE:
-				status = corev1.ConditionFalse
-			case fnv1.Status_STATUS_CONDITION_UNKNOWN, fnv1.Status_STATUS_CONDITION_UNSPECIFIED:
-				status = corev1.ConditionUnknown
-			}
-
-			conditions = append(conditions, xpv2.Condition{
-				Type:               xpv2.ConditionType(c.GetType()),
-				Status:             status,
-				LastTransitionTime: conditionTime(),
-				Reason:             xpv2.ConditionReason(c.GetReason()),
-				Message:            c.GetMessage(),
-			})
-		}
-
-		if rsp.GetRequirements() != nil {
-			requirements[fn.Step] = *rsp.GetRequirements()
-		}
-
-		// Results of fatal severity stop the Composition process.
-		for _, rs := range rsp.GetResults() {
-			switch rs.GetSeverity() { //nolint:exhaustive // We intentionally have a broad default case.
-			case fnv1.Severity_SEVERITY_FATAL:
-				// Even in the fatal case, return requirements if they exist, so that the caller can try to satisfy them
-				return Outputs{Requirements: requirements}, errors.Errorf("pipeline step %q returned a fatal result: %s", fn.Step, rs.GetMessage())
-			default:
-				results = append(results, unstructured.Unstructured{Object: map[string]any{
-					"apiVersion": "render.crossplane.io/v1beta1",
-					"kind":       "Result",
-					"step":       fn.Step,
-					"severity":   rs.GetSeverity().String(),
-					"message":    rs.GetMessage(),
-				}})
-			}
-		}
-	}
-
-	desired := make([]composed.Unstructured, 0, len(d.GetResources()))
-
-	var unready []string
-
-	for name, dr := range d.GetResources() {
-		if dr.GetReady() != fnv1.Ready_READY_TRUE {
-			unready = append(unready, name)
-		}
-
-		cd := composed.New()
-		if err := xfn.FromStruct(cd, dr.GetResource()); err != nil {
-			return Outputs{}, errors.Wrapf(err, "cannot unmarshal desired composed resource %q", name)
-		}
-
-		// If this desired resource state pertains to an existing composed
-		// resource we want to maintain its name and namespace.
-		or, ok := observed[composite.ResourceName(name)]
-		if ok {
-			cd.SetNamespace(or.Resource.GetNamespace())
-			cd.SetName(or.Resource.GetName())
-			cd.SetGenerateName(or.Resource.GetGenerateName())
-		}
-
-		// Set standard composed resource metadata that is derived from the XR.
-		if err := SetComposedResourceMetadata(cd, in.CompositeResource, name); err != nil {
-			return Outputs{}, errors.Wrapf(err, "cannot render composed resource %q metadata", name)
-		}
-
-		desired = append(desired, *cd)
-	}
-
-	// Sort the resource names to ensure a deterministic ordering of returned composed resources.
-	sort.Slice(desired, func(i, j int) bool {
-		return desired[i].GetAnnotations()[AnnotationKeyCompositionResourceName] < desired[j].GetAnnotations()[AnnotationKeyCompositionResourceName]
-	})
-
-	xr := ucomposite.New()
-	if err := xfn.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
-		return Outputs{}, errors.Wrap(err, "cannot render desired composite resource")
-	}
-
-	// The Function pipeline can only return the desired status of the XR, so we
-	// inject these back in to help identify which resource it is.
-	xr.SetAPIVersion(in.CompositeResource.GetAPIVersion())
-	xr.SetKind(in.CompositeResource.GetKind())
-	xr.SetName(in.CompositeResource.GetName())
-	xr.SetNamespace(in.CompositeResource.GetNamespace())
-
-	xrCond := xpv2.Available()
-	if d.GetComposite().GetReady() == fnv1.Ready_READY_FALSE {
-		xrCond = xpv2.Creating()
-	} else if d.GetComposite().GetReady() == fnv1.Ready_READY_UNSPECIFIED && len(unready) > 0 {
-		xrCond = xpv2.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unready)))
-	}
-
-	xrCond.LastTransitionTime = conditionTime()
-	xr.SetConditions(xrCond)
-
-	for _, c := range conditions {
-		if xpv2.IsSystemConditionType(c.Type) {
-			// Do not let users update system conditions.
-			continue
-		}
-		// update the XR with the current condition. If it targets the claim, we
-		// could also set it on the claim here, but we don't support Claims in
-		// render yet.
-		xr.SetConditions(c)
-	}
-
-	out := Outputs{CompositeResource: xr, ComposedResources: desired, Results: results, Requirements: requirements}
-	if fctx != nil {
-		out.Context = &unstructured.Unstructured{Object: map[string]any{
-			"apiVersion": "render.crossplane.io/v1beta1",
-			"kind":       "Context",
-			"fields":     fctx.GetFields(),
-		}}
-	}
-
-	return out, nil
-}
-
 // SetComposedResourceMetadata sets standard, required composed resource
 // metadata. It mirrors the behavior of RenderComposedResourceMetadata in
 // Crossplane's composition controller.
-//
-// For nested XRs (XRs that are themselves composed resources), this function
-// propagates the root composite's name via the crossplane.io/composite label,
-// and claim labels if present. This ensures all resources in a tree share the
-// same root identity, matching Crossplane's actual behavior.
-//
-// https://github.com/crossplane/crossplane/blob/0965f0/internal/controller/apiextensions/composite/composition_render.go#L117
 func SetComposedResourceMetadata(cd resource.Object, xr resource.LegacyComposite, name string) error {
-	// Use the XR's composite label for generateName prefix if present (for
-	// nested XRs), otherwise fall back to the XR's name.
 	namePrefix := xr.GetLabels()[AnnotationKeyCompositeName]
 	if namePrefix == "" {
 		namePrefix = xr.GetName()
 	}
 
-	// We recommend composed resources let us generate a name for them. They're
-	// allowed to explicitly specify a name if they want though.
 	if cd.GetName() == "" && cd.GetGenerateName() == "" {
 		cd.SetGenerateName(namePrefix + "-")
 	}
 
-	// If the XR is namespaced it can only create composed resources in its own
-	// namespace. Cluster scoped XRs can compose cluster scoped resources, or
-	// resources in any namespace.
 	if xr.GetNamespace() != "" {
 		cd.SetNamespace(xr.GetNamespace())
 	}
@@ -482,16 +175,12 @@ func SetComposedResourceMetadata(cd resource.Object, xr resource.LegacyComposite
 	meta.AddAnnotations(cd, map[string]string{AnnotationKeyCompositionResourceName: name})
 	meta.AddLabels(cd, map[string]string{AnnotationKeyCompositeName: namePrefix})
 
-	// Propagate claim labels from the XR if present. For nested XRs, these
-	// labels are inherited from the parent rather than from a claim reference.
-	// This matches the behavior in composition_render.go.
 	if xr.GetLabels()[AnnotationKeyClaimName] != "" && xr.GetLabels()[AnnotationKeyClaimNamespace] != "" {
 		meta.AddLabels(cd, map[string]string{
 			AnnotationKeyClaimNamespace: xr.GetLabels()[AnnotationKeyClaimNamespace],
 			AnnotationKeyClaimName:      xr.GetLabels()[AnnotationKeyClaimName],
 		})
 	} else if ref := xr.GetClaimReference(); ref != nil {
-		// Fall back to claim reference for root XRs that don't have labels yet.
 		meta.AddLabels(cd, map[string]string{
 			AnnotationKeyClaimNamespace: ref.Namespace,
 			AnnotationKeyClaimName:      ref.Name,
@@ -503,77 +192,25 @@ func SetComposedResourceMetadata(cd resource.Object, xr resource.LegacyComposite
 	return errors.Wrapf(meta.AddControllerReference(cd, or), "cannot set composite resource %q as controller ref of composed resource", xr.GetName())
 }
 
-// FilteringFetcher is a RequiredResourcesFetcher that "fetches" any supplied
-// resource that matches a resource selector.
-type FilteringFetcher struct {
-	resources []unstructured.Unstructured
-}
-
-// NewFilteringFetcher creates a new FilteringFetcher with the given resources.
-func NewFilteringFetcher(resources ...unstructured.Unstructured) *FilteringFetcher {
-	return &FilteringFetcher{resources: resources}
-}
-
-// Fetch returns all of the underlying resources that match the supplied
-// resource selector.
-func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
-	if len(f.resources) == 0 || rs == nil {
-		return nil, nil
+// injectNetworkAnnotation sets the Docker network annotation on all functions
+// so their containers join the specified network.
+func injectNetworkAnnotation(fns []pkgv1.Function, networkName string) {
+	for i := range fns {
+		if fns[i].Annotations == nil {
+			fns[i].Annotations = make(map[string]string)
+		}
+		fns[i].Annotations[AnnotationKeyRuntimeDockerNetwork] = networkName
 	}
-
-	// Sort resources by name to ensure a stable order.
-	sort.Slice(f.resources, func(i, j int) bool {
-		return f.resources[i].GetName() < f.resources[j].GetName()
-	})
-
-	out := &fnv1.Resources{}
-
-	for _, er := range f.resources {
-		if rs.GetApiVersion() != er.GetAPIVersion() {
-			continue
-		}
-
-		if rs.GetKind() != er.GetKind() {
-			continue
-		}
-
-		switch match := rs.GetMatch().(type) {
-		case *fnv1.ResourceSelector_MatchName:
-			if match.MatchName != er.GetName() {
-				continue
-			}
-
-			o, err := xfn.AsStruct(&er)
-			if err != nil {
-				return nil, errors.Wrapf(err, "cannot marshal resource %q", er.GetName())
-			}
-
-			// There can only be one resource with a given name.
-			out.Items = []*fnv1.Resource{{Resource: o}}
-
-			return out, nil
-		case *fnv1.ResourceSelector_MatchLabels:
-			if !labels.SelectorFromSet(match.MatchLabels.GetLabels()).Matches(labels.Set(er.GetLabels())) {
-				continue
-			}
-		default:
-			// No match specified — match all resources of this
-			// apiVersion and kind.
-		}
-
-		o, err := xfn.AsStruct(&er)
-		if err != nil {
-			return nil, errors.Wrapf(err, "cannot marshal resource %q", er.GetName())
-		}
-
-		out.Items = append(out.GetItems(), &fnv1.Resource{Resource: o})
-	}
-
-	return out, nil
 }
 
-func conditionTime() metav1.Time {
-	// lastTransitionTime for conditions would just be noise, but we can't drop it
-	// as it's a required field and null is not allowed, so we set a random time.
-	return metav1.NewTime(time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC))
+// StopFunctionRuntimes stops all function runtimes with a timeout.
+func StopFunctionRuntimes(log logging.Logger, fa *FunctionAddresses) {
+	if fa == nil {
+		return
+	}
+	stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := fa.Stop(stopCtx); err != nil {
+		log.Info("Error stopping function runtimes", "error", err)
+	}
 }

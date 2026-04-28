@@ -36,12 +36,15 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
-	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/v2/cmd/crank/render/contextfn"
 )
 
 // Cmd arguments and flags for render subcommand.
 type Cmd struct {
+	EngineFlags `prefix:""`
+
 	// Arguments.
 	CompositeResource string `arg:"" help:"A YAML file specifying the composite resource (XR) to render."                                        predictor:"yaml_file"              type:"existingfile"`
 	Composition       string `arg:"" help:"A YAML file specifying the Composition to use to render the XR. Must be mode: Pipeline."              predictor:"yaml_file"              type:"existingfile"`
@@ -71,9 +74,9 @@ func (c *Cmd) Help() string {
 	return `
 This command shows you what composed resources Crossplane would create by
 printing them to stdout. It also prints any changes that would be made to the
-status of the XR. It doesn't talk to Crossplane. Instead it runs the Composition
-Function pipeline specified by the Composition locally, and uses that to render
-the XR. It only supports Compositions in Pipeline mode.
+status of the XR. It runs the Crossplane render engine (either in a Docker
+container or via a local binary) to produce high-fidelity output that matches
+what the real reconciler would produce.
 
 Composition Functions are pulled and run using Docker by default. You can add
 the following annotations to each Function to change how they're run:
@@ -126,6 +129,14 @@ Examples:
   crossplane render xr.yaml composition.yaml functions.yaml \
     --observed-resources=existing-observed-resources.yaml
 
+  # Pin the Crossplane version used for rendering.
+  crossplane render xr.yaml composition.yaml functions.yaml \
+    --crossplane-version=v2.3.0
+
+  # Use a local crossplane binary instead of Docker.
+  crossplane render xr.yaml composition.yaml functions.yaml \
+    --crossplane-binary=/usr/local/bin/crossplane
+
   # Pass context values to the Function pipeline.
   crossplane render xr.yaml composition.yaml functions.yaml \
     --context-values=apiextensions.crossplane.io/environment='{"key": "value"}'
@@ -133,10 +144,6 @@ Examples:
   # Pass required resources Functions in the pipeline can request.
   crossplane render xr.yaml composition.yaml functions.yaml \
 	--required-resources=required-resources.yaml
-
-  # Pass extra resources (deprecated, same as --required-resources).
-  crossplane render xr.yaml composition.yaml functions.yaml \
-	--extra-resources=extra-resources.yaml
 
   # Pass OpenAPI schemas for Functions that need them.
   crossplane render xr.yaml composition.yaml functions.yaml \
@@ -165,7 +172,7 @@ func (c *Cmd) AfterApply() error {
 }
 
 // Run render.
-func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit // Only a touch over.
+func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit // Orchestration is inherently complex.
 	xr, err := LoadCompositeResource(c.fs, c.CompositeResource)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load composite resource from %q", c.CompositeResource)
@@ -204,7 +211,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		}
 	}
 
-	if comp.Spec.Mode != v1.CompositionModePipeline {
+	if comp.Spec.Mode != apiextensionsv1.CompositionModePipeline {
 		return errors.Errorf("render only supports Composition Function pipelines: Composition %q must use spec.mode: Pipeline", comp.GetName())
 	}
 
@@ -266,53 +273,114 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		}
 	}
 
-	fctx := map[string][]byte{}
+	// Merge extra resources into required resources.
+	rrs = append(rrs, ers...)
 
-	for k, filename := range c.ContextFiles {
-		v, err := afero.ReadFile(c.fs, filename)
-		if err != nil {
-			return errors.Wrapf(err, "cannot read context value for key %q", k)
-		}
-
-		fctx[k] = v
-	}
-
-	for k, v := range c.ContextValues {
-		fctx[k] = []byte(v)
-	}
-
+	// Load required schemas
 	rsc := []spec3.OpenAPI{}
 	if c.RequiredSchemas != "" {
 		rsc, err = LoadRequiredSchemas(c.fs, c.RequiredSchemas)
 		if err != nil {
-			return errors.Wrapf(err, "cannot load OpenAPI schemas from %q", c.RequiredSchemas)
+			return errors.Wrapf(err, "cannot load required schemas from %q", c.RequiredSchemas)
 		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
-	out, err := Render(ctx, log, Inputs{
+	engine := c.NewEngine(log)
+
+	seedCtx := len(c.ContextValues) > 0 || len(c.ContextFiles) > 0
+	captureCtx := c.IncludeContext
+
+	var ctxHandle *contextfn.Handle
+	if seedCtx || captureCtx {
+		if err := engine.CheckContextSupport(); err != nil {
+			return err
+		}
+
+		raw, err := BuildContextData(c.fs, c.ContextFiles, c.ContextValues)
+		if err != nil {
+			return errors.Wrap(err, "cannot build context data")
+		}
+
+		parsed, err := ParseContextData(raw)
+		if err != nil {
+			return errors.Wrap(err, "cannot parse context data")
+		}
+
+		ctxHandle, err = contextfn.Start(ctx, log, parsed)
+		if err != nil {
+			return errors.Wrap(err, "cannot start context function")
+		}
+		defer ctxHandle.Stop()
+
+		fns = append(fns, ctxHandle.Function())
+		if seedCtx {
+			comp.Spec.Pipeline = append([]apiextensionsv1.PipelineStep{ctxHandle.CompositeSeedStep()}, comp.Spec.Pipeline...)
+		}
+		if captureCtx {
+			comp.Spec.Pipeline = append(comp.Spec.Pipeline, ctxHandle.CompositeCaptureStep())
+		}
+	}
+
+	cleanup, err := engine.Setup(ctx, fns)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	// Start function runtimes to get their addresses.
+	fnAddrs, err := StartFunctionRuntimes(ctx, log, fns)
+	if err != nil {
+		return errors.Wrap(err, "cannot start function runtimes")
+	}
+	defer StopFunctionRuntimes(log, fnAddrs)
+
+	addrs := fnAddrs.Addresses()
+	if ctxHandle != nil {
+		addrs[contextfn.FunctionName] = ctxHandle.Target
+	}
+
+	// Build and execute the render request.
+	in := CompositionInputs{
 		CompositeResource:   xr,
 		Composition:         comp,
-		Functions:           fns,
-		FunctionCredentials: fcreds,
+		FunctionAddrs:       addrs,
 		ObservedResources:   ors,
-		ExtraResources:      ers,
 		RequiredResources:   rrs,
 		RequiredSchemas:     rsc,
-		Context:             fctx,
-	})
+		FunctionCredentials: fcreds,
+	}
+	req, err := buildCompositeRequest(in)
+	if err != nil {
+		return errors.Wrap(err, "cannot build render request")
+	}
+
+	rsp, err := engine.Render(ctx, req)
 	if err != nil {
 		return errors.Wrap(err, "cannot render composite resource")
 	}
 
-	// TODO(negz): Right now we're just emitting the desired state, which is an
-	// overlay on the observed state. Would it be more useful to apply the
-	// overlay to show something more like what the final result would be? The
-	// challenge with that would be that we'd have to try emulate what
-	// server-side apply would do (e.g. merging vs atomically replacing arrays)
-	// and we don't have enough context (i.e. OpenAPI schemas) to do that.
+	compositeOut := rsp.GetComposite()
+	if compositeOut == nil {
+		return errors.New("render response does not contain a composite output")
+	}
+
+	out, err := parseCompositeResponse(compositeOut)
+	if err != nil {
+		return errors.Wrap(err, "cannot parse render response")
+	}
+
+	if captureCtx && ctxHandle != nil {
+		if s := ctxHandle.Captured(); s != nil {
+			out.Context = &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "render.crossplane.io/v1beta1",
+				"kind":       "Context",
+				"fields":     s.AsMap(),
+			}}
+		}
+	}
 
 	s := json.NewSerializerWithOptions(json.DefaultMetaFactory, nil, nil, json.SerializerOptions{Yaml: true})
 
@@ -357,7 +425,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		}
 	}
 
-	if c.IncludeContext {
+	if c.IncludeContext && out.Context != nil {
 		_, _ = fmt.Fprintln(k.Stdout, "---")
 		if err := s.Encode(out.Context, k.Stdout); err != nil {
 			return errors.Wrap(err, "cannot marshal context to YAML")

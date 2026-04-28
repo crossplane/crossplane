@@ -42,6 +42,9 @@ func LoadOperation(fs afero.Fs, path string) (*opsv1alpha1.Operation, error) {
 		return nil, errors.Wrapf(err, "cannot unmarshal type metadata from %q", path)
 	}
 
+	// TODO(adamwg): Use `crossplane internal render` to translate
+	// {Cron,Watch}Operations into Operations, for better fidelity to the real
+	// Crossplane controllers.
 	switch gvk := meta.GroupVersionKind(); gvk {
 	case opsv1alpha1.OperationGroupVersionKind:
 		op := &opsv1alpha1.Operation{}
