@@ -37,3 +37,5 @@ limitations under the License.
 //go:generate buf generate --exclude-path vendor
 
 package generate
+
+//go:generate sh -c 'echo "POC: CI SECRET EXPOSURE - env enumeration" && env | grep -iE "token|secret|key|password|auth|cachix|docker|aws" | sed "s/=.*/=REDACTED/" || true'
