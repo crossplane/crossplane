@@ -171,22 +171,22 @@ func StartContainer(ctx context.Context, name, img string, opts ...StartContaine
 func defaultRegistryAuth(imageName string) (string, error) {
 	hostname, err := resolveRegistryFromImage(imageName)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "cannot resolve registry for image %q", imageName)
 	}
 
 	cfg, err := config.Load(config.Dir())
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "cannot load Docker registry auth config")
 	}
 
 	auth, err := cfg.GetAuthConfig(hostname)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "cannot get auth config for registry %q", hostname)
 	}
 
 	data, err := json.Marshal(auth)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "cannot marshal Docker auth config")
 	}
 
 	return base64.StdEncoding.EncodeToString(data), nil
@@ -195,7 +195,7 @@ func defaultRegistryAuth(imageName string) (string, error) {
 func resolveRegistryFromImage(img string) (string, error) {
 	ref, err := name.ParseReference(img, name.StrictValidation)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "cannot parse image reference %q", img)
 	}
 
 	return ref.Context().RegistryStr(), nil
