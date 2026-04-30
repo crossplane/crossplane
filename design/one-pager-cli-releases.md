@@ -36,10 +36,19 @@ bugfix release of the CLI following v2.3.0 will be v2.3.1, and the next release
 containing new features will be v2.4.0, regardless of whether its release date
 coincides with Crossplane v2.4.0.
 
+A v3.0 version of the CLI will be developed and released along with Crossplane
+v3.0.
+
 ### Compatibility
 
 Given that the Crossplane CLI version number will no longer correspond to the
-Crossplane core version, we must define a policy for backward compatibility.
+Crossplane core version, we must define a policy for backward compatibility. CLI
+release `X` being compatible with Crossplane release `Y` means that:
+
+1. Commands in CLI version `X` that interact with a Crossplane cluster work
+   correctly when the cluster is running version `Y`.
+2. Artifacts produced by CLI version `X` (e.g., packages) work correctly on a
+   cluster running version `Y`.
 
 In practice, I expect this will be largely a non-issue: going forward, all
 interactions between the CLI and Crossplane core will be across API boundaries,
@@ -51,12 +60,19 @@ That being said, we still need a policy. I propose that:
 
 1. Pre-existing features in a new minor version of the Crossplane CLI will
    maintain support for all Crossplane minor versions that are supported at
-   release time. For example, if we released CLI v2.4.0 in June, 2026 we would
+   release time. For example, if we release CLI v2.4.0 before August, 2026 (when
+   Crossplane v2.4 is release and v2.1 reaches EOL) all existing features will
    support Crossplane v2.3, v2.2, and v2.1.
-2. Patch releases of the CLI will not break compatibility with any Crossplane
+2. New features released in a minor version of the Crossplane CLI may be
+   compatible with only a subset of the supported Crossplane versions at the
+   time. This allows for CLI features that depend on new core functionality.
+3. Patch releases of the CLI will not break compatibility with any Crossplane
    releases that were supported when their minor version was initially released,
    even if it has since become EOL. I.e., changes to the compatibility matrix
    will happen only in new minor versions of the CLI.
+4. New major versions of the CLI will guarantee compatibility only with matching
+   major versions of Crossplane. I.e., features in CLI v3.0 may be incompatible
+   with non-EOL versions of Crossplane v2.x.
 
 ### Artifact Location
 
