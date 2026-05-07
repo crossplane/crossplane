@@ -21,7 +21,6 @@ import (
 	"slices"
 	"strings"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -95,11 +94,13 @@ func CRDAsUnstructured(mrd *v1alpha1.ManagedResourceDefinition) (*unstructured.U
 	// Build the Unstructured from the Paved content
 	u := &unstructured.Unstructured{Object: p.UnstructuredContent()}
 
-	// Add owner references
-	meta.AddOwnerReference(u, meta.AsOwner(meta.TypedReferenceTo(mrd, v1alpha1.ManagedResourceDefinitionGroupVersionKind)))
-	if owner := metav1.GetControllerOf(mrd); owner != nil {
-		meta.AddOwnerReference(u, *owner)
-	}
+	// Set the MRD as the controller of the CRD. The ProviderRevision that
+	// controls the MRD is not propagated here: doing so caused "only one
+	// reference can have Controller set to true" errors during provider
+	// upgrades, when the old and new revisions both transiently appeared as
+	// controllers of the same CRD. The GC chain PR → MRD → CRD means the
+	// CRD is still garbage-collected when the provider is removed.
+	meta.AddOwnerReference(u, meta.AsController(meta.TypedReferenceTo(mrd, v1alpha1.ManagedResourceDefinitionGroupVersionKind)))
 
 	return u, nil
 }
