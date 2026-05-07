@@ -1,0 +1,7 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-nop-deletion-protection
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/provider-nop:v0.4.0
+  ignoreCrossplaneConstraints: true

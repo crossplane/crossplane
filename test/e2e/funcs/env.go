@@ -40,6 +40,7 @@ import (
 	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
 	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	protectionv1beta1 "github.com/crossplane/crossplane/apis/v2/protection/v1beta1"
 )
 
 type kindConfigContextKey string
@@ -100,6 +101,7 @@ func AddCrossplaneTypesToScheme() env.Func {
 		_ = opsv1alpha1.AddToScheme(c.Client().Resources().GetScheme())
 		_ = apiextensionsv1alpha1.AddToScheme(c.Client().Resources().GetScheme())
 		_ = pkgv1.AddToScheme(c.Client().Resources().GetScheme())
+		_ = protectionv1beta1.AddToScheme(c.Client().Resources().GetScheme())
 
 		return ctx, nil
 	}

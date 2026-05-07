@@ -95,7 +95,7 @@
                 # Allow use of pkgs.unstable.<package-name> to pull individual
                 # packages from nixpkgs-unstable.
                 unstable = import nixpkgs-unstable {
-                  system = prev.stdenv.hostPlatform.system;
+                  inherit (prev.stdenv.hostPlatform) system;
                 };
               })
             ];

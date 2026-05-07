@@ -48,6 +48,11 @@ const (
 	// See the below design for more details.
 	// https://github.com/crossplane/crossplane/blob/main/design/one-pager-pipeline-inspector.md
 	EnableAlphaPipelineInspector feature.Flag = "EnableAlphaPipelineInspector"
+
+	// EnableAlphaProviderDeletionProtection enables alpha support for
+	// automatically protecting Providers from deletion when they still have
+	// active managed resources. Requires EnableBetaUsages to also be enabled.
+	EnableAlphaProviderDeletionProtection feature.Flag = "EnableAlphaProviderDeletionProtection"
 )
 
 // Beta Feature Flags.
