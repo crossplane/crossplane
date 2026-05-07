@@ -80,10 +80,13 @@ func TestMRDValidation(t *testing.T) {
 			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "mrd-invalid.yaml"),
 		},
 		{
-			// An attempt to deactivate an active MRD should be rejected.
-			Name:        "ActiveMRDCannotBeDeactivated",
-			Description: "An attempt to change an active MRD to inactive should be rejected.",
-			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "mrd-active-to-inactive.yaml"),
+			// An active MRD can be deactivated.
+			Name:        "ActiveMRDCanBeDeactivated",
+			Description: "An active MRD should be allowed to transition to inactive and clean up its CRD.",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "mrd-active-to-inactive.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mrd-active-to-inactive.yaml", v1alpha1.InactiveManaged()),
+			),
 		},
 	}
 	environment.Test(t,

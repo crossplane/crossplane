@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -131,13 +132,22 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{},
 			},
 		},
-		"MRDInactiveState": {
-			reason: "We should mark MRD as inactive when state is not active",
+		"MRDInactiveNoCRD": {
+			reason: "We should mark MRD as inactive when state is not active and no CRD exists",
 			args: args{
 				c: &test.MockClient{
-					MockGet: withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
-						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
-					})),
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						switch obj.(type) {
+						case *v1alpha1.ManagedResourceDefinition:
+							return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+								mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+							}))(ctx, key, obj)
+						case *extv1.CustomResourceDefinition:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
 					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
 						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
 						mrd.SetConditions(v1alpha1.InactiveManaged())
@@ -146,6 +156,344 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				r: reconcile.Result{},
+			},
+		},
+		"MRDInactiveCRDExistsInstancesExist": {
+			reason: "We should set WaitingForInstanceDeletion when CRD exists and MR instances exist",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						switch o := obj.(type) {
+						case *v1alpha1.ManagedResourceDefinition:
+							return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+								mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+								mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+									Group: "example.com",
+									Names: extv1.CustomResourceDefinitionNames{
+										Plural:   "databases",
+										Kind:     "Database",
+										ListKind: "DatabaseList",
+									},
+									Versions: []v1alpha1.CustomResourceDefinitionVersion{
+										{Name: "v1", Served: true, Storage: true},
+									},
+								}
+							}))(ctx, key, obj)
+						case *extv1.CustomResourceDefinition:
+							o.OwnerReferences = []metav1.OwnerReference{{
+								UID:        "test-uid",
+								Controller: ptr.To(true),
+							}}
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						l := list.(*unstructured.UnstructuredList)
+						l.Items = []unstructured.Unstructured{{}}
+						return nil
+					},
+					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+							Group: "example.com",
+							Names: extv1.CustomResourceDefinitionNames{
+								Plural:   "databases",
+								Kind:     "Database",
+								ListKind: "DatabaseList",
+							},
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
+								{Name: "v1", Served: true, Storage: true},
+							},
+						}
+						mrd.SetConditions(v1alpha1.WaitingForInstanceDeletion().WithMessage("waiting for managed resource instances to be deleted"))
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithRecorder(&testRecorder{}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+			},
+		},
+		"MRDInactiveCRDExistsNoInstances": {
+			reason: "We should delete the CRD when no MR instances exist",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						switch o := obj.(type) {
+						case *v1alpha1.ManagedResourceDefinition:
+							return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+								mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+								mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+									Group: "example.com",
+									Names: extv1.CustomResourceDefinitionNames{
+										Plural:   "databases",
+										Kind:     "Database",
+										ListKind: "DatabaseList",
+									},
+									Versions: []v1alpha1.CustomResourceDefinitionVersion{
+										{Name: "v1", Served: true, Storage: true},
+									},
+								}
+							}))(ctx, key, obj)
+						case *extv1.CustomResourceDefinition:
+							o.OwnerReferences = []metav1.OwnerReference{{
+								UID:        "test-uid",
+								Controller: ptr.To(true),
+							}}
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
+					MockList:   test.NewMockListFn(nil),
+					MockDelete: test.NewMockDeleteFn(nil),
+					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+							Group: "example.com",
+							Names: extv1.CustomResourceDefinitionNames{
+								Plural:   "databases",
+								Kind:     "Database",
+								ListKind: "DatabaseList",
+							},
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
+								{Name: "v1", Served: true, Storage: true},
+							},
+						}
+						mrd.SetConditions(v1alpha1.InactiveManaged())
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithRecorder(&testRecorder{}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"MRDInactiveCRDExistsDeleteFails": {
+			reason: "We should return error when CRD deletion fails",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						switch o := obj.(type) {
+						case *v1alpha1.ManagedResourceDefinition:
+							return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+								mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+								mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+									Group: "example.com",
+									Names: extv1.CustomResourceDefinitionNames{
+										Plural:   "databases",
+										Kind:     "Database",
+										ListKind: "DatabaseList",
+									},
+									Versions: []v1alpha1.CustomResourceDefinitionVersion{
+										{Name: "v1", Served: true, Storage: true},
+									},
+								}
+							}))(ctx, key, obj)
+						case *extv1.CustomResourceDefinition:
+							o.OwnerReferences = []metav1.OwnerReference{{
+								UID:        "test-uid",
+								Controller: ptr.To(true),
+							}}
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
+					MockList:   test.NewMockListFn(nil),
+					MockDelete: test.NewMockDeleteFn(errBoom),
+					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+							Group: "example.com",
+							Names: extv1.CustomResourceDefinitionNames{
+								Plural:   "databases",
+								Kind:     "Database",
+								ListKind: "DatabaseList",
+							},
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
+								{Name: "v1", Served: true, Storage: true},
+							},
+						}
+						mrd.SetConditions(v1alpha1.BlockedManaged().WithMessage("unable to delete CustomResourceDefinition, see events"))
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithRecorder(&testRecorder{}),
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"MRDInactiveCRDExistsListFails": {
+			reason: "We should return error when listing MR instances fails",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						switch o := obj.(type) {
+						case *v1alpha1.ManagedResourceDefinition:
+							return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+								mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+								mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+									Group: "example.com",
+									Names: extv1.CustomResourceDefinitionNames{
+										Plural:   "databases",
+										Kind:     "Database",
+										ListKind: "DatabaseList",
+									},
+									Versions: []v1alpha1.CustomResourceDefinitionVersion{
+										{Name: "v1", Served: true, Storage: true},
+									},
+								}
+							}))(ctx, key, obj)
+						case *extv1.CustomResourceDefinition:
+							o.OwnerReferences = []metav1.OwnerReference{{
+								UID:        "test-uid",
+								Controller: ptr.To(true),
+							}}
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
+					MockList: test.NewMockListFn(errBoom),
+					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+							Group: "example.com",
+							Names: extv1.CustomResourceDefinitionNames{
+								Plural:   "databases",
+								Kind:     "Database",
+								ListKind: "DatabaseList",
+							},
+							Versions: []v1alpha1.CustomResourceDefinitionVersion{
+								{Name: "v1", Served: true, Storage: true},
+							},
+						}
+						mrd.SetConditions(v1alpha1.BlockedManaged().WithMessage("unable to list managed resources, see events"))
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithRecorder(&testRecorder{}),
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"MRDInactiveCRDGetError": {
+			reason: "We should return error when getting CRD fails with non-NotFound error during inactive reconciliation",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						switch obj.(type) {
+						case *v1alpha1.ManagedResourceDefinition:
+							return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+								mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+							}))(ctx, key, obj)
+						case *extv1.CustomResourceDefinition:
+							return errBoom
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
+					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+						mrd.SetConditions(v1alpha1.BlockedManaged().WithMessage("unable to get CustomResourceDefinition, see events"))
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithRecorder(&testRecorder{}),
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"MRDInactiveCRDNotControlledByMRD": {
+			reason: "We should mark inactive without deleting CRD when it is not controlled by this MRD",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						switch o := obj.(type) {
+						case *v1alpha1.ManagedResourceDefinition:
+							return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+								mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+							}))(ctx, key, obj)
+						case *extv1.CustomResourceDefinition:
+							// CRD exists but has no owner references pointing to the MRD.
+							o.Name = key.Name
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
+					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+						mrd.SetConditions(v1alpha1.InactiveManaged())
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"MRDInactiveNoVersions": {
+			reason: "We should return error when MRD has no versions defined",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						switch o := obj.(type) {
+						case *v1alpha1.ManagedResourceDefinition:
+							return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+								mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+								mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+									Group: "example.com",
+									Names: extv1.CustomResourceDefinitionNames{
+										Plural:   "databases",
+										Kind:     "Database",
+										ListKind: "DatabaseList",
+									},
+								}
+							}))(ctx, key, obj)
+						case *extv1.CustomResourceDefinition:
+							// CRD exists and is controlled by the MRD.
+							o.Name = key.Name
+							o.OwnerReferences = []metav1.OwnerReference{{
+								UID:        "test-uid",
+								Controller: ptr.To(true),
+							}}
+							return nil
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
+					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+							Group: "example.com",
+							Names: extv1.CustomResourceDefinitionNames{
+								Plural:   "databases",
+								Kind:     "Database",
+								ListKind: "DatabaseList",
+							},
+						}
+						mrd.SetConditions(v1alpha1.BlockedManaged().WithMessage("MRD has no versions defined"))
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithRecorder(&testRecorder{}),
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
 			},
 		},
 		"MRDActiveCRDGetError": {
@@ -189,8 +537,9 @@ func TestReconcile(t *testing.T) {
 								mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
 									Group: "example.com",
 									Names: extv1.CustomResourceDefinitionNames{
-										Plural: "databases",
-										Kind:   "Database",
+										Plural:   "databases",
+										Kind:     "Database",
+										ListKind: "DatabaseList",
 									},
 									Scope: extv1.ClusterScoped,
 									Versions: []v1alpha1.CustomResourceDefinitionVersion{
@@ -219,8 +568,9 @@ func TestReconcile(t *testing.T) {
 						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.com",
 							Names: extv1.CustomResourceDefinitionNames{
-								Plural: "databases",
-								Kind:   "Database",
+								Plural:   "databases",
+								Kind:     "Database",
+								ListKind: "DatabaseList",
 							},
 							Scope: extv1.ClusterScoped,
 							Versions: []v1alpha1.CustomResourceDefinitionVersion{
@@ -259,8 +609,9 @@ func TestReconcile(t *testing.T) {
 								mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
 									Group: "example.com",
 									Names: extv1.CustomResourceDefinitionNames{
-										Plural: "databases",
-										Kind:   "Database",
+										Plural:   "databases",
+										Kind:     "Database",
+										ListKind: "DatabaseList",
 									},
 									Scope: extv1.ClusterScoped,
 									Versions: []v1alpha1.CustomResourceDefinitionVersion{
@@ -289,8 +640,9 @@ func TestReconcile(t *testing.T) {
 						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.com",
 							Names: extv1.CustomResourceDefinitionNames{
-								Plural: "databases",
-								Kind:   "Database",
+								Plural:   "databases",
+								Kind:     "Database",
+								ListKind: "DatabaseList",
 							},
 							Scope: extv1.ClusterScoped,
 							Versions: []v1alpha1.CustomResourceDefinitionVersion{
@@ -329,8 +681,9 @@ func TestReconcile(t *testing.T) {
 								mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
 									Group: "example.com",
 									Names: extv1.CustomResourceDefinitionNames{
-										Plural: "databases",
-										Kind:   "Database",
+										Plural:   "databases",
+										Kind:     "Database",
+										ListKind: "DatabaseList",
 									},
 									Scope: extv1.ClusterScoped,
 									Versions: []v1alpha1.CustomResourceDefinitionVersion{
@@ -352,8 +705,9 @@ func TestReconcile(t *testing.T) {
 							o.Spec = extv1.CustomResourceDefinitionSpec{
 								Group: "example.com",
 								Names: extv1.CustomResourceDefinitionNames{
-									Plural: "databases",
-									Kind:   "Database",
+									Plural:   "databases",
+									Kind:     "Database",
+									ListKind: "DatabaseList",
 								},
 								Scope: extv1.ClusterScoped,
 								Versions: []extv1.CustomResourceDefinitionVersion{
@@ -391,8 +745,9 @@ func TestReconcile(t *testing.T) {
 						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
 							Group: "example.com",
 							Names: extv1.CustomResourceDefinitionNames{
-								Plural: "databases",
-								Kind:   "Database",
+								Plural:   "databases",
+								Kind:     "Database",
+								ListKind: "DatabaseList",
 							},
 							Scope: extv1.ClusterScoped,
 							Versions: []v1alpha1.CustomResourceDefinitionVersion{
@@ -441,9 +796,18 @@ func TestReconcile(t *testing.T) {
 			reason: "We should handle status update errors when marking MRD as inactive",
 			args: args{
 				c: &test.MockClient{
-					MockGet: withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
-						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
-					})),
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						switch obj.(type) {
+						case *v1alpha1.ManagedResourceDefinition:
+							return withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+								mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+							}))(ctx, key, obj)
+						case *extv1.CustomResourceDefinition:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						default:
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+					},
 					MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
 				},
 			},

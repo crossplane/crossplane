@@ -22,7 +22,12 @@ import (
 	"time"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	kmeta "k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -48,6 +53,7 @@ const (
 	reasonReconcile event.Reason = "Reconcile"
 	reasonPaused    event.Reason = "ReconciliationPaused"
 	reasonApplyCRD  event.Reason = "ApplyCustomResourceDefinition"
+	reasonDeleteCRD event.Reason = "DeleteCustomResourceDefinition"
 )
 
 // FieldOwnerMRD is the field manager name used when applying CRDs.
@@ -102,8 +108,7 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	}
 
 	if !mrd.Spec.State.IsActive() {
-		status.MarkConditions(v1alpha1.InactiveManaged())
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+		return r.reconcileInactive(ogctx, ctx, mrd, status, log)
 	}
 
 	// Read the CRD to upgrade its managed fields if needed.
@@ -170,4 +175,91 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 
 	status.MarkConditions(v1alpha1.EstablishedManaged())
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+}
+
+// reconcileInactive handles MRD deactivation by cleaning up the CRD when no
+// managed resource instances exist.
+func (r *Reconciler) reconcileInactive(ogctx, ctx context.Context, mrd *v1alpha1.ManagedResourceDefinition, status conditions.ConditionSet, log logging.Logger) (reconcile.Result, error) {
+	// Check if the CRD exists.
+	crd := &extv1.CustomResourceDefinition{}
+	if err := r.client.Get(ctx, types.NamespacedName{Name: mrd.GetName()}, crd); err != nil {
+		if kerrors.IsNotFound(err) {
+			// CRD doesn't exist — was never active, or already cleaned up.
+			status.MarkConditions(v1alpha1.InactiveManaged())
+			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+		}
+		log.Debug("cannot get CustomResourceDefinition", "error", err)
+		r.record.Event(mrd, event.Warning(reasonReconcile, err))
+		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to get CustomResourceDefinition, see events"))
+		_ = r.client.Status().Update(ogctx, mrd)
+		return reconcile.Result{}, errors.Wrap(err, "cannot get CustomResourceDefinition")
+	}
+
+	// CRD exists but is not controlled by this MRD — don't delete it.
+	if !metav1.IsControlledBy(crd, mrd) {
+		status.MarkConditions(v1alpha1.InactiveManaged())
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+	}
+
+	// CRD exists — check if any managed resource instances exist.
+	ver := storageVersion(mrd)
+	if ver == "" {
+		log.Debug("MRD has no versions defined, cannot list managed resources")
+		r.record.Event(mrd, event.Warning(reasonReconcile, errors.New("MRD has no versions defined")))
+		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("MRD has no versions defined"))
+		_ = r.client.Status().Update(ogctx, mrd)
+		return reconcile.Result{}, errors.New("MRD has no versions defined, cannot list managed resources")
+	}
+	gvk := schema.GroupVersionKind{
+		Group:   mrd.Spec.Group,
+		Version: ver,
+		Kind:    mrd.Spec.Names.ListKind,
+	}
+
+	l := &kunstructured.UnstructuredList{}
+	l.SetGroupVersionKind(gvk)
+
+	if err := r.client.List(ctx, l, client.Limit(1)); resource.Ignore(kmeta.IsNoMatchError, err) != nil {
+		log.Debug("cannot list managed resources", "error", err, "gvk", gvk.String())
+		r.record.Event(mrd, event.Warning(reasonReconcile, errors.Wrap(err, "cannot list managed resources")))
+		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to list managed resources, see events"))
+		_ = r.client.Status().Update(ogctx, mrd)
+		return reconcile.Result{}, errors.Wrap(err, "cannot list managed resources")
+	}
+
+	if len(l.Items) > 0 {
+		log.Debug("waiting for managed resource instances to be deleted before removing CRD")
+		r.record.Event(mrd, event.Normal(reasonDeleteCRD, "Waiting for managed resource instances to be deleted"))
+		status.MarkConditions(v1alpha1.WaitingForInstanceDeletion().WithMessage("waiting for managed resource instances to be deleted"))
+		_ = r.client.Status().Update(ogctx, mrd)
+		return reconcile.Result{Requeue: true}, nil
+	}
+
+	// No instances — delete the CRD.
+	if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
+		log.Debug("cannot delete CustomResourceDefinition", "error", err)
+		r.record.Event(mrd, event.Warning(reasonDeleteCRD, err))
+		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to delete CustomResourceDefinition, see events"))
+		_ = r.client.Status().Update(ogctx, mrd)
+		return reconcile.Result{}, errors.Wrap(err, "cannot delete CustomResourceDefinition")
+	}
+
+	log.Debug("Deleted CustomResourceDefinition for inactive MRD")
+	r.record.Event(mrd, event.Normal(reasonDeleteCRD, "Deleted CustomResourceDefinition"))
+	status.MarkConditions(v1alpha1.InactiveManaged())
+	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+}
+
+// storageVersion returns the name of the storage version from the MRD spec.
+func storageVersion(mrd *v1alpha1.ManagedResourceDefinition) string {
+	for _, v := range mrd.Spec.Versions {
+		if v.Storage {
+			return v.Name
+		}
+	}
+	// Fall back to the first version if no storage version is marked.
+	if len(mrd.Spec.Versions) > 0 {
+		return mrd.Spec.Versions[0].Name
+	}
+	return ""
 }
