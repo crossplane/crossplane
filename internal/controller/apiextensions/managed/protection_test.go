@@ -19,7 +19,6 @@ package managed
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -167,7 +166,7 @@ func TestProtectionReconcilerReconcile(t *testing.T) {
 			},
 		},
 		"MRsExistNoControllerOwner": {
-			reason: "When MRD has no controller owner, we should requeue after delay",
+			reason: "When MRD has no controller owner, we should return an error",
 			args: args{
 				cached: &test.MockClient{
 					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
@@ -191,11 +190,11 @@ func TestProtectionReconcilerReconcile(t *testing.T) {
 				gvk:     testGVK,
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: 30 * time.Second},
+				err: cmpopts.AnyError,
 			},
 		},
 		"MRsExistProviderRevisionNotFound": {
-			reason: "When ProviderRevision is not found, we should requeue after delay",
+			reason: "When ProviderRevision is not found, we should return an error",
 			args: args{
 				cached: &test.MockClient{
 					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
@@ -228,7 +227,7 @@ func TestProtectionReconcilerReconcile(t *testing.T) {
 				gvk:     testGVK,
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: 30 * time.Second},
+				err: cmpopts.AnyError,
 			},
 		},
 		"MRsExistClusterUsageApplied": {
