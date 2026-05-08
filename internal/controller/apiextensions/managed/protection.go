@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"time"
 
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,16 +43,6 @@ import (
 // FieldOwnerMRDProtection is the field manager name used when applying
 // ClusterUsage objects for provider deletion protection.
 const FieldOwnerMRDProtection = "apiextensions.crossplane.io/managed-protection"
-
-// Error strings for the protection reconciler.
-const (
-	errListMRs             = "cannot list managed resources"
-	errGetMRDForProtection = "cannot get ManagedResourceDefinition for protection"
-	errGetProviderRevision = "cannot get ProviderRevision"
-	errResolveProvider     = "cannot resolve Provider from ProviderRevision"
-	errApplyClusterUsage   = "cannot apply ClusterUsage"
-	errDeleteClusterUsage  = "cannot delete ClusterUsage"
-)
 
 // ProtectionControllerName returns the name of the protection controller
 // for the given MRD name.
@@ -106,7 +95,7 @@ func (r *ProtectionReconciler) Reconcile(ctx context.Context, _ reconcile.Reques
 			log.Debug("CRD not found, ensuring no ClusterUsage")
 			return r.ensureNoClusterUsage(ctx)
 		}
-		return reconcile.Result{}, errors.Wrap(err, errListMRs)
+		return reconcile.Result{}, errors.Wrap(err, "cannot list managed resources")
 	}
 
 	if len(list.Items) > 0 {
@@ -119,13 +108,12 @@ func (r *ProtectionReconciler) Reconcile(ctx context.Context, _ reconcile.Reques
 func (r *ProtectionReconciler) ensureClusterUsage(ctx context.Context) (reconcile.Result, error) {
 	mrd := &v1alpha1.ManagedResourceDefinition{}
 	if err := r.cached.Get(ctx, types.NamespacedName{Name: r.mrdName}, mrd); err != nil {
-		return reconcile.Result{}, errors.Wrap(err, errGetMRDForProtection)
+		return reconcile.Result{}, errors.Wrap(err, "cannot get ManagedResourceDefinition for protection")
 	}
 
 	providerName, err := resolveProviderName(ctx, r.cached, mrd)
 	if err != nil {
-		r.log.Debug("Cannot resolve Provider name, will retry", "error", err)
-		return reconcile.Result{RequeueAfter: 30 * time.Second}, nil
+		return reconcile.Result{}, errors.Wrap(err, "cannot resolve Provider name")
 	}
 
 	mrType := fmt.Sprintf("%s.%s", mrd.Spec.Names.Kind, mrd.Spec.Group)
@@ -136,7 +124,7 @@ func (r *ProtectionReconciler) ensureClusterUsage(ctx context.Context) (reconcil
 		client.ForceOwnership,
 		client.FieldOwner(FieldOwnerMRDProtection),
 	); err != nil {
-		return reconcile.Result{}, errors.Wrap(err, errApplyClusterUsage)
+		return reconcile.Result{}, errors.Wrap(err, "cannot apply ClusterUsage")
 	}
 
 	r.log.Debug("ClusterUsage applied for provider protection", "provider", providerName, "mrType", mrType)
@@ -147,7 +135,7 @@ func (r *ProtectionReconciler) ensureNoClusterUsage(ctx context.Context) (reconc
 	cu := &protectionv1beta1.ClusterUsage{}
 	cu.SetName(ClusterUsageName(r.mrdName))
 	if err := r.writer.Delete(ctx, cu); resource.IgnoreNotFound(err) != nil {
-		return reconcile.Result{}, errors.Wrap(err, errDeleteClusterUsage)
+		return reconcile.Result{}, errors.Wrap(err, "cannot delete ClusterUsage")
 	}
 	r.log.Debug("ClusterUsage removed for provider protection")
 	return reconcile.Result{}, nil
@@ -163,7 +151,7 @@ func resolveProviderName(ctx context.Context, c client.Client, mrd *v1alpha1.Man
 
 	rev := &pkgv1.ProviderRevision{}
 	if err := c.Get(ctx, types.NamespacedName{Name: owner.Name}, rev); err != nil {
-		return "", errors.Wrap(err, errGetProviderRevision)
+		return "", errors.Wrap(err, "cannot get ProviderRevision")
 	}
 
 	providerName := rev.GetLabels()[pkgv1.LabelParentPackage]

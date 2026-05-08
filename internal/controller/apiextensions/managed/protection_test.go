@@ -39,6 +39,7 @@ import (
 
 	"github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	protectionv1beta1 "github.com/crossplane/crossplane/apis/v2/protection/v1beta1"
 )
 
 func TestProtectionReconcilerReconcile(t *testing.T) {
@@ -501,28 +502,35 @@ func TestResolveProviderName(t *testing.T) {
 }
 
 func TestBuildClusterUsage(t *testing.T) {
-	cu := buildClusterUsage("test-mrd", "my-provider", "Database.example.com")
+	want := &protectionv1beta1.ClusterUsage{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: protectionv1beta1.SchemeGroupVersion.String(),
+			Kind:       protectionv1beta1.ClusterUsageKind,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: ClusterUsageName("test-mrd"),
+			Labels: map[string]string{
+				"crossplane.io/provider-protection": "true",
+				pkgv1.LabelParentPackage:            "my-provider",
+				"apiextensions.crossplane.io/mrd":   "test-mrd",
+			},
+		},
+		Spec: protectionv1beta1.ClusterUsageSpec{
+			Of: protectionv1beta1.Resource{
+				APIVersion: pkgv1.SchemeGroupVersion.String(),
+				Kind:       pkgv1.ProviderKind,
+				ResourceRef: &protectionv1beta1.ResourceRef{
+					Name: "my-provider",
+				},
+			},
+			Reason: ptr.To("Provider has active managed resources of type Database.example.com"),
+		},
+	}
 
-	if cu.Name != ClusterUsageName("test-mrd") {
-		t.Errorf("buildClusterUsage name = %q, want %q", cu.Name, ClusterUsageName("test-mrd"))
-	}
-	if cu.Spec.Of.Kind != pkgv1.ProviderKind {
-		t.Errorf("buildClusterUsage of.kind = %q, want %q", cu.Spec.Of.Kind, pkgv1.ProviderKind)
-	}
-	if cu.Spec.Of.ResourceRef.Name != "my-provider" {
-		t.Errorf("buildClusterUsage of.resourceRef.name = %q, want %q", cu.Spec.Of.ResourceRef.Name, "my-provider")
-	}
-	if cu.Labels["crossplane.io/provider-protection"] != "true" {
-		t.Errorf("buildClusterUsage missing provider-protection label")
-	}
-	if cu.Labels[pkgv1.LabelParentPackage] != "my-provider" {
-		t.Errorf("buildClusterUsage missing parent package label")
-	}
-	if cu.Labels["apiextensions.crossplane.io/mrd"] != "test-mrd" {
-		t.Errorf("buildClusterUsage missing mrd label")
-	}
-	if cu.Spec.Reason == nil || *cu.Spec.Reason != "Provider has active managed resources of type Database.example.com" {
-		t.Errorf("buildClusterUsage reason = %v, want non-nil with correct text", cu.Spec.Reason)
+	got := buildClusterUsage("test-mrd", "my-provider", "Database.example.com")
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("buildClusterUsage(...): -want, +got:\n%s", diff)
 	}
 }
 

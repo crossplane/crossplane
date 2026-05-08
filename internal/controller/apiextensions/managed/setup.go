@@ -57,7 +57,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 			WithFeatures(o.Features),
 		)
 	} else if o.Features.Enabled(features.EnableAlphaProviderDeletionProtection) {
-		o.Logger.Info("Provider deletion protection requires usages to be enabled (--enable-usages). Protection is disabled.")
+		return errors.New("provider deletion protection requires usages to be enabled (--enable-usages)")
 	}
 
 	r := NewReconciler(mgr, opts...)

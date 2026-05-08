@@ -189,7 +189,11 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	// If provider deletion protection is enabled, start a protection
 	// controller that watches MR instances and manages ClusterUsage objects.
 	if r.protectionEnabled() {
-		r.startProtection(ctx, log, mrd)
+		if err := r.startProtection(ctx, log, mrd); err != nil {
+			log.Debug("Cannot start provider deletion protection", "error", err)
+			r.record.Event(mrd, event.Warning(reasonReconcile, err))
+			return reconcile.Result{}, errors.Wrap(err, "cannot start provider deletion protection")
+		}
 	}
 
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
@@ -204,7 +208,7 @@ func (r *Reconciler) protectionEnabled() bool {
 // startProtection starts a protection controller for the given MRD that
 // watches MR instances and creates/deletes a ClusterUsage to protect the
 // owning Provider from deletion.
-func (r *Reconciler) startProtection(ctx context.Context, log logging.Logger, mrd *v1alpha1.ManagedResourceDefinition) {
+func (r *Reconciler) startProtection(ctx context.Context, log logging.Logger, mrd *v1alpha1.ManagedResourceDefinition) error {
 	mrGVK := schema.GroupVersionKind{
 		Group:   mrd.Spec.Group,
 		Version: storageVersion(mrd),
@@ -227,9 +231,7 @@ func (r *Reconciler) startProtection(ctx context.Context, log logging.Logger, mr
 	if err := r.engine.Start(controllerName,
 		engine.WithRuntimeOptions(ko),
 	); err != nil {
-		log.Debug("Cannot start protection controller", "error", err)
-		r.record.Event(mrd, event.Warning(reasonReconcile, errors.Wrap(err, "cannot start protection controller")))
-		return
+		return errors.Wrap(err, "cannot start protection controller")
 	}
 
 	// Start a watch on MR instances. This is idempotent - it only starts
@@ -242,9 +244,10 @@ func (r *Reconciler) startProtection(ctx context.Context, log logging.Logger, mr
 	if err := r.engine.StartWatches(ctx, controllerName,
 		engine.WatchFor(mr, engine.WatchTypeManagedResource, h),
 	); err != nil {
-		log.Debug("Cannot start MR watch for protection", "error", err)
-		r.record.Event(mrd, event.Warning(reasonReconcile, errors.Wrap(err, "cannot start managed resource watch")))
+		return errors.Wrap(err, "cannot start managed resource watch")
 	}
+
+	return nil
 }
 
 // cleanupProtection stops the protection controller and deletes the
