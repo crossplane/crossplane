@@ -132,7 +132,7 @@ type ManagementPoliciesCreateOptions struct {
 	// resource or should return failure.
 	// +optional
 	// +kubebuilder:default:true
-	ImportExistingResources bool `json:"importExistingResources,omitempty"`
+	ImportExistingResources *bool `json:"importExistingResources,omitempty"`
 }
 
 // ManagementPoliciesDeleteOptions determine how the Delete action should handle specific scenarios.
@@ -141,5 +141,5 @@ type ManagementPoliciesDeleteOptions struct {
 	// This provides a migration path for deletionPolicy to managementPolicies.
 	// +optional
 	// +kubebuilder:default:false
-	OrphanResources bool `json:"orphanResources,omitempty"`
+	OrphanResources *bool `json:"orphanResources,omitempty"`
 }
