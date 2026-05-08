@@ -18,6 +18,7 @@ package managed
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -28,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -341,36 +343,103 @@ func TestProtectionReconcilerReconcile(t *testing.T) {
 }
 
 func TestClusterUsageName(t *testing.T) {
-	cases := map[string]struct {
+	type args struct {
 		mrdName string
+	}
+	type want struct {
+		prefix        string
+		deterministic bool
+		maxLen        int
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
 	}{
-		"Short": {mrdName: "test-mrd"},
-		"Long":  {mrdName: "very-long-managed-resource-definition-name-that-could-potentially-exceed-kubernetes-limits.some-group.example.com"},
+		"ShortName": {
+			reason: "A short MRD name should produce a deterministic name within Kubernetes limits",
+			args: args{
+				mrdName: "test-mrd",
+			},
+			want: want{
+				prefix:        "provider-protection-",
+				deterministic: true,
+				maxLen:        253,
+			},
+		},
+		"LongName": {
+			reason: "A long MRD name should produce a deterministic name within Kubernetes limits",
+			args: args{
+				mrdName: "very-long-managed-resource-definition-name-that-could-potentially-exceed-kubernetes-limits.some-group.example.com",
+			},
+			want: want{
+				prefix:        "provider-protection-",
+				deterministic: true,
+				maxLen:        253,
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := ClusterUsageName(tc.mrdName)
-			if len(got) > 253 {
-				t.Errorf("ClusterUsageName(%q) = %q (len %d), want len <= 253", tc.mrdName, got, len(got))
+			got := ClusterUsageName(tc.args.mrdName)
+
+			if len(got) > tc.want.maxLen {
+				t.Errorf("\n%s\nClusterUsageName(%q) length = %d, want <= %d", tc.reason, tc.args.mrdName, len(got), tc.want.maxLen)
 			}
-			// Should be deterministic
-			if got != ClusterUsageName(tc.mrdName) {
-				t.Errorf("ClusterUsageName(%q) is not deterministic", tc.mrdName)
+			if tc.want.deterministic {
+				if diff := cmp.Diff(got, ClusterUsageName(tc.args.mrdName)); diff != "" {
+					t.Errorf("\n%s\nClusterUsageName(%q) is not deterministic: -want, +got:\n%s", tc.reason, tc.args.mrdName, diff)
+				}
 			}
-			// Should start with provider-protection-
-			const prefix = "provider-protection-"
-			if len(got) < len(prefix) || got[:len(prefix)] != prefix {
-				t.Errorf("ClusterUsageName(%q) = %q, want prefix %q", tc.mrdName, got, prefix)
+			if !strings.HasPrefix(got, tc.want.prefix) {
+				t.Errorf("\n%s\nClusterUsageName(%q) = %q, want prefix %q", tc.reason, tc.args.mrdName, got, tc.want.prefix)
 			}
 		})
 	}
 }
 
 func TestProtectionControllerName(t *testing.T) {
-	got := ProtectionControllerName("test-mrd")
-	if got != "protection/test-mrd" {
-		t.Errorf("ProtectionControllerName(%q) = %q, want %q", "test-mrd", got, "protection/test-mrd")
+	type args struct {
+		mrdName string
+	}
+	type want struct {
+		name string
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"StandardName": {
+			reason: "The controller name should be prefixed with protection/",
+			args: args{
+				mrdName: "test-mrd",
+			},
+			want: want{
+				name: "protection/test-mrd",
+			},
+		},
+		"FullyQualifiedName": {
+			reason: "The controller name should include the full MRD name",
+			args: args{
+				mrdName: "databases.example.com",
+			},
+			want: want{
+				name: "protection/databases.example.com",
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := ProtectionControllerName(tc.args.mrdName)
+			if diff := cmp.Diff(tc.want.name, got); diff != "" {
+				t.Errorf("\n%s\nProtectionControllerName(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
 	}
 }
 
@@ -501,46 +570,99 @@ func TestResolveProviderName(t *testing.T) {
 }
 
 func TestBuildClusterUsage(t *testing.T) {
-	want := &protectionv1beta1.ClusterUsage{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: protectionv1beta1.SchemeGroupVersion.String(),
-			Kind:       protectionv1beta1.ClusterUsageKind,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: ClusterUsageName("test-mrd"),
-			Labels: map[string]string{
-				"crossplane.io/provider-protection": "true",
-				pkgv1.LabelParentPackage:            "my-provider",
-				"apiextensions.crossplane.io/mrd":   "test-mrd",
+	type args struct {
+		mrdName           string
+		providerName      string
+		mrTypeDescription string
+	}
+	type want struct {
+		cu *protectionv1beta1.ClusterUsage
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"StandardUsage": {
+			reason: "A ClusterUsage should be built with the correct metadata, labels, and spec",
+			args: args{
+				mrdName:           "test-mrd",
+				providerName:      "my-provider",
+				mrTypeDescription: "Database.example.com",
 			},
-		},
-		Spec: protectionv1beta1.ClusterUsageSpec{
-			Of: protectionv1beta1.Resource{
-				APIVersion: pkgv1.SchemeGroupVersion.String(),
-				Kind:       pkgv1.ProviderKind,
-				ResourceRef: &protectionv1beta1.ResourceRef{
-					Name: "my-provider",
+			want: want{
+				cu: &protectionv1beta1.ClusterUsage{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: protectionv1beta1.SchemeGroupVersion.String(),
+						Kind:       protectionv1beta1.ClusterUsageKind,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: ClusterUsageName("test-mrd"),
+						Labels: map[string]string{
+							"crossplane.io/provider-protection": "true",
+							pkgv1.LabelParentPackage:            "my-provider",
+							"apiextensions.crossplane.io/mrd":   "test-mrd",
+						},
+					},
+					Spec: protectionv1beta1.ClusterUsageSpec{
+						Of: protectionv1beta1.Resource{
+							APIVersion: pkgv1.SchemeGroupVersion.String(),
+							Kind:       pkgv1.ProviderKind,
+							ResourceRef: &protectionv1beta1.ResourceRef{
+								Name: "my-provider",
+							},
+						},
+						Reason: ptr.To("Provider has active managed resources of type Database.example.com"),
+					},
 				},
 			},
-			Reason: ptr.To("Provider has active managed resources of type Database.example.com"),
 		},
 	}
 
-	got := buildClusterUsage("test-mrd", "my-provider", "Database.example.com")
-
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("buildClusterUsage(...): -want, +got:\n%s", diff)
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := buildClusterUsage(tc.args.mrdName, tc.args.providerName, tc.args.mrTypeDescription)
+			if diff := cmp.Diff(tc.want.cu, got); diff != "" {
+				t.Errorf("\n%s\nbuildClusterUsage(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
 	}
 }
 
 func TestResourceMapFunc(t *testing.T) {
-	fn := ResourceMapFunc("test-mrd")
-	reqs := fn(context.Background(), nil)
-
-	if len(reqs) != 1 {
-		t.Fatalf("ResourceMapFunc returned %d requests, want 1", len(reqs))
+	type args struct {
+		mrdName string
 	}
-	if reqs[0].Name != "test-mrd" {
-		t.Errorf("ResourceMapFunc request name = %q, want %q", reqs[0].Name, "test-mrd")
+	type want struct {
+		reqs []reconcile.Request
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"EnqueuesFixedRequest": {
+			reason: "ResourceMapFunc should return a single reconcile request for the MRD name",
+			args: args{
+				mrdName: "test-mrd",
+			},
+			want: want{
+				reqs: []reconcile.Request{{
+					NamespacedName: types.NamespacedName{Name: "test-mrd"},
+				}},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			fn := ResourceMapFunc(tc.args.mrdName)
+			got := fn(context.Background(), nil)
+			if diff := cmp.Diff(tc.want.reqs, got); diff != "" {
+				t.Errorf("\n%s\nResourceMapFunc(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
 	}
 }
