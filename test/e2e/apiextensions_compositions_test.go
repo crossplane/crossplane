@@ -519,7 +519,7 @@ func TestComposedResourceObservation(t *testing.T) {
 
 				//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
 				if err := cfg.Client().Resources().GetControllerRuntimeClient().Patch(ctx, cm, client.Apply, client.FieldOwner(FieldManager), client.ForceOwnership); err != nil {
-					t.Errorf("failed to create ConfigMap: %v", err)
+					t.Fatalf("failed to create ConfigMap: %v", err)
 					return ctx
 				}
 
@@ -553,7 +553,7 @@ func TestComposedResourceObservation(t *testing.T) {
 
 				//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
 				if err := cfg.Client().Resources().GetControllerRuntimeClient().Patch(ctx, cm, client.Apply, client.FieldOwner(FieldManager), client.ForceOwnership); err != nil {
-					t.Errorf("failed to modify ConfigMap: %v", err)
+					t.Fatalf("failed to modify ConfigMap: %v", err)
 					return ctx
 				}
 

@@ -28,3 +28,5 @@ spec:
               type: object
               additionalProperties:
                 type: string
+            resourceReceived:
+              type: boolean

@@ -14,7 +14,7 @@ spec:
     input:
       apiVersion: python.fn.crossplane.io/v1beta1
       kind: Script
-      script: |\
+      script: |
         from crossplane.function import response, request
         from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
