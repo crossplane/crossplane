@@ -172,3 +172,4 @@ Crossplane is under the Apache 2.0 license.
 [sig-provider-families-slack]: https://crossplane.slack.com/archives/C056YAQRV16
 [sig-secret-stores-slack]: https://crossplane.slack.com/archives/C05BY7DKFV2
 [sig-upjet-slack]: https://crossplane.slack.com/archives/C05T19TB729
+
