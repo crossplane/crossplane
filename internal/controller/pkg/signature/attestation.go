@@ -30,7 +30,6 @@ import (
 	slsa1 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v1"
 	"github.com/sigstore/cosign/v2/pkg/cosign/attestation"
 	"github.com/sigstore/cosign/v2/pkg/oci"
-
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
 
@@ -111,7 +110,7 @@ func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 	}
 
 	// Only apply the policy against the requested predicate type
-	var statement in_toto.Statement
+	var statement in_toto.Statement //nolint:staticcheck // Deprecated but needed for json.Unmarshal compatibility with arbitrary predicates
 	if err := json.Unmarshal(decodedPayload, &statement); err != nil {
 		return nil, "", fmt.Errorf("unmarshal in-toto statement: %w", err)
 	}
