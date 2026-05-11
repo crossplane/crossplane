@@ -536,3 +536,30 @@ func TestGarbageCollectFilesNow(t *testing.T) {
 		t.Errorf("\nr.GarbageCollectFilesNow(...): -want collected, +got collected:\n%s", diff)
 	}
 }
+
+func TestGarbageCollectFilesNowStopsWhenContextIsCancelled(t *testing.T) {
+	// Deadline in the past.
+	past, _ := proto.Marshal(&v1alpha1.CachedRunFunctionResponse{Deadline: timestamppb.New(time.Now().Add(-1 * time.Minute))})
+
+	fs := MockFs(map[string][]byte{
+		"/":               MockDir,
+		"/coolfn":         MockDir,
+		"/coolfn/expired": past,
+	})
+
+	r := NewFileBackedRunner(nil, "/cache",
+		WithLogger(&TestLogger{t: t}),
+		WithFilesystem(fs))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	collected, err := r.GarbageCollectFilesNow(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("r.GarbageCollectFilesNow(...): want context canceled error, got %v", err)
+	}
+
+	if diff := cmp.Diff(0, collected); diff != "" {
+		t.Errorf("\nr.GarbageCollectFilesNow(...): -want collected, +got collected:\n%s", diff)
+	}
+}
