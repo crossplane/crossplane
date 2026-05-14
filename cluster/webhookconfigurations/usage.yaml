@@ -29,3 +29,29 @@ webhooks:
         resources:
           - '*'
     sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: crossplane-usage-scope
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: webhook-service
+        namespace: system
+        path: /validate-usage-scope
+    failurePolicy: Fail
+    name: usagescope.protection.crossplane.io
+    rules:
+      - apiGroups:
+          - protection.crossplane.io
+        apiVersions:
+          - '*'
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - usages
+    sideEffects: None
