@@ -21,6 +21,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -92,30 +93,53 @@ func (m *DeletingDeploymentSelectorMigrator) MigrateDeploymentSelector(ctx conte
 	sa := builder.ServiceAccount()
 	expectedDeploy := builder.Deployment(sa.Name)
 
-	// Check if there's an existing deployment
-	existingDeploy := &appsv1.Deployment{}
+	// Check if there's an existing deployment with the current expected name.
+	currentDeploy := &appsv1.Deployment{}
 
 	err := m.client.Get(ctx, types.NamespacedName{
 		Name:      expectedDeploy.Name,
 		Namespace: expectedDeploy.Namespace,
-	}, existingDeploy)
-	if kerrors.IsNotFound(err) {
-		// No existing deployment, no migration needed
-		return nil
+	}, currentDeploy)
+	if err != nil && !kerrors.IsNotFound(err) {
+		return errors.Wrap(err, "cannot get existing deployment")
 	}
 
-	if err != nil {
-		return errors.Wrap(err, "cannot get existing deployment")
+	deployments := &appsv1.DeploymentList{}
+	if err := m.client.List(ctx, deployments, client.InNamespace(expectedDeploy.Namespace)); err != nil {
+		return errors.Wrap(err, "cannot list existing deployments")
+	}
+
+	for i := range deployments.Items {
+		d := &deployments.Items[i]
+		if !deploymentBelongsToRevision(d, pr) || d.Name == expectedDeploy.Name {
+			continue
+		}
+
+		m.log.Info("Deleting stale provider deployment after runtime config change",
+			"deployment", d.Name,
+			"expected-deployment", expectedDeploy.Name,
+			"revision", pr.GetName())
+
+		if err := m.client.Delete(ctx, d); err != nil && !kerrors.IsNotFound(err) {
+			return errors.Wrapf(err, "cannot delete stale deployment %q in namespace %q while migrating provider revision %q", d.GetName(), d.GetNamespace(), pr.GetName())
+		}
+	}
+
+	if kerrors.IsNotFound(err) {
+		// No deployment exists with the current expected name. Any stale
+		// deployments have already been deleted, and the post hook will render
+		// the current deployment after this migration step.
+		return nil
 	}
 
 	existing := providerRev.GetLabels()[v1.LabelParentPackage]
 
-	if existingDeploy.Spec.Selector == nil || existingDeploy.Spec.Selector.MatchLabels == nil {
+	if currentDeploy.Spec.Selector == nil || currentDeploy.Spec.Selector.MatchLabels == nil {
 		// No selector or match labels, no migration needed
 		return nil
 	}
 
-	expected := existingDeploy.Spec.Selector.MatchLabels[v1.LabelProvider]
+	expected := currentDeploy.Spec.Selector.MatchLabels[v1.LabelProvider]
 
 	// Check if the provider label needs migration
 	if expected == existing {
@@ -131,9 +155,17 @@ func (m *DeletingDeploymentSelectorMigrator) MigrateDeploymentSelector(ctx conte
 
 	// If the provider label is different, we need to delete the old deployment.
 	// The new deployment will be created in the Post hook.
-	if err := m.client.Delete(ctx, existingDeploy); err != nil {
-		return errors.Wrap(err, "cannot delete existing deployment for selector migration")
+	if err := m.client.Delete(ctx, currentDeploy); err != nil && !kerrors.IsNotFound(err) {
+		return errors.Wrapf(err, "cannot delete deployment %q in namespace %q while migrating provider revision %q", currentDeploy.GetName(), currentDeploy.GetNamespace(), pr.GetName())
 	}
 
 	return nil
+}
+
+func deploymentBelongsToRevision(d *appsv1.Deployment, pr v1.PackageRevisionWithRuntime) bool {
+	if controller := metav1.GetControllerOf(d); controller != nil && controller.UID != "" && controller.UID == pr.GetUID() {
+		return true
+	}
+
+	return d.Spec.Selector != nil && d.Spec.Selector.MatchLabels[v1.LabelRevision] == pr.GetName()
 }
