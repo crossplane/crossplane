@@ -1,8 +1,6 @@
----
-# We intentionally use v1beta1 here, to make sure it still works.
-apiVersion: pkg.crossplane.io/v1beta1
+apiVersion: pkg.crossplane.io/v1
 kind: Function
 metadata:
-  name: function-dummy-ext-basic
+  name: function-python-ext-basic
 spec:
-  package: xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.1
+  package: xpkg.crossplane.io/crossplane-contrib/function-python:v0.4.0

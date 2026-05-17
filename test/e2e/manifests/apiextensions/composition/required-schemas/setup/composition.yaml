@@ -49,15 +49,11 @@ spec:
                 }
             })
 
-            # Add a result for observability.
-            result = fnv1.Result()
-            result.severity = fnv1.SEVERITY_NORMAL
             if schema_has_flattened_refs:
-                result.message = "Successfully received ConfigMap schema with properties and flattened refs"
+                response.normal(rsp, "Successfully received ConfigMap schema with properties and flattened refs")
             elif schema_has_properties:
-                result.message = "Received ConfigMap schema with properties but refs not flattened"
+                response.normal(rsp, "Received ConfigMap schema with properties but refs not flattened")
             elif schema_received:
-                result.message = "Received ConfigMap schema but it was empty or missing expected properties"
+                response.normal(rsp, "Received ConfigMap schema but it was empty or missing expected properties")
             else:
-                result.message = "Waiting for ConfigMap schema"
-            rsp.results.append(result)
+                response.normal(rsp, "Waiting for ConfigMap schema")
