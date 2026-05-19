@@ -32,6 +32,7 @@ echo "Nix $(nix --version) installed successfully"
 # out, so the working directory does not yet contain a flake.nix.
 echo "Installing Earthly..."
 nix profile install github:crossplane/crossplane#earthly
+export PATH="$HOME/.nix-profile/bin:$PATH"
 earthly bootstrap
 
 renovate
