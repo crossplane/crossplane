@@ -89,16 +89,24 @@ func TLSCertificateGeneratorWithOwner(owner []metav1.OwnerReference) TLSCertific
 }
 
 // TLSCertificateGeneratorWithServerSecretName returns an TLSCertificateGeneratorOption that sets server secret name.
+// If the secret name is empty, the option is a no-op.
 func TLSCertificateGeneratorWithServerSecretName(s string, dnsNames []string) TLSCertificateGeneratorOption {
 	return func(g *TLSCertificateGenerator) {
+		if s == "" {
+			return
+		}
 		g.tlsServerSecretName = &s
 		g.tlsServerDNSNames = dnsNames
 	}
 }
 
 // TLSCertificateGeneratorWithClientSecretName returns an TLSCertificateGeneratorOption that sets client secret name.
+// If the secret name is empty, the option is a no-op.
 func TLSCertificateGeneratorWithClientSecretName(s string, subjects []string) TLSCertificateGeneratorOption {
 	return func(g *TLSCertificateGenerator) {
+		if s == "" {
+			return
+		}
 		g.tlsClientSecretName = &s
 		g.tlsClientDNSNames = subjects
 	}
