@@ -17,7 +17,7 @@ jobs:
       pull-requests: write  # for labeling/commenting on PRs
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/stale@997185467fa4f803885201cee163a9f38240193d # v10
+    - uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10
       with:
         # This action uses ~2 operations per stale issue per run to determine
         # whether it's still stale. It also uses 2-3 operations to mark an issue
