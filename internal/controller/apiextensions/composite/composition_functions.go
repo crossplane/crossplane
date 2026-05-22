@@ -817,7 +817,7 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 func UpdateResourceRefs(xr resource.ComposedResourcesReferencer, desired ComposedResourceStates) {
 	refs := make([]corev1.ObjectReference, 0, len(desired))
 	for _, dr := range desired {
-		ref := meta.ReferenceTo(dr.Resource, dr.Resource.GetObjectKind().GroupVersionKind())
+		ref := meta.ReferenceTo(dr.Resource, dr.Resource.GetObjectKind().GroupVersionKind()) //nolint:staticcheck // SA1019: deprecated; future versions of crossplane will fix this.
 		refs = append(refs, *ref)
 	}
 
