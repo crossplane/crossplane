@@ -97,7 +97,7 @@ func Setup(mgr ctrl.Manager, o opscontroller.Options) error {
 
 	r := NewReconciler(mgr.GetClient(),
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewEventsRecorder(mgr.GetEventRecorder(name), o.EventFilterFunctions...)),
 		WithControllerEngine(o.ControllerEngine),
 		WithOptions(o))
 
