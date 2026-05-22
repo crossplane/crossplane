@@ -242,7 +242,7 @@ jobs:
       # tracked files, so we set it in flake.nix before building.
       - name: Set Version
         run: |
-          VERSION=$(git describe --dirty --always --tags | sed 's/-/./2g')
+          VERSION=$(git describe --dirty --always --tags --match 'v[0-9]*' | sed 's/-/./2g')
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           sed -i "s|buildVersion = null;|buildVersion = \"$VERSION\";|" flake.nix
 
