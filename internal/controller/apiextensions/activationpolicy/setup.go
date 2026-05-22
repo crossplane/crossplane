@@ -37,7 +37,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewEventsRecorder(mgr.GetEventRecorder(name), o.EventFilterFunctions...)),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
