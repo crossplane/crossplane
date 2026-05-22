@@ -36,7 +36,7 @@ import (
 )
 
 // OffersClaim accepts any CompositeResourceDefinition that offers a claim.
-func OffersClaim() resource.PredicateFn {
+func OffersClaim() resource.PredicateFn { //nolint:staticcheck // SA1019: deprecated; future versions of crossplane will fix this.
 	return func(obj runtime.Object) bool {
 		d, ok := obj.(*v1.CompositeResourceDefinition)
 		if !ok {
@@ -47,7 +47,7 @@ func OffersClaim() resource.PredicateFn {
 }
 
 // IsClaimCRD accepts any CustomResourceDefinition that represents a Claim.
-func IsClaimCRD() resource.PredicateFn {
+func IsClaimCRD() resource.PredicateFn { //nolint:staticcheck // SA1019: deprecated; future versions of crossplane will fix this.
 	return func(obj runtime.Object) bool {
 		d, ok := obj.(*extv1.CustomResourceDefinition)
 		if !ok {

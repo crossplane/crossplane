@@ -234,7 +234,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		// resource templates we also need to record a reference even if it's
 		// empty, so that our XR's spec.resourceRefs remains the same length and
 		// order as our CompositionRevisions's array of templates.
-		refs[i] = *meta.ReferenceTo(r, r.GetObjectKind().GroupVersionKind())
+		refs[i] = *meta.ReferenceTo(r, r.GetObjectKind().GroupVersionKind()) //nolint:staticcheck // SA1019: deprecated; future versions of crossplane will fix this.
 
 		// We only need the composed resource if it rendered correctly.
 		if rendered {
