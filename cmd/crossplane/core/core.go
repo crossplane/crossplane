@@ -20,7 +20,6 @@ package core
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"io"
 	"os"
@@ -103,7 +102,8 @@ type startCommand struct {
 	Namespace      string `default:"crossplane-system"     env:"POD_NAMESPACE"                                                      help:"Namespace used to unpack and run packages."                      short:"n"`
 	ServiceAccount string `default:"crossplane"            env:"POD_SERVICE_ACCOUNT"                                                help:"Name of the Crossplane Service Account."`
 	LeaderElection bool   `default:"false"                 env:"LEADER_ELECTION"                                                    help:"Use leader election for the controller manager."                 short:"l"`
-	CABundlePath   string `env:"CA_BUNDLE_PATH"            help:"Additional CA bundle to use when fetching packages from registry."`
+	CABundlePath         string `env:"CA_BUNDLE_PATH"         help:"Additional CA bundle to use when fetching packages from registry."`
+	FunctionCABundlePath string `env:"FUNCTION_CA_BUNDLE_PATH" help:"Additional CA bundle to use when verifying TLS connections to composition functions."`
 	UserAgent      string `default:"${default_user_agent}" env:"USER_AGENT"                                                         help:"The User-Agent header that will be set on all package requests."`
 
 	XpkgCacheDir string `aliases:"cache-dir" default:"/cache/xpkg" env:"XPKG_CACHE_DIR,CACHE_DIR" help:"Directory used for caching package images." short:"c"`
@@ -284,22 +284,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot load client TLS certificates")
 	}
 
-	// Load function CA certificate and add it to the client TLS config
-	if functionCACert, err := os.ReadFile("/etc/ssl/certs/function-ca.crt"); err == nil {
-		log.Info("Loading function CA certificate from /etc/ssl/certs/function-ca.crt")
-		if clienttls.RootCAs == nil {
-			clienttls.RootCAs, _ = x509.SystemCertPool()
-			if clienttls.RootCAs == nil {
-				clienttls.RootCAs = x509.NewCertPool()
-			}
+	if c.FunctionCABundlePath != "" {
+		functionRootCAs, err := ParseCertificatesFromPath(c.FunctionCABundlePath)
+		if err != nil {
+			return errors.Wrap(err, "cannot parse function CA bundle")
 		}
-		if !clienttls.RootCAs.AppendCertsFromPEM(functionCACert) {
-			log.Info("Warning: failed to parse function CA certificate, TLS verification may fail")
-		} else {
-			log.Info("Successfully loaded function CA certificate")
-		}
-	} else {
-		log.Debug("Function CA certificate not found at /etc/ssl/certs/function-ca.crt, using system CAs only", "error", err)
+		clienttls.RootCAs = functionRootCAs
 	}
 
 	pfrm := xfn.NewPrometheusMetrics()
