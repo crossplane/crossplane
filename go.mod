@@ -4,7 +4,7 @@ go 1.25.10
 
 replace github.com/crossplane/crossplane/apis/v2 => ./apis
 
-replace github.com/crossplane/crossplane-runtime/v2 => github.com/rossigee/crossplane-runtime/v2 v2.4.0-rc.0.0.20260522005037-624813b4433a
+replace github.com/crossplane/crossplane-runtime/v2 => github.com/rossigee/crossplane-runtime/v2 v2.4.0-rc.0.0.20260522023017-4d64c1688fc5
 
 require (
 	dario.cat/mergo v1.0.2
