@@ -339,6 +339,14 @@ func ReconcileForbidden() Condition {
 		Message:            "Crossplane cannot reconcile this resource because updates are not allowed while drift exists; add Update to managementPolicies or align spec with external state.",
 	}
 }
+func ReconcileForbidden() Condition {
+	return Condition{
+		Type:               TypeSynced,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonReconcileForbidden,
+		Message:            "Crossplane cannot reconcile this resource because updates are not allowed while drift exists; add Update to managementPolicies or align spec with external state.",
+	}
 }
 
 // ObserveMatched returns a condition that indicates the Observe
