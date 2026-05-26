@@ -64,13 +64,19 @@ esac
 # v2.3.0 was the first release from the crossplane/cli repository, whose
 # artifacts go to the cli.crossplane.io bucket and uses the binary name
 # "crossplane". Use the old releases.crossplane.io hostname and "crank" binary
-# for older releases. Note we have to handle "current" specially since "current"
-# is lexically before "v2.3.0".
+# for older releases.
 
 url_host="cli.crossplane.io"
 bundle_name="crossplane-cli.tar.gz"
-if expr "${XP_VERSION}" \< "v2.3.0" >/dev/null 2>&1; then
-	if [ "${XP_VERSION}" != "current" ]; then
+
+if [ "${XP_VERSION}" != "current" ]; then
+	_ver=$(echo "${XP_VERSION}" | sed 's/^v//' | sed 's/-.*//')
+	_major=$(echo "${_ver}" | cut -d. -f1)
+	_minor=$(echo "${_ver}" | cut -d. -f2)
+
+	if [ "${_major}" -lt 2 ] 2>/dev/null ||
+		{ [ "${_major}" -eq 2 ] 2>/dev/null && [ "${_minor}" -lt 3 ] 2>/dev/null; }; then
+
 		url_host="releases.crossplane.io"
 		bundle_name="crank.tar.gz"
 		case "${BIN}" in
