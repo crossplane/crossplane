@@ -1,0 +1,9 @@
+apiVersion: quickstart.crossplane.io/v1alpha1
+kind: MockDatabase
+metadata:
+  name: database1
+spec:
+  parameters:
+    region: "us-east"
+    size: "small"
+    storage: 10
