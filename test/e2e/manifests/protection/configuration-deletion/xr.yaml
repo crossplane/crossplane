@@ -1,5 +1,5 @@
 apiVersion: quickstart.crossplane.io/v1alpha1
-kind: MockDatabase
+kind: XMockDatabase
 metadata:
   name: database1
 spec:
