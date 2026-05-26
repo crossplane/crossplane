@@ -725,7 +725,6 @@ func (r *Reconciler) startXRDProtection(ctx context.Context, log logging.Logger,
 
 	ko := kcontroller.Options{Reconciler: pr}
 
-	//nolint:contextcheck // Start intentionally does not take a context; it creates its own so the controller outlives the caller.
 	if err := r.engine.Start(controllerName,
 		engine.WithRuntimeOptions(ko),
 	); err != nil {
