@@ -14,6 +14,28 @@ COMPRESSED=${COMPRESSED:-"False"}
 
 BIN=${BIN:-crossplane}
 
+# v2.3.0 was the first release from the crossplane/cli repository, whose
+# artifacts go to the cli.crossplane.io bucket and uses the binary name
+# "crossplane". Use the old releases.crossplane.io hostname and "crank" binary
+# for older releases.
+
+url_host="cli.crossplane.io"
+bundle_name="crossplane-cli.tar.gz"
+
+if [ "${XP_VERSION}" != "current" ]; then
+	_ver=$(echo "${XP_VERSION}" | sed 's/^v//' | sed 's/-.*//')
+	_major=$(echo "${_ver}" | cut -d. -f1)
+	_minor=$(echo "${_ver}" | cut -d. -f2)
+
+	if [ "${_major}" -lt 2 ] 2>/dev/null ||
+		{ [ "${_major}" -eq 2 ] 2>/dev/null && [ "${_minor}" -lt 3 ] 2>/dev/null; }; then
+
+		url_host="releases.crossplane.io"
+		bundle_name="crank.tar.gz"
+		BIN="crank"
+	fi
+fi
+
 unsupported_arch() {
 	os="$1"
 	arch="$2"
@@ -25,7 +47,7 @@ case $OS in
 CYGWIN* | MINGW64* | Windows*)
 	if [ "$ARCH" = "x86_64" ]; then
 		OS_ARCH=windows_amd64
-		BIN=crossplane.exe
+		BIN="${BIN}.exe"
 	else
 		unsupported_arch "$OS" "$ARCH"
 	fi
@@ -60,35 +82,6 @@ Linux)
 	unsupported_arch "$OS" "$ARCH"
 	;;
 esac
-
-# v2.3.0 was the first release from the crossplane/cli repository, whose
-# artifacts go to the cli.crossplane.io bucket and uses the binary name
-# "crossplane". Use the old releases.crossplane.io hostname and "crank" binary
-# for older releases.
-
-url_host="cli.crossplane.io"
-bundle_name="crossplane-cli.tar.gz"
-
-if [ "${XP_VERSION}" != "current" ]; then
-	_ver=$(echo "${XP_VERSION}" | sed 's/^v//' | sed 's/-.*//')
-	_major=$(echo "${_ver}" | cut -d. -f1)
-	_minor=$(echo "${_ver}" | cut -d. -f2)
-
-	if [ "${_major}" -lt 2 ] 2>/dev/null ||
-		{ [ "${_major}" -eq 2 ] 2>/dev/null && [ "${_minor}" -lt 3 ] 2>/dev/null; }; then
-
-		url_host="releases.crossplane.io"
-		bundle_name="crank.tar.gz"
-		case "${BIN}" in
-		crossplane)
-			BIN="crank"
-			;;
-		crossplane.exe)
-			BIN="crank.exe"
-			;;
-		esac
-	fi
-fi
 
 _compr=$(echo "$COMPRESSED" | tr '[:upper:]' '[:lower:]')
 
