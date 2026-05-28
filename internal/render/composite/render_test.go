@@ -18,14 +18,17 @@ package composite
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/structpb"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
 )
@@ -102,6 +105,134 @@ func TestRender(t *testing.T) {
 				},
 			},
 		},
+		"ModernXRWithV2XRD": {
+			reason: "When a v2 XRD is supplied, the rendered XR should use the modern field paths (spec.crossplane.resourceRefs).",
+			input: &renderv1alpha1.CompositeInput{
+				CompositeResource: mustStruct(map[string]any{
+					"apiVersion": "example.org/v1alpha1",
+					"kind":       "XModernResource",
+					"metadata":   map[string]any{"name": "my-xr", "namespace": "default"},
+				}),
+				Composition: mustStruct(map[string]any{
+					"metadata": map[string]any{"name": "modern-composition"},
+					"spec": map[string]any{
+						"compositeTypeRef": map[string]any{
+							"apiVersion": "example.org/v1alpha1",
+							"kind":       "XModernResource",
+						},
+						"pipeline": []any{},
+					},
+				}),
+				CompositeResourceDefinitions: []*structpb.Struct{
+					mustStruct(map[string]any{
+						"apiVersion": "apiextensions.crossplane.io/v2",
+						"kind":       "CompositeResourceDefinition",
+						"metadata":   map[string]any{"name": "xmodernresources.example.org"},
+						"spec": map[string]any{
+							"group": "example.org",
+							"names": map[string]any{
+								"kind":   "XModernResource",
+								"plural": "xmodernresources",
+							},
+							"versions": []any{
+								map[string]any{
+									"name":          "v1alpha1",
+									"served":        true,
+									"referenceable": true,
+								},
+							},
+						},
+					}),
+				},
+			},
+			want: want{
+				out: &renderv1alpha1.CompositeOutput{
+					CompositeResource: mustStruct(map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XModernResource",
+						"metadata":   map[string]any{"name": "my-xr", "namespace": "default"},
+						"spec": map[string]any{
+							"crossplane": map[string]any{
+								"resourceRefs": []any{},
+							},
+						},
+						"status": map[string]any{
+							"conditions": []any{
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
+								map[string]any{"type": "Ready", "status": "True", "reason": "Available"},
+							},
+						},
+					}),
+					Events: []*renderv1alpha1.Event{
+						{Type: "Normal", Reason: "SelectComposition", Message: "Successfully selected composition: modern-composition"},
+					},
+				},
+			},
+		},
+		"LegacyXRWithV1XRDDefaultScope": {
+			reason: "When a v1 XRD with default (LegacyCluster) scope is supplied, the rendered XR should use the legacy field paths (spec.resourceRefs), not the modern paths (spec.crossplane.resourceRefs).",
+			input: &renderv1alpha1.CompositeInput{
+				CompositeResource: mustStruct(map[string]any{
+					"apiVersion": "example.org/v1alpha1",
+					"kind":       "XLegacyResource",
+					"metadata":   map[string]any{"name": "my-xr"},
+				}),
+				Composition: mustStruct(map[string]any{
+					"metadata": map[string]any{"name": "legacy-composition"},
+					"spec": map[string]any{
+						"compositeTypeRef": map[string]any{
+							"apiVersion": "example.org/v1alpha1",
+							"kind":       "XLegacyResource",
+						},
+						"pipeline": []any{},
+					},
+				}),
+				CompositeResourceDefinitions: []*structpb.Struct{
+					mustStruct(map[string]any{
+						"apiVersion": "apiextensions.crossplane.io/v1",
+						"kind":       "CompositeResourceDefinition",
+						"metadata":   map[string]any{"name": "xlegacyresources.example.org"},
+						"spec": map[string]any{
+							"group": "example.org",
+							"names": map[string]any{
+								"kind":   "XLegacyResource",
+								"plural": "xlegacyresources",
+							},
+							"versions": []any{
+								map[string]any{
+									"name":          "v1alpha1",
+									"served":        true,
+									"referenceable": true,
+								},
+							},
+						},
+					}),
+				},
+			},
+			want: want{
+				out: &renderv1alpha1.CompositeOutput{
+					CompositeResource: mustStruct(map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XLegacyResource",
+						"metadata":   map[string]any{"name": "my-xr"},
+						"spec": map[string]any{
+							"resourceRefs": []any{},
+						},
+						"status": map[string]any{
+							"conditions": []any{
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
+								map[string]any{"type": "Ready", "status": "True", "reason": "Available"},
+							},
+						},
+					}),
+					Events: []*renderv1alpha1.Event{
+						{Type: "Normal", Reason: "SelectComposition", Message: "Successfully selected composition: legacy-composition"},
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -117,6 +248,148 @@ func TestRender(t *testing.T) {
 		})
 	}
 }
+
+func TestSelectSchema(t *testing.T) {
+	xrGVK := schema.GroupVersionKind{Group: "example.org", Version: "v1alpha1", Kind: "XLegacyResource"}
+
+	v1XRD := func(name, group, kind string, scope *string) *structpb.Struct {
+		spec := map[string]any{
+			"group": group,
+			"names": map[string]any{
+				"kind":   kind,
+				"plural": strings.ToLower(kind) + "s",
+			},
+			"versions": []any{
+				map[string]any{"name": "v1alpha1", "served": true, "referenceable": true},
+			},
+		}
+		if scope != nil {
+			spec["scope"] = *scope
+		}
+		return mustStruct(map[string]any{
+			"apiVersion": "apiextensions.crossplane.io/v1",
+			"kind":       "CompositeResourceDefinition",
+			"metadata":   map[string]any{"name": name},
+			"spec":       spec,
+		})
+	}
+	v2XRD := func(name, group, kind string) *structpb.Struct {
+		return mustStruct(map[string]any{
+			"apiVersion": "apiextensions.crossplane.io/v2",
+			"kind":       "CompositeResourceDefinition",
+			"metadata":   map[string]any{"name": name},
+			"spec": map[string]any{
+				"group": group,
+				"names": map[string]any{
+					"kind":   kind,
+					"plural": strings.ToLower(kind) + "s",
+				},
+				"versions": []any{
+					map[string]any{"name": "v1alpha1", "served": true, "referenceable": true},
+				},
+			},
+		})
+	}
+
+	cases := map[string]struct {
+		reason          string
+		gvk             schema.GroupVersionKind
+		defs            []*structpb.Struct
+		wantSchema      ucomposite.Schema
+		wantErr         bool
+		wantErrContains []string
+	}{
+		"NoXRDsBackCompat": {
+			reason:     "No XRDs supplied preserves the historical default of SchemaModern.",
+			gvk:        xrGVK,
+			defs:       nil,
+			wantSchema: ucomposite.SchemaModern,
+		},
+		"V1XRDDefaultScope": {
+			reason:     "A v1 XRD with default (LegacyCluster) scope yields SchemaLegacy.",
+			gvk:        xrGVK,
+			defs:       []*structpb.Struct{v1XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", nil)},
+			wantSchema: ucomposite.SchemaLegacy,
+		},
+		"V1XRDExplicitLegacyClusterScope": {
+			reason:     "A v1 XRD with explicit Spec.Scope=LegacyCluster yields SchemaLegacy.",
+			gvk:        xrGVK,
+			defs:       []*structpb.Struct{v1XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", strPtr("LegacyCluster"))},
+			wantSchema: ucomposite.SchemaLegacy,
+		},
+		"V1XRDExplicitClusterScope": {
+			reason:     "A v1 XRD with explicit Spec.Scope=Cluster (theoretical edge case) yields SchemaModern. Mirrors the production reconciler's rule.",
+			gvk:        xrGVK,
+			defs:       []*structpb.Struct{v1XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", strPtr("Cluster"))},
+			wantSchema: ucomposite.SchemaModern,
+		},
+		"V2XRD": {
+			reason:     "A v2 XRD always yields SchemaModern; v2 has no LegacyCluster value.",
+			gvk:        xrGVK,
+			defs:       []*structpb.Struct{v2XRD("xlegacyresources.example.org", "example.org", "XLegacyResource")},
+			wantSchema: ucomposite.SchemaModern,
+		},
+		"NoMatchingXRD": {
+			reason: "When no XRD's composite GVK matches the input XR, return a clear error mentioning the XR GVK.",
+			gvk:    xrGVK,
+			defs: []*structpb.Struct{
+				v1XRD("xother.example.org", "example.org", "XOther", nil),
+			},
+			wantErr:         true,
+			wantErrContains: []string{"no CompositeResourceDefinition matches", "XLegacyResource"},
+		},
+		"MultipleMatchingXRDs": {
+			reason: "When multiple XRDs match the input XR's GVK, return a clear error mentioning the conflicting names.",
+			gvk:    xrGVK,
+			defs: []*structpb.Struct{
+				v1XRD("first.example.org", "example.org", "XLegacyResource", nil),
+				v2XRD("second.example.org", "example.org", "XLegacyResource"),
+			},
+			wantErr:         true,
+			wantErrContains: []string{"multiple CompositeResourceDefinitions match", "first.example.org", "second.example.org"},
+		},
+		"UnrecognizedXRDAPIVersion": {
+			reason: "An XRD with an apiVersion that isn't apiextensions.crossplane.io/{v1,v2} returns a clear error.",
+			gvk:    xrGVK,
+			defs: []*structpb.Struct{
+				mustStruct(map[string]any{
+					"apiVersion": "apiextensions.crossplane.io/v3",
+					"kind":       "CompositeResourceDefinition",
+					"metadata":   map[string]any{"name": "weird.example.org"},
+					"spec":       map[string]any{},
+				}),
+			},
+			wantErr:         true,
+			wantErrContains: []string{"unrecognized apiVersion", "apiextensions.crossplane.io/v3"},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := selectSchema(tc.gvk, tc.defs)
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("\n%s\nselectSchema(...): expected error, got nil", tc.reason)
+				}
+				for _, sub := range tc.wantErrContains {
+					if !strings.Contains(err.Error(), sub) {
+						t.Errorf("\n%s\nselectSchema(...): error %q does not contain %q", tc.reason, err.Error(), sub)
+					}
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("\n%s\nselectSchema(...): unexpected error: %v", tc.reason, err)
+			}
+			if got != tc.wantSchema {
+				t.Errorf("\n%s\nselectSchema(...): want %v, got %v", tc.reason, tc.wantSchema, got)
+			}
+		})
+	}
+}
+
+func strPtr(s string) *string { return &s }
 
 func mustStruct(m map[string]any) *structpb.Struct {
 	s, err := structpb.NewStruct(m)
