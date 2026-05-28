@@ -104,9 +104,11 @@ type Policy struct {
 	// Resolve specifies when this reference should be resolved. The default
 	// is 'IfNotPresent', which will attempt to resolve the reference only when
 	// the corresponding field is not present. Use 'Always' to resolve the
-	// reference on every reconcile.
+	// reference on every reconcile. Use 'IfNotFound' to re-resolve the
+	// reference only when the currently stored value cannot be found on the
+	// referenced resource.
 	// +optional
-	// +kubebuilder:validation:Enum=Always;IfNotPresent
+	// +kubebuilder:validation:Enum=Always;IfNotPresent;IfNotFound
 	Resolve *ResolvePolicy `json:"resolve,omitempty"`
 
 	// Resolution specifies whether resolution of this reference is required.
@@ -135,6 +137,16 @@ func (p *Policy) IsResolvePolicyAlways() bool {
 	}
 
 	return *p.Resolve == ResolvePolicyAlways
+}
+
+// IsResolvePolicyIfNotFound checks whether the resolution policy of the relevant
+// reference is IfNotFound.
+func (p *Policy) IsResolvePolicyIfNotFound() bool {
+	if p == nil || p.Resolve == nil {
+		return false
+	}
+
+	return *p.Resolve == ResolvePolicyIfNotFound
 }
 
 // A Reference to a named object.

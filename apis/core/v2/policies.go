@@ -108,6 +108,15 @@ const (
 	// be tried to resolve for every reconcile loop.
 	ResolvePolicyAlways ResolvePolicy = "Always"
 
+	// ResolvePolicyIfNotFound is a resolve option.
+	// When the ResolvePolicy is set to ResolvePolicyIfNotFound the reference
+	// will be re-resolved only when the currently stored value cannot be found
+	// on the referenced resource (e.g. the referenced resource was deleted and
+	// recreated, so its extracted value no longer matches the stored value).
+	// This provides the correctness of ResolvePolicyAlways with a clearer
+	// signal of intent: re-resolve when stale, not on every reconcile.
+	ResolvePolicyIfNotFound ResolvePolicy = "IfNotFound"
+
 	// ResolutionPolicyRequired is a resolution option.
 	// When the ResolutionPolicy is set to ResolutionPolicyRequired the execution
 	// could not continue even if the reference cannot be resolved.
