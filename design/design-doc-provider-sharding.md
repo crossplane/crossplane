@@ -1,6 +1,6 @@
 # Provider Sharding
 
-* Owner: Erik Miller (@erik.miller)
+* Owner: Erik Miller (@erikmiller-gusto)
 * Reviewers: Crossplane Maintainers
 * Status: Draft
 
@@ -88,6 +88,14 @@ section).
   `cache.Options.DefaultLabelSelector` and per-GVK `cache.Options.ByObject`
   overrides, enabling filtered informer caches. This is the mechanism we
   build on.
+- **[KEP-5866: Server-side sharded list-and-watch][kep-5866]** (alpha in
+  Kubernetes 1.36, May 2026): Adds a `shardSelector` query parameter to
+  LIST/WATCH that filters events at the API server using an FNV-1a hash of
+  object UID or namespace. A transport-layer optimization, not a partitioning
+  model — clients self-coordinate hash ranges, and the hash is over individual
+  objects rather than composition hierarchies. See
+  [Hash-Based Sharding](#hash-based-sharding) for why this does not displace
+  label-based partitioning for Crossplane.
 
 ### Why Core Functionality
 
@@ -671,11 +679,15 @@ This has some advantages:
 - Resources are distributed uniformly by name hash.
 
 We chose label-based sharding over this approach because:
-- Hash-based filtering operates at the predicate (reconciler) level, not the
-  informer level. Events for all resources still reach every replica's informer
-  cache, consuming memory and network bandwidth. Label-based filtering uses
-  `cache.Options.DefaultLabelSelector` which filters at the API server watch
-  level — only matching events are sent over the wire.
+- The current hash-based implementation in provider-ansible filters at the
+  predicate (reconciler) level, so events for all resources still reach
+  every replica's informer cache. Label-based filtering via
+  `cache.Options.DefaultLabelSelector` is sent to the API server as a
+  watch-time label selector, so only matching events traverse the wire.
+  Server-side hash filtering ([KEP-5866][kep-5866], alpha in Kubernetes
+  1.36) would close this specific cost gap once it is widely available, but
+  the remaining objections below are independent of where the filtering
+  physically occurs.
 - Hash-based assignment is opaque to operators. There is no way to inspect
   which shard owns a resource without computing the hash. Labels are visible
   via `kubectl get -l crossplane.io/shard=X`.
@@ -685,6 +697,32 @@ We chose label-based sharding over this approach because:
 - Hash-based assignment cannot honor Crossplane's composition hierarchy.
   Label-based assignment propagates from Claim → XR → composed resources,
   ensuring all resources in a composition tree are co-located on one shard.
+
+**What about [KEP-5866][kep-5866] (server-side sharded list-and-watch)?**
+KEP-5866 moves hash-based filtering into the API server itself. With it,
+the cost-of-filtering argument no longer favors labels over hashes. The
+other objections, however, remain decisive:
+
+- KEP-5866 hashes object UID (or namespace). Each managed resource in a
+  composition has its own UID, so children of a single XR would scatter
+  across shards. This breaks the invariant that all composed resources in a
+  hierarchy share a shard, and re-introduces the partial-composition
+  problem we cite when rejecting object-level assignment in
+  [Relationship to kubernetes-controller-sharding](#relationship-to-kubernetes-controller-sharding).
+- Shard ownership remains opaque to operators — no `kubectl -l` discovery,
+  no per-resource visibility.
+- Building an alpha Crossplane feature on top of an alpha Kubernetes
+  feature gate stacks two layers of instability. `ShardedListAndWatch` is
+  not exposed on managed Kubernetes offerings (EKS/GKE/AKS) today and is
+  unlikely to be for some time. `EnableAlphaSharding` would be unable to
+  graduate beyond alpha until that dependency graduates and is broadly
+  available.
+
+Label-based sharding may evolve to take advantage of KEP-5866 as a
+bandwidth optimization *within* a shard once it is widely available — the
+API server can filter both by label selector and by hash range — but the
+partitioning model itself is correctly anchored on composition hierarchy,
+not object hash.
 
 ### Multiple Replicas with Leader Election per Resource
 
@@ -765,3 +803,4 @@ Changes in **crossplane-runtime** (separate repo):
 [provider-ansible-sharding]: https://github.com/crossplane-contrib/provider-ansible/pull/365
 [k8s-controller-sharding]: https://github.com/timebertt/kubernetes-controller-sharding
 [controller-mesh]: https://github.com/KusionStack/controller-mesh
+[kep-5866]: https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/5866-server-side-sharded-list-and-watch
