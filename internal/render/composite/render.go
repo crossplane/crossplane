@@ -227,24 +227,43 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 }
 
 // selectSchema picks the composite.Schema for an input XR by mirroring the
-// rule the production XRD-controller uses. If no XRDs are supplied, it
-// returns SchemaModern (preserving back-compat for callers that don't pass
-// the new field). Otherwise it requires exactly one XRD whose composite
-// GVK matches the input XR. For a v1 XRD with effective Spec.Scope ==
-// LegacyCluster (the default), it returns SchemaLegacy; everything else
-// (v1 with explicit Cluster/Namespaced, or any v2 XRD) returns
-// SchemaModern. See internal/controller/apiextensions/definition/reconciler.go
-// for the production decision.
+// rule the production XRD-controller uses, but treating Spec.Scope as the
+// prescriptive signal regardless of which apiVersion form the XRD arrived
+// in. If no XRDs are supplied, it returns SchemaModern (preserving
+// back-compat for callers that don't pass the new field). Otherwise it
+// requires exactly one XRD whose composite GVK matches the input XR.
+//
+// The scope-as-signal framing matters because the apiserver round-trips
+// XRDs through conversion: a v1-posted XRD typically comes back from any
+// well-behaved cluster client as v2-form (v2 is the storage version). The
+// v2 Go type's Spec.Scope is a string alias with no runtime enum
+// validation, so "LegacyCluster" survives the round-trip in v2-form too.
+// Conditioning on apiVersion alone would force consumers to specifically
+// fetch v1-form to get the right behavior, which is brittle. Conditioning
+// on scope works for both forms.
+//
+// Effective scope is computed per branch:
+//   - v1-form: ptr.Deref(Spec.Scope, LegacyCluster) — preserves v1's
+//     "unset means LegacyCluster" default.
+//   - v2-form: string(Spec.Scope) — no LegacyCluster default; the
+//     apiserver populates Namespaced when unset on write.
+//
+// If the effective scope is "LegacyCluster", returns SchemaLegacy;
+// otherwise SchemaModern. See
+// internal/controller/apiextensions/definition/reconciler.go for the
+// production decision (which operates exclusively on v1-form because
+// that's how the XRD-controller watches XRDs).
 func selectSchema(gvk schema.GroupVersionKind, defs []*structpb.Struct) (ucomposite.Schema, error) {
 	if len(defs) == 0 {
 		return ucomposite.SchemaModern, nil
 	}
 
 	type match struct {
-		name    string
-		isV1    bool
-		v1Scope *apiextensionsv1.CompositeResourceScope
+		name   string
+		legacy bool
 	}
+
+	const legacyClusterScope = string(apiextensionsv1.CompositeResourceScopeLegacyCluster)
 
 	var matches []match
 	covered := make([]string, 0, len(defs))
@@ -264,7 +283,8 @@ func selectSchema(gvk schema.GroupVersionKind, defs []*structpb.Struct) (ucompos
 			xrdGVK := xrd.GetCompositeGroupVersionKind()
 			covered = append(covered, xrdGVK.String())
 			if xrdGVK == gvk {
-				matches = append(matches, match{name: xrd.GetName(), isV1: true, v1Scope: xrd.Spec.Scope})
+				effective := string(ptr.Deref(xrd.Spec.Scope, apiextensionsv1.CompositeResourceScopeLegacyCluster))
+				matches = append(matches, match{name: xrd.GetName(), legacy: effective == legacyClusterScope})
 			}
 		case apiextensionsv2.SchemeGroupVersion.String():
 			xrd := &apiextensionsv2.CompositeResourceDefinition{}
@@ -274,7 +294,11 @@ func selectSchema(gvk schema.GroupVersionKind, defs []*structpb.Struct) (ucompos
 			xrdGVK := xrd.GetCompositeGroupVersionKind()
 			covered = append(covered, xrdGVK.String())
 			if xrdGVK == gvk {
-				matches = append(matches, match{name: xrd.GetName(), isV1: false})
+				// v2's Spec.Scope is `type CompositeResourceScope string`
+				// with no runtime enum validation, so a v2-form XRD that
+				// originated as a v1 post can still carry "LegacyCluster"
+				// here verbatim. Honor it.
+				matches = append(matches, match{name: xrd.GetName(), legacy: string(xrd.Spec.Scope) == legacyClusterScope})
 			}
 		default:
 			return 0, errors.Errorf("CompositeResourceDefinition %q has unrecognized apiVersion %q (expected %s or %s)",
@@ -288,8 +312,7 @@ func selectSchema(gvk schema.GroupVersionKind, defs []*structpb.Struct) (ucompos
 	case 0:
 		return 0, errors.Errorf("no CompositeResourceDefinition matches the input XR's GroupVersionKind %s (supplied XRDs cover %v)", gvk, covered)
 	case 1:
-		m := matches[0]
-		if m.isV1 && ptr.Deref(m.v1Scope, apiextensionsv1.CompositeResourceScopeLegacyCluster) == apiextensionsv1.CompositeResourceScopeLegacyCluster {
+		if matches[0].legacy {
 			return ucomposite.SchemaLegacy, nil
 		}
 		return ucomposite.SchemaModern, nil
