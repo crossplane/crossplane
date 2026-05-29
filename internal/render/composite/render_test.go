@@ -273,21 +273,25 @@ func TestSelectSchema(t *testing.T) {
 			"spec":       spec,
 		})
 	}
-	v2XRD := func(name, group, kind string) *structpb.Struct {
+	v2XRD := func(name, group, kind string, scope *string) *structpb.Struct {
+		spec := map[string]any{
+			"group": group,
+			"names": map[string]any{
+				"kind":   kind,
+				"plural": strings.ToLower(kind) + "s",
+			},
+			"versions": []any{
+				map[string]any{"name": "v1alpha1", "served": true, "referenceable": true},
+			},
+		}
+		if scope != nil {
+			spec["scope"] = *scope
+		}
 		return mustStruct(map[string]any{
 			"apiVersion": "apiextensions.crossplane.io/v2",
 			"kind":       "CompositeResourceDefinition",
 			"metadata":   map[string]any{"name": name},
-			"spec": map[string]any{
-				"group": group,
-				"names": map[string]any{
-					"kind":   kind,
-					"plural": strings.ToLower(kind) + "s",
-				},
-				"versions": []any{
-					map[string]any{"name": "v1alpha1", "served": true, "referenceable": true},
-				},
-			},
+			"spec":       spec,
 		})
 	}
 
@@ -324,10 +328,16 @@ func TestSelectSchema(t *testing.T) {
 			wantSchema: ucomposite.SchemaModern,
 		},
 		"V2XRD": {
-			reason:     "A v2 XRD always yields SchemaModern; v2 has no LegacyCluster value.",
+			reason:     "A v2 XRD with no scope (or any non-LegacyCluster scope) yields SchemaModern.",
 			gvk:        xrGVK,
-			defs:       []*structpb.Struct{v2XRD("xlegacyresources.example.org", "example.org", "XLegacyResource")},
+			defs:       []*structpb.Struct{v2XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", nil)},
 			wantSchema: ucomposite.SchemaModern,
+		},
+		"V2FormPreservingLegacyClusterScope": {
+			reason: "A v2-form XRD with Spec.Scope=LegacyCluster (e.g. a v1-posted XRD round-tripped through the storage version) yields SchemaLegacy. The v2 Go type's Spec.Scope is a string alias with no runtime enum validation, so 'LegacyCluster' survives the round-trip and must be honored to avoid forcing consumers to specifically fetch v1-form.",
+			gvk:        xrGVK,
+			defs:       []*structpb.Struct{v2XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", strPtr("LegacyCluster"))},
+			wantSchema: ucomposite.SchemaLegacy,
 		},
 		"NoMatchingXRD": {
 			reason: "When no XRD's composite GVK matches the input XR, return a clear error mentioning the XR GVK.",
@@ -343,7 +353,7 @@ func TestSelectSchema(t *testing.T) {
 			gvk:    xrGVK,
 			defs: []*structpb.Struct{
 				v1XRD("first.example.org", "example.org", "XLegacyResource", nil),
-				v2XRD("second.example.org", "example.org", "XLegacyResource"),
+				v2XRD("second.example.org", "example.org", "XLegacyResource", nil),
 			},
 			wantErr:         true,
 			wantErrContains: []string{"multiple CompositeResourceDefinitions match", "first.example.org", "second.example.org"},
