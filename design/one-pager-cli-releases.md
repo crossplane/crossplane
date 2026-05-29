@@ -12,8 +12,8 @@ CLI, we have decided to move the CLI to its own repository,
 
 1. Decouple the feature development and release cadence of the CLI from
    Crossplane core, with the intent that CLI development can move faster.
-2. Make it simpler for the CLI to have its own set of maintainers, who are not
-   necessarily all core Crossplane maintainers.
+2. Make it possible for the CLI to have additional maintainers on top of the 
+   core Crossplane ones. 
 3. Enforce architectural boundaries between the CLI and Crossplane core (since
    the CLI can no longer import `internal/` packages from core).
 
