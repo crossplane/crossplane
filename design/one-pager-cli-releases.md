@@ -82,6 +82,16 @@ called `crossplane-cli-releases` (separate from the existing
 bucket will have the same layout as `crossplane-releases`, but contain only the
 CLI binaries and bundles.
 
+To provide a smooth transition period, we will do two things:
+
+1. Update the `install.sh` script to parse versions and choose the appropriate
+   bucket based on the version, so that it can continue to be used to install
+   any available version.
+2. Manually upload v2.3.x releases of the CLI to the core `crossplane-releases`
+   bucket so that anyone relying on them to be available there can get
+   them. This means that for the lifetime of the v2.3 release branch, we will
+   create CLI patch releases to match core patch releases.
+
 We do not currently distribute OCI images for the CLI, and will not start doing
 so immediately. If we do, they will be uploaded to the release bucket as
 tarballs and also pushed to GHCR, as the Crossplane core images are today.
@@ -98,7 +108,7 @@ The `install.sh` script can be uploaded to the new bucket, so that users are
 able to install the CLI by running:
 
 ```console
-curl -sL https://cli.crossplane.io | sh
+curl -sfL https://cli.crossplane.io/install.sh | sh
 ```
 
 The install script will need to be updated to reflect the new bucket
