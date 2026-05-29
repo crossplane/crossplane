@@ -12,7 +12,29 @@ ARCH=${ARCH:-"${arch}"}
 OS_ARCH=""
 COMPRESSED=${COMPRESSED:-"False"}
 
-BIN=${BIN:-crank}
+BIN=${BIN:-crossplane}
+
+# v2.3.0 was the first release from the crossplane/cli repository, whose
+# artifacts go to the cli.crossplane.io bucket and uses the binary name
+# "crossplane". Use the old releases.crossplane.io hostname and "crank" binary
+# for older releases.
+
+url_host="cli.crossplane.io"
+bundle_name="crossplane-cli.tar.gz"
+
+if [ "${XP_VERSION}" != "current" ]; then
+	_ver=$(echo "${XP_VERSION}" | sed 's/^v//' | sed 's/-.*//')
+	_major=$(echo "${_ver}" | cut -d. -f1)
+	_minor=$(echo "${_ver}" | cut -d. -f2)
+
+	if [ "${_major}" -lt 2 ] 2>/dev/null ||
+		{ [ "${_major}" -eq 2 ] 2>/dev/null && [ "${_minor}" -lt 3 ] 2>/dev/null; }; then
+
+		url_host="releases.crossplane.io"
+		bundle_name="crank.tar.gz"
+		BIN="crank"
+	fi
+fi
 
 unsupported_arch() {
 	os="$1"
@@ -25,7 +47,7 @@ case $OS in
 CYGWIN* | MINGW64* | Windows*)
 	if [ "$ARCH" = "x86_64" ]; then
 		OS_ARCH=windows_amd64
-		BIN=crank.exe
+		BIN="${BIN}.exe"
 	else
 		unsupported_arch "$OS" "$ARCH"
 	fi
@@ -65,7 +87,7 @@ _compr=$(echo "$COMPRESSED" | tr '[:upper:]' '[:lower:]')
 
 if [ "${_compr}" = "true" ]; then
 	url_dir="bundle"
-	url_file="crank.tar.gz"
+	url_file="${bundle_name}"
 	url_error="a compressed file for "
 else
 	url_dir="bin"
@@ -73,7 +95,7 @@ else
 	url_error=""
 fi
 
-url="https://releases.crossplane.io/${XP_CHANNEL}/${XP_VERSION}/${url_dir}/${OS_ARCH}/${url_file}"
+url="https://${url_host}/${XP_CHANNEL}/${XP_VERSION}/${url_dir}/${OS_ARCH}/${url_file}"
 
 if ! curl -sfL "${url}" -o "${url_file}"; then
 	echo "Failed to download Crossplane CLI. Please make sure ${url_error}version ${XP_VERSION} exists on channel ${XP_CHANNEL}."
@@ -85,13 +107,13 @@ if [ "${_compr}" = "true" ]; then
 		echo "Failed to unpack the Crossplane CLI compressed file."
 		exit 1
 	fi
+	rm "${BIN}.sha256" "${url_file}"
+fi
+if [ "${BIN}" != "crossplane" ]; then
 	if ! mv "${BIN}" crossplane; then
-		echo "Failed to rename the unpacked Crossplane CLI binary: \"${BIN}\". Make sure it exists inside the compressed file."
+		echo "Failed to rename the Crossplane CLI binary: \"${BIN}\"."
 		exit 1
 	fi
-	rm "${BIN}.sha256" "${url_file}"
-else
-	mv "${url_file}" crossplane
 fi
 
 chmod +x crossplane
