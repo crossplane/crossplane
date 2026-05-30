@@ -55,7 +55,7 @@ func DiscoverXRAndClaimTypes(ctx context.Context, c client.Client, xrds *apiexte
 
 	types := make([]DiscoveredType, 0, len(xrds.Items)*2)
 	for _, xrd := range xrds.Items {
-		v := pickVersion(xrd)
+		v := pickXRDVersion(xrd)
 		if v == "" {
 			continue
 		}
@@ -73,11 +73,11 @@ func DiscoverXRAndClaimTypes(ctx context.Context, c client.Client, xrds *apiexte
 	return types, nil
 }
 
-// pickVersion returns the XRD version to list instances against. Must be a
+// pickXRDVersion returns the XRD version to list instances against. Must be a
 // served version - the apiserver silently returns nothing for non-served
 // versions, which would hide resources from the check. Returns "" if no
 // served version exists.
-func pickVersion(xrd apiextensionsv1.CompositeResourceDefinition) string {
+func pickXRDVersion(xrd apiextensionsv1.CompositeResourceDefinition) string {
 	// prefer the referenceable/served version
 	for _, v := range xrd.Spec.Versions {
 		if v.Referenceable && v.Served {

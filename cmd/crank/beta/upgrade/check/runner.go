@@ -145,7 +145,7 @@ func (r *Runner) Run(ctx context.Context) Report {
 				r.Logger.Debug("check incomplete", "category", c.Category(), "error", err)
 			}
 
-			// sort the findings on kind -> namespace -> name
+			// sort the findings on kind -> namespace -> name -> field path
 			sort.SliceStable(findings, func(a, b int) bool {
 				if findings[a].Resource.Kind != findings[b].Resource.Kind {
 					return findings[a].Resource.Kind < findings[b].Resource.Kind
