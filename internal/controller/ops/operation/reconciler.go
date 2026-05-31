@@ -43,6 +43,7 @@ import (
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
+	xcomposite "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
@@ -306,7 +307,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				op.Status.Failures++
 
 				log.Debug("Pipeline step returned a fatal result", "error", rs.GetMessage(), "failures", op.Status.Failures)
-				err = errors.New(rs.GetMessage())
+				err = &xcomposite.PipelineFatalError{Step: fn.Step, Message: rs.GetMessage()}
 				r.record.Event(op, event.Warning(reasonFunctionInvocation, err))
 				status.MarkConditions(xpv2.ReconcileError(err))
 				_ = r.client.Status().Update(ctx, op)
