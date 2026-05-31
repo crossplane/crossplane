@@ -18,15 +18,22 @@ package operation
 
 import (
 	"context"
+	"net"
+	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
+	xcomposite "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
+	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
 )
 
@@ -120,4 +127,144 @@ func mustStruct(m map[string]any) *structpb.Struct {
 		panic(err)
 	}
 	return s
+}
+
+// fatalFunctionServer simulates a real function-extra-resources style pipeline
+// step. On its first call it announces its required resources via
+// Requirements.Resources (no FATAL), letting the FetchingFunctionRunner record
+// the selectors via the recording fetcher. On its second call (when the
+// fetched resources came back empty because the caller did not pre-populate
+// them) it returns SEVERITY_FATAL.
+type fatalFunctionServer struct {
+	fnv1.UnimplementedFunctionRunnerServiceServer
+	requirementName string
+	selector        *fnv1.ResourceSelector
+	fatalMessage    string
+
+	mu    sync.Mutex
+	calls int
+}
+
+func (s *fatalFunctionServer) RunFunction(_ context.Context, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	s.mu.Lock()
+	s.calls++
+	call := s.calls
+	s.mu.Unlock()
+
+	if call == 1 {
+		return &fnv1.RunFunctionResponse{
+			Requirements: &fnv1.Requirements{
+				Resources: map[string]*fnv1.ResourceSelector{
+					s.requirementName: s.selector,
+				},
+			},
+		}, nil
+	}
+
+	return &fnv1.RunFunctionResponse{
+		Requirements: &fnv1.Requirements{
+			Resources: map[string]*fnv1.ResourceSelector{
+				s.requirementName: s.selector,
+			},
+		},
+		Results: []*fnv1.Result{
+			{Severity: fnv1.Severity_SEVERITY_FATAL, Message: s.fatalMessage},
+		},
+	}, nil
+}
+
+func startTestFunctionServer(t *testing.T, ss fnv1.FunctionRunnerServiceServer) string {
+	t.Helper()
+
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("cannot listen for test gRPC server: %v", err)
+	}
+
+	s := grpc.NewServer()
+	fnv1.RegisterFunctionRunnerServiceServer(s, ss)
+	go func() { _ = s.Serve(lis) }()
+
+	t.Cleanup(func() {
+		s.Stop()
+	})
+
+	return lis.Addr().String()
+}
+
+func TestRenderPipelineFatalReturnsRequirements(t *testing.T) {
+	const stepName = "fetch-extras"
+	const fatalMsg = "Required extra resource \"namedClusterRole\" not found"
+	const requirementName = "namedClusterRole"
+
+	wantSelector := &fnv1.ResourceSelector{
+		ApiVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Match: &fnv1.ResourceSelector_MatchName{
+			MatchName: "some-cluster-role",
+		},
+	}
+
+	server := &fatalFunctionServer{
+		requirementName: requirementName,
+		selector:        wantSelector,
+		fatalMessage:    fatalMsg,
+	}
+
+	addr := startTestFunctionServer(t, server)
+
+	in := &renderv1alpha1.OperationInput{
+		Operation: mustStruct(map[string]any{
+			"apiVersion": "ops.crossplane.io/v1alpha1",
+			"kind":       "Operation",
+			"metadata": map[string]any{
+				"name":      "my-operation",
+				"namespace": "default",
+			},
+			"spec": map[string]any{
+				"mode": "Pipeline",
+				"pipeline": []any{
+					map[string]any{
+						"step":        stepName,
+						"functionRef": map[string]any{"name": "function-extra-resources"},
+					},
+				},
+			},
+		}),
+		Functions: []*renderv1alpha1.FunctionInput{
+			{Name: "function-extra-resources", Address: addr},
+		},
+	}
+
+	out, err := Render(context.Background(), logging.NewNopLogger(), in)
+
+	var pfe *xcomposite.PipelineFatalError
+	if !errors.As(err, &pfe) {
+		t.Fatalf("Render(...) error: want *PipelineFatalError in chain, got %T: %v", err, err)
+	}
+	if pfe.Step != stepName {
+		t.Errorf("PipelineFatalError.Step = %q, want %q", pfe.Step, stepName)
+	}
+	if pfe.Message != fatalMsg {
+		t.Errorf("PipelineFatalError.Message = %q, want %q", pfe.Message, fatalMsg)
+	}
+
+	if out == nil {
+		t.Fatalf("Render(...) returned nil output on PipelineFatalError; want non-nil with RequiredResources populated")
+	}
+	if got := len(out.GetRequiredResources()); got != 1 {
+		t.Fatalf("len(out.RequiredResources) = %d, want 1; out=%v", got, out)
+	}
+
+	gotSelector := &fnv1.ResourceSelector{}
+	bs, err := out.GetRequiredResources()[0].MarshalJSON()
+	if err != nil {
+		t.Fatalf("cannot marshal recorded selector to JSON: %v", err)
+	}
+	if err := protojson.Unmarshal(bs, gotSelector); err != nil {
+		t.Fatalf("cannot decode recorded ResourceSelector: %v", err)
+	}
+	if diff := cmp.Diff(wantSelector, gotSelector, protocmp.Transform()); diff != "" {
+		t.Errorf("recorded ResourceSelector: -want, +got:\n%s", diff)
+	}
 }
