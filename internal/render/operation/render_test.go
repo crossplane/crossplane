@@ -268,3 +268,45 @@ func TestRenderPipelineFatalReturnsRequirements(t *testing.T) {
 		t.Errorf("recorded ResourceSelector: -want, +got:\n%s", diff)
 	}
 }
+
+func TestRenderNonFatalReconcileErrorWraps(t *testing.T) {
+	// A pipeline step whose function name is not registered in
+	// FunctionInput causes the reconciler to fail with an "unknown function"
+	// error — a non-fatal failure mode. The returned error must NOT be a
+	// *PipelineFatalError, and no partial output must be returned. This
+	// guards the non-fatal path against regressions that would accidentally
+	// surface partial output for any reconcile failure.
+	in := &renderv1alpha1.OperationInput{
+		Operation: mustStruct(map[string]any{
+			"apiVersion": "ops.crossplane.io/v1alpha1",
+			"kind":       "Operation",
+			"metadata": map[string]any{
+				"name":      "my-operation",
+				"namespace": "default",
+			},
+			"spec": map[string]any{
+				"mode": "Pipeline",
+				"pipeline": []any{
+					map[string]any{
+						"step":        "missing",
+						"functionRef": map[string]any{"name": "function-does-not-exist"},
+					},
+				},
+			},
+		}),
+		// Functions list intentionally empty so the runner has no
+		// connection for "function-does-not-exist".
+	}
+
+	out, err := Render(context.Background(), logging.NewNopLogger(), in)
+	if err == nil {
+		t.Fatalf("Render(...) expected error, got nil; out=%v", out)
+	}
+	var pfe *PipelineFatalError
+	if errors.As(err, &pfe) {
+		t.Errorf("Render(...) error unexpectedly classified as *PipelineFatalError: %v", err)
+	}
+	if out != nil {
+		t.Errorf("Render(...) returned out=%v on non-fatal error; want nil", out)
+	}
+}

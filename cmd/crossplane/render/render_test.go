@@ -179,9 +179,18 @@ func TestRunWritesPartialResponseOnPipelineFatal(t *testing.T) {
 
 	// AC5.1: the returned error chain must still surface the typed
 	// PipelineFatalError so callers using the library directly can match it.
+	// Assert the typed-error properties (Step, Message) — not the error
+	// string — per the contribution guide's "Test Error Properties, not
+	// Error Strings" guidance.
 	var pfe *xcomposite.PipelineFatalError
 	if !errors.As(err, &pfe) {
-		t.Errorf("error chain missing *PipelineFatalError: %v", err)
+		t.Fatalf("error chain missing *PipelineFatalError: %v", err)
+	}
+	if pfe.Step != stepName {
+		t.Errorf("PipelineFatalError.Step = %q, want %q", pfe.Step, stepName)
+	}
+	if pfe.Message != fatalMsg {
+		t.Errorf("PipelineFatalError.Message = %q, want %q", pfe.Message, fatalMsg)
 	}
 
 	// AC5.1: stdout must contain a parseable RenderResponse with the

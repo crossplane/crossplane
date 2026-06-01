@@ -229,20 +229,25 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 			u.GetNamespace() == xr.GetNamespace() &&
 			u.GetName() == xr.GetName()
 	}, rec, rrf, rsf)
-	if berr != nil {
-		if rerr != nil {
-			return nil, errors.Join(rerr, berr)
-		}
+	switch {
+	case berr != nil && rerr != nil:
+		// Both reconcile and BuildOutput failed; surface both via
+		// errors.Join so callers can recover *PipelineFatalError from the
+		// chain via errors.As when present.
+		return nil, errors.Join(rerr, berr)
+	case berr != nil:
 		return nil, berr
-	}
-
-	if rerr != nil {
-		// On a function-pipeline FATAL we still return the partial output so
-		// callers can recover RequiredResources/RequiredSchemas. Other
-		// reconcile errors keep the previous behavior.
+	case rerr != nil:
+		// On a function-pipeline FATAL we still return the partial output
+		// so callers can recover RequiredResources/RequiredSchemas. We
+		// return the full wrapped error chain (rather than the extracted
+		// *PipelineFatalError) so callers preserve the reconciler's
+		// "cannot compose resources" diagnostic context; *PipelineFatalError
+		// remains reachable via errors.As. Other reconcile errors keep the
+		// previous "reconcile failed" wrapping.
 		var pfe *composite.PipelineFatalError
 		if errors.As(rerr, &pfe) {
-			return out, pfe
+			return out, rerr
 		}
 		return nil, errors.Wrap(rerr, "reconcile failed")
 	}

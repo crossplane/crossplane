@@ -132,17 +132,21 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 			u.GetNamespace() == op.GetNamespace() &&
 			u.GetName() == op.GetName()
 	}, rec, rrf, rsf)
-	if berr != nil {
-		if rerr != nil {
-			return nil, errors.Join(rerr, berr)
-		}
+	switch {
+	case berr != nil && rerr != nil:
+		// Both reconcile and buildOutput failed; surface both via
+		// errors.Join so callers can recover *PipelineFatalError from the
+		// chain via errors.As when present.
+		return nil, errors.Join(rerr, berr)
+	case berr != nil:
 		return nil, berr
-	}
-
-	if rerr != nil {
+	case rerr != nil:
+		// Symmetrical with composite.Render: return the full wrapped error
+		// chain so callers preserve any reconciler-added diagnostic context;
+		// *PipelineFatalError remains reachable via errors.As.
 		var pfe *xcomposite.PipelineFatalError
 		if errors.As(rerr, &pfe) {
-			return out, pfe
+			return out, rerr
 		}
 		return nil, errors.Wrap(rerr, "reconcile failed")
 	}

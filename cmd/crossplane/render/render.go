@@ -131,30 +131,40 @@ func (c *Command) Run(log logging.Logger) error {
 		return errors.New("render request must set exactly one of: composite, operation, cron_operation, watch_operation")
 	}
 
-	// On a pipeline FATAL we must surface the partial output to stdout
-	// before propagating the error so callers iterating on requirements can
-	// recover the recorded RequiredResources/RequiredSchemas. Other errors
-	// keep the previous behavior (stdout empty, generic non-zero exit).
+	// On a pipeline FATAL we surface the partial output to stdout before
+	// propagating the error so callers iterating on requirements can recover
+	// the recorded RequiredResources/RequiredSchemas. We only take that
+	// path when there's actually a partial output to emit (rsp.Output set):
+	// if BuildOutput failed alongside the pipeline FATAL, there's no usable
+	// stdout to emit so we fall through to the regular error path. Callers
+	// can still recover *PipelineFatalError from the returned error via
+	// errors.As regardless of which path we take.
 	var pfe *xcomposite.PipelineFatalError
-	if renderErr != nil && !errors.As(renderErr, &pfe) {
+	hasPartialOutput := rsp.GetOutput() != nil && errors.As(renderErr, &pfe)
+	if renderErr != nil && !hasPartialOutput {
 		return renderErr
 	}
 
 	out, err := proto.Marshal(rsp)
 	if err != nil {
-		// Surface marshal failure even when there was a pipeline FATAL: the
-		// caller cannot consume an unmarshalled stdout, and a marshal error
-		// is itself unexpected.
+		// Marshal failure means we cannot deliver any stdout; surface both
+		// the marshal error and the pipeline FATAL (if any) via errors.Join
+		// so callers can still recover *PipelineFatalError via errors.As.
+		// The combined error does not implement kong.ExitCoder, so the
+		// process exits with the generic non-zero code instead of 3 — which
+		// is correct because the partial-output contract isn't being met.
+		merr := errors.Wrap(err, "cannot marshal render response")
 		if renderErr != nil {
-			return errors.Wrap(err, "cannot marshal render response (also: "+renderErr.Error()+")")
+			return errors.Join(merr, renderErr)
 		}
-		return errors.Wrap(err, "cannot marshal render response")
+		return merr
 	}
 	if _, err := c.stdout.Write(out); err != nil {
+		werr := errors.Wrap(err, "cannot write render response")
 		if renderErr != nil {
-			return errors.Wrap(err, "cannot write render response (also: "+renderErr.Error()+")")
+			return errors.Join(werr, renderErr)
 		}
-		return errors.Wrap(err, "cannot write render response")
+		return werr
 	}
 
 	if pfe != nil {
