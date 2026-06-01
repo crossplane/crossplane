@@ -22,7 +22,6 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -78,31 +77,19 @@ const (
 	defaultStoreConfigName = "default"
 )
 
-// Category returns the check category identifier.
-func (c *ExternalSecretStores) Category() string { return "external-secret-stores" }
-
-// Title returns the human-readable title.
-func (c *ExternalSecretStores) Title() string { return "External secret stores" }
-
-// Severity returns the severity of findings produced by this check.
-func (c *ExternalSecretStores) Severity() Severity { return SeverityIssue }
-
-// Description explains what this check looks for.
-func (c *ExternalSecretStores) Description() string {
-	return "Crossplane v2 removes support for external secret stores. Publish connection details as Kubernetes Secrets composed by your Compositions, or adopt External Secrets Operator if you need an external store."
-}
-
-// Remediation returns the once-per-section advice for this check.
-func (c *ExternalSecretStores) Remediation() string {
-	return "Disable --enable-external-secret-stores on the Crossplane Deployment, replace StoreConfig-based publishing with composed Kubernetes Secrets (or adopt External Secrets Operator), then delete StoreConfig resources. No automated converter exists."
-}
-
-// DocsURLs returns documentation links for this check.
-func (c *ExternalSecretStores) DocsURLs() []string {
-	return []string{
-		"https://docs.crossplane.io/latest/guides/upgrade-to-crossplane-v2/#external-secret-stores",
-		"https://docs.crossplane.io/latest/guides/connection-details-composition",
-		"https://github.com/external-secrets/external-secrets",
+// Meta returns the check's static metadata.
+func (c *ExternalSecretStores) Meta() Meta {
+	return Meta{
+		Category:    "external-secret-stores",
+		Title:       "External secret stores",
+		Severity:    SeverityIssue,
+		Description: "Crossplane v2 removes support for external secret stores. Publish connection details as Kubernetes Secrets composed by your Compositions, or adopt External Secrets Operator if you need an external store.",
+		Remediation: "Disable --enable-external-secret-stores on the Crossplane Deployment, replace StoreConfig-based publishing with composed Kubernetes Secrets (or adopt External Secrets Operator), then delete StoreConfig resources. No automated converter exists.",
+		DocsURLs: []string{
+			"https://docs.crossplane.io/latest/guides/upgrade-to-crossplane-v2/#external-secret-stores",
+			"https://docs.crossplane.io/latest/guides/connection-details-composition",
+			"https://github.com/external-secrets/external-secrets",
+		},
 	}
 }
 
@@ -226,57 +213,62 @@ func (c *ExternalSecretStores) checkManagedResources(ctx context.Context) ([]Fin
 		return nil, errors.Wrap(err, "cannot discover managed resource types")
 	}
 
-	var g errgroup.Group
-	if c.Concurrency > 0 {
-		g.SetLimit(c.Concurrency)
-	}
+	// create a semaphore (buffered channel) that will limit the number of goroutines executing at
+	// the same time to our concurrency limit (lowest possible concurrency is 1)
+	sem := make(chan struct{}, max(c.Concurrency, 1))
+	var wg sync.WaitGroup
 
-	var (
-		mu       sync.Mutex // lock for all writes to our findings and listErrs
+	// Each type writes into its own slot, so the goroutines never share mutable
+	// state and need no lock. We flatten the slots once they've all finished.
+	type typeResult struct {
 		findings []Finding
-		listErrs []error
-	)
+		errs     []error
+	}
+	typeResults := make([]typeResult, len(types))
 
-	// start a goroutine to list all MR instances for each MR type - the errgroup.Group will limit
-	// the concurrency for us, blocking new goroutines from starting when we are at the limit.
+	// list all MR instances for each MR type concurrently
 	for i := range types {
 		t := types[i]
-		g.Go(func() error {
+		// block starting a new goroutine until the semaphore lets us in
+		sem <- struct{}{}
+		wg.Go(func() {
+			// make sure to release our semaphore when we're done
+			defer func() { <-sem }()
+
 			instances, err := ListInstances(ctx, c.Client, t, "")
 			if err != nil {
-				mu.Lock()
-				listErrs = append(listErrs, errors.Wrapf(err, "cannot list %s", t.GVK))
-				mu.Unlock()
-				return nil
+				typeResults[i].errs = append(typeResults[i].errs, errors.Wrapf(err, "cannot list %s", t.GVK))
+				return
 			}
-			var instanceFindings []Finding
+			// check each instance for a user-set spec.publishConnectionDetailsTo
 			for j := range instances {
 				inst := &instances[j]
 				v, found, err := unstructured.NestedMap(inst.Object, "spec", "publishConnectionDetailsTo")
 				if err != nil {
-					mu.Lock()
-					listErrs = append(listErrs, errors.Wrapf(err, "cannot read .spec.publishConnectionDetailsTo on %s/%s", inst.GetKind(), inst.GetName()))
-					mu.Unlock()
+					typeResults[i].errs = append(typeResults[i].errs, errors.Wrapf(err, "cannot read .spec.publishConnectionDetailsTo on %s/%s", inst.GetKind(), inst.GetName()))
 					continue
 				}
 				if !found || len(v) == 0 {
 					continue
 				}
-				instanceFindings = append(instanceFindings, Finding{
+				typeResults[i].findings = append(typeResults[i].findings, Finding{
 					Resource:  ResourceRefFromUnstructured(*inst),
 					FieldPath: ".spec.publishConnectionDetailsTo",
 				})
 			}
-			if len(instanceFindings) > 0 {
-				mu.Lock()
-				findings = append(findings, instanceFindings...)
-				mu.Unlock()
-			}
-			// Always nil; errors go to listErrs so errgroup never cancels.
-			return nil
 		})
 	}
-	_ = g.Wait()
+	wg.Wait()
+
+	// flatten the per-type slots now that we've finished our concurrent listing and checking and
+	// have findings/errors for all types. We can do this single-threaded, no need for
+	// concurrency/locks.
+	var findings []Finding
+	var listErrs []error
+	for i := range typeResults {
+		findings = append(findings, typeResults[i].findings...)
+		listErrs = append(listErrs, typeResults[i].errs...)
+	}
 
 	if len(listErrs) > 0 {
 		return findings, errors.Join(listErrs...)

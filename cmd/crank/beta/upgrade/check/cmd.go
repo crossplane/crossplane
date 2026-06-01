@@ -37,14 +37,6 @@ import (
 	"github.com/crossplane/crossplane/apis"
 )
 
-const (
-	errLoadKubeconfig = "cannot load kubeconfig"
-	errInitScheme     = "cannot register Crossplane types with scheme"
-	errInitClient     = "cannot create Kubernetes client"
-	errPrintReport    = "cannot print report"
-	errBlockersFound  = "blockers found"
-)
-
 // Cmd checks a Crossplane control plane for features that are removed or
 // broken in Crossplane v2.
 type Cmd struct {
@@ -62,7 +54,7 @@ type Cmd struct {
 func (c *Cmd) Help() string {
 	return `
 Checks a Crossplane control plane to see if it is ready to safely upgrade to
-Crossplane v2 by checking for all features that were been removed or had
+Crossplane v2 by checking for all features that were removed or had
 breaking changes in Crossplane v2. Run this against a v1.x control plane to
 surface any usage of APIs that will not work after upgrading to v2.
 
@@ -109,7 +101,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		&clientcmd.ConfigOverrides{CurrentContext: c.Context},
 	).ClientConfig()
 	if err != nil {
-		return errors.Wrap(err, errLoadKubeconfig)
+		return errors.Wrap(err, "cannot load kubeconfig")
 	}
 	// Give ourselves a bit more QPS/burst than the defaults for our API calls,
 	// we have a lot of checks to get through, and this is a one time tool run, not an
@@ -123,18 +115,18 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	sch := runtime.NewScheme()
 	if err := scheme.AddToScheme(sch); err != nil {
-		return errors.Wrap(err, errInitScheme)
+		return errors.Wrap(err, "cannot register Crossplane types with scheme")
 	}
 	if err := extv1.AddToScheme(sch); err != nil {
-		return errors.Wrap(err, errInitScheme)
+		return errors.Wrap(err, "cannot register Crossplane types with scheme")
 	}
 	if err := apis.AddToScheme(sch); err != nil {
-		return errors.Wrap(err, errInitScheme)
+		return errors.Wrap(err, "cannot register Crossplane types with scheme")
 	}
 
 	kube, err := client.New(cfg, client.Options{Scheme: sch})
 	if err != nil {
-		return errors.Wrap(err, errInitClient)
+		return errors.Wrap(err, "cannot create Kubernetes client")
 	}
 
 	checks := []Check{
@@ -160,7 +152,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		return err
 	}
 	if err := p.Print(k.Stdout, report); err != nil {
-		return errors.Wrap(err, errPrintReport)
+		return errors.Wrap(err, "cannot print report")
 	}
 
 	// Returning a non-nil error here makes kong exit non-zero; the report
@@ -169,7 +161,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	// immediately after this return.
 	if report.HasBlockers() {
 		_, _ = fmt.Fprintln(k.Stderr)
-		return errors.New(errBlockersFound)
+		return errors.New("blockers found")
 	}
 	return nil
 }

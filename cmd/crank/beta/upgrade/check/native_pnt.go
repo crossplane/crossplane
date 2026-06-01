@@ -32,30 +32,18 @@ type NativePatchAndTransform struct {
 	Client client.Client
 }
 
-// Category returns the check's stable identifier.
-func (c *NativePatchAndTransform) Category() string { return "native-patch-and-transform" }
-
-// Title returns the check's human-readable title.
-func (c *NativePatchAndTransform) Title() string { return "Native patch-and-transform Compositions" }
-
-// Severity returns the severity of findings produced by this check.
-func (c *NativePatchAndTransform) Severity() Severity { return SeverityIssue }
-
-// Description explains what this check looks for.
-func (c *NativePatchAndTransform) Description() string {
-	return "Crossplane v2 removes native patch-and-transform (P&T) Composition. Compositions must use mode: Pipeline with Composition Functions."
-}
-
-// Remediation returns the once-per-section advice for this check.
-func (c *NativePatchAndTransform) Remediation() string {
-	return `Migrate to Composition Functions (spec.mode: Pipeline with spec.pipeline steps). Run "crossplane beta convert pipeline-composition" to convert existing Compositions.`
-}
-
-// DocsURLs returns documentation links for this check.
-func (c *NativePatchAndTransform) DocsURLs() []string {
-	return []string{
-		"https://docs.crossplane.io/latest/guides/upgrade-to-crossplane-v2/#native-patch-and-transform-composition",
-		"https://docs.crossplane.io/v1.20/cli/command-reference/#beta-convert",
+// Meta returns the check's static metadata.
+func (c *NativePatchAndTransform) Meta() Meta {
+	return Meta{
+		Category:    "native-patch-and-transform",
+		Title:       "Native patch-and-transform Compositions",
+		Severity:    SeverityIssue,
+		Description: "Crossplane v2 removes native patch-and-transform (P&T) Composition. Compositions must use mode: Pipeline with Composition Functions.",
+		Remediation: `Migrate to Composition Functions (spec.mode: Pipeline with spec.pipeline steps). Run "crossplane beta convert pipeline-composition" to convert existing Compositions.`,
+		DocsURLs: []string{
+			"https://docs.crossplane.io/latest/guides/upgrade-to-crossplane-v2/#native-patch-and-transform-composition",
+			"https://docs.crossplane.io/v1.20/cli/command-reference/#beta-convert",
+		},
 	}
 }
 

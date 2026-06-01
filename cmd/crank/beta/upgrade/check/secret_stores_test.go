@@ -137,6 +137,17 @@ func TestIsAutoCreatedDefaultStoreConfig(t *testing.T) {
 	}
 }
 
+// mrInstance builds an unstructured managed resource with a user-set
+// spec.publishConnectionDetailsTo, the shape checkManagedResources flags.
+func mrInstance(apiVersion, kind, name string) unstructured.Unstructured {
+	return unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": apiVersion,
+		"kind":       kind,
+		"metadata":   map[string]any{"name": name},
+		"spec":       map[string]any{"publishConnectionDetailsTo": map[string]any{"name": "secret"}},
+	}}
+}
+
 // essData is the declarative input for one Run scenario. Zero-value fields mean
 // "the corresponding List returns nothing". instances is keyed by list kind
 // (e.g. "XThingList", "BucketList"); instErr is keyed the same way so a case can
@@ -204,14 +215,15 @@ func TestExternalSecretStoresRun(t *testing.T) {
 		err      error
 	}
 	cases := map[string]struct {
-		reason   string
-		selector string // when empty, this test will set it to the CLI flag default "app=crossplane"
-		skipMR   bool
-		data     essData
-		want     want
+		reason      string
+		selector    string // when empty, this test will set it to the CLI flag default "app=crossplane"
+		skipMR      bool
+		concurrency int // when zero, this test will set it to 10
+		data        essData
+		want        want
 	}{
 		"Clean": {
-			reason: "An empty control plane (including an empty managed-resource scan) produces no findings.",
+			reason: "An empty control plane (including an empty managed resource scan) produces no findings.",
 			data:   essData{},
 			want:   want{findings: nil},
 		},
@@ -359,7 +371,7 @@ func TestExternalSecretStoresRun(t *testing.T) {
 			want:   want{err: cmpopts.AnyError},
 		},
 		"DiscoverManagedResourcesError": {
-			reason: "A failure listing CRDs while discovering managed-resource types is a hard error.",
+			reason: "A failure listing CRDs while discovering managed resource types is a hard error.",
 			data:   essData{crdErr: errBoom},
 			want:   want{err: cmpopts.AnyError},
 		},
@@ -395,7 +407,7 @@ func TestExternalSecretStoresRun(t *testing.T) {
 			want: want{findings: nil},
 		},
 		"ManagedResourceListErrorAggregated": {
-			reason: "When one managed-resource type's List fails, its error is surfaced while findings from healthy types still come back - one flaky CRD doesn't drop the rest.",
+			reason: "When one managed resource type's List fails, its error is surfaced while findings from healthy types still come back - one flaky CRD doesn't drop the rest.",
 			data: essData{
 				crds: []extv1.CustomResourceDefinition{
 					managedCRD("aws.example.org", "Bucket", "v1", false),
@@ -416,6 +428,33 @@ func TestExternalSecretStoresRun(t *testing.T) {
 				err:      cmpopts.AnyError,
 			},
 		},
+		"ManagedResourcesExceedConcurrencyLimit": {
+			reason:      "With more managed resource types than the concurrency limit, the bounded scan must process every type without deadlocking or dropping findings. Findings come back in type-discovery order because each type writes its own result slot.",
+			concurrency: 2, // small concurency limit of 2, less than the number of MR types we need to check
+			data: essData{
+				crds: []extv1.CustomResourceDefinition{
+					managedCRD("a.example.org", "Aa", "v1", false),
+					managedCRD("b.example.org", "Bb", "v1", false),
+					managedCRD("c.example.org", "Cc", "v1", false),
+					managedCRD("d.example.org", "Dd", "v1", false),
+					managedCRD("e.example.org", "Ee", "v1", false),
+				},
+				instances: map[string][]unstructured.Unstructured{
+					"AaList": {mrInstance("a.example.org/v1", "Aa", "aa")},
+					"BbList": {mrInstance("b.example.org/v1", "Bb", "bb")},
+					"CcList": {mrInstance("c.example.org/v1", "Cc", "cc")},
+					"DdList": {mrInstance("d.example.org/v1", "Dd", "dd")},
+					"EeList": {mrInstance("e.example.org/v1", "Ee", "ee")},
+				},
+			},
+			want: want{findings: []Finding{
+				{Resource: ResourceRef{Group: "a.example.org", Kind: "Aa", Name: "aa"}, FieldPath: ".spec.publishConnectionDetailsTo"},
+				{Resource: ResourceRef{Group: "b.example.org", Kind: "Bb", Name: "bb"}, FieldPath: ".spec.publishConnectionDetailsTo"},
+				{Resource: ResourceRef{Group: "c.example.org", Kind: "Cc", Name: "cc"}, FieldPath: ".spec.publishConnectionDetailsTo"},
+				{Resource: ResourceRef{Group: "d.example.org", Kind: "Dd", Name: "dd"}, FieldPath: ".spec.publishConnectionDetailsTo"},
+				{Resource: ResourceRef{Group: "e.example.org", Kind: "Ee", Name: "ee"}, FieldPath: ".spec.publishConnectionDetailsTo"},
+			}},
+		},
 	}
 
 	for name, tc := range cases {
@@ -424,12 +463,16 @@ func TestExternalSecretStoresRun(t *testing.T) {
 			if selector == "" {
 				selector = "app=crossplane"
 			}
+			concurrency := tc.concurrency
+			if concurrency == 0 {
+				concurrency = 10
+			}
 			c := &ExternalSecretStores{
 				Client:               essClient(tc.data),
 				CrossplaneNamespace:  "crossplane-system",
 				Selector:             selector,
 				SkipManagedResources: tc.skipMR,
-				Concurrency:          10,
+				Concurrency:          concurrency,
 			}
 			got, err := c.Run(context.Background())
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {

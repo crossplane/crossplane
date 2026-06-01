@@ -18,6 +18,8 @@ package check
 
 import (
 	"context"
+	"fmt"
+	"runtime/debug"
 	"sort"
 	"sync"
 
@@ -91,21 +93,28 @@ func (r Report) HasBlockers() bool {
 	return false
 }
 
-// Check is a single upgrade compatibility check.
-type Check interface { //nolint:interfacebloat // A check's metadata accessors and Run form one cohesive contract the Runner consumes together to build a CategoryResult.
+// Meta is the static metadata describing a Check: identity, severity, and
+// the help/remediation content shown for all of its findings.
+type Meta struct {
 	// Category is a stable, machine-friendly identifier for the check.
-	Category() string
+	Category string
 	// Title is a short human-readable title shown in output.
-	Title() string
-	// Severity is the severity of findings produced by this check.
-	Severity() Severity
+	Title string
+	// Severity is the severity of findings produced by the check.
+	Severity Severity
 	// Description explains what the check looks for.
-	Description() string
+	Description string
 	// Remediation is one-line, action-oriented advice for the whole category.
 	// Must not contain URLs - see DocsURLs.
-	Remediation() string
-	// DocsURLs returns documentation links for the category. Empty when none apply.
-	DocsURLs() []string
+	Remediation string
+	// DocsURLs are documentation links for the category. Empty when none apply.
+	DocsURLs []string
+}
+
+// Check is a single upgrade compatibility check.
+type Check interface {
+	// Meta returns the check's static metadata.
+	Meta() Meta
 	// Run executes the check and returns any findings.
 	Run(ctx context.Context) ([]Finding, error)
 }
@@ -128,21 +137,34 @@ func (r *Runner) Run(ctx context.Context) Report {
 		wg.Add(1)
 		go func(i int, c Check) {
 			defer wg.Done()
-			r.Logger.Debug("running check", "category", c.Category())
+			m := c.Meta()
+			r.Logger.Debug("running check", "category", m.Category)
 			res := CategoryResult{
-				Category:    c.Category(),
-				Title:       c.Title(),
-				Severity:    c.Severity(),
-				Description: c.Description(),
-				Remediation: c.Remediation(),
-				DocsURLs:    c.DocsURLs(),
+				Category:    m.Category,
+				Title:       m.Title,
+				Severity:    m.Severity,
+				Description: m.Description,
+				Remediation: m.Remediation,
+				DocsURLs:    m.DocsURLs,
 			}
+
+			// Recover any panics in this goroutine into an incomplete-check error so one bad check
+			// can't crash the CLI and discard every other check's results. This mirrors how we
+			// treat a check that returns an error below.
+			defer func() {
+				if rec := recover(); rec != nil {
+					// Keep the user-facing error concise, but add the full stack in the debug log
+					res.Err = fmt.Sprintf("check panicked: %v", rec)
+					r.Logger.Debug("check panicked", "category", m.Category, "panic", rec, "stack", string(debug.Stack()))
+					results[i] = res
+				}
+			}()
 
 			// run the check and save any error we encounter, which means the check is incomplete
 			findings, err := c.Run(ctx)
 			if err != nil {
 				res.Err = err.Error()
-				r.Logger.Debug("check incomplete", "category", c.Category(), "error", err)
+				r.Logger.Debug("check incomplete", "category", m.Category, "error", err)
 			}
 
 			// sort the findings on kind -> namespace -> name -> field path

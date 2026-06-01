@@ -38,30 +38,18 @@ type CompositeConnectionDetails struct {
 	Namespace string
 }
 
-// Category returns the check's stable identifier.
-func (c *CompositeConnectionDetails) Category() string { return "composite-connection-details" }
-
-// Title returns the check's human-readable title.
-func (c *CompositeConnectionDetails) Title() string { return "Composite resource connection details" }
-
-// Severity returns the severity of findings produced by this check.
-func (c *CompositeConnectionDetails) Severity() Severity { return SeverityInfo }
-
-// Description explains what this check looks for.
-func (c *CompositeConnectionDetails) Description() string {
-	return "Crossplane v2 keeps legacy XR and Claim connection-detail aggregation working, so no action is required for the upgrade itself. This check is informational: it flags resources that would need explicit composed Secrets if you later migrate them to v2-style namespaced XRs. Managed resources are unaffected and continue to publish via spec.writeConnectionSecretToRef."
-}
-
-// Remediation returns the once-per-section advice for this check.
-func (c *CompositeConnectionDetails) Remediation() string {
-	return "No action required for the upgrade. If you later migrate these XRDs to v2-style namespaced XRs, compose a Kubernetes Secret explicitly to publish connection details. No automated converter exists."
-}
-
-// DocsURLs returns documentation links for this check.
-func (c *CompositeConnectionDetails) DocsURLs() []string {
-	return []string{
-		"https://docs.crossplane.io/latest/guides/upgrade-to-crossplane-v2/#composite-resource-connection-details",
-		"https://docs.crossplane.io/latest/guides/connection-details-composition",
+// Meta returns the check's static metadata.
+func (c *CompositeConnectionDetails) Meta() Meta {
+	return Meta{
+		Category:    "composite-connection-details",
+		Title:       "Composite resource connection details",
+		Severity:    SeverityInfo,
+		Description: "Crossplane v2 keeps legacy XR and Claim connection-detail aggregation working, so no action is required for the upgrade itself. This check is informational: it flags resources that would need explicit composed Secrets if you later migrate them to v2-style namespaced XRs. Managed resources are unaffected and continue to publish via spec.writeConnectionSecretToRef.",
+		Remediation: "No action required for the upgrade. If you later migrate these XRDs to v2-style namespaced XRs, compose a Kubernetes Secret explicitly to publish connection details. No automated converter exists.",
+		DocsURLs: []string{
+			"https://docs.crossplane.io/latest/guides/upgrade-to-crossplane-v2/#composite-resource-connection-details",
+			"https://docs.crossplane.io/latest/guides/connection-details-composition",
+		},
 	}
 }
 
@@ -141,7 +129,7 @@ func (c *CompositeConnectionDetails) Run(ctx context.Context) ([]Finding, error)
 	}
 
 	for _, t := range types {
-		// list all instaces of each XR/Claim type
+		// list all instances of each XR/Claim type
 		instances, err := ListInstances(ctx, c.Client, t, c.Namespace)
 		if err != nil {
 			return findings, errors.Wrapf(err, "cannot list instances of %s", t.GVK.String())

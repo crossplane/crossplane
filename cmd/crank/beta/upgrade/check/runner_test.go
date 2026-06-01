@@ -34,23 +34,19 @@ var errBoom = errors.New("boom")
 var _ Check = &MockCheck{}
 
 type MockCheck struct {
-	category    string
-	title       string
-	severity    Severity
-	description string
-	remediation string
-	docsURLs    []string
-	findings    []Finding
-	err         error
+	meta     Meta
+	findings []Finding
+	err      error
+	panicVal any
 }
 
-func (m *MockCheck) Category() string                       { return m.category }
-func (m *MockCheck) Title() string                          { return m.title }
-func (m *MockCheck) Severity() Severity                     { return m.severity }
-func (m *MockCheck) Description() string                    { return m.description }
-func (m *MockCheck) Remediation() string                    { return m.remediation }
-func (m *MockCheck) DocsURLs() []string                     { return m.docsURLs }
-func (m *MockCheck) Run(context.Context) ([]Finding, error) { return m.findings, m.err }
+func (m *MockCheck) Meta() Meta { return m.meta }
+func (m *MockCheck) Run(context.Context) ([]Finding, error) {
+	if m.panicVal != nil {
+		panic(m.panicVal)
+	}
+	return m.findings, m.err
+}
 
 // TestCheckMetadata locks the stable, machine-friendly Category identifiers and
 // severities that downstream tooling and the non-zero-exit logic depend on, and
@@ -102,13 +98,14 @@ func TestCheckMetadata(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			m := tc.check.Meta()
 			got := metadata{
-				category:       tc.check.Category(),
-				severity:       tc.check.Severity(),
-				hasTitle:       tc.check.Title() != "",
-				hasDescription: tc.check.Description() != "",
-				hasRemediation: tc.check.Remediation() != "",
-				hasDocs:        len(tc.check.DocsURLs()) > 0,
+				category:       m.Category,
+				severity:       m.Severity,
+				hasTitle:       m.Title != "",
+				hasDescription: m.Description != "",
+				hasRemediation: m.Remediation != "",
+				hasDocs:        len(m.DocsURLs) > 0,
 			}
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(metadata{})); diff != "" {
 				t.Errorf("\n%s\ncheck metadata: -want, +got:\n%s", tc.reason, diff)
@@ -200,13 +197,15 @@ func TestRunnerRun(t *testing.T) {
 			reason: "The runner copies each check's metadata onto its CategoryResult and carries its findings.",
 			checks: []Check{
 				&MockCheck{
-					category:    "cat-a",
-					title:       "Title A",
-					severity:    SeverityIssue,
-					description: "desc",
-					remediation: "fix",
-					docsURLs:    []string{"https://example.com"},
-					findings:    []Finding{{Resource: ResourceRef{Kind: "Kind", Name: "n"}}},
+					meta: Meta{
+						Category:    "cat-a",
+						Title:       "Title A",
+						Severity:    SeverityIssue,
+						Description: "desc",
+						Remediation: "fix",
+						DocsURLs:    []string{"https://example.com"},
+					},
+					findings: []Finding{{Resource: ResourceRef{Kind: "Kind", Name: "n"}}},
 				},
 			},
 			want: want{report: Report{Categories: []CategoryResult{{
@@ -222,7 +221,7 @@ func TestRunnerRun(t *testing.T) {
 		"ErrorBecomesIncomplete": {
 			reason: "A check that returns an error has its error recorded on Err, marking the category incomplete.",
 			checks: []Check{
-				&MockCheck{category: "cat-err", severity: SeverityIssue, err: errBoom},
+				&MockCheck{meta: Meta{Category: "cat-err", Severity: SeverityIssue}, err: errBoom},
 			},
 			want: want{report: Report{Categories: []CategoryResult{{
 				Category: "cat-err",
@@ -230,11 +229,36 @@ func TestRunnerRun(t *testing.T) {
 				Err:      "boom",
 			}}}},
 		},
+		"PanicBecomesIncomplete": {
+			reason: "A check that panics is recovered into an Err, marking the category incomplete instead of crashing the run.",
+			checks: []Check{
+				&MockCheck{meta: Meta{Category: "cat-panic", Severity: SeverityIssue}, panicVal: "panic boom"},
+			},
+			want: want{report: Report{Categories: []CategoryResult{{
+				Category: "cat-panic",
+				Severity: SeverityIssue,
+				Err:      "check panicked: panic boom",
+			}}}},
+		},
+		"PanicDoesNotDropSiblingResults": {
+			reason: "A panic in one check must not discard a healthy sibling check's findings.",
+			checks: []Check{
+				&MockCheck{meta: Meta{Category: "cat-panic", Severity: SeverityIssue}, panicVal: "panic boom"},
+				&MockCheck{
+					meta:     Meta{Category: "cat-ok", Severity: SeverityIssue},
+					findings: []Finding{{Resource: ResourceRef{Kind: "Kind", Name: "n"}}},
+				},
+			},
+			want: want{report: Report{Categories: []CategoryResult{
+				{Category: "cat-panic", Severity: SeverityIssue, Err: "check panicked: panic boom"},
+				{Category: "cat-ok", Severity: SeverityIssue, Findings: []Finding{{Resource: ResourceRef{Kind: "Kind", Name: "n"}}}},
+			}}},
+		},
 		"PreservesCheckOrder": {
 			reason: "Results are indexed by check position, so concurrent execution preserves input order.",
 			checks: []Check{
-				&MockCheck{category: "first"},
-				&MockCheck{category: "second"},
+				&MockCheck{meta: Meta{Category: "first"}},
+				&MockCheck{meta: Meta{Category: "second"}},
 			},
 			want: want{report: Report{Categories: []CategoryResult{
 				{Category: "first"},
@@ -245,7 +269,7 @@ func TestRunnerRun(t *testing.T) {
 			reason: "Findings are sorted by kind, then namespace, then name, then field path.",
 			checks: []Check{
 				&MockCheck{
-					category: "sort",
+					meta: Meta{Category: "sort"},
 					findings: []Finding{
 						{Resource: ResourceRef{Kind: "B", Name: "a"}},
 						{Resource: ResourceRef{Kind: "A", Namespace: "ns2", Name: "a"}},

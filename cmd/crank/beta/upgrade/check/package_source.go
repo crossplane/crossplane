@@ -35,28 +35,16 @@ type UnqualifiedPackageSources struct {
 	Client client.Client
 }
 
-// Category returns the check's stable identifier.
-func (c *UnqualifiedPackageSources) Category() string { return "unqualified-package-source" }
-
-// Title returns the check's human-readable title.
-func (c *UnqualifiedPackageSources) Title() string { return "Unqualified package sources" }
-
-// Severity returns the severity of findings produced by this check.
-func (c *UnqualifiedPackageSources) Severity() Severity { return SeverityIssue }
-
-// Description explains what this check looks for.
-func (c *UnqualifiedPackageSources) Description() string {
-	return "Crossplane v2 removes the --registry flag and its implicit default registry. Every Provider, Configuration, and Function spec.package (including dependencies) must be a fully qualified reference including its registry hostname."
-}
-
-// Remediation returns the once-per-section advice for this check.
-func (c *UnqualifiedPackageSources) Remediation() string {
-	return "Prefix the package with its fully qualified registry hostname (e.g. xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.4.0) and ensure all package references are valid."
-}
-
-// DocsURLs returns documentation links for this check.
-func (c *UnqualifiedPackageSources) DocsURLs() []string {
-	return []string{"https://docs.crossplane.io/latest/guides/upgrade-to-crossplane-v2/#default-registry-flag"}
+// Meta returns the check's static metadata.
+func (c *UnqualifiedPackageSources) Meta() Meta {
+	return Meta{
+		Category:    "unqualified-package-source",
+		Title:       "Unqualified package sources",
+		Severity:    SeverityIssue,
+		Description: "Crossplane v2 removes the --registry flag and its implicit default registry. Every Provider, Configuration, and Function spec.package (including dependencies) must be a fully qualified reference including its registry hostname.",
+		Remediation: "Prefix the package with its fully qualified registry hostname (e.g. xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.4.0) and ensure all package references are valid.",
+		DocsURLs:    []string{"https://docs.crossplane.io/latest/guides/upgrade-to-crossplane-v2/#default-registry-flag"},
+	}
 }
 
 // Run lists all package types and emits a Finding for each one whose

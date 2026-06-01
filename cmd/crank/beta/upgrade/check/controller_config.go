@@ -34,30 +34,18 @@ type ControllerConfigCheck struct {
 	Client client.Client
 }
 
-// Category returns the check's stable identifier.
-func (c *ControllerConfigCheck) Category() string { return "controller-config" }
-
-// Title returns the check's human-readable title.
-func (c *ControllerConfigCheck) Title() string { return "ControllerConfig usage" }
-
-// Severity returns the severity of findings produced by this check.
-func (c *ControllerConfigCheck) Severity() Severity { return SeverityIssue }
-
-// Description returns a short explanation of the check.
-func (c *ControllerConfigCheck) Description() string {
-	return "Crossplane v2 removes the ControllerConfig type. Use DeploymentRuntimeConfig instead."
-}
-
-// Remediation returns the once-per-section advice for this check.
-func (c *ControllerConfigCheck) Remediation() string {
-	return `Migrate to DeploymentRuntimeConfig (pkg.crossplane.io/v1beta1). Run "crossplane beta convert deployment-runtime" to convert existing ControllerConfigs.`
-}
-
-// DocsURLs returns documentation links for this check.
-func (c *ControllerConfigCheck) DocsURLs() []string {
-	return []string{
-		"https://docs.crossplane.io/latest/guides/upgrade-to-crossplane-v2/#controllerconfig-type",
-		"https://docs.crossplane.io/v1.20/cli/command-reference/#beta-convert",
+// Meta returns the check's static metadata.
+func (c *ControllerConfigCheck) Meta() Meta {
+	return Meta{
+		Category:    "controller-config",
+		Title:       "ControllerConfig usage",
+		Severity:    SeverityIssue,
+		Description: "Crossplane v2 removes the ControllerConfig type. Use DeploymentRuntimeConfig instead.",
+		Remediation: `Migrate to DeploymentRuntimeConfig (pkg.crossplane.io/v1beta1). Run "crossplane beta convert deployment-runtime" to convert existing ControllerConfigs.`,
+		DocsURLs: []string{
+			"https://docs.crossplane.io/latest/guides/upgrade-to-crossplane-v2/#controllerconfig-type",
+			"https://docs.crossplane.io/v1.20/cli/command-reference/#beta-convert",
+		},
 	}
 }
 
