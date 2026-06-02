@@ -38,7 +38,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
-	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/claim"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 )
 
@@ -82,19 +81,20 @@ func (m *MockEngine) GetFieldIndexer() client.FieldIndexer {
 
 // fakeFieldIndexer models controller-runtime's cache: registering the same
 // field index twice returns an "indexer conflict" error, like the underlying
-// client-go thread-safe store. forceErr makes IndexField fail without
-// registering, to simulate a transient failure.
+// client-go thread-safe store. failFirst makes the leading calls fail with a
+// transient error (without registering), to simulate transient failures.
 type fakeFieldIndexer struct {
 	registered map[string]bool
 	calls      int
 	conflicts  int
-	forceErr   error
+	failFirst  int
 }
 
 func (f *fakeFieldIndexer) IndexField(_ context.Context, _ client.Object, field string, _ client.IndexerFunc) error {
 	f.calls++
-	if f.forceErr != nil {
-		return f.forceErr
+	if f.failFirst > 0 {
+		f.failFirst--
+		return errors.New("transient indexer error")
 	}
 	if f.registered == nil {
 		f.registered = map[string]bool{}
@@ -119,72 +119,68 @@ func (l recordingLogger) Debug(msg string, _ ...any) {
 func (l recordingLogger) WithValues(_ ...any) logging.Logger { return l }
 
 func TestAddCompositeResourceClaimIndex(t *testing.T) {
-	t.Run("AddedOnceAndDoesNotLogConflict", func(t *testing.T) {
-		// Across many reconciles the index is added exactly once, so the cache
-		// never reports a conflict and the spurious debug message that #7399
-		// reports is never logged.
-		idx := &fakeFieldIndexer{}
-		r := &Reconciler{
-			engine: &MockEngine{
-				MockGetFieldIndexer: func() client.FieldIndexer { return idx },
-			},
-		}
-		var debug []string
-		log := recordingLogger{debug: &debug}
+	type args struct {
+		failFirst  int
+		reconciles int
+	}
 
-		for range 5 {
-			r.addCompositeResourceClaimIndex(context.Background(), log)
-		}
+	type want struct {
+		calls          int
+		conflicts      int
+		loggedAddIndex bool
+	}
 
-		if diff := cmp.Diff(1, idx.calls); diff != "" {
-			t.Errorf("IndexField call count: -want, +got:\n%s", diff)
-		}
-		if idx.conflicts != 0 {
-			t.Errorf("want 0 indexer conflicts, got %d", idx.conflicts)
-		}
-		for _, m := range debug {
-			if m == errAddIndex {
-				t.Errorf("unexpected %q debug log emitted after fix", errAddIndex)
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"AddedOnceAcrossManyReconciles": {
+			reason: "The index is added once, so repeated reconciles never re-register it, never hit an indexer conflict, and never log the spurious message from #7399.",
+			args:   args{failFirst: 0, reconciles: 5},
+			want:   want{calls: 1, conflicts: 0, loggedAddIndex: false},
+		},
+		"RetriesUntilSuccess": {
+			reason: "A transient failure is retried on the next reconcile rather than being marked as added, so IndexField is called until it succeeds.",
+			args:   args{failFirst: 2, reconciles: 5},
+			want:   want{calls: 3, conflicts: 0, loggedAddIndex: true},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			idx := &fakeFieldIndexer{failFirst: tc.args.failFirst}
+			r := &Reconciler{
+				engine: &MockEngine{
+					MockGetFieldIndexer: func() client.FieldIndexer { return idx },
+				},
 			}
-		}
-	})
 
-	t.Run("UnpatchedEveryReconcileWouldConflict", func(t *testing.T) {
-		// Documents the bug the fix prevents: registering the index on every
-		// reconcile (the previous behavior) makes the cache report a conflict
-		// on every reconcile after the first.
-		idx := &fakeFieldIndexer{}
-		for range 5 {
-			_ = idx.IndexField(context.Background(), &v1.CompositeResourceDefinition{}, claim.XRDByCompositeGVKIndex(), claim.IndexXRDByCompositeGVK())
-		}
-		if diff := cmp.Diff(4, idx.conflicts); diff != "" {
-			t.Errorf("want 4 indexer conflicts from unpatched behavior, -want, +got:\n%s", diff)
-		}
-	})
+			var debug []string
+			log := recordingLogger{debug: &debug}
 
-	t.Run("RetriesUntilSuccess", func(t *testing.T) {
-		// A transient failure is retried on the next call rather than being
-		// marked as added.
-		idx := &fakeFieldIndexer{forceErr: errors.New("boom")}
-		r := &Reconciler{
-			engine: &MockEngine{
-				MockGetFieldIndexer: func() client.FieldIndexer { return idx },
-			},
-		}
+			for range tc.args.reconciles {
+				r.addCompositeResourceClaimIndex(context.Background(), log)
+			}
 
-		// Two failed attempts both call IndexField.
-		r.addCompositeResourceClaimIndex(context.Background(), logging.NewNopLogger())
-		r.addCompositeResourceClaimIndex(context.Background(), logging.NewNopLogger())
+			loggedAddIndex := false
+			for _, m := range debug {
+				if m == errAddIndex {
+					loggedAddIndex = true
+				}
+			}
 
-		// Once it succeeds, subsequent calls are no-ops.
-		idx.forceErr = nil
-		r.addCompositeResourceClaimIndex(context.Background(), logging.NewNopLogger())
-		r.addCompositeResourceClaimIndex(context.Background(), logging.NewNopLogger())
-
-		if diff := cmp.Diff(3, idx.calls); diff != "" {
-			t.Errorf("IndexField call count: -want, +got:\n%s", diff)
-		}
-	})
+			if diff := cmp.Diff(tc.want.calls, idx.calls); diff != "" {
+				t.Errorf("\n%s\naddCompositeResourceClaimIndex(): IndexField calls: -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.conflicts, idx.conflicts); diff != "" {
+				t.Errorf("\n%s\naddCompositeResourceClaimIndex(): indexer conflicts: -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.loggedAddIndex, loggedAddIndex); diff != "" {
+				t.Errorf("\n%s\naddCompositeResourceClaimIndex(): logged %q: -want, +got:\n%s", tc.reason, errAddIndex, diff)
+			}
+		})
+	}
 }
 
 func TestReconcile(t *testing.T) {
