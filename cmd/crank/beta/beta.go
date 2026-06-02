@@ -23,6 +23,7 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/convert"
 	"github.com/crossplane/crossplane/cmd/crank/beta/top"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace"
+	"github.com/crossplane/crossplane/cmd/crank/beta/upgrade"
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
 )
 
@@ -33,6 +34,7 @@ type Cmd struct {
 	Convert  convert.Cmd  `cmd:"" help:"Convert a Crossplane resource to a newer version or kind."`
 	Top      top.Cmd      `cmd:"" help:"Display resource (CPU/memory) usage by Crossplane related pods."`
 	Trace    trace.Cmd    `cmd:"" help:"Trace a Crossplane resource to get a detailed output of its relationships, helpful for troubleshooting."`
+	Upgrade  upgrade.Cmd  `cmd:"" help:"Help upgrade a Crossplane control plane to a newer version."`
 	Validate validate.Cmd `cmd:"" help:"Validate Crossplane resources."`
 }
 
