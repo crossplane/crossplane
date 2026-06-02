@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -270,6 +271,38 @@ type Reconciler struct {
 	conditions conditions.Manager
 
 	options apiextensionscontroller.Options
+
+	// claimIndexMu guards claimIndexAdded, which tracks whether the
+	// XRD-by-composite-GVK index used by claim controllers has been added to
+	// the engine's cache. The index only needs to be added once.
+	claimIndexMu    sync.Mutex
+	claimIndexAdded bool
+}
+
+// addCompositeResourceClaimIndex adds the XRD-by-composite-GVK index that claim
+// controllers rely on to the engine's cache. The index only needs to be added
+// once: it is a no-op once added successfully, so calling it on every reconcile
+// no longer logs a spurious "indexer conflict" error. It retries until the
+// index is added successfully to remain resilient to transient failures.
+func (r *Reconciler) addCompositeResourceClaimIndex(ctx context.Context, log logging.Logger) {
+	r.claimIndexMu.Lock()
+	defer r.claimIndexMu.Unlock()
+
+	if r.claimIndexAdded {
+		return
+	}
+
+	indexer := r.engine.GetFieldIndexer()
+	if indexer == nil {
+		return
+	}
+
+	if err := indexer.IndexField(ctx, &v1.CompositeResourceDefinition{}, claim.XRDByCompositeGVKIndex(), claim.IndexXRDByCompositeGVK()); err != nil {
+		log.Debug(errAddIndex, "error", err)
+		return
+	}
+
+	r.claimIndexAdded = true
 }
 
 // Reconcile a CompositeResourceDefinition by defining a new kind of composite
@@ -495,12 +528,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			"desired-version", desired.APIVersion)
 	}
 
-	// Add an index to the controller engine's client.
-	if indexer := r.engine.GetFieldIndexer(); indexer != nil {
-		if err := indexer.IndexField(ctx, &v1.CompositeResourceDefinition{}, claim.XRDByCompositeGVKIndex(), claim.IndexXRDByCompositeGVK()); err != nil {
-			log.Debug(errAddIndex, "error", err)
-		}
-	}
+	// Add the index claim controllers rely on to the engine's cache. This only
+	// needs to happen once, so calling it on every reconcile is fine.
+	r.addCompositeResourceClaimIndex(ctx, log)
 
 	controllerName := claim.ControllerName(d.GetName())
 	gvkClaim := d.GetClaimGroupVersionKind()

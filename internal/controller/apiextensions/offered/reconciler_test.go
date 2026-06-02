@@ -38,6 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/claim"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 )
 
@@ -77,6 +78,113 @@ func (m *MockEngine) GetCached() client.Client {
 
 func (m *MockEngine) GetFieldIndexer() client.FieldIndexer {
 	return m.MockGetFieldIndexer()
+}
+
+// fakeFieldIndexer models controller-runtime's cache: registering the same
+// field index twice returns an "indexer conflict" error, like the underlying
+// client-go thread-safe store. forceErr makes IndexField fail without
+// registering, to simulate a transient failure.
+type fakeFieldIndexer struct {
+	registered map[string]bool
+	calls      int
+	conflicts  int
+	forceErr   error
+}
+
+func (f *fakeFieldIndexer) IndexField(_ context.Context, _ client.Object, field string, _ client.IndexerFunc) error {
+	f.calls++
+	if f.forceErr != nil {
+		return f.forceErr
+	}
+	if f.registered == nil {
+		f.registered = map[string]bool{}
+	}
+	if f.registered[field] {
+		f.conflicts++
+		return errors.Errorf("indexer conflict: map[field:%s:{}]", field)
+	}
+	f.registered[field] = true
+	return nil
+}
+
+// recordingLogger records the debug messages it is asked to log.
+type recordingLogger struct {
+	debug *[]string
+}
+
+func (l recordingLogger) Info(_ string, _ ...any) {}
+func (l recordingLogger) Debug(msg string, _ ...any) {
+	*l.debug = append(*l.debug, msg)
+}
+func (l recordingLogger) WithValues(_ ...any) logging.Logger { return l }
+
+func TestAddCompositeResourceClaimIndex(t *testing.T) {
+	t.Run("AddedOnceAndDoesNotLogConflict", func(t *testing.T) {
+		// Across many reconciles the index is added exactly once, so the cache
+		// never reports a conflict and the spurious debug message that #7399
+		// reports is never logged.
+		idx := &fakeFieldIndexer{}
+		r := &Reconciler{
+			engine: &MockEngine{
+				MockGetFieldIndexer: func() client.FieldIndexer { return idx },
+			},
+		}
+		var debug []string
+		log := recordingLogger{debug: &debug}
+
+		for range 5 {
+			r.addCompositeResourceClaimIndex(context.Background(), log)
+		}
+
+		if diff := cmp.Diff(1, idx.calls); diff != "" {
+			t.Errorf("IndexField call count: -want, +got:\n%s", diff)
+		}
+		if idx.conflicts != 0 {
+			t.Errorf("want 0 indexer conflicts, got %d", idx.conflicts)
+		}
+		for _, m := range debug {
+			if m == errAddIndex {
+				t.Errorf("unexpected %q debug log emitted after fix", errAddIndex)
+			}
+		}
+	})
+
+	t.Run("UnpatchedEveryReconcileWouldConflict", func(t *testing.T) {
+		// Documents the bug the fix prevents: registering the index on every
+		// reconcile (the previous behavior) makes the cache report a conflict
+		// on every reconcile after the first.
+		idx := &fakeFieldIndexer{}
+		for range 5 {
+			_ = idx.IndexField(context.Background(), &v1.CompositeResourceDefinition{}, claim.XRDByCompositeGVKIndex(), claim.IndexXRDByCompositeGVK())
+		}
+		if diff := cmp.Diff(4, idx.conflicts); diff != "" {
+			t.Errorf("want 4 indexer conflicts from unpatched behavior, -want, +got:\n%s", diff)
+		}
+	})
+
+	t.Run("RetriesUntilSuccess", func(t *testing.T) {
+		// A transient failure is retried on the next call rather than being
+		// marked as added.
+		idx := &fakeFieldIndexer{forceErr: errors.New("boom")}
+		r := &Reconciler{
+			engine: &MockEngine{
+				MockGetFieldIndexer: func() client.FieldIndexer { return idx },
+			},
+		}
+
+		// Two failed attempts both call IndexField.
+		r.addCompositeResourceClaimIndex(context.Background(), logging.NewNopLogger())
+		r.addCompositeResourceClaimIndex(context.Background(), logging.NewNopLogger())
+
+		// Once it succeeds, subsequent calls are no-ops.
+		idx.forceErr = nil
+		r.addCompositeResourceClaimIndex(context.Background(), logging.NewNopLogger())
+		r.addCompositeResourceClaimIndex(context.Background(), logging.NewNopLogger())
+
+		if diff := cmp.Diff(3, idx.calls); diff != "" {
+			t.Errorf("IndexField call count: -want, +got:\n%s", diff)
+		}
+	})
 }
 
 func TestReconcile(t *testing.T) {
