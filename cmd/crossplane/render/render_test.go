@@ -18,14 +18,9 @@ package render
 
 import (
 	"bytes"
-	"context"
-	"net"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/alecthomas/kong"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -33,55 +28,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
 	xcomposite "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/v2/internal/render/rendertest"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
 )
-
-// fatalFunctionServer announces a required resource on its first call and
-// returns SEVERITY_FATAL on its second, mirroring the
-// function-extra-resources / function-environment-configs scenarios that
-// motivated issue #7446.
-type fatalFunctionServer struct {
-	fnv1.UnimplementedFunctionRunnerServiceServer
-	requirementName string
-	selector        *fnv1.ResourceSelector
-	fatalMessage    string
-
-	mu    sync.Mutex
-	calls int
-}
-
-func (s *fatalFunctionServer) RunFunction(_ context.Context, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	s.mu.Lock()
-	s.calls++
-	call := s.calls
-	s.mu.Unlock()
-
-	rsp := &fnv1.RunFunctionResponse{
-		Requirements: &fnv1.Requirements{
-			Resources: map[string]*fnv1.ResourceSelector{
-				s.requirementName: s.selector,
-			},
-		},
-	}
-	if call > 1 {
-		rsp.Results = []*fnv1.Result{{Severity: fnv1.Severity_SEVERITY_FATAL, Message: s.fatalMessage}}
-	}
-	return rsp, nil
-}
-
-func startTestFunctionServer(t *testing.T, ss fnv1.FunctionRunnerServiceServer) string {
-	t.Helper()
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("cannot listen for test gRPC server: %v", err)
-	}
-	s := grpc.NewServer()
-	fnv1.RegisterFunctionRunnerServiceServer(s, ss)
-	go func() { _ = s.Serve(lis) }()
-	t.Cleanup(s.Stop)
-	return lis.Addr().String()
-}
 
 func mustStruct(t *testing.T, m map[string]any) *structpb.Struct {
 	t.Helper()
@@ -103,7 +53,9 @@ func mustMarshalRequest(t *testing.T, req *renderv1alpha1.RenderRequest) *bytes.
 	return bytes.NewBuffer(data)
 }
 
-func TestRunWritesPartialResponseOnPipelineFatal(t *testing.T) {
+func TestRun(t *testing.T) {
+	// Constants for the FATAL case shared between request construction and
+	// expected-result assertions.
 	const stepName = "fetch-extras"
 	const fatalMsg = "Required extra resource \"namedClusterRole\" not found"
 	const requirementName = "namedClusterRole"
@@ -116,143 +68,197 @@ func TestRunWritesPartialResponseOnPipelineFatal(t *testing.T) {
 		},
 	}
 
-	addr := startTestFunctionServer(t, &fatalFunctionServer{
-		requirementName: requirementName,
-		selector:        wantSelector,
-		fatalMessage:    fatalMsg,
-	})
+	type want struct {
+		// pipelineFatal asserts whether *xcomposite.PipelineFatalError is
+		// expected in the returned error's chain (errors.As).
+		pipelineFatal bool
+		// fatalStep / fatalMessage are checked only when pipelineFatal is
+		// true.
+		fatalStep, fatalMessage string
+		// exitCode is the expected kong.ExitCoder code; zero means the
+		// returned error must NOT implement kong.ExitCoder.
+		exitCode int
+		// compositeOutput indicates we expect stdout to contain a parseable
+		// RenderResponse with Composite set; otherwise stdout must be empty.
+		compositeOutput bool
+		// requiredResources is the expected
+		// CompositeOutput.RequiredResources count when compositeOutput is
+		// true.
+		requiredResources int
+	}
 
-	req := &renderv1alpha1.RenderRequest{
-		Input: &renderv1alpha1.RenderRequest_Composite{
-			Composite: &renderv1alpha1.CompositeInput{
-				CompositeResource: mustStruct(t, map[string]any{
-					"apiVersion": "example.org/v1alpha1",
-					"kind":       "XExample",
-					"metadata":   map[string]any{"name": "my-example"},
-				}),
-				Composition: mustStruct(t, map[string]any{
-					"metadata": map[string]any{"name": "example-composition"},
-					"spec": map[string]any{
-						"compositeTypeRef": map[string]any{
-							"apiVersion": "example.org/v1alpha1",
-							"kind":       "XExample",
-						},
-						"mode": "Pipeline",
-						"pipeline": []any{
-							map[string]any{
-								"step":        stepName,
-								"functionRef": map[string]any{"name": "function-extra-resources"},
+	cases := map[string]struct {
+		reason string
+		// req returns the RenderRequest. It's a closure so each test case
+		// can stand up its own gRPC fixture and bake the address into the
+		// request.
+		req  func(t *testing.T) *renderv1alpha1.RenderRequest
+		want want
+	}{
+		"PipelineFatalReturnsPartialOutputWithExitCode3": {
+			reason: "When a pipeline step returns SEVERITY_FATAL, Run must marshal the partial RenderResponse (with recorded RequiredResources) to stdout and return an error with kong.ExitCoder code 3 and *PipelineFatalError reachable via errors.As.",
+			req: func(t *testing.T) *renderv1alpha1.RenderRequest {
+				t.Helper()
+				addr := rendertest.StartFunctionServer(t, &rendertest.FatalFunctionServer{
+					RequirementName: requirementName,
+					Selector:        wantSelector,
+					FatalMessage:    fatalMsg,
+				})
+				return &renderv1alpha1.RenderRequest{
+					Input: &renderv1alpha1.RenderRequest_Composite{
+						Composite: &renderv1alpha1.CompositeInput{
+							CompositeResource: mustStruct(t, map[string]any{
+								"apiVersion": "example.org/v1alpha1",
+								"kind":       "XExample",
+								"metadata":   map[string]any{"name": "my-example"},
+							}),
+							Composition: mustStruct(t, map[string]any{
+								"metadata": map[string]any{"name": "example-composition"},
+								"spec": map[string]any{
+									"compositeTypeRef": map[string]any{
+										"apiVersion": "example.org/v1alpha1",
+										"kind":       "XExample",
+									},
+									"mode": "Pipeline",
+									"pipeline": []any{
+										map[string]any{
+											"step":        stepName,
+											"functionRef": map[string]any{"name": "function-extra-resources"},
+										},
+									},
+								},
+							}),
+							Functions: []*renderv1alpha1.FunctionInput{
+								{Name: "function-extra-resources", Address: addr},
 							},
 						},
 					},
-				}),
-				Functions: []*renderv1alpha1.FunctionInput{
-					{Name: "function-extra-resources", Address: addr},
-				},
+				}
+			},
+			want: want{
+				pipelineFatal:     true,
+				fatalStep:         stepName,
+				fatalMessage:      fatalMsg,
+				exitCode:          ExitCodePipelineFatal,
+				compositeOutput:   true,
+				requiredResources: 1,
 			},
 		},
-	}
-
-	stdin := mustMarshalRequest(t, req)
-	stdout := &bytes.Buffer{}
-
-	cmd := &Command{
-		Timeout: 30 * time.Second,
-		stdin:   stdin,
-		stdout:  stdout,
-	}
-	err := cmd.Run(logging.NewNopLogger())
-
-	// AC5.1: the returned error must signal a non-zero exit code of 3 to Kong
-	// so wrappers can branch on the FATAL pipeline result without parsing
-	// stderr.
-	if err == nil {
-		t.Fatalf("Run(...) expected error, got nil")
-	}
-	var ec kong.ExitCoder
-	if !errors.As(err, &ec) {
-		t.Fatalf("returned error does not implement kong.ExitCoder: %T: %v", err, err)
-	}
-	if got, want := ec.ExitCode(), 3; got != want {
-		t.Errorf("ExitCode() = %d, want %d", got, want)
-	}
-
-	// AC5.1: the returned error chain must still surface the typed
-	// PipelineFatalError so callers using the library directly can match it.
-	// Assert the typed-error properties (Step, Message) — not the error
-	// string — per the contribution guide's "Test Error Properties, not
-	// Error Strings" guidance.
-	var pfe *xcomposite.PipelineFatalError
-	if !errors.As(err, &pfe) {
-		t.Fatalf("error chain missing *PipelineFatalError: %v", err)
-	}
-	if pfe.Step != stepName {
-		t.Errorf("PipelineFatalError.Step = %q, want %q", pfe.Step, stepName)
-	}
-	if pfe.Message != fatalMsg {
-		t.Errorf("PipelineFatalError.Message = %q, want %q", pfe.Message, fatalMsg)
-	}
-
-	// AC5.1: stdout must contain a parseable RenderResponse with the
-	// recorded RequiredResources populated.
-	rsp := &renderv1alpha1.RenderResponse{}
-	if err := proto.Unmarshal(stdout.Bytes(), rsp); err != nil {
-		t.Fatalf("cannot unmarshal stdout RenderResponse: %v (bytes=%d)", err, stdout.Len())
-	}
-	composite := rsp.GetComposite()
-	if composite == nil {
-		t.Fatalf("RenderResponse.Composite is nil; expected partial output")
-	}
-	if got := len(composite.GetRequiredResources()); got != 1 {
-		t.Fatalf("len(RequiredResources) = %d, want 1; rsp=%v", got, rsp)
-	}
-}
-
-func TestRunWrapsNonFatalRenderErrorAsBefore(t *testing.T) {
-	// AC5.2: A non-fatal render error must still be returned wrapped with
-	// "cannot render composite resource" and stdout must be empty (no
-	// partial response) so existing wrappers don't see ambiguous output.
-	req := &renderv1alpha1.RenderRequest{
-		Input: &renderv1alpha1.RenderRequest_Composite{
-			Composite: &renderv1alpha1.CompositeInput{
-				// Missing CompositeResource fields cause Render to fail before
-				// Reconcile.
-				CompositeResource: mustStruct(t, map[string]any{}),
-				Composition: mustStruct(t, map[string]any{
-					"metadata": map[string]any{"name": "broken"},
-					"spec": map[string]any{
-						"compositeTypeRef": map[string]any{
-							"apiVersion": "example.org/v1alpha1",
-							"kind":       "XBroken",
+		"NonFatalRenderErrorWrapsAsBefore": {
+			reason: "A non-fatal render error must be returned wrapped with the existing 'cannot render composite resource' context; stdout must be empty and the error must NOT implement kong.ExitCoder.",
+			req: func(t *testing.T) *renderv1alpha1.RenderRequest {
+				t.Helper()
+				return &renderv1alpha1.RenderRequest{
+					Input: &renderv1alpha1.RenderRequest_Composite{
+						Composite: &renderv1alpha1.CompositeInput{
+							// Missing CompositeResource fields cause Render
+							// to fail before Reconcile.
+							CompositeResource: mustStruct(t, map[string]any{}),
+							Composition: mustStruct(t, map[string]any{
+								"metadata": map[string]any{"name": "broken"},
+								"spec": map[string]any{
+									"compositeTypeRef": map[string]any{
+										"apiVersion": "example.org/v1alpha1",
+										"kind":       "XBroken",
+									},
+									"pipeline": []any{},
+								},
+							}),
 						},
-						"pipeline": []any{},
 					},
-				}),
+				}
+			},
+			want: want{
+				pipelineFatal: false,
+				exitCode:      0,
 			},
 		},
 	}
 
-	stdin := mustMarshalRequest(t, req)
-	stdout := &bytes.Buffer{}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			stdin := mustMarshalRequest(t, tc.req(t))
+			stdout := &bytes.Buffer{}
 
-	cmd := &Command{
-		Timeout: 30 * time.Second,
-		stdin:   stdin,
-		stdout:  stdout,
-	}
-	err := cmd.Run(logging.NewNopLogger())
-	if err == nil {
-		t.Fatalf("Run(...) expected error, got nil")
-	}
-	var pfe *xcomposite.PipelineFatalError
-	if errors.As(err, &pfe) {
-		t.Errorf("non-fatal error unexpectedly classified as PipelineFatalError: %v", err)
-	}
-	var ec kong.ExitCoder
-	if errors.As(err, &ec) {
-		t.Errorf("non-fatal error unexpectedly implements kong.ExitCoder with code %d", ec.ExitCode())
-	}
-	if stdout.Len() != 0 {
-		t.Errorf("stdout should be empty on non-fatal failure; got %d bytes", stdout.Len())
+			// Minimal Kong tree mirroring how the render subcommand is
+			// mounted in main.go's cli struct. We pre-set the unexported
+			// stdin/stdout fields; Kong's reflection ignores untagged
+			// unexported fields and doesn't clobber them, so the values
+			// survive parsing.
+			var cli struct {
+				Render Command `cmd:""`
+			}
+			cli.Render.stdin = stdin
+			cli.Render.stdout = stdout
+
+			// Bind the logging.Logger interface the same way main.go does
+			// (kong.BindTo with the interface pointer); without this Kong
+			// can't satisfy Run's logging.Logger parameter.
+			parser, err := kong.New(&cli,
+				kong.BindTo(logging.NewNopLogger(), (*logging.Logger)(nil)),
+			)
+			if err != nil {
+				t.Fatalf("%s\nkong.New: %v", tc.reason, err)
+			}
+			ktx, err := parser.Parse([]string{"render", "--timeout=30s"})
+			if err != nil {
+				t.Fatalf("%s\nkong.Parse: %v", tc.reason, err)
+			}
+			err = ktx.Run()
+
+			if err == nil {
+				t.Fatalf("%s\nRun(...) expected error, got nil", tc.reason)
+			}
+
+			// PipelineFatalError property check (errors.As + Step/Message),
+			// per the contribution guide's "Test Error Properties, not
+			// Error Strings" guidance.
+			var pfe *xcomposite.PipelineFatalError
+			gotFatal := errors.As(err, &pfe)
+			if gotFatal != tc.want.pipelineFatal {
+				t.Errorf("%s\nerrors.As(*PipelineFatalError) = %v, want %v; err=%v", tc.reason, gotFatal, tc.want.pipelineFatal, err)
+			}
+			if tc.want.pipelineFatal && gotFatal {
+				if pfe.Step != tc.want.fatalStep {
+					t.Errorf("%s\nPipelineFatalError.Step = %q, want %q", tc.reason, pfe.Step, tc.want.fatalStep)
+				}
+				if pfe.Message != tc.want.fatalMessage {
+					t.Errorf("%s\nPipelineFatalError.Message = %q, want %q", tc.reason, pfe.Message, tc.want.fatalMessage)
+				}
+			}
+
+			// Kong exit-code property check.
+			var ec kong.ExitCoder
+			gotEC := errors.As(err, &ec)
+			wantEC := tc.want.exitCode != 0
+			if gotEC != wantEC {
+				t.Errorf("%s\nerrors.As(kong.ExitCoder) = %v, want %v; err=%v", tc.reason, gotEC, wantEC, err)
+			}
+			if wantEC && gotEC {
+				if got := ec.ExitCode(); got != tc.want.exitCode {
+					t.Errorf("%s\nExitCode() = %d, want %d", tc.reason, got, tc.want.exitCode)
+				}
+			}
+
+			// stdout shape.
+			if !tc.want.compositeOutput {
+				if stdout.Len() != 0 {
+					t.Errorf("%s\nstdout should be empty; got %d bytes", tc.reason, stdout.Len())
+				}
+				return
+			}
+
+			rsp := &renderv1alpha1.RenderResponse{}
+			if err := proto.Unmarshal(stdout.Bytes(), rsp); err != nil {
+				t.Fatalf("%s\ncannot unmarshal stdout RenderResponse: %v (bytes=%d)", tc.reason, err, stdout.Len())
+			}
+			composite := rsp.GetComposite()
+			if composite == nil {
+				t.Fatalf("%s\nRenderResponse.Composite is nil; expected partial output", tc.reason)
+			}
+			if got := len(composite.GetRequiredResources()); got != tc.want.requiredResources {
+				t.Errorf("%s\nlen(RequiredResources) = %d, want %d; rsp=%v", tc.reason, got, tc.want.requiredResources, rsp)
+			}
+		})
 	}
 }

@@ -133,13 +133,13 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 			u.GetName() == op.GetName()
 	}, rec, rrf, rsf)
 	switch {
-	case berr != nil && rerr != nil:
-		// Both reconcile and buildOutput failed; surface both via
-		// errors.Join so callers can recover *PipelineFatalError from the
-		// chain via errors.As when present.
-		return nil, errors.Join(rerr, berr)
 	case berr != nil:
-		return nil, berr
+		// Surface buildOutput's failure. If reconcile also failed, join
+		// both so callers can recover *PipelineFatalError via errors.As.
+		// When rerr is nil, errors.Join wraps berr in a MultiError whose
+		// Error() string and errors.As/Is behavior match berr exactly —
+		// callers using those traversals see no difference.
+		return nil, errors.Join(rerr, berr)
 	case rerr != nil:
 		// Symmetrical with composite.Render: return the full wrapped error
 		// chain so callers preserve any reconciler-added diagnostic context;
