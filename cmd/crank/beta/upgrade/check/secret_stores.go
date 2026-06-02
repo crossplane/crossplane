@@ -347,11 +347,8 @@ func containerHasEnabledFlag(args []string, flag string) bool {
 		case a == flag:
 			// we found the flag in the container args, check to see if the next arg is disabling it
 			// so we don't find a false positive
-			if i+1 < len(args) {
-				next := args[i+1]
-				if !strings.HasPrefix(next, "-") && strings.EqualFold(next, "false") {
-					return false
-				}
+			if i+1 < len(args) && strings.EqualFold(args[i+1], "false") {
+				return false
 			}
 			return true
 		case strings.HasPrefix(a, flagEqualsPrefix):
