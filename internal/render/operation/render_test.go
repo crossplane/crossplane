@@ -17,14 +17,10 @@ limitations under the License.
 package operation
 
 import (
-	"context"
-	"net"
-	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -33,6 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
 	xcomposite "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/v2/internal/render/rendertest"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
 )
@@ -109,7 +106,7 @@ func TestRender(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			out, err := Render(context.Background(), logging.NewNopLogger(), tc.input)
+			out, err := Render(t.Context(), logging.NewNopLogger(), tc.input)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRender(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -121,78 +118,7 @@ func TestRender(t *testing.T) {
 	}
 }
 
-func mustStruct(m map[string]any) *structpb.Struct {
-	s, err := structpb.NewStruct(m)
-	if err != nil {
-		panic(err)
-	}
-	return s
-}
-
-// fatalFunctionServer simulates a real function-extra-resources style pipeline
-// step. On its first call it announces its required resources via
-// Requirements.Resources (no FATAL), letting the FetchingFunctionRunner record
-// the selectors via the recording fetcher. On its second call (when the
-// fetched resources came back empty because the caller did not pre-populate
-// them) it returns SEVERITY_FATAL.
-type fatalFunctionServer struct {
-	fnv1.UnimplementedFunctionRunnerServiceServer
-	requirementName string
-	selector        *fnv1.ResourceSelector
-	fatalMessage    string
-
-	mu    sync.Mutex
-	calls int
-}
-
-func (s *fatalFunctionServer) RunFunction(_ context.Context, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	s.mu.Lock()
-	s.calls++
-	call := s.calls
-	s.mu.Unlock()
-
-	if call == 1 {
-		return &fnv1.RunFunctionResponse{
-			Requirements: &fnv1.Requirements{
-				Resources: map[string]*fnv1.ResourceSelector{
-					s.requirementName: s.selector,
-				},
-			},
-		}, nil
-	}
-
-	return &fnv1.RunFunctionResponse{
-		Requirements: &fnv1.Requirements{
-			Resources: map[string]*fnv1.ResourceSelector{
-				s.requirementName: s.selector,
-			},
-		},
-		Results: []*fnv1.Result{
-			{Severity: fnv1.Severity_SEVERITY_FATAL, Message: s.fatalMessage},
-		},
-	}, nil
-}
-
-func startTestFunctionServer(t *testing.T, ss fnv1.FunctionRunnerServiceServer) string {
-	t.Helper()
-
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("cannot listen for test gRPC server: %v", err)
-	}
-
-	s := grpc.NewServer()
-	fnv1.RegisterFunctionRunnerServiceServer(s, ss)
-	go func() { _ = s.Serve(lis) }()
-
-	t.Cleanup(func() {
-		s.Stop()
-	})
-
-	return lis.Addr().String()
-}
-
-func TestRenderPipelineFatalReturnsRequirements(t *testing.T) {
+func TestRenderErrors(t *testing.T) {
 	const stepName = "fetch-extras"
 	const fatalMsg = "Required extra resource \"namedClusterRole\" not found"
 	const requirementName = "namedClusterRole"
@@ -205,108 +131,147 @@ func TestRenderPipelineFatalReturnsRequirements(t *testing.T) {
 		},
 	}
 
-	server := &fatalFunctionServer{
-		requirementName: requirementName,
-		selector:        wantSelector,
-		fatalMessage:    fatalMsg,
+	type want struct {
+		pipelineFatal           bool
+		fatalStep, fatalMessage string
+		hasOutput               bool
+		requiredResources       int
+		wantSelector            *fnv1.ResourceSelector
 	}
 
-	addr := startTestFunctionServer(t, server)
-
-	in := &renderv1alpha1.OperationInput{
-		Operation: mustStruct(map[string]any{
-			"apiVersion": "ops.crossplane.io/v1alpha1",
-			"kind":       "Operation",
-			"metadata": map[string]any{
-				"name":      "my-operation",
-				"namespace": "default",
-			},
-			"spec": map[string]any{
-				"mode": "Pipeline",
-				"pipeline": []any{
-					map[string]any{
-						"step":        stepName,
-						"functionRef": map[string]any{"name": "function-extra-resources"},
+	cases := map[string]struct {
+		reason string
+		input  func(t *testing.T) *renderv1alpha1.OperationInput
+		want   want
+	}{
+		"PipelineFatalReturnsRequirements": {
+			reason: "When a pipeline step returns SEVERITY_FATAL, Render must return the partial OperationOutput (with recorded RequiredResources) and an error chain containing *PipelineFatalError reachable via errors.As.",
+			input: func(t *testing.T) *renderv1alpha1.OperationInput {
+				t.Helper()
+				addr := rendertest.StartFunctionServer(t, &rendertest.FatalFunctionServer{
+					RequirementName: requirementName,
+					Selector:        wantSelector,
+					FatalMessage:    fatalMsg,
+				})
+				return &renderv1alpha1.OperationInput{
+					Operation: mustStruct(map[string]any{
+						"apiVersion": "ops.crossplane.io/v1alpha1",
+						"kind":       "Operation",
+						"metadata": map[string]any{
+							"name":      "my-operation",
+							"namespace": "default",
+						},
+						"spec": map[string]any{
+							"mode": "Pipeline",
+							"pipeline": []any{
+								map[string]any{
+									"step":        stepName,
+									"functionRef": map[string]any{"name": "function-extra-resources"},
+								},
+							},
+						},
+					}),
+					Functions: []*renderv1alpha1.FunctionInput{
+						{Name: "function-extra-resources", Address: addr},
 					},
-				},
+				}
 			},
-		}),
-		Functions: []*renderv1alpha1.FunctionInput{
-			{Name: "function-extra-resources", Address: addr},
+			want: want{
+				pipelineFatal:     true,
+				fatalStep:         stepName,
+				fatalMessage:      fatalMsg,
+				hasOutput:         true,
+				requiredResources: 1,
+				wantSelector:      wantSelector,
+			},
+		},
+		"NonFatalReconcileErrorWraps": {
+			reason: "A pipeline step whose function name is not registered in FunctionInput causes the reconciler to fail with an 'unknown function' error — a non-fatal failure mode. The error must NOT be a *PipelineFatalError, and no partial output must be returned.",
+			input: func(t *testing.T) *renderv1alpha1.OperationInput {
+				t.Helper()
+				return &renderv1alpha1.OperationInput{
+					Operation: mustStruct(map[string]any{
+						"apiVersion": "ops.crossplane.io/v1alpha1",
+						"kind":       "Operation",
+						"metadata": map[string]any{
+							"name":      "my-operation",
+							"namespace": "default",
+						},
+						"spec": map[string]any{
+							"mode": "Pipeline",
+							"pipeline": []any{
+								map[string]any{
+									"step":        "missing",
+									"functionRef": map[string]any{"name": "function-does-not-exist"},
+								},
+							},
+						},
+					}),
+					// Functions list intentionally empty.
+				}
+			},
+			want: want{
+				pipelineFatal: false,
+				hasOutput:     false,
+			},
 		},
 	}
 
-	out, err := Render(context.Background(), logging.NewNopLogger(), in)
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			out, err := Render(t.Context(), logging.NewNopLogger(), tc.input(t))
 
-	var pfe *xcomposite.PipelineFatalError
-	if !errors.As(err, &pfe) {
-		t.Fatalf("Render(...) error: want *PipelineFatalError in chain, got %T: %v", err, err)
-	}
-	if pfe.Step != stepName {
-		t.Errorf("PipelineFatalError.Step = %q, want %q", pfe.Step, stepName)
-	}
-	if pfe.Message != fatalMsg {
-		t.Errorf("PipelineFatalError.Message = %q, want %q", pfe.Message, fatalMsg)
-	}
+			if err == nil {
+				t.Fatalf("%s\nRender(...) expected error, got nil", tc.reason)
+			}
 
-	if out == nil {
-		t.Fatalf("Render(...) returned nil output on PipelineFatalError; want non-nil with RequiredResources populated")
-	}
-	if got := len(out.GetRequiredResources()); got != 1 {
-		t.Fatalf("len(out.RequiredResources) = %d, want 1; out=%v", got, out)
-	}
+			var pfe *xcomposite.PipelineFatalError
+			gotFatal := errors.As(err, &pfe)
+			if gotFatal != tc.want.pipelineFatal {
+				t.Errorf("%s\nerrors.As(*PipelineFatalError) = %v, want %v; err=%v", tc.reason, gotFatal, tc.want.pipelineFatal, err)
+			}
+			if tc.want.pipelineFatal && gotFatal {
+				if pfe.Step != tc.want.fatalStep {
+					t.Errorf("%s\nPipelineFatalError.Step = %q, want %q", tc.reason, pfe.Step, tc.want.fatalStep)
+				}
+				if pfe.Message != tc.want.fatalMessage {
+					t.Errorf("%s\nPipelineFatalError.Message = %q, want %q", tc.reason, pfe.Message, tc.want.fatalMessage)
+				}
+			}
 
-	gotSelector := &fnv1.ResourceSelector{}
-	bs, err := out.GetRequiredResources()[0].MarshalJSON()
-	if err != nil {
-		t.Fatalf("cannot marshal recorded selector to JSON: %v", err)
-	}
-	if err := protojson.Unmarshal(bs, gotSelector); err != nil {
-		t.Fatalf("cannot decode recorded ResourceSelector: %v", err)
-	}
-	if diff := cmp.Diff(wantSelector, gotSelector, protocmp.Transform()); diff != "" {
-		t.Errorf("recorded ResourceSelector: -want, +got:\n%s", diff)
+			if !tc.want.hasOutput {
+				if out != nil {
+					t.Errorf("%s\nRender(...) returned out=%v on non-fatal error; want nil", tc.reason, out)
+				}
+				return
+			}
+			if out == nil {
+				t.Fatalf("%s\nRender(...) returned nil output; want non-nil with RequiredResources populated", tc.reason)
+			}
+			if got := len(out.GetRequiredResources()); got != tc.want.requiredResources {
+				t.Fatalf("%s\nlen(out.RequiredResources) = %d, want %d; out=%v", tc.reason, got, tc.want.requiredResources, out)
+			}
+			if tc.want.requiredResources > 0 && tc.want.wantSelector != nil {
+				gotSelector := &fnv1.ResourceSelector{}
+				bs, err := out.GetRequiredResources()[0].MarshalJSON()
+				if err != nil {
+					t.Fatalf("%s\ncannot marshal recorded selector to JSON: %v", tc.reason, err)
+				}
+				if err := protojson.Unmarshal(bs, gotSelector); err != nil {
+					t.Fatalf("%s\ncannot decode recorded ResourceSelector: %v", tc.reason, err)
+				}
+				if diff := cmp.Diff(tc.want.wantSelector, gotSelector, protocmp.Transform()); diff != "" {
+					t.Errorf("%s\nrecorded ResourceSelector: -want, +got:\n%s", tc.reason, diff)
+				}
+			}
+		})
 	}
 }
 
-func TestRenderNonFatalReconcileErrorWraps(t *testing.T) {
-	// A pipeline step whose function name is not registered in
-	// FunctionInput causes the reconciler to fail with an "unknown function"
-	// error — a non-fatal failure mode. The returned error must NOT be a
-	// *PipelineFatalError, and no partial output must be returned. This
-	// guards the non-fatal path against regressions that would accidentally
-	// surface partial output for any reconcile failure.
-	in := &renderv1alpha1.OperationInput{
-		Operation: mustStruct(map[string]any{
-			"apiVersion": "ops.crossplane.io/v1alpha1",
-			"kind":       "Operation",
-			"metadata": map[string]any{
-				"name":      "my-operation",
-				"namespace": "default",
-			},
-			"spec": map[string]any{
-				"mode": "Pipeline",
-				"pipeline": []any{
-					map[string]any{
-						"step":        "missing",
-						"functionRef": map[string]any{"name": "function-does-not-exist"},
-					},
-				},
-			},
-		}),
-		// Functions list intentionally empty so the runner has no
-		// connection for "function-does-not-exist".
+func mustStruct(m map[string]any) *structpb.Struct {
+	s, err := structpb.NewStruct(m)
+	if err != nil {
+		panic(err)
 	}
-
-	out, err := Render(context.Background(), logging.NewNopLogger(), in)
-	if err == nil {
-		t.Fatalf("Render(...) expected error, got nil; out=%v", out)
-	}
-	var pfe *PipelineFatalError
-	if errors.As(err, &pfe) {
-		t.Errorf("Render(...) error unexpectedly classified as *PipelineFatalError: %v", err)
-	}
-	if out != nil {
-		t.Errorf("Render(...) returned out=%v on non-fatal error; want nil", out)
-	}
+	return s
 }

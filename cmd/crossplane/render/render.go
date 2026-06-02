@@ -150,21 +150,16 @@ func (c *Command) Run(log logging.Logger) error {
 		// Marshal failure means we cannot deliver any stdout; surface both
 		// the marshal error and the pipeline FATAL (if any) via errors.Join
 		// so callers can still recover *PipelineFatalError via errors.As.
-		// The combined error does not implement kong.ExitCoder, so the
-		// process exits with the generic non-zero code instead of 3 — which
-		// is correct because the partial-output contract isn't being met.
-		merr := errors.Wrap(err, "cannot marshal render response")
-		if renderErr != nil {
-			return errors.Join(merr, renderErr)
-		}
-		return merr
+		// When renderErr is nil, errors.Join wraps the marshal error in a
+		// MultiError whose Error() string and errors.As/Is behavior match
+		// the wrapped error exactly. The combined error does not implement
+		// kong.ExitCoder, so the process exits with the generic non-zero
+		// code instead of 3 — correct because the partial-output contract
+		// isn't being met.
+		return errors.Join(errors.Wrap(err, "cannot marshal render response"), renderErr)
 	}
 	if _, err := c.stdout.Write(out); err != nil {
-		werr := errors.Wrap(err, "cannot write render response")
-		if renderErr != nil {
-			return errors.Join(werr, renderErr)
-		}
-		return werr
+		return errors.Join(errors.Wrap(err, "cannot write render response"), renderErr)
 	}
 
 	if pfe != nil {
