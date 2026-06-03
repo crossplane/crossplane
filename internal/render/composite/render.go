@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -41,6 +42,7 @@ import (
 
 	apis "github.com/crossplane/crossplane/apis/v2"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	apiextensionsv2 "github.com/crossplane/crossplane/apis/v2/apiextensions/v2"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composition"
@@ -61,12 +63,29 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		return nil, errors.Wrap(err, "cannot add Crossplane APIs to scheme")
 	}
 
-	// Convert the input XR from protobuf Struct to unstructured.
-	xr := ucomposite.New()
+	// Peek at the input XR's GVK so we can pick the right composite.Schema
+	// before constructing the wrapper. The wrapper's Schema is used by
+	// schema-aware accessors like SetResourceReferences, so it must be set
+	// before InjectResourceRefs runs below.
+	peek := &kunstructured.Unstructured{}
+	if err := xfn.FromStruct(peek, in.GetCompositeResource()); err != nil {
+		return nil, errors.Wrap(err, "cannot convert composite resource from protobuf")
+	}
+	gvk := peek.GroupVersionKind()
+
+	cschema, err := selectSchema(gvk, in.GetCompositeResourceDefinition())
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot select composite resource schema")
+	}
+
+	// Convert the input XR from protobuf Struct to unstructured, with the
+	// schema already pinned. The GVK is taken from the proto payload itself
+	// via FromStruct (which overwrites the underlying Object map); the
+	// Schema field on the wrapper is preserved across that overwrite.
+	xr := ucomposite.New(ucomposite.WithSchema(cschema))
 	if err := xfn.FromStruct(xr, in.GetCompositeResource()); err != nil {
 		return nil, errors.Wrap(err, "cannot convert composite resource from protobuf")
 	}
-	gvk := xr.GroupVersionKind()
 
 	// Set a deterministic fake UID. The NameGenerator uses the owner UID for
 	// deterministic name generation of composed resources. The namespace is
@@ -166,6 +185,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 	rec := &render.EventRecorder{}
 
 	r := composite.NewReconciler(c, gvk,
+		composite.WithCompositeSchema(cschema),
 		composite.WithComposer(fc),
 		composite.WithCompositeFinalizer(xpresource.NewNopFinalizer()),
 		composite.WithCompositionSelector(CompositionSelector(comp)),
@@ -206,6 +226,81 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 			u.GetNamespace() == xr.GetNamespace() &&
 			u.GetName() == xr.GetName()
 	}, rec, rrf, rsf)
+}
+
+// selectSchema picks the composite.Schema for an input XR. With no XRD
+// supplied it returns SchemaModern. Otherwise the XRD's composite
+// Group+Kind must match the input XR, and Spec.Scope == "LegacyCluster"
+// selects SchemaLegacy.
+//
+// Counterintuitively, "LegacyCluster" can appear on v2-form XRDs even
+// though it isn't in the v2 CRD's scope enum. That enum is enforced at
+// admission only; v1 is the storage version, the XRD CRD declares no
+// conversion (strategy None), and the v2 Go type's Spec.Scope is an
+// unvalidated string alias — so a v1-posted XRD fetched as v2-form is
+// the same stored object with the apiVersion relabeled, and Spec.Scope
+// arrives verbatim. Branching on apiVersion would force callers to
+// fetch v1-form specifically; checking the scope string on both forms
+// works regardless of how the caller got the XRD.
+func selectSchema(gvk schema.GroupVersionKind, def *structpb.Struct) (ucomposite.Schema, error) {
+	if def == nil {
+		return ucomposite.SchemaModern, nil
+	}
+
+	const legacyClusterScope = string(apiextensionsv1.CompositeResourceScopeLegacyCluster)
+
+	u := &kunstructured.Unstructured{}
+	if err := xfn.FromStruct(u, def); err != nil {
+		return ucomposite.SchemaModern, errors.Wrap(err, "cannot decode CompositeResourceDefinition")
+	}
+
+	var (
+		xrdGVK  schema.GroupVersionKind
+		xrdName = u.GetName()
+		cschema = ucomposite.SchemaModern
+	)
+
+	switch u.GetAPIVersion() {
+	case apiextensionsv1.SchemeGroupVersion.String():
+		xrd := &apiextensionsv1.CompositeResourceDefinition{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, xrd); err != nil {
+			return ucomposite.SchemaModern, errors.Wrapf(err, "cannot decode v1 CompositeResourceDefinition %q", xrdName)
+		}
+		xrdGVK = xrd.GetCompositeGroupVersionKind()
+		if ptr.Deref(xrd.Spec.Scope, apiextensionsv1.CompositeResourceScopeLegacyCluster) == apiextensionsv1.CompositeResourceScopeLegacyCluster {
+			cschema = ucomposite.SchemaLegacy
+		}
+	case apiextensionsv2.SchemeGroupVersion.String():
+		xrd := &apiextensionsv2.CompositeResourceDefinition{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, xrd); err != nil {
+			return ucomposite.SchemaModern, errors.Wrapf(err, "cannot decode v2 CompositeResourceDefinition %q", xrdName)
+		}
+		xrdGVK = xrd.GetCompositeGroupVersionKind()
+		// Counterintuitively, we can see LegacyCluster on v2 objects. See
+		// function comment.
+		if string(xrd.Spec.Scope) == legacyClusterScope {
+			cschema = ucomposite.SchemaLegacy
+		}
+	default:
+		return ucomposite.SchemaModern, errors.Errorf("CompositeResourceDefinition %q has unrecognized apiVersion %q (expected one of %v)",
+			xrdName, u.GetAPIVersion(),
+			[]string{
+				apiextensionsv1.SchemeGroupVersion.String(),
+				apiextensionsv2.SchemeGroupVersion.String(),
+			})
+	}
+
+	// Match only on Group+Kind: GetCompositeGroupVersionKind returns the
+	// XRD's referenceable version, but the input XR may legitimately be
+	// submitted under a served-but-not-referenceable version of the same
+	// XRD. Schema selection depends on XRD identity (Group+Kind), not on
+	// which served version the XR happens to use.
+	if xrdGVK.Group != gvk.Group || xrdGVK.Kind != gvk.Kind {
+		return ucomposite.SchemaModern, errors.Errorf("CompositeResourceDefinition %q (composite Group=%s Kind=%s) does not match the input XR's Group=%s Kind=%s",
+			xrdName, xrdGVK.Group, xrdGVK.Kind, gvk.Group, gvk.Kind)
+	}
+
+	return cschema, nil
 }
 
 // InjectResourceRefs sets spec.resourceRefs on the XR for each observed
