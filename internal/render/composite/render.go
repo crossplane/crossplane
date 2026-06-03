@@ -229,14 +229,19 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 }
 
 // selectSchema picks the composite.Schema for an input XR. With no XRD
-// supplied it returns SchemaModern. Otherwise the XRD's composite GVK
-// must match the input XR's GVK, and Spec.Scope == "LegacyCluster"
+// supplied it returns SchemaModern. Otherwise the XRD's composite
+// Group+Kind must match the input XR, and Spec.Scope == "LegacyCluster"
 // selects SchemaLegacy.
 //
-// Scope is checked as a string on both v1- and v2-form XRDs. A v1-posted
-// XRD fetched as v2-form preserves "LegacyCluster" verbatim — v2's
-// Spec.Scope is an unvalidated string alias — so branching on apiVersion
-// would force callers to fetch v1-form specifically.
+// Counterintuitively, "LegacyCluster" can appear on v2-form XRDs even
+// though it isn't in the v2 CRD's scope enum. That enum is enforced at
+// admission only; v1 is the storage version, the XRD CRD declares no
+// conversion (strategy None), and the v2 Go type's Spec.Scope is an
+// unvalidated string alias — so a v1-posted XRD fetched as v2-form is
+// the same stored object with the apiVersion relabeled, and Spec.Scope
+// arrives verbatim. Branching on apiVersion would force callers to
+// fetch v1-form specifically; checking the scope string on both forms
+// works regardless of how the caller got the XRD.
 func selectSchema(gvk schema.GroupVersionKind, def *structpb.Struct) (ucomposite.Schema, error) {
 	if def == nil {
 		return ucomposite.SchemaModern, nil
@@ -250,9 +255,9 @@ func selectSchema(gvk schema.GroupVersionKind, def *structpb.Struct) (ucomposite
 	}
 
 	var (
-		xrdGVK   schema.GroupVersionKind
-		xrdName  = u.GetName()
-		isLegacy bool
+		xrdGVK  schema.GroupVersionKind
+		xrdName = u.GetName()
+		cschema = ucomposite.SchemaModern
 	)
 
 	switch u.GetAPIVersion() {
@@ -262,15 +267,20 @@ func selectSchema(gvk schema.GroupVersionKind, def *structpb.Struct) (ucomposite
 			return ucomposite.SchemaModern, errors.Wrapf(err, "cannot decode v1 CompositeResourceDefinition %q", xrdName)
 		}
 		xrdGVK = xrd.GetCompositeGroupVersionKind()
-		effective := string(ptr.Deref(xrd.Spec.Scope, apiextensionsv1.CompositeResourceScopeLegacyCluster))
-		isLegacy = effective == legacyClusterScope
+		if ptr.Deref(xrd.Spec.Scope, apiextensionsv1.CompositeResourceScopeLegacyCluster) == apiextensionsv1.CompositeResourceScopeLegacyCluster {
+			cschema = ucomposite.SchemaLegacy
+		}
 	case apiextensionsv2.SchemeGroupVersion.String():
 		xrd := &apiextensionsv2.CompositeResourceDefinition{}
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, xrd); err != nil {
 			return ucomposite.SchemaModern, errors.Wrapf(err, "cannot decode v2 CompositeResourceDefinition %q", xrdName)
 		}
 		xrdGVK = xrd.GetCompositeGroupVersionKind()
-		isLegacy = string(xrd.Spec.Scope) == legacyClusterScope
+		// Counterintuitively, we can see LegacyCluster on v2 objects. See
+		// function comment.
+		if string(xrd.Spec.Scope) == legacyClusterScope {
+			cschema = ucomposite.SchemaLegacy
+		}
 	default:
 		return ucomposite.SchemaModern, errors.Errorf("CompositeResourceDefinition %q has unrecognized apiVersion %q (expected one of %v)",
 			xrdName, u.GetAPIVersion(),
@@ -290,10 +300,7 @@ func selectSchema(gvk schema.GroupVersionKind, def *structpb.Struct) (ucomposite
 			xrdName, xrdGVK.Group, xrdGVK.Kind, gvk.Group, gvk.Kind)
 	}
 
-	if isLegacy {
-		return ucomposite.SchemaLegacy, nil
-	}
-	return ucomposite.SchemaModern, nil
+	return cschema, nil
 }
 
 // InjectResourceRefs sets spec.resourceRefs on the XR for each observed
