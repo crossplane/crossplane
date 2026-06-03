@@ -1084,6 +1084,100 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 		},
+		"ApplyComposedResourceErrorPreservesEvents": {
+			reason: "When applying a composed resource fails with a non-invalid error, previously accumulated events (e.g. from function pipeline warnings) should be preserved in the returned result.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "UncoolComposed"}, "")),
+					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+						switch obj.(type) {
+						case *composed.Unstructured:
+							return errBoom
+						default:
+						}
+						return nil
+					}),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+					d := &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							"uncool-resource": {
+								Resource: MustStruct(map[string]any{
+									"apiVersion": "test.crossplane.io/v1",
+									"kind":       "UncoolComposed",
+								}),
+							},
+						},
+					}
+					return &fnv1.RunFunctionResponse{
+						Desired: d,
+						Results: []*fnv1.Result{
+							{
+								Severity: fnv1.Severity_SEVERITY_WARNING,
+								Message:  "something went wrong in the pipeline",
+							},
+						},
+					}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: WithParentLabel(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Events: []TargetedEvent{
+						{
+							Event: event.Event{
+								Type:    "Warning",
+								Reason:  "ComposeResources",
+								Message: "something went wrong in the pipeline",
+							},
+							Detail: `Pipeline step "run-cool-function"`,
+							Target: CompositionTargetComposite,
+						},
+					},
+				},
+				err: xerrors.ComposedResourceError{
+					Message: fmt.Sprintf(errFmtApplyCD, "uncool-resource"),
+					Composed: &composed.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "test.crossplane.io/v1",
+								"kind":       "UncoolComposed",
+							},
+						},
+					},
+					Err: errBoom,
+				},
+			},
+		},
 		"BootstrapRequirementsError": {
 			reason: "We should return an error if we can't fetch bootstrap requirements",
 			params: params{
