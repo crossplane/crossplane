@@ -112,6 +112,18 @@ message CompositeInput {
   // request schemas via the Requirements protocol. Each entry is a full OpenAPI
   // v3 document as JSON. Optional.
   repeated google.protobuf.Struct required_schemas = 7;
+
+  // CompositeResourceDefinition is the XRD that defines the input XR. The
+  // binary uses it to determine the right composite.Schema (Legacy vs Modern),
+  // mirroring what the production reconciler does. Its composite GVK must
+  // match the input XR.
+  //
+  // Render does not recurse into composed XRs. Callers that need to render
+  // a chain of nested XRs should invoke render once per XR, supplying the
+  // matching XRD on each call.
+  //
+  // Optional. If absent, the binary falls back to Schema=Modern.
+  google.protobuf.Struct composite_resource_definition = 8;
 }
 
 // A CompositeOutput contains the results of rendering a composite resource.
