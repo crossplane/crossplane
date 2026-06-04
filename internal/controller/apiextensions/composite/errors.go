@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package xerrors
+package composite
 
 import (
 	"fmt"
@@ -22,7 +22,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 )
 
-// A ComposedResourceError allows the resource composer to return context around the composition error.
+// A ComposedResourceError allows the resource composer to return context around
+// the composition error.
 type ComposedResourceError struct {
 	// Message is the body of a composed resource error.
 	Message string

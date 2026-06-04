@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package xerrors
+package engine
 
 import (
 	"fmt"
@@ -41,21 +41,22 @@ type SubjectAccessReviewError struct {
 // Error implements errors.Error.
 func (e SubjectAccessReviewError) Error() string {
 	sb := strings.Builder{}
-	sb.WriteString(fmt.Sprintf("%s is not allowed to [%s] resource %s",
-		e.User, strings.Join(e.DeniedVerbs, ", "), e.Resource.Resource))
+	fmt.Fprintf(&sb, "%s is not allowed to [%s] resource %s",
+		e.User, strings.Join(e.DeniedVerbs, ", "), e.Resource.Resource)
 
 	if e.Resource.Group != "" {
-		sb.WriteString(fmt.Sprintf(".%s", e.Resource.GroupVersion()))
+		fmt.Fprintf(&sb, ".%s", e.Resource.GroupVersion())
 	} else {
-		sb.WriteString(fmt.Sprintf("/%s", e.Resource.GroupVersion()))
+		fmt.Fprintf(&sb, "/%s", e.Resource.GroupVersion())
 	}
 
 	if e.Namespace != "" {
-		sb.WriteString(fmt.Sprintf(" in namespace %s", e.Namespace))
+		fmt.Fprintf(&sb, " in namespace %s", e.Namespace)
 	}
 	if e.Err != nil {
-		sb.WriteString(fmt.Sprintf(": %s", e.Err.Error()))
+		fmt.Fprintf(&sb, ": %s", e.Err.Error())
 	}
+
 	return sb.String()
 }
 
