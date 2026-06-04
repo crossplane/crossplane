@@ -130,6 +130,7 @@ type startCommand struct {
 	TLSClientSecretName string `env:"TLS_CLIENT_SECRET_NAME" help:"The name of the TLS Secret that will be store Crossplane's client certificate."`
 	TLSClientCertsDir   string `env:"TLS_CLIENT_CERTS_DIR"   help:"The path of the folder which will store TLS client certificate of Crossplane."`
 
+	EnableExtraResourcesImpersonation bool `group:"Alpha Features:" help:"Enable per-tenant identity for composition ExtraResources fetches. When enabled, Crossplane impersonates a ServiceAccount in the XR's namespace when reading ExtraResources. Only applies to namespaced XRs. See --extra-resources-impersonation-default-sa."`
 	EnableDependencyVersionUpgrades   bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when the parent package is updated."`
 	EnableDependencyVersionDowngrades bool `group:"Alpha Features:" help:"Enable support for upgrading and downgrading dependency versions when a dependent package is updated."`
 	EnableSignatureVerification       bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
@@ -141,6 +142,8 @@ type startCommand struct {
 	XfnCacheDir             string        `default:"/cache/xfn"                         env:"XFN_CACHE_DIR"             group:"Alpha Features:" help:"Directory used for caching function responses. Requires --enable-function-response-cache."`
 	XfnCacheMaxTTL          time.Duration `default:"24h"                                env:"XFN_CACHE_MAX_TTL"         group:"Alpha Features:" help:"Maximum TTL for cached function responses. Set to 0 to disable. Requires --enable-function-response-cache."`
 	PipelineInspectorSocket string        `default:"/var/run/pipeline-inspector/socket" env:"PIPELINE_INSPECTOR_SOCKET" group:"Alpha Features:" help:"Unix socket path for pipeline inspector sidecar. Requires --enable-pipeline-inspector."`
+
+	ExtraResourcesImpersonationDefaultSA string `default:"" env:"EXTRA_RESOURCES_IMPERSONATION_DEFAULT_SA" group:"Alpha Features:" help:"Default ServiceAccount name to impersonate when fetching ExtraResources for a namespaced XR that has no crossplane.io/extra-resources-as annotation. If empty, ExtraResources for unannotated XRs are fetched as Crossplane (no impersonation). Requires --enable-extra-resources-impersonation."`
 
 	EnableDeploymentRuntimeConfigs          bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
 	EnableUsages                            bool `default:"true" group:"Beta Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
@@ -297,6 +300,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	go pfr.GarbageCollectConnections(ctx, 10*time.Minute)
 
 	var runner xfn.FunctionRunner = pfr
+
+	if c.EnableExtraResourcesImpersonation {
+		o.Features.Enable(features.EnableAlphaExtraResourcesImpersonation)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExtraResourcesImpersonation)
+	}
 
 	if c.EnablePipelineInspector {
 		o.Features.Enable(features.EnableAlphaPipelineInspector)
@@ -473,11 +481,33 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot setup discovery cache invalidation")
 	}
 
+	// With per-tenant impersonation on, wrap the fetcher so namespaced XRs read
+	// ExtraResources under an impersonated identity.
+	var resourcesFetcher xfn.RequiredResourcesFetcher = xfn.NewExistingRequiredResourcesFetcher(cached)
+	if o.Features.Enabled(features.EnableAlphaExtraResourcesImpersonation) {
+		baseFetcher := xfn.NewExistingRequiredResourcesFetcher(cached)
+		resolver := xfn.AnnotationImpersonationResolver{
+			DefaultSA: c.ExtraResourcesImpersonationDefaultSA,
+		}
+		// No HTTPClient: client.New must build it from the impersonating
+		// rest.Config, else cfg.Impersonate is ignored. Scheme/Mapper avoid discovery.
+		clientOpts := client.Options{
+			Scheme: mgr.GetScheme(),
+			Mapper: mgr.GetRESTMapper(),
+		}
+		resourcesFetcher = xfn.NewImpersonatingRequiredResourcesFetcher(
+			baseFetcher,
+			resolver,
+			cfg,
+			xfn.NewUncachedClientFactory(clientOpts),
+		)
+	}
+
 	// Middleware layering: We want Cache → FetchingFunctionRunner → gRPC.
 	// First, wrap the runner with FetchingFunctionRunner to handle
 	// requirements.
 	runner = xfn.NewFetchingFunctionRunner(runner,
-		xfn.NewExistingRequiredResourcesFetcher(cached),
+		resourcesFetcher,
 		xfn.NewOpenAPIRequiredSchemasFetcher(oac))
 
 	// Then, if caching is enabled, wrap with the cache layer.
@@ -534,6 +564,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		CircuitBreakerRefillRate: c.CircuitBreakerRefillRate,
 		CircuitBreakerCooldown:   c.CircuitBreakerCooldown,
 		MinPollInterval:          c.MinPollInterval,
+		ResourcesFetcher:         resourcesFetcher,
 	}
 
 	if err := apiextensions.Setup(mgr, ao); err != nil {

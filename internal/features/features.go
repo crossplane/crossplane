@@ -21,6 +21,12 @@ import "github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 
 // Alpha Feature flags.
 const (
+	// EnableAlphaExtraResourcesImpersonation fetches a namespaced XR's
+	// composition ExtraResources under a ServiceAccount in the XR's namespace,
+	// so RBAC governs per-tenant read access.
+	// See https://github.com/crossplane/crossplane/issues/7461.
+	EnableAlphaExtraResourcesImpersonation feature.Flag = "EnableAlphaExtraResourcesImpersonation"
+
 	// EnableAlphaDependencyVersionUpgrades enables alpha support for
 	// upgrading the version of a package's dependencies when needed.
 	EnableAlphaDependencyVersionUpgrades feature.Flag = "EnableAlphaDependencyVersionUpgrades"
