@@ -27,10 +27,12 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
@@ -888,4 +890,254 @@ func TestFetchingFunctionRunner(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAnnotationImpersonationResolver(t *testing.T) {
+	type args struct {
+		xr        *composite.Unstructured
+		defaultSA string
+	}
+
+	type want struct {
+		cfg         *ImpersonationConfig
+		impersonate bool
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ClusterScopedNeverImpersonates": {
+			reason: "Cluster-scoped XRs (empty namespace) must never produce an impersonation config",
+			args: args{
+				xr:        newUnstructuredXR("", "my-xr", nil),
+				defaultSA: "crossplane-extra-resources",
+			},
+			want: want{cfg: nil, impersonate: false},
+		},
+		"NamespacedWithAnnotation": {
+			reason: "A namespaced XR with the crossplane.io/extra-resources-as annotation should impersonate the annotated SA",
+			args: args{
+				xr: newUnstructuredXR("tenant-ns", "my-xr", map[string]string{
+					AnnotationKeyExtraResourcesAs: "tenant-reader",
+				}),
+				defaultSA: "",
+			},
+			want: want{
+				cfg:         &ImpersonationConfig{UserName: "system:serviceaccount:tenant-ns:tenant-reader"},
+				impersonate: true,
+			},
+		},
+		"NamespacedWithDefaultSA": {
+			reason: "A namespaced XR without the annotation but with a non-empty defaultSA should impersonate the default SA",
+			args: args{
+				xr:        newUnstructuredXR("tenant-ns", "my-xr", nil),
+				defaultSA: "crossplane-extra-resources",
+			},
+			want: want{
+				cfg:         &ImpersonationConfig{UserName: "system:serviceaccount:tenant-ns:crossplane-extra-resources"},
+				impersonate: true,
+			},
+		},
+		"AnnotationOverridesDefault": {
+			reason: "The annotation takes precedence over the default SA when both are present",
+			args: args{
+				xr: newUnstructuredXR("tenant-ns", "my-xr", map[string]string{
+					AnnotationKeyExtraResourcesAs: "annotation-sa",
+				}),
+				defaultSA: "default-sa",
+			},
+			want: want{
+				cfg:         &ImpersonationConfig{UserName: "system:serviceaccount:tenant-ns:annotation-sa"},
+				impersonate: true,
+			},
+		},
+		"NamespacedNoAnnotationNoDefault": {
+			reason: "A namespaced XR without an annotation and no default SA falls back to the normal client (no impersonation)",
+			args: args{
+				xr:        newUnstructuredXR("tenant-ns", "my-xr", nil),
+				defaultSA: "",
+			},
+			want: want{cfg: nil, impersonate: false},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := AnnotationImpersonationResolver{DefaultSA: tc.args.defaultSA}
+			cfg, impersonate := r.Resolve(tc.args.xr)
+
+			if diff := cmp.Diff(tc.want.impersonate, impersonate); diff != "" {
+				t.Errorf("\n%s\nResolve(): impersonate -want, +got:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.cfg, cfg); diff != "" {
+				t.Errorf("\n%s\nResolve(): cfg -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestImpersonatingRequiredResourcesFetcherFetch(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	coolObj := &kunstructured.Unstructured{}
+	coolObj.SetName("cool-resource")
+	coolObj.SetAPIVersion("test.crossplane.io/v1")
+	coolObj.SetKind("Foo")
+
+	selector := &fnv1.ResourceSelector{
+		ApiVersion: "test.crossplane.io/v1",
+		Kind:       "Foo",
+		Match: &fnv1.ResourceSelector_MatchName{
+			MatchName: "cool-resource",
+		},
+	}
+
+	type params struct {
+		xr       *composite.Unstructured
+		resolver ImpersonationResolver
+		factory  clientFactory
+		baseMock client.Reader
+	}
+
+	type want struct {
+		res *fnv1.Resources
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		params params
+		want   want
+	}{
+		"NoXRInContextFallsBackToBase": {
+			reason: "Without an XR in context the base fetcher is used",
+			params: params{
+				xr: nil, // will not be injected into context
+				resolver: ImpersonationResolverFn(func(_ *composite.Unstructured) (*ImpersonationConfig, bool) {
+					return nil, false
+				}),
+				baseMock: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetName("cool-resource")
+						return nil
+					}),
+				},
+			},
+			want: want{
+				res: &fnv1.Resources{
+					Items: []*fnv1.Resource{
+						{Resource: MustStruct(map[string]any{
+							"apiVersion": "test.crossplane.io/v1",
+							"kind":       "Foo",
+							"metadata":   map[string]any{"name": "cool-resource"},
+						})},
+					},
+				},
+			},
+		},
+		"ResolverReturnsFalseFallsBackToBase": {
+			reason: "When the resolver returns (nil, false) the base fetcher is used",
+			params: params{
+				xr:       newUnstructuredXR("", "cluster-xr", nil), // cluster-scoped
+				resolver: AnnotationImpersonationResolver{},
+				baseMock: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetName("cool-resource")
+						return nil
+					}),
+				},
+			},
+			want: want{
+				res: &fnv1.Resources{
+					Items: []*fnv1.Resource{
+						{Resource: MustStruct(map[string]any{
+							"apiVersion": "test.crossplane.io/v1",
+							"kind":       "Foo",
+							"metadata":   map[string]any{"name": "cool-resource"},
+						})},
+					},
+				},
+			},
+		},
+		"ImpersonationApplied": {
+			reason: "When the resolver says to impersonate, a new client is built and the fetch uses it",
+			params: params{
+				xr: newUnstructuredXR("tenant-ns", "my-xr", map[string]string{
+					AnnotationKeyExtraResourcesAs: "tenant-reader",
+				}),
+				resolver: AnnotationImpersonationResolver{},
+				factory: func(cfg *rest.Config) (client.Reader, error) {
+					if cfg.Impersonate.UserName != "system:serviceaccount:tenant-ns:tenant-reader" {
+						return nil, errors.Errorf("unexpected impersonation user %q", cfg.Impersonate.UserName)
+					}
+					return &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							obj.SetName("cool-resource")
+							return nil
+						}),
+					}, nil
+				},
+			},
+			want: want{
+				res: &fnv1.Resources{
+					Items: []*fnv1.Resource{
+						{Resource: MustStruct(map[string]any{
+							"apiVersion": "test.crossplane.io/v1",
+							"kind":       "Foo",
+							"metadata":   map[string]any{"name": "cool-resource"},
+						})},
+					},
+				},
+			},
+		},
+		"ClientFactoryError": {
+			reason: "An error from the client factory is propagated",
+			params: params{
+				xr: newUnstructuredXR("tenant-ns", "my-xr", map[string]string{
+					AnnotationKeyExtraResourcesAs: "tenant-reader",
+				}),
+				resolver: AnnotationImpersonationResolver{},
+				factory: func(_ *rest.Config) (client.Reader, error) {
+					return nil, errBoom
+				},
+			},
+			want: want{err: cmpopts.AnyError},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			base := NewExistingRequiredResourcesFetcher(tc.params.baseMock)
+			f := NewImpersonatingRequiredResourcesFetcher(base, tc.params.resolver, &rest.Config{}, tc.params.factory)
+
+			ctx := context.Background()
+			if tc.params.xr != nil {
+				ctx = WithXRInContext(ctx, tc.params.xr)
+			}
+
+			res, err := f.Fetch(ctx, selector)
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nFetch(...): -want, +got:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.res, res, protocmp.Transform()); diff != "" {
+				t.Errorf("\n%s\nFetch(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+// newUnstructuredXR returns a composite.Unstructured with the given namespace,
+// name, and annotations.
+func newUnstructuredXR(namespace, name string, annotations map[string]string) *composite.Unstructured {
+	xr := composite.New()
+	xr.SetNamespace(namespace)
+	xr.SetName(name)
+	if len(annotations) > 0 {
+		xr.SetAnnotations(annotations)
+	}
+	return xr
 }
