@@ -51,7 +51,6 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
-	"github.com/crossplane/crossplane/v2/internal/xerrors"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
@@ -516,7 +515,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: xerrors.ComposedResourceError{
+				err: ComposedResourceError{
 					Message: fmt.Sprintf(errFmtGenerateName, "cool-resource"),
 					Composed: &composed.Unstructured{
 						Unstructured: unstructured.Unstructured{
@@ -1070,7 +1069,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: xerrors.ComposedResourceError{
+				err: ComposedResourceError{
 					Message: fmt.Sprintf(errFmtApplyCD, "uncool-resource"),
 					Composed: &composed.Unstructured{
 						Unstructured: unstructured.Unstructured{
@@ -1467,8 +1466,8 @@ func TestFunctionCompose(t *testing.T) {
 			}
 			// Check for our typed errors.
 			if tc.want.err != nil {
-				if wantErr := new(xerrors.ComposedResourceError); errors.As(tc.want.err, wantErr) {
-					if gotErr := new(xerrors.ComposedResourceError); errors.As(err, gotErr) {
+				if wantErr := new(ComposedResourceError); errors.As(tc.want.err, wantErr) {
+					if gotErr := new(ComposedResourceError); errors.As(err, gotErr) {
 						if diff := cmp.Diff(wantErr, gotErr, test.EquateErrors()); diff != "" {
 							t.Errorf("\n%s\nComposedResourceError: -want, +got:\n%s", tc.reason, diff)
 						}

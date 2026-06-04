@@ -47,7 +47,6 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
 	"github.com/crossplane/crossplane/v2/internal/names"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
-	"github.com/crossplane/crossplane/v2/internal/xerrors"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
@@ -518,7 +517,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// million names).
 		if cd.GetName() == "" {
 			if err := c.composite.GenerateName(ctx, cd); err != nil {
-				return CompositionResult{}, xerrors.ComposedResourceError{
+				return CompositionResult{}, ComposedResourceError{
 					Message:  fmt.Sprintf(errFmtGenerateName, name),
 					Composed: cd,
 					Err:      err,
@@ -627,7 +626,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				continue
 			}
 
-			return CompositionResult{}, xerrors.ComposedResourceError{
+			return CompositionResult{}, ComposedResourceError{
 				Message:  fmt.Sprintf(errFmtApplyCD, name),
 				Composed: cd.Resource,
 				Err:      err,

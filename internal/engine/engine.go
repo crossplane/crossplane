@@ -40,8 +40,6 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
-
-	"github.com/crossplane/crossplane/v2/internal/xerrors"
 )
 
 // A ControllerEngine manages a set of controllers that can be dynamically
@@ -264,7 +262,7 @@ func (e *ControllerEngine) IsAuthorizedFor(ctx context.Context, gvk schema.Group
 		}
 	}
 	if len(denied) > 0 {
-		return false, xerrors.SubjectAccessReviewError{
+		return false, SubjectAccessReviewError{
 			User:        fmt.Sprintf("system:serviceaccount:%s:%s", e.namespace, e.serviceAccount),
 			Resource:    resource,
 			Namespace:   namespace,

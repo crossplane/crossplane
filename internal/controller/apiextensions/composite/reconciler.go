@@ -51,7 +51,6 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
-	"github.com/crossplane/crossplane/v2/internal/xerrors"
 )
 
 const (
@@ -763,7 +762,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			err = errors.Wrap(errors.New(errInvalidResources), errCompose)
 		}
 		if r.authorizer != nil {
-			if composeErr := new(xerrors.ComposedResourceError); errors.As(err, composeErr) {
+			if composeErr := new(ComposedResourceError); errors.As(err, composeErr) {
 				if ok, authErr := r.authorizer.IsAuthorizedFor(updateCtx,
 					composeErr.Composed.GetObjectKind().GroupVersionKind(),
 					composeErr.Composed.GetNamespace()); !ok {
