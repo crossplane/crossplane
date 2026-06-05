@@ -37,6 +37,7 @@ import (
 
 	apis "github.com/crossplane/crossplane/apis/v2"
 	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
+	xcomposite "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	cronrec "github.com/crossplane/crossplane/v2/internal/controller/ops/cronoperation"
 	oprec "github.com/crossplane/crossplane/v2/internal/controller/ops/operation"
 	watchrec "github.com/crossplane/crossplane/v2/internal/controller/ops/watched"
@@ -118,16 +119,39 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 		Name:      op.GetName(),
 	}}
 
-	if _, err := r.Reconcile(ctx, req); err != nil {
-		return nil, errors.Wrap(err, "reconcile failed")
-	}
+	_, rerr := r.Reconcile(ctx, req)
 
+	// Always build the output, even on reconcile error: the recording
+	// fetchers and the EventRecorder may have captured useful state — in
+	// particular the resource selectors a function requested before
+	// returning a fatal result — that callers iterating on requirements
+	// need to make progress. See issue #7446.
 	opGVK := opsv1alpha1.OperationGroupVersionKind
-	return buildOutput(c, func(u kunstructured.Unstructured) bool {
+	out, berr := buildOutput(c, func(u kunstructured.Unstructured) bool {
 		return u.GroupVersionKind() == opGVK &&
 			u.GetNamespace() == op.GetNamespace() &&
 			u.GetName() == op.GetName()
 	}, rec, rrf, rsf)
+	switch {
+	case berr != nil:
+		// Surface buildOutput's failure. If reconcile also failed, join
+		// both so callers can recover *PipelineFatalError via errors.As.
+		// When rerr is nil, errors.Join wraps berr in a MultiError whose
+		// Error() string and errors.As/Is behavior match berr exactly —
+		// callers using those traversals see no difference.
+		return nil, errors.Join(rerr, berr)
+	case rerr != nil:
+		// Symmetrical with composite.Render: return the full wrapped error
+		// chain so callers preserve any reconciler-added diagnostic context;
+		// *PipelineFatalError remains reachable via errors.As.
+		var pfe *xcomposite.PipelineFatalError
+		if errors.As(rerr, &pfe) {
+			return out, rerr
+		}
+		return nil, errors.Wrap(rerr, "reconcile failed")
+	}
+
+	return out, nil
 }
 
 // NewFromCronOperation produces the Operation a CronOperation would create.
