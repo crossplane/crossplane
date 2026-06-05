@@ -79,7 +79,6 @@ const (
 	errFmtRenderMetadata              = "cannot render metadata for composed resource %q"
 	errFmtGenerateName                = "cannot generate a name for composed resource %q"
 	errFmtCDAsStruct                  = "cannot encode composed resource %q to protocol buffer Struct well-known type"
-	errFmtFatalResult                 = "pipeline step %q returned a fatal result: %s"
 	errFmtInvalidName                 = "cannot apply composed resource %q because it has an invalid name %q. Must be a valid RFC 1123 subdomain name."
 	errFmtGetResourceMapping          = "cannot check if composed resource %q is namespaced (a %s named %s)"
 	errFmtNamespacedXRClusterResource = "cannot apply cluster scoped composed resource %q (a %s named %s) for a namespaced composite resource."
@@ -87,6 +86,28 @@ const (
 	errFmtFetchBootstrapSchemas       = "cannot fetch bootstrap required schema for requirement %q"
 	errFmtNamespaceOverridden         = "cannot create composed resource %q in namespace %q, using XR namespace %q instead"
 )
+
+// PipelineFatalErrorFmt is the format string used by PipelineFatalError.Error
+// and is exported so callers (typically tests) can recognize the error string
+// without depending on the typed value.
+const PipelineFatalErrorFmt = "pipeline step %q returned a fatal result: %s"
+
+// PipelineFatalError indicates that a function pipeline step returned a
+// result with SEVERITY_FATAL. Callers can use errors.As to distinguish it
+// from other reconcile errors and recover any side effects (events,
+// conditions, recorded resource selectors) that the pipeline produced before
+// failing. The same type is returned by the operation reconciler; render
+// packages alias it for caller convenience.
+type PipelineFatalError struct {
+	Step    string
+	Message string
+}
+
+// Error formats the error so that reconciler events and condition messages
+// remain identical to the previous untyped error.
+func (e *PipelineFatalError) Error() string {
+	return fmt.Sprintf(PipelineFatalErrorFmt, e.Step, e.Message)
+}
 
 // Server-side-apply field owners. We need two of these because it's possible
 // an invocation of this controller will operate on the same resource in two
@@ -437,7 +458,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 			switch rs.GetSeverity() {
 			case fnv1.Severity_SEVERITY_FATAL:
-				return CompositionResult{Events: events, Conditions: conditions}, errors.Errorf(errFmtFatalResult, fn.Step, rs.GetMessage())
+				return CompositionResult{Events: events, Conditions: conditions}, &PipelineFatalError{Step: fn.Step, Message: rs.GetMessage()}
 			case fnv1.Severity_SEVERITY_WARNING:
 				e.Event = event.Warning(reason, errors.New(rs.GetMessage()))
 				e.Detail = fmt.Sprintf("Pipeline step %q", fn.Step)

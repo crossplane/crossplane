@@ -217,15 +217,42 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		Name:      xr.GetName(),
 	}}
 
-	if _, err := r.Reconcile(ctx, req); err != nil {
-		return nil, errors.Wrap(err, "reconcile failed")
-	}
+	_, rerr := r.Reconcile(ctx, req)
 
-	return BuildOutput(c, func(u kunstructured.Unstructured) bool {
+	// Always build the output, even on reconcile error: the recording
+	// fetchers (rrf, rsf) and the EventRecorder (rec) may have captured
+	// useful state — in particular the resource selectors a function
+	// requested before returning a fatal result — that callers iterating on
+	// requirements need to make progress. See issue #7446.
+	out, berr := BuildOutput(c, func(u kunstructured.Unstructured) bool {
 		return u.GroupVersionKind() == gvk &&
 			u.GetNamespace() == xr.GetNamespace() &&
 			u.GetName() == xr.GetName()
 	}, rec, rrf, rsf)
+	switch {
+	case berr != nil:
+		// Surface BuildOutput's failure. If reconcile also failed, join
+		// both so callers can recover *PipelineFatalError via errors.As.
+		// When rerr is nil, errors.Join wraps berr in a MultiError whose
+		// Error() string and errors.As/Is behavior match berr exactly —
+		// callers using those traversals see no difference.
+		return nil, errors.Join(rerr, berr)
+	case rerr != nil:
+		// On a function-pipeline FATAL we still return the partial output
+		// so callers can recover RequiredResources/RequiredSchemas. We
+		// return the full wrapped error chain (rather than the extracted
+		// *PipelineFatalError) so callers preserve the reconciler's
+		// "cannot compose resources" diagnostic context; *PipelineFatalError
+		// remains reachable via errors.As. Other reconcile errors keep the
+		// previous "reconcile failed" wrapping.
+		var pfe *composite.PipelineFatalError
+		if errors.As(rerr, &pfe) {
+			return out, rerr
+		}
+		return nil, errors.Wrap(rerr, "reconcile failed")
+	}
+
+	return out, nil
 }
 
 // selectSchema picks the composite.Schema for an input XR. With no XRD
