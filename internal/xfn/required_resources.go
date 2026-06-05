@@ -319,7 +319,7 @@ func (f *ImpersonatingRequiredResourcesFetcher) Fetch(ctx context.Context, rs *f
 	impCfg.Impersonate = *cfg
 	c, err := f.factory(impCfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot build impersonating client for ExtraResources fetch")
+		return nil, errors.Wrapf(err, "cannot build impersonating client for ExtraResources fetch (xr %q, impersonating %q)", xr.GetName(), cfg.UserName)
 	}
 	return (&ExistingRequiredResourcesFetcher{client: c}).Fetch(ctx, rs)
 }
