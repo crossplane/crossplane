@@ -2131,6 +2131,14 @@ func TestUpdateResourceRefs(t *testing.T) {
 							},
 						},
 					},
+					"never-created-b-ns-a": ComposedResourceState{
+						Resource: &fake.Composed{
+							ObjectMeta: metav1.ObjectMeta{
+								Namespace: "a",
+								Name:      "never-created-b-42",
+							},
+						},
+					},
 					"never-created-a": ComposedResourceState{
 						Resource: &fake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
@@ -2146,6 +2154,7 @@ func TestUpdateResourceRefs(t *testing.T) {
 					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
 						Refs: []corev1.ObjectReference{
 							{Name: "never-created-a-42"},
+							{Namespace: "a", Name: "never-created-b-42"},
 							{Namespace: "b", Name: "never-created-b-42"},
 							{Namespace: "c", Name: "never-created-c-42"},
 						},
