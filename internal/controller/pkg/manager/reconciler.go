@@ -19,6 +19,8 @@ package manager
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"math"
 	"reflect"
 	"strings"
@@ -93,6 +95,34 @@ func WithNewPackageFn(f func() v1.Package) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.newPackage = f
 	}
+}
+
+// packageRevisionID returns the revision identifier used to derive a
+// PackageRevision name. The runtime configuration reference is included in the
+// identifier so that changing runtimeConfigRef results in a new PackageRevision.
+func packageRevisionID(digest string, ref *v1.RuntimeConfigReference) string {
+	if ref == nil {
+		return digest
+	}
+
+	apiVersion := ""
+	if ref.APIVersion != nil {
+		apiVersion = *ref.APIVersion
+	}
+
+	kind := ""
+	if ref.Kind != nil {
+		kind = *ref.Kind
+	}
+
+	h := sha256.Sum256([]byte(strings.Join([]string{
+		digest,
+		apiVersion,
+		kind,
+		ref.Name,
+	}, "|")))
+
+	return hex.EncodeToString(h[:])
 }
 
 // WithNewPackageRevisionFn determines the type of package being reconciled.
@@ -342,7 +372,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	p.SetResolvedSource(pkg.ResolvedRef())
 
-	revisionName := xpkg.FriendlyID(p.GetName(), pkg.DigestHex())
+	revisionID := pkg.DigestHex()
+	if pwr, ok := p.(v1.PackageWithRuntime); ok {
+		revisionID = packageRevisionID(revisionID, pwr.GetRuntimeConfigRef())
+	}
+	revisionName := xpkg.FriendlyID(p.GetName(), revisionID)
 
 	// Set the current revision and identifier.
 	p.SetCurrentRevision(revisionName)
