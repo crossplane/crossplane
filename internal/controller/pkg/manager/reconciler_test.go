@@ -45,6 +45,33 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 )
 
+func TestPackageRevisionID(t *testing.T) {
+	digest := "123456789012"
+	apiVersion := "pkg.crossplane.io/v1beta1"
+	kind := "DeploymentRuntimeConfig"
+
+	defaultID := packageRevisionID(digest, &v1.RuntimeConfigReference{
+		APIVersion: &apiVersion,
+		Kind:       &kind,
+		Name:       "default",
+	})
+
+	azureID := packageRevisionID(digest, &v1.RuntimeConfigReference{
+		APIVersion: &apiVersion,
+		Kind:       &kind,
+		Name:       "azure-test",
+	})
+
+	if defaultID == azureID {
+		t.Fatalf("expected different runtime config references to produce different revision IDs")
+	}
+
+	plainID := packageRevisionID(digest, nil)
+	if plainID != digest {
+		t.Fatalf("expected nil runtime config reference to preserve package digest")
+	}
+}
+
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
