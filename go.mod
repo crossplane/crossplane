@@ -9,7 +9,7 @@ require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/alecthomas/kong v1.14.0
-	github.com/crossplane/crossplane-runtime/v2 v2.3.1
+	github.com/crossplane/crossplane-runtime/v2 v2.3.2
 	github.com/crossplane/crossplane/apis/v2 v2.0.0-20260424160951-8f231230ebb6
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-containerregistry v0.21.2
@@ -217,7 +217,7 @@ require (
 	go.uber.org/zap v1.27.1 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/mod v0.35.0 // indirect
-	golang.org/x/net v0.54.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/term v0.43.0 // indirect
