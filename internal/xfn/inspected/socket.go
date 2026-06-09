@@ -199,8 +199,9 @@ func redactConnectionDetails(connectionDetails map[string][]byte) {
 	}
 }
 
-// stripSecretData redacts the data field values from a resource if it is a Kubernetes Secret.
-// The keys are preserved but values are replaced with redactedValue.
+// stripSecretData redacts the data and stringData field values from a resource
+// if it is a Kubernetes Secret. The keys are preserved but values are replaced
+// with redactedValue.
 func stripSecretData(resource *structpb.Struct) {
 	if resource == nil {
 		return
@@ -214,9 +215,13 @@ func stripSecretData(resource *structpb.Struct) {
 	apiVersion := fields["apiVersion"].GetStringValue()
 	kind := fields["kind"].GetStringValue()
 	if apiVersion == "v1" && kind == "Secret" {
-		if data := fields["data"].GetStructValue(); data != nil {
-			for k := range data.GetFields() {
-				data.Fields[k] = structpb.NewStringValue(redactedValue)
+		// Desired Secrets authored by functions may carry plaintext values in
+		// stringData rather than base64 in data, so redact both.
+		for _, key := range []string{"data", "stringData"} {
+			if d := fields[key].GetStructValue(); d != nil {
+				for k := range d.GetFields() {
+					d.Fields[k] = structpb.NewStringValue(redactedValue)
+				}
 			}
 		}
 	}
