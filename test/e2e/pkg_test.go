@@ -1051,6 +1051,36 @@ func TestImageConfigRewrite(t *testing.T) {
 	)
 }
 
+func CurrentProviderRevisionHasFieldValueWithin(
+	d time.Duration,
+	providerName string,
+	path string,
+	want any,
+) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		p := &pkgv1.Provider{}
+		if err := c.Client().Resources().Get(ctx, providerName, "", p); err != nil {
+			t.Errorf("cannot get Provider %q: %v", providerName, err)
+			return ctx
+		}
+
+		pr := &pkgv1.ProviderRevision{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: p.Status.CurrentRevision,
+			},
+		}
+
+		return funcs.ResourceHasFieldValueWithin(
+			d,
+			pr,
+			path,
+			want,
+		)(ctx, t, c)
+	}
+}
+
 func TestCommonAnnotationsAndLabels(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/provider"
 
@@ -1064,8 +1094,20 @@ func TestCommonAnnotationsAndLabels(t *testing.T) {
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-common-annotations-and-labels.yaml"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-common-annotations-and-labels.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
-			Assess("AnnotationsPropagated", funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "provider-revision-common-annotations-and-labels.yaml", "spec.commonAnnotations.foo", "bar")).
-			Assess("LabelsPropagated", funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "provider-revision-common-annotations-and-labels.yaml", "spec.commonLabels.baz", "qux")).
+			Assess("AnnotationsPropagated",
+				CurrentProviderRevisionHasFieldValueWithin(
+					1*time.Minute,
+					"provider-nop",
+					"spec.commonAnnotations.foo",
+					"bar",
+				)).
+			Assess("LabelsPropagated",
+				CurrentProviderRevisionHasFieldValueWithin(
+					1*time.Minute,
+					"provider-nop",
+					"spec.commonLabels.baz",
+					"qux",
+				)).
 			WithTeardown("DeleteProvider", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider-common-annotations-and-labels.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-common-annotations-and-labels.yaml"),
