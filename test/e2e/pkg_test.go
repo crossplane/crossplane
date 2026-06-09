@@ -624,6 +624,7 @@ func TestUpgradeDependencyVersionSharedTransitiveNoop(t *testing.T) {
 // test/e2e/manifests/pkg/dependency-upgrade/digest/package folder.
 func TestUpgradeDependencyDigest(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/dependency-upgrade/digest"
+	var providerRevisionName string
 
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests that a Configuration with a dependency on provider with digest upgrades when dependency changes to another digest.").
@@ -647,18 +648,40 @@ func TestUpgradeDependencyDigest(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-updated.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			Assess("LockConditionDependencyResolutionSucceeded",
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "lock.yaml", v1beta1.ResolutionSucceeded())). // TODO(ezgidemirel): use ResourceHasConditionWithin instead
-			// Dependencies are not automatically deleted.
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "configuration-updated.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-updated.yaml"),
 			)).
-			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
-				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider.yaml", metav1.DeletePropagationForeground),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
-			)).
-			WithTeardown("DeleteProviderRevision", funcs.AllOf(
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision.yaml"),
-			)).Feature(),
+			WithTeardown("DeleteRequiredProvider",
+				func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+					t.Helper()
+
+					p := &pkgv1.Provider{}
+					if err := c.Client().Resources().Get(ctx, "crossplane-contrib-provider-nop", "", p); err == nil {
+						providerRevisionName = p.Status.CurrentRevision
+						t.Logf("Recorded ProviderRevision %q", providerRevisionName)
+					}
+
+					return funcs.AllOf(
+						funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider.yaml", metav1.DeletePropagationForeground),
+						funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
+					)(ctx, t, c)
+				}).
+			WithTeardown("DeleteProviderRevision",
+				func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+					t.Helper()
+
+					if providerRevisionName == "" {
+						t.Log("ProviderRevision name was not recorded; skipping ProviderRevision deletion wait")
+						return ctx
+					}
+
+					return funcs.ResourceDeletedWithin(1*time.Minute, &pkgv1.ProviderRevision{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: providerRevisionName,
+						},
+					})(ctx, t, c)
+				}).Feature(),
 	)
 }
 
@@ -1070,6 +1093,11 @@ func CurrentProviderRevisionHasFieldValueWithin(
 			ObjectMeta: metav1.ObjectMeta{
 				Name: p.Status.CurrentRevision,
 			},
+		}
+
+		if pr.GetName() == "" {
+			t.Errorf("provider %q does not report status.currentRevision yet; wait for provider to become fully reconciled", providerName)
+			return ctx
 		}
 
 		return funcs.ResourceHasFieldValueWithin(
