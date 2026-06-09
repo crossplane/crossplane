@@ -682,6 +682,47 @@ func TestSanitizeState(t *testing.T) {
 				},
 			},
 		},
+		"RedactsSecretStringData": {
+			reason: "Should redact stringData field values from Secret resources, preserving keys.",
+			state: &fnv1.State{
+				Resources: map[string]*fnv1.Resource{
+					"my-secret": {
+						Resource: &structpb.Struct{
+							Fields: map[string]*structpb.Value{
+								"apiVersion": structpb.NewStringValue("v1"),
+								"kind":       structpb.NewStringValue("Secret"),
+								"stringData": structpb.NewStructValue(&structpb.Struct{
+									Fields: map[string]*structpb.Value{
+										"password": structpb.NewStringValue("secret"),
+										"username": structpb.NewStringValue("admin"),
+									},
+								}),
+								"type": structpb.NewStringValue("Opaque"),
+							},
+						},
+					},
+				},
+			},
+			want: &fnv1.State{
+				Resources: map[string]*fnv1.Resource{
+					"my-secret": {
+						Resource: &structpb.Struct{
+							Fields: map[string]*structpb.Value{
+								"apiVersion": structpb.NewStringValue("v1"),
+								"kind":       structpb.NewStringValue("Secret"),
+								"stringData": structpb.NewStructValue(&structpb.Struct{
+									Fields: map[string]*structpb.Value{
+										"password": structpb.NewStringValue(redactedValue),
+										"username": structpb.NewStringValue(redactedValue),
+									},
+								}),
+								"type": structpb.NewStringValue("Opaque"),
+							},
+						},
+					},
+				},
+			},
+		},
 		"PreservesNonSecretData": {
 			reason: "Should preserve data-like fields on non-Secret resources.",
 			state: &fnv1.State{
