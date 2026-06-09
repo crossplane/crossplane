@@ -97,11 +97,27 @@ func WithNewPackageFn(f func() v1.Package) ReconcilerOption {
 	}
 }
 
-// packageRevisionID returns the revision identifier used to derive a
-// PackageRevision name. The runtime configuration reference is included in the
-// identifier so that changing runtimeConfigRef results in a new PackageRevision.
-func packageRevisionID(digest string, ref *v1.RuntimeConfigReference) string {
+// Ignore the implicit default runtime config when computing revision IDs.
+// Package dependencies commonly inherit the default runtime configuration.
+// Including it in the revision identity would change revision names for
+// packages that do not explicitly select a runtime configuration. We only
+// want runtime configuration changes to affect revision identity when a
+// non-default runtime config is selected.
+func isDefaultRuntimeConfigRef(ref *v1.RuntimeConfigReference) bool {
 	if ref == nil {
+		return true
+	}
+
+	return ref.Name == "default" &&
+		(ref.APIVersion == nil || *ref.APIVersion == v1beta1.SchemeGroupVersion.String()) &&
+		(ref.Kind == nil || *ref.Kind == v1beta1.DeploymentRuntimeConfigKind)
+}
+
+// packageRevisionID returns the revision identifier used to derive a
+// PackageRevision name. Non-default runtime configuration references are included
+// so that changing runtimeConfigRef results in a new PackageRevision.
+func packageRevisionID(digest string, ref *v1.RuntimeConfigReference) string {
+	if ref == nil || isDefaultRuntimeConfigRef(ref) {
 		return digest
 	}
 
