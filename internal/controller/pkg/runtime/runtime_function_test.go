@@ -275,7 +275,7 @@ func TestFunctionPostHook(t *testing.T) {
 						},
 					},
 				},
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyFunctionDeployment),
+				err: errors.Wrap(errBoom, errApplyFunctionDeployment),
 			},
 		},
 		"ErrDeploymentNoAvailableConditionYet": {

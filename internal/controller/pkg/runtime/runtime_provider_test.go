@@ -280,7 +280,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 				},
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyProviderDeployment),
+				err: errors.Wrap(errBoom, errApplyProviderDeployment),
 			},
 		},
 		"ErrDeploymentNoAvailableConditionYet": {
