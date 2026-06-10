@@ -1096,7 +1096,7 @@ func CurrentProviderRevisionHasFieldValueWithin(
 		}
 
 		if pr.GetName() == "" {
-			t.Errorf("provider %q does not report status.currentRevision yet; wait for provider to become fully reconciled", providerName)
+			t.Errorf("provider %q has an empty status.currentRevision; this is unexpected after the provider became healthy and active", providerName)
 			return ctx
 		}
 
