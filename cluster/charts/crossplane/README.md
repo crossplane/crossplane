@@ -115,10 +115,6 @@ and their default values.
 | `registryCaBundleConfig.key` | The ConfigMap key containing a custom CA bundle to enable fetching packages from registries with unknown or untrusted certificates. | `""` |
 | `registryCaBundleConfig.name` | The ConfigMap name containing a custom CA bundle to enable fetching packages from registries with unknown or untrusted certificates. | `""` |
 | `replicas` | The number of Crossplane pod `replicas` to deploy. | `1` |
-| `rootCA.bootstrap.enabled` | Enable the pre-install/pre-upgrade hook job that creates the three crossplane TLS Secrets on first install and preserves them on subsequent upgrades. Has no effect when `rootCA.manageLifecycle` is false. | `true` |
-| `rootCA.bootstrap.image.repository` | Container image for the hook job. Must contain a `kubectl` binary. | `"registry.k8s.io/kubernetes/kubectl"` |
-| `rootCA.bootstrap.image.tag` | Tag for the hook job container image. | `"v1.31.1"` |
-| `rootCA.manageLifecycle` | Manage the lifecycle of the crossplane-root-ca, crossplane-tls-server, and crossplane-tls-client Secrets via Helm hook jobs. When true (default), a pre-install/pre-upgrade hook creates the Secrets only if missing (so existing CAs and per-pod TLS material survive upgrades), and a pre-delete hook removes them on `helm uninstall`. Set to false to fall back to the upstream behavior of having Helm manage the Secrets directly, which will rotate the CA and per-pod TLS material on every upgrade and break mTLS with installed provider/function packages. | `true` |
 | `resourcesCrossplane.limits.cpu` | CPU resource limits for the Crossplane pod. | `"500m"` |
 | `resourcesCrossplane.limits.memory` | Memory resource limits for the Crossplane pod. | `"1024Mi"` |
 | `resourcesCrossplane.requests.cpu` | CPU resource requests for the Crossplane pod. | `"100m"` |
@@ -128,6 +124,10 @@ and their default values.
 | `resourcesRBACManager.requests.cpu` | CPU resource requests for the RBAC Manager pod. | `"100m"` |
 | `resourcesRBACManager.requests.memory` | Memory resource requests for the RBAC Manager pod. | `"256Mi"` |
 | `revisionHistoryLimit` | The number of Crossplane ReplicaSets to retain. | `nil` |
+| `rootCA.bootstrap.enabled` | Enable the pre-install/pre-upgrade hook job that creates the three crossplane TLS Secrets on first install and preserves them on subsequent upgrades. Has no effect when `rootCA.manageLifecycle` is false. | `true` |
+| `rootCA.bootstrap.image.repository` | Container image for the hook job. Must contain a `kubectl` binary. | `"registry.k8s.io/kubernetes/kubectl"` |
+| `rootCA.bootstrap.image.tag` | Tag for the hook job container image. | `"v1.31.1"` |
+| `rootCA.manageLifecycle` | Manage the lifecycle of the crossplane-root-ca, crossplane-tls-server, and crossplane-tls-client Secrets via Helm hook jobs. When true (default), a pre-install/pre-upgrade hook creates the Secrets only if missing (so existing CAs and per-pod TLS material survive upgrades), and a pre-delete hook removes them on `helm uninstall`. Set to false to fall back to the upstream behavior of having Helm manage the Secrets directly, which will rotate the CA and per-pod TLS material on every upgrade and break mTLS with installed provider/function packages. | `true` |
 | `runtimeClassName` | The runtimeClassName name to apply to the Crossplane and RBAC Manager pods. | `""` |
 | `secrets.customAnnotations` | Add custom annotations to Crossplane Secret resources. | `{}` |
 | `securityContextCrossplane.allowPrivilegeEscalation` | Enable `allowPrivilegeEscalation` for the Crossplane pod. | `false` |
