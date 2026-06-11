@@ -1,0 +1,23 @@
+{{- if .Values.rootCA.manageLifecycle }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ template "crossplane.name" . }}-root-ca-hook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,pre-delete
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    # The hook job can create the secret (only if missing) and get/list it to check existence.
+    # Delete is also granted so the pre-delete hook can clean up on `helm uninstall`.
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+{{- end }}

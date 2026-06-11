@@ -77,6 +77,27 @@ registryCaBundleConfig:
   # -- The ConfigMap key containing a custom CA bundle to enable fetching packages from registries with unknown or untrusted certificates.
   key: ""
 
+rootCA:
+  # -- Manage the lifecycle of the crossplane-root-ca, crossplane-tls-server, and
+  # -- crossplane-tls-client Secrets via Helm hook jobs. When true (default), a
+  # -- pre-install/pre-upgrade hook creates the Secrets only if missing (so
+  # -- existing CAs and per-pod TLS material survive upgrades), and a pre-delete
+  # -- hook removes them on `helm uninstall`. Set to false to fall back to the
+  # -- upstream behavior of having Helm manage the Secrets directly, which will
+  # -- rotate the CA and per-pod TLS material on every upgrade and break mTLS
+  # -- with installed provider/function packages.
+  manageLifecycle: true
+  bootstrap:
+    # -- Enable the pre-install/pre-upgrade hook job that creates the three
+    # -- crossplane TLS Secrets on first install and preserves them on
+    # -- subsequent upgrades. Has no effect when `rootCA.manageLifecycle` is false.
+    enabled: true
+    image:
+      # -- Container image for the hook job. Must contain a `kubectl` binary.
+      repository: registry.k8s.io/kubernetes/kubectl
+      # -- Tag for the hook job container image.
+      tag: v1.31.1
+
 service:
   # -- Configure annotations on the service object. Only enabled when webhooks.enabled = true
   customAnnotations: {}

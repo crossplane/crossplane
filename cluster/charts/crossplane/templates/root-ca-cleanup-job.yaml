@@ -1,0 +1,56 @@
+{{- /*
+Pre-delete hook job: delete the three crossplane TLS Secrets on helm uninstall.
+
+Without this hook, removing the Secrets' declarations from the chart would leave
+"dangling" Secrets in the cluster after `helm uninstall` (Helm only deletes
+resources it manages; the Secrets are managed by this hook job, which is
+deleted before the pre-delete phase runs).
+
+The three Secrets (crossplane-root-ca, crossplane-tls-server, crossplane-tls-client)
+are the trust anchors and credentials for mTLS to all installed provider/function
+packages. Deleting them is consistent with uninstalling Crossplane. The pre-delete
+hook fires before Helm tears down the rest of the release, so package cert
+validation errors during teardown are bounded.
+*/ -}}
+{{- if .Values.rootCA.manageLifecycle }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "crossplane.name" . }}-root-ca-cleanup
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      name: {{ template "crossplane.name" . }}-root-ca-cleanup
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ template "crossplane.name" . }}-root-ca-hook
+      containers:
+        - name: cleanup
+          image: {{ .Values.rootCA.bootstrap.image.repository }}:{{ .Values.rootCA.bootstrap.image.tag }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              set -eu
+              for secret in crossplane-root-ca crossplane-tls-server crossplane-tls-client; do
+                if kubectl get secret -n "$NAMESPACE" "$secret" >/dev/null 2>&1; then
+                  echo "Deleting $secret"
+                  kubectl delete secret -n "$NAMESPACE" "$secret" --ignore-not-found
+                else
+                  echo "$secret already absent, nothing to do"
+                fi
+              done
+          env:
+            - name: NAMESPACE
+              value: {{ .Release.Namespace }}
+{{- end }}
