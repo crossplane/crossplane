@@ -86,8 +86,28 @@ rootCA:
     image:
       # -- Container image for the hook job. Must contain a `kubectl` binary.
       repository: registry.k8s.io/kubernetes/kubectl
-      # -- Tag for the hook job container image.
+      # -- Tag for the hook job container image. Should be a kubectl version compatible with the Kubernetes server (see `kubeVersion` in Chart.yaml).
       tag: v1.31.1
+    # -- Resource requests and limits for the hook job container.
+    resources:
+      requests:
+        # -- CPU request for the hook job container.
+        cpu: 10m
+        # -- Memory request for the hook job container.
+        memory: 32Mi
+      limits:
+        # -- CPU limit for the hook job container.
+        cpu: 100m
+        # -- Memory limit for the hook job container.
+        memory: 64Mi
+    # -- Security context for the hook job container. Hardened defaults: non-root, no privilege escalation, read-only root filesystem.
+    securityContext:
+      # -- Run as non-root user. The kubectl image runs as user 65532 by default.
+      runAsNonRoot: true
+      # -- Disable privilege escalation.
+      allowPrivilegeEscalation: false
+      # -- Mount root filesystem as read-only.
+      readOnlyRootFilesystem: true
 
 service:
   # -- Configure annotations on the service object. Only enabled when webhooks.enabled = true

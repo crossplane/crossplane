@@ -64,5 +64,9 @@ spec:
           env:
             - name: NAMESPACE
               value: {{ .Release.Namespace }}
+          resources:
+            {{- toYaml .Values.rootCA.bootstrap.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.rootCA.bootstrap.securityContext | nindent 12 }}
 {{- end }}
 {{- end }}
