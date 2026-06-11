@@ -36,6 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -45,6 +46,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/v2/internal/features"
 )
 
 const (
@@ -193,6 +195,13 @@ func WithManagingRevisionRuntimeSpec() ReconcilerOption {
 	}
 }
 
+// WithFeatureFlags specifies the feature flags to inject into the Reconciler.
+func WithFeatureFlags(f *feature.Flags) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.features = f
+	}
+}
+
 // Reconciler reconciles packages.
 type Reconciler struct {
 	kube       resource.ClientApplicator
@@ -200,6 +209,7 @@ type Reconciler struct {
 	log        logging.Logger
 	record     event.Recorder
 	conditions conditions.Manager
+	features   *feature.Flags
 
 	setPackageRuntimeManagedFields func(p v1.Package, pr v1.PackageRevision)
 
@@ -223,6 +233,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithClient(o.Client),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithFeatureFlags(o.Features),
 	}
 
 	if o.PackageRuntime.For(v1.ProviderKind) == controller.PackageRuntimeDeployment {
@@ -279,6 +290,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		WithClient(o.Client),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithFeatureFlags(o.Features),
 	}
 
 	if o.PackageRuntime.For(v1.FunctionKind) == controller.PackageRuntimeDeployment {
@@ -389,8 +401,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	p.SetResolvedSource(pkg.ResolvedRef())
 
 	revisionID := pkg.DigestHex()
-	if pwr, ok := p.(v1.PackageWithRuntime); ok {
-		revisionID = packageRevisionID(revisionID, pwr.GetRuntimeConfigRef())
+	if r.features != nil && r.features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
+		if pwr, ok := p.(v1.PackageWithRuntime); ok {
+			revisionID = packageRevisionID(revisionID, pwr.GetRuntimeConfigRef())
+		}
 	}
 	revisionName := xpkg.FriendlyID(p.GetName(), revisionID)
 
