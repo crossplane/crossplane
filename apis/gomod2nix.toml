@@ -114,8 +114,8 @@ cachePackages = ["github.com/davecgh/go-spew/spew", "github.com/emicklei/go-rest
     version = "v0.34.0"
     hash = "sha256-5eqpGGxJ7FJsPmfRek6roeGmkWHBMJaWYXyz8gXJsS4="
   [mod."golang.org/x/sys"]
-    version = "v0.43.0"
-    hash = "sha256-aDQXqSTZES2l/132PBxhZN4ywldpPyfm7LByYCHzzwM="
+    version = "v0.44.0"
+    hash = "sha256-JDlj+PKsG6I6kjv5JyOUNreY51u5An0oZ5OZMHZSk+A="
   [mod."golang.org/x/term"]
     version = "v0.42.0"
     hash = "sha256-FCiDvAfq7dgBGQuiDYDFJbj/JPawhrmPF2qdUEftQ1c="
