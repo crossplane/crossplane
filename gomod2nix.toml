@@ -1189,8 +1189,8 @@ cachePackages = [
     hash = 'sha256-75kRraVwYVjYLWZvuSlts4Iu28Eh3SpiF0GHc7vCYHI='
 
   [mod.'github.com/alecthomas/kong']
-    version = 'v1.14.0'
-    hash = 'sha256-F6BYciiFpdtjKosD+L+z0Sc2s903iD2ElbytjcM4mas='
+    version = 'v1.15.0'
+    hash = 'sha256-KQdP4ILTBCF29nD+P/ZVW0NsENfTEFtoWmEd1bo4IuU='
 
   [mod.'github.com/asaskevich/govalidator']
     version = 'v0.0.0-20230301143203-a9d515a09cc2'
