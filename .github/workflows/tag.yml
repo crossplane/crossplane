@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Create Tag
         uses: negz/create-tag@8dce6c9d9b12d161abe01c02d2b03f19e2e9e9bb # v1
