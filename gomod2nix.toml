@@ -59,6 +59,7 @@ cachePackages = [
   'github.com/aws/smithy-go/encoding/xml',
   'github.com/aws/smithy-go/endpoints',
   'github.com/aws/smithy-go/endpoints/private/rulesfn',
+  'github.com/aws/smithy-go/eventstream',
   'github.com/aws/smithy-go/io',
   'github.com/aws/smithy-go/logging',
   'github.com/aws/smithy-go/metrics',
@@ -66,8 +67,10 @@ cachePackages = [
   'github.com/aws/smithy-go/private/requestcompression',
   'github.com/aws/smithy-go/ptr',
   'github.com/aws/smithy-go/rand',
+  'github.com/aws/smithy-go/sync',
   'github.com/aws/smithy-go/time',
   'github.com/aws/smithy-go/tracing',
+  'github.com/aws/smithy-go/traits',
   'github.com/aws/smithy-go/transport/http',
   'github.com/aws/smithy-go/waiter',
   'github.com/awslabs/amazon-ecr-credential-helper/ecr-login',
@@ -1257,8 +1260,8 @@ cachePackages = [
     hash = 'sha256-I15uxeoKxDURsZrEVDzCRtVIu/HE756M1Rt7PPpdZ7c='
 
   [mod.'github.com/aws/smithy-go']
-    version = 'v1.24.2'
-    hash = 'sha256-v0y+Lir61fgdCwdVoca5mK+FcGh9OD3cTEwHIfLytcI='
+    version = 'v1.27.2'
+    hash = 'sha256-xC/HVhXmeqwUP0IJmoUgsKsuAmag873kPb1NRHCucC0='
 
   [mod.'github.com/awslabs/amazon-ecr-credential-helper/ecr-login']
     version = 'v0.12.0'
