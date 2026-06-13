@@ -10,6 +10,10 @@
   rebaseWhen: 'conflicted',
   // The maximum number of PRs to be created in parallel
   prConcurrentLimit: 5,
+  // Disable the default 2 per hour PR creation limit. prConcurrentLimit already caps how many PRs
+  // can be open at once and our renovate job runs on a daily schedule, so having any hourly
+  // throttling can actually slow us down.
+  prHourlyLimit: 0,
   // The branches renovate should target
   // PLEASE UPDATE THIS WHEN RELEASING.
   baseBranches: [
