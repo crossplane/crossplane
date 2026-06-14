@@ -107,7 +107,7 @@ jobs:
         run: nix build .#checks.x86_64-linux.test .#checks.x86_64-linux.test-apis --print-build-logs
 
       - name: Publish Unit Test Coverage
-        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
           flags: unittests
           file: result/coverage.txt
