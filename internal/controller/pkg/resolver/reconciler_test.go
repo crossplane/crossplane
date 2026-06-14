@@ -361,7 +361,7 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				r:   reconcile.Result{Requeue: false},
-				err: errors.Wrap(errors.Wrap(errors.New("improper constraint: "), errInvalidConstraint), errFindDependency),
+				err: errors.Wrap(errors.Wrap(errors.New("improper constraint: \"\""), errInvalidConstraint), errFindDependency),
 			},
 		},
 		"ErrorListVersions": {
