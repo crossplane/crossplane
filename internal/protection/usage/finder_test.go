@@ -187,3 +187,28 @@ func TestFindUsageOf(t *testing.T) {
 		})
 	}
 }
+
+func TestIndexVal(t *testing.T) {
+	type args struct {
+		apiVersion string
+		kind       string
+		name       string
+		namespace  string
+	}
+
+	// Two resources that are clearly distinct, but whose group and name place
+	// the '.' boundary differently. With a '.'-joined key they collapse to the
+	// same value, which makes the usage finder associate one resource with the
+	// other's Usages.
+	a := args{apiVersion: "example.org/v1", kind: "Foo", name: "bar", namespace: "x"}
+	b := args{apiVersion: "example/v1", kind: "org", name: "Foo.bar", namespace: "x"}
+
+	got := map[string]bool{}
+	for _, in := range []args{a, b} {
+		got[indexVal(in.apiVersion, in.kind, in.name, in.namespace)] = true
+	}
+
+	if len(got) != 2 {
+		t.Errorf("indexVal(...): distinct resources produced colliding keys: %v", got)
+	}
+}
