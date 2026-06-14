@@ -493,6 +493,44 @@ func TestRequiredResources(t *testing.T) {
 	)
 }
 
+func TestExtraResources(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/extra-resources"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that functions can request extra resources via requirements and receive them in subsequent iterations.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRIsReady",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv2.Available(), xpv2.ReconcileSuccess()),
+			).
+			Assess("ResourceWasReceived",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.resourceReceived", true),
+			).
+			Assess("ResourceHasExpectedData",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.resourceHasExpectedData", true),
+			).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
 func TestComposedResourceObservation(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/composed-resource-observation"
 	environment.Test(t,
