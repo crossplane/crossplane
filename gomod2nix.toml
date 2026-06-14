@@ -1787,14 +1787,6 @@ cachePackages = [
     version = 'v1.43.0'
     hash = 'sha256-iUfx5AvN2oiqlh2v8/oFa+2jm8RX4kbb6X1EOKRyPPw='
 
-  [mod.'go.opentelemetry.io/otel/sdk']
-    version = 'v1.43.0'
-    hash = 'sha256-Z1uTuALNhRXStiDl0UvYh9+XE2hd9OYe/bxCSuR78uE='
-
-  [mod.'go.opentelemetry.io/otel/sdk/metric']
-    version = 'v1.43.0'
-    hash = 'sha256-8wIG4fqOYJSqlKRpLFze7HTaIptFq51nQXdMWLeGz2g='
-
   [mod.'go.opentelemetry.io/otel/trace']
     version = 'v1.43.0'
     hash = 'sha256-LLx1PjBGzDwZ3//Gp14R1DCMlnMCzFxnGYqVUz5jTmk='
@@ -1876,8 +1868,8 @@ cachePackages = [
     hash = 'sha256-ldJTTb7hhj1mdmzTn9IEkQVwCoj3KRlENZtUSEKHABU='
 
   [mod.'google.golang.org/grpc']
-    version = 'v1.80.0'
-    hash = 'sha256-+p50KGJvGWdpB/4f0h477dCAfoOL5m2PzG8BGOekVgY='
+    version = 'v1.81.1'
+    hash = 'sha256-YZ5KMHmN1HvsMxyIBIl3SmFmL3r+6bwjzzFLxUFhm1o='
 
   [mod.'google.golang.org/protobuf']
     version = 'v1.36.11'
