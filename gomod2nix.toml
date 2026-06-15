@@ -426,6 +426,7 @@ cachePackages = [
   'github.com/vladimirvivien/gexe/vars',
   'github.com/x448/float16',
   'github.com/xlab/treeprint',
+  'github.com/youmark/pkcs8',
   'go.opentelemetry.io/auto/sdk',
   'go.opentelemetry.io/otel',
   'go.opentelemetry.io/otel/attribute',
@@ -1300,8 +1301,8 @@ cachePackages = [
     hash = 'sha256-b9dCq5GN5ac64UG23Rijv1qcmUZNcxb8DJQycAa96EQ='
 
   [mod.'github.com/crossplane/crossplane-runtime/v2']
-    version = 'v2.4.0-rc.0'
-    hash = 'sha256-vNI+uJhxTTkuSLY0dzl7qgTKkm/vsXfJ3PYuHdJClJs='
+    version = 'v2.4.0-rc.0.0.20260615215345-a63da558576d'
+    hash = 'sha256-J3rNGJAvSkzvgahmjWA1rwkOniJTLf93TDI5ddz9DQU='
 
   [mod.'github.com/cyberphone/json-canonicalization']
     version = 'v0.0.0-20241213102144-19d51d7fe467'
@@ -1544,8 +1545,8 @@ cachePackages = [
     hash = 'sha256-4LZwKaFBbpKi9lSq5y6lOlYHU6WMnQdGNMxTd33rN80='
 
   [mod.'github.com/in-toto/attestation']
-    version = 'v1.1.2'
-    hash = 'sha256-BdRbWCnzMCMyZmo8lkovtvGWQq2qCB7S2XBZWClJ6TM='
+    version = 'v1.2.0'
+    hash = 'sha256-NjVN4QeU1X52n4Om8d+cHxLqByfGtkxaXLtXYUlKd5k='
 
   [mod.'github.com/in-toto/in-toto-golang']
     version = 'v0.11.0'
@@ -1568,8 +1569,8 @@ cachePackages = [
     hash = 'sha256-gULc+A2Clg2HnwR9UNXSIHVGdFY/aGqhf0zlvMxqaSY='
 
   [mod.'github.com/letsencrypt/boulder']
-    version = 'v0.20260223.0'
-    hash = 'sha256-p/AuDyJr7chBqbXT+LLa3ShKX96aC3SsfzR2ekb2+xM='
+    version = 'v0.20260309.0'
+    hash = 'sha256-uqkYtnaoghoqVv4QbInTLZBCD6uS95pQM0Q0fm5Kgm4='
 
   [mod.'github.com/liggitt/tabwriter']
     version = 'v0.0.0-20181228230101-89fcab3d43de'
@@ -1680,8 +1681,8 @@ cachePackages = [
     hash = 'sha256-vHyTdLRh6OlfoGzVgvx7I0+E6tpE7V43lCQaHD/e8J4='
 
   [mod.'github.com/secure-systems-lab/go-securesystemslib']
-    version = 'v0.10.0'
-    hash = 'sha256-KY68WNnb3tgNTi0QWsmirkPfmU0xyaP23QVuSuawtHQ='
+    version = 'v0.11.0'
+    hash = 'sha256-cE+nOWw3PrwtRIRHgs5qpwn6rFGwRSe/j57mGkbbA4w='
 
   [mod.'github.com/shibumi/go-pathspec']
     version = 'v1.3.0'
@@ -1704,8 +1705,8 @@ cachePackages = [
     hash = 'sha256-mRnRvIp0UE7o5CUJiG8hs5xFJABuEAWWnjvTwz/4cKo='
 
   [mod.'github.com/sigstore/sigstore']
-    version = 'v1.10.5'
-    hash = 'sha256-t9oup+yS4jWxEoVbYLjUrI+Hu1XlWe+bu7KVOCIf+aE='
+    version = 'v1.10.8'
+    hash = 'sha256-9dK8uADbWpxL6ZE+zMQk5I16SMmhKYHfuRAfBquhZlw='
 
   [mod.'github.com/sigstore/sigstore-go']
     version = 'v1.1.4'
@@ -1766,6 +1767,10 @@ cachePackages = [
   [mod.'github.com/xlab/treeprint']
     version = 'v1.2.0'
     hash = 'sha256-g85HyWGLZuD/TFXZzmXT+u9TA1xIT5escUVhnofsYQI='
+
+  [mod.'github.com/youmark/pkcs8']
+    version = 'v0.0.0-20240726163527-a2c0da244d78'
+    hash = 'sha256-7ETUt8onE9mdUlvHT5xxzfh8mK0qw15ZSYXQCtah9p4='
 
   [mod.'go.opentelemetry.io/auto/sdk']
     version = 'v1.2.1'
@@ -1928,8 +1933,8 @@ cachePackages = [
     hash = 'sha256-FxD4b+cOzKuXsGI4NpsaUK/YTOMxugMGAh2jY3od3p8='
 
   [mod.'k8s.io/klog/v2']
-    version = 'v2.130.1'
-    hash = 'sha256-n5vls1o1a0V0KYv+3SULq4q3R2Is15K8iDHhFlsSH4o='
+    version = 'v2.140.0'
+    hash = 'sha256-TbA5ZdLRzxa7WRnz3zgPPtTplgC33eY9yKKqVFDrPWU='
 
   [mod.'k8s.io/kube-openapi']
     version = 'v0.0.0-20260127142750-a19766b6e2d4'
