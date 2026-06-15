@@ -401,7 +401,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	p.SetResolvedSource(pkg.ResolvedRef())
 
 	revisionID := pkg.DigestHex()
-	if r.features != nil && r.features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
+	if r.features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
 		if pwr, ok := p.(v1.PackageWithRuntime); ok {
 			revisionID = packageRevisionID(revisionID, pwr.GetRuntimeConfigRef())
 		}
