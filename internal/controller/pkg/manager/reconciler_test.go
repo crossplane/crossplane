@@ -20,6 +20,7 @@ import (
 	"context"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -275,13 +276,14 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"SuccessfulNoExistingRevisionsAutoActivatePullAlways": {
-			reason: "We should be active and requeue after wait on successful creation of the first revision with auto activation and package pull policy Always.",
+			reason: "We should be active and requeue after the configured poll interval on successful creation of the first revision with auto activation and package pull policy Always.",
 			args: args{
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: &Reconciler{
 					newPackage:             func() v1.Package { return &v1.Configuration{} },
 					newPackageRevision:     func() v1.PackageRevision { return &v1.ConfigurationRevision{} },
 					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
+					pollInterval:           7 * time.Minute,
 					kube: resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
@@ -328,7 +330,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: pullWait},
+				r: reconcile.Result{RequeueAfter: 7 * time.Minute},
 			},
 		},
 		"SuccessfulNoExistingRevisionsManualActivate": {
@@ -981,6 +983,68 @@ func TestReconcile(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestPullBasedRequeue(t *testing.T) {
+	pullAlways := corev1.PullAlways
+	pullIfNotPresent := corev1.PullIfNotPresent
+
+	type args struct {
+		r *Reconciler
+		p *corev1.PullPolicy
+	}
+
+	type want struct {
+		result reconcile.Result
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NilPolicyNoRequeue": {
+			reason: "A nil pull policy should not requeue.",
+			args: args{
+				r: &Reconciler{pollInterval: 5 * time.Minute},
+				p: nil,
+			},
+			want: want{result: reconcile.Result{Requeue: false}},
+		},
+		"PullIfNotPresentNoRequeue": {
+			reason: "PullIfNotPresent should not requeue.",
+			args: args{
+				r: &Reconciler{pollInterval: 5 * time.Minute},
+				p: &pullIfNotPresent,
+			},
+			want: want{result: reconcile.Result{Requeue: false}},
+		},
+		"PullAlwaysUsesConfiguredInterval": {
+			reason: "PullAlways should requeue after the configured poll interval.",
+			args: args{
+				r: &Reconciler{pollInterval: 5 * time.Minute},
+				p: &pullAlways,
+			},
+			want: want{result: reconcile.Result{RequeueAfter: 5 * time.Minute}},
+		},
+		"PullAlwaysZeroIntervalFallsBackToDefault": {
+			reason: "PullAlways with a zero poll interval should fall back to defaultPullWait.",
+			args: args{
+				r: &Reconciler{pollInterval: 0},
+				p: &pullAlways,
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultPullWait}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := tc.args.r.pullBasedRequeue(tc.args.p)
+			if diff := cmp.Diff(tc.want.result, got); diff != "" {
+				t.Errorf("\n%s\nr.pullBasedRequeue(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
