@@ -318,15 +318,21 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot get image verification config")
 	}
+	// Pin all subsequent registry interactions to the digest resolved by
+	// Head. Pulling by the original tag would let a registry that serves
+	// different content between Head and Fetch slip an unsigned image past
+	// the verifier (the verifier above attests `digest`, not whatever bytes
+	// the tag happens to resolve to a few milliseconds later).
+	digestRef := parsedResolvedRef.Context().Digest(digest)
+
 	if vc != nil {
-		ref := parsedResolvedRef.Context().Digest(digest)
-		if err := c.validator.Validate(ctx, ref, vc, secrets...); err != nil {
+		if err := c.validator.Validate(ctx, digestRef, vc, secrets...); err != nil {
 			return nil, errors.Wrap(err, "signature verification failed")
 		}
 		applied = append(applied, ImageConfig{Name: name, Reason: ImageConfigReasonVerify})
 	}
 
-	img, err := c.fetcher.Fetch(ctx, parsedResolvedRef, secrets...)
+	img, err := c.fetcher.Fetch(ctx, digestRef, secrets...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot fetch package %s", resolvedRef)
 	}
