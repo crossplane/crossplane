@@ -338,14 +338,17 @@ func InjectResourceRefs(xr *ucomposite.Unstructured, observed []kunstructured.Un
 		return
 	}
 
-	refs := make([]corev1.ObjectReference, 0, len(observed))
-	for _, o := range observed {
-		refs = append(refs, corev1.ObjectReference{
+	refs := make([]corev1.ObjectReference, len(observed))
+	for i, o := range observed {
+		refs[i] = corev1.ObjectReference{
 			APIVersion: o.GetAPIVersion(),
 			Kind:       o.GetKind(),
 			Name:       o.GetName(),
-			Namespace:  o.GetNamespace(),
-		})
+		}
+		// Only cluster-scoped XRs have namespaced resource refs.
+		if xr.GetNamespace() == "" {
+			refs[i].Namespace = o.GetNamespace()
+		}
 	}
 
 	xr.SetResourceReferences(refs)
