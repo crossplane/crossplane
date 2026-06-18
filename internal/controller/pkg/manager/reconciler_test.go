@@ -47,28 +47,31 @@ import (
 
 func TestPackageRevisionID(t *testing.T) {
 	digest := "123456789012"
-	apiVersion := "pkg.crossplane.io/v1beta1"
-	kind := "DeploymentRuntimeConfig"
 
-	defaultID := packageRevisionID(digest, &v1.RuntimeConfigReference{
-		APIVersion: &apiVersion,
-		Kind:       &kind,
-		Name:       "default",
-	})
-
-	azureID := packageRevisionID(digest, &v1.RuntimeConfigReference{
-		APIVersion: &apiVersion,
-		Kind:       &kind,
-		Name:       "azure-test",
-	})
-
-	if defaultID == azureID {
-		t.Fatalf("expected different runtime config references to produce different revision IDs")
+	tests := []struct {
+		name       string
+		generation int64
+	}{
+		{name: "generation 1 package creation", generation: 1},
+		{name: "generation 2 spec update", generation: 2},
 	}
 
-	plainID := packageRevisionID(digest, nil)
-	if plainID != digest {
-		t.Fatalf("expected nil runtime config reference to preserve package digest")
+	ids := map[int64]string{}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := packageRevisionID(digest, tc.generation)
+
+			if got == digest {
+				t.Fatalf("expected revision ID to differ from package digest")
+			}
+
+			ids[tc.generation] = got
+		})
+	}
+
+	if ids[1] == ids[2] {
+		t.Fatalf("expected different generations to produce different revision IDs")
 	}
 }
 

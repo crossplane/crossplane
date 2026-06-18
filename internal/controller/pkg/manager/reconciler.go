@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"math"
 	"reflect"
 	"strings"
@@ -99,47 +100,9 @@ func WithNewPackageFn(f func() v1.Package) ReconcilerOption {
 	}
 }
 
-// Ignore the implicit default runtime config when computing revision IDs.
-// Package dependencies commonly inherit the default runtime configuration.
-// Including it in the revision identity would change revision names for
-// packages that do not explicitly select a runtime configuration. We only
-// want runtime configuration changes to affect revision identity when a
-// non-default runtime config is selected.
-func isDefaultRuntimeConfigRef(ref *v1.RuntimeConfigReference) bool {
-	if ref == nil {
-		return true
-	}
-
-	return ref.Name == "default" &&
-		(ref.APIVersion == nil || *ref.APIVersion == v1beta1.SchemeGroupVersion.String()) &&
-		(ref.Kind == nil || *ref.Kind == v1beta1.DeploymentRuntimeConfigKind)
-}
-
-// packageRevisionID returns the revision identifier used to derive a
-// PackageRevision name. Non-default runtime configuration references are included
-// so that changing runtimeConfigRef results in a new PackageRevision.
-func packageRevisionID(digest string, ref *v1.RuntimeConfigReference) string {
-	if ref == nil || isDefaultRuntimeConfigRef(ref) {
-		return digest
-	}
-
-	apiVersion := ""
-	if ref.APIVersion != nil {
-		apiVersion = *ref.APIVersion
-	}
-
-	kind := ""
-	if ref.Kind != nil {
-		kind = *ref.Kind
-	}
-
-	h := sha256.Sum256([]byte(strings.Join([]string{
-		digest,
-		apiVersion,
-		kind,
-		ref.Name,
-	}, "|")))
-
+// packageRevisionID returns the revision identifier used to derive a PackageRevision name.
+func packageRevisionID(digest string, generation int64) string {
+	h := sha256.Sum256([]byte(fmt.Sprintf("%s|%d", digest, generation)))
 	return hex.EncodeToString(h[:])
 }
 
@@ -400,11 +363,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	p.SetResolvedSource(pkg.ResolvedRef())
 
+	// Calculate the revision ID from the package digest and package generation.
 	revisionID := pkg.DigestHex()
 	if r.features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
-		if pwr, ok := p.(v1.PackageWithRuntime); ok {
-			revisionID = packageRevisionID(revisionID, pwr.GetRuntimeConfigRef())
-		}
+		revisionID = packageRevisionID(revisionID, p.GetGeneration())
 	}
 	revisionName := xpkg.FriendlyID(p.GetName(), revisionID)
 
