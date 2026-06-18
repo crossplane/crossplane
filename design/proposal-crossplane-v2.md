@@ -750,7 +750,7 @@ need to be able to differentiate between the two by adding `apiVersion` and
 `kind` fields to the existing `spec.providerConfigRef` MR fields.
 
 When you create an MR without specifying a providerConfigRef, Crossplane
-defaults the the `providerConfigRef` to a ProviderConfig named `default`.
+defaults the `providerConfigRef` to a ProviderConfig named `default`.
 
 I propose that in v2 MRs default to a ClusterProviderConfig named `default`.
 This is due to the bootstrapping issue. It's easier to create a default
