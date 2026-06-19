@@ -108,20 +108,20 @@ cachePackages = ["github.com/davecgh/go-spew/spew", "github.com/emicklei/go-rest
     version = "v3.0.4"
     hash = "sha256-NkGFiDPoCxbr3LFsI6OCygjjkY0rdmg5ggvVVwpyDQ4="
   [mod."golang.org/x/net"]
-    version = "v0.53.0"
-    hash = "sha256-G9gKLmyaf6lIV429NKX+YlL6oUPJwlv+BrG6qGhzvmU="
+    version = "v0.55.0"
+    hash = "sha256-Phi2mSmBGOJcvqPPAit3uqF3UP8SKRI9dHj6yTM3s5s="
   [mod."golang.org/x/oauth2"]
     version = "v0.34.0"
     hash = "sha256-5eqpGGxJ7FJsPmfRek6roeGmkWHBMJaWYXyz8gXJsS4="
   [mod."golang.org/x/sys"]
-    version = "v0.43.0"
-    hash = "sha256-aDQXqSTZES2l/132PBxhZN4ywldpPyfm7LByYCHzzwM="
+    version = "v0.45.0"
+    hash = "sha256-hkBoNazrDA67ER6sWhb+EKxx9nJ24+nz3zGy+zT5Hvw="
   [mod."golang.org/x/term"]
-    version = "v0.42.0"
-    hash = "sha256-FCiDvAfq7dgBGQuiDYDFJbj/JPawhrmPF2qdUEftQ1c="
+    version = "v0.43.0"
+    hash = "sha256-gFV1oGgs/vpRamvDWmu93voN57iyZMk/hh+oL8L9VrQ="
   [mod."golang.org/x/text"]
-    version = "v0.36.0"
-    hash = "sha256-/0t9C6Mc8kYjxweFB0us2lGKo8GovHhBiq5nlMOppC0="
+    version = "v0.37.0"
+    hash = "sha256-8XDOnlPIybcDRy89fkjG5VqtIt5Ku+LmaqYhgKl7i1E="
   [mod."golang.org/x/time"]
     version = "v0.14.0"
     hash = "sha256-fVjpq0ieUHVEOTSElDVleMWvfdcqojZchqdUXiC7NnY="
