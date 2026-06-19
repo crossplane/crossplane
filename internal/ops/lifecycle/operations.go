@@ -19,6 +19,8 @@ package lifecycle
 
 import (
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -35,6 +37,34 @@ func LatestCreateTime(ops ...v1alpha1.Operation) time.Time {
 	for _, op := range ops {
 		if t := op.GetCreationTimestamp(); t.After(latest) {
 			latest = t.Time
+		}
+	}
+
+	return latest
+}
+
+// LatestScheduledTime returns the latest scheduled time from a set of
+// Operations by parsing the Unix timestamp suffix from Operation names. Names
+// are expected to be in the format "<cronoperation-name>-<unix-seconds>", as
+// produced by NewOperation. Operations whose names don't match this format are
+// skipped. This avoids using the Kubernetes creationTimestamp, which can differ
+// from the intended schedule time due to clock skew between the controller and
+// the API server.
+func LatestScheduledTime(cronName string, ops ...v1alpha1.Operation) time.Time {
+	prefix := cronName + "-"
+	var latest time.Time
+
+	for _, op := range ops {
+		name := op.GetName()
+		if !strings.HasPrefix(name, prefix) {
+			continue
+		}
+		unix, err := strconv.ParseInt(strings.TrimPrefix(name, prefix), 10, 64)
+		if err != nil {
+			continue
+		}
+		if t := time.Unix(unix, 0); t.After(latest) {
+			latest = t
 		}
 	}
 
