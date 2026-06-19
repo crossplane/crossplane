@@ -287,6 +287,9 @@ func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...
 // Compose resources using the Functions pipeline.
 func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) { //nolint:gocognit // We probably don't want any further abstraction for the sake of reduced complexity.
 	ctx = step.ForCompositions(ctx)
+	// Make the XR available to the ExtraResources fetch path so that an
+	// ImpersonatingRequiredResourcesFetcher can derive the per-tenant identity.
+	ctx = xfn.WithXRInContext(ctx, xr)
 	// Observe our existing composed resources. We need to do this before we
 	// render any P&T templates, so that we can make sure we use the same
 	// composed resource names (as in, metadata.name) every time. We know what

@@ -1,0 +1,15 @@
+change_type: enhancement
+component: apiextensions/composite
+note: >
+  Add alpha feature flag --enable-extra-resources-impersonation. When enabled,
+  Crossplane fetches composition ExtraResources for namespaced composite resources
+  under an identity derived from the XR, using Kubernetes client impersonation.
+  The ServiceAccount to impersonate is taken from the
+  crossplane.io/extra-resources-as annotation on the XR, or from the
+  --extra-resources-impersonation-default-sa flag. Cluster-scoped XRs are never
+  impersonated. Default-off; existing behaviour is unchanged when the flag is
+  absent.
+issues: [7461]
+subtext: >
+  This enables tenant RBAC to govern which ExtraResources a composition function
+  may read, without granting Crossplane's own ServiceAccount broader access.

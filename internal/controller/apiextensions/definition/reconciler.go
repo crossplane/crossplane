@@ -514,11 +514,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	fetcher := composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached())
-	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), r.options.FunctionRunner,
+
+	fcOpts := []composite.FunctionComposerOption{
 		composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.engine.GetCached(), r.engine.GetUncached(), fetcher)),
 		composite.WithCompositeConnectionDetailsFetcher(fetcher),
 		composite.WithRequiredSchemasFetcher(xfn.NewOpenAPIRequiredSchemasFetcher(r.options.OpenAPIClient)),
-	)
+	}
+
+	// Use the configured resources fetcher (e.g. the impersonating one) for
+	// bootstrap requirement fetches when set.
+	if r.options.ResourcesFetcher != nil {
+		fcOpts = append(fcOpts, composite.WithRequiredResourcesFetcher(r.options.ResourcesFetcher))
+	}
+
+	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), r.options.FunctionRunner, fcOpts...)
 
 	controllerName := composite.ControllerName(d.GetName())
 	gvk := d.GetCompositeGroupVersionKind()
