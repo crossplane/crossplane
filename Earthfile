@@ -277,7 +277,7 @@ multiplatform-image:
 
 # helm-lint lints the Crossplane Helm chart.
 helm-lint:
-  FROM alpine:3.20
+  FROM alpine:3.24
   WORKDIR /chart
   COPY +helm-setup/helm /usr/local/bin/helm
   COPY cluster/charts/crossplane/ .
@@ -285,7 +285,7 @@ helm-lint:
 
 # helm-generate runs Helm code generation - specifically helm-docs.
 helm-generate:
-  FROM alpine:3.20
+  FROM alpine:3.24
   WORKDIR /chart
   COPY +helm-docs-setup/helm-docs /usr/local/bin/helm-docs
   COPY cluster/charts/crossplane/ .
@@ -297,7 +297,7 @@ helm-build:
   ARG EARTHLY_GIT_SHORT_HASH
   ARG EARTHLY_GIT_COMMIT_TIMESTAMP
   ARG CROSSPLANE_VERSION=v0.0.0-${EARTHLY_GIT_COMMIT_TIMESTAMP}-${EARTHLY_GIT_SHORT_HASH}
-  FROM alpine:3.20
+  FROM alpine:3.24
   WORKDIR /chart
   COPY +helm-setup/helm /usr/local/bin/helm
   COPY cluster/charts/crossplane/ .
@@ -420,7 +420,7 @@ ci-promote-image:
   ARG --required CROSSPLANE_REPO
   ARG --required CROSSPLANE_VERSION
   ARG --required CHANNEL
-  FROM alpine:3.20
+  FROM alpine:3.24
   RUN apk add docker
   # We need to omit the registry argument when we're logging into Docker Hub.
   # Otherwise login will appear to succeed, but buildx will fail on auth.
