@@ -74,6 +74,34 @@ That being said, we still need a policy. I propose that:
    major versions of Crossplane. I.e., features in CLI v3.0 may be incompatible
    with non-EOL versions of Crossplane v2.x.
 
+The support matrix will be documented in the CLI's README file and on the CLI
+overview page on docs.crossplane.io. It will also be encoded into the CLI itself
+so that cluster-facing commands can print a warning if the CLI version is not
+officially compatible with the observed Crossplane version.
+
+### Release Cadence
+
+For now, I propose that the CLI will not have a fixed release cadence. Rather,
+we will cut a new minor release whenever we have substantial new features merged
+to `main`. In order to meet the compatibility guarantees described above, we
+will also do a minor release to coincide with each new minor release of
+Crossplane core.
+
+As we settle into the rhythm of development in the new CLI repository, we may
+revisit this decision and set a fixed release cadence.
+
+### Support Window
+
+With the CLI being simpler and less risky to upgrade than core Crossplane, we
+expect that users will upgrade to new CLI releases relatively frequently. Given
+this, it is reasonable to offer a shorter support window for CLI releases than
+the 9 months / 3 minor versions we offer for core Crossplane.
+
+I propose that we support the two most recent minor versions of the CLI,
+regardless of their release date. This provides a supported trailing release for
+users who prefer not to take up larger changes right away, while minimizing
+release toil for the CLI maintainers.
+
 ### Artifact Location
 
 I propose that the CLI, going forward, will be distributed via a new S3 bucket
