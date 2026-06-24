@@ -53,6 +53,12 @@ const (
 	// automatically protecting Providers from deletion when they still have
 	// active managed resources. Requires EnableBetaUsages to also be enabled.
 	EnableAlphaProviderDeletionProtection feature.Flag = "EnableAlphaProviderDeletionProtection"
+
+	// EnableAlphaRequiredResourceWatches enables alpha support for watching the
+	// resources a composition function requires, and reconciling a composite
+	// resource (XR) when a resource its function pipeline requires changes.
+	// Requires EnableBetaRealtimeCompositions to also be enabled.
+	EnableAlphaRequiredResourceWatches feature.Flag = "EnableAlphaRequiredResourceWatches"
 )
 
 // Beta Feature Flags.

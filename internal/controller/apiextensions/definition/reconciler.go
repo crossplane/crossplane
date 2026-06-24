@@ -440,6 +440,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 
+		// The controller is gone, so forget its required resource watcher.
+		r.deregisterRequiredResourceWatcher(d.GetCompositeGroupVersionKind())
+
 		log.Debug("Stopped composite resource controller")
 
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
@@ -507,6 +510,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 			return reconcile.Result{}, err
 		}
+
+		// Forget the stopped controller's required resource watcher. We'll
+		// re-register it below when we restart the controller.
+		r.deregisterRequiredResourceWatcher(d.GetCompositeGroupVersionKind())
 
 		log.Debug("XRD generation changed; stopped composite resource controller",
 			"observed-generation", d.GetCondition(v1.TypeEstablished).ObservedGeneration,
@@ -603,7 +610,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// If realtime composition is enabled we'll start watches dynamically,
 		// so we want to garbage collect watches for composed resource kinds
 		// that aren't used anymore.
-		gc := watch.NewGarbageCollector(controllerName, gvk, r.engine, watch.WithCompositeSchema(schema), watch.WithLogger(log))
+		gco := []watch.GarbageCollectorOption{watch.WithCompositeSchema(schema), watch.WithLogger(log)}
+
+		// If we're also watching required resources, the garbage collector
+		// needs to know which required resource watches are still in use.
+		if r.options.Features.Enabled(features.EnableAlphaRequiredResourceWatches) && r.options.RequirementsCache != nil {
+			gco = append(gco, watch.WithRequiredResourceProvider(r.options.RequirementsCache))
+		}
+
+		gc := watch.NewGarbageCollector(controllerName, gvk, r.engine, gco...)
 		co = append(co, engine.WithWatchGarbageCollector(gc))
 	}
 
@@ -646,10 +661,35 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	// Register a required resource watcher for this XR's kind, so the shared
+	// function runner can start watches on this controller when a function's
+	// requirements stabilize. We register after starting the controller, so the
+	// runner never dispatches to a controller that isn't running yet. Required
+	// resource watches build on realtime compositions' watch machinery, so we
+	// only register when both features are enabled.
+	if r.options.Features.Enabled(features.EnableBetaRealtimeCompositions) &&
+		r.options.Features.Enabled(features.EnableAlphaRequiredResourceWatches) &&
+		r.options.RequiredResourceWatchers != nil {
+		rmf := RequiredResourcesMapFunc(gvk, r.engine.GetCached(), r.log)
+		rh := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(rmf, cb))
+		r.options.RequiredResourceWatchers.Register(gvk, NewRequiredResourceWatchStarter(controllerName, r.engine, rh, r.log))
+	}
+
 	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	status.MarkConditions(v1.WatchingComposite())
 
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+}
+
+// deregisterRequiredResourceWatcher forgets the required resource watcher for
+// the supplied XR kind, if we're registering them. It's called when an XR
+// controller stops, so the shared function runner doesn't dispatch to a watcher
+// for a controller that's no longer running.
+func (r *Reconciler) deregisterRequiredResourceWatcher(gvk schema.GroupVersionKind) {
+	if r.options.RequiredResourceWatchers == nil {
+		return
+	}
+	r.options.RequiredResourceWatchers.Deregister(gvk)
 }
 
 // ControllerNeedsRestart returns true if the composite resource controller

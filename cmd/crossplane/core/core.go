@@ -137,6 +137,7 @@ type startCommand struct {
 	EnableOperations                  bool `group:"Alpha Features:" help:"Enable support for Operations."`
 	EnablePipelineInspector           bool `group:"Alpha Features:" help:"Enable support for emitting function pipeline execution data to a sidecar."`
 	EnableProviderDeletionProtection  bool `group:"Alpha Features:" help:"Enable automatic protection of Providers from deletion when they have active managed resources. Requires --enable-usages."`
+	EnableRequiredResourceWatches     bool `group:"Alpha Features:" help:"Enable watching the resources a composition function requires, reconciling a composite resource (XR) when a required resource changes. Requires --enable-realtime-compositions."`
 
 	XfnCacheDir             string        `default:"/cache/xfn"                         env:"XFN_CACHE_DIR"             group:"Alpha Features:" help:"Directory used for caching function responses. Requires --enable-function-response-cache."`
 	XfnCacheMaxTTL          time.Duration `default:"24h"                                env:"XFN_CACHE_MAX_TTL"         group:"Alpha Features:" help:"Maximum TTL for cached function responses. Set to 0 to disable. Requires --enable-function-response-cache."`
@@ -358,6 +359,20 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaProviderDeletionProtection)
 	}
 
+	if c.EnableRequiredResourceWatches {
+		o.Features.Enable(features.EnableAlphaRequiredResourceWatches)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaRequiredResourceWatches)
+
+		// Required resource watches rely on the watch machinery that realtime
+		// compositions sets up. Without it the feature is a no-op, so warn
+		// rather than silently doing nothing.
+		if !c.EnableRealtimeCompositions {
+			log.Info("Required resource watches are enabled but will have no effect, because they require realtime compositions",
+				"required-flag", features.EnableAlphaRequiredResourceWatches,
+				"missing-flag", features.EnableBetaRealtimeCompositions)
+		}
+	}
+
 	cacheOptionsAPIExt := cache.Options{
 		HTTPClient: mgr.GetHTTPClient(),
 		Scheme:     mgr.GetScheme(),
@@ -473,29 +488,80 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot setup discovery cache invalidation")
 	}
 
-	// Middleware layering: We want Cache → FetchingFunctionRunner → gRPC.
-	// First, wrap the runner with FetchingFunctionRunner to handle
-	// requirements.
-	runner = xfn.NewFetchingFunctionRunner(runner,
-		xfn.NewExistingRequiredResourcesFetcher(cached),
-		xfn.NewOpenAPIRequiredSchemasFetcher(oac))
+	// When required resource watches are enabled, the function runner remembers
+	// the requirements functions return (to pre-satisfy them next reconcile) and
+	// starts watches on the resources they require. The registry lets per-XR-kind
+	// watchers, registered by the definition controller, start those watches on
+	// the right controller. Both are nil unless the feature is enabled.
+	var requirementsCache *xfn.RequirementsCache
+	var requiredResourceWatchers *xfn.RequiredResourceWatcherRegistry
+	if c.EnableRequiredResourceWatches {
+		requirementsCache = xfn.NewRequirementsCache()
+		requiredResourceWatchers = xfn.NewRequiredResourceWatcherRegistry()
+	}
 
-	// Then, if caching is enabled, wrap with the cache layer.
-	// This ensures the cache stores final responses after all requirements are fulfilled.
-	if c.EnableFunctionResponseCache {
-		cfrm := xfncached.NewPrometheusMetrics()
-		metrics.Registry.MustRegister(cfrm)
+	// Without required resource watches we layer Cache → FetchingFunctionRunner
+	// → gRPC. The cache wraps the whole requirement-resolution loop, so a single
+	// cache hit skips the loop entirely - including its Kubernetes reads.
+	if !c.EnableRequiredResourceWatches {
+		// Wrap the base runner to fetch required resources and schemas.
+		runner = xfn.NewFetchingFunctionRunner(runner,
+			xfn.NewExistingRequiredResourcesFetcher(cached),
+			xfn.NewOpenAPIRequiredSchemasFetcher(oac))
 
-		cfr := xfncached.NewFileBackedRunner(runner, c.XfnCacheDir,
-			xfncached.WithLogger(log),
-			xfncached.WithMaxTTL(c.XfnCacheMaxTTL),
-			xfncached.WithMetrics(cfrm),
+		if c.EnableFunctionResponseCache {
+			cfrm := xfncached.NewPrometheusMetrics()
+			metrics.Registry.MustRegister(cfrm)
+
+			cfr := xfncached.NewFileBackedRunner(runner, c.XfnCacheDir,
+				xfncached.WithLogger(log),
+				xfncached.WithMaxTTL(c.XfnCacheMaxTTL),
+				xfncached.WithMetrics(cfrm),
+			)
+			// Periodically delete expired cache entries.
+			go cfr.GarbageCollectFiles(ctx, 1*time.Minute)
+
+			runner = cfr
+		}
+	}
+
+	// With required resource watches we layer FetchingFunctionRunner → Cache →
+	// gRPC. The cache sits below the runner, so it caches each call the runner
+	// makes while resolving requirements, keyed by a request that includes the
+	// resources fetched so far. This is what lets a change to a required
+	// resource invalidate the cache: the changed resource changes the request,
+	// so the request's tag (the cache key) changes, so the cache misses and the
+	// function re-runs. The runner recomputes the tag each iteration to make
+	// this work. This arrangement is less effective at caching multi-iteration
+	// functions, which is why we only use it when required resource watches need
+	// the invalidation it provides.
+	if c.EnableRequiredResourceWatches {
+		// Wrap the base runner with a cache.
+		if c.EnableFunctionResponseCache {
+			cfrm := xfncached.NewPrometheusMetrics()
+			metrics.Registry.MustRegister(cfrm)
+
+			cfr := xfncached.NewFileBackedRunner(runner, c.XfnCacheDir,
+				xfncached.WithLogger(log),
+				xfncached.WithMaxTTL(c.XfnCacheMaxTTL),
+				xfncached.WithMetrics(cfrm),
+			)
+			// Periodically delete expired cache entries.
+			go cfr.GarbageCollectFiles(ctx, 1*time.Minute)
+
+			runner = cfr
+		}
+
+		// Then wrap the cache with a fetching function runner. The
+		// cache is below the runner, so the runner must retag each
+		// iteration for the cache to key on the resolved request.
+		runner = xfn.NewFetchingFunctionRunner(runner,
+			xfn.NewExistingRequiredResourcesFetcher(cached),
+			xfn.NewOpenAPIRequiredSchemasFetcher(oac),
+			xfn.WithRequirementsRecorder(requirementsCache),
+			xfn.WithRequiredResourceWatcher(requiredResourceWatchers),
+			xfn.WithPerIterationTagging(),
 		)
-
-		// Periodically delete expired cache entries.
-		go cfr.GarbageCollectFiles(ctx, 1*time.Minute)
-
-		runner = cfr
 	}
 
 	// Then, last, if pipeline inspection is enabled, wrap with the inspector layer.
@@ -528,6 +594,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		Options:                  o,
 		ControllerEngine:         ce,
 		FunctionRunner:           runner,
+		RequiredResourceWatchers: requiredResourceWatchers,
+		RequirementsCache:        requirementsCache,
 		OpenAPIClient:            oac,
 		CircuitBreakerMetrics:    cbm,
 		CircuitBreakerBurst:      c.CircuitBreakerBurst,

@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
@@ -333,6 +334,100 @@ func TestCompositeResourcesMapFunc(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.requests, requests); diff != "" {
 				t.Errorf("\n%s\nCompositeResourcesMapFunc(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestRequiredResourcesMapFunc(t *testing.T) {
+	type args struct {
+		of     schema.GroupVersionKind
+		reader client.Reader
+		obj    client.Object
+	}
+
+	type want struct {
+		requests []reconcile.Request
+	}
+
+	dog := schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Dog"}
+	configMap := schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}
+
+	tests := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ListError": {
+			reason: "If we can't list XRs we should enqueue nothing.",
+			args: args{
+				of: dog,
+				reader: &test.MockClient{
+					MockList: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
+						return errors.New("boom")
+					},
+				},
+				obj: &kunstructured.Unstructured{},
+			},
+			want: want{
+				requests: nil,
+			},
+		},
+		"NoXRs": {
+			reason: "If there are no XRs of our kind we should enqueue nothing.",
+			args: args{
+				of: dog,
+				reader: &test.MockClient{
+					MockList: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
+						return nil
+					},
+				},
+				obj: &kunstructured.Unstructured{},
+			},
+			want: want{
+				requests: []reconcile.Request{},
+			},
+		},
+		"AllXRsOfKind": {
+			reason: "We should enqueue every XR of our kind when a required resource changes, since we can't tell which XRs require the changed resource.",
+			args: args{
+				of: dog,
+				reader: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						var xr1, xr2 kunstructured.Unstructured
+						xr1.SetName("xr1")
+						xr2.SetName("xr2")
+						list.(*kunstructured.UnstructuredList).Items = []kunstructured.Unstructured{xr1, xr2}
+						return nil
+					},
+				},
+				obj: &kunstructured.Unstructured{
+					Object: map[string]any{
+						"apiVersion": configMap.GroupVersion().String(),
+						"kind":       configMap.Kind,
+						"metadata": map[string]any{
+							"name":      "my-config",
+							"namespace": "default",
+						},
+					},
+				},
+			},
+			want: want{
+				requests: []reconcile.Request{
+					{NamespacedName: types.NamespacedName{Name: "xr1"}},
+					{NamespacedName: types.NamespacedName{Name: "xr2"}},
+				},
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			mapFunc := RequiredResourcesMapFunc(tc.args.of, tc.args.reader, logging.NewNopLogger())
+			requests := mapFunc(context.TODO(), tc.args.obj)
+
+			if diff := cmp.Diff(tc.want.requests, requests); diff != "" {
+				t.Errorf("\n%s\nRequiredResourcesMapFunc(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

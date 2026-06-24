@@ -109,6 +109,45 @@ func SelfMapFunc() handler.MapFunc {
 	}
 }
 
+// RequiredResourcesMapFunc returns a MapFunc that maps a changed required
+// resource to the composite resources (XRs) of the supplied kind, so they
+// reconcile when a resource their function pipeline requires changes.
+//
+// Unlike composed resources, required resources aren't referenced by the XR, so
+// we can't index XRs by the required resources they use. A function can also
+// require a resource by label selector, matching resources no XR records. We
+// therefore enqueue every XR of this controller's kind when a required resource
+// of a watched kind changes. This is deliberately coarse: an XR whose
+// requirements didn't actually change still reconciles. The function response
+// cache (when enabled) serves its pipeline from cache, so the redundant
+// reconcile doesn't re-run the function pipeline - though it does still cost a
+// reconcile, and this map function still lists every XR of our kind per event.
+func RequiredResourcesMapFunc(of schema.GroupVersionKind, c client.Reader, log logging.Logger) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		// We can't tell which XRs require the changed resource, so we enqueue
+		// every XR of our kind. We use the changed object only for logging.
+		xrs := kunstructured.UnstructuredList{}
+		xrs.SetGroupVersionKind(of.GroupVersion().WithKind(of.Kind + "List"))
+		if err := c.List(ctx, &xrs); err != nil {
+			log.Debug("cannot list composite resources related to a required resource change",
+				"error", err,
+				"composite-gvk", of.String(),
+				"required-gvk", obj.GetObjectKind().GroupVersionKind().String(),
+				"required-name", obj.GetName(),
+				"required-namespace", obj.GetNamespace(),
+			)
+			return nil
+		}
+
+		requests := make([]reconcile.Request, len(xrs.Items))
+		for i, xr := range xrs.Items {
+			requests[i] = reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&xr)}
+		}
+
+		return requests
+	}
+}
+
 // CompositeResourcesMapFunc returns a MapFunc that maps composed resources to affected XRs.
 func CompositeResourcesMapFunc(of schema.GroupVersionKind, c client.Reader, log logging.Logger) handler.MapFunc {
 	return func(ctx context.Context, obj client.Object) []reconcile.Request {

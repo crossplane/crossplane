@@ -412,9 +412,10 @@ func TestFetchingFunctionRunner(t *testing.T) {
 	called := false
 
 	type params struct {
-		wrapped   FunctionRunner
-		resources RequiredResourcesFetcher
-		schemas   RequiredSchemasFetcher
+		wrapped    FunctionRunner
+		resources  RequiredResourcesFetcher
+		schemas    RequiredSchemasFetcher
+		remembered *RequirementsCache
 	}
 
 	type args struct {
@@ -876,7 +877,11 @@ func TestFetchingFunctionRunner(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewFetchingFunctionRunner(tc.params.wrapped, tc.params.resources, tc.params.schemas)
+			o := []FetchingFunctionRunnerOption{}
+			if tc.params.remembered != nil {
+				o = append(o, WithRequirementsRecorder(tc.params.remembered))
+			}
+			r := NewFetchingFunctionRunner(tc.params.wrapped, tc.params.resources, tc.params.schemas, o...)
 
 			rsp, err := r.RunFunction(tc.args.ctx, tc.args.name, tc.args.req)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {

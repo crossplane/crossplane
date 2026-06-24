@@ -37,6 +37,24 @@ import (
 
 var _ ControllerEngine = &MockEngine{}
 
+var _ RequiredResourceProvider = &MockRequiredResourceProvider{}
+
+// MockRequiredResourceProvider is a mock RequiredResourceProvider.
+type MockRequiredResourceProvider struct {
+	MockRequiredGVKs  func(xrUID string) []schema.GroupVersionKind
+	MockRetainForKind func(gvk schema.GroupVersionKind, live map[string]bool)
+}
+
+func (m *MockRequiredResourceProvider) RequiredGVKs(xrUID string) []schema.GroupVersionKind {
+	return m.MockRequiredGVKs(xrUID)
+}
+
+func (m *MockRequiredResourceProvider) RetainForKind(gvk schema.GroupVersionKind, live map[string]bool) {
+	if m.MockRetainForKind != nil {
+		m.MockRetainForKind(gvk, live)
+	}
+}
+
 type MockEngine struct {
 	MockGetWatches  func(name string) ([]engine.WatchID, error)
 	MockStopWatches func(ctx context.Context, name string, ws ...engine.WatchID) (int, error)
@@ -291,6 +309,119 @@ func TestGarbageCollectWatchesNow(t *testing.T) {
 				},
 				o: []GarbageCollectorOption{
 					WithLogger(logging.NewNopLogger()),
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"LegacyComposedResourceWatchesUseLegacySchema": {
+			reason: "For a legacy XR controller we should read composed resource refs using the legacy schema, so we keep watches the XR still composes.",
+			params: params{
+				of: schema.GroupVersionKind{Group: "example.org", Version: "v1", Kind: "LegacyXR"},
+				ce: &MockEngine{
+					MockGetCached: func() client.Client {
+						return &test.MockClient{
+							MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+								// A legacy XR composing StillComposed. Legacy XRs
+								// store refs at spec.resourceRefs, which only the
+								// legacy schema reads.
+								xr := composite.New(composite.WithSchema(composite.SchemaLegacy))
+								xr.SetResourceReferences([]corev1.ObjectReference{{
+									APIVersion: "example.org/v1",
+									Kind:       "StillComposed",
+								}})
+								obj.(*unstructured.UnstructuredList).Items = []unstructured.Unstructured{xr.Unstructured}
+								return nil
+							}),
+						}
+					},
+					MockGetWatches: func(_ string) ([]engine.WatchID, error) {
+						return []engine.WatchID{{
+							Type: engine.WatchTypeComposedResource,
+							GVK:  schema.GroupVersionKind{Group: "example.org", Version: "v1", Kind: "StillComposed"},
+						}}, nil
+					},
+					// StopWatches isn't mocked: the test fails if it's called,
+					// because StillComposed is still composed and must be kept.
+				},
+				o: []GarbageCollectorOption{
+					WithLogger(logging.NewNopLogger()),
+					WithCompositeSchema(composite.SchemaLegacy),
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"UnneededRequiredResourceWatchesStopped": {
+			reason: "We should stop a required resource watch for a kind no XR's function pipeline requires, and keep one that's still required.",
+			params: params{
+				ce: &MockEngine{
+					MockGetCached: func() client.Client {
+						return &test.MockClient{
+							MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+								xr := composite.New()
+								xr.SetUID("xr-uid")
+								obj.(*unstructured.UnstructuredList).Items = []unstructured.Unstructured{xr.Unstructured}
+								return nil
+							}),
+						}
+					},
+					MockGetUncached: func() client.Client {
+						return &test.MockClient{
+							MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+								xr := composite.New()
+								xr.SetUID("xr-uid")
+								obj.(*unstructured.UnstructuredList).Items = []unstructured.Unstructured{xr.Unstructured}
+								return nil
+							}),
+						}
+					},
+					MockGetWatches: func(_ string) ([]engine.WatchID, error) {
+						return []engine.WatchID{
+							// Still required - keep it.
+							{
+								Type: engine.WatchTypeRequiredResource,
+								GVK:  schema.GroupVersionKind{Group: "example.org", Version: "v1", Kind: "StillRequired"},
+							},
+							// No longer required - GC it.
+							{
+								Type: engine.WatchTypeRequiredResource,
+								GVK:  schema.GroupVersionKind{Group: "example.org", Version: "v1", Kind: "GarbageCollectMe"},
+							},
+						}, nil
+					},
+					MockStopWatches: func(_ context.Context, _ string, ws ...engine.WatchID) (int, error) {
+						want := []engine.WatchID{
+							{
+								Type: engine.WatchTypeRequiredResource,
+								GVK:  schema.GroupVersionKind{Group: "example.org", Version: "v1", Kind: "GarbageCollectMe"},
+							},
+						}
+						if diff := cmp.Diff(want, ws); diff != "" {
+							t.Errorf("\nMockStopWatches(...) -want, +got:\n%s", diff)
+						}
+						return 0, nil
+					},
+				},
+				o: []GarbageCollectorOption{
+					WithLogger(logging.NewNopLogger()),
+					WithRequiredResourceProvider(&MockRequiredResourceProvider{
+						MockRequiredGVKs: func(xrUID string) []schema.GroupVersionKind {
+							if xrUID != "xr-uid" {
+								return nil
+							}
+							return []schema.GroupVersionKind{{Group: "example.org", Version: "v1", Kind: "StillRequired"}}
+						},
+						MockRetainForKind: func(_ schema.GroupVersionKind, live map[string]bool) {
+							// We evict using the authoritative uncached live set,
+							// which contains our one live XR.
+							if diff := cmp.Diff(map[string]bool{"xr-uid": true}, live); diff != "" {
+								t.Errorf("\nRetainForKind() live: -want, +got:\n%s", diff)
+							}
+						},
+					}),
 				},
 			},
 			want: want{

@@ -425,6 +425,7 @@ const (
 	WatchTypeComposedResource    WatchType = "ComposedResource"
 	WatchTypeCompositionRevision WatchType = "CompositionRevision"
 	WatchTypeManagedResource     WatchType = "ManagedResource"
+	WatchTypeRequiredResource    WatchType = "RequiredResource"
 )
 
 // Watch an object.

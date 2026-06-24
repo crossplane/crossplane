@@ -37,6 +37,16 @@ type Options struct {
 	// FunctionRunner used to run Composition Functions.
 	FunctionRunner xfn.FunctionRunner
 
+	// RequiredResourceWatchers registers per-composite-resource-kind watchers
+	// for the resources composition functions require. It's nil unless required
+	// resource watches are enabled.
+	RequiredResourceWatchers *xfn.RequiredResourceWatcherRegistry
+
+	// RequirementsCache remembers the resources composition functions require,
+	// so the watch garbage collector can tell which required resource watches
+	// are still in use. It's nil unless required resource watches are enabled.
+	RequirementsCache *xfn.RequirementsCache
+
 	// OpenAPIClient used to fetch OpenAPI schemas for bootstrap requirements
 	// specified in Compositions.
 	OpenAPIClient xfn.OpenAPIV3Client
