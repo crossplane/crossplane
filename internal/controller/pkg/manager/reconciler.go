@@ -21,9 +21,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"math"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -102,7 +102,7 @@ func WithNewPackageFn(f func() v1.Package) ReconcilerOption {
 
 // packageRevisionID returns the revision identifier used to derive a PackageRevision name.
 func packageRevisionID(digest string, generation int64) string {
-	h := sha256.Sum256([]byte(fmt.Sprintf("%s|%d", digest, generation)))
+	h := sha256.Sum256([]byte(digest + "|" + strconv.FormatInt(generation, 10)))
 	return hex.EncodeToString(h[:])
 }
 
@@ -330,6 +330,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(p, event.Warning(reasonList, err))
 
 		return reconcile.Result{}, err
+	}
+
+	// Don't create or update package revisions while the package is being deleted.
+	// Kubernetes garbage collection owns deletion of controlled package revisions.
+	if meta.WasDeleted(p) {
+		return reconcile.Result{}, nil
 	}
 
 	// Fetch the package to get its digest and any applied ImageConfigs.
