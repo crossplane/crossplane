@@ -87,11 +87,13 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		return nil, errors.Wrap(err, "cannot convert composite resource from protobuf")
 	}
 
-	// Set a deterministic fake UID. The NameGenerator uses the owner UID for
-	// deterministic name generation of composed resources. The namespace is
-	// included so that two namespaced XRs with the same GVK and name in
-	// different namespaces produce different composed resource names.
-	xr.SetUID(types.UID(uuid.NewSHA1(uuid.Nil, []byte(gvk.String()+"\x00"+xr.GetNamespace()+"\x00"+xr.GetName())).String()))
+	// Set a deterministic fake UID for the input XR if it doesn't have
+	// one. Generating a deterministic UID keeps output stable across runs, but
+	// we don't want to overwrite an existing UID because the user might have
+	// observed resources with ownerRefs that match it.
+	if xr.GetUID() == "" {
+		xr.SetUID(types.UID(uuid.NewSHA1(uuid.Nil, []byte(gvk.String()+"\x00"+xr.GetNamespace()+"\x00"+xr.GetName())).String()))
+	}
 
 	// Set a resourceVersion to avoid "object has no resource version" errors.
 	xr.SetResourceVersion("999")
