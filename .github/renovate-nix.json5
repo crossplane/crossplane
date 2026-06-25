@@ -16,7 +16,7 @@
 
   packageRules: [
     {
-      description: 'Regenerate gomod2nix.toml and generated code after upgrading go dependencies (Nix)',
+      description: 'Refresh Go vendor hashes and generated code after upgrading go dependencies (Nix)',
       matchDatasources: [
         'go',
       ],
