@@ -27,6 +27,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -106,6 +107,10 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 			return nil, errors.Wrap(err, "cannot convert observed resource from protobuf")
 		}
 		observed = append(observed, *u)
+	}
+
+	if err := CheckObservedResources(xr, observed); err != nil {
+		return nil, errors.Wrap(err, "invalid observed resources")
 	}
 
 	// Inject spec.resourceRefs for observed resources so the real
@@ -330,6 +335,32 @@ func selectSchema(gvk schema.GroupVersionKind, def *structpb.Struct) (ucomposite
 	}
 
 	return cschema, nil
+}
+
+// CheckObservedResources validates that all observed resources will be
+// correctly read by the controller. This requires that they:
+//
+//  1. Either have no controller ref or have a controller ref that matches the
+//     XR.
+//  2. Are in the same namespace as the XR if the XR is namespaced.
+func CheckObservedResources(xr *ucomposite.Unstructured, observed []kunstructured.Unstructured) error {
+	var errs []error
+
+	xrUID := xr.GetUID()
+	for _, o := range observed {
+		if c := metav1.GetControllerOf(&o); c != nil && c.UID != xrUID {
+			errs = append(errs,
+				errors.Errorf("observed resource %s has a controller ref but is not controlled by the XR", o.GetName()),
+			)
+		}
+		if xr.GetNamespace() != "" && o.GetNamespace() != xr.GetNamespace() {
+			errs = append(errs,
+				errors.Errorf("observed resource %s is not in the same namespace as the XR", o.GetName()),
+			)
+		}
+	}
+
+	return errors.Join(errs...)
 }
 
 // InjectResourceRefs sets spec.resourceRefs on the XR for each observed
