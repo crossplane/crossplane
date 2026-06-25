@@ -1,0 +1,19 @@
+# Go vendor hashes for buildGoModule, one per Go module.
+#
+# This file is the buildGoModule equivalent of the old gomod2nix.toml files: it
+# pins the hash of each module's vendored dependencies so builds stay
+# reproducible inside the Nix sandbox.
+#
+# Regenerate after changing Go dependencies with:
+#
+#   nix run .#tidy
+#
+# (tidy runs `go mod tidy` and then rewrites the hashes below. Don't edit them
+# by hand.)
+{
+  # Root module: github.com/crossplane/crossplane/v2
+  root = "sha256-Kg4McpS0VNFOFJxIp5SS7+mgfv90rSwbE6cgNmTM3zI=";
+
+  # apis module: github.com/crossplane/crossplane/apis/v2
+  apis = "sha256-YiOGaFwS7lfax4f/wF6yciiT4VT8GoJuuVTGj0ESqIE=";
+}
