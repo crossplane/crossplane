@@ -25,7 +25,11 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/structpb"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -465,13 +469,13 @@ func TestSelectSchema(t *testing.T) {
 		"V1XRDExplicitLegacyClusterScope": {
 			reason:     "A v1 XRD with explicit Spec.Scope=LegacyCluster yields SchemaLegacy.",
 			gvk:        xrGVK,
-			def:        v1XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", strPtr("LegacyCluster")),
+			def:        v1XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", ptr.To("LegacyCluster")),
 			wantSchema: ucomposite.SchemaLegacy,
 		},
 		"V1XRDExplicitClusterScope": {
 			reason:     "A v1 XRD with explicit Spec.Scope=Cluster (theoretical edge case) yields SchemaModern. Mirrors the production reconciler's rule.",
 			gvk:        xrGVK,
-			def:        v1XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", strPtr("Cluster")),
+			def:        v1XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", ptr.To("Cluster")),
 			wantSchema: ucomposite.SchemaModern,
 		},
 		"V2XRD": {
@@ -483,7 +487,7 @@ func TestSelectSchema(t *testing.T) {
 		"V2FormPreservingLegacyClusterScope": {
 			reason:     "A v2-form XRD with Spec.Scope=LegacyCluster (e.g. a v1-posted XRD round-tripped through the storage version) yields SchemaLegacy. The v2 Go type's Spec.Scope is a string alias with no runtime enum validation, so 'LegacyCluster' survives the round-trip and must be honored to avoid forcing consumers to specifically fetch v1-form.",
 			gvk:        xrGVK,
-			def:        v2XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", strPtr("LegacyCluster")),
+			def:        v2XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", ptr.To("LegacyCluster")),
 			wantSchema: ucomposite.SchemaLegacy,
 		},
 		"XRDDoesNotMatchXR": {
@@ -709,7 +713,147 @@ func TestRenderErrors(t *testing.T) {
 	}
 }
 
-func strPtr(s string) *string { return &s }
+func TestCheckObservedResources(t *testing.T) {
+	const xrUID = types.UID("xr-uid")
+
+	observed := func(name, namespace string, owners ...metav1.OwnerReference) kunstructured.Unstructured {
+		u := kunstructured.Unstructured{}
+		u.SetGroupVersionKind(schema.GroupVersionKind{Group: "example.org", Version: "v1alpha1", Kind: "XComposed"})
+		u.SetName(name)
+		u.SetNamespace(namespace)
+		u.SetOwnerReferences(owners)
+
+		return u
+	}
+	controllerRef := func(uid types.UID) metav1.OwnerReference {
+		return metav1.OwnerReference{
+			APIVersion: "example.org/v1alpha1",
+			Kind:       "XLegacyResource",
+			Name:       "my-xr",
+			UID:        uid,
+			Controller: ptr.To(true),
+		}
+	}
+	nonControllerRef := func(uid types.UID) metav1.OwnerReference {
+		return metav1.OwnerReference{
+			APIVersion: "example.org/v1alpha1",
+			Kind:       "XLegacyResource",
+			Name:       "my-xr",
+			UID:        uid,
+		}
+	}
+
+	cases := map[string]struct {
+		reason      string
+		xrNamespace string
+		observed    []kunstructured.Unstructured
+		// wantErrContains lists substrings that must all appear in the error
+		// message. An empty/nil slice means no error is expected.
+		wantErrContains []string
+	}{
+		"NoObservedResources": {
+			reason:   "An XR with no observed resources should pass validation.",
+			observed: nil,
+		},
+		"NoControllerRefClusterScoped": {
+			reason: "An observed resource with no owner refs should pass validation.",
+			observed: []kunstructured.Unstructured{
+				observed("obs-1", ""),
+			},
+		},
+		"MatchingControllerRef": {
+			reason: "An observed resource controlled by the XR (matching UID) should pass validation.",
+			observed: []kunstructured.Unstructured{
+				observed("obs-1", "", controllerRef(xrUID)),
+			},
+		},
+		"NonControllerOwnerRefIgnored": {
+			reason: "An observed resource with a non-controller owner ref (Controller != true) should pass validation even if its UID differs, because only controller refs are checked.",
+			observed: []kunstructured.Unstructured{
+				observed("obs-1", "", nonControllerRef("other-uid")),
+			},
+		},
+		"MismatchedControllerRef": {
+			reason: "An observed resource with a controller ref whose UID does not match the XR should fail validation.",
+			observed: []kunstructured.Unstructured{
+				observed("obs-bad", "", controllerRef("other-uid")),
+			},
+			wantErrContains: []string{"has a controller ref but is not controlled by the XR", "obs-bad"},
+		},
+		"NamespacedXRSameNamespace": {
+			reason:      "A namespaced XR with an observed resource in the same namespace should pass validation.",
+			xrNamespace: "ns-a",
+			observed: []kunstructured.Unstructured{
+				observed("obs-1", "ns-a"),
+			},
+		},
+		"NamespacedXRDifferentNamespace": {
+			reason:      "A namespaced XR with an observed resource in a different namespace should fail validation.",
+			xrNamespace: "ns-a",
+			observed: []kunstructured.Unstructured{
+				observed("obs-bad", "ns-b"),
+			},
+			wantErrContains: []string{"is not in the same namespace as the XR", "obs-bad"},
+		},
+		"ClusterScopedXRIgnoresNamespace": {
+			reason: "A cluster-scoped XR (empty namespace) should not enforce the namespace check, so an observed resource with any namespace passes validation.",
+			observed: []kunstructured.Unstructured{
+				observed("obs-1", "ns-b"),
+			},
+		},
+		"MultipleViolationsJoined": {
+			reason:      "A single observed resource that both has a mismatched controller ref and is in a different namespace should produce a joined error naming both violations.",
+			xrNamespace: "ns-a",
+			observed: []kunstructured.Unstructured{
+				observed("obs-bad", "ns-b", controllerRef("other-uid")),
+			},
+			wantErrContains: []string{
+				"has a controller ref but is not controlled by the XR",
+				"is not in the same namespace as the XR",
+				"obs-bad",
+			},
+		},
+		"MultipleResourcesOneBad": {
+			reason: "When multiple observed resources are supplied, only the offending one should be reported.",
+			observed: []kunstructured.Unstructured{
+				observed("obs-good", "", controllerRef(xrUID)),
+				observed("obs-bad", "", controllerRef("other-uid")),
+			},
+			wantErrContains: []string{"has a controller ref but is not controlled by the XR", "obs-bad"},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			xr := ucomposite.New()
+			xr.SetUID(xrUID)
+			if tc.xrNamespace != "" {
+				xr.SetNamespace(tc.xrNamespace)
+			}
+
+			err := CheckObservedResources(xr, tc.observed)
+
+			// Error assertions use substring matching rather than cmp.Diff(...,
+			// cmpopts.EquateErrors()): the substrings assert that the
+			// user-facing message names the offending resource and the specific
+			// violation, which EquateErrors cannot check.
+			if len(tc.wantErrContains) == 0 {
+				if err != nil {
+					t.Fatalf("\n%s\nCheckObservedResources(...): unexpected error: %v", tc.reason, err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("\n%s\nCheckObservedResources(...): expected error, got nil", tc.reason)
+			}
+			for _, sub := range tc.wantErrContains {
+				if !strings.Contains(err.Error(), sub) {
+					t.Errorf("\n%s\nCheckObservedResources(...): error %q does not contain %q", tc.reason, err.Error(), sub)
+				}
+			}
+		})
+	}
+}
 
 func mustStruct(m map[string]any) *structpb.Struct {
 	s, err := structpb.NewStruct(m)
