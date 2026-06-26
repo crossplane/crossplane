@@ -23,7 +23,7 @@ require (
 	k8s.io/apimachinery v0.35.3
 	k8s.io/apiserver v0.35.0
 	k8s.io/cli-runtime v0.34.1
-	k8s.io/client-go v0.35.1
+	k8s.io/client-go v0.35.3
 	k8s.io/kubectl v0.34.1
 	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5
 	sigs.k8s.io/controller-runtime v0.23.1
@@ -37,7 +37,7 @@ require (
 	github.com/in-toto/in-toto-golang v0.11.0 // indirect
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/sigstore/cosign/v3 v3.0.5 // indirect
+	github.com/sigstore/cosign/v3 v3.0.6 // indirect
 	github.com/sigstore/sigstore v1.10.8 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
