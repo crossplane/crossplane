@@ -252,6 +252,8 @@ cachePackages = [
   'github.com/grpc-ecosystem/grpc-gateway/v2/utilities',
   'github.com/hashicorp/go-cleanhttp',
   'github.com/hashicorp/go-retryablehttp',
+  'github.com/in-toto/attestation/go/predicates/provenance/v02',
+  'github.com/in-toto/attestation/go/predicates/provenance/v1',
   'github.com/in-toto/attestation/go/v1',
   'github.com/in-toto/in-toto-golang/in_toto',
   'github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/common',
@@ -1689,8 +1691,8 @@ cachePackages = [
     hash = 'sha256-ZHLft/o+xyJrUlaCwnCDqbjkPj6iIxlOuA0fFBuwVvM='
 
   [mod.'github.com/sigstore/cosign/v3']
-    version = 'v3.0.5'
-    hash = 'sha256-wN5iAfcBCDTvhbvSar4DBw7w1sxIFWcMKv8qkx07mfo='
+    version = 'v3.0.6'
+    hash = 'sha256-AyjEIy9FRBUY0M+OuLyBbSR16DLIDoBoP8O5SmX+GuM='
 
   [mod.'github.com/sigstore/protobuf-specs']
     version = 'v0.5.0'
@@ -1917,8 +1919,8 @@ cachePackages = [
     hash = 'sha256-s5yRTk0QmBoV0wSZT5jCJfKTRbBcAjEpCTmm1TxX4jo='
 
   [mod.'k8s.io/client-go']
-    version = 'v0.35.1'
-    hash = 'sha256-QEQ7TLUviAXDbvp2s6tT3HZtXy7pLjj5qSDu89iC9ek='
+    version = 'v0.35.3'
+    hash = 'sha256-AO5PGH8y95OOb3wInCHDgyxerbFmo7DBTyc1c8DImSk='
 
   [mod.'k8s.io/code-generator']
     version = 'v0.35.0'
