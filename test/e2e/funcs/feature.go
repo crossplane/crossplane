@@ -704,6 +704,32 @@ func ApplyResources(manager, dir, pattern string, options ...decoder.DecodeOptio
 	}
 }
 
+// ApplyConfigMapMessage server-side applies a ConfigMap with data.message set to
+// the supplied value. Optional labels are applied when non-nil.
+func ApplyConfigMapMessage(manager, namespace, name, message string, labels map[string]string) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		cm := &unstructured.Unstructured{}
+		cm.SetAPIVersion("v1")
+		cm.SetKind("ConfigMap")
+		cm.SetNamespace(namespace)
+		cm.SetName(name)
+		if len(labels) > 0 {
+			cm.SetLabels(labels)
+		}
+		fieldpath.Pave(cm.Object).SetString("data.message", message)
+
+		//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
+		if err := c.Client().Resources().GetControllerRuntimeClient().Patch(ctx, cm, client.Apply, client.FieldOwner(manager), client.ForceOwnership); err != nil {
+			t.Fatalf("failed to apply ConfigMap %s/%s: %v", namespace, name, err)
+			return ctx
+		}
+
+		return ctx
+	}
+}
+
 type claimCtxKey struct{}
 
 // ApplyClaim applies the claim stored in the given folder and file

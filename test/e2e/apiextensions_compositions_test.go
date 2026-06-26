@@ -506,26 +506,14 @@ func TestRealtimeNamespacedXR(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
-			WithSetup("CreateConfigMap", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-				t.Helper()
-
-				cm := &unstructured.Unstructured{}
-				cm.SetAPIVersion("v1")
-				cm.SetKind("ConfigMap")
-				cm.SetNamespace("default")
-				cm.SetName("realtime-test-configmap")
-				cm.SetLabels(map[string]string{"app": "crossplane-e2e"})
-				fieldpath.Pave(cm.Object).SetString("data.message", "initial")
-
-				//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
-				if err := cfg.Client().Resources().GetControllerRuntimeClient().Patch(ctx, cm, client.Apply, client.FieldOwner(FieldManager), client.ForceOwnership); err != nil {
-					t.Fatalf("failed to create ConfigMap: %v", err)
+			WithSetup("CreateConfigMap", funcs.AllOf(
+				funcs.ApplyConfigMapMessage(FieldManager, "default", "realtime-test-configmap", "initial", map[string]string{"app": "crossplane-e2e"}),
+				func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+					t.Helper()
+					t.Log("Created ConfigMap with initial data")
 					return ctx
-				}
-
-				t.Log("Created ConfigMap with initial data")
-				return ctx
-			}).
+				},
+			)).
 			Assess("CreateXR", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
@@ -539,27 +527,19 @@ func TestRealtimeNamespacedXR(t *testing.T) {
 			Assess("InitialObservationReflected",
 				funcs.ResourcesHaveFieldValueWithin(10*time.Second, manifests, "xr.yaml", "status.observedData.message", "initial"),
 			).
-			Assess("ModifyConfigMapDirectly", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-				t.Helper()
-
-				t.Log("Modifying ConfigMap directly to trigger realtime detection...")
-
-				cm := &unstructured.Unstructured{}
-				cm.SetAPIVersion("v1")
-				cm.SetKind("ConfigMap")
-				cm.SetNamespace("default")
-				cm.SetName("realtime-test-configmap")
-				fieldpath.Pave(cm.Object).SetString("data.message", "realtime-update")
-
-				//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
-				if err := cfg.Client().Resources().GetControllerRuntimeClient().Patch(ctx, cm, client.Apply, client.FieldOwner(FieldManager), client.ForceOwnership); err != nil {
-					t.Fatalf("failed to modify ConfigMap: %v", err)
+			Assess("ModifyConfigMapDirectly", funcs.AllOf(
+				func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+					t.Helper()
+					t.Log("Modifying ConfigMap directly to trigger realtime detection...")
 					return ctx
-				}
-
-				t.Log("ConfigMap modified — expecting realtime XR update")
-				return ctx
-			}).
+				},
+				funcs.ApplyConfigMapMessage(FieldManager, "default", "realtime-test-configmap", "realtime-update", nil),
+				func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+					t.Helper()
+					t.Log("ConfigMap modified — expecting realtime XR update")
+					return ctx
+				},
+			)).
 			Assess("XRStatusReflectsChangeInRealtime",
 				funcs.ResourcesHaveFieldValueWithin(3*time.Second, manifests, "xr.yaml", "status.observedData.message", "realtime-update"),
 			).
