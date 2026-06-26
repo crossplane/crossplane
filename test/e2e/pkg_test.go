@@ -268,6 +268,104 @@ func TestDeploymentRuntimeConfig(t *testing.T) {
 	)
 }
 
+// Helper used in 4 tests : TestPackageRevisionLifeCycle, TestImageConfigVerificationKeyless.
+// TestImageConfigAttestationVerificationPrivateKeylessCosignV2, TestImageConfigAttestationVerificationPrivateKeylessCosignV3.
+func CurrentPackageRevisionHasConditionWithin(
+	d time.Duration,
+	pkg pkgv1.Package,
+	revision pkgv1.PackageRevision,
+	conditions ...xpv2.Condition,
+) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		if err := c.Client().Resources().Get(ctx, pkg.GetName(), "", pkg); err != nil {
+			t.Errorf("cannot get package %q: %v", pkg.GetName(), err)
+			return ctx
+		}
+
+		if pkg.GetCurrentRevision() == "" {
+			t.Errorf("package %q has an empty status.currentRevision", pkg.GetName())
+			return ctx
+		}
+
+		revision.SetName(pkg.GetCurrentRevision())
+
+		return funcs.ResourceHasConditionWithin(
+			d,
+			revision,
+			conditions...,
+		)(ctx, t, c)
+	}
+}
+
+// Tests that a new package revision is upon spec update (via .metadada.generation).
+func TestPackageRevisionLifeCycle(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/image-config/runtime-config"
+	var firstRevision string
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that a package (Function, Provider) get a new revision on spec change.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePackage", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "deployment-runtime-config.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "function.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "deployment-runtime-config.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "function.yaml"),
+			)).
+			Assess("PackageRevisionOneCreated", funcs.AllOf(
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Function{ObjectMeta: metav1.ObjectMeta{Name: "function-image-config-runtime"}}, "metadata.generation", int64(1)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Function{ObjectMeta: metav1.ObjectMeta{Name: "function-image-config-runtime"}}, "status.currentRevision", funcs.Any),
+				CurrentPackageRevisionHasConditionWithin(2*time.Minute, &pkgv1.Function{ObjectMeta: metav1.ObjectMeta{Name: "function-image-config-runtime"}}, &pkgv1.FunctionRevision{}, pkgv1.RevisionHealthy()),
+				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Function{ObjectMeta: metav1.ObjectMeta{Name: "function-image-config-runtime"}}, pkgv1.Active(), pkgv1.Healthy()),
+				func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+					t.Helper()
+
+					f := &pkgv1.Function{}
+					if err := c.Client().Resources().Get(ctx, "function-image-config-runtime", "", f); err != nil {
+						t.Errorf("cannot get Function: %v", err)
+						return ctx
+					}
+
+					firstRevision = f.Status.CurrentRevision
+					return ctx
+				},
+			)).
+			Assess("UpdatePackageRuntime", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "function-new-runtime.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "function-new-runtime.yaml"),
+			)).
+			Assess("PackageRevisionTwoCreated", funcs.AllOf(
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Function{ObjectMeta: metav1.ObjectMeta{Name: "function-image-config-runtime"}}, "metadata.generation", int64(2)),
+				func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+					t.Helper()
+
+					f := &pkgv1.Function{}
+					if err := c.Client().Resources().Get(ctx, "function-image-config-runtime", "", f); err != nil {
+						t.Errorf("cannot get Function: %v", err)
+						return ctx
+					}
+
+					if f.Status.CurrentRevision == firstRevision {
+						t.Errorf("expected current revision to change, still %q", firstRevision)
+					}
+
+					return ctx
+				},
+			)).
+			WithTeardown("DeleteFunction", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "function-new-runtime.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "function-new-runtime.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "deployment-runtime-config.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "deployment-runtime-config.yaml"),
+			)).
+			Feature(),
+	)
+}
+
 func TestImageConfigRuntimeConfig(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/image-config/runtime-config"
 	environment.Test(t,
@@ -624,6 +722,7 @@ func TestUpgradeDependencyVersionSharedTransitiveNoop(t *testing.T) {
 // test/e2e/manifests/pkg/dependency-upgrade/digest/package folder.
 func TestUpgradeDependencyDigest(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/dependency-upgrade/digest"
+	var providerRevisionName string
 
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests that a Configuration with a dependency on provider with digest upgrades when dependency changes to another digest.").
@@ -647,18 +746,40 @@ func TestUpgradeDependencyDigest(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-updated.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			Assess("LockConditionDependencyResolutionSucceeded",
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "lock.yaml", v1beta1.ResolutionSucceeded())). // TODO(ezgidemirel): use ResourceHasConditionWithin instead
-			// Dependencies are not automatically deleted.
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "configuration-updated.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-updated.yaml"),
 			)).
-			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
-				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider.yaml", metav1.DeletePropagationForeground),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
-			)).
-			WithTeardown("DeleteProviderRevision", funcs.AllOf(
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision.yaml"),
-			)).Feature(),
+			WithTeardown("DeleteRequiredProvider",
+				func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+					t.Helper()
+
+					p := &pkgv1.Provider{}
+					if err := c.Client().Resources().Get(ctx, "crossplane-contrib-provider-nop", "", p); err == nil {
+						providerRevisionName = p.Status.CurrentRevision
+						t.Logf("Recorded ProviderRevision %q", providerRevisionName)
+					}
+
+					return funcs.AllOf(
+						funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider.yaml", metav1.DeletePropagationForeground),
+						funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
+					)(ctx, t, c)
+				}).
+			WithTeardown("DeleteProviderRevision",
+				func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+					t.Helper()
+
+					if providerRevisionName == "" {
+						t.Log("ProviderRevision name was not recorded; skipping ProviderRevision deletion wait")
+						return ctx
+					}
+
+					return funcs.ResourceDeletedWithin(1*time.Minute, &pkgv1.ProviderRevision{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: providerRevisionName,
+						},
+					})(ctx, t, c)
+				}).Feature(),
 	)
 }
 
@@ -871,7 +992,8 @@ func TestImageConfigVerificationWithKey(t *testing.T) {
 			)).
 			Assess("SignatureVerificationSucceeded", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "configuration-signed.yaml"),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ConfigurationRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-configuration-signed-with-key-1765fb139d01"}}, pkgv1.RevisionHealthy()),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "e2e-configuration-signed-with-key"}}, "status.currentRevision", funcs.Any),
+				CurrentPackageRevisionHasConditionWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "e2e-configuration-signed-with-key"}}, &pkgv1.ConfigurationRevision{}, pkgv1.RevisionHealthy()),
 				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: "e2e-configuration-signed-with-key"}}, pkgv1.Active(), pkgv1.Healthy()),
 			)).
 			WithTeardown("DeletePackageAndImageConfig", funcs.AllOf(
@@ -908,7 +1030,8 @@ func TestImageConfigVerificationKeyless(t *testing.T) {
 			)).
 			Assess("SignatureVerificationSucceeded", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-signed.yaml"),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-provider-signed-keyless-37f3300ebfa7"}}, pkgv1.RevisionHealthy()),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-provider-signed-keyless"}}, "status.currentRevision", funcs.Any),
+				CurrentPackageRevisionHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-provider-signed-keyless"}}, &pkgv1.ProviderRevision{}, pkgv1.RevisionHealthy()),
 				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-provider-signed-keyless"}}, pkgv1.Active(), pkgv1.Healthy()),
 			)).
 			WithTeardown("DeletePackageAndImageConfig", funcs.AllOf(
@@ -950,7 +1073,8 @@ func TestImageConfigAttestationVerificationPrivateKeylessCosignV2(t *testing.T) 
 			)).
 			Assess("SignatureVerificationSucceeded", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-signed-cosign-v2.yaml"),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-v2-37f3300ebfa7"}}, pkgv1.RevisionHealthy()),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-v2"}}, "status.currentRevision", funcs.Any),
+				CurrentPackageRevisionHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-v2"}}, &pkgv1.ProviderRevision{}, pkgv1.RevisionHealthy()),
 				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-v2"}}, pkgv1.Active(), pkgv1.Healthy()),
 			)).
 			WithTeardown("DeletePackageAndImageConfig", funcs.AllOf(
@@ -983,7 +1107,8 @@ func TestImageConfigAttestationVerificationPrivateKeylessCosignV3(t *testing.T) 
 			)).
 			Assess("SignatureVerificationSucceeded", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-signed-cosign-v3.yaml"),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-v3-37f3300ebfa7"}}, pkgv1.RevisionHealthy()),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-v3"}}, "status.currentRevision", funcs.Any),
+				CurrentPackageRevisionHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-v3"}}, &pkgv1.ProviderRevision{}, pkgv1.RevisionHealthy()),
 				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "e2e-private-provider-signed-keyless-v3"}}, pkgv1.Active(), pkgv1.Healthy()),
 			)).
 			WithTeardown("DeletePackageAndImageConfig", funcs.AllOf(
@@ -1051,6 +1176,41 @@ func TestImageConfigRewrite(t *testing.T) {
 	)
 }
 
+func CurrentProviderRevisionHasFieldValueWithin(
+	d time.Duration,
+	providerName string,
+	path string,
+	want any,
+) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		p := &pkgv1.Provider{}
+		if err := c.Client().Resources().Get(ctx, providerName, "", p); err != nil {
+			t.Errorf("cannot get Provider %q: %v", providerName, err)
+			return ctx
+		}
+
+		pr := &pkgv1.ProviderRevision{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: p.Status.CurrentRevision,
+			},
+		}
+
+		if pr.GetName() == "" {
+			t.Errorf("provider %q has an empty status.currentRevision; this is unexpected after the provider became healthy and active", providerName)
+			return ctx
+		}
+
+		return funcs.ResourceHasFieldValueWithin(
+			d,
+			pr,
+			path,
+			want,
+		)(ctx, t, c)
+	}
+}
+
 func TestCommonAnnotationsAndLabels(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/provider"
 
@@ -1064,8 +1224,20 @@ func TestCommonAnnotationsAndLabels(t *testing.T) {
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-common-annotations-and-labels.yaml"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-common-annotations-and-labels.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
-			Assess("AnnotationsPropagated", funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "provider-revision-common-annotations-and-labels.yaml", "spec.commonAnnotations.foo", "bar")).
-			Assess("LabelsPropagated", funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "provider-revision-common-annotations-and-labels.yaml", "spec.commonLabels.baz", "qux")).
+			Assess("AnnotationsPropagated",
+				CurrentProviderRevisionHasFieldValueWithin(
+					1*time.Minute,
+					"provider-nop",
+					"spec.commonAnnotations.foo",
+					"bar",
+				)).
+			Assess("LabelsPropagated",
+				CurrentProviderRevisionHasFieldValueWithin(
+					1*time.Minute,
+					"provider-nop",
+					"spec.commonLabels.baz",
+					"qux",
+				)).
 			WithTeardown("DeleteProvider", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider-common-annotations-and-labels.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-common-annotations-and-labels.yaml"),

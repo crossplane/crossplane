@@ -45,12 +45,44 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 )
 
+func TestPackageRevisionID(t *testing.T) {
+	digest := "123456789012"
+
+	tests := []struct {
+		name       string
+		generation int64
+	}{
+		{name: "generation 1 package creation", generation: 1},
+		{name: "generation 2 spec update", generation: 2},
+	}
+
+	ids := map[int64]string{}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := packageRevisionID(digest, tc.generation)
+
+			if got == digest {
+				t.Fatalf("expected revision ID to differ from package digest")
+			}
+
+			ids[tc.generation] = got
+		})
+	}
+
+	if ids[1] == ids[2] {
+		t.Fatalf("expected different generations to produce different revision IDs")
+	}
+}
+
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
 	pullAlways := corev1.PullAlways
 	trueVal := true
 	revHistory := int64(1)
+	digest := "1234567890123456789012345678901234567890123456789012345678901234"
+	revisionName := xpkg.FriendlyID("test", packageRevisionID(digest, 0))
 
 	type args struct {
 		req reconcile.Request
@@ -181,7 +213,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
-								want.SetCurrentRevision("test-123456789012")
+								want.SetCurrentRevision(revisionName)
 								want.SetActivationPolicy(&v1.AutomaticActivation)
 								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
 								want.SetConditions(v1.Active())
@@ -241,7 +273,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
-								want.SetCurrentRevision("test-123456789012")
+								want.SetCurrentRevision(revisionName)
 								want.SetActivationPolicy(&v1.AutomaticActivation)
 								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
 								want.SetConditions(v1.Active())
@@ -297,7 +329,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
-								want.SetCurrentRevision("test-123456789012")
+								want.SetCurrentRevision(revisionName)
 								want.SetActivationPolicy(&v1.AutomaticActivation)
 								want.SetPackagePullPolicy(&pullAlways)
 								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
@@ -354,7 +386,7 @@ func TestReconcile(t *testing.T) {
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								want.SetActivationPolicy(&v1.ManualActivation)
-								want.SetCurrentRevision("test-123456789012")
+								want.SetCurrentRevision(revisionName)
 								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
 								want.SetConditions(v1.Inactive().WithMessage("Package is inactive"))
 								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
@@ -406,10 +438,12 @@ func TestReconcile(t *testing.T) {
 								l := o.(*v1.ConfigurationRevisionList)
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
-										Name: "test-123456789012",
+										Name: revisionName,
 									},
 								}
 								cr.SetConditions(v1.RevisionHealthy())
+								cr.SetDesiredState(v1.PackageRevisionActive)
+								cr.SetRevision(1)
 								c := v1.ConfigurationRevisionList{
 									Items: []v1.ConfigurationRevision{cr},
 								}
@@ -420,7 +454,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
-								want.SetCurrentRevision("test-123456789012")
+								want.SetCurrentRevision(revisionName)
 								want.SetConditions(v1.Healthy())
 								want.SetConditions(v1.Active())
 								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
@@ -472,7 +506,7 @@ func TestReconcile(t *testing.T) {
 								l := o.(*v1.ConfigurationRevisionList)
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
-										Name: "test-123456789012",
+										Name: revisionName,
 									},
 								}
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
@@ -489,7 +523,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
-								want.SetCurrentRevision("test-123456789012")
+								want.SetCurrentRevision(revisionName)
 								want.SetConditions(v1.Healthy())
 								want.SetConditions(v1.Active())
 								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
@@ -502,7 +536,7 @@ func TestReconcile(t *testing.T) {
 						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 							want := &v1.ConfigurationRevision{}
 							want.SetLabels(map[string]string{"pkg.crossplane.io/package": "test"})
-							want.SetName("test-123456789012")
+							want.SetName(revisionName)
 							want.SetOwnerReferences([]metav1.OwnerReference{{
 								APIVersion:         v1.SchemeGroupVersion.String(),
 								Kind:               v1.ConfigurationKind,
@@ -558,10 +592,11 @@ func TestReconcile(t *testing.T) {
 								l := o.(*v1.ConfigurationRevisionList)
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
-										Name: "test-123456789012",
+										Name: revisionName,
 									},
 								}
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								cr.SetRevision(1)
 								cr.SetConditions(v1.RevisionHealthy())
 								cr.SetDesiredState(v1.PackageRevisionInactive)
 								c := v1.ConfigurationRevisionList{
@@ -574,7 +609,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
-								want.SetCurrentRevision("test-123456789012")
+								want.SetCurrentRevision(revisionName)
 								want.SetConditions(v1.Healthy())
 								if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -624,10 +659,11 @@ func TestReconcile(t *testing.T) {
 								l := o.(*v1.ConfigurationRevisionList)
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
-										Name: "test-123456789012",
+										Name: revisionName,
 									},
 								}
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								cr.SetRevision(1)
 								cr.SetConditions(v1.RevisionUnhealthy().WithMessage("some message"))
 								cr.SetDesiredState(v1.PackageRevisionActive)
 								c := v1.ConfigurationRevisionList{
@@ -640,7 +676,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
-								want.SetCurrentRevision("test-123456789012")
+								want.SetCurrentRevision(revisionName)
 								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"False\" with message: some message"))
 								want.SetConditions(v1.Active())
 								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
@@ -692,7 +728,7 @@ func TestReconcile(t *testing.T) {
 								l := o.(*v1.ConfigurationRevisionList)
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
-										Name: "test-123456789012",
+										Name: revisionName,
 									},
 								}
 								cr.SetRevision(3)
@@ -727,7 +763,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
-								want.SetCurrentRevision("test-123456789012")
+								want.SetCurrentRevision(revisionName)
 								want.SetConditions(v1.Healthy())
 								want.SetConditions(v1.Active())
 								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
@@ -741,7 +777,7 @@ func TestReconcile(t *testing.T) {
 						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 							want := &v1.ConfigurationRevision{}
 							want.SetLabels(map[string]string{"pkg.crossplane.io/package": "test"})
-							want.SetName("test-123456789012")
+							want.SetName(revisionName)
 							want.SetOwnerReferences([]metav1.OwnerReference{{
 								APIVersion:         v1.SchemeGroupVersion.String(),
 								Kind:               v1.ConfigurationKind,
@@ -798,7 +834,7 @@ func TestReconcile(t *testing.T) {
 								l := o.(*v1.ConfigurationRevisionList)
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
-										Name: "test-123456789012",
+										Name: revisionName,
 									},
 								}
 								cr.SetRevision(3)
@@ -835,7 +871,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
-								want.SetCurrentRevision("test-123456789012")
+								want.SetCurrentRevision(revisionName)
 								want.SetRevisionHistoryLimit(&revHistory)
 								if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)

@@ -19,8 +19,11 @@ package manager
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"math"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -93,6 +96,12 @@ func WithNewPackageFn(f func() v1.Package) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.newPackage = f
 	}
+}
+
+// packageRevisionID returns the revision identifier used to derive a PackageRevision name.
+func packageRevisionID(digest string, generation int64) string {
+	h := sha256.Sum256([]byte(digest + "|" + strconv.FormatInt(generation, 10)))
+	return hex.EncodeToString(h[:])
 }
 
 // WithNewPackageRevisionFn determines the type of package being reconciled.
@@ -311,6 +320,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	// Don't create or update package revisions while the package is being deleted.
+	// Kubernetes garbage collection owns deletion of controlled package revisions.
+	if meta.WasDeleted(p) {
+		return reconcile.Result{}, nil
+	}
+
 	// Fetch the package to get its digest and any applied ImageConfigs.
 	pkg, err := r.pkg.Get(ctx, p.GetSource(),
 		xpkg.WithPullSecrets(v1.RefNames(p.GetPackagePullSecrets())...),
@@ -342,7 +357,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	p.SetResolvedSource(pkg.ResolvedRef())
 
-	revisionName := xpkg.FriendlyID(p.GetName(), pkg.DigestHex())
+	// Calculate the revision ID from the package digest and package generation.
+	revisionID := packageRevisionID(pkg.DigestHex(), p.GetGeneration())
+
+	revisionName := xpkg.FriendlyID(p.GetName(), revisionID)
 
 	// Set the current revision and identifier.
 	p.SetCurrentRevision(revisionName)
