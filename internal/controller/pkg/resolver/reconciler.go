@@ -360,6 +360,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 						installedVersion = rref.Identifier()
 					}
 				}
+				// If the original source reference includes both a tag and a
+				// digest (e.g. v1.0.0@sha256:...), go-containerregistry parses
+				// it as a Digest and Identifier() returns only the digest. We
+				// need the tag for semver constraint evaluation during
+				// upgrades, so extract it from the original source string.
+				if _, err := conregv1.NewHash(installedVersion); err == nil && strings.Contains(source, "@sha256:") {
+					atIdx := strings.Index(source, "@sha256:")
+					if atIdx != -1 {
+						beforeDigest := source[:atIdx]
+						// Find the last "/" so we don't mistake a registry port for a tag separator.
+						lastSlash := strings.LastIndex(beforeDigest, "/")
+						searchStart := 0
+						if lastSlash != -1 {
+							searchStart = lastSlash + 1
+						}
+						if colonIdx := strings.LastIndex(beforeDigest[searchStart:], ":"); colonIdx != -1 {
+							resolvedTag := beforeDigest[searchStart:][colonIdx+1:]
+							if resolvedTag != "" {
+								installedVersion = resolvedTag
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -654,7 +677,7 @@ func pruneOutdatedDependencies(pkgs []v1beta1.LockPackage) []v1beta1.LockPackage
 		}
 
 		// Keep if it matches at least one dependency constraint.
-		if matchesAnyConstraint(pkg.Version, depConstraints[pkg.Source]) {
+		if matchesAnyConstraint(pkg.Version, pkg.ResolvedVersion, depConstraints[pkg.Source]) {
 			filtered = append(filtered, pkg)
 		}
 	}
@@ -663,12 +686,22 @@ func pruneOutdatedDependencies(pkgs []v1beta1.LockPackage) []v1beta1.LockPackage
 }
 
 // matchesAnyConstraint checks if a version matches a constraint.  Handles both
-// semantic version constraints and digest pins.
-func matchesAnyConstraint(version string, constraints []string) bool {
+// semantic version constraints and digest pins. If the lock package has a
+// ResolvedVersion (set when the package was installed with a tag@digest
+// reference), the resolved tag is used for semver constraint evaluation.
+func matchesAnyConstraint(version string, resolvedVersion string, constraints []string) bool {
 	// Check whether the version is a digest; if it is, it must exactly match
 	// some constraint.
 	if _, err := conregv1.NewHash(version); err == nil {
-		return slices.Contains(constraints, version)
+		if slices.Contains(constraints, version) {
+			return true
+		}
+		// If the digest didn't match directly but we have a resolved version
+		// tag, fall through to semver evaluation against the resolved tag.
+		if resolvedVersion == "" {
+			return false
+		}
+		version = resolvedVersion
 	}
 
 	// Otherwise, we should have a semantic version and need to check each

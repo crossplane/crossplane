@@ -150,6 +150,23 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 		Version:      prRef.Identifier(),
 		Dependencies: sources,
 	}
+	// If the reference includes both a tag and a digest (e.g. v1.0.0@sha256:...),
+	// preserve the tag as ResolvedVersion so that semver constraints can be
+	// evaluated during dependency resolution. go-containerregistry parses
+	// tag@digest references as name.Digest, so we extract the tag from the
+	// original reference string.
+	if strings.Contains(pr.GetSource(), "@sha256:") {
+		if idx := strings.LastIndex(pr.GetSource(), ":"); idx != -1 {
+			// Find the colon before @sha256
+			atIdx := strings.Index(pr.GetSource(), "@sha256:")
+			if atIdx != -1 {
+				beforeDigest := pr.GetSource()[:atIdx]
+				if colonIdx := strings.LastIndex(beforeDigest, ":"); colonIdx != -1 {
+					self.ResolvedVersion = beforeDigest[colonIdx+1:]
+				}
+			}
+		}
+	}
 
 	// Delete packages in lock with same name and distinct source
 	// This is a corner case when source is updated but image SHA is not (i.e. relocate same image
@@ -180,12 +197,13 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 		if lp.Name == pr.GetName() {
 			prExists = true
 
-			if lp.Version != self.Version {
+			if lp.Version != self.Version || lp.ResolvedVersion != self.ResolvedVersion {
 				// Version was updated without creating a new revision (e.g., because
 				// there were no changes between two semvers). Update the lock to
 				// reflect which version is installed, in case other packages are
 				// depending on the new version.
 				lock.Packages[i].Version = self.Version
+				lock.Packages[i].ResolvedVersion = self.ResolvedVersion
 				if err := m.client.Update(ctx, lock); err != nil {
 					return found, installed, invalid, err
 				}
@@ -275,7 +293,15 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 			return found, installed, invalid, err
 		}
 
-		v, err := semver.NewVersion(lp.Version)
+		// When the installed package has a digest version but also a resolved
+		// version tag (from a tag@digest reference), use the resolved tag for
+		// semver constraint evaluation.
+		versionToCheck := lp.Version
+		if _, err := conregv1.NewHash(versionToCheck); err == nil && lp.ResolvedVersion != "" {
+			versionToCheck = lp.ResolvedVersion
+		}
+
+		v, err := semver.NewVersion(versionToCheck)
 		if err != nil {
 			return found, installed, invalid, err
 		}
