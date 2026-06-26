@@ -1,0 +1,32 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: realtimetests.nop.example.org
+spec:
+  scope: Namespaced
+  group: nop.example.org
+  names:
+    kind: XRealtimeTest
+    plural: realtimetests
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+     openAPIV3Schema:
+       type: object
+       properties:
+        spec:
+          type: object
+          properties:
+            coolField:
+              type: string
+        status:
+          type: object
+          properties:
+            observedData:
+              type: object
+              additionalProperties:
+                type: string
+            resourceReceived:
+              type: boolean
