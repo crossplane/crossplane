@@ -102,7 +102,8 @@ type startCommand struct {
 	Namespace      string `default:"crossplane-system"     env:"POD_NAMESPACE"                                                      help:"Namespace used to unpack and run packages."                      short:"n"`
 	ServiceAccount string `default:"crossplane"            env:"POD_SERVICE_ACCOUNT"                                                help:"Name of the Crossplane Service Account."`
 	LeaderElection bool   `default:"false"                 env:"LEADER_ELECTION"                                                    help:"Use leader election for the controller manager."                 short:"l"`
-	CABundlePath   string `env:"CA_BUNDLE_PATH"            help:"Additional CA bundle to use when fetching packages from registry."`
+	CABundlePath         string `env:"CA_BUNDLE_PATH"         help:"Additional CA bundle to use when fetching packages from registry."`
+	FunctionCABundlePath string `env:"FUNCTION_CA_BUNDLE_PATH" help:"Additional CA bundle to use when verifying TLS connections to composition functions."`
 	UserAgent      string `default:"${default_user_agent}" env:"USER_AGENT"                                                         help:"The User-Agent header that will be set on all package requests."`
 
 	XpkgCacheDir string `aliases:"cache-dir" default:"/cache/xpkg" env:"XPKG_CACHE_DIR,CACHE_DIR" help:"Directory used for caching package images." short:"c"`
@@ -281,6 +282,14 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		false)
 	if err != nil {
 		return errors.Wrap(err, "cannot load client TLS certificates")
+	}
+
+	if c.FunctionCABundlePath != "" {
+		functionRootCAs, err := ParseCertificatesFromPath(c.FunctionCABundlePath)
+		if err != nil {
+			return errors.Wrap(err, "cannot parse function CA bundle")
+		}
+		clienttls.RootCAs = functionRootCAs
 	}
 
 	pfrm := xfn.NewPrometheusMetrics()
