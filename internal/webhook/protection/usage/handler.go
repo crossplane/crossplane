@@ -51,6 +51,9 @@ const (
 func SetupWebhookWithManager(mgr ctrl.Manager, f Finder, options controller.Options) {
 	h := NewHandler(xpunstructured.NewClient(mgr.GetClient()), f, WithLogger(options.Logger.WithValues("webhook", "no-usages")))
 	mgr.GetWebhookServer().Register("/validate-no-usages", &webhook.Admission{Handler: h})
+
+	vh := NewValidatingHandler(mgr.GetRESTMapper(), WithValidatingLogger(options.Logger.WithValues("webhook", "validate-usage-scope")))
+	mgr.GetWebhookServer().Register("/validate-usage-scope", &webhook.Admission{Handler: vh})
 }
 
 // A Finder finds usages.
