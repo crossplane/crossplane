@@ -196,19 +196,37 @@ func TestIndexVal(t *testing.T) {
 		namespace  string
 	}
 
-	// Two resources that are clearly distinct, but whose group and name place
-	// the '.' boundary differently. With a '.'-joined key they collapse to the
-	// same value, which makes the usage finder associate one resource with the
-	// other's Usages.
-	a := args{apiVersion: "example.org/v1", kind: "Foo", name: "bar", namespace: "x"}
-	b := args{apiVersion: "example/v1", kind: "org", name: "Foo.bar", namespace: "x"}
-
-	got := map[string]bool{}
-	for _, in := range []args{a, b} {
-		got[indexVal(in.apiVersion, in.kind, in.name, in.namespace)] = true
+	type want struct {
+		key string
 	}
 
-	if len(got) != 2 {
-		t.Errorf("indexVal(...): distinct resources produced colliding keys: %v", got)
+	// The two cases below are distinct resources whose group and name place the
+	// '.' boundary differently. With a '.'-joined key they collapse to the same
+	// value, which makes the usage finder associate one resource with the
+	// other's Usages. The '/' separator keeps them distinct.
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"GroupContainsDot": {
+			reason: "A '.' in the API group should not bleed into the following key segments.",
+			args:   args{apiVersion: "example.org/v1", kind: "Foo", name: "bar", namespace: "x"},
+			want:   want{key: "example.org/Foo/bar/x"},
+		},
+		"NameContainsDot": {
+			reason: "A '.' in the name should not collide with a group that contains a '.'.",
+			args:   args{apiVersion: "example/v1", kind: "org", name: "Foo.bar", namespace: "x"},
+			want:   want{key: "example/org/Foo.bar/x"},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := indexVal(tc.args.apiVersion, tc.args.kind, tc.args.name, tc.args.namespace)
+			if diff := cmp.Diff(tc.want.key, got); diff != "" {
+				t.Errorf("%s\nindexVal(...): -want key, +got key:\n%s", tc.reason, diff)
+			}
+		})
 	}
 }
