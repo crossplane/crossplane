@@ -492,3 +492,138 @@ func TestRequiredResources(t *testing.T) {
 			Feature(),
 	)
 }
+
+func TestExtraResources(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/extra-resources"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that functions can request extra resources via requirements and receive them in subsequent iterations.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRIsReady",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv2.Available(), xpv2.ReconcileSuccess()),
+			).
+			Assess("ResourceWasReceived",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.resourceReceived", true),
+			).
+			Assess("ResourceHasExpectedData",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.resourceHasExpectedData", true),
+			).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestComposedResourceObservation(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/composed-resource-observation"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that composed resource changes are detected and reflected in XR status within a tight timeout.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			WithSetup("CreateConfigMap", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+				t.Helper()
+
+				cm := &unstructured.Unstructured{}
+				cm.SetAPIVersion("v1")
+				cm.SetKind("ConfigMap")
+				cm.SetNamespace("default")
+				cm.SetName("observe-test-configmap")
+				cm.SetLabels(map[string]string{"app": "crossplane-e2e"})
+				fieldpath.Pave(cm.Object).SetString("data.message", "initial")
+
+				//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
+				if err := cfg.Client().Resources().GetControllerRuntimeClient().Patch(ctx, cm, client.Apply, client.FieldOwner(FieldManager), client.ForceOwnership); err != nil {
+					t.Fatalf("failed to create ConfigMap: %v", err)
+					return ctx
+				}
+
+				t.Log("Created ConfigMap with initial data")
+				return ctx
+			}).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRIsReady",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv2.Available(), xpv2.ReconcileSuccess()),
+			).
+			Assess("ResourceWasReceived",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.resourceReceived", true),
+			).
+			Assess("InitialObservationReflected",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.observedData.message", "initial"),
+			).
+			Assess("ModifyConfigMapDirectly", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+				t.Helper()
+
+				t.Log("Modifying ConfigMap directly to trigger observation...")
+
+				cm := &unstructured.Unstructured{}
+				cm.SetAPIVersion("v1")
+				cm.SetKind("ConfigMap")
+				cm.SetNamespace("default")
+				cm.SetName("observe-test-configmap")
+				fieldpath.Pave(cm.Object).SetString("data.message", "modified-by-test")
+
+				//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
+				if err := cfg.Client().Resources().GetControllerRuntimeClient().Patch(ctx, cm, client.Apply, client.FieldOwner(FieldManager), client.ForceOwnership); err != nil {
+					t.Fatalf("failed to modify ConfigMap: %v", err)
+					return ctx
+				}
+
+				t.Log("ConfigMap modified with new message")
+				return ctx
+			}).
+			Assess("XRStatusReflectsChange",
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "xr.yaml", "status.observedData.message", "modified-by-test"),
+			).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeleteConfigMap", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+				t.Helper()
+
+				cm := &unstructured.Unstructured{}
+				cm.SetAPIVersion("v1")
+				cm.SetKind("ConfigMap")
+				cm.SetNamespace("default")
+				cm.SetName("observe-test-configmap")
+
+				if err := cfg.Client().Resources().Delete(ctx, cm); err != nil {
+					t.Logf("failed to delete ConfigMap: %v", err)
+				}
+
+				return ctx
+			}).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
