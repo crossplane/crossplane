@@ -635,6 +635,7 @@ func TestProviderDeactivateHook(t *testing.T) {
 		"ErrDeleteDeployment": {
 			reason: "Should return error if we fail to delete deployment.",
 			args: args{
+				rev: &v1.ProviderRevision{},
 				manifests: &MockManifestBuilder{
 					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
@@ -644,6 +645,10 @@ func TestProviderDeactivateHook(t *testing.T) {
 					},
 				},
 				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: ptr.To(true)}})
+						return nil
+					}),
 					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
 						if _, ok := obj.(*appsv1.Deployment); ok {
 							return errBoom
@@ -654,6 +659,7 @@ func TestProviderDeactivateHook(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errDeleteProviderDeployment),
+				rev: &v1.ProviderRevision{},
 			},
 		},
 		"Successful": {
@@ -692,6 +698,10 @@ func TestProviderDeactivateHook(t *testing.T) {
 					},
 				},
 				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: ptr.To(true)}})
+						return nil
+					}),
 					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
 						switch obj.(type) {
 						case *corev1.ServiceAccount:
@@ -716,6 +726,52 @@ func TestProviderDeactivateHook(t *testing.T) {
 				rev: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "some-name",
+					},
+				},
+			},
+		},
+		"DeploymentControlledByDifferentRevision": {
+			reason: "Should not delete deployment controlled by a different package revision.",
+			args: args{
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "some-name",
+						UID:  "inactive-uid",
+					},
+				},
+				manifests: &MockManifestBuilder{
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
+						return &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "some-sa"}}
+					},
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
+						return &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "some-deployment"}}
+					},
+					ServiceFn: func(overrides ...ServiceOverride) *corev1.Service {
+						s := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "some-service"}}
+						for _, o := range overrides {
+							o(s)
+						}
+						return s
+					},
+				},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetOwnerReferences([]metav1.OwnerReference{{UID: "active-uid", Controller: ptr.To(true)}})
+						return nil
+					}),
+					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
+						if _, ok := obj.(*appsv1.Deployment); ok {
+							return errors.New("deployment should not be deleted")
+						}
+						return nil
+					},
+				},
+			},
+			want: want{
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "some-name",
+						UID:  "inactive-uid",
 					},
 				},
 			},

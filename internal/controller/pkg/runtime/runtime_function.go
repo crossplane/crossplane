@@ -161,13 +161,13 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 }
 
 // Deactivate performs operations meant to happen before deactivating a revision.
-func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
+func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
 	sa := build.ServiceAccount()
 	// Delete the deployment if it exists.
 	// Different from the Post runtimeHook, we don't need to pass the
 	// "functionDeploymentOverrides()" here, because we're only interested
 	// in the name and namespace of the deployment to delete it.
-	if err := h.client.Delete(ctx, build.Deployment(sa.Name)); resource.IgnoreNotFound(err) != nil {
+	if err := deleteRuntimeObjectControlledBy(ctx, h.client.Client, pr, build.Deployment(sa.Name)); err != nil {
 		return errors.Wrap(err, errDeleteFunctionDeployment)
 	}
 

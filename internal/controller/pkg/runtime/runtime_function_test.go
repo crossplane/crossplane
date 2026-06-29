@@ -615,9 +615,10 @@ func TestFunctionDeactivateHook(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ErrDeleteDeployment": {
-			reason: "Should return error if we fail to delete deployment.",
+		"ErrGetDeployment": {
+			reason: "Should return error if we fail to get deployment before deleting it.",
 			args: args{
+				rev: &v1.FunctionRevision{},
 				manifests: &MockManifestBuilder{
 					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
@@ -627,6 +628,34 @@ func TestFunctionDeactivateHook(t *testing.T) {
 					},
 				},
 				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+					MockDelete: func(_ context.Context, _ client.Object, _ ...client.DeleteOption) error {
+						return errors.New("deployment should not be deleted")
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Wrap(errBoom, errGetRuntimeDeployment), errDeleteFunctionDeployment),
+				rev: &v1.FunctionRevision{},
+			},
+		},
+		"ErrDeleteDeployment": {
+			reason: "Should return error if we fail to delete deployment.",
+			args: args{
+				rev: &v1.FunctionRevision{},
+				manifests: &MockManifestBuilder{
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
+						return &corev1.ServiceAccount{}
+					},
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
+						return &appsv1.Deployment{}
+					},
+				},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: ptr.To(true)}})
+						return nil
+					}),
 					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
 						if _, ok := obj.(*appsv1.Deployment); ok {
 							return errBoom
@@ -637,11 +666,13 @@ func TestFunctionDeactivateHook(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errDeleteFunctionDeployment),
+				rev: &v1.FunctionRevision{},
 			},
 		},
 		"Successful": {
 			reason: "Should not return error if successfully deleted service account and deployment.",
 			args: args{
+				rev: &v1.FunctionRevision{},
 				manifests: &MockManifestBuilder{
 					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{
@@ -670,17 +701,52 @@ func TestFunctionDeactivateHook(t *testing.T) {
 					},
 				},
 				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: ptr.To(true)}})
+						return nil
+					}),
+					MockDelete: func(_ context.Context, _ client.Object, _ ...client.DeleteOption) error {
+						return nil
+					},
+				},
+			},
+			want: want{
+				rev: &v1.FunctionRevision{},
+			},
+		},
+		"DeploymentControlledByDifferentRevision": {
+			reason: "Should not delete deployment controlled by a different package revision.",
+			args: args{
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "inactive-uid",
+					},
+				},
+				manifests: &MockManifestBuilder{
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
+						return &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "some-sa"}}
+					},
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
+						return &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "some-deployment"}}
+					},
+				},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetOwnerReferences([]metav1.OwnerReference{{UID: "active-uid", Controller: ptr.To(true)}})
+						return nil
+					}),
 					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
-						switch obj.(type) {
-						case *corev1.ServiceAccount:
-							return errors.New("service account should not be deleted during deactivation")
-						case *appsv1.Deployment:
-							if obj.GetName() != "some-deployment" {
-								return errors.New("unexpected deployment name")
-							}
-							return nil
+						if _, ok := obj.(*appsv1.Deployment); ok {
+							return errors.New("deployment should not be deleted")
 						}
-						return errors.New("unexpected object type")
+						return nil
+					},
+				},
+			},
+			want: want{
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "inactive-uid",
 					},
 				},
 			},
