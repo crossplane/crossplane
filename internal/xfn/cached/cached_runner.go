@@ -330,7 +330,7 @@ func (r *FileBackedRunner) GarbageCollectFilesNow(ctx context.Context) (int, err
 		// Stop walking if our context is cancelled.
 		select {
 		case <-ctx.Done():
-			return nil
+			return ctx.Err()
 		default:
 		}
 
