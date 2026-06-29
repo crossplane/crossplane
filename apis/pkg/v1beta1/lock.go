@@ -58,6 +58,12 @@ type LockPackage struct {
 	// Version is the tag or digest of the OCI image.
 	Version string `json:"version"`
 
+	// ResolvedVersion is the semantic version tag that was resolved to the
+	// digest in Version. This is set when a package is installed using a
+	// tag@digest reference (e.g. v1.0.0@sha256:...), so that dependency
+	// resolution can evaluate semver constraints against the original tag.
+	ResolvedVersion string `json:"resolvedVersion,omitempty"`
+
 	// Dependencies are the list of dependencies of this package. The order of
 	// the dependencies will dictate the order in which they are resolved.
 	Dependencies []Dependency `json:"dependencies"`
