@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	errUpdateAfterResolveSelector            = "cannot update usage after resolving selector"
+	errPatchAfterResolveSelector             = "cannot patch usage after resolving selector"
 	errResolveSelectorForUsingResource       = "cannot resolve selector at \"spec.by.resourceSelector\""
 	errResolveSelectorForUsedResource        = "cannot resolve selector at \"spec.of.resourceSelector\""
 	errNoSelectorToResolve                   = "no selector defined for resolving"
@@ -52,6 +52,8 @@ func newAPISelectorResolver(c client.Client) *apiSelectorResolver {
 func (r *apiSelectorResolver) ResolveSelectors(ctx context.Context, u protection.Usage) error {
 	of := u.GetUserOf()
 	by := u.GetUsedBy()
+	patch := false
+	orig := u.Unwrap().DeepCopyObject().(client.Object)
 
 	if of.ResourceRef == nil || len(of.ResourceRef.Name) == 0 {
 		if err := r.resolveSelector(ctx, &of, u.Unwrap()); err != nil {
@@ -59,13 +61,18 @@ func (r *apiSelectorResolver) ResolveSelectors(ctx context.Context, u protection
 		}
 
 		u.SetUserOf(of)
-
-		if err := r.client.Update(ctx, u.Unwrap()); err != nil {
-			return errors.Wrap(err, errUpdateAfterResolveSelector)
-		}
+		patch = true
 	}
 
 	if by == nil {
+		if !patch {
+			return nil
+		}
+
+		if err := r.client.Patch(ctx, u.Unwrap(), client.MergeFrom(orig)); err != nil {
+			return errors.Wrap(err, errPatchAfterResolveSelector)
+		}
+
 		return nil
 	}
 
@@ -75,10 +82,15 @@ func (r *apiSelectorResolver) ResolveSelectors(ctx context.Context, u protection
 		}
 
 		u.SetUsedBy(by)
+		patch = true
+	}
 
-		if err := r.client.Update(ctx, u.Unwrap()); err != nil {
-			return errors.Wrap(err, errUpdateAfterResolveSelector)
-		}
+	if !patch {
+		return nil
+	}
+
+	if err := r.client.Patch(ctx, u.Unwrap(), client.MergeFrom(orig)); err != nil {
+		return errors.Wrap(err, errPatchAfterResolveSelector)
 	}
 
 	return nil
