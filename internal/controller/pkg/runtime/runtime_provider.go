@@ -167,7 +167,7 @@ func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 	// Different from the Post runtimeHook, we don't need to pass the
 	// "providerDeploymentOverrides()" here, because we're only interested
 	// in the name and namespace of the deployment to delete it.
-	if err := h.client.Delete(ctx, build.Deployment(sa.Name)); resource.IgnoreNotFound(err) != nil {
+	if err := deleteRuntimeObjectControlledBy(ctx, h.client.Client, pr, build.Deployment(sa.Name)); err != nil {
 		return errors.Wrap(err, errDeleteProviderDeployment)
 	}
 

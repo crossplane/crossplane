@@ -22,8 +22,12 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
@@ -111,6 +115,32 @@ type Hooks interface {
 
 	// Deactivate performs operations meant to happen before deactivating a revision.
 	Deactivate(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error
+}
+
+const (
+	errCopyRuntimeObject    = "cannot copy package runtime object for deletion"
+	errGetRuntimeDeployment = "cannot get package runtime deployment for deletion"
+)
+
+func deleteRuntimeObjectControlledBy(ctx context.Context, c client.Client, owner metav1.Object, obj client.Object) error {
+	current, ok := obj.DeepCopyObject().(client.Object)
+	if !ok {
+		return errors.Errorf("%s: %T", errCopyRuntimeObject, obj)
+	}
+
+	if err := c.Get(ctx, client.ObjectKeyFromObject(obj), current); err != nil {
+		if resource.IgnoreNotFound(err) == nil {
+			return nil
+		}
+
+		return errors.Wrap(err, errGetRuntimeDeployment)
+	}
+
+	if !metav1.IsControlledBy(current, owner) {
+		return nil
+	}
+
+	return c.Delete(ctx, current, client.Preconditions{UID: ptr.To(current.GetUID())})
 }
 
 // DeploymentRuntimeBuilder builds the Deployment runtime manifests for
