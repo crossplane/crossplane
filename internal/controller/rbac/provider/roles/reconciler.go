@@ -27,10 +27,13 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -89,6 +92,12 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 			Named(name).
 			For(&v1.ProviderRevision{}).
 			Owns(&rbacv1.ClusterRole{}).
+			// Watch the CRDs and MRDs a revision owns so we reconcile its RBAC
+			// as soon as they're established, even if they're not yet reflected
+			// in the revision's status.objectRefs. We cache metadata only so we
+			// don't hold the full schema of every CRD in the cluster in memory.
+			Owns(&extv1.CustomResourceDefinition{}, builder.OnlyMetadata).
+			Owns(&v1alpha1.ManagedResourceDefinition{}, builder.OnlyMetadata).
 			WithOptions(o.ForControllerRuntime()).
 			Complete(errors.WithSilentRequeueOnConflict(r))
 	}
@@ -106,6 +115,12 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1.ProviderRevision{}).
 		Owns(&rbacv1.ClusterRole{}).
+		// Watch the CRDs and MRDs a revision owns so we reconcile its RBAC as
+		// soon as they're established, even if they're not yet reflected in the
+		// revision's status.objectRefs. We cache metadata only so we don't hold
+		// the full schema of every CRD in the cluster in memory.
+		Owns(&extv1.CustomResourceDefinition{}, builder.OnlyMetadata).
+		Owns(&v1alpha1.ManagedResourceDefinition{}, builder.OnlyMetadata).
 		Watches(&v1.ProviderRevision{}, sfh).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(errors.WithSilentRequeueOnConflict(r))
@@ -227,53 +242,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	resources := DefinedResources(pr.Status.ObjectRefs)
-
-	// If this revision is part of a provider family we consider it to 'own' all
-	// of the family's CRDs (despite it not actually being an owner reference).
-	// This allows the revision to use core types installed by another provider,
-	// e.g. ProviderConfigs. It also allows the provider to cross-resource
-	// reference resources from other providers within its family.
-	//
-	// TODO(negz): Once generic cross-resource references are implemented we can
-	// reduce this to only allowing access to core types, like ProviderConfig.
-	// https://github.com/crossplane/crossplane/issues/1770
-	if family := pr.GetLabels()[v1.LabelProviderFamily]; family != "" {
-		// TODO(negz): Get active revisions in family.
-		prs := &v1.ProviderRevisionList{}
-		if err := r.client.List(ctx, prs, client.MatchingLabels{v1.LabelProviderFamily: family}); err != nil {
-			if kerrors.IsConflict(err) {
-				return reconcile.Result{Requeue: true}, nil
-			}
-
-			err = errors.Wrap(err, errListPRs)
-			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
-
-			return reconcile.Result{}, err
+	resources, err := r.definedResources(ctx, pr)
+	if err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
 		}
 
-		// TODO(negz): Should we filter down to only active revisions? I don't
-		// think there's any benefit. If the revision is inactive and never
-		// created any CRDs there will be no CRDs to grant permissions for. If
-		// it's inactive but did create (or would share) CRDs then this provider
-		// might try use them, and we should let it.
-		for _, member := range prs.Items {
-			// We already added our own resources.
-			if member.GetUID() == pr.GetUID() {
-				continue
-			}
+		r.record.Event(pr, event.Warning(reasonApplyRoles, err))
 
-			// We only allow packages in the same OCI registry and org to be
-			// part of the same family. This prevents a malicious provider from
-			// declaring itself part of a family and thus being granted RBAC
-			// access to its types.
-			// TODO(negz): Consider using package signing here in future.
-			if r.org.Differs(pr.Spec.Package, member.Spec.Package) {
-				continue
-			}
-
-			resources = append(resources, DefinedResources(member.Status.ObjectRefs)...)
-		}
+		return reconcile.Result{}, err
 	}
 
 	applied := make([]string, 0)
@@ -321,6 +298,69 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{Requeue: false}, nil
 }
 
+// definedResources returns the resources the supplied ProviderRevision should be
+// granted RBAC access to: those recorded in its status, those of other providers
+// in its family, and those of the CRDs and MRDs it actually controls.
+func (r *Reconciler) definedResources(ctx context.Context, pr *v1.ProviderRevision) ([]Resource, error) {
+	resources := DefinedResources(pr.Status.ObjectRefs)
+
+	// If this revision is part of a provider family we consider it to 'own' all
+	// of the family's CRDs (despite it not actually being an owner reference).
+	// This allows the revision to use core types installed by another provider,
+	// e.g. ProviderConfigs. It also allows the provider to cross-resource
+	// reference resources from other providers within its family.
+	//
+	// TODO(negz): Once generic cross-resource references are implemented we can
+	// reduce this to only allowing access to core types, like ProviderConfig.
+	// https://github.com/crossplane/crossplane/issues/1770
+	if family := pr.GetLabels()[v1.LabelProviderFamily]; family != "" {
+		// TODO(negz): Get active revisions in family.
+		prs := &v1.ProviderRevisionList{}
+		if err := r.client.List(ctx, prs, client.MatchingLabels{v1.LabelProviderFamily: family}); err != nil {
+			return nil, errors.Wrap(err, errListPRs)
+		}
+
+		// TODO(negz): Should we filter down to only active revisions? I don't
+		// think there's any benefit. If the revision is inactive and never
+		// created any CRDs there will be no CRDs to grant permissions for. If
+		// it's inactive but did create (or would share) CRDs then this provider
+		// might try use them, and we should let it.
+		for _, member := range prs.Items {
+			// We already added our own resources.
+			if member.GetUID() == pr.GetUID() {
+				continue
+			}
+
+			// We only allow packages in the same OCI registry and org to be
+			// part of the same family. This prevents a malicious provider from
+			// declaring itself part of a family and thus being granted RBAC
+			// access to its types.
+			// TODO(negz): Consider using package signing here in future.
+			if r.org.Differs(pr.Spec.Package, member.Spec.Package) {
+				continue
+			}
+
+			resources = append(resources, DefinedResources(member.Status.ObjectRefs)...)
+		}
+	}
+
+	// A revision's status.objectRefs is its own record of the resources it
+	// defined, but it can be incomplete or stale - e.g. after a backup/restore
+	// that drops the status subresource, or when a managed resource is
+	// established after the revision last reconciled. Relying on it alone can
+	// leave the provider's system ClusterRole missing permissions for resources
+	// it runs controllers for, which prevents the provider from starting. So we
+	// also grant access to the CRDs and MRDs the revision actually controls,
+	// derived from the live API server rather than status. We watch both kinds
+	// (see Setup) so roles are reconciled as soon as they're established.
+	owned, err := r.ownedResources(ctx, pr)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(resources, owned...), nil
+}
+
 // DefinedResources returns the resources defined by the supplied references.
 func DefinedResources(refs []xpv2.TypedReference) []Resource {
 	out := make([]Resource, 0, len(refs))
@@ -341,16 +381,62 @@ func DefinedResources(refs []xpv2.TypedReference) []Resource {
 			continue
 		}
 
-		p, g, valid := strings.Cut(ref.Name, ".")
-		if !valid {
+		res, ok := resourceFromName(ref.Name)
+		if !ok {
 			// This shouldn't be possible - CRDs must be named <plural>.<group>.
 			continue
 		}
 
-		out = append(out, Resource{Group: g, Plural: p})
+		out = append(out, res)
 	}
 
 	return out
+}
+
+// ownedResources returns the resources defined by the CRDs and MRDs that the
+// supplied ProviderRevision controls. Unlike status.objectRefs, this reflects
+// the actual state of the API server, so it lets us grant RBAC access even when
+// the revision's status is incomplete or stale. We only need each object's name
+// and owner references, so we list metadata only rather than caching the full
+// schema of every CRD in the cluster.
+func (r *Reconciler) ownedResources(ctx context.Context, pr *v1.ProviderRevision) ([]Resource, error) {
+	crds := &metav1.PartialObjectMetadataList{}
+	crds.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinitionList"))
+	if err := r.client.List(ctx, crds); err != nil {
+		return nil, errors.Wrapf(err, "cannot list CustomResourceDefinitions for ProviderRevision %q", pr.GetName())
+	}
+
+	mrds := &metav1.PartialObjectMetadataList{}
+	mrds.SetGroupVersionKind(v1alpha1.SchemeGroupVersion.WithKind("ManagedResourceDefinitionList"))
+	if err := r.client.List(ctx, mrds); err != nil {
+		return nil, errors.Wrapf(err, "cannot list ManagedResourceDefinitions for ProviderRevision %q", pr.GetName())
+	}
+
+	out := []Resource{}
+	for _, items := range [][]metav1.PartialObjectMetadata{crds.Items, mrds.Items} {
+		for i := range items {
+			if !metav1.IsControlledBy(&items[i], pr) {
+				continue
+			}
+			if res, ok := resourceFromName(items[i].GetName()); ok {
+				out = append(out, res)
+			}
+		}
+	}
+
+	return out, nil
+}
+
+// resourceFromName derives a Resource from a CRD or MRD name, which by
+// convention is <plural>.<group>. It returns false if the name doesn't follow
+// that convention.
+func resourceFromName(name string) (Resource, bool) {
+	p, g, ok := strings.Cut(name, ".")
+	if !ok {
+		return Resource{}, false
+	}
+
+	return Resource{Group: g, Plural: p}, true
 }
 
 // ClusterRolesDiffer returns true if the supplied objects are different
