@@ -1,0 +1,27 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: xprotectiontests.e2e.crossplane.io
+spec:
+  scope: Cluster
+  group: e2e.crossplane.io
+  names:
+    kind: XProtectionTest
+    plural: xprotectiontests
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              coolField:
+                type: string
+            required:
+            - coolField
+          status:
+            type: object

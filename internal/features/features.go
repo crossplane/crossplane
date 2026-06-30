@@ -53,6 +53,12 @@ const (
 	// automatically protecting Providers from deletion when they still have
 	// active managed resources. Requires EnableBetaUsages to also be enabled.
 	EnableAlphaProviderDeletionProtection feature.Flag = "EnableAlphaProviderDeletionProtection"
+
+	// EnableAlphaXRDDeletionProtection enables alpha support for
+	// automatically protecting CompositeResourceDefinitions (and their
+	// owning Configurations) from deletion when they still have active
+	// composite resources. Requires EnableBetaUsages to also be enabled.
+	EnableAlphaXRDDeletionProtection feature.Flag = "EnableAlphaXRDDeletionProtection"
 )
 
 // Beta Feature Flags.

@@ -36,6 +36,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -43,6 +44,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -50,6 +52,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	protectionv1beta1 "github.com/crossplane/crossplane/apis/v2/protection/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/watch"
@@ -177,10 +180,16 @@ func (fn CRDRenderFn) Render(d *v1.CompositeResourceDefinition) (*extv1.CustomRe
 func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 	name := "defined/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
 
+	if o.Features.Enabled(features.EnableAlphaXRDDeletionProtection) &&
+		!o.Features.Enabled(features.EnableBetaUsages) {
+		return errors.New("XRD deletion protection requires usages to be enabled (--enable-usages)")
+	}
+
 	r := NewReconciler(NewClientApplicator(mgr.GetClient()),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithControllerEngine(o.ControllerEngine),
+		WithFeatures(o.Features),
 		WithOptions(o))
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -230,6 +239,13 @@ func WithFinalizer(f resource.Finalizer) ReconcilerOption {
 func WithControllerEngine(c ControllerEngine) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.engine = c
+	}
+}
+
+// WithFeatures specifies the feature flags the Reconciler should use.
+func WithFeatures(f *feature.Flags) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.features = f
 	}
 }
 
@@ -291,7 +307,8 @@ type Reconciler struct {
 
 	composite definition
 
-	engine ControllerEngine
+	engine   ControllerEngine
+	features *feature.Flags
 
 	log        logging.Logger
 	record     event.Recorder
@@ -335,6 +352,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if meta.WasDeleted(d) {
+		r.cleanupXRDProtection(ctx, log, d.GetName())
+
 		status.MarkConditions(v1.TerminatingComposite())
 
 		if err := r.client.Status().Update(ctx, d); err != nil {
@@ -495,6 +514,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(d, event.Normal(reasonEstablishXR, waitCRDEstablish))
 
 		return reconcile.Result{Requeue: true}, nil
+	}
+
+	// If XRD deletion protection is enabled, start a protection
+	// controller that watches composite resource instances and manages
+	// ClusterUsage objects.
+	if r.xrdProtectionEnabled() {
+		if err := r.startXRDProtection(ctx, log, d); err != nil {
+			log.Debug("Cannot start XRD deletion protection", "error", err)
+			r.record.Event(d, event.Warning(reasonEstablishXR, err))
+			return reconcile.Result{}, errors.Wrap(err, "cannot start XRD deletion protection")
+		}
 	}
 
 	// Check if XRD has changed since controller was last started
@@ -670,4 +700,72 @@ func ControllerNeedsRestart(d *v1.CompositeResourceDefinition) bool {
 
 	// Restart needed if the XRD has changed since the controller was started
 	return c.ObservedGeneration != d.GetGeneration()
+}
+
+// xrdProtectionEnabled returns true if XRD deletion protection is enabled.
+func (r *Reconciler) xrdProtectionEnabled() bool {
+	return r.features != nil &&
+		r.features.Enabled(features.EnableAlphaXRDDeletionProtection)
+}
+
+// startXRDProtection starts a protection controller for the given XRD that
+// watches composite resource instances and creates/deletes ClusterUsage objects
+// to protect the XRD (and its owning Configuration) from deletion.
+func (r *Reconciler) startXRDProtection(ctx context.Context, log logging.Logger, xrd *v1.CompositeResourceDefinition) error {
+	gvk := xrd.GetCompositeGroupVersionKind()
+	controllerName := XRDProtectionControllerName(xrd.GetName())
+
+	pr := &XRDProtectionReconciler{
+		cached:  r.engine.GetCached(),
+		writer:  r.client.Client,
+		xrdName: xrd.GetName(),
+		gvk:     gvk,
+		log:     log.WithValues("controller", controllerName),
+	}
+
+	ko := kcontroller.Options{Reconciler: pr}
+
+	if err := r.engine.Start(controllerName,
+		engine.WithRuntimeOptions(ko),
+	); err != nil {
+		return errors.Wrap(err, "cannot start XRD protection controller")
+	}
+
+	// Start a watch on composite resource instances. This is idempotent -
+	// it only starts watches that don't already exist.
+	xr := &kunstructured.Unstructured{}
+	xr.SetGroupVersionKind(gvk)
+
+	h := handler.EnqueueRequestsFromMapFunc(XRDResourceMapFunc(xrd.GetName()))
+
+	if err := r.engine.StartWatches(ctx, controllerName,
+		engine.WatchFor(xr, engine.WatchTypeCompositeResource, h),
+	); err != nil {
+		return errors.Wrap(err, "cannot start composite resource watch for protection")
+	}
+
+	return nil
+}
+
+// cleanupXRDProtection stops the protection controller and deletes the
+// ClusterUsage objects for the given XRD. It is a no-op if XRD deletion
+// protection is not enabled.
+func (r *Reconciler) cleanupXRDProtection(ctx context.Context, log logging.Logger, xrdName string) {
+	if !r.xrdProtectionEnabled() {
+		return
+	}
+
+	controllerName := XRDProtectionControllerName(xrdName)
+	if err := r.engine.Stop(ctx, controllerName); err != nil {
+		log.Debug("Cannot stop XRD protection controller", "error", err)
+	}
+
+	// Delete both ClusterUsages (XRD + Configuration).
+	for _, name := range []string{XRDClusterUsageName(xrdName), ConfigClusterUsageName(xrdName)} {
+		cu := &protectionv1beta1.ClusterUsage{}
+		cu.SetName(name)
+		if err := r.client.Delete(ctx, cu); resource.IgnoreNotFound(err) != nil {
+			log.Debug("Cannot delete ClusterUsage", "error", err, "name", name)
+		}
+	}
 }
