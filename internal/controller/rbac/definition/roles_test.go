@@ -72,7 +72,7 @@ func TestRenderClusterRoles(t *testing.T) {
 						{
 							APIGroups: []string{group},
 							Resources: []string{pluralXR, pluralXR + suffixStatus},
-							Verbs:     verbsEdit,
+							Verbs:     verbsAll,
 						},
 						{
 							APIGroups: []string{group},
@@ -86,9 +86,8 @@ func TestRenderClusterRoles(t *testing.T) {
 						Name:            namePrefix + name + nameSuffixEdit,
 						OwnerReferences: []metav1.OwnerReference{owner},
 						Labels: map[string]string{
-							keyAggregateToAdmin:   valTrue,
-							keyAggregateToNSAdmin: valTrue,
 							keyAggregateToEdit:    valTrue,
+							keyAggregateToNSAdmin: valTrue,
 							keyAggregateToNSEdit:  valTrue,
 						},
 					},
@@ -105,8 +104,10 @@ func TestRenderClusterRoles(t *testing.T) {
 						Name:            namePrefix + name + nameSuffixView,
 						OwnerReferences: []metav1.OwnerReference{owner},
 						Labels: map[string]string{
-							keyAggregateToView:   valTrue,
-							keyAggregateToNSView: valTrue,
+							keyAggregateToView:    valTrue,
+							keyAggregateToNSAdmin: valTrue,
+							keyAggregateToNSEdit:  valTrue,
+							keyAggregateToNSView:  valTrue,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
@@ -158,7 +159,7 @@ func TestRenderClusterRoles(t *testing.T) {
 						{
 							APIGroups: []string{group},
 							Resources: []string{pluralXR, pluralXR + suffixStatus},
-							Verbs:     verbsEdit,
+							Verbs:     verbsAll,
 						},
 						{
 							APIGroups: []string{group},
@@ -168,7 +169,7 @@ func TestRenderClusterRoles(t *testing.T) {
 						{
 							APIGroups: []string{group},
 							Resources: []string{pluralXRC, pluralXRC + suffixStatus},
-							Verbs:     verbsEdit,
+							Verbs:     verbsAll,
 						},
 						{
 							APIGroups: []string{group},
@@ -182,9 +183,8 @@ func TestRenderClusterRoles(t *testing.T) {
 						Name:            namePrefix + name + nameSuffixEdit,
 						OwnerReferences: []metav1.OwnerReference{owner},
 						Labels: map[string]string{
-							keyAggregateToAdmin:   valTrue,
-							keyAggregateToNSAdmin: valTrue,
 							keyAggregateToEdit:    valTrue,
+							keyAggregateToNSAdmin: valTrue,
 							keyAggregateToNSEdit:  valTrue,
 						},
 					},
@@ -206,8 +206,10 @@ func TestRenderClusterRoles(t *testing.T) {
 						Name:            namePrefix + name + nameSuffixView,
 						OwnerReferences: []metav1.OwnerReference{owner},
 						Labels: map[string]string{
-							keyAggregateToView:   valTrue,
-							keyAggregateToNSView: valTrue,
+							keyAggregateToView:    valTrue,
+							keyAggregateToNSAdmin: valTrue,
+							keyAggregateToNSEdit:  valTrue,
+							keyAggregateToNSView:  valTrue,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
