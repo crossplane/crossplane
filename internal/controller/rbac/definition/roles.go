@@ -111,7 +111,6 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 				APIGroups: []string{d.Spec.Group},
 				Resources: []string{
 					d.Spec.Names.Plural,
-					d.Spec.Names.Plural + suffixStatus,
 				},
 				Verbs: verbsEdit,
 			},
@@ -186,7 +185,6 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 			APIGroups: []string{d.Spec.Group},
 			Resources: []string{
 				d.Spec.ClaimNames.Plural,
-				d.Spec.ClaimNames.Plural + suffixStatus,
 			},
 			Verbs: verbsEdit,
 		})

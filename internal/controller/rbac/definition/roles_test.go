@@ -94,7 +94,7 @@ func TestRenderClusterRoles(t *testing.T) {
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{group},
-							Resources: []string{pluralXR, pluralXR + suffixStatus},
+							Resources: []string{pluralXR},
 							Verbs:     verbsEdit,
 						},
 					},
@@ -191,12 +191,12 @@ func TestRenderClusterRoles(t *testing.T) {
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{group},
-							Resources: []string{pluralXR, pluralXR + suffixStatus},
+							Resources: []string{pluralXR},
 							Verbs:     verbsEdit,
 						},
 						{
 							APIGroups: []string{group},
-							Resources: []string{pluralXRC, pluralXRC + suffixStatus},
+							Resources: []string{pluralXRC},
 							Verbs:     verbsEdit,
 						},
 					},
