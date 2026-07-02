@@ -481,6 +481,21 @@ func TestRequiredResources(t *testing.T) {
 			Assess("ResourceHasExpectedData",
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.resourceHasExpectedData", true),
 			).
+			Assess("XRReflectsInitialValue",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.receivedValue", "test-value"),
+			).
+			// Changing the required ConfigMap must reconcile the XR, so its
+			// status reflects the new value. The XR doesn't compose the
+			// ConfigMap, so no composed resource watch observes it. function-python
+			// applies a default 60s response TTL, but we assert the change within
+			// 30s - before that requeue could fire - so the reconcile is
+			// attributable to the required resource watch, not to polling.
+			Assess("UpdateRequiredResource",
+				funcs.ApplyResources(FieldManager, manifests, "configmap-update.yaml"),
+			).
+			Assess("XRReactsToRequiredResourceChange",
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "xr.yaml", "status.receivedValue", "updated-value"),
+			).
 			WithTeardown("DeleteXR", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
