@@ -448,7 +448,7 @@ ci-push-build-artifacts:
   ARG ARTIFACTS_DIR=_output
   ARG BUCKET_RELEASES=crossplane-releases
   ARG AWS_DEFAULT_REGION
-  FROM amazon/aws-cli:2.15.61
+  FROM amazon/aws-cli:2.35.14
   COPY --dir ${ARTIFACTS_DIR} artifacts
   RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --delete --only-show-errors artifacts s3://${BUCKET_RELEASES}/build/${BUILD_DIR}/${CROSSPLANE_VERSION}
 
@@ -464,7 +464,7 @@ ci-promote-build-artifacts:
   ARG BUCKET_CHARTS=crossplane-helm-charts
   ARG PRERELEASE=false
   ARG AWS_DEFAULT_REGION
-  FROM amazon/aws-cli:2.15.61
+  FROM amazon/aws-cli:2.35.14
   COPY +helm-setup/helm /usr/local/bin/helm
   RUN --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --only-show-errors s3://${BUCKET_CHARTS}/${CHANNEL} repo
   RUN --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --only-show-errors s3://${BUCKET_RELEASES}/build/${BUILD_DIR}/${CROSSPLANE_VERSION}/charts repo
