@@ -49,6 +49,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
 )
@@ -393,13 +394,15 @@ func WithComposer(c Composer) ReconcilerOption {
 	}
 }
 
-// WithWatchStarter specifies how the Reconciler should start watches for any
-// resources it composes.
-func WithWatchStarter(controllerName string, h handler.EventHandler, w WatchStarter) ReconcilerOption {
+// WithWatchStarter specifies how the Reconciler should start watches for the
+// resources each XR depends on, and the tracker it reads those dependencies
+// from.
+func WithWatchStarter(controllerName string, h handler.EventHandler, w WatchStarter, t dependency.Tracker) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.controllerName = controllerName
 		r.watchHandler = h
 		r.engine = w
+		r.tracker = t
 	}
 }
 
@@ -499,7 +502,8 @@ func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...Rec
 		}),
 
 		// Dynamic watches are disabled by default.
-		engine: &NopWatchStarter{},
+		engine:  &NopWatchStarter{},
+		tracker: dependency.NopTracker{},
 
 		circuit: &circuit.NopBreaker{},
 
@@ -529,10 +533,11 @@ type Reconciler struct {
 
 	resource Composer
 
-	// Used to dynamically start composed resource watches.
+	// Used to dynamically start watches for the resources an XR depends on.
 	controllerName string
 	engine         WatchStarter
 	watchHandler   handler.EventHandler
+	tracker        dependency.Tracker
 
 	// Used to validate errors based on API issues.
 	authorizer Authorizer
@@ -573,6 +578,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	xr := composite.New(composite.WithGroupVersionKind(r.gvk), composite.WithSchema(r.schema))
 	if err := r.client.Get(ctx, req.NamespacedName, xr); err != nil {
+		// The XR is gone - e.g. it was deleted and its finalizer removed before
+		// we saw the deletion. Stop tracking its dependencies so we don't leak
+		// watches for kinds only it depended on.
+		if kerrors.IsNotFound(err) {
+			r.tracker.Forget(req.NamespacedName)
+		}
 		log.Debug(errGet, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
 	}
@@ -632,6 +643,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 			return reconcile.Result{}, err
 		}
+
+		// Stop tracking the XR's dependencies. Any watch only it needed will be
+		// garbage collected.
+		r.tracker.Forget(client.ObjectKeyFromObject(xr))
 
 		log.Debug("Successfully deleted composite resource")
 		status.MarkConditions(xpv2.ReconcileSuccess())
@@ -791,11 +806,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	ws := make([]engine.Watch, len(xr.GetResourceReferences()))
-	for i, ref := range xr.GetResourceReferences() {
+	// Watch every kind this controller's XRs depend on - the resources they
+	// compose and the resources their functions require. The tracker was
+	// updated with this XR's dependencies as it was composed above.
+	gvks := r.tracker.GVKs()
+	ws := make([]engine.Watch, len(gvks))
+	for i, gvk := range gvks {
 		cr := &kunstructured.Unstructured{}
-		cr.SetGroupVersionKind(ref.GroupVersionKind())
-		ws[i] = engine.WatchFor(cr, engine.WatchTypeComposedResource, r.watchHandler)
+		cr.SetGroupVersionKind(gvk)
+		ws[i] = engine.WatchFor(cr, engine.WatchTypeDependency, r.watchHandler)
 	}
 
 	// The ControllerEngine that starts this controller also starts a

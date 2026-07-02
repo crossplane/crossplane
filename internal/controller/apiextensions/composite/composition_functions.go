@@ -44,6 +44,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
 	"github.com/crossplane/crossplane/v2/internal/names"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
@@ -133,6 +134,7 @@ type FunctionComposer struct {
 	pipeline  FunctionRunner
 	resources xfn.RequiredResourcesFetcher
 	schemas   xfn.RequiredSchemasFetcher
+	tracker   dependency.Tracker
 }
 
 type xr struct {
@@ -256,6 +258,16 @@ func WithRequiredSchemasFetcher(f xfn.RequiredSchemasFetcher) FunctionComposerOp
 	}
 }
 
+// WithResourceTracker configures how the FunctionComposer records the resources
+// an XR depends on - those it composes and those its functions require - so the
+// XR controller can watch them, and so it can seed a function's request with the
+// resources it required last reconcile.
+func WithResourceTracker(t dependency.Tracker) FunctionComposerOption {
+	return func(p *FunctionComposer) {
+		p.tracker = t
+	}
+}
+
 // NewFunctionComposer returns a new Composer that supports composing resources using
 // both Patch and Transform (P&T) logic and a pipeline of Composition Functions.
 func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...FunctionComposerOption) *FunctionComposer {
@@ -275,6 +287,7 @@ func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...
 		pipeline:  r,
 		resources: xfn.NewExistingRequiredResourcesFetcher(cached),
 		schemas:   xfn.NopRequiredSchemasFetcher{},
+		tracker:   dependency.NopTracker{},
 	}
 
 	for _, fn := range o {
@@ -325,6 +338,13 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	events := []TargetedEvent{}
 	conditions := []TargetedCondition{}
 
+	// The resources this XR's functions require, accumulated across pipeline
+	// steps. We record them - along with the resources the XR composes - so the
+	// XR controller can watch them, and so we can seed them into the function's
+	// request next reconcile.
+	xrKey := client.ObjectKeyFromObject(xr)
+	required := []dependency.Requirement{}
+
 	// The Function context always starts empty.
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
 
@@ -374,20 +394,29 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			}
 		}
 
-		// Pre-populate bootstrap requirements
+		// Pre-populate the requirements we already know this step needs, so the
+		// function can resolve in a single call and the request's cache tag
+		// reflects their current content. They come from two places: bootstrap
+		// requirements declared on the Composition, and the requirements this
+		// step returned last reconcile (remembered by the tracker). Bootstrap
+		// requirements are authoritative, so we fetch them first.
+		fnreq.RequiredResources = map[string]*fnv1.Resources{}
+		fnreq.RequiredSchemas = map[string]*fnv1.Schema{}
+
 		if fn.Requirements != nil {
-			// Bootstrap requirements were introduced alongside the new field names,
-			// so we only need to support the new required_resources field.
-			fnreq.RequiredResources = map[string]*fnv1.Resources{}
 			for _, sel := range fn.Requirements.RequiredResources {
-				resources, err := c.resources.Fetch(ctx, xfn.ToProtobufResourceSelector(&sel))
+				psel := xfn.ToProtobufResourceSelector(&sel)
+				resources, err := c.resources.Fetch(ctx, psel)
 				if err != nil {
 					return CompositionResult{}, errors.Wrapf(err, errFmtFetchBootstrapRequirements, sel.RequirementName)
 				}
 				fnreq.RequiredResources[sel.RequirementName] = resources
+
+				// Track bootstrap requirements so we watch them, even if the
+				// function doesn't re-declare them in its response.
+				required = append(required, dependency.Requirement{Step: fn.Step, Name: sel.RequirementName, Reference: ReferenceFromSelector(psel)})
 			}
 
-			fnreq.RequiredSchemas = map[string]*fnv1.Schema{}
 			for _, sel := range fn.Requirements.RequiredSchemas {
 				schema, err := c.schemas.Fetch(ctx, xfn.ToProtobufSchemaSelector(&sel))
 				if err != nil {
@@ -397,6 +426,28 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			}
 		}
 
+		// Seed the resources this step required last reconcile, under the same
+		// requirement names, so the function sees them on its first call and its
+		// cache tag reflects their current content. We skip names bootstrap
+		// already filled (they're authoritative), and treat this as best-effort:
+		// a fetch failure just means the function resolves that resource itself.
+		for _, r := range c.tracker.Requirements(xrKey, fn.Step) {
+			if _, exists := fnreq.GetRequiredResources()[r.Name]; exists {
+				continue
+			}
+			res, err := c.resources.Fetch(ctx, SelectorFromReference(r.Reference))
+			if err != nil {
+				continue
+			}
+			fnreq.RequiredResources[r.Name] = res
+		}
+
+		// NOTE(negz): We seed required resources, but not required
+		// schemas. A function's dynamically required schemas are
+		// resolved after this tag is computed, so a change to one won't
+		// invalidate a cached response until its TTL expires. Bootstrap
+		// schemas (fetched above) are in the tag. Schemas change rarely
+		// and aren't watched, so we accept this.
 		fnreq.Meta = &fnv1.RequestMeta{Tag: Tag(fnreq), Capabilities: xfn.SupportedCapabilities()}
 
 		// Add step metadata to context for use by downstream components like InspectedRunner.
@@ -405,6 +456,17 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		rsp, err := c.pipeline.RunFunction(stepCtx, fn.FunctionRef.Name, fnreq)
 		if err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
+		}
+
+		// Record what this step required so we can watch it, and seed it next
+		// reconcile. The response carries the step's requirements whether it ran
+		// or was served from cache. We track both the current and deprecated
+		// fields, since the fetching runner resolves both.
+		for name, sel := range rsp.GetRequirements().GetResources() {
+			required = append(required, dependency.Requirement{Step: fn.Step, Name: name, Reference: ReferenceFromSelector(sel)})
+		}
+		for name, sel := range rsp.GetRequirements().GetExtraResources() { //nolint:staticcheck // We still resolve the deprecated field, so we must track it too.
+			required = append(required, dependency.Requirement{Step: fn.Step, Name: name, Reference: ReferenceFromSelector(sel)})
 		}
 
 		// If this Function specified a non-zero TTL that's less than
@@ -707,6 +769,19 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	case fnv1.Ready_READY_UNSPECIFIED:
 		// Remains nil.
 	}
+
+	// Record the resources this XR depends on so the controller can watch them.
+	// A resource it composes is matched by name; a resource it requires is
+	// matched by name or label.
+	composed := make([]dependency.Reference, 0, len(desired))
+	for _, cd := range desired {
+		composed = append(composed, dependency.Reference{
+			GVK:       cd.Resource.GetObjectKind().GroupVersionKind(),
+			Namespace: cd.Resource.GetNamespace(),
+			Name:      cd.Resource.GetName(),
+		})
+	}
+	c.tracker.Track(xrKey, composed, required)
 
 	return CompositionResult{
 		Composed:          resources,
