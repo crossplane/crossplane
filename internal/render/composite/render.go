@@ -45,6 +45,7 @@ import (
 	apiextensionsv2 "github.com/crossplane/crossplane/apis/v2/apiextensions/v2"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composition"
 	"github.com/crossplane/crossplane/v2/internal/render"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
@@ -206,7 +207,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 				return false, nil
 			},
 		)),
-		composite.WithWatchStarter("render", nil, &composite.NopWatchStarter{}),
+		composite.WithWatchStarter("render", nil, &composite.NopWatchStarter{}, dependency.NopTracker{}),
 		composite.WithCircuitBreaker(&circuit.NopBreaker{}),
 		composite.WithRecorder(rec),
 		composite.WithLogger(log),

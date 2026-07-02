@@ -32,19 +32,25 @@ spec:
             # Check if we received the resource in this iteration.
             resource_received = "test-configmap" in req.required_resources
 
-            # Check if the resource has the expected data.
+            # Check if the resource has the expected data, and echo its current
+            # value into status. The e2e test mutates the ConfigMap and asserts
+            # this value changes, proving the required resource watch triggered
+            # a reconcile.
             resource_has_expected_data = False
+            received_value = ""
             if resource_received:
                 cm = request.get_required_resource(req, "test-configmap")
                 if cm:
                     data = cm.get("data", {})
-                    resource_has_expected_data = data.get("test-key") == "test-value"
+                    received_value = data.get("test-key", "")
+                    resource_has_expected_data = received_value == "test-value"
 
             # Set status fields to indicate what we found.
             rsp.desired.composite.resource.update({
                 "status": {
                     "resourceReceived": resource_received,
                     "resourceHasExpectedData": resource_has_expected_data,
+                    "receivedValue": received_value,
                 }
             })
 

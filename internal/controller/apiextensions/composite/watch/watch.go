@@ -14,21 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package watch implements a garbage collector for composed resource watches.
+// Package watch implements a garbage collector for composite resource (XR)
+// dependency watches.
 package watch
 
 import (
 	"context"
 	"time"
 
-	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 )
 
@@ -36,21 +35,16 @@ import (
 type ControllerEngine interface {
 	GetWatches(name string) ([]engine.WatchID, error)
 	StopWatches(ctx context.Context, name string, ws ...engine.WatchID) (int, error)
-	GetCached() client.Client
-	GetUncached() client.Client
 }
 
-// A GarbageCollector garbage collects watches for a single composite resource
-// (XR) controller. A watch is eligible for garbage collection when none of the
-// XRs the controller owns resource references its GVK. The garbage collector
-// periodically lists all the controller's XRs to determine what GVKs they still
-// reference.
+// A GarbageCollector garbage collects dependency watches for a single composite
+// resource (XR) controller. A watch is eligible for garbage collection when no
+// XR the controller owns depends on its GVK any longer.
 type GarbageCollector struct {
 	controllerName string
-	gvk            schema.GroupVersionKind
-	schema         composite.Schema
 
-	engine ControllerEngine
+	engine  ControllerEngine
+	tracker dependency.Tracker
 
 	log logging.Logger
 }
@@ -65,20 +59,13 @@ func WithLogger(l logging.Logger) GarbageCollectorOption {
 	}
 }
 
-// WithCompositeSchema configures whether to garbage collect a modern or a
-// legacy composite resource.
-func WithCompositeSchema(s composite.Schema) GarbageCollectorOption {
-	return func(gc *GarbageCollector) {
-		gc.schema = s
-	}
-}
-
-// NewGarbageCollector creates a new watch garbage collector for a controller.
-func NewGarbageCollector(name string, of schema.GroupVersionKind, ce ControllerEngine, o ...GarbageCollectorOption) *GarbageCollector {
+// NewGarbageCollector creates a new dependency watch garbage collector for a
+// controller.
+func NewGarbageCollector(name string, ce ControllerEngine, t dependency.Tracker, o ...GarbageCollectorOption) *GarbageCollector {
 	gc := &GarbageCollector{
 		controllerName: name,
-		gvk:            of,
 		engine:         ce,
+		tracker:        t,
 		log:            logging.NewNopLogger(),
 	}
 	for _, fn := range o {
@@ -89,8 +76,8 @@ func NewGarbageCollector(name string, of schema.GroupVersionKind, ce ControllerE
 }
 
 // GarbageCollectWatches runs garbage collection at the specified interval,
-// until the supplied context is cancelled. It stops any watches for resource
-// types that are no longer composed by any composite resource (XR).
+// until the supplied context is cancelled. It stops any dependency watches for
+// kinds no composite resource (XR) depends on anymore.
 func (gc *GarbageCollector) GarbageCollectWatches(ctx context.Context, interval time.Duration) {
 	t := time.NewTicker(interval)
 	defer t.Stop()
@@ -108,130 +95,44 @@ func (gc *GarbageCollector) GarbageCollectWatches(ctx context.Context, interval 
 	}
 }
 
-// GarbageCollectWatchesNow stops any watches for resource types that are no
-// longer composed by any composite resource (XR). It's safe to call from
-// multiple goroutines.
+// GarbageCollectWatchesNow stops any dependency watches for kinds no composite
+// resource (XR) depends on anymore. It's safe to call from multiple goroutines.
 func (gc *GarbageCollector) GarbageCollectWatchesNow(ctx context.Context) error {
-	// Get the set of running watches.
 	running, err := gc.engine.GetWatches(gc.controllerName)
 	if err != nil {
 		return errors.Wrap(err, "cannot get running watches")
 	}
 
-	composed := make([]engine.WatchID, 0, len(running))
-	for _, wid := range running {
-		// Only stop watches for composed resources. The other watch
-		// types should only be stopped when the XR controller stops.
-		if wid.Type == engine.WatchTypeComposedResource {
-			composed = append(composed, wid)
-		}
-	}
-
-	// No composed resource watches exist. Nothing to do.
-	if len(composed) == 0 {
-		return nil
-	}
-
-	// List all XRs of the type we're interested in. This list is from
-	// cache, so it could be stale.
-	l := &kunstructured.UnstructuredList{}
-	l.SetAPIVersion(gc.gvk.GroupVersion().String())
-	l.SetKind(gc.gvk.Kind + "List")
-
-	if err := gc.engine.GetCached().List(ctx, l); err != nil {
-		return errors.Wrap(err, "cannot list composite resources")
-	}
-
-	// Build the set of GVKs they still reference.
-	used := make(map[schema.GroupVersionKind]bool)
-	for _, u := range l.Items {
-		xr := &composite.Unstructured{Unstructured: u, Schema: gc.schema}
-		for _, ref := range xr.GetResourceReferences() {
-			used[schema.FromAPIVersionAndKind(ref.APIVersion, ref.Kind)] = true
-		}
+	// The kinds at least one XR still depends on.
+	depends := make(map[schema.GroupVersionKind]bool)
+	for _, gvk := range gc.tracker.GVKs() {
+		depends[gvk] = true
 	}
 
 	stop := make([]engine.WatchID, 0)
-
-	for _, wid := range composed {
-		// Only stop watches for types no XR composes.
-		if used[wid.GVK] {
+	for _, wid := range running {
+		// Only stop dependency watches. The other watch types (the XR itself,
+		// its composition revision) are stopped when the controller stops.
+		if wid.Type != engine.WatchTypeDependency {
+			continue
+		}
+		if depends[wid.GVK] {
 			continue
 		}
 
 		stop = append(stop, wid)
 	}
 
-	// We listed from cache, so the set of 'used' GVKs still composed by at
-	// least one XR could be stale. For example a watch for kind: X exists,
-	// our stale cache told us an XR was still composing kind: X, but really
-	// it wasn't. That's okay. We'll stop the watch on the next GC cycle.
-	//
-	// What we really want to avoid is stopping a watch that we shouldn't.
-	// For example a watch for kind: X exists, our stale cache told us no XR
-	// was still composing kind: X, but really one was. e.g Because it
-	// started the watch very recently.
-	//
-	// So if it looks like there's no watches to stop we return early. If it
-	// looks like there _are_ watches to stop, we double check using an
-	// uncached client before stopping them.
 	if len(stop) == 0 {
 		return nil
 	}
 
-	// List all XRs again, this time using an uncached client.
-	l = &kunstructured.UnstructuredList{}
-	l.SetAPIVersion(gc.gvk.GroupVersion().String())
-	l.SetKind(gc.gvk.Kind + "List")
-
-	if err := gc.engine.GetUncached().List(ctx, l); err != nil {
-		return errors.Wrap(err, "cannot list composite resources")
-	}
-
-	// Build the set of GVKs they still reference.
-	used = make(map[schema.GroupVersionKind]bool)
-
-	for _, u := range l.Items {
-		xr := &composite.Unstructured{Unstructured: u}
-		for _, ref := range xr.GetResourceReferences() {
-			used[schema.FromAPIVersionAndKind(ref.APIVersion, ref.Kind)] = true
-		}
-	}
-
-	stop = make([]engine.WatchID, 0)
-	for _, wid := range composed {
-		// Only stop watches for composed resources. The other watch
-		// types should only be stopped when the XR controller stops.
-		if wid.Type != engine.WatchTypeComposedResource {
-			continue
-		}
-		// Only stop watches for types no XR composes.
-		if used[wid.GVK] {
-			continue
-		}
-
-		stop = append(stop, wid)
-	}
-
-	// No need to call StopWatches if there's nothing to stop.
-	if len(stop) == 0 {
-		return nil
-	}
-
-	// Stop any watches that are running, but not used.
-	//
-	// It's possible watches were started or stopped since we called GetWatches.
-	// That's fine. Stopping a watch that doesn't exist is a no-op, and if a
-	// watch was started that needs garbage collecting we'll get it eventually
-	// when GC runs again.
-	//
-	// It's also possible we'll stop a watch that's actually in use. This'd
-	// happen if an XR started composing its type after we listed XRs using
-	// the uncached client. We'll recover from this the next time the XR is
-	// reconciled, when it'll call StartWatches again. That could take some
-	// time though - at worst up to Crossplane's sync interval.
+	// It's possible an XR came to depend on one of these kinds since we read the
+	// tracker - it would have started the watch again as it reconciled. We might
+	// stop it here regardless. That's fine: the XR will restart the watch next
+	// time it reconciles, at worst within Crossplane's sync interval.
 	gc.log.Debug("Garbage collecting watches", "count", len(stop))
 	_, err = gc.engine.StopWatches(ctx, gc.controllerName, stop...)
 
-	return errors.Wrap(err, "cannot stop watches for composed resource types that are no longer referenced by any composite resource")
+	return errors.Wrap(err, "cannot stop watches for kinds no composite resource depends on")
 }

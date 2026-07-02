@@ -445,7 +445,7 @@ func TestStopController(t *testing.T) {
 			u.SetAPIVersion("test.crossplane.io/v1")
 			u.SetKind("Composed")
 
-			err = e.StartWatches(tc.args.ctx, tc.args.name, WatchFor(u, WatchTypeComposedResource, nil))
+			err = e.StartWatches(tc.args.ctx, tc.args.name, WatchFor(u, WatchTypeDependency, nil))
 			if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.StartWatches(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -546,7 +546,7 @@ func TestStartWatches(t *testing.T) {
 						u := &unstructured.Unstructured{}
 						u.SetAPIVersion("test.crossplane.io/v1")
 						u.SetKind("Composed")
-						return WatchFor(u, WatchTypeComposedResource, nil)
+						return WatchFor(u, WatchTypeDependency, nil)
 					}(),
 				},
 			},
@@ -603,14 +603,14 @@ func TestStartWatches(t *testing.T) {
 						u := &unstructured.Unstructured{}
 						u.SetAPIVersion("test.crossplane.io/v1")
 						u.SetKind("Resource")
-						return WatchFor(u, WatchTypeComposedResource, nil)
+						return WatchFor(u, WatchTypeDependency, nil)
 					}(),
 					// This should be deduplicated into the above watch.
 					func() Watch {
 						u := &unstructured.Unstructured{}
 						u.SetAPIVersion("test.crossplane.io/v1")
 						u.SetKind("Resource")
-						return WatchFor(u, WatchTypeComposedResource, nil)
+						return WatchFor(u, WatchTypeDependency, nil)
 					}(),
 					// This shouldn't be deduplicated, because it's a different
 					// watch type.
@@ -626,7 +626,7 @@ func TestStartWatches(t *testing.T) {
 				err: nil,
 				watches: []WatchID{
 					{
-						Type: WatchTypeComposedResource,
+						Type: WatchTypeDependency,
 						GVK: schema.GroupVersionKind{
 							Group:   "test.crossplane.io",
 							Version: "v1",
@@ -757,7 +757,7 @@ func TestStopWatches(t *testing.T) {
 				err:     nil,
 				watches: []WatchID{
 					{
-						Type: WatchTypeComposedResource,
+						Type: WatchTypeDependency,
 						GVK: schema.GroupVersionKind{
 							Group:   "test.crossplane.io",
 							Version: "v1",
@@ -800,7 +800,7 @@ func TestStopWatches(t *testing.T) {
 				name: "cool-controller",
 				ws: []WatchID{
 					{
-						Type: WatchTypeComposedResource,
+						Type: WatchTypeDependency,
 						GVK: schema.GroupVersionKind{
 							Group:   "test.crossplane.io",
 							Version: "v1",
@@ -849,7 +849,7 @@ func TestStopWatches(t *testing.T) {
 				name: "cool-controller",
 				ws: []WatchID{
 					{
-						Type: WatchTypeComposedResource,
+						Type: WatchTypeDependency,
 						GVK: schema.GroupVersionKind{
 							Group:   "test.crossplane.io",
 							Version: "v1",
@@ -910,7 +910,7 @@ func TestStopWatches(t *testing.T) {
 			u1.SetKind("Resource")
 
 			err = e.StartWatches(tc.args.ctx, tc.args.name,
-				WatchFor(u1, WatchTypeComposedResource, nil),
+				WatchFor(u1, WatchTypeDependency, nil),
 				WatchFor(u1, WatchTypeCompositeResource, nil),
 			)
 			if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
