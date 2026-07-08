@@ -72,7 +72,7 @@ var (
 //nolint:gochecknoglobals // We treat this as a constant.
 var rulesSystemExtra = []rbacv1.PolicyRule{
 	{
-		APIGroups: []string{"", coordinationv1.GroupName},
+		APIGroups: []string{"", coordinationv1.GroupName, "events.k8s.io"},
 		Resources: []string{pluralSecrets, pluralConfigmaps, pluralEvents, pluralLeases},
 		Verbs:     verbsEdit,
 	},

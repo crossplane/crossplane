@@ -75,7 +75,7 @@ metadata:
     {{- include "crossplane.labels" . | indent 4 }}
 rules:
 # Crossplane administrators have access to view events.
-- apiGroups: [""]
+- apiGroups: ["", "events.k8s.io"]
   resources: [events]
   verbs: [get, list, watch]
 # Crossplane administrators must create provider credential secrets, and may
@@ -130,7 +130,7 @@ metadata:
     {{- include "crossplane.labels" . | indent 4 }}
 rules:
 # Crossplane editors have access to view events.
-- apiGroups: [""]
+- apiGroups: ["", "events.k8s.io"]
   resources: [events]
   verbs: [get, list, watch]
 # Crossplane editors must create provider credential secrets, and may need to
@@ -174,7 +174,7 @@ metadata:
     {{- include "crossplane.labels" . | indent 4 }}
 rules:
 # Crossplane viewers have access to view events.
-- apiGroups: [""]
+- apiGroups: ["", "events.k8s.io"]
   resources: [events]
   verbs: [get, list, watch]
 # Crossplane viewers may see which namespaces exist.
@@ -213,7 +213,7 @@ metadata:
     {{- include "crossplane.labels" . | indent 4 }}
 rules:
 # Crossplane browsers have access to view events.
-- apiGroups: [""]
+- apiGroups: ["", "events.k8s.io"]
   resources: [events]
   verbs: [get, list, watch]
 # Crossplane browsers have read-only access to compositions and XRDs. This
