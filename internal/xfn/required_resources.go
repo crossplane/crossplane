@@ -17,6 +17,7 @@ package xfn
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"sort"
 
@@ -24,13 +25,19 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
+
+// AnnotationKeyExtraResourcesAs names the ServiceAccount (in the XR's
+// namespace) to impersonate when fetching the XR's ExtraResources.
+const AnnotationKeyExtraResourcesAs = "crossplane.io/extra-resources-as"
 
 // MaxRequirementsIterations is the maximum number of times a Function should be
 // called, limiting the number of times it can request for required resources,
@@ -225,4 +232,121 @@ func (e *ExistingRequiredResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.R
 	}
 
 	return &fnv1.Resources{Items: resources}, nil
+}
+
+// ImpersonationConfig is the impersonation identity for an ExtraResources fetch.
+type ImpersonationConfig = rest.ImpersonationConfig
+
+// An ImpersonationResolver decides, per XR, whether ExtraResources should be
+// fetched under an impersonated identity. (nil, false) means no impersonation.
+type ImpersonationResolver interface {
+	Resolve(xr *composite.Unstructured) (*ImpersonationConfig, bool)
+}
+
+// An ImpersonationResolverFn is a func that implements ImpersonationResolver.
+type ImpersonationResolverFn func(xr *composite.Unstructured) (*ImpersonationConfig, bool)
+
+// Resolve calls fn.
+func (fn ImpersonationResolverFn) Resolve(xr *composite.Unstructured) (*ImpersonationConfig, bool) {
+	return fn(xr)
+}
+
+// AnnotationImpersonationResolver impersonates the ServiceAccount named by the
+// crossplane.io/extra-resources-as annotation (or DefaultSA) in a namespaced
+// XR's namespace. Cluster-scoped XRs are never impersonated.
+type AnnotationImpersonationResolver struct {
+	DefaultSA string
+}
+
+// Resolve implements ImpersonationResolver.
+func (r AnnotationImpersonationResolver) Resolve(xr *composite.Unstructured) (*ImpersonationConfig, bool) {
+	ns := xr.GetNamespace()
+	if ns == "" {
+		return nil, false
+	}
+	sa := xr.GetAnnotations()[AnnotationKeyExtraResourcesAs]
+	if sa == "" {
+		sa = r.DefaultSA
+	}
+	if sa == "" {
+		return nil, false
+	}
+	return &ImpersonationConfig{
+		UserName: fmt.Sprintf("system:serviceaccount:%s:%s", ns, sa),
+	}, true
+}
+
+// clientFactory builds an uncached client.Reader from a *rest.Config.
+type clientFactory func(cfg *rest.Config) (client.Reader, error)
+
+// ImpersonatingRequiredResourcesFetcher fetches ExtraResources under a per-XR
+// impersonated identity when the resolver returns one, and otherwise delegates
+// to base unchanged.
+type ImpersonatingRequiredResourcesFetcher struct {
+	base     *ExistingRequiredResourcesFetcher
+	resolver ImpersonationResolver
+	restCfg  *rest.Config
+	factory  clientFactory
+}
+
+// NewImpersonatingRequiredResourcesFetcher returns an ImpersonatingRequiredResourcesFetcher.
+func NewImpersonatingRequiredResourcesFetcher(
+	base *ExistingRequiredResourcesFetcher,
+	resolver ImpersonationResolver,
+	restCfg *rest.Config,
+	factory clientFactory,
+) *ImpersonatingRequiredResourcesFetcher {
+	return &ImpersonatingRequiredResourcesFetcher{
+		base:     base,
+		resolver: resolver,
+		restCfg:  restCfg,
+		factory:  factory,
+	}
+}
+
+// Fetch impersonates the XR's resolved identity when applicable, otherwise
+// delegates to the base fetcher.
+func (f *ImpersonatingRequiredResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
+	xr, ok := xrFromContext(ctx)
+	if !ok {
+		return f.base.Fetch(ctx, rs)
+	}
+	cfg, impersonate := f.resolver.Resolve(xr)
+	if !impersonate {
+		return f.base.Fetch(ctx, rs)
+	}
+	impCfg := rest.CopyConfig(f.restCfg)
+	impCfg.Impersonate = *cfg
+	c, err := f.factory(impCfg)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot build impersonating client for ExtraResources fetch (xr %q, impersonating %q)", xr.GetName(), cfg.UserName)
+	}
+	return (&ExistingRequiredResourcesFetcher{client: c}).Fetch(ctx, rs)
+}
+
+type xrContextKey struct{}
+
+// WithXRInContext returns ctx carrying xr for ImpersonatingRequiredResourcesFetcher.
+func WithXRInContext(ctx context.Context, xr *composite.Unstructured) context.Context {
+	return context.WithValue(ctx, xrContextKey{}, xr)
+}
+
+func xrFromContext(ctx context.Context) (*composite.Unstructured, bool) {
+	xr, ok := ctx.Value(xrContextKey{}).(*composite.Unstructured)
+	return xr, ok && xr != nil
+}
+
+// NewUncachedClientFactory returns a clientFactory that builds an uncached
+// client from the (impersonating) rest.Config. It clears opts.HTTPClient so
+// client.New builds the client from cfg; a pre-built HTTPClient would ignore
+// cfg.Impersonate.
+func NewUncachedClientFactory(opts client.Options) clientFactory {
+	return func(cfg *rest.Config) (client.Reader, error) {
+		opts.HTTPClient = nil
+		c, err := client.New(cfg, opts)
+		if err != nil {
+			return nil, err
+		}
+		return c, nil
+	}
 }

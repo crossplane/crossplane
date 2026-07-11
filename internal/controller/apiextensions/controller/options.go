@@ -56,4 +56,10 @@ type Options struct {
 	// MinPollInterval is the shortest per-resource poll interval allowed
 	// via the crossplane.io/poll-interval annotation.
 	MinPollInterval time.Duration
+
+	// ResourcesFetcher is used to fetch required resources for composition
+	// functions. When nil the default cached-client fetcher is used. Set to
+	// an ImpersonatingRequiredResourcesFetcher when
+	// EnableAlphaExtraResourcesImpersonation is on.
+	ResourcesFetcher xfn.RequiredResourcesFetcher
 }
