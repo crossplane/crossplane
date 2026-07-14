@@ -144,7 +144,12 @@
       ],
     },
     {
-      description: "Ignore oss-fuzz, it's not using tags, we'll stick to master",
+      // google/oss-fuzz does not publish tags. The action references in
+      // .github/workflows/ci.yml are pinned to a commit SHA per OpenSSF
+      // hardening guidance (closes #7389). Renovate is disabled here so
+      // it does not attempt to bump the pin automatically; the SHA is
+      // refreshed manually on a periodic cadence.
+      description: 'Disable Renovate for google/oss-fuzz; pin SHA is bumped manually',
       matchDepTypes: [
         'action',
       ],
