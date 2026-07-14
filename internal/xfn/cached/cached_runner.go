@@ -269,6 +269,7 @@ func (r *FileBackedRunner) CacheFunction(ctx context.Context, name string, req *
 
 	if _, err := tmp.Write(msg); err != nil {
 		_ = tmp.Close()
+		_ = r.fs.Remove(tmp.Name())
 
 		log.Info("RunFunctionResponse cache write error", "err", err)
 		r.metrics.Error(name)
@@ -277,6 +278,8 @@ func (r *FileBackedRunner) CacheFunction(ctx context.Context, name string, req *
 	}
 
 	if err := tmp.Close(); err != nil {
+		_ = r.fs.Remove(tmp.Name())
+
 		log.Info("RunFunctionResponse cache write error", "err", err)
 		r.metrics.Error(name)
 
@@ -284,6 +287,8 @@ func (r *FileBackedRunner) CacheFunction(ctx context.Context, name string, req *
 	}
 
 	if err := r.fs.Rename(tmp.Name(), key); err != nil {
+		_ = r.fs.Remove(tmp.Name())
+
 		log.Info("RunFunctionResponse cache write error", "err", err)
 		r.metrics.Error(name)
 
