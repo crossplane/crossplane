@@ -427,6 +427,63 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{},
 			},
 		},
+		"SuccessWithUsingResourceOwnerReferenceAfterCompositionOwner": {
+			reason: "We should not update a Usage when the using resource is already an owner but is not the first owner.",
+			args: args{
+				mgr: &fake.Manager{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								switch o := obj.(type) {
+								case *v1beta1.Usage:
+									o.SetUID("usage-uid")
+									o.SetAnnotations(map[string]string{detailsAnnotationKey: reason})
+									o.SetOwnerReferences([]metav1.OwnerReference{
+										{UID: "composition-owner-uid"},
+										{UID: "using-owner-uid"},
+									})
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
+									o.Spec.By = &v1beta1.Resource{
+										Kind:        "AnotherKind",
+										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
+									}
+									o.Spec.Reason = &reason
+								case *composed.Unstructured:
+									switch o.GetName() {
+									case "used":
+										o.SetLabels(map[string]string{inUseLabelKey: "true"})
+										o.SetOwnerReferences([]metav1.OwnerReference{{UID: "usage-uid"}})
+									case "using":
+										o.SetUID("using-owner-uid")
+									}
+								default:
+									return errors.New("unexpected object type")
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(_ client.Object) error {
+								t.Error("unexpected update")
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
 		"SuccessNoUsingResource": {
 			reason: "We should return no error once we have successfully reconciled the usage resource.",
 			args: args{
