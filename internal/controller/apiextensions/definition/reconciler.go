@@ -482,6 +482,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		err = errors.Wrap(err, errApplyCRD)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
+		status.MarkConditions(v1.CannotEstablishComposite().WithMessage(err.Error()))
+		_ = r.client.Status().Update(ctx, d)
 
 		return reconcile.Result{}, err
 	}
