@@ -61,6 +61,7 @@ func (fn FinderFn) FindUsageOf(ctx context.Context, o usage.Object) ([]protectio
 func TestReconcile(t *testing.T) {
 	now := metav1.Now()
 	reason := "protected"
+	const usingName = "using"
 
 	type args struct {
 		mgr  manager.Manager
@@ -291,10 +292,10 @@ func TestReconcile(t *testing.T) {
 								case *v1beta1.Usage:
 									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
-										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
 									}
 								case *composed.Unstructured:
-									if o.GetName() == "using" {
+									if o.GetName() == usingName {
 										return errBoom
 									}
 								}
@@ -329,12 +330,12 @@ func TestReconcile(t *testing.T) {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
-										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
 									}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
-									if o.GetName() == "using" {
+									if o.GetName() == usingName {
 										o.SetAPIVersion("v1")
 										o.SetKind("AnotherKind")
 										o.SetUID("some-uid")
@@ -379,12 +380,12 @@ func TestReconcile(t *testing.T) {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
-										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
 									}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
-									if o.GetName() == "using" {
+									if o.GetName() == usingName {
 										o.SetAPIVersion("v1")
 										o.SetKind("AnotherKind")
 										o.SetUID("some-uid")
@@ -447,7 +448,7 @@ func TestReconcile(t *testing.T) {
 									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										Kind:        "AnotherKind",
-										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
 									}
 									o.Spec.Reason = &reason
 								case *composed.Unstructured:
@@ -455,7 +456,7 @@ func TestReconcile(t *testing.T) {
 									case "used":
 										o.SetLabels(map[string]string{inUseLabelKey: "true"})
 										o.SetOwnerReferences([]metav1.OwnerReference{{UID: "usage-uid"}})
-									case "using":
+									case usingName:
 										o.SetUID("using-owner-uid")
 									}
 								default:
@@ -619,7 +620,7 @@ func TestReconcile(t *testing.T) {
 									o.Spec.By = &v1beta1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",
-										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
 									}
 									return nil
 								}
@@ -665,12 +666,12 @@ func TestReconcile(t *testing.T) {
 									o.Spec.By = &v1beta1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",
-										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
 									}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
-									if o.GetName() == "using" {
+									if o.GetName() == usingName {
 										return errors.New("unexpected call, should not get using resource")
 									}
 									return nil
@@ -927,7 +928,7 @@ func TestReconcile(t *testing.T) {
 									o.Spec.By = &v1beta1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",
-										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
 									}
 									return nil
 								}
