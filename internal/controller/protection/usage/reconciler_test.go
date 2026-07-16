@@ -464,8 +464,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(_ client.Object) error {
-								t.Error("unexpected update")
-								return nil
+								return errors.New("unexpected update")
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
