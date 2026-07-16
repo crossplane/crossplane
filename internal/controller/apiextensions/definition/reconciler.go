@@ -302,11 +302,11 @@ type Reconciler struct {
 
 // Reconcile a CompositeResourceDefinition by defining a new kind of composite
 // resource and starting a controller to reconcile it.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Reconcilers are complex. Be wary of adding more.
+func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Reconcilers are complex. Be wary of adding more.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	ctx, cancel := context.WithTimeout(ogctx, timeout)
 	defer cancel()
 
 	d := &v1.CompositeResourceDefinition{}
@@ -483,7 +483,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errApplyCRD)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
 		status.MarkConditions(v1.CannotEstablishComposite().WithMessage(err.Error()))
-		_ = r.client.Status().Update(ctx, d)
+
+		if updateErr := r.client.Status().Update(ogctx, d); updateErr != nil {
+			log.Debug(errUpdateStatus, "error", updateErr)
+		}
 
 		return reconcile.Result{}, err
 	}
