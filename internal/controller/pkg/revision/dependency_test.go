@@ -627,19 +627,19 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1beta1.Lock)
 							l.Packages = []v1beta1.LockPackage{
 								{
-									Name:    "provider-family-azure-abc123",
-									Source:  "xpkg.upbound.io/upbound/provider-family-azure",
-									Version: "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5",
+									Name:            "provider-family-azure-abc123",
+									Source:          "xpkg.upbound.io/upbound/provider-family-azure",
+									Version:         "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5",
 									ResolvedVersion: "v2.5.6",
 								},
 								{
-									Name:    "provider-azure-storage-def456",
-									Source:  "xpkg.upbound.io/upbound/provider-azure-storage",
-									Version: "sha256:2e10e0d89075cfdf3a1fe097f26f1941229e94593d2cf5f3886d8d46e5fb6a49",
+									Name:            "provider-azure-storage-def456",
+									Source:          "xpkg.upbound.io/upbound/provider-azure-storage",
+									Version:         "sha256:2e10e0d89075cfdf3a1fe097f26f1941229e94593d2cf5f3886d8d46e5fb6a49",
 									ResolvedVersion: "v2.5.6",
 									Dependencies: []v1beta1.Dependency{
 										{
-											Package: "xpkg.upbound.io/upbound/provider-family-azure",
+											Package:     "xpkg.upbound.io/upbound/provider-family-azure",
 											Constraints: "v2.5.6",
 										},
 									},
@@ -666,8 +666,8 @@ func TestResolve(t *testing.T) {
 								if s == "xpkg.upbound.io/upbound/provider-family-azure" {
 									return &dag.PackageNode{
 										LockPackage: v1beta1.LockPackage{
-											Source:  "xpkg.upbound.io/upbound/provider-family-azure",
-											Version: "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5",
+											Source:          "xpkg.upbound.io/upbound/provider-family-azure",
+											Version:         "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5",
 											ResolvedVersion: "v2.5.6",
 										},
 									}, nil
