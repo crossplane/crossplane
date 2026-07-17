@@ -155,16 +155,18 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 	// evaluated during dependency resolution. go-containerregistry parses
 	// tag@digest references as name.Digest, so we extract the tag from the
 	// original reference string.
-	if strings.Contains(pr.GetSource(), "@sha256:") {
-		if idx := strings.LastIndex(pr.GetSource(), ":"); idx != -1 {
-			// Find the colon before @sha256
-			atIdx := strings.Index(pr.GetSource(), "@sha256:")
-			if atIdx != -1 {
-				beforeDigest := pr.GetSource()[:atIdx]
-				if colonIdx := strings.LastIndex(beforeDigest, ":"); colonIdx != -1 {
-					self.ResolvedVersion = beforeDigest[colonIdx+1:]
-				}
-			}
+	if atIdx := strings.Index(pr.GetSource(), "@sha256:"); atIdx != -1 {
+		beforeDigest := pr.GetSource()[:atIdx]
+		// Only treat a colon in the image-name segment (after the last "/")
+		// as a tag separator, so a registry port (e.g. registry:5000/ns/pkg)
+		// is not mistaken for a tag.
+		lastSlash := strings.LastIndex(beforeDigest, "/")
+		namePart := beforeDigest
+		if lastSlash != -1 {
+			namePart = beforeDigest[lastSlash+1:]
+		}
+		if colonIdx := strings.LastIndex(namePart, ":"); colonIdx != -1 {
+			self.ResolvedVersion = namePart[colonIdx+1:]
 		}
 	}
 
