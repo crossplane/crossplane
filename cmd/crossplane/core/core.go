@@ -137,6 +137,7 @@ type startCommand struct {
 	EnableOperations                  bool `group:"Alpha Features:" help:"Enable support for Operations."`
 	EnablePipelineInspector           bool `group:"Alpha Features:" help:"Enable support for emitting function pipeline execution data to a sidecar."`
 	EnableProviderDeletionProtection  bool `group:"Alpha Features:" help:"Enable automatic protection of Providers from deletion when they have active managed resources. Requires --enable-usages."`
+	EnableXRDDeletionProtection       bool `group:"Alpha Features:" help:"Enable automatic protection of CompositeResourceDefinitions and Configurations from deletion when they have active composite resources. Requires --enable-usages."`
 
 	XfnCacheDir             string        `default:"/cache/xfn"                         env:"XFN_CACHE_DIR"             group:"Alpha Features:" help:"Directory used for caching function responses. Requires --enable-function-response-cache."`
 	XfnCacheMaxTTL          time.Duration `default:"24h"                                env:"XFN_CACHE_MAX_TTL"         group:"Alpha Features:" help:"Maximum TTL for cached function responses. Set to 0 to disable. Requires --enable-function-response-cache."`
@@ -356,6 +357,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableProviderDeletionProtection {
 		o.Features.Enable(features.EnableAlphaProviderDeletionProtection)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaProviderDeletionProtection)
+	}
+
+	if c.EnableXRDDeletionProtection {
+		o.Features.Enable(features.EnableAlphaXRDDeletionProtection)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaXRDDeletionProtection)
 	}
 
 	cacheOptionsAPIExt := cache.Options{

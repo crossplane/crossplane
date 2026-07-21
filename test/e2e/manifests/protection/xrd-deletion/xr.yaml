@@ -1,0 +1,6 @@
+apiVersion: e2e.crossplane.io/v1alpha1
+kind: XProtectionTest
+metadata:
+  name: protection-test-xr
+spec:
+  coolField: "test"

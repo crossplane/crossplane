@@ -1,0 +1,4 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: xmockdatabases.quickstart.crossplane.io
