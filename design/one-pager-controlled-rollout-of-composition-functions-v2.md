@@ -25,13 +25,11 @@ removes the coupling altogether (removing the need for function revisions).
 This document proposes a new, simpler design to solve the problem, based on the
 following observations:
 
-1. Unlike other package types, functions do not package resources that should be
-   installed in the cluster (their input types do get installed today, but this
-   is not a desired behavior).
+1. Unlike other package types, functions do not contain resources that get
+   installed in the cluster.
 2. Unlike providers (the other current package type with a runtime component),
    functions are stateless gRPC servers, not controllers. Multiple instances (of
    the same or different revisions) will not interfere with one another.
-3. It is uncommon for functions to have dependencies.
 
 ## Goals
 
@@ -46,8 +44,7 @@ New for this design:
 
 * Allow users to use arbitrary function packages in their compositions without
   the need to pre-install the functions (as dependencies or otherwise).
-* Allow mixing of function installation modes without duplicate runtime
-  resources being created.
+* Allow mixing of function installation modes.
 
 ## Proposal
 
@@ -56,16 +53,11 @@ rollout of composition functions:
 
 1. Allow composition pipeline steps to reference functions by OCI reference
    rather than by Function resource name.
-2. Have the composition revision controller manage functions referenced by OCI
-   reference, avoiding the need to pre-install such functions.
-3. Introduce dedicated resource types for the package runtime controllers,
-   providing a common substrate for functions managed by the composition
-   revision controller and those installed the traditional way using the package
-   manager. This also makes the package manager conceptually simpler, since each
-   resource type will be reconciled by only one controller.
-
-To limit risk, these changes will be introduced behind a feature flag, which
-will initially be off by default.
+2. Have the composition revision controller manage functions and function
+   revisions referenced by OCI reference, avoiding the need to pre-install such
+   functions.
+3. To accommodate (2), introduce the concept of "external revisions" for
+   functions.
 
 Note that while this design addresses only composition functions, the pipeline
 and package manager changes apply also to operation functions. Operations do not
@@ -100,18 +92,20 @@ The `function` field, if given, must contain a fully-qualified OCI reference
 provide both `function` and `functionRef`.
 
 When `function` is provided, the composition revision controller will ensure
-that the specified function is running by creating a `FunctionRuntime` resource
-for it (see the package manager section below). If a `FunctionRuntime` already
-exists, the composition revision will be added as an owner reference. The same
+that the specified function is running by creating a `FunctionRevision` resource
+for it and a `Function` resource with the revision included in
+`spec.externalRevisions` (see the package manager section below). If a matching
+`FunctionRevision` already exists, the composition revision will be added as an
+owner reference. Similarly, if a matching `Function` already exists, it gets an
+owner reference and the revision added to its `externalRevisions`. The same
 applies to the operation controller (operations execute in a one-shot manner,
 and as such do not have revisions).
 
 A user wishing to roll out a new version of `function-patch-and-transform`
 simply updates their composition to reference the new version, resulting in
-creation of a new composition revision and runtime creation for the new function
-version. The existing `compositionUpdatePolicy` and
-`compositionRevisionSelector` mechanisms on XRs can be used to progressively
-roll out the change:
+creation of a new composition revision and function revision. The existing
+`compositionUpdatePolicy` and `compositionRevisionSelector` mechanisms on XRs
+can be used to progressively roll out the change:
 
 ```yaml
 apiVersion: custom-api.example.org/v1alpha1
@@ -136,34 +130,24 @@ further safety.
 
 ### Package Manager Changes
 
-Currently, both the package revision controller and the package runtime
-controller operate on package revision resources (`FunctionRevision` and
-`ProviderRevision`). The revision controller installs resources (CRDs, etc.)
-from the package, while the runtime controller creates runtime resources
-(deployments, services, etc.) for active revisions of packages that have a
-runtime component.
+In order to allow for `FunctionRevision`s that are not controlled by the package
+manager, we will make two backward-compatible API changes for package resources:
 
-In order to allow runtime-only packages, we will introduce new `FunctionRuntime`
-and `ProviderRuntime` resources, which will be reconciled by the package runtime
-controller. The revision controller will be changed to create a runtime resource
-corresponding to the active revision; the runtime controller will no longer
-operate on revisions directly.
+1. Make `spec.package` optional.
+2. Add `spec.externalRevisionRefs`.
 
-This allows the composition revision controller to create its own
-`FunctionRuntime` resources to run functions without creating `Function`s or
-`FunctionRevision`s. The package revision and composition revision controllers
-will use the same scheme to name their `FunctionRevision`s, ensuring that a
-particular version of a function runs only once even if it's installed multiple
-ways. I.e., a `FunctionRuntime` may be shared between a `FunctionRevision` and
-one or more `CompositionRevision`s.
+A package with an empty `spec.package` does not have revisions managed by the
+package manager. The status of the package is computed from the revisions
+referenced in `externalRevisionRefs`. A package may have both `package` and
+`externalRevisionRefs` (e.g., if it was installed as a dependency and also by
+being referenced in a composition); in this case, the package manager ignores
+`externalRevisionRefs`, but they are still present for visibility.
 
-Note that this change has two side effects for functions installed by the
-composition revision controller:
-
-1. Their dependencies will not be installed, as there will be no revision
-   inserted into the `Lock`.
-2. They will not have corresponding package or package revision resources,
-   meaning they will not show up in `kubectl get pkg` or similar commands.
+The package manager's resolver controller (which controls the `Lock` resource)
+will be updated to allow multiple versions of a package to be installed at
+once. This lets composition-controlled functions participate in dependency
+resolution, meaning that a function version referred to in a composition and
+also depended upon by another package will be installed only once.
 
 ### Function Runner Changes
 
@@ -173,10 +157,10 @@ with the `pkg.crossplane.io/package` label set to the function's name, then
 finding the single active revision in the list. This logic will change as
 follows:
 
-1. If `function` is specified, the relevant `FunctionRuntime` resource will be
+1. If `function` is specified, the relevant `FunctionRevision` resource will be
    looked up directly using the `pkg.crossplane.io/source` label.
 2. If `functionRef` is specified, the existing logic to find the active revision
-   is unchanged, but the endpoint will be read from the `FunctionRuntime`'s
+   is unchanged, but the endpoint will be read from the `FunctionRevision`'s
    status.
 
 The signature of the `FunctionRunner` in `internal/xfn` will change such that
@@ -200,6 +184,12 @@ pool will likewise be keyed by OCI ref.
   this change would introduce significant additional complexity to the
   composition controller, and would not solve the problem for functions that
   don't take input.
+* Introduce a new `FunctionRuntime` API to allow the composition controller to
+  spin up functions without interacting with existing package manager types at
+  all. This is somewhat simpler than the current proposal, but has two confusing
+  side-effects: composition-controlled functions don't participate in dependency
+  resolution, and users can't see composition-controlled functions in `kubectl
+  get pkg`.
 * The [previous design][v1], which had the package manager allow for multiple
   active revisions of a package and added revision selectors in compositions.
 
