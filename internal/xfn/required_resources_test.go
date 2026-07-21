@@ -411,6 +411,9 @@ func TestFetchingFunctionRunner(t *testing.T) {
 	// Used in the Success test
 	called := false
 
+	// Used in the SeededRequirementResolvesInOneCall test.
+	seededCalls := 0
+
 	type params struct {
 		wrapped   FunctionRunner
 		resources RequiredResourcesFetcher
@@ -618,6 +621,52 @@ func TestFetchingFunctionRunner(t *testing.T) {
 							"gimme": {
 								ApiVersion: "test.crossplane.io/v1",
 								Kind:       "CoolResource",
+							},
+						},
+					},
+				},
+			},
+		},
+		"SeededRequirementResolvesInOneCall": {
+			reason: "If the request is already seeded with the resources a function requires, we should call it only once.",
+			params: params{
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					seededCalls++
+					if seededCalls > 1 {
+						t.Errorf("function called %d times; want 1 - a seeded request should satisfy its requirements in a single call", seededCalls)
+					}
+					return &fnv1.RunFunctionResponse{
+						Requirements: &fnv1.Requirements{
+							Resources: map[string]*fnv1.ResourceSelector{
+								"gimme": {
+									ApiVersion: "test.crossplane.io/v1",
+									Kind:       "CoolResource",
+									Match:      &fnv1.ResourceSelector_MatchName{MatchName: "pretty-cool"},
+								},
+							},
+						},
+					}, nil
+				}),
+				resources: RequiredResourcesFetcherFn(func(_ context.Context, _ *fnv1.ResourceSelector) (*fnv1.Resources, error) {
+					return &fnv1.Resources{Items: []*fnv1.Resource{{Resource: coolResource}}}, nil
+				}),
+				schemas: NopRequiredSchemasFetcher{},
+			},
+			args: args{
+				req: &fnv1.RunFunctionRequest{
+					RequiredResources: map[string]*fnv1.Resources{
+						"gimme": {Items: []*fnv1.Resource{{Resource: coolResource}}},
+					},
+				},
+			},
+			want: want{
+				rsp: &fnv1.RunFunctionResponse{
+					Requirements: &fnv1.Requirements{
+						Resources: map[string]*fnv1.ResourceSelector{
+							"gimme": {
+								ApiVersion: "test.crossplane.io/v1",
+								Kind:       "CoolResource",
+								Match:      &fnv1.ResourceSelector_MatchName{MatchName: "pretty-cool"},
 							},
 						},
 					},
