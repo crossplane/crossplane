@@ -109,7 +109,10 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		log.Debug("cannot list ManagedResourceDefinition", "error", err)
 
 		status.MarkConditions(v1alpha1.BlockedActivationPolicy().WithMessage("cannot list ManagedResourceDefinition"))
-		_ = r.Status().Update(ogctx, mrap)
+		if err := r.Status().Update(ogctx, mrap); err != nil {
+			log.Debug("Error when Updating mrd", "err", err)
+			r.record.Event(mrap, event.Warning("BlockedManagedResourceActivationPolicy", err))
+		}
 
 		return reconcile.Result{}, errors.Wrap(err, "cannot list ManagedResourceDefinition")
 	}
