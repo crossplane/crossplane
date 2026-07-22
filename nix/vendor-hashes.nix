@@ -15,5 +15,5 @@
   root = "sha256-aCKzR47Zz6lB7gqi0d3WPSxX/GIDXsOCFvdlUwPvpJM=";
 
   # apis module: github.com/crossplane/crossplane/apis/v2
-  apis = "sha256-YiOGaFwS7lfax4f/wF6yciiT4VT8GoJuuVTGj0ESqIE=";
+  apis = "sha256-RAPXFPTDygOxAJqu4dzQAIXXPdPID86VrRmvzRwxYV0=";
 }
