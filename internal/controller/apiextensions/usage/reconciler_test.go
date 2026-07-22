@@ -54,6 +54,7 @@ func (f fakeSelectorResolver) resolveSelectors(ctx context.Context, u *v1beta1.U
 func TestReconcile(t *testing.T) {
 	now := metav1.Now()
 	reason := "protected"
+	const usingName = "using"
 	type args struct {
 		mgr  manager.Manager
 		opts []ReconcilerOption
@@ -272,10 +273,10 @@ func TestReconcile(t *testing.T) {
 								case *v1beta1.Usage:
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
-										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
 									}
 								case *composed.Unstructured:
-									if o.GetName() == "using" {
+									if o.GetName() == usingName {
 										return errBoom
 									}
 								}
@@ -309,12 +310,12 @@ func TestReconcile(t *testing.T) {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
-										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
 									}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
-									if o.GetName() == "using" {
+									if o.GetName() == usingName {
 										o.SetAPIVersion("v1")
 										o.SetKind("AnotherKind")
 										o.SetUID("some-uid")
@@ -358,12 +359,12 @@ func TestReconcile(t *testing.T) {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
-										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
 									}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
-									if o.GetName() == "using" {
+									if o.GetName() == usingName {
 										o.SetAPIVersion("v1")
 										o.SetKind("AnotherKind")
 										o.SetUID("some-uid")
@@ -390,6 +391,61 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"SuccessWithUsingResourceOwnerReferenceAfterCompositionOwner": {
+			reason: "We should not update a Usage when the using resource is already an owner but is not the first owner.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								switch o := obj.(type) {
+								case *v1beta1.Usage:
+									o.SetUID("usage-uid")
+									o.SetAnnotations(map[string]string{detailsAnnotationKey: reason})
+									o.SetOwnerReferences([]metav1.OwnerReference{
+										{UID: "composition-owner-uid"},
+										{UID: "using-owner-uid"},
+									})
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.By = &v1beta1.Resource{
+										Kind:        "AnotherKind",
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
+									}
+									o.Spec.Reason = &reason
+								case *composed.Unstructured:
+									switch o.GetName() {
+									case "used":
+										o.SetLabels(map[string]string{inUseLabelKey: "true"})
+										o.SetOwnerReferences([]metav1.OwnerReference{{UID: "usage-uid"}})
+									case usingName:
+										o.SetUID("using-owner-uid")
+									}
+								default:
+									return errors.New("unexpected object type")
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(_ client.Object) error {
+								return errors.New("unexpected update")
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
@@ -538,7 +594,7 @@ func TestReconcile(t *testing.T) {
 									o.Spec.By = &v1beta1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",
-										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
 									}
 									return nil
 								}
@@ -580,12 +636,12 @@ func TestReconcile(t *testing.T) {
 									o.Spec.By = &v1beta1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",
-										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
 									}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
-									if o.GetName() == "using" {
+									if o.GetName() == usingName {
 										return errors.New("unexpected call, should not get using resource")
 									}
 									return nil
@@ -834,7 +890,7 @@ func TestReconcile(t *testing.T) {
 									o.Spec.By = &v1beta1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",
-										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
 									}
 									return nil
 								}
