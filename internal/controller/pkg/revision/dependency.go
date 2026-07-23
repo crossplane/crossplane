@@ -77,6 +77,34 @@ func NewPackageDependencyManager(c client.Client, nd dag.NewDAGFn, pkgType schem
 	}
 }
 
+// parseRef splits an OCI reference into its tag and digest components.
+// A reference may carry both (e.g. v1.0.0@sha256:...), in which case
+// go-containerregistry parses it as a name.Digest and Identifier() returns
+// only the digest, so the tag is recovered from the original string.
+func parseRef(s string) (tag, digest string, err error) {
+	ref, err := name.ParseReference(s, name.StrictValidation)
+	if err != nil {
+		return "", "", errors.Wrap(err, "invalid reference")
+	}
+
+	switch r := ref.(type) {
+	case name.Digest:
+		// Check whether there was also a tag.
+		stripped := strings.TrimSuffix(s, "@"+r.DigestStr())
+		if tag, err := name.NewTag(stripped, name.StrictValidation); err == nil {
+			return tag.TagStr(), r.DigestStr(), nil
+		}
+
+		return "", r.DigestStr(), nil
+
+	case name.Tag:
+		return r.TagStr(), "", nil
+
+	default:
+		return "", "", errors.Errorf("unknown reference type %T", ref)
+	}
+}
+
 // Resolve resolves package dependencies.
 func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.Pkg, pr v1.PackageRevision) (found, installed, invalid int, err error) { //nolint:gocognit // TODO(negz): Can this be refactored for less complexity?
 	// If we are inactive, we don't need to resolve dependencies.
@@ -153,21 +181,10 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 	// If the reference includes both a tag and a digest (e.g. v1.0.0@sha256:...),
 	// preserve the tag as ResolvedVersion so that semver constraints can be
 	// evaluated during dependency resolution. go-containerregistry parses
-	// tag@digest references as name.Digest, so we extract the tag from the
+	// tag@digest references as name.Digest, so the tag is recovered from the
 	// original reference string.
-	if atIdx := strings.Index(pr.GetSource(), "@sha256:"); atIdx != -1 {
-		beforeDigest := pr.GetSource()[:atIdx]
-		// Only treat a colon in the image-name segment (after the last "/")
-		// as a tag separator, so a registry port (e.g. registry:5000/ns/pkg)
-		// is not mistaken for a tag.
-		lastSlash := strings.LastIndex(beforeDigest, "/")
-		namePart := beforeDigest
-		if lastSlash != -1 {
-			namePart = beforeDigest[lastSlash+1:]
-		}
-		if colonIdx := strings.LastIndex(namePart, ":"); colonIdx != -1 {
-			self.ResolvedVersion = namePart[colonIdx+1:]
-		}
+	if tag, digest, err := parseRef(pr.GetSource()); err == nil && tag != "" && digest != "" {
+		self.ResolvedVersion = tag
 	}
 
 	// Delete packages in lock with same name and distinct source

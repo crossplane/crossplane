@@ -364,23 +364,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				// digest (e.g. v1.0.0@sha256:...), go-containerregistry parses
 				// it as a Digest and Identifier() returns only the digest. We
 				// need the tag for semver constraint evaluation during
-				// upgrades, so extract it from the original source string.
-				if _, err := conregv1.NewHash(installedVersion); err == nil && strings.Contains(source, "@sha256:") {
-					atIdx := strings.Index(source, "@sha256:")
-					if atIdx != -1 {
-						beforeDigest := source[:atIdx]
-						// Find the last "/" so we don't mistake a registry port for a tag separator.
-						lastSlash := strings.LastIndex(beforeDigest, "/")
-						searchStart := 0
-						if lastSlash != -1 {
-							searchStart = lastSlash + 1
-						}
-						if colonIdx := strings.LastIndex(beforeDigest[searchStart:], ":"); colonIdx != -1 {
-							resolvedTag := beforeDigest[searchStart:][colonIdx+1:]
-							if resolvedTag != "" {
-								installedVersion = resolvedTag
-							}
-						}
+				// upgrades.
+				if tag, digest, err := parseRef(source); err == nil && tag != "" && digest != "" {
+					if _, err := conregv1.NewHash(installedVersion); err == nil {
+						installedVersion = tag
 					}
 				}
 			}
@@ -465,7 +452,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Update the package with the new version.
 	format := packageTagFmt
-	if strings.HasPrefix(newVer, "sha256:") {
+	if _, err := conregv1.NewHash(newVer); err == nil {
 		format = packageDigestFmt
 	}
 
@@ -733,13 +720,41 @@ func matchesAnyConstraint(version string, resolvedVersion string, constraints []
 	return false
 }
 
+// parseRef splits an OCI reference into its tag and digest components.
+// A reference may carry both (e.g. v1.0.0@sha256:...), in which case
+// go-containerregistry parses it as a name.Digest and Identifier() returns
+// only the digest, so the tag is recovered from the original string.
+func parseRef(s string) (tag, digest string, err error) {
+	ref, err := name.ParseReference(s, name.StrictValidation)
+	if err != nil {
+		return "", "", errors.Wrap(err, "invalid reference")
+	}
+
+	switch r := ref.(type) {
+	case name.Digest:
+		// Check whether there was also a tag.
+		stripped := strings.TrimSuffix(s, "@"+r.DigestStr())
+		if tag, err := name.NewTag(stripped, name.StrictValidation); err == nil {
+			return tag.TagStr(), r.DigestStr(), nil
+		}
+
+		return "", r.DigestStr(), nil
+
+	case name.Tag:
+		return r.TagStr(), "", nil
+
+	default:
+		return "", "", errors.Errorf("unknown reference type %T", ref)
+	}
+}
+
 // NewPackage creates a new package from the given dependency and version.
 func NewPackage(dep *v1beta1.Dependency, version string, ref name.Reference) (*unstructured.Unstructured, error) {
 	pack := &unstructured.Unstructured{}
 	pack.SetName(xpkg.ToDNSLabel(ref.Context().RepositoryStr()))
 
 	format := packageTagFmt
-	if strings.HasPrefix(version, "sha256:") {
+	if _, err := conregv1.NewHash(version); err == nil {
 		format = packageDigestFmt
 	}
 
