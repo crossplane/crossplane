@@ -20,6 +20,7 @@ package usage
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -435,7 +436,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		// usageResource should have a finalizer and be owned by the using resource.
-		if owners := u.GetOwnerReferences(); len(owners) == 0 || owners[0].UID != using.GetUID() {
+		if !slices.ContainsFunc(u.GetOwnerReferences(), func(owner metav1.OwnerReference) bool {
+			return owner.UID == using.GetUID()
+		}) {
 			meta.AddOwnerReference(u, meta.AsOwner(
 				meta.TypedReferenceTo(using, using.GetObjectKind().GroupVersionKind()),
 			))
