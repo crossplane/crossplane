@@ -34,6 +34,7 @@ metadata:
   name: {{ template "crossplane.name" . }}-edit
   labels:
     app: {{ template "crossplane.name" . }}
+    rbac.crossplane.io/aggregate-to-admin: "true"
     {{- include "crossplane.labels" . | indent 4 }}
 aggregationRule:
   clusterRoleSelectors:
@@ -46,6 +47,7 @@ metadata:
   name: {{ template "crossplane.name" . }}-view
   labels:
     app: {{ template "crossplane.name" . }}
+    rbac.crossplane.io/aggregate-to-edit: "true"
     {{- include "crossplane.labels" . | indent 4 }}
 aggregationRule:
   clusterRoleSelectors:
