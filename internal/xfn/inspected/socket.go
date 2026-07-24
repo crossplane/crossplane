@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -74,6 +75,29 @@ func NewSocketPipelineInspector(socketPath string, o ...SocketPipelineInspectorO
 	}
 
 	return e, nil
+}
+
+// WaitUntilReady blocks until the underlying gRPC connection to the inspector
+// sidecar is ready, or the supplied context is done. The connection is
+// otherwise established lazily by the first emit call, which races the
+// sidecar's own startup and can make early emit calls time out. Returns the
+// context's error if the connection isn't ready before the context is done.
+func (e *SocketPipelineInspector) WaitUntilReady(ctx context.Context) error {
+	for {
+		s := e.conn.GetState()
+		if s == connectivity.Ready {
+			return nil
+		}
+		if s == connectivity.Idle {
+			// The channel starts out idle, and returns to idle when a
+			// connection attempt fails. Ask it to connect, since nothing
+			// else will until the first RPC.
+			e.conn.Connect()
+		}
+		if !e.conn.WaitForStateChange(ctx, s) {
+			return ctx.Err()
+		}
+	}
 }
 
 // EmitRequest emits the function request before execution. Credentials are

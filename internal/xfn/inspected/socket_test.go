@@ -18,6 +18,9 @@ package inspected
 import (
 	"context"
 	"errors"
+	"net"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -550,6 +553,93 @@ func TestSocketPipelineInspectorEmitResponse(t *testing.T) {
 				if diff := cmp.Diff(tc.want.expectedRsp, &gotRsp, protocmp.Transform()); diff != "" {
 					t.Errorf("\n%s\nEmitResponse(...) sanitized response: -want, +got:\n%s", tc.reason, diff)
 				}
+			}
+		})
+	}
+}
+
+func TestSocketPipelineInspectorWaitUntilReady(t *testing.T) {
+	type want struct {
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		// serveAfter is how long to wait before the sidecar's gRPC server
+		// starts serving on the socket. Negative means it never serves.
+		serveAfter time.Duration
+		timeout    time.Duration
+		want       want
+	}{
+		"SidecarAlreadyServing": {
+			reason:     "Should return nil when the sidecar is already serving.",
+			serveAfter: 0,
+			timeout:    10 * time.Second,
+		},
+		"SidecarServesLate": {
+			reason:     "Should recover when the sidecar starts serving after a delay, as it can when its container is still starting.",
+			serveAfter: 200 * time.Millisecond,
+			timeout:    10 * time.Second,
+		},
+		"SidecarNeverServes": {
+			reason:     "Should return the context's error when the sidecar never starts serving.",
+			serveAfter: -1,
+			timeout:    100 * time.Millisecond,
+			want:       want{err: context.DeadlineExceeded},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			// Keep the socket name short. Unix socket paths have a low
+			// length limit on some platforms (e.g. 104 bytes on darwin),
+			// and t.TempDir() embeds the full test and subtest name, which
+			// can exceed that. Use a short-named temp dir instead.
+			dir, err := os.MkdirTemp("", "pi") //nolint:usetesting // t.TempDir() embeds the test name and can exceed the darwin unix socket path limit.
+			if err != nil {
+				t.Fatalf("os.MkdirTemp(...): %v", err)
+			}
+			t.Cleanup(func() { _ = os.RemoveAll(dir) })
+			socketPath := filepath.Join(dir, "pi.sock")
+
+			if tc.serveAfter >= 0 {
+				s := grpc.NewServer()
+				t.Cleanup(s.Stop)
+
+				serve := func() {
+					lis, err := net.Listen("unix", socketPath)
+					if err != nil {
+						t.Errorf("net.Listen(...): %v", err)
+						return
+					}
+					go func() {
+						_ = s.Serve(lis)
+					}()
+				}
+
+				if tc.serveAfter == 0 {
+					serve()
+				} else {
+					timer := time.AfterFunc(tc.serveAfter, serve)
+					t.Cleanup(func() { timer.Stop() })
+				}
+			}
+
+			inspector, err := NewSocketPipelineInspector(socketPath)
+			if err != nil {
+				t.Fatalf("NewSocketPipelineInspector(...): %v", err)
+			}
+			t.Cleanup(func() {
+				_ = inspector.Close()
+			})
+
+			ctx, cancel := context.WithTimeout(context.Background(), tc.timeout)
+			defer cancel()
+
+			err = inspector.WaitUntilReady(ctx)
+
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nWaitUntilReady(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
 		})
 	}

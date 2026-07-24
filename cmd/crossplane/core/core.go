@@ -516,6 +516,17 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			}
 		}()
 
+		// The inspector connects lazily, so the first emit calls race the
+		// sidecar's own startup and time out if its gRPC server isn't
+		// accepting connections yet. Wait briefly for it to be ready before
+		// functions start running. Inspection is best effort, so start
+		// anyway if it isn't ready in time.
+		wctx, wcancel := context.WithTimeout(ctx, 10*time.Second)
+		if err := inspector.WaitUntilReady(wctx); err != nil {
+			log.Info("Pipeline inspector sidecar is not ready, pipeline data may not be inspected until it is", "error", err)
+		}
+		wcancel()
+
 		runner = inspected.NewRunner(runner, inspector,
 			inspected.WithMetrics(ifrm),
 			inspected.WithLogger(log))
