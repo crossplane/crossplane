@@ -25,8 +25,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -40,6 +42,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
 
+	extv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
@@ -65,6 +69,8 @@ const (
 	errGetRuntimeConfig         = "cannot get referenced deployment runtime config"
 	errUnknownKindRuntimeConfig = "runtime config is set but is an unknown apiVersion and kind"
 	errGetServiceAccount        = "cannot get Crossplane service account"
+
+	errListMRDs = "cannot list managed resource definitions"
 )
 
 // Event reasons.
@@ -179,7 +185,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, EnqueuePackageRevisionsForRuntimeConfig(mgr.GetClient(), &v1.ProviderRevisionList{}, log))
 	}
 
-	r := NewReconciler(mgr,
+	rOpts := []ReconcilerOption{
 		WithNewPackageRevisionWithRuntimeFn(nr),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
@@ -189,7 +195,13 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithFeatureFlags(o.Features),
 		WithDeploymentSelectorMigrator(NewDeletingDeploymentSelectorMigrator(mgr.GetClient(), log)),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
-	)
+	}
+
+	// Watch MRDs so we can scale up a safe-start provider's runtime the moment
+	// its first MRD becomes active, without waiting for the next scheduled sync.
+	cb = cb.Watches(&extv1alpha1.ManagedResourceDefinition{}, EnqueueProviderRevisionsForMRDs(log), builder.WithPredicates(mrdActivated()))
+
+	r := NewReconciler(mgr, rOpts...)
 
 	return cb.WithOptions(o.ForControllerRuntime()).
 		Complete(errors.WithSilentRequeueOnConflict(r))
@@ -324,6 +336,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		opts = append(opts, BuilderWithPullSecrets(pullSecretFromConfig))
 	}
 
+	ownedMRDs, err := r.ownedMRDs(ctx, pr)
+	if err != nil {
+		status.MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
+
+		_ = r.client.Status().Update(ctx, pr)
+		r.record.Event(pr, event.Warning(reasonSync, err))
+
+		return reconcile.Result{}, err
+	}
+
+	opts = append(opts, BuilderWithMRDs(ownedMRDs))
 	builder := NewDeploymentRuntimeBuilder(pr, r.namespace, opts...)
 
 	// Deactivate revision if it is inactive.
@@ -394,9 +417,34 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
 	}
 
-	status.MarkConditions(v1.RuntimeHealthy())
+	if builder.AwaitingActivation() {
+		status.MarkConditions(v1.RuntimeHealthy(), v1.RuntimeAwaitingActivation().WithMessage("Package runtime is scaled to zero; awaiting the first ManagedResourceDefinition to be activated"))
+	} else {
+		status.MarkConditions(v1.RuntimeHealthy(), v1.RuntimeActive())
+	}
 
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+}
+
+// ownedMRDs returns the ManagedResourceDefinitions controlled by pr.
+// Returns nil without listing if pr does not have the safe-start capability.
+func (r *Reconciler) ownedMRDs(ctx context.Context, pr v1.PackageRevisionWithRuntime) ([]extv1alpha1.ManagedResourceDefinition, error) {
+	if !pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
+		return nil, nil
+	}
+
+	mrds := &extv1alpha1.ManagedResourceDefinitionList{}
+	if err := r.client.List(ctx, mrds); err != nil {
+		return nil, errors.Wrap(err, errListMRDs)
+	}
+
+	var owned []extv1alpha1.ManagedResourceDefinition
+	for i := range mrds.Items {
+		if metav1.IsControlledBy(&mrds.Items[i], pr) {
+			owned = append(owned, mrds.Items[i])
+		}
+	}
+	return owned, nil
 }
 
 func (r *Reconciler) builderOptions(ctx context.Context, pwr v1.PackageRevisionWithRuntime) ([]BuilderOption, error) {
