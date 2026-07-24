@@ -153,7 +153,7 @@ type DeploymentRuntimeBuilder struct {
 	serviceAccountPullSecrets []corev1.LocalObjectReference
 	runtimeConfig             *v1beta1.DeploymentRuntimeConfig
 	pullSecrets               []string
-	defaultReplicas           int32
+	awaitingActivation        bool
 }
 
 // BuilderOption is used to configure a DeploymentRuntimeBuilder.
@@ -185,9 +185,8 @@ func BuilderWithPullSecrets(secrets ...string) BuilderOption {
 
 // BuilderWithMRDs configures the builder with the ManagedResourceDefinitions
 // owned by the package revision. If the revision has the safe-start capability
-// and all its owned MRDs are inactive, the builder defaults the Deployment to
-// zero replicas until the first MRD is activated. Explicit replicas from a
-// deployment runtime config still win.
+// and all its owned MRDs are inactive, the builder scales the Deployment to
+// zero replicas until the first MRD is activated.
 func BuilderWithMRDs(mrds []extv1alpha1.ManagedResourceDefinition) BuilderOption {
 	return func(b *DeploymentRuntimeBuilder) {
 		if !pkgmetav1.CapabilitiesContainFuzzyMatch(b.revision.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
@@ -207,7 +206,7 @@ func BuilderWithMRDs(mrds []extv1alpha1.ManagedResourceDefinition) BuilderOption
 				return
 			}
 		}
-		b.defaultReplicas = 0
+		b.awaitingActivation = true
 	}
 }
 
@@ -215,27 +214,14 @@ func BuilderWithMRDs(mrds []extv1alpha1.ManagedResourceDefinition) BuilderOption
 // package runtime should be scaled to zero, awaiting activation of its first
 // ManagedResourceDefinition.
 func (b *DeploymentRuntimeBuilder) AwaitingActivation() bool {
-	if b.defaultReplicas != 0 {
-		return false
-	}
-	// DeploymentWithOptionalReplicas is a no-op when the runtime config
-	// already supplies spec.replicas, so the deployment won't actually run at
-	// zero replicas in that case.
-	if b.runtimeConfig != nil &&
-		b.runtimeConfig.Spec.DeploymentTemplate != nil &&
-		b.runtimeConfig.Spec.DeploymentTemplate.Spec != nil &&
-		b.runtimeConfig.Spec.DeploymentTemplate.Spec.Replicas != nil {
-		return false
-	}
-	return true
+	return b.awaitingActivation
 }
 
 // NewDeploymentRuntimeBuilder returns a new DeploymentRuntimeBuilder.
 func NewDeploymentRuntimeBuilder(pwr v1.PackageRevisionWithRuntime, namespace string, opts ...BuilderOption) *DeploymentRuntimeBuilder {
 	b := &DeploymentRuntimeBuilder{
-		namespace:       namespace,
-		revision:        pwr,
-		defaultReplicas: 1,
+		namespace: namespace,
+		revision:  pwr,
 	}
 
 	for _, o := range opts {
@@ -292,7 +278,7 @@ func (b *DeploymentRuntimeBuilder) Deployment(serviceAccount string, overrides .
 		// Optional defaults, will be used only if the runtime config does not
 		// specify them.
 		DeploymentWithOptionalName(b.revision.GetName()),
-		DeploymentWithOptionalReplicas(b.defaultReplicas),
+		DeploymentWithOptionalReplicas(1),
 		DeploymentWithOptionalPodSecurityContext(&corev1.PodSecurityContext{
 			RunAsNonRoot: &RunAsNonRoot,
 			RunAsUser:    &RunAsUser,
@@ -320,6 +306,15 @@ func (b *DeploymentRuntimeBuilder) Deployment(serviceAccount string, overrides .
 			},
 		}),
 	)
+
+	if b.awaitingActivation {
+		// Scale the runtime to zero while awaiting activation, overriding any
+		// replica count from the deployment runtime config. A provider only
+		// asks for multiple replicas for leader-election standby or webhook
+		// redundancy, neither of which matters while none of its managed
+		// resources are being reconciled.
+		allOverrides = append(allOverrides, DeploymentWithReplicas(0))
+	}
 
 	for _, s := range b.pullSecrets {
 		allOverrides = append(allOverrides, DeploymentWithAdditionalPullSecret(corev1.LocalObjectReference{Name: s}))
