@@ -29,6 +29,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
+	extv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 )
@@ -151,6 +153,7 @@ type DeploymentRuntimeBuilder struct {
 	serviceAccountPullSecrets []corev1.LocalObjectReference
 	runtimeConfig             *v1beta1.DeploymentRuntimeConfig
 	pullSecrets               []string
+	defaultReplicas           int32
 }
 
 // BuilderOption is used to configure a DeploymentRuntimeBuilder.
@@ -180,11 +183,59 @@ func BuilderWithPullSecrets(secrets ...string) BuilderOption {
 	}
 }
 
+// BuilderWithMRDs configures the builder with the ManagedResourceDefinitions
+// owned by the package revision. If the revision has the safe-start capability
+// and all its owned MRDs are inactive, the builder defaults the Deployment to
+// zero replicas until the first MRD is activated. Explicit replicas from a
+// deployment runtime config still win.
+func BuilderWithMRDs(mrds []extv1alpha1.ManagedResourceDefinition) BuilderOption {
+	return func(b *DeploymentRuntimeBuilder) {
+		if !pkgmetav1.CapabilitiesContainFuzzyMatch(b.revision.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
+			return
+		}
+		// One-way latch: once the runtime has been activated, never scale it
+		// back to zero even if MRDs later appear inactive (deactivation is not
+		// yet supported, but guard against manual edits or future changes).
+		if b.revision.GetCondition(v1.TypeRuntimeActive).Reason == v1.ReasonActiveRuntime {
+			return
+		}
+		if len(mrds) == 0 {
+			return
+		}
+		for _, mrd := range mrds {
+			if mrd.Spec.State.IsActive() {
+				return
+			}
+		}
+		b.defaultReplicas = 0
+	}
+}
+
+// AwaitingActivation reports whether the builder has determined that the
+// package runtime should be scaled to zero, awaiting activation of its first
+// ManagedResourceDefinition.
+func (b *DeploymentRuntimeBuilder) AwaitingActivation() bool {
+	if b.defaultReplicas != 0 {
+		return false
+	}
+	// DeploymentWithOptionalReplicas is a no-op when the runtime config
+	// already supplies spec.replicas, so the deployment won't actually run at
+	// zero replicas in that case.
+	if b.runtimeConfig != nil &&
+		b.runtimeConfig.Spec.DeploymentTemplate != nil &&
+		b.runtimeConfig.Spec.DeploymentTemplate.Spec != nil &&
+		b.runtimeConfig.Spec.DeploymentTemplate.Spec.Replicas != nil {
+		return false
+	}
+	return true
+}
+
 // NewDeploymentRuntimeBuilder returns a new DeploymentRuntimeBuilder.
 func NewDeploymentRuntimeBuilder(pwr v1.PackageRevisionWithRuntime, namespace string, opts ...BuilderOption) *DeploymentRuntimeBuilder {
 	b := &DeploymentRuntimeBuilder{
-		namespace: namespace,
-		revision:  pwr,
+		namespace:       namespace,
+		revision:        pwr,
+		defaultReplicas: 1,
 	}
 
 	for _, o := range opts {
@@ -241,7 +292,7 @@ func (b *DeploymentRuntimeBuilder) Deployment(serviceAccount string, overrides .
 		// Optional defaults, will be used only if the runtime config does not
 		// specify them.
 		DeploymentWithOptionalName(b.revision.GetName()),
-		DeploymentWithOptionalReplicas(1),
+		DeploymentWithOptionalReplicas(b.defaultReplicas),
 		DeploymentWithOptionalPodSecurityContext(&corev1.PodSecurityContext{
 			RunAsNonRoot: &RunAsNonRoot,
 			RunAsUser:    &RunAsUser,

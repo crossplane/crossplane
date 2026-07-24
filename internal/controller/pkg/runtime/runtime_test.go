@@ -29,6 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
+	extv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
@@ -122,8 +124,9 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			reason: "No overrides should result in a deployment with default values",
 			args: args{
 				builder: &DeploymentRuntimeBuilder{
-					revision:  providerRevision,
-					namespace: namespace,
+					revision:        providerRevision,
+					namespace:       namespace,
+					defaultReplicas: 1,
 				},
 				serviceAccountName: providerRevisionName,
 				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
@@ -135,12 +138,62 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 				})),
 			},
 		},
+		"ProviderDeploymentScaleToZero": {
+			reason: "Scale to zero should default the deployment to zero replicas",
+			args: args{
+				builder: &DeploymentRuntimeBuilder{
+					revision:        providerRevision,
+					namespace:       namespace,
+					defaultReplicas: 0,
+				},
+				serviceAccountName: providerRevisionName,
+				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
+			},
+			want: want{
+				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
+					v1.LabelProvider: providerName,
+					v1.LabelRevision: providerRevisionName,
+				}), func(deployment *appsv1.Deployment) {
+					deployment.Spec.Replicas = ptr.To[int32](0)
+				}),
+			},
+		},
+		"ProviderDeploymentScaleToZeroWithRuntimeConfigReplicas": {
+			reason: "Explicit replicas from the runtime config should win over scale to zero",
+			args: args{
+				builder: &DeploymentRuntimeBuilder{
+					revision:        providerRevision,
+					namespace:       namespace,
+					defaultReplicas: 0,
+					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
+						Spec: v1beta1.DeploymentRuntimeConfigSpec{
+							DeploymentTemplate: &v1beta1.DeploymentTemplate{
+								Spec: &appsv1.DeploymentSpec{
+									Replicas: ptr.To[int32](3),
+								},
+							},
+						},
+					},
+				},
+				serviceAccountName: providerRevisionName,
+				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
+			},
+			want: want{
+				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
+					v1.LabelProvider: providerName,
+					v1.LabelRevision: providerRevisionName,
+				}), func(deployment *appsv1.Deployment) {
+					deployment.Spec.Replicas = ptr.To[int32](3)
+				}),
+			},
+		},
 		"ProviderDeploymentWithRuntimeConfig": {
 			reason: "Baseline provided by the runtime config should be applied to the deployment",
 			args: args{
 				builder: &DeploymentRuntimeBuilder{
-					revision:  providerRevision,
-					namespace: namespace,
+					revision:        providerRevision,
+					namespace:       namespace,
+					defaultReplicas: 1,
 					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
@@ -199,8 +252,9 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			reason: "It should be possible to disable default scrape annotations",
 			args: args{
 				builder: &DeploymentRuntimeBuilder{
-					revision:  providerRevision,
-					namespace: namespace,
+					revision:        providerRevision,
+					namespace:       namespace,
+					defaultReplicas: 1,
 					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
@@ -236,8 +290,9 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			reason: "Baseline provided by the runtime config should be applied to the deployment for advanced use cases",
 			args: args{
 				builder: &DeploymentRuntimeBuilder{
-					revision:  providerRevision,
-					namespace: namespace,
+					revision:        providerRevision,
+					namespace:       namespace,
+					defaultReplicas: 1,
 					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
@@ -335,8 +390,9 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			reason: "No overrides should result in a deployment with default values",
 			args: args{
 				builder: &DeploymentRuntimeBuilder{
-					revision:  functionRevision,
-					namespace: namespace,
+					revision:        functionRevision,
+					namespace:       namespace,
+					defaultReplicas: 1,
 				},
 				serviceAccountName: functionRevisionName,
 				overrides:          functionDeploymentOverrides(functionRevision, functionImage),
@@ -376,8 +432,9 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 			reason: "No runtime config on the builder should result in a service with default values",
 			args: args{
 				builder: &DeploymentRuntimeBuilder{
-					revision:  providerRevision,
-					namespace: namespace,
+					revision:        providerRevision,
+					namespace:       namespace,
+					defaultReplicas: 1,
 				},
 				serviceAccountName: providerRevisionName,
 				overrides: []ServiceOverride{
@@ -777,4 +834,94 @@ func (b *MockManifestBuilder) TLSClientSecret() *corev1.Secret {
 // TLSServerSecret returns the result of calling TLSServerSecretFn.
 func (b *MockManifestBuilder) TLSServerSecret() *corev1.Secret {
 	return b.TLSServerSecretFn()
+}
+
+func TestBuilderWithMRDs(t *testing.T) {
+	inactiveMRD := extv1alpha1.ManagedResourceDefinition{
+		Spec: extv1alpha1.ManagedResourceDefinitionSpec{
+			State: extv1alpha1.ManagedResourceDefinitionInactive,
+		},
+	}
+
+	safeStartRevision := func() *v1.ProviderRevision {
+		pr := &v1.ProviderRevision{}
+		pr.SetCapabilities([]string{pkgmetav1.ProviderCapabilitySafeStart})
+		return pr
+	}
+
+	safeStartRevisionActive := func() *v1.ProviderRevision {
+		pr := safeStartRevision()
+		pr.SetConditions(v1.RuntimeActive())
+		return pr
+	}
+
+	cases := map[string]struct {
+		revision        v1.PackageRevisionWithRuntime
+		mrds            []extv1alpha1.ManagedResourceDefinition
+		runtimeConfig   *v1beta1.DeploymentRuntimeConfig
+		wantScaleToZero bool
+	}{
+		"NoSafeStartCapability": {
+			revision:        &v1.ProviderRevision{},
+			mrds:            []extv1alpha1.ManagedResourceDefinition{inactiveMRD},
+			wantScaleToZero: false,
+		},
+		"NoMRDs": {
+			revision:        safeStartRevision(),
+			mrds:            nil,
+			wantScaleToZero: false,
+		},
+		"ActiveMRD": {
+			revision: safeStartRevision(),
+			mrds: []extv1alpha1.ManagedResourceDefinition{{
+				Spec: extv1alpha1.ManagedResourceDefinitionSpec{State: extv1alpha1.ManagedResourceDefinitionActive},
+			}},
+			wantScaleToZero: false,
+		},
+		"AllInactiveMRDs": {
+			revision:        safeStartRevision(),
+			mrds:            []extv1alpha1.ManagedResourceDefinition{inactiveMRD},
+			wantScaleToZero: true,
+		},
+		"AlreadyActivatedRuntimeWithInactiveMRDs": {
+			// Once TypeRuntimeActive is True the runtime must not be scaled
+			// back to zero, even if MRDs later appear inactive (e.g. via a
+			// manual edit). This guards the one-way activation latch.
+			revision:        safeStartRevisionActive(),
+			mrds:            []extv1alpha1.ManagedResourceDefinition{inactiveMRD},
+			wantScaleToZero: false,
+		},
+		"RuntimeConfigWithExplicitReplicasNotAwaiting": {
+			// A DeploymentRuntimeConfig that sets spec.replicas wins over
+			// defaultReplicas=0 via DeploymentWithOptionalReplicas, so the
+			// deployment is not actually scaled to zero — AwaitingActivation
+			// must reflect that.
+			revision: safeStartRevision(),
+			mrds:     []extv1alpha1.ManagedResourceDefinition{inactiveMRD},
+			runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
+				Spec: v1beta1.DeploymentRuntimeConfigSpec{
+					DeploymentTemplate: &v1beta1.DeploymentTemplate{
+						Spec: &appsv1.DeploymentSpec{
+							Replicas: ptr.To[int32](2),
+						},
+					},
+				},
+			},
+			wantScaleToZero: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			opts := []BuilderOption{BuilderWithMRDs(tc.mrds)}
+			if tc.runtimeConfig != nil {
+				opts = append(opts, BuilderWithRuntimeConfig(tc.runtimeConfig))
+			}
+			b := NewDeploymentRuntimeBuilder(tc.revision, namespace, opts...)
+			got := b.AwaitingActivation()
+			if diff := cmp.Diff(tc.wantScaleToZero, got); diff != "" {
+				t.Errorf("BuilderWithMRDs(...): AwaitingActivation() -want, +got:\n%s", diff)
+			}
+		})
+	}
 }
