@@ -87,7 +87,8 @@ type FunctionRevisionSpec struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='RevisionHealthy')].status"
-// +kubebuilder:printcolumn:name="RUNTIME",type="string",JSONPath=".status.conditions[?(@.type=='RuntimeHealthy')].status"
+// +kubebuilder:printcolumn:name="RUNTIME-HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='RuntimeHealthy')].status"
+// +kubebuilder:printcolumn:name="RUNTIME-ACTIVE",type="string",JSONPath=".status.conditions[?(@.type=='RuntimeActive')].status"
 // +kubebuilder:printcolumn:name="IMAGE",type="string",JSONPath=".spec.image"
 // +kubebuilder:printcolumn:name="STATE",type="string",JSONPath=".spec.desiredState"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"

@@ -84,6 +84,7 @@
         name = "crossplane-generate";
         runtimeInputs = [
           pkgs.coreutils
+          pkgs.gnugrep
           pkgs.gnused
           pkgs.unstable.go_1_25
           pkgs.kubectl

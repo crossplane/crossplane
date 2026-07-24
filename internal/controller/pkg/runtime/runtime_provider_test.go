@@ -450,6 +450,70 @@ func TestProviderPostHook(t *testing.T) {
 				},
 			},
 		},
+		"SuccessfulScaledToZero": {
+			reason: "Should not return error for a deployment scaled to zero replicas, which Kubernetes marks as available.",
+			args: args{
+				pkg: &pkgmetav1.Provider{},
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
+							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
+					},
+				},
+				manifests: &MockManifestBuilder{
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
+						return &corev1.ServiceAccount{}
+					},
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
+						return &appsv1.Deployment{
+							Spec: appsv1.DeploymentSpec{
+								Replicas: ptr.To[int32](0),
+							},
+						}
+					},
+				},
+				client: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
+						return nil
+					},
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						if d, ok := obj.(*appsv1.Deployment); ok {
+							// A deployment with zero replicas has a minimum
+							// availability of zero, so Kubernetes marks it
+							// available.
+							d.Status.Conditions = []appsv1.DeploymentCondition{{
+								Type:   appsv1.DeploymentAvailable,
+								Status: corev1.ConditionTrue,
+							}}
+							return nil
+						}
+						return nil
+					},
+				},
+			},
+			want: want{
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
+							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
+					},
+				},
+			},
+		},
 		"SuccessWithExtraSecret": {
 			reason: "Should not return error if successfully applied service account with additional secret.",
 			args: args{
