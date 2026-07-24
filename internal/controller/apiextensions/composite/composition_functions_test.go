@@ -1938,6 +1938,35 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 				err: errors.New(`refusing to delete composed resource "undesired-resource" that is controlled by XR "different"`),
 			},
 		},
+		"OrphanedResourceNotDeleted": {
+			reason: "A referenced resource with no controller reference is not one we can prove we composed, so we must not delete it - even though it's observed and undesired.",
+			params: params{
+				client: &test.MockClient{
+					// Update and Delete are nil functions and would panic if
+					// called, proving we neither cleaned up labels nor deleted.
+				},
+			},
+			args: args{
+				owner: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "cool-xr",
+					},
+				},
+				observed: ComposedResourceStates{
+					"undesired-resource": ComposedResourceState{Resource: &fake.Composed{
+						ObjectMeta: metav1.ObjectMeta{
+							// This resource has no controller reference. It could
+							// be an arbitrary resource smuggled into the XR's
+							// spec.resourceRefs, so we leave it alone.
+							Name: "orphan",
+						},
+					}},
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
 		"UpdateError": {
 			reason: "We should return any error encountered updating the resource with removed labels.",
 			params: params{
