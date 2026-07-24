@@ -143,7 +143,16 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 		}
 	}
 
-	if err := h.client.Applicator.Apply(ctx, d); err != nil {
+	d.TypeMeta = metav1.TypeMeta{
+		APIVersion: appsv1.SchemeGroupVersion.String(),
+		Kind:       "Deployment",
+	}
+
+	//nolint:staticcheck // client.Apply supports applying client.Object. whereas client.Client.Apply requires applyconfiguration types.
+	if err := h.client.Client.Patch(ctx, d, client.Apply,
+		client.FieldOwner("crossplane-package-runtime"),
+		client.ForceOwnership,
+	); err != nil {
 		return errors.Wrap(err, errApplyFunctionDeployment)
 	}
 

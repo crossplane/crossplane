@@ -27,6 +27,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -253,8 +254,21 @@ func TestFunctionPostHook(t *testing.T) {
 					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
 					},
-					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
-						if _, ok := obj.(*appsv1.Deployment); ok {
+					MockPatch: func(_ context.Context, obj client.Object, p client.Patch, opts ...client.PatchOption) error {
+						if d, ok := obj.(*appsv1.Deployment); ok {
+							if got := p.Type(); got != types.ApplyPatchType {
+								t.Fatalf("expected SSA patch type, got %s", got)
+							}
+							if d.APIVersion != appsv1.SchemeGroupVersion.String() || d.Kind != "Deployment" {
+								t.Fatalf("expected Deployment TypeMeta to be set before patch")
+							}
+							po := &client.PatchOptions{}
+							for _, opt := range opts {
+								opt.ApplyToPatch(po)
+							}
+							if po.FieldManager != "crossplane-package-runtime" || po.Force == nil || !*po.Force {
+								t.Fatalf("expected SSA field owner and force ownership options")
+							}
 							return errBoom
 						}
 						return nil
@@ -275,7 +289,7 @@ func TestFunctionPostHook(t *testing.T) {
 						},
 					},
 				},
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyFunctionDeployment),
+				err: errors.Wrap(errBoom, errApplyFunctionDeployment),
 			},
 		},
 		"ErrDeploymentNoAvailableConditionYet": {

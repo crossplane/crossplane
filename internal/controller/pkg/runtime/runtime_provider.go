@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -143,7 +144,16 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 		}
 	}
 
-	if err := h.client.Applicator.Apply(ctx, d); err != nil {
+	d.TypeMeta = metav1.TypeMeta{
+		APIVersion: appsv1.SchemeGroupVersion.String(),
+		Kind:       "Deployment",
+	}
+
+	//nolint:staticcheck // client.Apply supports applying client.Object. whereas client.Client.Apply requires applyconfiguration types.
+	if err := h.client.Client.Patch(ctx, d, client.Apply,
+		client.FieldOwner("crossplane-package-runtime"),
+		client.ForceOwnership,
+	); err != nil {
 		return errors.Wrap(err, errApplyProviderDeployment)
 	}
 
