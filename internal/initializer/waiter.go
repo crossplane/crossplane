@@ -51,13 +51,18 @@ type CRDWaiter struct {
 // Run continuously checks whether the list of CRDs whose names are given are
 // present in the cluster.
 func (cw *CRDWaiter) Run(ctx context.Context, kube client.Client) error {
-	timeout := time.After(cw.Timeout)
+	// Use time.NewTimer instead of time.After so the timer can be stopped early
+	// and its goroutine reclaimed if all CRDs are found before the timeout.
+	timer := time.NewTimer(cw.Timeout)
+	defer timer.Stop()
 
 	ticker := time.NewTicker(cw.Period)
 	defer ticker.Stop()
 
 	for {
 		select {
+		case <-ctx.Done():
+			return errors.Wrap(ctx.Err(), "context cancelled while waiting for CRDs")
 		case <-ticker.C:
 			cw.log.Info("Waiting for required CRDs to be present", "names", cw.Names, "poll-interval", cw.Period)
 
@@ -82,7 +87,7 @@ func (cw *CRDWaiter) Run(ctx context.Context, kube client.Client) error {
 			if present == len(cw.Names) {
 				return nil
 			}
-		case <-timeout:
+		case <-timer.C:
 			return errors.Errorf(errFmtTimeoutExceeded, cw.Timeout.Seconds())
 		}
 	}

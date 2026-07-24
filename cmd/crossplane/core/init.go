@@ -17,7 +17,6 @@ limitations under the License.
 package core
 
 import (
-	"context"
 	"fmt"
 
 	admv1 "k8s.io/api/admissionregistration/v1"
@@ -122,7 +121,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		initializer.DefaultManagedResourceActivationPolicy(c.Activations...),
 	)
 
-	if err := initializer.New(cl, log, steps...).Init(context.TODO()); err != nil {
+	if err := initializer.New(cl, log, steps...).Init(ctrl.SetupSignalHandler()); err != nil {
 		return errors.Wrap(err, "cannot initialize core")
 	}
 
