@@ -1,0 +1,72 @@
+{{- /*
+Pre-install/pre-upgrade hook job: ensure the three crossplane TLS Secrets exist
+as placeholders so the crossplane init container does not need to "create" them
+on first run. Once the init container has populated them, subsequent runs of
+this hook are no-ops (the Secrets already exist and are left untouched).
+
+Why this matters:
+- Without this hook, the chart would declaratively create empty Secrets
+  (templates/secret.yaml). On `helm upgrade`, Helm reapplies the (empty)
+  declarations, and although init container logic checks for existing data
+  before regenerating, declarative ownership creates room for the cluster
+  state to drift from the desired Helm state, and there is no clean way to
+  drop that declaration without leaking Secrets on uninstall.
+- With this hook, the Secrets are created only on first install and never
+  re-declared, so `helm upgrade` cannot overwrite them. mTLS trust to
+  provider/function packages is preserved across upgrades.
+
+Hook annotations:
+- pre-install,pre-upgrade: run before install/upgrade of the chart resources.
+- hook-weight: "-5"        : run before the main release resources are applied.
+- hook-delete-policy:      : clean up old job Pods on a successful run to keep
+  before-hook-creation,     the cluster tidy.
+  hook-succeeded
+*/ -}}
+{{- if .Values.rootCA.manageLifecycle }}
+{{- if .Values.rootCA.bootstrap.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "crossplane.name" . }}-root-ca-bootstrap
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      name: {{ template "crossplane.name" . }}-root-ca-bootstrap
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ template "crossplane.name" . }}-root-ca-hook
+      containers:
+        - name: bootstrap
+          image: {{ .Values.rootCA.bootstrap.image.repository }}:{{ .Values.rootCA.bootstrap.image.tag }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              set -eu
+              for secret in crossplane-root-ca crossplane-tls-server crossplane-tls-client; do
+                if kubectl get secret -n "$NAMESPACE" "$secret" >/dev/null 2>&1; then
+                  echo "$secret already exists, leaving it untouched"
+                else
+                  echo "$secret does not exist, creating empty placeholder (init container will populate it)"
+                  kubectl create secret generic -n "$NAMESPACE" "$secret" --type=kubernetes.io/tls
+                fi
+              done
+          env:
+            - name: NAMESPACE
+              value: {{ .Release.Namespace }}
+          resources:
+            {{- toYaml .Values.rootCA.bootstrap.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.rootCA.bootstrap.securityContext | nindent 12 }}
+{{- end }}
+{{- end }}
