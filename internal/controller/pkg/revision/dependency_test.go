@@ -618,6 +618,97 @@ func TestResolve(t *testing.T) {
 				invalid:   0,
 			},
 		},
+		"SuccessfulDigestWithResolvedVersion": {
+			reason: "Should resolve dependencies when a package is installed with a tag@digest reference and ResolvedVersion is set.",
+			args: args{
+				dep: &PackageDependencyManager{
+					client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							l := obj.(*v1beta1.Lock)
+							l.Packages = []v1beta1.LockPackage{
+								{
+									Name:            "provider-family-azure-abc123",
+									Source:          "xpkg.upbound.io/upbound/provider-family-azure",
+									Version:         "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5",
+									ResolvedVersion: "v2.5.6",
+								},
+								{
+									Name:            "provider-azure-storage-def456",
+									Source:          "xpkg.upbound.io/upbound/provider-azure-storage",
+									Version:         "sha256:2e10e0d89075cfdf3a1fe097f26f1941229e94593d2cf5f3886d8d46e5fb6a49",
+									ResolvedVersion: "v2.5.6",
+									Dependencies: []v1beta1.Dependency{
+										{
+											Package:     "xpkg.upbound.io/upbound/provider-family-azure",
+											Constraints: "v2.5.6",
+										},
+									},
+								},
+							}
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
+					newDag: func() dag.DAG {
+						return &dagfake.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return nil, nil
+							},
+							MockNodeExists: func(_ string) bool {
+								return true
+							},
+							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
+								return map[string]dag.Node{
+									"xpkg.upbound.io/upbound/provider-family-azure": &dag.PackageNode{},
+								}, nil
+							},
+							MockGetNode: func(s string) (dag.Node, error) {
+								if s == "xpkg.upbound.io/upbound/provider-family-azure" {
+									return &dag.PackageNode{
+										LockPackage: v1beta1.LockPackage{
+											Source:          "xpkg.upbound.io/upbound/provider-family-azure",
+											Version:         "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5",
+											ResolvedVersion: "v2.5.6",
+										},
+									}, nil
+								}
+								return nil, nil
+							},
+						}
+					},
+					log: logging.NewNopLogger(),
+				},
+				meta: &pkgmetav1.Provider{
+					Spec: pkgmetav1.ProviderSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							DependsOn: []pkgmetav1.Dependency{
+								{
+									Provider: ptr.To("xpkg.upbound.io/upbound/provider-family-azure"),
+									Version:  "v2.5.6",
+								},
+							},
+						},
+					},
+				},
+				pr: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "provider-azure-storage-def456",
+					},
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      "xpkg.upbound.io/upbound/provider-azure-storage:v2.5.6@sha256:2e10e0d89075cfdf3a1fe097f26f1941229e94593d2cf5f3886d8d46e5fb6a49",
+							DesiredState: v1.PackageRevisionActive,
+						},
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{},
+					},
+				},
+			},
+			want: want{
+				total:     1,
+				installed: 1,
+				invalid:   0,
+			},
+		},
 		"SuccessfulLockPackageSourceMismatch": {
 			reason: "Should not return error if source in packages does not match provider revision package.",
 			args: args{
