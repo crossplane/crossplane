@@ -294,14 +294,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// be requeued when it adds itself to the Lock, at which point we will
 	// check for missing nodes again.
 	dep, ok := implied[0].(*internaldag.DependencyNode)
-
-	depID := dep.Identifier()
 	if !ok {
-		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, depID))
-		status.MarkConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtMissingDependency, depID)))
+		invalidID := implied[0].Identifier()
+		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, invalidID))
+		status.MarkConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtMissingDependency, invalidID)))
 
 		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
+	depID := dep.Identifier()
 
 	// NOTE(phisco): dependencies identifiers are without registry and tag, so we can't enforce strict validation.
 	ref, err := name.ParseReference(depID)
@@ -432,7 +432,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	newVer, err := r.findDependencyVersionToUpdate(ctx, ref, installedVersion, n, log)
 	if err != nil {
-		log.Debug(errFindDependencyUpgrade, "error", errors.Wrapf(err, depID, dep.Constraints))
+		log.Debug(errFindDependencyUpgrade, "error", errors.Wrapf(err, "dependencyID: %s constraint %v", depID, dep.Constraints))
 		status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errFindDependencyUpgrade)))
 
 		_ = r.kube.Status().Update(ctx, lock)
