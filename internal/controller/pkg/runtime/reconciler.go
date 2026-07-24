@@ -185,7 +185,11 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, EnqueuePackageRevisionsForRuntimeConfig(mgr.GetClient(), &v1.ProviderRevisionList{}, log))
 	}
 
-	rOpts := []ReconcilerOption{
+	// Watch MRDs so we can scale up a safe-start provider's runtime the moment
+	// its first MRD becomes active, without waiting for the next scheduled sync.
+	cb = cb.Watches(&extv1alpha1.ManagedResourceDefinition{}, EnqueueProviderRevisionsForMRDs(log), builder.WithPredicates(mrdActivated()))
+
+	r := NewReconciler(mgr,
 		WithNewPackageRevisionWithRuntimeFn(nr),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
@@ -195,13 +199,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithFeatureFlags(o.Features),
 		WithDeploymentSelectorMigrator(NewDeletingDeploymentSelectorMigrator(mgr.GetClient(), log)),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
-	}
-
-	// Watch MRDs so we can scale up a safe-start provider's runtime the moment
-	// its first MRD becomes active, without waiting for the next scheduled sync.
-	cb = cb.Watches(&extv1alpha1.ManagedResourceDefinition{}, EnqueueProviderRevisionsForMRDs(log), builder.WithPredicates(mrdActivated()))
-
-	r := NewReconciler(mgr, rOpts...)
+	)
 
 	return cb.WithOptions(o.ForControllerRuntime()).
 		Complete(errors.WithSilentRequeueOnConflict(r))
