@@ -70,7 +70,7 @@ const (
 	errUnknownKindRuntimeConfig = "runtime config is set but is an unknown apiVersion and kind"
 	errGetServiceAccount        = "cannot get Crossplane service account"
 
-	errListMRDs = "cannot list managed resource definitions"
+	errListMRDs = "cannot list ManagedResourceDefinitions to determine whether the provider runtime can start"
 )
 
 // Event reasons.

@@ -163,6 +163,12 @@ func BuilderWithMRDs(mrds []extv1alpha1.ManagedResourceDefinition) BuilderOption
 		if !pkgmetav1.CapabilitiesContainFuzzyMatch(b.revision.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
 			return
 		}
+		// One-way latch: once the runtime has been activated, never scale it
+		// back to zero even if MRDs later appear inactive (deactivation is not
+		// yet supported, but guard against manual edits or future changes).
+		if b.revision.GetCondition(v1.TypeRuntimeActive).Reason == v1.ReasonActiveRuntime {
+			return
+		}
 		if len(mrds) == 0 {
 			return
 		}
@@ -179,7 +185,19 @@ func BuilderWithMRDs(mrds []extv1alpha1.ManagedResourceDefinition) BuilderOption
 // package runtime should be scaled to zero, awaiting activation of its first
 // ManagedResourceDefinition.
 func (b *DeploymentRuntimeBuilder) AwaitingActivation() bool {
-	return b.defaultReplicas == 0
+	if b.defaultReplicas != 0 {
+		return false
+	}
+	// DeploymentWithOptionalReplicas is a no-op when the runtime config
+	// already supplies spec.replicas, so the deployment won't actually run at
+	// zero replicas in that case.
+	if b.runtimeConfig != nil &&
+		b.runtimeConfig.Spec.DeploymentTemplate != nil &&
+		b.runtimeConfig.Spec.DeploymentTemplate.Spec != nil &&
+		b.runtimeConfig.Spec.DeploymentTemplate.Spec.Replicas != nil {
+		return false
+	}
+	return true
 }
 
 // NewDeploymentRuntimeBuilder returns a new DeploymentRuntimeBuilder.
