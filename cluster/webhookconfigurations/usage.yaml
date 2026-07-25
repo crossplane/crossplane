@@ -57,4 +57,5 @@ webhooks:
           - UPDATE
         resources:
           - usages
+        scope: Namespaced
     sideEffects: None
