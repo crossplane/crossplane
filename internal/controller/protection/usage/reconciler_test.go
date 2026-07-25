@@ -341,9 +341,7 @@ func TestReconcile(t *testing.T) {
 					}}),
 				},
 			},
-			want: want{
-				err: errors.Errorf(errFmtUnsupportedUsage, schema.FromAPIVersionAndKind("example.org/v1", "ClusterThing"), "cluster-resource"),
-			},
+			want: want{},
 		},
 		"RejectsNamespacedUsageOfClusterScopedResourceKeepsLabel": {
 			reason: "We should reject a namespaced Usage of a cluster-scoped resource, but keep the in-use label if other usages of the used resource exist.",
@@ -392,9 +390,7 @@ func TestReconcile(t *testing.T) {
 					}}),
 				},
 			},
-			want: want{
-				err: errors.Errorf(errFmtUnsupportedUsage, schema.FromAPIVersionAndKind("example.org/v1", "ClusterThing"), "cluster-resource"),
-			},
+			want: want{},
 		},
 		"RejectsNamespacedUsageOfClusterScopedResourceNoLabel": {
 			reason: "We should reject a namespaced Usage of a cluster-scoped resource without updating the used resource if it doesn't have the in-use label.",
@@ -442,9 +438,7 @@ func TestReconcile(t *testing.T) {
 					}}),
 				},
 			},
-			want: want{
-				err: errors.Errorf(errFmtUnsupportedUsage, schema.FromAPIVersionAndKind("example.org/v1", "ClusterThing"), "cluster-resource"),
-			},
+			want: want{},
 		},
 		"CannotFindUsagesOnUnsupportedUsage": {
 			reason: "We should return an error if we cannot find usages when rejecting a namespaced Usage of a cluster-scoped resource.",

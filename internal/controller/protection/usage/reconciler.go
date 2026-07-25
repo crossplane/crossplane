@@ -530,7 +530,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 		}
 
-		return reconcile.Result{}, werr
+		// Nothing we can retry will fix this - the user must change spec.of,
+		// which triggers a new reconcile. Don't requeue and hot-loop on it.
+		return reconcile.Result{}, nil
 	}
 
 	// Used resource should have in-use label.
