@@ -29,3 +29,32 @@ webhooks:
         resources:
           - '*'
     sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: crossplane-usage-scope
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: webhook-service
+        namespace: system
+        path: /validate-usage-scope
+    # This webhook only exists to give faster feedback than the Usage
+    # controller, which rejects a namespaced Usage of a cluster-scoped
+    # resource at reconcile time. It's therefore safe to ignore failures.
+    failurePolicy: Ignore
+    name: usagescope.protection.crossplane.io
+    rules:
+      - apiGroups:
+          - protection.crossplane.io
+        apiVersions:
+          - '*'
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - usages
+    sideEffects: None

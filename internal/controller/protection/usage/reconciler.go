@@ -76,6 +76,8 @@ const (
 	errRemoveFinalizer      = "cannot remove finalizer"
 	errUpdateStatus         = "cannot update status of usage"
 	errParseAPIVersion      = "cannot parse APIVersion"
+
+	errFmtUnsupportedUsage = "a namespaced Usage cannot protect the cluster-scoped resource %s %q - use a ClusterUsage instead"
 )
 
 // Event reasons.
@@ -88,6 +90,7 @@ const (
 	reasonOwnerRefToUsage  event.Reason = "AddOwnerRefToUsage"
 	reasonAddInUseLabel    event.Reason = "AddInUseLabel"
 	reasonRemoveInUseLabel event.Reason = "RemoveInUseLabel"
+	reasonUnsupportedUsage event.Reason = "UnsupportedUsage"
 	reasonAddFinalizer     event.Reason = "AddFinalizer"
 	reasonRemoveFinalizer  event.Reason = "RemoveFinalizer"
 	reasonReplayDeletion   event.Reason = "ReplayDeletion"
@@ -472,6 +475,62 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(uu, event.Warning(reasonGetUsed, err))
 
 		return reconcile.Result{}, err
+	}
+
+	// A namespaced Usage can't block deletion of a cluster-scoped resource.
+	// The deletion webhook looks up usages of a cluster-scoped resource by an
+	// index value with an empty namespace, while a namespaced Usage is indexed
+	// under its own namespace, so the webhook would never find this Usage.
+	// Reject the Usage instead of applying an in-use label that misleadingly
+	// suggests the used resource is protected. The API server ignores the
+	// namespace when a cluster-scoped resource is fetched, so we detect this
+	// by the used resource being returned without a namespace.
+	if uu.GetNamespace() != "" && used.GetNamespace() == "" {
+		// Remove a misleading in-use label, unless a usage the deletion
+		// webhook can actually find still needs it.
+		if used.GetLabels()[inUseLabelKey] == "true" {
+			usages, err := r.resource.FindUsageOf(ctx, used)
+			if err != nil {
+				log.Debug(errFindUsages, "error", err)
+				err = errors.Wrap(err, errFindUsages)
+				r.record.Event(uu, event.Warning(reasonFindUsages, err))
+
+				return reconcile.Result{}, err
+			}
+
+			if len(usages) == 0 {
+				meta.RemoveLabels(used, inUseLabelKey)
+
+				if err := r.client.Update(ctx, used); err != nil {
+					log.Debug(errRemoveInUseLabel, "error", err)
+
+					if kerrors.IsConflict(err) {
+						return reconcile.Result{Requeue: true}, nil
+					}
+
+					err = errors.Wrap(err, errRemoveInUseLabel)
+					r.record.Event(uu, event.Warning(reasonRemoveInUseLabel, err))
+
+					return reconcile.Result{}, err
+				}
+			}
+		}
+
+		werr := errors.Errorf(errFmtUnsupportedUsage, used.GetObjectKind().GroupVersionKind(), used.GetName())
+		r.record.Event(uu, event.Warning(reasonUnsupportedUsage, werr))
+		// Mark the Usage Unavailable, not just its sync failed. It might have
+		// (misleadingly) become Available before we started rejecting this
+		// unsupported configuration, and it doesn't protect anything.
+		status.MarkConditions(xpv2.Unavailable(), xpv2.ReconcileError(werr))
+
+		if !cmp.Equal(uu, orig) {
+			if err := r.client.Status().Update(ctx, uu); err != nil {
+				log.Debug(errUpdateStatus, "error", err)
+				return reconcile.Result{}, errors.Wrap(err, errUpdateStatus)
+			}
+		}
+
+		return reconcile.Result{}, werr
 	}
 
 	// Used resource should have in-use label.
