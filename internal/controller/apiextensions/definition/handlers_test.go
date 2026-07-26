@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -19,6 +20,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
 )
 
 func TestCompositionRevisionMapFunc(t *testing.T) {
@@ -212,127 +214,59 @@ func TestCompositionRevisionMapFunc(t *testing.T) {
 	}
 }
 
-func TestCompositeResourcesMapFunc(t *testing.T) {
-	type args struct {
-		of     schema.GroupVersionKind
-		reader client.Reader
-		obj    client.Object
-	}
-
-	type want struct {
-		requests []reconcile.Request
-	}
-
-	dog := schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Dog"}
+func TestDependantsMapFunc(t *testing.T) {
 	bucket := schema.GroupVersionKind{Group: "s3.aws.crossplane.io", Version: "v1alpha1", Kind: "Bucket"}
 
+	obj := &kunstructured.Unstructured{}
+	obj.SetGroupVersionKind(bucket)
+	obj.SetNamespace("default")
+	obj.SetName("my-bucket")
+
+	dependants := func(xrs ...string) dependency.Tracker {
+		tr := dependency.NewInMemory()
+		for _, xr := range xrs {
+			tr.Track(client.ObjectKey{Name: xr}, nil, []dependency.Requirement{{
+				Reference: dependency.Reference{GVK: bucket, Namespace: "default", Name: "my-bucket"},
+			}})
+		}
+		return tr
+	}
+
 	tests := map[string]struct {
-		reason string
-		args   args
-		want   want
+		reason  string
+		tracker dependency.Tracker
+		want    []reconcile.Request
 	}{
-		"NoXRs": {
-			reason: "If there are no XRs that reference the composed resource, no reconciles should be returned.",
-			args: args{
-				of: dog,
-				reader: &test.MockClient{
-					MockList: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
-						return nil
-					},
-				},
-				obj: &kunstructured.Unstructured{
-					Object: map[string]any{
-						"apiVersion": bucket.GroupVersion().String(),
-						"kind":       bucket.Kind,
-						"metadata": map[string]any{
-							"name":      "my-bucket",
-							"namespace": "default",
-						},
-					},
-				},
-			},
-			want: want{
-				requests: []reconcile.Request{},
+		"NoDependants": {
+			reason:  "If no XR depends on the object, no reconciles should be returned.",
+			tracker: dependants(),
+			want:    []reconcile.Request{},
+		},
+		"SingleDependant": {
+			reason:  "A reconcile should be returned for an XR that depends on the object.",
+			tracker: dependants("xr1"),
+			want: []reconcile.Request{
+				{NamespacedName: types.NamespacedName{Name: "xr1"}},
 			},
 		},
-		"SingleXR": {
-			reason: "A reconcile should be returned for XRs that reference the composed resource.",
-			args: args{
-				of: dog,
-				reader: &test.MockClient{
-					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
-						var xr1 kunstructured.Unstructured
-						xr1.SetName("xr1")
-						xr1.SetNamespace("")
-
-						list.(*kunstructured.UnstructuredList).Items = []kunstructured.Unstructured{xr1}
-						return nil
-					},
-				},
-				obj: &kunstructured.Unstructured{
-					Object: map[string]any{
-						"apiVersion": bucket.GroupVersion().String(),
-						"kind":       bucket.Kind,
-						"metadata": map[string]any{
-							"name":      "my-bucket",
-							"namespace": "default",
-						},
-					},
-				},
-			},
-			want: want{
-				requests: []reconcile.Request{{NamespacedName: types.NamespacedName{
-					Name: "xr1",
-				}}},
-			},
-		},
-		"MultipleXRs": {
-			reason: "Reconciles should be returned for all XRs that reference the composed resource.",
-			args: args{
-				of: dog,
-				reader: &test.MockClient{
-					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
-						var xr1 kunstructured.Unstructured
-						xr1.SetName("xr1")
-						xr1.SetNamespace("")
-
-						var xr2 kunstructured.Unstructured
-						xr2.SetName("xr2")
-						xr2.SetNamespace("")
-
-						list.(*kunstructured.UnstructuredList).Items = []kunstructured.Unstructured{xr1, xr2}
-						return nil
-					},
-				},
-				obj: &kunstructured.Unstructured{
-					Object: map[string]any{
-						"apiVersion": bucket.GroupVersion().String(),
-						"kind":       bucket.Kind,
-						"metadata": map[string]any{
-							"name":      "my-bucket",
-							"namespace": "default",
-						},
-					},
-				},
-			},
-			want: want{
-				requests: []reconcile.Request{
-					{NamespacedName: types.NamespacedName{Name: "xr1"}},
-					{NamespacedName: types.NamespacedName{Name: "xr2"}},
-				},
+		"MultipleDependants": {
+			reason:  "A reconcile should be returned for every XR that depends on the object.",
+			tracker: dependants("xr1", "xr2"),
+			want: []reconcile.Request{
+				{NamespacedName: types.NamespacedName{Name: "xr1"}},
+				{NamespacedName: types.NamespacedName{Name: "xr2"}},
 			},
 		},
 	}
+
+	sortRequests := cmpopts.SortSlices(func(a, b reconcile.Request) bool { return a.String() < b.String() })
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			// Set the GVK on the object since MapFunc needs it
-			tc.args.obj.GetObjectKind().SetGroupVersionKind(bucket)
+			requests := DependantsMapFunc(tc.tracker)(context.TODO(), obj)
 
-			mapFunc := CompositeResourcesMapFunc(tc.args.of, tc.args.reader, logging.NewNopLogger())
-			requests := mapFunc(context.TODO(), tc.args.obj)
-
-			if diff := cmp.Diff(tc.want.requests, requests); diff != "" {
-				t.Errorf("\n%s\nCompositeResourcesMapFunc(...): -want, +got:\n%s", tc.reason, diff)
+			if diff := cmp.Diff(tc.want, requests, sortRequests, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("\n%s\nDependantsMapFunc(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

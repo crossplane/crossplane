@@ -854,7 +854,7 @@ func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 
 		t.Logf("Ensuring claim %s does not change within %s", identifier(cm), d.String())
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			if deadlineExceed(err) {
 				t.Logf("Claim %s did not change within %s", identifier(cm), d.String())
 				return ctx
@@ -909,7 +909,7 @@ func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 
 		t.Logf("Ensuring composite resource %s does not change within %s", identifier(cp), d.String())
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			if deadlineExceed(err) {
 				t.Logf("Composite resource %s did not change within %s", identifier(cp), d.String())
 				return ctx
@@ -963,7 +963,7 @@ func CompositeResourceMustMatchWithin(d time.Duration, dir, claimFile string, ma
 			return match(&composite.Unstructured{Unstructured: *u})
 		}
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil && count.Load() > 0 {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil && count.Load() > 0 {
 			t.Errorf("composite %s did not match the condition before timeout (%s): %s\n\n", identifier(&uxr), d.String(), err)
 			return ctx
 		}

@@ -66,11 +66,13 @@ func NewFetchingFunctionRunner(r FunctionRunner, rf RequiredResourcesFetcher, sf
 
 // RunFunction runs a function, repeatedly fetching any required resources it asks
 // for. The function may be run up to MaxRequirementsIterations times.
-func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	// Used to store the requirements returned at the previous iteration.
+func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) { //nolint:gocognit // It's essentially one loop with a series of flat conditionals; it doesn't read as complex.
+	// The requirements returned at the previous iteration.
 	var requirements *fnv1.Requirements
 
-	// Preserve bootstrap required resources and schemas from the initial request.
+	// The resources and schemas the function was given up front - e.g. a
+	// Composition's bootstrap requirements, or resources seeded from a previous
+	// reconcile. We preserve them across iterations.
 	bootstrapResources := maps.Clone(req.GetRequiredResources())
 	bootstrapSchemas := maps.Clone(req.GetRequiredSchemas())
 
@@ -91,58 +93,84 @@ func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, r
 			}
 		}
 
-		newRequirements := rsp.GetRequirements()
-		if proto.Equal(newRequirements, requirements) {
+		reqs := rsp.GetRequirements()
+		if proto.Equal(reqs, requirements) {
 			// The requirements stabilized, the function is done.
 			return rsp, nil
 		}
 
-		// Store the requirements for the next iteration.
-		requirements = newRequirements
-
-		// Clean up resources from the previous iteration to store the new ones.
-		req.ExtraResources = make(map[string]*fnv1.Resources) //nolint:staticcheck // Supporting deprecated field for backward compatibility
-		req.RequiredResources = maps.Clone(bootstrapResources)
-		if req.RequiredResources == nil {
-			req.RequiredResources = make(map[string]*fnv1.Resources)
+		// Resolve the resources and schemas the function requires, starting from
+		// what it was given up front and fetching what it asked for. We support
+		// both the current (resources) and deprecated (extra_resources) fields.
+		next := required{
+			resources: maps.Clone(bootstrapResources),
+			extra:     make(map[string]*fnv1.Resources),
+			schemas:   maps.Clone(bootstrapSchemas),
 		}
-
-		// Clean up schemas from the previous iteration to store the new ones.
-		req.RequiredSchemas = maps.Clone(bootstrapSchemas)
-		if req.RequiredSchemas == nil {
-			req.RequiredSchemas = make(map[string]*fnv1.Schema)
+		if next.resources == nil {
+			next.resources = make(map[string]*fnv1.Resources)
 		}
-
-		// Fetch the requested resources and add them to the desired state.
-		// Support both old (extra_resources) and new (resources) field names.
-		for name, selector := range newRequirements.GetExtraResources() { //nolint:staticcheck // Supporting deprecated field for backward compatibility
-			resources, err := c.resources.Fetch(ctx, selector)
+		if next.schemas == nil {
+			next.schemas = make(map[string]*fnv1.Schema)
+		}
+		for n, selector := range reqs.GetExtraResources() { //nolint:staticcheck // Supporting deprecated field for backward compatibility.
+			res, err := c.resources.Fetch(ctx, selector)
 			if err != nil {
-				return nil, errors.Wrapf(err, "fetching resources for %s", name)
+				return nil, errors.Wrapf(err, "fetching resources for %s", n)
 			}
-
-			// Resources would be nil in case of not found resources.
-			req.ExtraResources[name] = resources //nolint:staticcheck // Supporting deprecated field for backward compatibility
+			// res would be nil in case of not found resources.
+			next.extra[n] = res
 		}
-
-		for name, selector := range newRequirements.GetResources() {
-			resources, err := c.resources.Fetch(ctx, selector)
+		for n, selector := range reqs.GetResources() {
+			res, err := c.resources.Fetch(ctx, selector)
 			if err != nil {
-				return nil, errors.Wrapf(err, "fetching resources for %s", name)
+				return nil, errors.Wrapf(err, "fetching resources for %s", n)
 			}
-
-			// Resources would be nil in case of not found resources.
-			req.RequiredResources[name] = resources
+			// res would be nil in case of not found resources.
+			next.resources[n] = res
 		}
-
-		for name, selector := range newRequirements.GetSchemas() {
-			schema, err := c.schemas.Fetch(ctx, selector)
+		for n, selector := range reqs.GetSchemas() {
+			s, err := c.schemas.Fetch(ctx, selector)
 			if err != nil {
-				return nil, errors.Wrapf(err, "fetching schema for %s", name)
+				return nil, errors.Wrapf(err, "fetching schema for %s", n)
 			}
-
-			req.RequiredSchemas[name] = schema
+			next.schemas[n] = s
 		}
+
+		// If the resources and schemas we already sent the function
+		// match what its current requirements resolve to, it saw all of
+		// its requirements on this call, so its response is final and
+		// we needn't call it again.
+		//
+		// This is sound because a second call would receive a request
+		// identical to the one we just sent, and a function is a
+		// deterministic function of its request - so it would return
+		// the same requirements, which is precisely the stabilized
+		// state the check above waits for. Returning here just detects
+		// that one call early. Nor can it hide a requirement grown from
+		// what the function read: if reading what we sent led it to ask
+		// for something new, that requirement is in reqs now, won't
+		// match what we sent, and we'll fall through to fetch it and
+		// iterate.
+		//
+		// We only do this on the first call - the one request we didn't
+		// build ourselves from the function's own requirements, but was
+		// handed to us pre-populated (e.g. bootstrap requirements, or
+		// resources seeded from a previous reconcile). Later calls rely
+		// on the stabilized check above, so a function whose
+		// requirements never settle still errors rather than returning
+		// early here.
+		if i == 0 &&
+			maps.EqualFunc(req.GetRequiredResources(), next.resources, resourcesEqual) &&
+			maps.EqualFunc(req.GetExtraResources(), next.extra, resourcesEqual) && //nolint:staticcheck // Supporting deprecated field for backward compatibility.
+			maps.EqualFunc(req.GetRequiredSchemas(), next.schemas, schemasEqual) {
+			return rsp, nil
+		}
+
+		requirements = reqs
+		req.RequiredResources = next.resources
+		req.ExtraResources = next.extra //nolint:staticcheck // Supporting deprecated field for backward compatibility.
+		req.RequiredSchemas = next.schemas
 
 		// Pass down the updated context across iterations.
 		req.Context = rsp.GetContext()
@@ -150,6 +178,17 @@ func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, r
 	// The requirements didn't stabilize after the maximum number of iterations.
 	return nil, errors.Errorf("requirements didn't stabilize after the maximum number of iterations (%d)", MaxRequirementsIterations)
 }
+
+// required is the resources and schemas a function's requirements resolve to.
+type required struct {
+	resources map[string]*fnv1.Resources
+	extra     map[string]*fnv1.Resources // The deprecated extra_resources field.
+	schemas   map[string]*fnv1.Schema
+}
+
+func resourcesEqual(a, b *fnv1.Resources) bool { return proto.Equal(a, b) }
+
+func schemasEqual(a, b *fnv1.Schema) bool { return proto.Equal(a, b) }
 
 // ExistingRequiredResourcesFetcher fetches required resources requested by
 // functions using the provided client.Reader.

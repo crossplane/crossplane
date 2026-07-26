@@ -422,7 +422,7 @@ type WatchType string
 const (
 	WatchTypeClaim               WatchType = "Claim"
 	WatchTypeCompositeResource   WatchType = "CompositeResource"
-	WatchTypeComposedResource    WatchType = "ComposedResource"
+	WatchTypeDependency          WatchType = "Dependency"
 	WatchTypeCompositionRevision WatchType = "CompositionRevision"
 	WatchTypeManagedResource     WatchType = "ManagedResource"
 )

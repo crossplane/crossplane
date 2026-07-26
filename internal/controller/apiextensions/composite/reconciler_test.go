@@ -48,6 +48,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 )
 
@@ -515,14 +516,22 @@ func TestReconcile(t *testing.T) {
 						cd := &kunstructured.Unstructured{}
 						cd.SetAPIVersion("example.org/v1")
 						cd.SetKind("ComposedResource")
-						want := []engine.Watch{engine.WatchFor(cd, engine.WatchTypeComposedResource, nil)}
+						want := []engine.Watch{engine.WatchFor(cd, engine.WatchTypeDependency, nil)}
 
 						if diff := cmp.Diff(want, ws, cmp.AllowUnexported(engine.Watch{})); diff != "" {
 							t.Errorf("StartWatches(...): -want, +got:\n%s", diff)
 						}
 
 						return nil
-					})),
+					}), func() dependency.Tracker {
+						// The XR depends on the composed resource kind, so the
+						// reconciler should start a watch for it.
+						tr := dependency.NewInMemory()
+						tr.Track(client.ObjectKey{Name: "cool"}, []dependency.Reference{{
+							GVK: schema.GroupVersionKind{Group: "example.org", Version: "v1", Kind: "ComposedResource"},
+						}}, nil)
+						return tr
+					}()),
 				},
 			},
 			want: want{

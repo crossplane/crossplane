@@ -22,7 +22,10 @@ spec:
       name: HEALTHY
       type: string
     - jsonPath: .status.conditions[?(@.type=='RuntimeHealthy')].status
-      name: RUNTIME
+      name: RUNTIME-HEALTHY
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='RuntimeActive')].status
+      name: RUNTIME-ACTIVE
       type: string
     - jsonPath: .spec.image
       name: IMAGE
@@ -332,7 +335,10 @@ spec:
       name: HEALTHY
       type: string
     - jsonPath: .status.conditions[?(@.type=='RuntimeHealthy')].status
-      name: RUNTIME
+      name: RUNTIME-HEALTHY
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='RuntimeActive')].status
+      name: RUNTIME-ACTIVE
       type: string
     - jsonPath: .spec.image
       name: IMAGE
