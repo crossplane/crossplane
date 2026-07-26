@@ -22,6 +22,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 
@@ -35,6 +36,9 @@ const (
 	// Providers are expected to use port 8080 if they expose Prometheus
 	// metrics, which any provider built using controller-runtime will do by
 	// default.
+
+	// FieldOwnerRuntime for SSA (Server Side Apply).
+	FieldOwnerRuntime = "pkg.crossplane.io/runtime"
 
 	// MetricsPortName is the name of the metrics port.
 	MetricsPortName = "metrics"
@@ -132,6 +136,18 @@ func BuilderWithRuntimeConfig(rc *v1beta1.DeploymentRuntimeConfig) BuilderOption
 	return func(b *DeploymentRuntimeBuilder) {
 		b.runtimeConfig = rc
 	}
+}
+
+// applyRuntimeObject applies runtime manifests using SSA.
+func applyRuntimeObject(ctx context.Context, c client.Client, obj client.Object) error {
+	//nolint:staticcheck // Client.Apply requires typed apply configurations.
+	return c.Patch(
+		ctx,
+		obj,
+		client.Apply,
+		client.FieldOwner(FieldOwnerRuntime),
+		client.ForceOwnership,
+	)
 }
 
 // BuilderWithServiceAccountPullSecrets sets the service account

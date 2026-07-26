@@ -227,7 +227,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 				},
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyProviderSA),
+				err: errors.Wrap(errBoom, errApplyProviderSA),
 			},
 		},
 		"ErrApplyDeployment": {
@@ -271,7 +271,7 @@ func TestProviderPostHook(t *testing.T) {
 							for _, opt := range opts {
 								opt.ApplyToPatch(po)
 							}
-							if po.FieldManager != "crossplane-package-runtime" || po.Force == nil || !*po.Force {
+							if po.FieldManager != FieldOwnerRuntime || po.Force == nil || !*po.Force {
 								t.Fatalf("expected SSA field owner and force ownership options")
 							}
 							return errBoom

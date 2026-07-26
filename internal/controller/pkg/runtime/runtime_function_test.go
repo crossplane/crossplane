@@ -75,18 +75,19 @@ func TestFunctionPreHook(t *testing.T) {
 				},
 				manifests: &MockManifestBuilder{
 					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
-						return &corev1.Service{}
+						return &corev1.Service{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "some-service",
+								Namespace: "some-namespace",
+							},
+						}
 					},
 					TLSServerSecretFn: func() *corev1.Secret {
 						return &corev1.Secret{}
 					},
 				},
 				client: &test.MockClient{
-					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
-						if svc, ok := obj.(*corev1.Service); ok {
-							svc.Name = "some-service"
-							svc.Namespace = "some-namespace"
-						}
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
 					},
 					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
@@ -222,7 +223,7 @@ func TestFunctionPostHook(t *testing.T) {
 						},
 					},
 				},
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyFunctionSA),
+				err: errors.Wrap(errBoom, errApplyFunctionSA),
 			},
 		},
 		"ErrApplyDeployment": {
@@ -266,7 +267,7 @@ func TestFunctionPostHook(t *testing.T) {
 							for _, opt := range opts {
 								opt.ApplyToPatch(po)
 							}
-							if po.FieldManager != "crossplane-package-runtime" || po.Force == nil || !*po.Force {
+							if po.FieldManager != FieldOwnerRuntime || po.Force == nil || !*po.Force {
 								t.Fatalf("expected SSA field owner and force ownership options")
 							}
 							return errBoom
