@@ -17,8 +17,9 @@ experimental-features = nix-command flakes
 build-users-group =
 
 # Build derivations serially. Running one build per core races on the shared
-# HOME (/homeless-shelter) in this rootless, single-user container, which makes
-# Renovate's Nix artifact updates fail intermittently.
+# HOME (/homeless-shelter) in this rootless, single-user container. This stops
+# concurrent builds from colliding; a leftover /homeless-shelter is cleaned up
+# separately below, before Renovate runs.
 max-jobs = 1
 
 # Use the Crossplane Cachix cache to download pre-built binaries from CI.
@@ -36,5 +37,12 @@ echo "Installing Earthly..."
 nix profile install github:crossplane/crossplane#earthly
 export PATH="$HOME/.nix-profile/bin:$PATH"
 earthly bootstrap
+
+# The Earthly install above triggers a Nix build. With the sandbox disabled in
+# this container, Nix uses /homeless-shelter as $HOME and leaves it behind, and
+# then refuses every later non-sandbox build with "home directory
+# '/homeless-shelter' exists". Remove it so Renovate's `nix run .#tidy` and
+# `.#generate` artifact updates start from a clean slate.
+rm -rf /homeless-shelter
 
 renovate
