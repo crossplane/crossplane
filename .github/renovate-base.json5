@@ -66,6 +66,9 @@
     addLabels: [
       'security',
     ],
+    // Set a static groupName for security fixes so they all get batched into a
+    // single PR per base branch, instead of one per CVE.
+    groupName: 'vulnerable dependencies',
   },
   osvVulnerabilityAlerts: true,
   // Renovate evaluates all packageRules in order, so low priority rules should
