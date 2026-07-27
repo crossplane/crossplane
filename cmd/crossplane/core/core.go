@@ -285,11 +285,13 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	if c.FunctionCABundlePath != "" {
-		functionRootCAs, err := ParseCertificatesFromPath(c.FunctionCABundlePath)
+		functionCACert, err := os.ReadFile(c.FunctionCABundlePath)
 		if err != nil {
-			return errors.Wrap(err, "cannot parse function CA bundle")
+			return errors.Wrap(err, "cannot read function CA bundle")
 		}
-		clienttls.RootCAs = functionRootCAs
+		if !clienttls.RootCAs.AppendCertsFromPEM(functionCACert) {
+			log.Info("Warning: failed to parse function CA certificate, TLS verification may fail")
+		}
 	}
 
 	pfrm := xfn.NewPrometheusMetrics()
