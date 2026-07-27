@@ -1177,8 +1177,8 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"RuntimeActivationAwaitingWithDRCExplicitReplicas": {
-			reason: "A safe-start revision with all-inactive MRDs but a DRC that sets explicit replicas should run " +
-				"its runtime (DRC wins over defaultReplicas=0) and be marked RuntimeActive, not AwaitingActivation.",
+			reason: "A safe-start revision with all-inactive MRDs should scale its runtime to zero and be marked " +
+				"AwaitingActivation even when a DRC sets an explicit replica count.",
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
@@ -1213,7 +1213,7 @@ func TestReconcile(t *testing.T) {
 							want := &v1.ProviderRevision{}
 							setRuntimeActivationRevision(want, pkgmetav1.ProviderCapabilitySafeStart)
 							want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "explicit-replicas-rc"})
-							want.SetConditions(v1.RuntimeHealthy(), v1.RuntimeActive())
+							want.SetConditions(v1.RuntimeHealthy(), v1.RuntimeAwaitingActivation().WithMessage("Package runtime is scaled to zero; awaiting the first ManagedResourceDefinition to be activated"))
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)

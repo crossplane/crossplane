@@ -124,9 +124,8 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			reason: "No overrides should result in a deployment with default values",
 			args: args{
 				builder: &DeploymentRuntimeBuilder{
-					revision:        providerRevision,
-					namespace:       namespace,
-					defaultReplicas: 1,
+					revision:  providerRevision,
+					namespace: namespace,
 				},
 				serviceAccountName: providerRevisionName,
 				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
@@ -139,12 +138,12 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			},
 		},
 		"ProviderDeploymentScaleToZero": {
-			reason: "Scale to zero should default the deployment to zero replicas",
+			reason: "Awaiting activation should scale the deployment to zero replicas",
 			args: args{
 				builder: &DeploymentRuntimeBuilder{
-					revision:        providerRevision,
-					namespace:       namespace,
-					defaultReplicas: 0,
+					revision:           providerRevision,
+					namespace:          namespace,
+					awaitingActivation: true,
 				},
 				serviceAccountName: providerRevisionName,
 				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
@@ -159,12 +158,12 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			},
 		},
 		"ProviderDeploymentScaleToZeroWithRuntimeConfigReplicas": {
-			reason: "Explicit replicas from the runtime config should win over scale to zero",
+			reason: "Awaiting activation should scale to zero even when the runtime config sets an explicit replica count",
 			args: args{
 				builder: &DeploymentRuntimeBuilder{
-					revision:        providerRevision,
-					namespace:       namespace,
-					defaultReplicas: 0,
+					revision:           providerRevision,
+					namespace:          namespace,
+					awaitingActivation: true,
 					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
@@ -183,7 +182,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					v1.LabelProvider: providerName,
 					v1.LabelRevision: providerRevisionName,
 				}), func(deployment *appsv1.Deployment) {
-					deployment.Spec.Replicas = ptr.To[int32](3)
+					deployment.Spec.Replicas = ptr.To[int32](0)
 				}),
 			},
 		},
@@ -191,9 +190,8 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			reason: "Baseline provided by the runtime config should be applied to the deployment",
 			args: args{
 				builder: &DeploymentRuntimeBuilder{
-					revision:        providerRevision,
-					namespace:       namespace,
-					defaultReplicas: 1,
+					revision:  providerRevision,
+					namespace: namespace,
 					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
@@ -252,9 +250,8 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			reason: "It should be possible to disable default scrape annotations",
 			args: args{
 				builder: &DeploymentRuntimeBuilder{
-					revision:        providerRevision,
-					namespace:       namespace,
-					defaultReplicas: 1,
+					revision:  providerRevision,
+					namespace: namespace,
 					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
@@ -290,9 +287,8 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			reason: "Baseline provided by the runtime config should be applied to the deployment for advanced use cases",
 			args: args{
 				builder: &DeploymentRuntimeBuilder{
-					revision:        providerRevision,
-					namespace:       namespace,
-					defaultReplicas: 1,
+					revision:  providerRevision,
+					namespace: namespace,
 					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
@@ -390,9 +386,8 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			reason: "No overrides should result in a deployment with default values",
 			args: args{
 				builder: &DeploymentRuntimeBuilder{
-					revision:        functionRevision,
-					namespace:       namespace,
-					defaultReplicas: 1,
+					revision:  functionRevision,
+					namespace: namespace,
 				},
 				serviceAccountName: functionRevisionName,
 				overrides:          functionDeploymentOverrides(functionRevision, functionImage),
@@ -432,9 +427,8 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 			reason: "No runtime config on the builder should result in a service with default values",
 			args: args{
 				builder: &DeploymentRuntimeBuilder{
-					revision:        providerRevision,
-					namespace:       namespace,
-					defaultReplicas: 1,
+					revision:  providerRevision,
+					namespace: namespace,
 				},
 				serviceAccountName: providerRevisionName,
 				overrides: []ServiceOverride{
@@ -891,11 +885,10 @@ func TestBuilderWithMRDs(t *testing.T) {
 			mrds:            []extv1alpha1.ManagedResourceDefinition{inactiveMRD},
 			wantScaleToZero: false,
 		},
-		"RuntimeConfigWithExplicitReplicasNotAwaiting": {
-			// A DeploymentRuntimeConfig that sets spec.replicas wins over
-			// defaultReplicas=0 via DeploymentWithOptionalReplicas, so the
-			// deployment is not actually scaled to zero — AwaitingActivation
-			// must reflect that.
+		"RuntimeConfigWithExplicitReplicas": {
+			// Awaiting activation scales the runtime to zero regardless of an
+			// explicit replica count in the DeploymentRuntimeConfig. The
+			// configured count only takes effect once the runtime is activated.
 			revision: safeStartRevision(),
 			mrds:     []extv1alpha1.ManagedResourceDefinition{inactiveMRD},
 			runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
@@ -907,7 +900,7 @@ func TestBuilderWithMRDs(t *testing.T) {
 					},
 				},
 			},
-			wantScaleToZero: false,
+			wantScaleToZero: true,
 		},
 	}
 
