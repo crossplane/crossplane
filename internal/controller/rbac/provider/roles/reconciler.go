@@ -86,7 +86,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	if o.AllowClusterRole == "" {
 		r := NewReconciler(mgr,
 			WithLogger(o.Logger.WithValues("controller", name)),
-			WithRecorder(event.NewEventsRecorder(mgr.GetEventRecorder(name), o.EventFilterFunctions...)))
+			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorder(name), o.EventFilterFunctions...)))
 
 		return ctrl.NewControllerManagedBy(mgr).
 			Named(name).
@@ -108,7 +108,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewEventsRecorder(mgr.GetEventRecorder(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorder(name), o.EventFilterFunctions...)),
 		WithOrgDiffer(OrgDiffer{}))
 
 	return ctrl.NewControllerManagedBy(mgr).
