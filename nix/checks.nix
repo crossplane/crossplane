@@ -32,7 +32,6 @@ in
 
       checkPhase = ''
         runHook preCheck
-        export HOME=$TMPDIR
         go test -covermode=count -coverprofile=coverage.txt ./cmd/... ./internal/...
         runHook postCheck
       '';
@@ -57,7 +56,6 @@ in
 
       checkPhase = ''
         runHook preCheck
-        export HOME=$TMPDIR
         go test -covermode=count -coverprofile=coverage.txt ./...
         runHook postCheck
       '';
@@ -84,7 +82,6 @@ in
 
       checkPhase = ''
         runHook preCheck
-        export HOME=$TMPDIR
         export GOLANGCI_LINT_CACHE=$TMPDIR/.cache/golangci-lint
         golangci-lint run
         runHook postCheck
@@ -112,7 +109,6 @@ in
 
       checkPhase = ''
         runHook preCheck
-        export HOME=$TMPDIR
         export GOLANGCI_LINT_CACHE=$TMPDIR/.cache/golangci-lint
         golangci-lint run --config=${self}/.golangci.yml
         runHook postCheck
@@ -161,7 +157,6 @@ in
 
       checkPhase = ''
         runHook preCheck
-        export HOME=$TMPDIR
 
         echo "Running go generate..."
         go generate -tags generate .
@@ -210,7 +205,6 @@ in
 
       checkPhase = ''
         runHook preCheck
-        export HOME=$TMPDIR
 
         # cluster/webhookconfigurations contains some non-generated files. Copy
         # the existing version into our build context so we can detect changes

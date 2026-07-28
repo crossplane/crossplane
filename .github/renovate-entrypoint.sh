@@ -16,10 +16,8 @@ experimental-features = nix-command flakes
 # needing to create the nixbld group and users in this ephemeral container.
 build-users-group =
 
-# Build derivations serially. Running one build per core races on the shared
-# HOME (/homeless-shelter) in this rootless, single-user container, which makes
-# Renovate's Nix artifact updates fail intermittently.
-max-jobs = 1
+# Build derivations in parallel, one per CPU core.
+max-jobs = auto
 
 # Use the Crossplane Cachix cache to download pre-built binaries from CI.
 extra-substituters = https://crossplane.cachix.org
