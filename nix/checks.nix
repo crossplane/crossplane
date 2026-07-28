@@ -32,7 +32,6 @@ in
 
       checkPhase = ''
         runHook preCheck
-        export HOME=$TMPDIR
         go test -covermode=count -coverprofile=coverage.txt ./apis/... ./cmd/... ./internal/...
         runHook postCheck
       '';
@@ -59,7 +58,6 @@ in
 
       checkPhase = ''
         runHook preCheck
-        export HOME=$TMPDIR
         export GOLANGCI_LINT_CACHE=$TMPDIR/.cache/golangci-lint
         golangci-lint run
         runHook postCheck
@@ -108,7 +106,6 @@ in
 
       checkPhase = ''
         runHook preCheck
-        export HOME=$TMPDIR
 
         echo "Running go generate..."
         go generate -tags generate .
