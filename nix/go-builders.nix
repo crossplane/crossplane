@@ -20,6 +20,14 @@ let
   vendorHashes = import ./vendor-hashes.nix;
   go = pkgs.unstable.go_1_25;
 
+  # If the Nix sandbox isn't available (e.g. Renovate's container), Nix falls back to building
+  # without it, and $HOME is set to /homeless-shelter on the real filesystem. Give every Go build
+  # its own HOME so we don't ever use /homeless-shelter.
+  goHome = ''
+    export HOME="$NIX_BUILD_TOP/home"
+    mkdir -p "$HOME"
+  '';
+
   # One shared module-download cache per module. Built with the native toolchain
   # (`go mod download` is platform-independent), so every consumer - including
   # cross-compiled binaries - shares the same derivation.
@@ -37,13 +45,19 @@ let
     (mkVendor "crossplane-root" {
       src = self;
       vendorHash = vendorHashes.root;
-    }).goModules;
+    }).goModules.overrideAttrs
+      (o: {
+        preConfigure = (o.preConfigure or "") + goHome;
+      });
 
   apisVendor =
     (mkVendor "crossplane-apis" {
       src = "${self}/apis";
       vendorHash = vendorHashes.apis;
-    }).goModules;
+    }).goModules.overrideAttrs
+      (o: {
+        preConfigure = (o.preConfigure or "") + goHome;
+      });
 
   # Build for a module, injecting that module's shared vendor cache so no
   # per-derivation goModules is built. `goAttrs` lets callers cross-compile by
@@ -64,8 +78,9 @@ let
       }
       // args
     )).overrideAttrs
-      (_: {
+      (o: {
         goModules = modules;
+        preConfigure = (o.preConfigure or "") + goHome;
       });
 in
 {
