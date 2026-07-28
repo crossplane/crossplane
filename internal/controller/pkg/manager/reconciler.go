@@ -48,9 +48,11 @@ import (
 const (
 	reconcileTimeout = 1 * time.Minute
 
-	// defaultPullWait is the fallback requeue interval for packages with
-	// PullPolicy Always when no poll interval is configured.
-	defaultPullWait = 1 * time.Minute
+	// defaultPackagePollInterval is the fallback requeue interval for packages
+	// with PullPolicy Always when no package-specific poll interval is
+	// configured. Kept at 1m to preserve the deliberate floor from
+	// https://github.com/crossplane/crossplane/pull/3581.
+	defaultPackagePollInterval = 1 * time.Minute
 
 	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
 )
@@ -177,7 +179,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithClient(o.Client),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
-		WithPollInterval(o.PollInterval),
+		WithPollInterval(o.PackagePollInterval),
 	}
 
 	if o.PackageRuntime.For(v1.ProviderKind) == controller.PackageRuntimeDeployment {
@@ -208,7 +210,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		WithClient(o.Client),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
-		WithPollInterval(o.PollInterval),
+		WithPollInterval(o.PackagePollInterval),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -235,7 +237,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		WithClient(o.Client),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
-		WithPollInterval(o.PollInterval),
+		WithPollInterval(o.PackagePollInterval),
 	}
 
 	if o.PackageRuntime.For(v1.FunctionKind) == controller.PackageRuntimeDeployment {
@@ -261,7 +263,7 @@ func NewReconciler(mgr ctrl.Manager, opts ...ReconcilerOption) *Reconciler {
 		log:          logging.NewNopLogger(),
 		record:       event.NewNopRecorder(),
 		conditions:   conditions.ObservedGenerationPropagationManager{},
-		pollInterval: defaultPullWait,
+		pollInterval: defaultPackagePollInterval,
 	}
 
 	for _, f := range opts {
@@ -278,7 +280,7 @@ func (r *Reconciler) pullBasedRequeue(p *corev1.PullPolicy) reconcile.Result {
 	if p != nil && *p == corev1.PullAlways {
 		interval := r.pollInterval
 		if interval <= 0 {
-			interval = defaultPullWait
+			interval = defaultPackagePollInterval
 		}
 		return reconcile.Result{RequeueAfter: interval}
 	}

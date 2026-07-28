@@ -1031,12 +1031,12 @@ func TestPullBasedRequeue(t *testing.T) {
 			want: want{result: reconcile.Result{RequeueAfter: 5 * time.Minute}},
 		},
 		"PullAlwaysZeroIntervalFallsBackToDefault": {
-			reason: "PullAlways with a zero poll interval should fall back to defaultPullWait.",
+			reason: "PullAlways with a zero poll interval should fall back to defaultPackagePollInterval.",
 			args: args{
 				r: &Reconciler{pollInterval: 0},
 				p: &pullAlways,
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultPullWait}},
+			want: want{result: reconcile.Result{RequeueAfter: defaultPackagePollInterval}},
 		},
 	}
 
