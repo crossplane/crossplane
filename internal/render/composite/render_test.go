@@ -305,7 +305,7 @@ func TestRender(t *testing.T) {
 				CompositeResource: mustStruct(map[string]any{
 					"apiVersion": "example.org/v1alpha1",
 					"kind":       "XLegacyResource",
-					"metadata":   map[string]any{"name": "my-xr"},
+					"metadata":   map[string]any{"name": "my-xr", "uid": "xr-uid"},
 				}),
 				Composition: mustStruct(map[string]any{
 					"metadata": map[string]any{"name": "legacy-composition"},
@@ -325,6 +325,16 @@ func TestRender(t *testing.T) {
 							"name": "obs-1",
 							"annotations": map[string]any{
 								"crossplane.io/composition-resource-name": "obs-1",
+							},
+							"ownerReferences": []any{
+								map[string]any{
+									"apiVersion":         "example.org/v1alpha1",
+									"kind":               "XLegacyResource",
+									"name":               "my-xr",
+									"uid":                "xr-uid",
+									"controller":         true,
+									"blockOwnerDeletion": true,
+								},
 							},
 						},
 					}),
@@ -374,6 +384,16 @@ func TestRender(t *testing.T) {
 								"name": "obs-1",
 								"annotations": map[string]any{
 									"crossplane.io/composition-resource-name": "obs-1",
+								},
+								"ownerReferences": []any{
+									map[string]any{
+										"apiVersion":         "example.org/v1alpha1",
+										"kind":               "XLegacyResource",
+										"name":               "my-xr",
+										"uid":                "xr-uid",
+										"controller":         true,
+										"blockOwnerDeletion": true,
+									},
 								},
 							},
 						}),

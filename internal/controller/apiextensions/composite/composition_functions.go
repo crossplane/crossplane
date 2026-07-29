@@ -970,16 +970,24 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 	do := &client.DeleteOptions{}
 	client.PropagationPolicy(metav1.DeletePropagationForeground).ApplyToDelete(do)
 	for name, cd := range del {
-		// Don't garbage collect composed resources that someone else controls.
+		// Only garbage collect composed resources that we actually control.
 		//
-		// We do garbage collect composed resources that no-one controls. If a
-		// composed resource appears in observed (i.e. appears in the XR's
-		// spec.resourceRefs) but doesn't have a controller ref, most likely we
-		// created it but its controller ref was stripped. In this situation it
-		// would be permissible for us to adopt the composed resource by setting
-		// our XR as the controller ref, then delete it. So we may as well just
-		// go straight to deleting it.
-		if c := metav1.GetControllerOf(cd.Resource); c != nil && c.UID != owner.GetUID() {
+		// We set ourselves as the controller reference of every resource we
+		// compose, so a resource whose controller reference isn't ours is not
+		// ours to delete - even though it appears in observed because it's
+		// referenced by the XR's spec.resourceRefs. Deleting a resource we don't
+		// control would let anyone able to edit spec.resourceRefs use us as a
+		// confused deputy to delete arbitrary resources (see
+		// GHSA-77cv-mrm6-fr3c).
+		switch c := metav1.GetControllerOf(cd.Resource); {
+		case c == nil:
+			// No controller reference: we can't prove we composed this resource,
+			// so we never delete it. A resource we did compose can transiently
+			// lose its controller reference - e.g. a backup/restore that doesn't
+			// preserve owner UIDs - and will be re-adopted and collected on a
+			// later reconcile once the reference is restored.
+			continue
+		case c.UID != owner.GetUID():
 			return errors.Errorf(errFmtControllerMismatch, name, c.Kind, c.Name)
 		}
 
