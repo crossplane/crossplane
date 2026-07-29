@@ -353,12 +353,12 @@ func TestExtractConnectionDetails(t *testing.T) {
 					{
 						Type:          ConnectionDetailTypeFromFieldPath,
 						Name:          "name",
-						FromFieldPath: ptr.To("objectMeta.name"),
+						FromFieldPath: ptr.To("name"),
 					},
 					{
 						Type:          ConnectionDetailTypeFromFieldPath,
 						Name:          "generation",
-						FromFieldPath: ptr.To("objectMeta.generation"),
+						FromFieldPath: ptr.To("generation"),
 					},
 				},
 			},

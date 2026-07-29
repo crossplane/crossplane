@@ -100,8 +100,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("objectMeta.labels"),
-					ToFieldPath:   ptr.To("objectMeta.labels"),
+					FromFieldPath: ptr.To("labels"),
+					ToFieldPath:   ptr.To("labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -133,8 +133,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("objectMeta.labels"),
-					ToFieldPath:   ptr.To("objectMeta.labels"),
+					FromFieldPath: ptr.To("labels"),
+					ToFieldPath:   ptr.To("labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -165,8 +165,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("objectMeta.name"),
-					ToFieldPath:   ptr.To("objectMeta.ownerReferences[*].name"),
+					FromFieldPath: ptr.To("name"),
+					ToFieldPath:   ptr.To("ownerReferences[*].name"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -211,8 +211,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("objectMeta.name"),
-					ToFieldPath:   ptr.To("objectMeta.ownerReferences[*].badField"),
+					FromFieldPath: ptr.To("name"),
+					ToFieldPath:   ptr.To("ownerReferences[*].badField"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -232,7 +232,7 @@ func TestPatchApply(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Errorf(errFmtExpandingArrayFieldPaths, "objectMeta.ownerReferences[*].badField"),
+				err: errors.Errorf(errFmtExpandingArrayFieldPaths, "ownerReferences[*].badField"),
 			},
 		},
 		"MissingOptionalFieldPath": {
@@ -240,8 +240,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("objectMeta.labels"),
-					ToFieldPath:   ptr.To("objectMeta.labels"),
+					FromFieldPath: ptr.To("labels"),
+					ToFieldPath:   ptr.To("labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -297,13 +297,13 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("objectMeta.labels"),
+					FromFieldPath: ptr.To("labels"),
 					Policy: &v1.PatchPolicy{
 						MergeOptions: &xpv1.MergeOptions{
 							KeepMapValues: ptr.To(true),
 						},
 					},
-					ToFieldPath: ptr.To("objectMeta.labels"),
+					ToFieldPath: ptr.To("labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -343,8 +343,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("objectMeta.labels"),
-					ToFieldPath:   ptr.To("objectMeta.labels"),
+					FromFieldPath: ptr.To("labels"),
+					ToFieldPath:   ptr.To("labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -374,8 +374,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("objectMeta.labels"),
-					ToFieldPath:   ptr.To("objectMeta.labels"),
+					FromFieldPath: ptr.To("labels"),
+					ToFieldPath:   ptr.To("labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -408,7 +408,7 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("objectMeta.labels"),
+					FromFieldPath: ptr.To("labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -451,8 +451,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeToCompositeFieldPath,
-					FromFieldPath: ptr.To("objectMeta.labels"),
-					ToFieldPath:   ptr.To("objectMeta.labels"),
+					FromFieldPath: ptr.To("labels"),
+					ToFieldPath:   ptr.To("labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -495,8 +495,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeToCompositeFieldPath,
-					FromFieldPath: ptr.To("objectMeta.name"),
-					ToFieldPath:   ptr.To("objectMeta.ownerReferences[*].name"),
+					FromFieldPath: ptr.To("name"),
+					ToFieldPath:   ptr.To("ownerReferences[*].name"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -542,7 +542,7 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:        v1.PatchTypeCombineFromComposite,
-					ToFieldPath: ptr.To("objectMeta.labels.destination"),
+					ToFieldPath: ptr.To("labels.destination"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -592,12 +592,12 @@ func TestPatchApply(t *testing.T) {
 					Type: v1.PatchTypeCombineFromComposite,
 					Combine: &v1.Combine{
 						Variables: []v1.CombineVariable{
-							{FromFieldPath: "objectMeta.labels.source1"},
-							{FromFieldPath: "objectMeta.labels.source2"},
+							{FromFieldPath: "labels.source1"},
+							{FromFieldPath: "labels.source2"},
 						},
 						Strategy: v1.CombineStrategyString,
 					},
-					ToFieldPath: ptr.To("objectMeta.labels.destination"),
+					ToFieldPath: ptr.To("labels.destination"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -650,7 +650,7 @@ func TestPatchApply(t *testing.T) {
 						Strategy:  v1.CombineStrategyString,
 						String:    &v1.StringCombine{Format: "%s-%s"},
 					},
-					ToFieldPath: ptr.To("objectMeta.labels.destination"),
+					ToFieldPath: ptr.To("labels.destination"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -703,14 +703,14 @@ func TestPatchApply(t *testing.T) {
 					Type: v1.PatchTypeCombineFromComposite,
 					Combine: &v1.Combine{
 						Variables: []v1.CombineVariable{
-							{FromFieldPath: "objectMeta.labels.source1"},
-							{FromFieldPath: "objectMeta.labels.source2"},
-							{FromFieldPath: "objectMeta.labels.source3"},
+							{FromFieldPath: "labels.source1"},
+							{FromFieldPath: "labels.source2"},
+							{FromFieldPath: "labels.source3"},
 						},
 						Strategy: v1.CombineStrategyString,
 						String:   &v1.StringCombine{Format: "%s-%s"},
 					},
-					ToFieldPath: ptr.To("objectMeta.labels.destination"),
+					ToFieldPath: ptr.To("labels.destination"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -760,13 +760,13 @@ func TestPatchApply(t *testing.T) {
 					Type: v1.PatchTypeCombineFromComposite,
 					Combine: &v1.Combine{
 						Variables: []v1.CombineVariable{
-							{FromFieldPath: "objectMeta.labels.source1"},
-							{FromFieldPath: "objectMeta.labels.source2"},
+							{FromFieldPath: "labels.source1"},
+							{FromFieldPath: "labels.source2"},
 						},
 						Strategy: v1.CombineStrategyString,
 						String:   &v1.StringCombine{Format: "%s-%s"},
 					},
-					ToFieldPath: ptr.To("objectMeta.labels.destination"),
+					ToFieldPath: ptr.To("labels.destination"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -817,13 +817,13 @@ func TestPatchApply(t *testing.T) {
 					Type: v1.PatchTypeCombineToComposite,
 					Combine: &v1.Combine{
 						Variables: []v1.CombineVariable{
-							{FromFieldPath: "objectMeta.labels.source1"},
-							{FromFieldPath: "objectMeta.labels.source2"},
+							{FromFieldPath: "labels.source1"},
+							{FromFieldPath: "labels.source2"},
 						},
 						Strategy: v1.CombineStrategyString,
 						String:   &v1.StringCombine{Format: "%s-%s"},
 					},
-					ToFieldPath: ptr.To("objectMeta.labels.destination"),
+					ToFieldPath: ptr.To("labels.destination"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
