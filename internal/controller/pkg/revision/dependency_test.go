@@ -161,17 +161,8 @@ func TestResolve(t *testing.T) {
 							return nil
 						}),
 					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return nil, nil
-							},
-							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
-								return nil, nil
-							},
-						}
-					},
-					log: logging.NewNopLogger(),
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
@@ -212,18 +203,8 @@ func TestResolve(t *testing.T) {
 							return nil
 						}),
 					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return nil, nil
-							},
-							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
-								return nil, nil
-							},
-							MockAddOrUpdateNodes: func(_ ...dag.Node) {},
-						}
-					},
-					log: logging.NewNopLogger(),
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
@@ -248,21 +229,8 @@ func TestResolve(t *testing.T) {
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return nil, nil
-							},
-							MockNodeExists: func(_ string) bool {
-								return false
-							},
-							MockAddNode: func(_ dag.Node) error {
-								return nil
-							},
-							MockAddOrUpdateNodes: func(_ ...dag.Node) {},
-						}
-					},
-					log: logging.NewNopLogger(),
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
@@ -331,32 +299,8 @@ func TestResolve(t *testing.T) {
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return []dag.Node{
-									&dag.DependencyNode{
-										Dependency: v1beta1.Dependency{
-											Package: "not-here-2",
-										},
-									},
-									&dag.DependencyNode{
-										Dependency: v1beta1.Dependency{
-											Package: "not-here-3",
-										},
-									},
-								}, nil
-							},
-							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
-								return map[string]dag.Node{
-									"not-here-1": &dag.DependencyNode{},
-									"not-here-2": &dag.DependencyNode{},
-									"not-here-3": &dag.DependencyNode{},
-								}, nil
-							},
-						}
-					},
-					log: logging.NewNopLogger(),
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
@@ -389,7 +333,7 @@ func TestResolve(t *testing.T) {
 			},
 		},
 		"ErrorSelfExistInvalidDependencies": {
-			reason: "Should return error if self exists and missing dependencies.",
+			reason: "Should return error if self exists and dependencies have incompatible versions.",
 			args: args{
 				dep: &PackageDependencyManager{
 					client: &test.MockClient{
@@ -412,7 +356,8 @@ func TestResolve(t *testing.T) {
 									},
 								},
 								{
-									Source: "not-here-1",
+									Source:  "not-here-1",
+									Version: "v0.0.1",
 									Dependencies: []v1beta1.Dependency{
 										{
 											Package: "not-here-3",
@@ -420,45 +365,21 @@ func TestResolve(t *testing.T) {
 										},
 									},
 								},
+								{
+									Source:  "not-here-2",
+									Version: "v0.0.1",
+								},
+								{
+									Source:  "not-here-3",
+									Version: "v0.0.1",
+								},
 							}
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return nil, nil
-							},
-							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
-								return map[string]dag.Node{
-									"not-here-1": &dag.DependencyNode{},
-									"not-here-2": &dag.DependencyNode{},
-									"not-here-3": &dag.DependencyNode{},
-								}, nil
-							},
-							MockGetNode: func(s string) (dag.Node, error) {
-								if s == "not-here-1" {
-									return &dag.PackageNode{
-										LockPackage: v1beta1.LockPackage{
-											Source:  "not-here-1",
-											Version: "v0.0.1",
-										},
-									}, nil
-								}
-								if s == "not-here-2" {
-									return &dag.PackageNode{
-										LockPackage: v1beta1.LockPackage{
-											Source:  "not-here-2",
-											Version: "v0.0.1",
-										},
-									}, nil
-								}
-								return nil, nil
-							},
-						}
-					},
-					log: logging.NewNopLogger(),
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
@@ -521,7 +442,8 @@ func TestResolve(t *testing.T) {
 									},
 								},
 								{
-									Source: "not-here-1",
+									Source:  "not-here-1",
+									Version: "v0.20.0",
 									Dependencies: []v1beta1.Dependency{
 										{
 											Package: "not-here-3",
@@ -529,58 +451,25 @@ func TestResolve(t *testing.T) {
 										},
 									},
 								},
+								{
+									Source:  "not-here-2",
+									Version: "v0.100.1",
+								},
+								{
+									Source:  "not-here-3",
+									Version: "v0.20.0",
+								},
+								{
+									Source:  "function-not-here-1",
+									Version: "v0.1.0",
+								},
 							}
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return nil, nil
-							},
-							MockNodeExists: func(_ string) bool {
-								return true
-							},
-							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
-								return map[string]dag.Node{
-									"not-here-1":          &dag.DependencyNode{},
-									"not-here-2":          &dag.DependencyNode{},
-									"not-here-3":          &dag.DependencyNode{},
-									"function-not-here-1": &dag.DependencyNode{},
-								}, nil
-							},
-							MockGetNode: func(s string) (dag.Node, error) {
-								if s == "not-here-1" {
-									return &dag.PackageNode{
-										LockPackage: v1beta1.LockPackage{
-											Source:  "not-here-1",
-											Version: "v0.20.0",
-										},
-									}, nil
-								}
-								if s == "not-here-2" {
-									return &dag.PackageNode{
-										LockPackage: v1beta1.LockPackage{
-											Source:  "not-here-2",
-											Version: "v0.100.1",
-										},
-									}, nil
-								}
-								if s == "function-not-here-1" {
-									return &dag.PackageNode{
-										LockPackage: v1beta1.LockPackage{
-											Source:  "function-not-here-1",
-											Version: "v0.1.0",
-										},
-									}, nil
-								}
-
-								return nil, nil
-							},
-						}
-					},
-					log: logging.NewNopLogger(),
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
@@ -643,23 +532,8 @@ func TestResolve(t *testing.T) {
 							return nil
 						},
 					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return []dag.Node{}, nil
-							},
-							MockTraceNode: func(s string) (map[string]dag.Node, error) {
-								if s == "xpkg.crossplane.io/hasheddan/config-nop-a" {
-									return map[string]dag.Node{
-										s: &dag.DependencyNode{},
-									}, nil
-								}
-								return nil, errors.New("missing node in tree")
-							},
-							MockAddOrUpdateNodes: func(_ ...dag.Node) {},
-						}
-					},
-					log: logging.NewNopLogger(),
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
@@ -672,10 +546,7 @@ func TestResolve(t *testing.T) {
 					},
 				},
 			},
-			want: want{
-				total:     1,
-				installed: 1,
-			},
+			want: want{},
 		},
 	}
 
