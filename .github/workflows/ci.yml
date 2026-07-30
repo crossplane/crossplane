@@ -249,6 +249,17 @@ jobs:
       - name: Build Artifacts
         run: nix build --option warn-dirty false --print-build-logs
 
+      - name: Validate Artifacts
+        run: |
+          for f in $(find result/bin/ -type f -not -name '*.sha256'); do
+            want=$(sha256sum "${f}" | head -c 64)
+            got=$(cat "${f}.sha256")
+            if [[ "${want}" != "${got}" ]]; then
+              echo "File ${f} has incorrect checksum; want ${want}, got ${got}"
+              exit 1
+            fi
+          done
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
