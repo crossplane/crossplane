@@ -82,14 +82,16 @@ spec:
   mode: Pipeline
   pipeline:
   - step: patch-and-transform
-    function: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.8.2
+    function: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform@sha256:c14068f64cfb2088eec75b1c5cc43425383211b75380b9891f1253b57b3c4fe6
     input:
       # Removed for brevity
 ```
 
 The `function` field, if given, must contain a fully-qualified OCI reference
-(i.e., include a registry, repository, and tag or digest). It is invalid to
-provide both `function` and `functionRef`.
+with the version specified by digest. We require digests here rather than tags
+because it makes composition revisions truly immutable: installing the same
+composition revision later or on a different cluster is guaranteed to run the
+same function. It is invalid to provide both `function` and `functionRef`.
 
 When `function` is provided, the composition revision controller will ensure
 that the specified function is running by creating a `FunctionRevision` resource
@@ -99,7 +101,9 @@ for it and a `Function` resource with the revision included in
 owner reference. Similarly, if a matching `Function` already exists, it gets an
 owner reference and the revision added to its `externalRevisions`. The same
 applies to the operation controller (operations execute in a one-shot manner,
-and as such do not have revisions).
+and as such do not have revisions). This means the composition revision and
+operation controllers will adopt an existing `Function` created by the user or
+package manager if needed.
 
 A user wishing to roll out a new version of `function-patch-and-transform`
 simply updates their composition to reference the new version, resulting in
@@ -125,8 +129,7 @@ to specify all their functions as dependencies or otherwise pre-install
 them. They also don't need to know how the package manager names dependency
 packages to construct the right `functionRef.name` in their composition. They
 are also guaranteed to get exactly the version they specify regardless of what
-other changes happen in the cluster; pacakges can be specified by digest for
-further safety.
+other changes happen in the cluster or registry.
 
 ### Package Manager Changes
 
@@ -141,7 +144,10 @@ package manager. The status of the package is computed from the revisions
 referenced in `externalRevisionRefs`. A package may have both `package` and
 `externalRevisionRefs` (e.g., if it was installed as a dependency and also by
 being referenced in a composition); in this case, the package manager ignores
-`externalRevisionRefs`, but they are still present for visibility.
+revisions listed in `externalRevisionRefs` when managing its own revisions, to
+avoid competing with other controllers. Note that in this specific case there
+could be two active revisions with the same OCI ref (i.e., same version of the
+function).
 
 The package manager's resolver controller (which controls the `Lock` resource)
 will be updated to allow multiple versions of a package to be installed at
@@ -190,6 +196,16 @@ pool will likewise be keyed by OCI ref.
   side-effects: composition-controlled functions don't participate in dependency
   resolution, and users can't see composition-controlled functions in `kubectl
   get pkg`.
+* Make multiple sources explicit in the package API (i.e., add a plural
+  `spec.packages` to the `Function` resource) and have the package manager
+  manage and activate revisions for all specified sources. This keeps revision
+  management entirely in the package manager, which is nice. However, it makes
+  it impossible to determine the provenance of a particular revision: whether it
+  was requested by the user, the dependency resolver, the composition revision
+  controller, or multiple of these. This lack of provenance makes it difficult
+  to clean up revisions that are no longer needed. The proposed design allows us
+  to take advantage of built-in Kubernetes garbage collection for cleanup by
+  setting owner references directly on the revisions.
 * The [previous design][v1], which had the package manager allow for multiple
   active revisions of a package and added revision selectors in compositions.
 
