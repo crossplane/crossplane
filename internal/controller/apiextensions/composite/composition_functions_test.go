@@ -1454,6 +1454,82 @@ func TestFunctionCompose(t *testing.T) {
 				err: nil,
 			},
 		},
+		"StatusPatchesDon'tIncludeExtraParameters": {
+			reason: "We should not take ownership of fields owned by other controllers during a status update. This includes fields from the outer Reconciler, which may be out of date at this point.",
+			params: params{
+				c: &test.MockClient{
+					MockPatch: test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil, func(obj client.Object) error {
+						// Check if the status patch includes any extra conditions from the source object.
+						// If these are present then we're not doing server-side apply correctly.
+						if xr, ok := obj.(*composite.Unstructured); ok {
+							if len(xr.GetConditions()) != 0 {
+								// If conditions are present, then we're incorrectly including extra fields in the status patch.
+								return errors.Errorf("BUG: Status Patch included an existing condition")
+							}
+						}
+						return nil
+					}),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					rsp := &fnv1.RunFunctionResponse{
+						Desired: &fnv1.State{
+							Composite: &fnv1.Resource{
+								Resource: MustStruct(map[string]any{
+									"status": map[string]any{
+										"widgets": 42,
+									},
+								}),
+							},
+						},
+					}
+					return rsp, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: func() *composite.Unstructured {
+					// Our XR needs a GVK to survive round-tripping through a
+					// protobuf struct (which involves using the Kubernetes-aware
+					// JSON unmarshaller that requires a GVK).
+					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+						Group:   "test.crossplane.io",
+						Version: "v1",
+						Kind:    "CoolComposite",
+					}))
+					xr.SetLabels(map[string]string{
+						xcrd.LabelKeyNamePrefixForComposed: "parent-xr",
+					})
+					xr.SetConditions(v1.WatchCircuitClosed())
+					return xr
+				}(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
 	}
 
 	for name, tc := range cases {

@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -99,6 +98,13 @@ const (
 // Condition reasons.
 const (
 	reasonFatalError xpv2.ConditionReason = "FatalError"
+)
+
+// Server-side-apply field owners.
+const (
+	// FieldOwnerReconciler owns the fields this controller mutates on composite
+	// resources (XR).
+	FieldOwnerReconciler = "apiextensions.crossplane.io/reconciler"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -588,15 +594,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
 	}
 
-	statusBefore, _, _ := kunstructured.NestedFieldCopy(xr.Object, "status")
-
 	log = log.WithValues(
 		"uid", xr.GetUID(),
 		"version", xr.GetResourceVersion(),
 		"name", xr.GetName(),
 	)
 
-	status := r.conditions.For(xr)
+	// Store the current set of conditions, so we can detect if any are missed during a Compose error
+	startingConditions := xr.GetConditions()
+
+	// Set up an xr status object to use for server-side apply.
+	xrStatus := composite.New(composite.WithSchema(xr.Schema), composite.WithGroupVersionKind(xr.GroupVersionKind()))
+	xrStatus.SetNamespace(xr.GetNamespace())
+	xrStatus.SetName(xr.GetName())
+	status := r.conditions.For(xrStatus)
 
 	// Check circuit breaker state and set condition accordingly.
 	condition := v1.WatchCircuitClosed()
@@ -613,7 +624,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		status.MarkConditions(xpv2.ReconcilePaused().WithMessage(reconcilePausedMsg))
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
 		// and if status update fails, we will reconcile again to retry to update the status
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Patch(updateCtx, xrStatus, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerReconciler)), errUpdateStatus)
 	}
 
 	// Record the reconcile-requested-at annotation token in status so
@@ -622,7 +633,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if xr.GetLastHandledReconcileAt() != token {
 			log.Debug("Processing reconcile request", "token", token)
 			r.record.Event(xr, event.Normal(reasonReconcileRequestHandled, "Handling reconcile request", "token", token))
-			xr.SetLastHandledReconcileAt(token)
+			xrStatus.SetLastHandledReconcileAt(token)
 		}
 	}
 
@@ -639,7 +650,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			err = errors.Wrap(err, errRemoveFinalizer)
 			r.record.Event(xr, event.Warning(reasonDelete, err))
 			status.MarkConditions(xpv2.ReconcileError(err))
-			_ = r.client.Status().Update(updateCtx, xr)
+			_ = r.client.Status().Patch(updateCtx, xrStatus, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerReconciler))
 
 			return reconcile.Result{}, err
 		}
@@ -651,7 +662,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Successfully deleted composite resource")
 		status.MarkConditions(xpv2.ReconcileSuccess())
 
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Patch(updateCtx, xrStatus, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerReconciler)), errUpdateStatus)
 	}
 
 	if err := r.composite.AddFinalizer(ctx, xr); err != nil {
@@ -662,7 +673,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(xr, event.Warning(reasonInit, err))
 		status.MarkConditions(xpv2.ReconcileError(err))
-		_ = r.client.Status().Update(updateCtx, xr)
+		_ = r.client.Status().Patch(updateCtx, xrStatus, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerReconciler))
 
 		return reconcile.Result{}, err
 	}
@@ -676,7 +687,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errSelectComp)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
 		status.MarkConditions(xpv2.ReconcileError(err))
-		_ = r.client.Status().Update(updateCtx, xr)
+		_ = r.client.Status().Patch(updateCtx, xrStatus, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerReconciler))
 
 		return reconcile.Result{}, err
 	}
@@ -693,7 +704,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errSelectCompRev)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
 		status.MarkConditions(xpv2.ReconcileError(err))
-		_ = r.client.Status().Update(updateCtx, xr)
+		_ = r.client.Status().Patch(updateCtx, xrStatus, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerReconciler))
 
 		return reconcile.Result{}, err
 	}
@@ -716,7 +727,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errFetchComp)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		status.MarkConditions(xpv2.ReconcileError(err))
-		_ = r.client.Status().Update(updateCtx, xr)
+		_ = r.client.Status().Patch(updateCtx, xrStatus, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerReconciler))
 
 		return reconcile.Result{}, err
 	}
@@ -737,7 +748,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		status.MarkConditions(xpv2.ReconcileError(err))
-		_ = r.client.Status().Update(updateCtx, xr)
+		_ = r.client.Status().Patch(updateCtx, xrStatus, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerReconciler))
 
 		return reconcile.Result{}, err
 	}
@@ -752,7 +763,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errConfigure)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		status.MarkConditions(xpv2.ReconcileError(err))
-		_ = r.client.Status().Update(updateCtx, xr)
+		_ = r.client.Status().Patch(updateCtx, xrStatus, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerReconciler))
 
 		return reconcile.Result{}, err
 	}
@@ -788,10 +799,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		status.MarkConditions(xpv2.ReconcileError(err))
 
-		resultMeta := r.handleCommonCompositionResult(updateCtx, res, xr)
+		resultMeta := r.handleCommonCompositionResult(updateCtx, res, xr, xrStatus)
 		// We encountered a fatal error. For any custom status conditions that were
 		// not received due to the fatal error, mark them as unknown.
-		for _, c := range xr.GetConditions() {
+		for _, c := range startingConditions {
 			if v1.IsSystemConditionType(c.Type) {
 				continue
 			}
@@ -802,7 +813,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				status.MarkConditions(c)
 			}
 		}
-		_ = r.client.Status().Update(updateCtx, xr)
+		_ = r.client.Status().Patch(updateCtx, xrStatus, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerReconciler))
 		return reconcile.Result{}, err
 	}
 
@@ -824,7 +835,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errWatch)
 		r.record.Event(xr, event.Warning(reasonWatch, err))
 		status.MarkConditions(xpv2.ReconcileError(err))
-		_ = r.client.Status().Update(updateCtx, xr)
+		_ = r.client.Status().Patch(updateCtx, xrStatus, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerReconciler))
 
 		return reconcile.Result{}, err
 	}
@@ -840,18 +851,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errPublish)
 		r.record.Event(xr, event.Warning(reasonPublish, err))
 		status.MarkConditions(xpv2.ReconcileError(err))
-		_ = r.client.Status().Update(updateCtx, xr)
+		_ = r.client.Status().Patch(updateCtx, xrStatus, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerReconciler))
 
 		return reconcile.Result{}, err
 	}
 
 	if published {
-		xr.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
+		xrStatus.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
 		log.Debug("Successfully published connection details")
 		r.record.Event(xr, event.Normal(reasonPublish, "Successfully published connection details"))
 	}
 
-	meta := r.handleCommonCompositionResult(updateCtx, res, xr)
+	meta := r.handleCommonCompositionResult(updateCtx, res, xr, xrStatus)
 
 	if meta.numWarningEvents == 0 {
 		// We don't consider warnings severe enough to prevent the XR from being
@@ -926,10 +937,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		result = reconcile.Result{RequeueAfter: jitter(res.TTL)}
 	}
 
-	if !cmp.Equal(statusBefore, xr.Object["status"]) {
-		return result, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
-	}
-	return result, nil
+	return result, errors.Wrap(r.client.Status().Patch(updateCtx, xrStatus, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerReconciler)), errUpdateStatus)
 }
 
 type compositionResultMeta struct {
@@ -937,7 +945,7 @@ type compositionResultMeta struct {
 	conditionTypesSeen map[xpv2.ConditionType]bool
 }
 
-func (r *Reconciler) handleCommonCompositionResult(ctx context.Context, res CompositionResult, xr *composite.Unstructured) compositionResultMeta {
+func (r *Reconciler) handleCommonCompositionResult(ctx context.Context, res CompositionResult, xr *composite.Unstructured, xrStatus *composite.Unstructured) compositionResultMeta {
 	log := r.log.WithValues(
 		"uid", xr.GetUID(),
 		"version", xr.GetResourceVersion(),
@@ -973,11 +981,11 @@ func (r *Reconciler) handleCommonCompositionResult(ctx context.Context, res Comp
 		}
 
 		conditionTypesSeen[c.Type] = true
-		xr.SetConditions(c.Condition)
+		xrStatus.SetConditions(c.Condition)
 
 		if c.Target == CompositionTargetCompositeAndClaim {
 			// We can ignore the error as it only occurs if given a system condition.
-			_ = xr.SetClaimConditionTypes(c.Type)
+			_ = xrStatus.SetClaimConditionTypes(c.Type)
 		}
 	}
 
