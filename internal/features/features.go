@@ -53,6 +53,12 @@ const (
 	// automatically protecting Providers from deletion when they still have
 	// active managed resources. Requires EnableBetaUsages to also be enabled.
 	EnableAlphaProviderDeletionProtection feature.Flag = "EnableAlphaProviderDeletionProtection"
+
+	// EnableAlphaPipelineOCIReferences enables alpha support for referencing
+	// functions directly by OCI reference in Composition and Operation
+	// pipelines, using a pipeline step's function field rather than its
+	// functionRef.
+	EnableAlphaPipelineOCIReferences feature.Flag = "EnableAlphaPipelineOCIReferences"
 )
 
 // Beta Feature Flags.

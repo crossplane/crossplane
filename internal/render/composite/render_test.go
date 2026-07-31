@@ -58,6 +58,17 @@ var ignoreTimestamps = cmp.FilterPath(func(p cmp.Path) bool {
 }, cmp.Ignore())
 
 func TestRender(t *testing.T) {
+	// Steps may reference function packages by digest. Rendering doesn't
+	// install functions, so the function must be supplied using its package as
+	// its name.
+	const pkg = "xpkg.crossplane.io/crossplane-contrib/function-cool@sha256:c0ffee1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+
+	addr := rendertest.StartFunctionServer(t, &rendertest.StaticFunctionServer{
+		Response: &fnv1.RunFunctionResponse{
+			Results: []*fnv1.Result{{Severity: fnv1.Severity_SEVERITY_NORMAL, Message: "cool function ran"}},
+		},
+	})
+
 	type want struct {
 		err error
 		out *renderv1alpha1.CompositeOutput
@@ -399,6 +410,62 @@ func TestRender(t *testing.T) {
 					},
 					Events: []*renderv1alpha1.Event{
 						{Type: "Normal", Reason: "SelectComposition", Message: "Successfully selected composition: legacy-composition"},
+					},
+				},
+			},
+		},
+		"FunctionByPackage": {
+			reason: "A pipeline step that references its function by package OCI reference should be routed to the function supplied with that package as its name.",
+			input: &renderv1alpha1.CompositeInput{
+				CompositeResource: mustStruct(map[string]any{
+					"apiVersion": "example.org/v1alpha1",
+					"kind":       "XBucket",
+					"metadata":   map[string]any{"name": "my-bucket"},
+				}),
+				Composition: mustStruct(map[string]any{
+					"metadata": map[string]any{"name": "bucket-composition"},
+					"spec": map[string]any{
+						"compositeTypeRef": map[string]any{
+							"apiVersion": "example.org/v1alpha1",
+							"kind":       "XBucket",
+						},
+						"mode": "Pipeline",
+						"pipeline": []any{
+							map[string]any{
+								"step":     "cool",
+								"function": pkg,
+							},
+						},
+					},
+				}),
+				Functions: []*renderv1alpha1.FunctionInput{
+					{Name: pkg, Address: addr},
+				},
+			},
+			want: want{
+				out: &renderv1alpha1.CompositeOutput{
+					CompositeResource: mustStruct(map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XBucket",
+						"metadata":   map[string]any{"name": "my-bucket"},
+						"spec": map[string]any{
+							"crossplane": map[string]any{
+								"resourceRefs": []any{},
+							},
+						},
+						"status": map[string]any{
+							"conditions": []any{
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
+								map[string]any{"type": "Ready", "status": "True", "reason": "Available"},
+							},
+						},
+					}),
+					// Our function's result surfaces as an event. Seeing it
+					// means we routed to the function by package.
+					Events: []*renderv1alpha1.Event{
+						{Type: "Normal", Reason: "SelectComposition", Message: "Successfully selected composition: bucket-composition"},
+						{Type: "Normal", Reason: "ComposeResources", Message: "Pipeline step \"cool\": cool function ran"},
 					},
 				},
 			},

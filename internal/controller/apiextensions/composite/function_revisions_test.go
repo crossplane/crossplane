@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-containerregistry/pkg/name"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -70,6 +71,9 @@ func TestFunctionRevisionForStep(t *testing.T) {
 		}
 	}
 
+	const tagged = "xpkg.crossplane.io/example/function-cool:v1.0.0"
+	_, errParse := name.NewDigest(tagged, name.StrictValidation)
+
 	getFunction := test.NewMockGetFn(nil, func(obj client.Object) error {
 		fn.DeepCopyInto(obj.(*pkgv1.Function))
 		return nil
@@ -101,7 +105,7 @@ func TestFunctionRevisionForStep(t *testing.T) {
 			reason: "We should return an error if we can't get the referenced Function.",
 			args: args{
 				c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-				s: v1.PipelineStep{FunctionRef: v1.FunctionReference{Name: "function-cool"}},
+				s: v1.PipelineStep{FunctionRef: &v1.FunctionReference{Name: "function-cool"}},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errGetFunction),
@@ -114,41 +118,41 @@ func TestFunctionRevisionForStep(t *testing.T) {
 					MockGet:  getFunction,
 					MockList: test.NewMockListFn(errBoom),
 				},
-				s: v1.PipelineStep{FunctionRef: v1.FunctionReference{Name: "function-cool"}},
+				s: v1.PipelineStep{FunctionRef: &v1.FunctionReference{Name: "function-cool"}},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errListFunctionRevisions),
 			},
 		},
 		"FunctionRefNoActiveControlledRevision": {
-			reason: "We should return an error if the Function has no active revision that it controls, even if an uncontrolled revision is active.",
+			reason: "We should return an error if the Function has no active revision that it controls, even if an external revision is active.",
 			args: args{
 				c: &test.MockClient{
 					MockGet: getFunction,
 					MockList: listRevisions(
 						revision("function-cool-inactive", pkgv1.PackageRevisionInactive, "xpkg.crossplane.io/example/function-cool:v1.0.0", 1, controlledBy(fn)),
-						revision("function-cool-uncontrolled", pkgv1.PackageRevisionActive, "xpkg.crossplane.io/example/function-cool@"+digest, 1, nil),
+						revision("function-cool-external", pkgv1.PackageRevisionActive, "xpkg.crossplane.io/example/function-cool@"+digest, 1, nil),
 					),
 				},
-				s: v1.PipelineStep{FunctionRef: v1.FunctionReference{Name: "function-cool"}},
+				s: v1.PipelineStep{FunctionRef: &v1.FunctionReference{Name: "function-cool"}},
 			},
 			want: want{
 				err: errors.Errorf(errFmtNoActiveFunctionRevision, "function-cool"),
 			},
 		},
 		"FunctionRefActiveControlledRevision": {
-			reason: "We should return the Function's active controlled revision, ignoring uncontrolled revisions and revisions controlled by something else.",
+			reason: "We should return the Function's active controlled revision, ignoring external revisions and revisions controlled by something else.",
 			args: args{
 				c: &test.MockClient{
 					MockGet: getFunction,
 					MockList: listRevisions(
-						revision("function-cool-uncontrolled", pkgv1.PackageRevisionActive, "xpkg.crossplane.io/example/function-cool@"+digest, 5, nil),
+						revision("function-cool-external", pkgv1.PackageRevisionActive, "xpkg.crossplane.io/example/function-cool@"+digest, 5, nil),
 						revision("function-cool-other", pkgv1.PackageRevisionActive, "xpkg.crossplane.io/example/function-cool:v0.9.0", 4, controlledBy(&pkgv1.Function{ObjectMeta: metav1.ObjectMeta{Name: "function-cool", UID: "some-other-uid"}})),
 						revision("function-cool-old", pkgv1.PackageRevisionInactive, "xpkg.crossplane.io/example/function-cool:v0.8.0", 2, controlledBy(fn)),
 						revision("function-cool-current", pkgv1.PackageRevisionActive, "xpkg.crossplane.io/example/function-cool:v1.0.0", 3, controlledBy(fn)),
 					),
 				},
-				s: v1.PipelineStep{FunctionRef: v1.FunctionReference{Name: "function-cool"}},
+				s: v1.PipelineStep{FunctionRef: &v1.FunctionReference{Name: "function-cool"}},
 			},
 			want: want{
 				rev: "function-cool-current",
@@ -164,10 +168,48 @@ func TestFunctionRevisionForStep(t *testing.T) {
 						revision("function-cool-old", pkgv1.PackageRevisionActive, "xpkg.crossplane.io/example/function-cool:v0.9.0", 2, controlledBy(fn)),
 					),
 				},
-				s: v1.PipelineStep{FunctionRef: v1.FunctionReference{Name: "function-cool"}},
+				s: v1.PipelineStep{FunctionRef: &v1.FunctionReference{Name: "function-cool"}},
 			},
 			want: want{
 				rev: "function-cool-new",
+			},
+		},
+		"FunctionInvalidReference": {
+			reason: "We should return an error if a step's function isn't a digest reference.",
+			args: args{
+				c: &test.MockClient{},
+				s: v1.PipelineStep{Function: tagged},
+			},
+			want: want{
+				err: errors.Wrapf(errParse, errFmtParseFunctionPackage, tagged),
+			},
+		},
+		"FunctionGetError": {
+			reason: "We should return an error if we can't list FunctionRevisions.",
+			args: args{
+				c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+				s: v1.PipelineStep{Function: "xpkg.crossplane.io/example/function-cool@" + digest},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetFunctionRevision),
+			},
+		},
+		"FunctionExternalRevision": {
+			reason: "We should return the active external revision for the package, ignoring any tag.",
+			args: args{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						o := obj.(*pkgv1.FunctionRevision)
+
+						rev := revision("function-cool-external", pkgv1.PackageRevisionActive, "xpkg.crossplane.io/example/function-cool@"+digest, 1, nil)
+						rev.DeepCopyInto(o)
+						return nil
+					}),
+				},
+				s: v1.PipelineStep{Function: "xpkg.crossplane.io/example/function-cool:v1.0.0@" + digest},
+			},
+			want: want{
+				rev: "function-cool-external",
 			},
 		},
 	}

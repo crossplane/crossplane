@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	managed "github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	xpresource "github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -49,6 +50,7 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composition"
+	"github.com/crossplane/crossplane/v2/internal/features"
 	"github.com/crossplane/crossplane/v2/internal/render"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
@@ -184,6 +186,10 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 	sf := xfn.NewOpenAPIRequiredSchemasFetcher(oc)
 	rsf := render.NewRecordingRequiredSchemasFetcher(sf)
 	rrf := render.NewRecordingRequiredResourcesFetcher(xfn.NewExistingRequiredResourcesFetcher(c))
+	// For render purposes, there's no harm in unconditionally enabling this
+	// feature.
+	ff := &feature.Flags{}
+	ff.Enable(features.EnableAlphaPipelineOCIReferences)
 
 	fc := composite.NewFunctionComposer(c, c,
 		xfn.NewFetchingFunctionRunner(render.NewFunctionRevisionRunner(runner, c, in.GetFunctions()), rrf, rsf),
@@ -227,6 +233,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		composite.WithCircuitBreaker(&circuit.NopBreaker{}),
 		composite.WithRecorder(rec),
 		composite.WithLogger(log),
+		composite.WithFeatures(ff),
 	)
 
 	req := reconcile.Request{NamespacedName: types.NamespacedName{

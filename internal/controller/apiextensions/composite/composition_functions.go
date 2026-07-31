@@ -453,8 +453,11 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// Add step metadata to context for use by downstream components like InspectedRunner.
 		stepCtx := step.ContextWithStepMetaForCompositions(ctx, traceID, fn.Step, int32(stepIndex), compositionName)
 
-		// Resolve the FunctionRevision to run for this step, which is the
-		// referenced Function's active revision.
+		// Resolve the FunctionRevision to run for this step. A step that
+		// references a function by OCI reference runs the revision the
+		// CompositionRevision controller created for it. A step that
+		// references an installed Function by name runs that Function's
+		// active revision.
 		rev, err := FunctionRevisionForStep(ctx, c.client, fn)
 		if err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)

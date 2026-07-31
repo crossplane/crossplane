@@ -29,6 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	xcomposite "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
@@ -36,8 +37,9 @@ import (
 
 // A FunctionRevisionRunner runs a function by FunctionRevision name, using a
 // runner that's keyed by FunctionInput name. Reconcilers being rendered resolve
-// pipeline steps to the synthetic FunctionRevisions SyntheticFunctions returns.
-// This runner maps each revision back to the FunctionInput that satisfies it.
+// pipeline steps to FunctionRevisions - either the synthetic revisions
+// SyntheticFunctions returns, or revisions they created themselves. This runner
+// maps each revision back to the FunctionInput that satisfies it.
 type FunctionRevisionRunner struct {
 	wrapped xfn.FunctionRunner
 	client  client.Reader
@@ -57,18 +59,21 @@ func NewFunctionRevisionRunner(wrapped xfn.FunctionRunner, c client.Reader, fns 
 }
 
 // RunFunction runs the FunctionInput that satisfies the named FunctionRevision.
-// That's the FunctionInput named after the revision's parent Function.
+// That's the FunctionInput named after the revision's package OCI reference,
+// or named after the revision's parent Function.
 func (r *FunctionRevisionRunner) RunFunction(ctx context.Context, rev string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 	fr := &pkgv1.FunctionRevision{}
 	if err := r.client.Get(ctx, client.ObjectKey{Name: rev}, fr); err != nil {
 		return nil, errors.Wrapf(err, "cannot get FunctionRevision %q", rev)
 	}
 
-	if name := fr.GetLabels()[pkgv1.LabelParentPackage]; r.inputs[name] {
-		return r.wrapped.RunFunction(ctx, name, req)
+	for _, name := range []string{fr.Spec.Package, fr.GetLabels()[pkgv1.LabelParentPackage]} {
+		if r.inputs[name] {
+			return r.wrapped.RunFunction(ctx, name, req)
+		}
 	}
 
-	return nil, errors.Errorf("no function in the render input satisfies FunctionRevision %q", rev)
+	return nil, errors.Errorf("no function in the render input satisfies FunctionRevision %q (package %q)", rev, fr.Spec.Package)
 }
 
 // SyntheticFunctions returns synthetic Function and FunctionRevision resources
@@ -77,8 +82,12 @@ func (r *FunctionRevisionRunner) RunFunction(ctx context.Context, rev string, re
 // real cluster. Use a FunctionRevisionRunner to map the FunctionRevisions back
 // to their FunctionInputs.
 //
-// Each FunctionInput satisfies pipeline steps that reference a Function by
-// name, so it gets a Function with an active FunctionRevision that it controls.
+// A FunctionInput named with a digest OCI reference satisfies pipeline steps
+// that reference a function by that OCI reference, so it gets an external
+// FunctionRevision with that package, named as the reconcilers being rendered
+// would name it. Any other FunctionInput satisfies
+// pipeline steps that reference a Function by name, so it gets a Function with
+// an active FunctionRevision that it controls.
 func SyntheticFunctions(fns []*renderv1alpha1.FunctionInput) ([]kunstructured.Unstructured, error) {
 	out := make([]kunstructured.Unstructured, 0, 2*len(fns))
 
@@ -86,6 +95,21 @@ func SyntheticFunctions(fns []*renderv1alpha1.FunctionInput) ([]kunstructured.Un
 		rev := &pkgv1.FunctionRevision{}
 		rev.SetName(fn.GetName())
 		rev.Spec.DesiredState = pkgv1.PackageRevisionActive
+
+		if ref, err := xcomposite.NormalizeFunctionOCIRef(fn.GetName()); err == nil {
+			rev.SetName(xcomposite.FunctionRevisionName(ref))
+			rev.SetLabels(map[string]string{pkgv1.LabelParentPackage: xcomposite.FunctionName(ref)})
+			rev.Spec.Package = fn.GetName()
+
+			u, err := syntheticUnstructured(rev, pkgv1.FunctionRevisionGroupVersionKind)
+			if err != nil {
+				return nil, err
+			}
+
+			out = append(out, u)
+
+			continue
+		}
 
 		f := &pkgv1.Function{}
 		f.SetName(fn.GetName())
