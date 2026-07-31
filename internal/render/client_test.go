@@ -309,7 +309,7 @@ func TestInMemoryClientList(t *testing.T) {
 	}
 }
 
-func TestInMemoryClientStatusMerge(t *testing.T) {
+func TestInMemoryClientStatusUpdate(t *testing.T) {
 	type want struct {
 		obj unstructured.Unstructured
 		err error
@@ -376,6 +376,142 @@ func TestInMemoryClientStatusMerge(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.obj, *obj); diff != "" {
 				t.Errorf("\n%s\nStatus().Update(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestInMemoryClientStatusPatch(t *testing.T) {
+	type want struct {
+		obj unstructured.Unstructured
+		err error
+	}
+
+	cases := map[string]struct {
+		reason    string
+		store     []unstructured.Unstructured
+		statusObj unstructured.Unstructured
+		want      want
+	}{
+		"MergesStatusIntoStoredSpec": {
+			reason: "Status().Patch() should set the status on the stored object while preserving its spec.",
+			store: []unstructured.Unstructured{{Object: map[string]any{
+				"apiVersion": "example.org/v1",
+				"kind":       "XR",
+				"metadata":   map[string]any{"name": "my-xr"},
+				"spec":       map[string]any{"region": "us-east-1"},
+			}}},
+			statusObj: unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "example.org/v1",
+				"kind":       "XR",
+				"metadata":   map[string]any{"name": "my-xr"},
+				"status":     map[string]any{"phase": "ready"},
+			}},
+			want: want{
+				obj: unstructured.Unstructured{Object: map[string]any{
+					"apiVersion": "example.org/v1",
+					"kind":       "XR",
+					"metadata":   map[string]any{"name": "my-xr"},
+					"spec":       map[string]any{"region": "us-east-1"},
+					"status":     map[string]any{"phase": "ready"},
+				}},
+			},
+		},
+		"NoStoredVersion": {
+			reason: "When there is no stored version, the incoming object should be returned as-is.",
+			statusObj: unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "example.org/v1",
+				"kind":       "XR",
+				"metadata":   map[string]any{"name": "new-xr"},
+				"status":     map[string]any{"phase": "creating"},
+			}},
+			want: want{
+				obj: unstructured.Unstructured{Object: map[string]any{
+					"apiVersion": "example.org/v1",
+					"kind":       "XR",
+					"metadata":   map[string]any{"name": "new-xr"},
+					"status":     map[string]any{"phase": "creating"},
+				}},
+			},
+		},
+		"MergeStatusFields": {
+			reason: "When there are existing status fields, the incoming status should be merged with them.",
+			store: []unstructured.Unstructured{{Object: map[string]any{
+				"apiVersion": "example.org/v1",
+				"kind":       "XR",
+				"metadata":   map[string]any{"name": "my-xr"},
+				"spec":       map[string]any{"region": "us-east-2"},
+				"status":     map[string]any{"existing": "is-set"},
+			}}},
+			statusObj: unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "example.org/v1",
+				"kind":       "XR",
+				"metadata":   map[string]any{"name": "my-xr"},
+				"status":     map[string]any{"phase": "creating"},
+			}},
+			want: want{
+				obj: unstructured.Unstructured{Object: map[string]any{
+					"apiVersion": "example.org/v1",
+					"kind":       "XR",
+					"metadata":   map[string]any{"name": "my-xr"},
+					"spec":       map[string]any{"region": "us-east-2"},
+					"status": map[string]any{
+						"existing": "is-set",
+						"phase":    "creating",
+					},
+				}},
+			},
+		},
+		"MergeStatusConditions": {
+			reason: "When there are existing status conditions, the incoming status conditions should be merged with them.",
+			store: []unstructured.Unstructured{{Object: map[string]any{
+				"apiVersion": "example.org/v1",
+				"kind":       "XR",
+				"metadata":   map[string]any{"name": "my-xr"},
+				"spec":       map[string]any{"region": "us-east-3"},
+				"status": map[string]any{"conditions": []any{
+					map[string]any{"type": "Keep", "status": "Existing"},
+					map[string]any{"type": "Replace", "status": "Existing"},
+				}},
+			}}},
+			statusObj: unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "example.org/v1",
+				"kind":       "XR",
+				"metadata":   map[string]any{"name": "my-xr"},
+				"status": map[string]any{"conditions": []any{
+					map[string]any{"type": "Replace", "status": "New"},
+					map[string]any{"type": "New", "status": "New"},
+				}},
+			}},
+			want: want{
+				obj: unstructured.Unstructured{Object: map[string]any{
+					"apiVersion": "example.org/v1",
+					"kind":       "XR",
+					"metadata":   map[string]any{"name": "my-xr"},
+					"spec":       map[string]any{"region": "us-east-3"},
+					"status": map[string]any{"conditions": []any{
+						map[string]any{"type": "Keep", "status": "Existing"},
+						map[string]any{"type": "Replace", "status": "New"},
+						map[string]any{"type": "New", "status": "New"},
+					}},
+				}},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := NewInMemoryClient(runtime.NewScheme(), tc.store...)
+
+			obj := tc.statusObj.DeepCopy()
+			//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
+			err := c.Status().Patch(context.Background(), obj, client.Apply)
+
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nStatus().Patch(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.obj, *obj); diff != "" {
+				t.Errorf("\n%s\nStatus().Patch(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

@@ -93,9 +93,19 @@ func TestRender(t *testing.T) {
 					CompositeResource: mustStruct(map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XBucket",
-						"metadata":   map[string]any{"name": "my-bucket"},
+						"metadata": map[string]any{
+							"labels": map[string]any{
+								"crossplane.io/composite": "my-bucket",
+							},
+							"name":            "my-bucket",
+							"resourceVersion": "999",
+							"uid":             "f70ef0ce-2b73-5b7b-a497-0ba62f7c6f04",
+						},
 						"spec": map[string]any{
 							"crossplane": map[string]any{
+								"compositionRef": map[string]any{
+									"name": "bucket-composition",
+								},
 								"resourceRefs": []any{},
 							},
 						},
@@ -156,9 +166,20 @@ func TestRender(t *testing.T) {
 					CompositeResource: mustStruct(map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XModernResource",
-						"metadata":   map[string]any{"name": "my-xr", "namespace": "default"},
+						"metadata": map[string]any{
+							"labels": map[string]any{
+								"crossplane.io/composite": "my-xr",
+							},
+							"name":            "my-xr",
+							"namespace":       "default",
+							"resourceVersion": "999",
+							"uid":             "6ca6696e-4135-5475-ad53-40843d379b20",
+						},
 						"spec": map[string]any{
 							"crossplane": map[string]any{
+								"compositionRef": map[string]any{
+									"name": "modern-composition",
+								},
 								"resourceRefs": []any{},
 							},
 						},
@@ -219,8 +240,18 @@ func TestRender(t *testing.T) {
 					CompositeResource: mustStruct(map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XLegacyResource",
-						"metadata":   map[string]any{"name": "my-xr"},
+						"metadata": map[string]any{
+							"labels": map[string]any{
+								"crossplane.io/composite": "my-xr",
+							},
+							"name":            "my-xr",
+							"resourceVersion": "999",
+							"uid":             "be425815-11b0-5dea-99a2-7cda7e71e973",
+						},
 						"spec": map[string]any{
+							"compositionRef": map[string]any{
+								"name": "legacy-composition",
+							},
 							"resourceRefs": []any{},
 						},
 						"status": map[string]any{
@@ -281,8 +312,18 @@ func TestRender(t *testing.T) {
 					CompositeResource: mustStruct(map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XLegacyResource",
-						"metadata":   map[string]any{"name": "my-xr"},
+						"metadata": map[string]any{
+							"labels": map[string]any{
+								"crossplane.io/composite": "my-xr",
+							},
+							"name":            "my-xr",
+							"resourceVersion": "999",
+							"uid":             "be425815-11b0-5dea-99a2-7cda7e71e973",
+						},
 						"spec": map[string]any{
+							"compositionRef": map[string]any{
+								"name": "legacy-composition",
+							},
 							"resourceRefs": []any{},
 						},
 						"status": map[string]any{
@@ -364,8 +405,18 @@ func TestRender(t *testing.T) {
 					CompositeResource: mustStruct(map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XLegacyResource",
-						"metadata":   map[string]any{"name": "my-xr"},
+						"metadata": map[string]any{
+							"labels": map[string]any{
+								"crossplane.io/composite": "my-xr",
+							},
+							"name":            "my-xr",
+							"resourceVersion": "999",
+							"uid":             "xr-uid",
+						},
 						"spec": map[string]any{
+							"compositionRef": map[string]any{
+								"name": "legacy-composition",
+							},
 							"resourceRefs": []any{},
 						},
 						"status": map[string]any{
