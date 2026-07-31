@@ -1892,6 +1892,90 @@ func TestPruneOutdatedDependencies(t *testing.T) {
 				},
 			},
 		},
+		"DigestWithResolvedVersion": {
+			reason: "Should keep packages installed with tag@digest when ResolvedVersion satisfies semver constraints.",
+			args: args{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-digest",
+								Constraints: "v2.5.6",
+							},
+						},
+					},
+					{
+						Name:            "dep-digest",
+						Source:          "example.com/dep-digest",
+						Version:         "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5",
+						ResolvedVersion: "v2.5.6",
+					},
+				},
+			},
+			want: want{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-digest",
+								Constraints: "v2.5.6",
+							},
+						},
+					},
+					{
+						Name:            "dep-digest",
+						Source:          "example.com/dep-digest",
+						Version:         "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5",
+						ResolvedVersion: "v2.5.6",
+					},
+				},
+			},
+		},
+		"DigestWithResolvedVersionMismatch": {
+			reason: "Should prune packages when ResolvedVersion does not satisfy semver constraints.",
+			args: args{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-digest",
+								Constraints: ">=v3.0.0",
+							},
+						},
+					},
+					{
+						Name:            "dep-digest",
+						Source:          "example.com/dep-digest",
+						Version:         "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5",
+						ResolvedVersion: "v2.5.6",
+					},
+				},
+			},
+			want: want{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-digest",
+								Constraints: ">=v3.0.0",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
