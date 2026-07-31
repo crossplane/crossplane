@@ -101,6 +101,12 @@ func SyntheticFunctions(fns []*renderv1alpha1.FunctionInput) ([]kunstructured.Un
 			rev.SetLabels(map[string]string{pkgv1.LabelParentPackage: xcomposite.FunctionName(ref)})
 			rev.Spec.Package = fn.GetName()
 
+			// The Operation reconciler waits for the revisions it uses to
+			// become healthy and get an endpoint. We never call the
+			// endpoint - the FunctionRevisionRunner routes by package.
+			rev.SetConditions(pkgv1.Healthy(), pkgv1.RevisionHealthy(), pkgv1.RuntimeHealthy())
+			rev.Status.Endpoint = "render.invalid:9443"
+
 			u, err := syntheticUnstructured(rev, pkgv1.FunctionRevisionGroupVersionKind)
 			if err != nil {
 				return nil, err
