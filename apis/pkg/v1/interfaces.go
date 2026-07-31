@@ -91,6 +91,16 @@ type PackageWithRuntime interface {
 	NeedsTLSClientSecret() bool
 }
 
+// PackageWithExternalRevisions is the interface satisfied by packages whose
+// revisions may be managed externally, rather than by the package manager.
+// +k8s:deepcopy-gen=false
+type PackageWithExternalRevisions interface {
+	Package
+
+	GetExternalRevisionRefs() []corev1.LocalObjectReference
+	SetExternalRevisionRefs(refs []corev1.LocalObjectReference)
+}
+
 // SetAppliedImageConfigRefs sets applied image config refs, replacing any
 // existing refs with the same reason.
 func (s *PackageStatus) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
@@ -1192,6 +1202,16 @@ func (f *Function) NeedsTLSServerSecret() bool {
 // NeedsTLSClientSecret of this Function.
 func (f *Function) NeedsTLSClientSecret() bool {
 	return false
+}
+
+// GetExternalRevisionRefs of this Function.
+func (f *Function) GetExternalRevisionRefs() []corev1.LocalObjectReference {
+	return f.Spec.ExternalRevisionRefs
+}
+
+// SetExternalRevisionRefs of this Function.
+func (f *Function) SetExternalRevisionRefs(refs []corev1.LocalObjectReference) {
+	f.Spec.ExternalRevisionRefs = refs
 }
 
 // GetAppliedImageConfigRefs of this Function.

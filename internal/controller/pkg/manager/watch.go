@@ -85,3 +85,29 @@ func EnqueuePackagesForImageConfig(kube client.Client, l v1.PackageList, log log
 		return matches
 	})
 }
+
+// EnqueueParentPackageForRevision enqueues a reconcile for the parent package
+// of a package revision, as identified by the revision's parent package label.
+func EnqueueParentPackageForRevision(log logging.Logger) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []reconcile.Request {
+		pr, ok := o.(v1.PackageRevision)
+		if !ok {
+			return nil
+		}
+
+		parent := pr.GetLabels()[v1.LabelParentPackage]
+		if parent == "" {
+			log.Debug("Package revision has no parent package label",
+				"revision-type", fmt.Sprintf("%T", pr),
+				"revision-name", pr.GetName())
+			return nil
+		}
+
+		log.Debug("Enqueuing package for package revision",
+			"revision-type", fmt.Sprintf("%T", pr),
+			"revision-name", pr.GetName(),
+			"package-name", parent)
+
+		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: parent}}}
+	})
+}

@@ -23,6 +23,7 @@ import (
 	"encoding/hex"
 	"math"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -70,6 +71,7 @@ func pullBasedRequeue(p *corev1.PullPolicy) reconcile.Result {
 const (
 	errGetPackage           = "cannot get package"
 	errListRevisions        = "cannot list revisions for package"
+	errGetExternalRevision  = "cannot get externally-managed package revision"
 	errUnpack               = "cannot unpack package"
 	errApplyPackageRevision = "cannot apply package revision"
 	errGCPackageRevision    = "cannot garbage collect old package revision"
@@ -260,6 +262,10 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1.Function{}).
 		Owns(&v1.FunctionRevision{}).
+		// Owns only matches revisions the Function controls, so we also watch
+		// revisions by their parent package label in order to catch external
+		// revisions, which the Function doesn't own.
+		Watches(&v1.FunctionRevision{}, EnqueueParentPackageForRevision(log)).
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackagesForImageConfig(mgr.GetClient(), &v1.FunctionList{}, log)).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(errors.WithSilentRequeueOnConflict(NewReconciler(mgr, opts...)))
@@ -317,6 +323,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Persist the removal of conditions and return. We'll be requeued
 		// with the updated status and resume reconciliation.
 		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, p), errUpdateStatus)
+	}
+
+	// A package that supports external revisions (a Function) and has no
+	// source has its revisions managed externally - for example by the
+	// composition revision controller. In that case we don't manage revisions
+	// here; we only propagate the status of the externally-managed revisions
+	// back to the package.
+	if pe, ok := p.(v1.PackageWithExternalRevisions); ok && pe.GetSource() == "" {
+		return reconcile.Result{}, r.reconcileExternalRevisions(ctx, pe)
 	}
 
 	// Get existing package revisions.
@@ -382,7 +397,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	maxRevision := int64(0)
 	oldestRevision := int64(math.MaxInt64)
 	oldestRevisionIndex := -1
+
 	revisions := prs.GetRevisions()
+
+	// Filter out any external revisions, since we don't manage them.
+	if pe, ok := p.(v1.PackageWithExternalRevisions); ok && len(pe.GetExternalRevisionRefs()) > 0 {
+		extNames := make(map[string]bool)
+		for _, ref := range pe.GetExternalRevisionRefs() {
+			extNames[ref.Name] = true
+		}
+
+		revisions = slices.DeleteFunc(revisions, func(pr v1.PackageRevision) bool {
+			return extNames[pr.GetName()]
+		})
+	}
 
 	// Check to see if revision already exists.
 	for index, rev := range revisions {
@@ -526,4 +554,54 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// its health. If updating from an existing revision, the package health
 	// will match the health of the old revision until the next reconcile.
 	return pullBasedRequeue(p.GetPackagePullPolicy()), errors.Wrap(r.kube.Status().Update(ctx, p), errUpdateStatus)
+}
+
+// reconcileExternalRevisions handles packages whose revisions are managed only
+// externally (i.e. they have no spec.package). It does not create or activate
+// revisions; it only propagates the aggregate health of the referenced external
+// revisions to the package's status. This is not called for packages that have
+// both external and regular revisions (in that case, status is handled by the
+// regular manager reconciliation logic).
+func (r *Reconciler) reconcileExternalRevisions(ctx context.Context, p v1.PackageWithExternalRevisions) error {
+	status := r.conditions.For(p)
+	revs := p.GetExternalRevisionRefs()
+
+	// Packages with only external revisions don't have a "current" revision,
+	// since multiple revisions may be active.
+	p.SetCurrentRevision("")
+
+	// If there are no external revisions, the package is inactive. If there's
+	// at least one external revision, it's active and we can determine health.
+	if len(revs) == 0 {
+		// Clear any leftover conditions, in case this package used to have
+		// external revisions but they've all been removed.
+		p.CleanConditions()
+		status.MarkConditions(v1.Inactive().WithMessage("Package has no external revisions"), v1.UnknownHealth())
+		return errors.Wrap(r.kube.Status().Update(ctx, p), errUpdateStatus)
+	}
+
+	status.MarkConditions(v1.Active())
+
+	// Consider the package healthy only if all its external revisions are
+	// healthy.
+	healthCond := v1.UnknownHealth()
+	for _, er := range revs {
+		pr := r.newPackageRevision()
+		if err := r.kube.Get(ctx, client.ObjectKey{Name: er.Name}, pr); err != nil {
+			if kerrors.IsNotFound(err) {
+				continue
+			}
+
+			return errors.Wrap(err, errGetExternalRevision)
+		}
+
+		health := v1.PackageHealth(pr)
+		if health.Status == corev1.ConditionFalse || healthCond.Reason == v1.ReasonUnknownHealth {
+			healthCond = health
+		}
+	}
+
+	status.MarkConditions(healthCond)
+
+	return errors.Wrap(r.kube.Status().Update(ctx, p), errUpdateStatus)
 }
