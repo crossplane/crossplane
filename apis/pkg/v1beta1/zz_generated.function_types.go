@@ -19,6 +19,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
@@ -58,6 +59,18 @@ type FunctionSpec struct {
 type FunctionStatus struct {
 	xpv2.ConditionedStatus `json:",inline"`
 	PackageStatus          `json:",inline"`
+
+	// ExternalRevisionRefs are references to the FunctionRevisions of this
+	// Function that are managed externally, rather than by the package
+	// manager. For example, Crossplane creates external revisions for
+	// composition and operation pipeline steps that reference a function by
+	// OCI reference. When spec.package is empty, the Function's status
+	// reflects the status of its external revisions.
+	//
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	ExternalRevisionRefs []corev1.LocalObjectReference `json:"externalRevisionRefs,omitempty"`
 }
 
 // +kubebuilder:object:root=true

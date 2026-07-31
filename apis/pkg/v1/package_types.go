@@ -24,11 +24,15 @@ type RevisionActivationPolicy string
 
 // PackageSpec specifies the desired state of a Package.
 type PackageSpec struct {
-	// Package is the name of the package that is being requested.
-	// must be a fully qualified image name, including the registry,
-	// repository, and tag. for example, "registry.example.com/repo/package:tag".
-	// +kubebuilder:validation:XValidation:rule="self.matches('^[^\\\\.\\\\/]+(\\\\.[^\\\\.\\\\/]+)+(\\\\/[^\\\\/:@]+)+(:[^:@]+(@sha256.+)?|@sha256.+)$')",message="must be a fully qualified image name, including the registry, repository, and tag or digest. For example, 'registry.example.com/repo/package:tag' or 'registry.example.com/repo/package[:tag]@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'."
-	Package string `json:"package"`
+	// Package is the name of the package that is being requested. Must be a
+	// fully qualified OCI reference, including the registry, repository, and
+	// tag. For example, "registry.example.com/repo/package:tag". May be empty
+	// when revisions are managed externally, in which case the package manager
+	// will not manage revisions for the package, but will propagate the status
+	// of any externally-managed revisions.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="self == '' || self.matches('^[^\\\\.\\\\/]+(\\\\.[^\\\\.\\\\/]+)+(\\\\/[^\\\\/:@]+)+(:[^:@]+(@sha256.+)?|@sha256.+)$')",message="must be a fully qualified image name, including the registry, repository, and tag or digest. For example, 'registry.example.com/repo/package:tag' or 'registry.example.com/repo/package[:tag]@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'."
+	Package string `json:"package,omitempty"`
 
 	// RevisionActivationPolicy specifies how the package controller should
 	// update from one revision to the next. Options are Automatic or Manual.
