@@ -1,20 +1,41 @@
 {
-  // Nix-specific configuration for main branch.
-  // Release branches use Earthly - see renovate-earthly.json5.
+  // Nix-specific configuration. Applies to main and to release-2.2 and newer;
+  // older release branches use Earthly - see renovate-earthly.json5.
 
   // Enable the nix manager to detect flake.nix/flake.lock files.
   nix: {
     enabled: true,
   },
 
-  // Update flake.lock weekly by running 'nix flake update'.
-  // This also affects other lock files, so we disable it for gomod below.
+  // Allow Renovate to update lock files, so we get new updates in Nix inputs
+  // (e.g., nixpkgs, nixpkgs-unstable) regularly.
+  //
+  // Note that we use a schedule of "on monday", because "schedule:weekly" only
+  // allows a window of 00:00 to 03:59, which we can't guarantee our Renovate
+  // workflow will run during. Using "on monday" is better since it doesn't
+  // require the workflow to run at a specific time.
   lockFileMaintenance: {
     enabled: true,
-    extends: ['schedule:weekly'],
+    schedule: ['on monday'],
   },
 
   packageRules: [
+    {
+      // The base config disables all non-security updates on release branches,
+      // but we still want Nix flake.lock to get updated there, since that's how
+      // we get newer versions of Go, which could have security fixes.
+      description: 'Refresh flake.lock on nix release branches too',
+      matchManagers: [
+        'nix',
+      ],
+      matchUpdateTypes: [
+        'lockFileMaintenance',
+      ],
+      matchBaseBranches: [
+        '/^release-2\.([2-9]|..+)$/',
+      ],
+      enabled: true,
+    },
     {
       description: 'Refresh Go vendor hashes and generated code after upgrading go dependencies (Nix)',
       matchDatasources: [
