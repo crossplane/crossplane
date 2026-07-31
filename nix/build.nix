@@ -48,6 +48,9 @@ let
           mv $out/bin/${platform.os}_${platform.arch}/* $out/bin/
           rmdir $out/bin/${platform.os}_${platform.arch}
         fi
+      '';
+
+      postFixup = ''
         cd $out/bin
         sha256sum ${pname}${ext} | head -c 64 > ${pname}${ext}.sha256
       '';
