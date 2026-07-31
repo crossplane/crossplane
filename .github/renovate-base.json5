@@ -8,8 +8,9 @@
   // We only want renovate to rebase PRs when they have conflicts, default
   // "auto" mode is not required.
   rebaseWhen: 'conflicted',
-  // The maximum number of PRs to be created in parallel
-  prConcurrentLimit: 5,
+  // The maximum number of PRs to be created in parallel - branchConcurrentLimit
+  // inherits this value as well
+  prConcurrentLimit: 10,
   // Disable the default 2 per hour PR creation limit. prConcurrentLimit already caps how many PRs
   // can be open at once and our renovate job runs on a daily schedule, so having any hourly
   // throttling can actually slow us down.
