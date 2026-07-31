@@ -118,7 +118,7 @@ func TestMergePath(t *testing.T) {
 		"ReplacePath": {
 			reason: "Default behavior if no merge options are supplied is to replace dst with src",
 			args: args{
-				fieldPath:    "p1.p2",
+				fieldPath:    "P1.P2",
 				dst:          dstObject(),
 				src:          srcObject(),
 				mergeOptions: nil,
@@ -139,7 +139,7 @@ func TestMergePath(t *testing.T) {
 		"MergePathNoSliceAppend": {
 			reason: "When KeepMapValues is set but AppendSlice is not, dst should preserve its values at the merge path",
 			args: args{
-				fieldPath: "p1.p2",
+				fieldPath: "P1.P2",
 				dst:       dstObject(),
 				src:       srcObject(),
 				mergeOptions: &xpv1.MergeOptions{
@@ -162,7 +162,7 @@ func TestMergePath(t *testing.T) {
 		"MergePathWithSliceAppend": {
 			reason: "When both KeepMapValues and AppendSlice are ser, dst should preserve map values but arrays being appended",
 			args: args{
-				fieldPath: "p1.p2",
+				fieldPath: "P1.P2",
 				dst:       dstObject(),
 				src:       srcObject(),
 				mergeOptions: &xpv1.MergeOptions{
@@ -186,7 +186,7 @@ func TestMergePath(t *testing.T) {
 		"PathNotFound": {
 			reason: "If specified merge path does not exist, dst should be unmodified even if replace is requested (empty src value is merged onto dst value)",
 			args: args{
-				fieldPath: "p1.non.existent",
+				fieldPath: "P1.non.existent",
 				dst:       dstObject(),
 				src:       srcObject(),
 			},
@@ -197,7 +197,7 @@ func TestMergePath(t *testing.T) {
 		"SrcValueEmpty": {
 			reason: "If value at the specified merge path is zero in src, dst should be unmodified, even if replace is requested",
 			args: args{
-				fieldPath: "p1.p2",
+				fieldPath: "P1.P2",
 				dst:       dstObject(),
 				src: &object{
 					P1: &p1{
@@ -212,7 +212,7 @@ func TestMergePath(t *testing.T) {
 		"DstValueEmpty": {
 			reason: "If value at the specified merge path is zero in dst but not in src, should be identical to a replace, even if merge is configured",
 			args: args{
-				fieldPath: "p1.p2",
+				fieldPath: "P1.P2",
 				src:       srcObject(),
 				dst: &object{
 					P1: &p1{
@@ -252,7 +252,7 @@ func TestMergePath(t *testing.T) {
 		"ErrDstNotPaved": {
 			reason: "If dst cannot be paved, MergePath should be failing",
 			args: args{
-				fieldPath: "p1.p2",
+				fieldPath: "P1.P2",
 				dst:       strObject("dst"),
 				src:       srcObject(),
 			},
