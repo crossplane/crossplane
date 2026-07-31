@@ -252,14 +252,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	dag := r.newDag()
 
-	packages := lock.Packages
+	// Ignore functions with only external revisions when resolving dependencies
+	// to ensure we end up with a package manager managed version.
+	packages, err := r.pruneExternalFunctions(ctx, lock.Packages)
+	if err != nil {
+		log.Debug(errGetDependency, "error", err)
+		status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errGetDependency)))
+
+		_ = r.kube.Status().Update(ctx, lock)
+
+		return reconcile.Result{}, errors.Wrap(err, errGetDependency)
+	}
+
 	if r.features.Enabled(features.EnableAlphaDependencyVersionUpgrades) {
 		// Filter packages to only include those that are roots (not installed
 		// as a dependency) or match some current dependency. This prevents
 		// "orphaned" packages with incompatible versions from blocking
 		// resolution. We do this only when upgrades are enabled, since this
 		// implicitly enables upgrades by ignoring outdated installed packages.
-		packages = pruneOutdatedDependencies(lock.Packages)
+		packages = pruneOutdatedDependencies(packages)
 	}
 
 	implied, err := dag.Init(internaldag.PackagesToNodes(packages...))
@@ -396,9 +407,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, errors.Wrap(err, errConstructDependency)
 		}
 
-		// NOTE(hasheddan): consider making the lock the controller of packages
-		// it creates.
-		if err := r.kube.Create(ctx, pack); err != nil && !kerrors.IsAlreadyExists(err) {
+		// Note that the lock does not own/control packages it creates. This is
+		// so accidental or intentional deletion of the lock doesn't remove all
+		// packages installed as dependencies.
+		err = r.kube.Create(ctx, pack)
+		if kerrors.IsAlreadyExists(err) {
+			if pack.GroupVersionKind().GroupKind() == v1.FunctionGroupVersionKind.GroupKind() {
+				// The package is a Function whose revisions are all managed
+				// externally, so the package manager needs to adopt it.
+				err = r.adoptExternalFunction(ctx, pack)
+			}
+		}
+		if err != nil && !kerrors.IsAlreadyExists(err) {
 			log.Debug(errCreateDependency, "error", err)
 			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errCreateDependency)))
 
@@ -660,6 +680,69 @@ func pruneOutdatedDependencies(pkgs []v1beta1.LockPackage) []v1beta1.LockPackage
 	}
 
 	return filtered
+}
+
+func (r *Reconciler) pruneExternalFunctions(ctx context.Context, pkgs []v1beta1.LockPackage) ([]v1beta1.LockPackage, error) {
+	filtered := make([]v1beta1.LockPackage, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		ext, err := r.isExternalFunction(ctx, pkg)
+		if err != nil {
+			return nil, err
+		}
+
+		if !ext {
+			filtered = append(filtered, pkg)
+		}
+	}
+
+	return filtered, nil
+}
+
+func (r *Reconciler) isExternalFunction(ctx context.Context, pkg v1beta1.LockPackage) (bool, error) {
+	if pkg.Type != nil && *pkg.Type != v1beta1.FunctionPackageType {
+		return false, nil
+	}
+	if pkg.Kind != nil && *pkg.Kind != v1.FunctionKind {
+		return false, nil
+	}
+
+	repo, err := name.NewRepository(pkg.Source)
+	if err != nil {
+		return false, nil //nolint:nilerr // An invalid source can't be an external Function.
+	}
+
+	fn := &v1.Function{}
+	if err := r.kube.Get(ctx, client.ObjectKey{Name: xpkg.ToDNSLabel(repo.RepositoryStr())}, fn); err != nil {
+		return false, resource.IgnoreNotFound(err)
+	}
+
+	return fn.Spec.Package == "", nil
+}
+
+// adoptExternalFunction adopts an existing Function whose revisions are all
+// managed externally (i.e. has no spec.package) into package management by
+// setting its spec.package to that of the supplied package.
+func (r *Reconciler) adoptExternalFunction(ctx context.Context, pkg *unstructured.Unstructured) error {
+	fn := &v1.Function{}
+	if err := r.kube.Get(ctx, client.ObjectKey{Name: pkg.GetName()}, fn); err != nil {
+		return errors.Wrap(err, errGetDependency)
+	}
+
+	if fn.Spec.Package != "" {
+		return nil
+	}
+
+	src, err := fieldpath.Pave(pkg.Object).GetString("spec.package")
+	if err != nil {
+		return errors.Wrap(err, errConstructDependency)
+	}
+
+	fn.Spec.Package = src
+	// Strip any existing owner reference so that the function can't get
+	// GCed. The package manager will clean it up later if needed.
+	fn.SetOwnerReferences(nil)
+
+	return r.kube.Update(ctx, fn)
 }
 
 // matchesAnyConstraint checks if a version matches a constraint.  Handles both

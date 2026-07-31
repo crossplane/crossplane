@@ -88,6 +88,16 @@ type PackageWithRuntime interface {
 	SetRuntimeConfigRef(r *RuntimeConfigReference)
 }
 
+// PackageWithExternalRevisions is the interface satisfied by packages whose
+// revisions may be managed externally, rather than by the package manager.
+// +k8s:deepcopy-gen=false
+type PackageWithExternalRevisions interface {
+	Package
+
+	GetExternalRevisionRefs() []corev1.LocalObjectReference
+	SetExternalRevisionRefs(refs []corev1.LocalObjectReference)
+}
+
 // SetAppliedImageConfigRefs sets applied image config refs, replacing any
 // existing refs with the same reason.
 func (s *PackageStatus) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
@@ -1169,6 +1179,16 @@ func (f *Function) GetCommonAnnotations() map[string]string {
 // SetCommonAnnotations of this Function.
 func (f *Function) SetCommonAnnotations(a map[string]string) {
 	f.Spec.CommonAnnotations = a
+}
+
+// GetExternalRevisionRefs of this Function.
+func (f *Function) GetExternalRevisionRefs() []corev1.LocalObjectReference {
+	return f.Status.ExternalRevisionRefs
+}
+
+// SetExternalRevisionRefs of this Function.
+func (f *Function) SetExternalRevisionRefs(refs []corev1.LocalObjectReference) {
+	f.Status.ExternalRevisionRefs = refs
 }
 
 // GetAppliedImageConfigRefs of this Function.
