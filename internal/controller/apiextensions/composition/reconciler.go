@@ -32,12 +32,14 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
+	"github.com/crossplane/crossplane/v2/internal/features"
 )
 
 const (
@@ -52,6 +54,8 @@ const (
 	errOwnRev          = "cannot own CompositionRevision"
 	errUpdateRevStatus = "cannot update CompositionRevision status"
 	errUpdateRevSpec   = "cannot update CompositionRevision spec"
+
+	errFmtMissingFunctionRef = "pipeline step %q has no functionRef; referencing functions by OCI reference requires the --enable-pipeline-oci-references alpha feature flag"
 )
 
 // Event reasons.
@@ -67,7 +71,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)))
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithFeatures(o.Features))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -94,12 +99,20 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
+// WithFeatures specifies which feature flags are enabled.
+func WithFeatures(f *feature.Flags) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.features = f
+	}
+}
+
 // NewReconciler returns a Reconciler of Compositions.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		client: mgr.GetClient(),
-		log:    logging.NewNopLogger(),
-		record: event.NewNopRecorder(),
+		client:   mgr.GetClient(),
+		log:      logging.NewNopLogger(),
+		record:   event.NewNopRecorder(),
+		features: &feature.Flags{},
 	}
 
 	for _, f := range opts {
@@ -114,8 +127,9 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 type Reconciler struct {
 	client client.Client
 
-	log    logging.Logger
-	record event.Recorder
+	log      logging.Logger
+	record   event.Recorder
+	features *feature.Flags
 }
 
 // Reconcile a Composition.
@@ -218,6 +232,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if existingRev > 0 {
 		log.Debug("No new revision needed.", "current-revision", existingRev)
 		return reconcile.Result{}, nil
+	}
+
+	// Steps may reference a function by OCI reference (the function field)
+	// instead of by name (the functionRef field) only when the alpha feature
+	// is enabled. When it isn't we ignore the function field, so every step
+	// must have a functionRef. We don't return an error because retrying won't
+	// help - the Composition must be updated, which will trigger a reconcile.
+	if !r.features.Enabled(features.EnableAlphaPipelineOCIReferences) {
+		for _, s := range comp.Spec.Pipeline {
+			if s.FunctionRef != nil {
+				continue
+			}
+
+			err := errors.Errorf(errFmtMissingFunctionRef, s.Step)
+			log.Debug("Cannot create new revision", "error", err)
+			r.record.Event(comp, event.Warning(reasonCreateRev, err))
+
+			return reconcile.Result{}, nil
+		}
 	}
 
 	if err := r.client.Create(ctx, NewCompositionRevision(comp, latestRev+1)); err != nil {

@@ -197,7 +197,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 									Input:       &runtime.RawExtension{Raw: []byte("hi")}, // This is invalid - it must be a JSON object.
 								},
 							},
@@ -237,7 +237,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 									Credentials: []v1.FunctionCredentials{
 										{
 											Name:   "cool-secret",
@@ -285,7 +285,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -370,7 +370,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -465,7 +465,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -520,7 +520,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -574,7 +574,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -634,7 +634,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -698,7 +698,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -762,7 +762,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -828,7 +828,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -904,7 +904,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -966,7 +966,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -1022,7 +1022,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -1078,7 +1078,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -1144,7 +1144,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -1188,7 +1188,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "cool-step",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 									Requirements: &v1.FunctionRequirements{
 										RequiredResources: []v1.RequiredResourceSelector{
 											{
@@ -1348,7 +1348,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 									Credentials: []v1.FunctionCredentials{
 										{
 											Name:   "cool-secret",
@@ -1522,7 +1522,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
