@@ -60,6 +60,8 @@ type CompositionRevisionSpec struct {
 	// +optional
 	// +listType=map
 	// +listMapKey=step
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=99
 	Pipeline []PipelineStep `json:"pipeline,omitempty"`
 
 	// WriteConnectionSecretsToNamespace specifies the namespace in which the
