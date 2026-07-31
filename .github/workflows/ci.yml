@@ -195,14 +195,14 @@ jobs:
           repository: 147886080
           key: ${{ secrets.BUILDPULSE_ACCESS_KEY_ID }}
           secret: ${{ secrets.BUILDPULSE_SECRET_ACCESS_KEY }}
-          path: /tmp/e2e-tests.xml
+          path: ${{ runner.temp }}/e2e-tests.xml
 
       - name: Upload E2E Test Artifacts
         if: '!cancelled()'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: e2e-tests-${{ matrix.test-area }}-${{ matrix.test-suite }}
-          path: /tmp/e2e-tests.xml
+          path: ${{ runner.temp }}/e2e-tests.xml
 
   # Build all artifacts (binaries, images, Helm chart)
   build-artifacts:
