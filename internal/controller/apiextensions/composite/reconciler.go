@@ -662,7 +662,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(xr, event.Warning(reasonInit, err))
 		status.MarkConditions(xpv2.ReconcileError(err))
-		_ = r.client.Status().Update(ctx, xr)
+		_ = r.client.Status().Update(updateCtx, xr)
 
 		return reconcile.Result{}, err
 	}
@@ -737,7 +737,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		status.MarkConditions(xpv2.ReconcileError(err))
-		_ = r.client.Status().Update(ctx, xr)
+		_ = r.client.Status().Update(updateCtx, xr)
 
 		return reconcile.Result{}, err
 	}
