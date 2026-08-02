@@ -10,7 +10,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/alecthomas/kong v1.15.0
 	github.com/crossplane/crossplane-runtime/v2 v2.4.0-rc.0.0.20260615215345-a63da558576d
-	github.com/crossplane/crossplane/apis/v2 v2.3.2
+	github.com/crossplane/crossplane/apis/v2 v2.3.4
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-containerregistry v0.21.6
 	github.com/robfig/cron/v3 v3.0.1
