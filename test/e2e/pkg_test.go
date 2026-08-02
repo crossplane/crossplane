@@ -18,6 +18,7 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -381,7 +382,11 @@ func TestPackageRevisionLifeCycle(t *testing.T) {
 						"",
 						f,
 					); err != nil {
-						t.Errorf("cannot get Function: %v", err)
+						t.Errorf(
+							"cannot read Function %q while recording its current revision: %v",
+							functionName,
+							err,
+						)
 						return ctx
 					}
 
@@ -436,7 +441,11 @@ func TestPackageRevisionLifeCycle(t *testing.T) {
 								"",
 								f,
 							); err != nil {
-								return false, err
+								return false, fmt.Errorf(
+									"cannot read Function %q while waiting for its current revision to change: %w",
+									functionName,
+									err,
+								)
 							}
 
 							return f.Status.CurrentRevision != "" &&
