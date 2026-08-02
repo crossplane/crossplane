@@ -92,11 +92,6 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 			},
 		}))
 
-	svc.TypeMeta = metav1.TypeMeta{
-		APIVersion: corev1.SchemeGroupVersion.String(),
-		Kind:       "Service",
-	}
-
 	if err := applyRuntimeObject(ctx, h.client.Client, svc); err != nil {
 		return errors.Wrap(err, errApplyFunctionService)
 	}
@@ -110,11 +105,6 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 	fRev.Status.Endpoint = fmt.Sprintf(ServiceEndpointFmt, svc.Name, svc.Namespace, GRPCPort)
 
 	secServer := build.TLSServerSecret()
-
-	secServer.TypeMeta = metav1.TypeMeta{
-		APIVersion: corev1.SchemeGroupVersion.String(),
-		Kind:       "Secret",
-	}
 
 	if err := applyRuntimeObject(ctx, h.client.Client, secServer); err != nil {
 		return errors.Wrap(err, errApplyFunctionSecret)
@@ -153,11 +143,6 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 		if err := applySA(ctx, h.client, sa); err != nil {
 			return errors.Wrap(err, errApplyFunctionSA)
 		}
-	}
-
-	d.TypeMeta = metav1.TypeMeta{
-		APIVersion: appsv1.SchemeGroupVersion.String(),
-		Kind:       "Deployment",
 	}
 
 	if err := applyRuntimeObject(ctx, h.client.Client, d); err != nil {

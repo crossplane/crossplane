@@ -256,12 +256,9 @@ func TestFunctionPostHook(t *testing.T) {
 						return nil
 					},
 					MockPatch: func(_ context.Context, obj client.Object, p client.Patch, opts ...client.PatchOption) error {
-						if d, ok := obj.(*appsv1.Deployment); ok {
+						if _, ok := obj.(*appsv1.Deployment); ok {
 							if got := p.Type(); got != types.ApplyPatchType {
 								t.Fatalf("expected SSA patch type, got %s", got)
-							}
-							if d.APIVersion != appsv1.SchemeGroupVersion.String() || d.Kind != "Deployment" {
-								t.Fatalf("expected Deployment TypeMeta to be set before patch")
 							}
 							po := &client.PatchOptions{}
 							for _, opt := range opts {

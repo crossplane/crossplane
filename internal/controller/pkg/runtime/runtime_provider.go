@@ -23,7 +23,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -88,11 +87,6 @@ func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 		},
 	}))
 
-	svc.TypeMeta = metav1.TypeMeta{
-		APIVersion: corev1.SchemeGroupVersion.String(),
-		Kind:       "Service",
-	}
-
 	if err := applyRuntimeObject(ctx, h.client.Client, svc); err != nil {
 		return errors.Wrap(err, errApplyProviderService)
 	}
@@ -107,8 +101,8 @@ func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 	}
 
 	// Provider TLS secrets are ultimately owned by the parent Provider. Keep using
-    // the applicator here because SSA merges ownerReferences and can retain both
-    // the Provider and ProviderRevision controller references.
+	// the applicator here because SSA merges ownerReferences and can retain both
+	// the Provider and ProviderRevision controller references.
 	if err := h.client.Applicator.Apply(ctx, secClient); err != nil {
 		return errors.Wrap(err, errApplyProviderSecret)
 	}
@@ -151,11 +145,6 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 		if err := applySA(ctx, h.client, sa); err != nil {
 			return errors.Wrap(err, errApplyProviderSA)
 		}
-	}
-
-	d.TypeMeta = metav1.TypeMeta{
-		APIVersion: appsv1.SchemeGroupVersion.String(),
-		Kind:       "Deployment",
 	}
 
 	if err := applyRuntimeObject(ctx, h.client.Client, d); err != nil {
@@ -286,11 +275,6 @@ func applySA(ctx context.Context, cl resource.ClientApplicator, sa *corev1.Servi
 				sa.ImagePullSecrets = append(sa.ImagePullSecrets, secret)
 			}
 		}
-	}
-
-	sa.TypeMeta = metav1.TypeMeta{
-		APIVersion: corev1.SchemeGroupVersion.String(),
-		Kind:       "ServiceAccount",
 	}
 
 	return applyRuntimeObject(ctx, cl.Client, sa)

@@ -267,6 +267,11 @@ func (b *DeploymentRuntimeBuilder) ServiceAccount(overrides ...ServiceAccountOve
 		sa = serviceAccountFromRuntimeConfig(b.runtimeConfig.Spec.ServiceAccountTemplate)
 	}
 
+	sa.TypeMeta = metav1.TypeMeta{
+		APIVersion: corev1.SchemeGroupVersion.String(),
+		Kind:       "ServiceAccount",
+	}
+
 	var allOverrides []ServiceAccountOverride
 
 	allOverrides = append(allOverrides,
@@ -362,14 +367,25 @@ func (b *DeploymentRuntimeBuilder) Deployment(serviceAccount string, overrides .
 		o(d)
 	}
 
+	d.TypeMeta = metav1.TypeMeta{
+		APIVersion: appsv1.SchemeGroupVersion.String(),
+		Kind:       "Deployment",
+	}
+
 	return d
 }
 
 // Service builds and returns the Service manifest.
 func (b *DeploymentRuntimeBuilder) Service(overrides ...ServiceOverride) *corev1.Service {
 	svc := &corev1.Service{}
+
 	if b.runtimeConfig != nil {
 		svc = serviceFromRuntimeConfig(b.runtimeConfig.Spec.ServiceTemplate)
+	}
+
+	svc.TypeMeta = metav1.TypeMeta{
+		APIVersion: corev1.SchemeGroupVersion.String(),
+		Kind:       "Service",
 	}
 
 	var allOverrides []ServiceOverride
@@ -402,6 +418,10 @@ func (b *DeploymentRuntimeBuilder) TLSClientSecret() *corev1.Secret {
 	}
 
 	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: corev1.SchemeGroupVersion.String(),
+			Kind:       "Secret",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            *b.revision.GetObservedTLSClientSecretName(),
 			Namespace:       b.namespace,
@@ -417,6 +437,10 @@ func (b *DeploymentRuntimeBuilder) TLSServerSecret() *corev1.Secret {
 	}
 
 	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: corev1.SchemeGroupVersion.String(),
+			Kind:       "Secret",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            *b.revision.GetObservedTLSServerSecretName(),
 			Namespace:       b.namespace,
