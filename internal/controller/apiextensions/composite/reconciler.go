@@ -608,6 +608,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xrStatus.SetNamespace(xr.GetNamespace())
 	xrStatus.SetName(xr.GetName())
 	status := r.conditions.For(xrStatus)
+	// Keep these values, even if we don't set them this time around through the reconcile loop
+	if x := xr.GetConnectionDetailsLastPublishedTime(); x != nil {
+		xrStatus.SetConnectionDetailsLastPublishedTime(x)
+	}
+	if x := xr.GetLastHandledReconcileAt(); x != "" {
+		xrStatus.SetLastHandledReconcileAt(x)
+	}
 
 	// Check circuit breaker state and set condition accordingly.
 	condition := v1.WatchCircuitClosed()
