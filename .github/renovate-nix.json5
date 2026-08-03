@@ -10,16 +10,24 @@
   // Allow Renovate to update lock files, so we get new updates in Nix inputs
   // (e.g., nixpkgs, nixpkgs-unstable) regularly.
   //
-  // Note that we use a schedule of "on monday", because "schedule:weekly" only
-  // allows a window of 00:00 to 03:59, which we can't guarantee our Renovate
-  // workflow will run during. Using "on monday" is better since it doesn't
-  // require the workflow to run at a specific time.
+  // An empty schedule ("[]") means "at any time", so we can get a lock file
+  // maintenance PR during any run of Renovate. They can be important, so let's
+  // not throttle them unnecessarily.
   lockFileMaintenance: {
     enabled: true,
-    schedule: ['on monday'],
+    schedule: [],
   },
 
   packageRules: [
+    {
+      // Give lock file maintenance PRs higher priority than other non-security
+      // related updates.
+      description: 'Sort lock file maintenance ahead of other updates',
+      matchUpdateTypes: [
+        'lockFileMaintenance',
+      ],
+      prPriority: 10,
+    },
     {
       // The base config disables all non-security updates on release branches,
       // but we still want Nix flake.lock to get updated there, since that's how
