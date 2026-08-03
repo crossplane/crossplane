@@ -1576,7 +1576,7 @@ func TestReconcileRequestAnnotation(t *testing.T) {
 			},
 		},
 		"AlreadyHandledReconcileRequestIsNoOp": {
-			reason: "When the token matches lastHandledReconcileAt, status should remain unchanged.",
+			reason: "When the token matches lastHandledReconcileAt, we should still set it so it's not removed by server-side apply.",
 			args: args{
 				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
@@ -1588,6 +1588,7 @@ func TestReconcileRequestAnnotation(t *testing.T) {
 					MockStatusPatch: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.ReconcileSuccess(), xpv2.Available())
 						cr.SetConnectionDetailsLastPublishedTime(&now)
+						cr.SetLastHandledReconcileAt("already-handled")
 					})),
 				},
 				opts: []ReconcilerOption{
