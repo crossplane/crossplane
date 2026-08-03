@@ -86,7 +86,8 @@ func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 			TargetPort: intstr.FromString(WebhookPortName),
 		},
 	}))
-	if err := h.client.Applicator.Apply(ctx, svc); err != nil {
+
+	if err := applyRuntimeObject(ctx, h.client.Client, svc); err != nil {
 		return errors.Wrap(err, errApplyProviderService)
 	}
 
@@ -99,6 +100,9 @@ func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 		return nil
 	}
 
+	// Provider TLS secrets are ultimately owned by the parent Provider. Keep using
+	// the applicator here because SSA merges ownerReferences and can retain both
+	// the Provider and ProviderRevision controller references.
 	if err := h.client.Applicator.Apply(ctx, secClient); err != nil {
 		return errors.Wrap(err, errApplyProviderSecret)
 	}
@@ -143,7 +147,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 		}
 	}
 
-	if err := h.client.Applicator.Apply(ctx, d); err != nil {
+	if err := applyRuntimeObject(ctx, h.client.Client, d); err != nil {
 		return errors.Wrap(err, errApplyProviderDeployment)
 	}
 
@@ -273,5 +277,5 @@ func applySA(ctx context.Context, cl resource.ClientApplicator, sa *corev1.Servi
 		}
 	}
 
-	return cl.Applicator.Apply(ctx, sa)
+	return applyRuntimeObject(ctx, cl.Client, sa)
 }

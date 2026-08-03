@@ -91,7 +91,8 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 				AppProtocol: &AppProtocolTLS,
 			},
 		}))
-	if err := h.client.Applicator.Apply(ctx, svc); err != nil {
+
+	if err := applyRuntimeObject(ctx, h.client.Client, svc); err != nil {
 		return errors.Wrap(err, errApplyFunctionService)
 	}
 
@@ -104,7 +105,8 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 	fRev.Status.Endpoint = fmt.Sprintf(ServiceEndpointFmt, svc.Name, svc.Namespace, GRPCPort)
 
 	secServer := build.TLSServerSecret()
-	if err := h.client.Applicator.Apply(ctx, secServer); err != nil {
+
+	if err := applyRuntimeObject(ctx, h.client.Client, secServer); err != nil {
 		return errors.Wrap(err, errApplyFunctionSecret)
 	}
 
@@ -143,7 +145,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 		}
 	}
 
-	if err := h.client.Applicator.Apply(ctx, d); err != nil {
+	if err := applyRuntimeObject(ctx, h.client.Client, d); err != nil {
 		return errors.Wrap(err, errApplyFunctionDeployment)
 	}
 

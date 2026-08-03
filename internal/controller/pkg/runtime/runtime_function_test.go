@@ -27,6 +27,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -74,18 +75,19 @@ func TestFunctionPreHook(t *testing.T) {
 				},
 				manifests: &MockManifestBuilder{
 					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
-						return &corev1.Service{}
+						return &corev1.Service{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "some-service",
+								Namespace: "some-namespace",
+							},
+						}
 					},
 					TLSServerSecretFn: func() *corev1.Secret {
 						return &corev1.Secret{}
 					},
 				},
 				client: &test.MockClient{
-					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
-						if svc, ok := obj.(*corev1.Service); ok {
-							svc.Name = "some-service"
-							svc.Namespace = "some-namespace"
-						}
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
 					},
 					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
@@ -221,7 +223,7 @@ func TestFunctionPostHook(t *testing.T) {
 						},
 					},
 				},
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyFunctionSA),
+				err: errors.Wrap(errBoom, errApplyFunctionSA),
 			},
 		},
 		"ErrApplyDeployment": {
@@ -253,8 +255,18 @@ func TestFunctionPostHook(t *testing.T) {
 					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
 					},
-					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+					MockPatch: func(_ context.Context, obj client.Object, p client.Patch, opts ...client.PatchOption) error {
 						if _, ok := obj.(*appsv1.Deployment); ok {
+							if got := p.Type(); got != types.ApplyPatchType {
+								t.Fatalf("expected SSA patch type, got %s", got)
+							}
+							po := &client.PatchOptions{}
+							for _, opt := range opts {
+								opt.ApplyToPatch(po)
+							}
+							if po.FieldManager != FieldOwnerRuntime || po.Force == nil || !*po.Force {
+								t.Fatalf("expected SSA field owner and force ownership options")
+							}
 							return errBoom
 						}
 						return nil
@@ -275,7 +287,7 @@ func TestFunctionPostHook(t *testing.T) {
 						},
 					},
 				},
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyFunctionDeployment),
+				err: errors.Wrap(errBoom, errApplyFunctionDeployment),
 			},
 		},
 		"ErrDeploymentNoAvailableConditionYet": {

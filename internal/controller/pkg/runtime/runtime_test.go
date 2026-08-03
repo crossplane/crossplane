@@ -444,6 +444,10 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 			},
 			want: want{
 				want: &corev1.Service{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: corev1.SchemeGroupVersion.String(),
+						Kind:       "Service",
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      providerName,
 						Namespace: namespace,
@@ -488,6 +492,10 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 
 func deploymentProvider(provider string, rev string, image string, overrides ...DeploymentOverride) *appsv1.Deployment {
 	d := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: appsv1.SchemeGroupVersion.String(),
+			Kind:       "Deployment",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      rev,
 			Namespace: namespace,
@@ -667,6 +675,10 @@ func deploymentProvider(provider string, rev string, image string, overrides ...
 
 func deploymentFunction(function string, rev string, image string, overrides ...DeploymentOverride) *appsv1.Deployment {
 	d := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: appsv1.SchemeGroupVersion.String(),
+			Kind:       "Deployment",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      rev,
 			Namespace: namespace,

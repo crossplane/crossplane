@@ -42,6 +42,9 @@ const (
 	// metrics, which any provider built using controller-runtime will do by
 	// default.
 
+	// FieldOwnerRuntime for SSA (Server Side Apply).
+	FieldOwnerRuntime = "pkg.crossplane.io/runtime"
+
 	// MetricsPortName is the name of the metrics port.
 	MetricsPortName = "metrics"
 	// MetricsPortNumber is the port number for metrics.
@@ -167,6 +170,18 @@ func BuilderWithRuntimeConfig(rc *v1beta1.DeploymentRuntimeConfig) BuilderOption
 	}
 }
 
+// applyRuntimeObject applies runtime manifests using SSA.
+func applyRuntimeObject(ctx context.Context, c client.Client, obj client.Object) error {
+	//nolint:staticcheck // Client.Apply requires typed apply configurations.
+	return c.Patch(
+		ctx,
+		obj,
+		client.Apply,
+		client.FieldOwner(FieldOwnerRuntime),
+		client.ForceOwnership,
+	)
+}
+
 // BuilderWithServiceAccountPullSecrets sets the service account
 // pull secrets to use when building the runtime manifests.
 func BuilderWithServiceAccountPullSecrets(secrets []corev1.LocalObjectReference) BuilderOption {
@@ -236,6 +251,11 @@ func (b *DeploymentRuntimeBuilder) ServiceAccount(overrides ...ServiceAccountOve
 	sa := &corev1.ServiceAccount{}
 	if b.runtimeConfig != nil {
 		sa = serviceAccountFromRuntimeConfig(b.runtimeConfig.Spec.ServiceAccountTemplate)
+	}
+
+	sa.TypeMeta = metav1.TypeMeta{
+		APIVersion: corev1.SchemeGroupVersion.String(),
+		Kind:       "ServiceAccount",
 	}
 
 	var allOverrides []ServiceAccountOverride
@@ -342,14 +362,25 @@ func (b *DeploymentRuntimeBuilder) Deployment(serviceAccount string, overrides .
 		o(d)
 	}
 
+	d.TypeMeta = metav1.TypeMeta{
+		APIVersion: appsv1.SchemeGroupVersion.String(),
+		Kind:       "Deployment",
+	}
+
 	return d
 }
 
 // Service builds and returns the Service manifest.
 func (b *DeploymentRuntimeBuilder) Service(overrides ...ServiceOverride) *corev1.Service {
 	svc := &corev1.Service{}
+
 	if b.runtimeConfig != nil {
 		svc = serviceFromRuntimeConfig(b.runtimeConfig.Spec.ServiceTemplate)
+	}
+
+	svc.TypeMeta = metav1.TypeMeta{
+		APIVersion: corev1.SchemeGroupVersion.String(),
+		Kind:       "Service",
 	}
 
 	var allOverrides []ServiceOverride
@@ -382,6 +413,10 @@ func (b *DeploymentRuntimeBuilder) TLSClientSecret() *corev1.Secret {
 	}
 
 	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: corev1.SchemeGroupVersion.String(),
+			Kind:       "Secret",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            *b.revision.GetObservedTLSClientSecretName(),
 			Namespace:       b.namespace,
@@ -397,6 +432,10 @@ func (b *DeploymentRuntimeBuilder) TLSServerSecret() *corev1.Secret {
 	}
 
 	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: corev1.SchemeGroupVersion.String(),
+			Kind:       "Secret",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            *b.revision.GetObservedTLSServerSecretName(),
 			Namespace:       b.namespace,
