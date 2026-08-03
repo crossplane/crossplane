@@ -126,6 +126,11 @@ jobs:
   # E2E tests run outside the Nix sandbox (needs Docker)
   e2e-tests:
     runs-on: ubuntu-24.04
+    env:
+      # Resolved here because the secrets context isn't available in a
+      # step-level if. Empty on pull requests from forks, which don't receive
+      # secrets, and on forks of this repository.
+      BUILDPULSE_CONFIGURED: ${{ secrets.BUILDPULSE_ACCESS_KEY_ID != '' && secrets.BUILDPULSE_SECRET_ACCESS_KEY != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -198,7 +203,7 @@ jobs:
               -labels area=${{ matrix.test-area }}
 
       - name: Publish E2E Test Flakes
-        if: '!cancelled()'
+        if: "!cancelled() && env.BUILDPULSE_CONFIGURED == 'true'"
         uses: buildpulse/buildpulse-action@76dbedc6585e8731b40a19da1ebc3f6609dbbb83 # v3
         with:
           account: 45158470
