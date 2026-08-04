@@ -1,0 +1,13 @@
+# Package metadata for e2e-function-revision-id.
+#
+# This function is manually built and pushed to
+# xpkg.crossplane.io/crossplane/e2e-function-revision-id, once per identity/tag.
+# See README.md for the exact build & push commands.
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: e2e-function-revision-id
+spec:
+  # Required so the function may be used in Composition pipelines.
+  capabilities:
+    - composition
