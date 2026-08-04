@@ -390,6 +390,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		},
 	}
 
+	if c.WatchCacheNamespaced {
+		cacheOptionsAPIExt.DefaultNamespaces = map[string]cache.Config{
+			c.Namespace: {},
+		}
+	}
+
 	// Claim and XR controllers are started and stopped dynamically by the
 	// ControllerEngine below. When realtime compositions are enabled, they also
 	// start and stop their watches (e.g. of composed resources) dynamically. To
