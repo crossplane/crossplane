@@ -83,13 +83,19 @@
           pkgs = import nixpkgs {
             inherit system;
             overlays = [
-              (_final: _prev: {
+              (_final: prev: {
                 # We use the go toolchain from unstable because it's been
                 # updated to fix some CVEs. However, we explicitly use this only
                 # in our build targets rather than replace Go in the global
                 # overlay so that we can still use pre-built binaries for
                 # Go-based tools from nixpkgs.
                 go-unstable = nixpkgs-unstable.legacyPackages.${system}.go_1_25;
+
+                # nixpkgs' default docker is still docker_28, which nixos-25.11
+                # marks unmaintained and refuses to evaluate. We override here
+                # so every pkgs.docker-client call site picks up docker_29, we
+                # can remove this when the nixpkgs default moves forward.
+                docker-client = prev.docker_29.override { clientOnly = true; };
               })
             ];
           };
