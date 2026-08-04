@@ -711,6 +711,13 @@ func TestFunctionDeactivateHook(t *testing.T) {
 						}
 						return s
 					},
+					TLSServerSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "server-tls",
+							},
+						}
+					},
 				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
@@ -718,6 +725,17 @@ func TestFunctionDeactivateHook(t *testing.T) {
 						return nil
 					}),
 					MockDelete: func(_ context.Context, _ client.Object, _ ...client.DeleteOption) error {
+						return nil
+					},
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						owners := obj.GetOwnerReferences()
+						if len(owners) != 1 {
+							return errors.Errorf("incorrect number of owner references on %T, expected 1 got %d", obj, len(owners))
+						}
+						if owners[0].Controller != nil && *owners[0].Controller {
+							return errors.Errorf("%T has unexpected controlling owner reference %v", obj, owners[0])
+						}
+
 						return nil
 					},
 				},
@@ -741,6 +759,24 @@ func TestFunctionDeactivateHook(t *testing.T) {
 					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "some-deployment"}}
 					},
+					ServiceFn: func(overrides ...ServiceOverride) *corev1.Service {
+						s := &corev1.Service{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "some-service",
+							},
+						}
+						for _, o := range overrides {
+							o(s)
+						}
+						return s
+					},
+					TLSServerSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "server-tls",
+							},
+						}
+					},
 				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
@@ -751,6 +787,17 @@ func TestFunctionDeactivateHook(t *testing.T) {
 						if _, ok := obj.(*appsv1.Deployment); ok {
 							return errors.New("deployment should not be deleted")
 						}
+						return nil
+					},
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						owners := obj.GetOwnerReferences()
+						if len(owners) != 1 {
+							return errors.Errorf("incorrect number of owner references on %T, expected 1 got %d", obj, len(owners))
+						}
+						if owners[0].Controller != nil && *owners[0].Controller {
+							return errors.Errorf("%T owner reference is controlling", obj)
+						}
+
 						return nil
 					},
 				},
@@ -771,11 +818,11 @@ func TestFunctionDeactivateHook(t *testing.T) {
 
 			err := h.Deactivate(context.TODO(), tc.args.rev, tc.args.manifests)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nh.Deactivate(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
 			if diff := cmp.Diff(tc.want.rev, tc.args.rev, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nh.Pre(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nh.Deactivate(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

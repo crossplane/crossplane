@@ -23,11 +23,13 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
@@ -78,15 +80,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 	// generating certificates requires the service to be defined. This is why
 	// we're creating the service here but service account and deployment in the
 	// post-establish.
-	svc := build.Service(ServiceWithAdditionalPorts([]corev1.ServicePort{
-		{
-			Name:       WebhookPortName,
-			Protocol:   corev1.ProtocolTCP,
-			Port:       revision.ServicePort,
-			TargetPort: intstr.FromString(WebhookPortName),
-		},
-	}))
-
+	svc := build.Service(providerServiceOverrides()...)
 	if err := applyRuntimeObject(ctx, h.client.Client, svc); err != nil {
 		return errors.Wrap(err, errApplyProviderService)
 	}
@@ -100,19 +94,16 @@ func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 		return nil
 	}
 
-	// Provider TLS secrets are ultimately owned by the parent Provider. Keep using
-	// the applicator here because SSA merges ownerReferences and can retain both
-	// the Provider and ProviderRevision controller references.
-	if err := h.client.Applicator.Apply(ctx, secClient); err != nil {
+	if err := applyRuntimeObject(ctx, h.client.Client, secClient); err != nil {
+		return errors.Wrap(err, errApplyProviderSecret)
+	}
+	if err := applyRuntimeObject(ctx, h.client.Client, secServer); err != nil {
 		return errors.Wrap(err, errApplyProviderSecret)
 	}
 
-	if err := h.client.Applicator.Apply(ctx, secServer); err != nil {
-		return errors.Wrap(err, errApplyProviderSecret)
-	}
-
+	owner := meta.AsController(meta.TypedReferenceTo(pr, pr.GetObjectKind().GroupVersionKind()))
 	if err := initializer.NewTLSCertificateGenerator(secClient.Namespace, initializer.RootCACertSecretName,
-		initializer.TLSCertificateGeneratorWithOwner(pr.GetOwnerReferences()),
+		initializer.TLSCertificateGeneratorWithOwner([]metav1.OwnerReference{owner}),
 		initializer.TLSCertificateGeneratorWithServerSecretName(secServer.GetName(), initializer.DNSNamesForService(svc.Name, svc.Namespace)),
 		initializer.TLSCertificateGeneratorWithClientSecretName(secClient.GetName(), []string{pr.GetName()})).Run(ctx, h.client.Client); err != nil {
 		return errors.Wrapf(err, "cannot generate TLS certificates for %q", pr.GetLabels()[v1.LabelParentPackage])
@@ -182,6 +173,22 @@ func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 		return errors.Wrap(err, errDeleteProviderService)
 	}
 
+	// Relinquish control of the service and secrets, so that a new active
+	// revision can control them.
+	objs := []client.Object{
+		build.Service(providerServiceOverrides()...),
+		build.TLSServerSecret(),
+		build.TLSClientSecret(),
+	}
+	for _, obj := range objs {
+		if obj == nil {
+			continue
+		}
+		if err := relinquishControllership(ctx, h.client.Client, obj, pr); err != nil {
+			return errors.Wrapf(err, "cannot relinquish control of %T for inactive provider revision", obj)
+		}
+	}
+
 	// NOTE(turkenh): We don't delete the service account here because it might
 	// be used by other package revisions, e.g. user might have specified a
 	// service account name in the runtime config. This should not be a problem
@@ -192,6 +199,19 @@ func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 	// NOTE(phisco): Service and TLS secrets are created per package. Therefore,
 	// we're not deleting them here.
 	return nil
+}
+
+func providerServiceOverrides() []ServiceOverride {
+	return []ServiceOverride{
+		ServiceWithAdditionalPorts([]corev1.ServicePort{
+			{
+				Name:       WebhookPortName,
+				Protocol:   corev1.ProtocolTCP,
+				Port:       revision.ServicePort,
+				TargetPort: intstr.FromString(WebhookPortName),
+			},
+		}),
+	}
 }
 
 func providerDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string) []DeploymentOverride {
