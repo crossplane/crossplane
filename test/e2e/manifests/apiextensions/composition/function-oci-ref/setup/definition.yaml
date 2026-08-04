@@ -1,0 +1,32 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: ocireffns.example.org
+spec:
+  scope: Namespaced
+  group: example.org
+  names:
+    kind: OCIRefFn
+    plural: ocireffns
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+     openAPIV3Schema:
+       type: object
+       properties:
+        spec:
+          type: object
+          properties:
+            coolField:
+              type: string
+          required:
+          - coolField
+        status:
+          type: object
+          properties:
+            # servedBy is set by the referenced function to the identity of the
+            # function revision that served the request.
+            servedBy:
+              type: string
