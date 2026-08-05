@@ -719,17 +719,22 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	}
 
 	// Our goal here is to patch our XR's status using server-side apply. We
-	// want the resulting, patched object loaded into uxr. We need to pass in
+	// want the resulting, patched object loaded into xr. We need to pass in
 	// only our "fully specified intent" - i.e. only the fields that we actually
-	// care about. FromStruct will replace uxr's backing map[string]any with the
+	// care about. FromStruct will replace xr's backing map[string]any with the
 	// content of GetResource (i.e. the desired status). We then need to set its
 	// GVK and name so that our client knows what resource to patch.
+	// This also guards against the RunFunctionResponse returning an incorrect GVK or Name.
+	// Note: We are explicitly not setting any existing status fields from the incoming xr.
+	// If we were to include them, we would take ownership of them, and this would cause problems
+	// for the owning controller of those other fields/conditions.
+	// Server-side apply will merge our new desired state with other fields, and return the merged
+	// state into xr.
 	v := xr.GetAPIVersion()
 	k := xr.GetKind()
 	ns := xr.GetNamespace()
 	n := xr.GetName()
 	u := xr.GetUID()
-	cs := xr.GetConditions()
 
 	if err := xfn.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
@@ -740,14 +745,6 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	xr.SetNamespace(ns)
 	xr.SetName(n)
 	xr.SetUID(u)
-
-	// Include any pending conditions so we don't lose them. SetConditions
-	// will set conditions to nil if it's not passed any arguments. SSA
-	// interprets this as null and rejects it, so we only set them if
-	// there's actually some to set.
-	if len(cs) > 0 {
-		xr.SetConditions(cs...)
-	}
 
 	// NOTE(phisco): Here we are fine using a hardcoded field owner as there is
 	// no risk of conflict between different XRs.

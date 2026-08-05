@@ -207,6 +207,11 @@ func (c *InMemoryClient) Patch(_ context.Context, obj client.Object, patch clien
 
 	if patch.Type() == types.ApplyPatchType {
 		c.applied = append(c.applied, *u.DeepCopy())
+
+		if stored, ok := c.store[key]; ok {
+			u.Object = hackApply(stored.Object, u.Object)
+		}
+
 		c.store[key] = *u
 		return nil
 	}
@@ -288,10 +293,9 @@ func (c *InMemoryClient) IsObjectNamespaced(_ runtime.Object) (bool, error) {
 // This writer mimics that behavior: it takes the stored version of the
 // resource (which still has the full spec from when it was loaded) and
 // replaces only its top-level "status" key with the incoming object's status.
-// It then writes the merged result back into the caller's object. This is not
-// a general-purpose SSA merge -- it's a single key replacement that is
-// sufficient because the reconciler only has one status writer producing one
-// status blob.
+// It then writes the merged result back into the caller's object.
+// We do a best-effort merge of the status during Patch, as some fields are set
+// using SSA in Compose and some are set in Reconcile.
 type inMemoryStatusWriter struct {
 	client *InMemoryClient
 }
@@ -303,7 +307,7 @@ func (w *inMemoryStatusWriter) Update(_ context.Context, obj client.Object, _ ..
 	u := toUnstructured(obj, w.client.scheme)
 	key := keyForUnstructured(u)
 
-	merged := w.mergeStatus(key, u)
+	merged := w.mergeStatus(key, u, false)
 	w.client.store[key] = *merged
 	w.client.updated = append(w.client.updated, *merged.DeepCopy())
 
@@ -317,11 +321,11 @@ func (w *inMemoryStatusWriter) Update(_ context.Context, obj client.Object, _ ..
 // Patch replaces the stored resource's status with the incoming object's
 // status, then writes the full merged resource (original spec + new status)
 // back into obj.
-func (w *inMemoryStatusWriter) Patch(_ context.Context, obj client.Object, _ client.Patch, _ ...client.SubResourcePatchOption) error {
+func (w *inMemoryStatusWriter) Patch(_ context.Context, obj client.Object, patch client.Patch, _ ...client.SubResourcePatchOption) error {
 	u := toUnstructured(obj, w.client.scheme)
 	key := keyForUnstructured(u)
 
-	merged := w.mergeStatus(key, u)
+	merged := w.mergeStatus(key, u, patch.Type() == types.ApplyPatchType)
 	w.client.store[key] = *merged
 	w.client.applied = append(w.client.applied, *merged.DeepCopy())
 
@@ -343,12 +347,8 @@ func (w *inMemoryStatusWriter) Apply(_ context.Context, _ runtime.ApplyConfigura
 
 // mergeStatus replaces the stored resource's top-level "status" key with the
 // incoming resource's "status" key. Everything else (spec, metadata, etc.)
-// comes from the stored version. This isn't a deep merge or an SSA-style
-// field-ownership merge -- it's a wholesale replacement of one top-level key.
-// That's sufficient here because the reconciler has a single status writer
-// producing a complete status blob; there are no concurrent partial status
-// updates to reconcile.
-func (w *inMemoryStatusWriter) mergeStatus(key storeKey, incoming *unstructured.Unstructured) *unstructured.Unstructured {
+// comes from the stored version.
+func (w *inMemoryStatusWriter) mergeStatus(key storeKey, incoming *unstructured.Unstructured, doApply bool) *unstructured.Unstructured {
 	stored, ok := w.client.store[key]
 	if !ok {
 		// No stored version; use the incoming as-is.
@@ -359,6 +359,13 @@ func (w *inMemoryStatusWriter) mergeStatus(key storeKey, incoming *unstructured.
 
 	// Replace the stored status with the incoming status.
 	if status, ok := incoming.Object["status"]; ok {
+		if originalStatus, ok := merged.Object["status"]; ok && doApply {
+			if statusMap, ok := status.(map[string]interface{}); ok {
+				if originalStatusMap, ok := originalStatus.(map[string]interface{}); ok {
+					status = hackApply(originalStatusMap, statusMap)
+				}
+			}
+		}
 		merged.Object["status"] = status
 	}
 
@@ -369,6 +376,63 @@ func (w *inMemoryStatusWriter) mergeStatus(key storeKey, incoming *unstructured.
 	}
 
 	return merged
+}
+
+// hackApply does a best-effort merge of the object, as some fields are set using SSA in Compose
+// and some are set in Reconcile.
+// This won't cover all cases, but should be sufficient for the render use-case.
+func hackApply(original map[string]interface{}, incoming map[string]interface{}) map[string]interface{} {
+	for k, v := range incoming {
+		if k == "conditions" {
+			incomingConditions, ok := v.([]interface{})
+			if !ok {
+				// Couldn't parse incoming conditions; just set them.
+				original[k] = v
+				continue
+			}
+
+			existingConditions, ok := original["conditions"].([]interface{})
+			if !ok {
+				// Couldn't parse existing conditions; just set the new ones.
+				original[k] = v
+				continue
+			}
+
+			// Collect new types
+			newConditionTypes := []string{}
+			for c := range incomingConditions {
+				if t, ok := incomingConditions[c].(map[string]interface{})["type"].(string); ok {
+					newConditionTypes = append(newConditionTypes, t)
+				}
+			}
+
+			// Keep only existing conditions that don't match a new type
+			conditions := []interface{}{}
+			for _, c := range existingConditions {
+				if t, ok := c.(map[string]interface{})["type"].(string); ok {
+					if !slices.Contains(newConditionTypes, t) {
+						conditions = append(conditions, c)
+					}
+				}
+			}
+
+			// Add all incoming conditions
+			conditions = append(conditions, incomingConditions...)
+
+			original[k] = conditions
+			continue
+		}
+
+		if ov, ok := original[k].(map[string]interface{}); ok {
+			if iv, ok := v.(map[string]interface{}); ok {
+				original[k] = hackApply(ov, iv)
+				continue
+			}
+		}
+		original[k] = v
+	}
+
+	return original
 }
 
 // inMemorySubResourceClient satisfies client.SubResourceClient.
