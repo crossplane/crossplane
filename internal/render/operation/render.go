@@ -20,6 +20,7 @@ package operation
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -202,8 +203,7 @@ func NewFromWatchOperation(in *renderv1alpha1.WatchOperationInput) (*renderv1alp
 func buildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstructured) bool, rec *render.EventRecorder, rrf *render.RecordingRequiredResourcesFetcher, rsf *render.RecordingRequiredSchemasFetcher) (*renderv1alpha1.OperationOutput, error) {
 	out := &renderv1alpha1.OperationOutput{}
 
-	for i := len(c.Updated()) - 1; i >= 0; i-- {
-		u := c.Updated()[i]
+	for _, u := range slices.Backward(c.Updated()) {
 		if isPrimary(u) {
 			s, err := xfn.AsStruct(&u)
 			if err != nil {
