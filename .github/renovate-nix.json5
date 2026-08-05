@@ -56,8 +56,8 @@
       ],
       postUpgradeTasks: {
         commands: [
-          'nix run .#tidy',
-          'nix run .#generate',
+          'crossplane-nix run .#tidy',
+          'crossplane-nix run .#generate',
         ],
         fileFilters: [
           '**/*',
@@ -77,7 +77,7 @@
       ],
       postUpgradeTasks: {
         commands: [
-          'nix run .#lint',
+          'crossplane-nix run .#lint',
         ],
         fileFilters: [
           '**/*',
