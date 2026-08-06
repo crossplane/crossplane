@@ -30,3 +30,21 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{ toYaml .Values.customLabels }}
 {{- end }}
 {{- end }}
+
+{{/*
+Generate labels for the RBAC manager deployment.
+*/}}
+{{- define "crossplane.rbacManagerLabels" }}
+helm.sh/chart: {{ include "crossplane.chart" . }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/component: rbac-manager
+app.kubernetes.io/part-of: {{ template "crossplane.name" . }}
+app.kubernetes.io/name: {{ include "crossplane.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+{{- if .Values.customLabels }}
+{{ toYaml .Values.customLabels }}
+{{- end }}
+{{- end }}

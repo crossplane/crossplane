@@ -6,7 +6,7 @@ metadata:
   name: {{ template "crossplane.name" . }}-admin
   labels:
     app: {{ template "crossplane.name" . }}
-    {{- include "crossplane.labels" . | indent 4 }}
+    {{- include "crossplane.rbacManagerLabels" . | indent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -22,7 +22,7 @@ metadata:
   name: {{ template "crossplane.name" . }}-admin
   labels:
     app: {{ template "crossplane.name" . }}
-    {{- include "crossplane.labels" . | indent 4 }}
+    {{- include "crossplane.rbacManagerLabels" . | indent 4 }}
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
@@ -34,7 +34,7 @@ metadata:
   name: {{ template "crossplane.name" . }}-edit
   labels:
     app: {{ template "crossplane.name" . }}
-    {{- include "crossplane.labels" . | indent 4 }}
+    {{- include "crossplane.rbacManagerLabels" . | indent 4 }}
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
@@ -46,7 +46,7 @@ metadata:
   name: {{ template "crossplane.name" . }}-view
   labels:
     app: {{ template "crossplane.name" . }}
-    {{- include "crossplane.labels" . | indent 4 }}
+    {{- include "crossplane.rbacManagerLabels" . | indent 4 }}
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
@@ -58,7 +58,7 @@ metadata:
   name: {{ template "crossplane.name" . }}-browse
   labels:
     app: {{ template "crossplane.name" . }}
-    {{- include "crossplane.labels" . | indent 4 }}
+    {{- include "crossplane.rbacManagerLabels" . | indent 4 }}
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
@@ -72,7 +72,7 @@ metadata:
   labels:
     rbac.crossplane.io/aggregate-to-admin: "true"
     app: {{ template "crossplane.name" . }}
-    {{- include "crossplane.labels" . | indent 4 }}
+    {{- include "crossplane.rbacManagerLabels" . | indent 4 }}
 rules:
 # Crossplane administrators have access to view events.
 - apiGroups: [""]
@@ -127,7 +127,7 @@ metadata:
   labels:
     rbac.crossplane.io/aggregate-to-edit: "true"
     app: {{ template "crossplane.name" . }}
-    {{- include "crossplane.labels" . | indent 4 }}
+    {{- include "crossplane.rbacManagerLabels" . | indent 4 }}
 rules:
 # Crossplane editors have access to view events.
 - apiGroups: [""]
@@ -171,7 +171,7 @@ metadata:
   labels:
     rbac.crossplane.io/aggregate-to-view: "true"
     app: {{ template "crossplane.name" . }}
-    {{- include "crossplane.labels" . | indent 4 }}
+    {{- include "crossplane.rbacManagerLabels" . | indent 4 }}
 rules:
 # Crossplane viewers have access to view events.
 - apiGroups: [""]
@@ -210,7 +210,7 @@ metadata:
   labels:
     rbac.crossplane.io/aggregate-to-browse: "true"
     app: {{ template "crossplane.name" . }}
-    {{- include "crossplane.labels" . | indent 4 }}
+    {{- include "crossplane.rbacManagerLabels" . | indent 4 }}
 rules:
 # Crossplane browsers have access to view events.
 - apiGroups: [""]

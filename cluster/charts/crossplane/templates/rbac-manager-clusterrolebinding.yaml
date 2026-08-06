@@ -5,7 +5,7 @@ metadata:
   name: {{ template "crossplane.name" . }}-rbac-manager
   labels:
     app: {{ template "crossplane.name" . }}
-    {{- include "crossplane.labels" . | indent 4 }}
+    {{- include "crossplane.rbacManagerLabels" . | indent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
