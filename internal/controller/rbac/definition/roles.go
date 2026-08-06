@@ -53,7 +53,8 @@ const (
 
 //nolint:gochecknoglobals // We treat these as constants.
 var (
-	verbsEdit   = []string{rbacv1.VerbAll}
+	verbsAll    = []string{rbacv1.VerbAll}
+	verbsEdit   = []string{"create", "update", "patch", "delete", "deletecollection"}
 	verbsView   = []string{"get", "list", "watch"}
 	verbsBrowse = []string{"get", "list", "watch"}
 	verbsUpdate = []string{"update"}
@@ -75,7 +76,7 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 					d.Spec.Names.Plural,
 					d.Spec.Names.Plural + suffixStatus,
 				},
-				Verbs: verbsEdit,
+				Verbs: verbsAll,
 			},
 			{
 				// Crossplane reconciles an XR by creating one or more composed resources.
@@ -95,13 +96,14 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namePrefix + d.GetName() + nameSuffixEdit,
 			Labels: map[string]string{
-				// Edit rules aggregate to admin too. Currently edit and admin
-				// differ only in their base roles.
-				keyAggregateToAdmin:   valTrue,
-				keyAggregateToNSAdmin: valTrue,
+				// Cluster-scoped admin inherits edit transitively: the crossplane-admin
+				// aggregationRule selects aggregate-to-edit (set in the Helm chart), so
+				// the cluster-scoped aggregate-to-admin label is intentionally omitted here.
+				keyAggregateToEdit: valTrue,
 
-				keyAggregateToEdit:   valTrue,
-				keyAggregateToNSEdit: valTrue,
+				// Edit rules still aggregate directly to the namespaced admin role.
+				keyAggregateToNSEdit:  valTrue,
+				keyAggregateToNSAdmin: valTrue,
 			},
 		},
 		Rules: []rbacv1.PolicyRule{
@@ -109,7 +111,6 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 				APIGroups: []string{d.Spec.Group},
 				Resources: []string{
 					d.Spec.Names.Plural,
-					d.Spec.Names.Plural + suffixStatus,
 				},
 				Verbs: verbsEdit,
 			},
@@ -120,8 +121,13 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namePrefix + d.GetName() + nameSuffixView,
 			Labels: map[string]string{
-				keyAggregateToView:   valTrue,
-				keyAggregateToNSView: valTrue,
+				// Cluster-scoped edit and admin inherit view transitively via the view role.
+				keyAggregateToView: valTrue,
+
+				// View rules still aggregate directly to the namespaced edit and admin roles.
+				keyAggregateToNSView:  valTrue,
+				keyAggregateToNSEdit:  valTrue,
+				keyAggregateToNSAdmin: valTrue,
 			},
 		},
 		Rules: []rbacv1.PolicyRule{
@@ -162,7 +168,7 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 				d.Spec.ClaimNames.Plural,
 				d.Spec.ClaimNames.Plural + suffixStatus,
 			},
-			Verbs: verbsEdit,
+			Verbs: verbsAll,
 		},
 			rbacv1.PolicyRule{
 				// Crossplane needs permission to set finalizers on Claims in order to create resources
@@ -179,7 +185,6 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 			APIGroups: []string{d.Spec.Group},
 			Resources: []string{
 				d.Spec.ClaimNames.Plural,
-				d.Spec.ClaimNames.Plural + suffixStatus,
 			},
 			Verbs: verbsEdit,
 		})
