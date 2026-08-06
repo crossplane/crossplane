@@ -21,6 +21,7 @@ package composite
 
 import (
 	"context"
+	"slices"
 
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -407,8 +408,7 @@ func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstruct
 
 	// Find the final XR state. It's the last Status().Update or
 	// Status().Patch call for the XR.
-	for i := len(c.Updated()) - 1; i >= 0; i-- {
-		u := c.Updated()[i]
+	for _, u := range slices.Backward(c.Updated()) {
 		if isPrimary(u) {
 			s, err := xfn.AsStruct(&u)
 			if err != nil {
@@ -422,8 +422,7 @@ func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstruct
 	// If the XR wasn't in the updated list, check applied (from
 	// Status().Patch, which records to applied).
 	if out.GetCompositeResource() == nil {
-		for i := len(c.Applied()) - 1; i >= 0; i-- {
-			u := c.Applied()[i]
+		for _, u := range slices.Backward(c.Applied()) {
 			if isPrimary(u) {
 				s, err := xfn.AsStruct(&u)
 				if err != nil {
