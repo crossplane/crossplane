@@ -87,12 +87,6 @@ func TestXRDValidation(t *testing.T) {
 func TestXRDReferenceableVersionChange(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/xrd/referenceable-version-change"
 
-	// TODO(negz): https://github.com/crossplane/crossplane/issues/6805
-	// This test would be more robust if it could verify that the WatchingComposite
-	// condition's observedGeneration changes from 1 to 2 when the XRD is updated.
-	// Currently we can only see this in the test logs due to the observedGeneration
-	// workaround in ResourcesHaveConditionWithin.
-
 	environment.Test(t,
 		features.NewWithDescription(
 			"XRDReferenceableVersionChange",
@@ -105,7 +99,7 @@ func TestXRDReferenceableVersionChange(t *testing.T) {
 			WithSetup("CreateXRDWithV1Referenceable", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/xrd-v1-referenceable.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/xrd-v1-referenceable.yaml", apiextensionsv1.WatchingComposite().WithObservedGeneration(1)),
 			)).
 			Assess("CreateXRBeforeChange", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "xr-before-change.yaml"),
@@ -117,7 +111,7 @@ func TestXRDReferenceableVersionChange(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "xrd-v2-referenceable.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xrd-v2-referenceable.yaml"),
 				// Wait for controller to restart with new generation
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xrd-v2-referenceable.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xrd-v2-referenceable.yaml", apiextensionsv1.WatchingComposite().WithObservedGeneration(2)),
 			)).
 			Assess("CreateXRAfterChange", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "xr-after-change.yaml"),
