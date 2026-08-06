@@ -25,6 +25,8 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
+
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
@@ -64,6 +66,20 @@ func TestLegacyComposition(t *testing.T) {
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+
+				// The claim's composition composes a provider-nop
+				// managed resource. Deleting the claim deletes the XR,
+				// and thus its composed resources, with foreground
+				// deletion - but the managed resources can briefly
+				// outlive the claim. Wait for them to be gone while
+				// provider-nop is still running to remove their
+				// finalizers. Otherwise DeletePrerequisites tears down
+				// the provider first, leaving the managed resource (and
+				// its CRD) stuck terminating and blocking teardown.
+				funcs.ListedResourcesDeletedWithin(2*time.Minute, composed.NewList(composed.FromReferenceToList(v1.ObjectReference{
+					APIVersion: "nop.crossplane.io/v1alpha1",
+					Kind:       "NopResource",
+				}))),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
