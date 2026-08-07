@@ -186,6 +186,29 @@ metrics:
   enabled: false
   # -- The port the metrics server listens on.
   port: ""
+ 
+  podMonitor:
+    # -- If true, PodMonitor CRs are created for the Prometheus Operator.
+    # Creates one PodMonitor for the Crossplane deployment and one for
+    # the RBAC Manager (when `rbacManager.deploy` is also true).
+    # Requires `metrics.enabled: true`.
+    enabled: false
+    # -- The path to scrape for metrics.
+    path: /metrics
+    # -- The scrape interval. Falls back to the Prometheus default if unset. example: 30s
+    interval: ""
+    # -- The scrape timeout. Falls back to the Prometheus default if unset. example: 10s
+    scrapeTimeout: ""
+    # -- HTTP scheme to use for scraping (http or https). Omit or leave empty to let the Prometheus Operator use its default.
+    scheme: ""
+    # -- If true, labels from scraped data are honored over labels attached to the PodMonitor
+    honorLabels: false
+    # -- TLS configuration for the scrape endpoint.
+    tlsConfig: {}
+    # -- RelabelConfigs to apply to samples before scraping.
+    relabelings: []
+    # -- MetricRelabelConfigs to apply to samples after scraping, before ingestion.
+    metricRelabelings: []
 
 readiness:
   # -- The port the readyz server listens on.

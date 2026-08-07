@@ -1,0 +1,46 @@
+{{- if and .Values.rbacManager.deploy .Values.metrics.enabled .Values.metrics.podMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ template "crossplane.name" . }}-rbac-manager
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "crossplane.name" . }}-rbac-manager
+    release: {{ .Release.Name }}
+    {{- include "crossplane.labels" . | indent 4 }}
+spec:
+  jobLabel: app.kubernetes.io/name
+  selector:
+    matchLabels:
+      app: {{ template "crossplane.name" . }}-rbac-manager
+      release: {{ .Release.Name }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  podMetricsEndpoints:
+    - port: metrics
+      path: {{ .Values.metrics.podMonitor.path }}
+      {{- with .Values.metrics.podMonitor.interval }}
+      interval: {{ . }}
+      {{- end }}
+      {{- with .Values.metrics.podMonitor.scrapeTimeout }}
+      scrapeTimeout: {{ . }}
+      {{- end }}
+      {{- with .Values.metrics.podMonitor.scheme }}
+      scheme: {{ . }}
+      {{- end }}
+      {{- with .Values.metrics.podMonitor.tlsConfig }}
+      tlsConfig:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.metrics.podMonitor.relabelings }}
+      relabelings:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.metrics.podMonitor.metricRelabelings }}
+      metricRelabelings:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      honorLabels: {{ .Values.metrics.podMonitor.honorLabels }}
+{{- end }}
