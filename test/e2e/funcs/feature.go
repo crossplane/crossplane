@@ -1487,7 +1487,7 @@ func identifier(o k8s.Object) string {
 	if k == "" {
 		t := reflect.TypeOf(o)
 		if t != nil {
-			if t.Kind() == reflect.Ptr {
+			if t.Kind() == reflect.Pointer {
 				t = t.Elem()
 			}
 
