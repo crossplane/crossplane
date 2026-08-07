@@ -279,6 +279,258 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errAddInUseLabel),
 			},
 		},
+		"RejectsNamespacedUsageOfClusterScopedResource": {
+			reason: "We should reject a namespaced Usage of a cluster-scoped resource, and remove the misleading in-use label from the used resource.",
+			args: args{
+				mgr: &fake.Manager{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								switch o := obj.(type) {
+								case *v1beta1.Usage:
+									o.SetName("protect-cluster-thing")
+									o.SetNamespace("default")
+									o.SetAnnotations(map[string]string{detailsAnnotationKey: "undefined"})
+									o.Spec.Of.APIVersion = "example.org/v1"
+									o.Spec.Of.Kind = "ClusterThing"
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cluster-resource"}
+								case *composed.Unstructured:
+									// The API server ignores the namespace when
+									// a cluster-scoped resource is fetched, and
+									// returns the resource without one.
+									o.SetNamespace("")
+									o.SetLabels(map[string]string{inUseLabelKey: "true"})
+								default:
+									return errors.New("unexpected object type")
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*composed.Unstructured); ok {
+									if _, ok := o.GetLabels()[inUseLabelKey]; ok {
+										t.Errorf("expected %s label to be removed", inUseLabelKey)
+									}
+									return nil
+								}
+								return errors.New("unexpected object type")
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
+								o := obj.(*v1beta1.Usage)
+								if got := o.Status.GetCondition(xpv2.TypeSynced); got.Reason != xpv2.ReasonReconcileError {
+									t.Errorf("expected synced condition with reason %s, got %s", xpv2.ReasonReconcileError, got.Reason)
+								}
+								if got := o.Status.GetCondition(xpv2.TypeReady); got.Reason != xpv2.ReasonUnavailable {
+									t.Errorf("expected ready condition with reason %s, got %s", xpv2.ReasonUnavailable, got.Reason)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{},
+		},
+		"RejectsNamespacedUsageOfClusterScopedResourceKeepsLabel": {
+			reason: "We should reject a namespaced Usage of a cluster-scoped resource, but keep the in-use label if other usages of the used resource exist.",
+			args: args{
+				mgr: &fake.Manager{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return []protection.Usage{&protection.InternalClusterUsage{}}, nil
+				}),
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								switch o := obj.(type) {
+								case *v1beta1.Usage:
+									o.SetName("protect-cluster-thing")
+									o.SetNamespace("default")
+									o.SetAnnotations(map[string]string{detailsAnnotationKey: "undefined"})
+									o.Spec.Of.APIVersion = "example.org/v1"
+									o.Spec.Of.Kind = "ClusterThing"
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cluster-resource"}
+								case *composed.Unstructured:
+									o.SetNamespace("")
+									o.SetLabels(map[string]string{inUseLabelKey: "true"})
+								default:
+									return errors.New("unexpected object type")
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+								if _, ok := obj.(*composed.Unstructured); ok {
+									t.Errorf("expected in-use label to be kept - another usage needs it")
+								}
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{},
+		},
+		"RejectsNamespacedUsageOfClusterScopedResourceNoLabel": {
+			reason: "We should reject a namespaced Usage of a cluster-scoped resource without updating the used resource if it doesn't have the in-use label.",
+			args: args{
+				mgr: &fake.Manager{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, errors.New("unexpected call to FindUsageOf")
+				}),
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								switch o := obj.(type) {
+								case *v1beta1.Usage:
+									o.SetName("protect-cluster-thing")
+									o.SetNamespace("default")
+									o.SetAnnotations(map[string]string{detailsAnnotationKey: "undefined"})
+									o.Spec.Of.APIVersion = "example.org/v1"
+									o.Spec.Of.Kind = "ClusterThing"
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cluster-resource"}
+								case *composed.Unstructured:
+									o.SetNamespace("")
+								default:
+									return errors.New("unexpected object type")
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+								if _, ok := obj.(*composed.Unstructured); ok {
+									t.Errorf("unexpected update of the used resource")
+								}
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{},
+		},
+		"CannotFindUsagesOnUnsupportedUsage": {
+			reason: "We should return an error if we cannot find usages when rejecting a namespaced Usage of a cluster-scoped resource.",
+			args: args{
+				mgr: &fake.Manager{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, errBoom
+				}),
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								switch o := obj.(type) {
+								case *v1beta1.Usage:
+									o.SetName("protect-cluster-thing")
+									o.SetNamespace("default")
+									o.SetAnnotations(map[string]string{detailsAnnotationKey: "undefined"})
+									o.Spec.Of.APIVersion = "example.org/v1"
+									o.Spec.Of.Kind = "ClusterThing"
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cluster-resource"}
+								case *composed.Unstructured:
+									o.SetNamespace("")
+									o.SetLabels(map[string]string{inUseLabelKey: "true"})
+								default:
+									return errors.New("unexpected object type")
+								}
+								return nil
+							}),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errFindUsages),
+			},
+		},
+		"CannotRemoveLabelOnUnsupportedUsage": {
+			reason: "We should return an error if we cannot remove in use label when rejecting a namespaced Usage of a cluster-scoped resource.",
+			args: args{
+				mgr: &fake.Manager{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								switch o := obj.(type) {
+								case *v1beta1.Usage:
+									o.SetName("protect-cluster-thing")
+									o.SetNamespace("default")
+									o.SetAnnotations(map[string]string{detailsAnnotationKey: "undefined"})
+									o.Spec.Of.APIVersion = "example.org/v1"
+									o.Spec.Of.Kind = "ClusterThing"
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cluster-resource"}
+								case *composed.Unstructured:
+									o.SetNamespace("")
+									o.SetLabels(map[string]string{inUseLabelKey: "true"})
+								default:
+									return errors.New("unexpected object type")
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(_ client.Object) error {
+								return errBoom
+							}),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errRemoveInUseLabel),
+			},
+		},
 		"CannotGetUsingResource": {
 			reason: "We should return an error if we cannot get using resource.",
 			args: args{
