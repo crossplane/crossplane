@@ -44,7 +44,7 @@
           pkgs.golangci-lint
           pkgs.statix
           pkgs.deadnix
-          pkgs.nixfmt-rfc-style
+          pkgs.nixfmt
           pkgs.shellcheck
           pkgs.gnupatch
           pkgs.shfmt

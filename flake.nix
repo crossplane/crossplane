@@ -5,7 +5,7 @@
   description = "Crossplane - The cloud native control plane framework";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   };
 
@@ -83,19 +83,13 @@
           pkgs = import nixpkgs {
             inherit system;
             overlays = [
-              (_final: prev: {
+              (_final: _prev: {
                 # We use the go toolchain from unstable because it's been
                 # updated to fix some CVEs. However, we explicitly use this only
                 # in our build targets rather than replace Go in the global
                 # overlay so that we can still use pre-built binaries for
                 # Go-based tools from nixpkgs.
                 go-unstable = nixpkgs-unstable.legacyPackages.${system}.go_1_25;
-
-                # nixpkgs' default docker is still docker_28, which nixos-25.11
-                # marks unmaintained and refuses to evaluate. We override here
-                # so every pkgs.docker-client call site picks up docker_29, we
-                # can remove this when the nixpkgs default moves forward.
-                docker-client = prev.docker_29.override { clientOnly = true; };
               })
             ];
           };
@@ -216,7 +210,7 @@
               pkgs.kubernetes-controller-tools
 
               # Nix
-              pkgs.nixfmt-rfc-style
+              pkgs.nixfmt
             ];
 
             shellHook = ''
