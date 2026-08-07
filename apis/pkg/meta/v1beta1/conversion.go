@@ -34,8 +34,8 @@ const (
 //
 // goverter:converter
 // goverter:name GeneratedToHubConverter
-// goverter:extend ConvertObjectMeta
 // goverter:output:file ./zz_generated.conversion.go
+// goverter:extend ConvertObjectMeta
 // +k8s:deepcopy-gen=false
 type ToHubConverter interface {
 	Function(in *Function) *v1.Function
@@ -45,8 +45,8 @@ type ToHubConverter interface {
 //
 // goverter:converter
 // goverter:name GeneratedFromHubConverter
-// goverter:extend ConvertObjectMeta
 // goverter:output:file ./zz_generated.conversion.go
+// goverter:extend ConvertObjectMeta
 // +k8s:deepcopy-gen=false
 type FromHubConverter interface {
 	Function(in *v1.Function) *Function
