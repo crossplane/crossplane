@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: extra-resource-configmap
+  namespace: default
+  labels:
+    app: extra-resource-test
+data:
+  test-key: "test-value"

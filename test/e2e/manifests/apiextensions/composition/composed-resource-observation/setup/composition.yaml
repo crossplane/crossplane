@@ -1,0 +1,60 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: observe-composition-namespaced
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: Test
+  mode: Pipeline
+  pipeline:
+  - step: observe-configmap
+    functionRef:
+      name: function-python-resources
+    input:
+      apiVersion: python.fn.crossplane.io/v1beta1
+      kind: Script
+      script: |
+        from crossplane.function import response, request
+        from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+
+        def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+            # Request observation of the ConfigMap that we manage.
+            response.require_resources(
+                rsp,
+                name="observe-configmap",
+                api_version="v1",
+                kind="ConfigMap",
+                match_name="observe-test-configmap",
+                namespace="default",
+            )
+
+            # Check if we received the resource in this iteration.
+            resource_received = "observe-configmap" in req.required_resources
+
+            # Read the ConfigMap data if available.
+            observed_message = "not-found"
+            if resource_received:
+                cm = request.get_required_resource(req, "observe-configmap")
+                if cm:
+                    data = cm.get("data", {})
+                    observed_message = data.get("message", "no-message")
+
+            # Set XR status to reflect the observed ConfigMap data.
+            rsp.desired.composite.resource.update({
+                "status": {
+                    "observedData": {
+                        "message": observed_message,
+                    },
+                    "resourceReceived": resource_received,
+                }
+            })
+
+            # Add a result for observability.
+            result = fnv1.Result()
+            result.severity = fnv1.SEVERITY_NORMAL
+            if resource_received:
+                result.message = f"Observed ConfigMap with message: {observed_message}"
+            else:
+                result.message = "Waiting for ConfigMap"
+            rsp.results.append(result)
