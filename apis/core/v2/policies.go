@@ -118,3 +118,28 @@ const (
 	// execution could continue even if the reference cannot be resolved.
 	ResolutionPolicyOptional ResolutionPolicy = "Optional"
 )
+
+// ManagementPoliciesOptions determine how individual management actions should
+// handle specific scenarios.
+type ManagementPoliciesOptions struct {
+	Create ManagementPoliciesCreateOptions `json:"create,omitempty"`
+	Delete ManagementPoliciesDeleteOptions `json:"delete,omitempty"`
+}
+
+// ManagementPoliciesCreateOptions determine how the Create action should handle specific scenarios.
+type ManagementPoliciesCreateOptions struct {
+	// ImportExistingResources determines whether the Create action should take over management of an existing
+	// resource or should return failure.
+	// +optional
+	// +kubebuilder:default:true
+	ImportExistingResources *bool `json:"importExistingResources,omitempty"`
+}
+
+// ManagementPoliciesDeleteOptions determine how the Delete action should handle specific scenarios.
+type ManagementPoliciesDeleteOptions struct {
+	// OrphanResources determines whether the Delete action should orphan the existing resources.
+	// This provides a migration path for deletionPolicy to managementPolicies.
+	// +optional
+	// +kubebuilder:default:false
+	OrphanResources *bool `json:"orphanResources,omitempty"`
+}
