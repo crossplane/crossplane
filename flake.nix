@@ -5,7 +5,7 @@
   description = "Crossplane - The cloud native control plane framework";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   };
 
@@ -89,12 +89,6 @@
                 unstable = import nixpkgs-unstable {
                   inherit (prev.stdenv.hostPlatform) system;
                 };
-
-                # nixpkgs' default docker is still docker_28, which nixos-25.11
-                # marks unmaintained and refuses to evaluate. We override here
-                # so every pkgs.docker-client call site picks up docker_29, we
-                # can remove this when the nixpkgs default moves forward.
-                docker-client = prev.docker_29.override { clientOnly = true; };
               })
             ];
           };
@@ -220,7 +214,7 @@
               pkgs.kubernetes-controller-tools
 
               # Nix
-              pkgs.nixfmt-rfc-style
+              pkgs.nixfmt
             ];
 
             shellHook = ''
