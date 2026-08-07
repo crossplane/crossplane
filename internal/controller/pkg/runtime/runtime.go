@@ -23,6 +23,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -180,6 +182,38 @@ func applyRuntimeObject(ctx context.Context, c client.Client, obj client.Object)
 		client.FieldOwner(FieldOwnerRuntime),
 		client.ForceOwnership,
 	)
+}
+
+// relinquishControllership finds obj's owner reference to owner and makes it
+// non-controlling. It is a no-op if owner is not an owner of obj or if its
+// owner reference is already non-controlling.
+func relinquishControllership(ctx context.Context, c client.Client, obj client.Object, owner client.Object) error {
+	key := types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName()}
+	var u unstructured.Unstructured
+	u.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
+
+	if err := c.Get(ctx, key, &u); err != nil {
+		return err
+	}
+
+	for _, or := range u.GetOwnerReferences() {
+		// Ignore any other owner refs.
+		if or.UID != owner.GetUID() {
+			continue
+		}
+		// Ignore any non-controlling owner refs.
+		if !ptr.Deref(or.Controller, false) {
+			continue
+		}
+
+		or.Controller = ptr.To(false)
+		meta.AddOwnerReference(&u, or)
+		return applyRuntimeObject(ctx, c, &u)
+	}
+
+	// If we didn't find a relevant owner ref above, or it was already
+	// non-controlling, that's fine.
+	return nil
 }
 
 // BuilderWithServiceAccountPullSecrets sets the service account

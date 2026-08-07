@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
@@ -1246,3 +1247,134 @@ func TestCommonAnnotationsAndLabels(t *testing.T) {
 			Feature(),
 	)
 }
+
+// TestActivationPolicyAutomatic tests that the automatic revision activation
+// policy works correctly.
+func TestActivationPolicyAutomatic(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/activation/automatic"
+
+	cfgrev1 := &pkgv1.ConfigurationRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-activation-73591874542d"}}
+	cfgrev2 := &pkgv1.ConfigurationRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-activation-5a414a4fc3b8"}}
+
+	provrev1 := &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-activation-provider-nop-e956f0998e8f"}}
+	provrev2 := &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-activation-provider-nop-bb2f70dd2d3d"}}
+
+	funcrev1 := &pkgv1.FunctionRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-activation-function-dummy-b9bf9f183c5a"}}
+	funcrev2 := &pkgv1.FunctionRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-activation-function-dummy-b5b7d53a27d3"}}
+
+	deployment := func(name string) *appsv1.Deployment {
+		return &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
+	}
+	service := func(name string) *corev1.Service {
+		return &corev1.Service{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
+	}
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that the automatic revision activation policy works correctly.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			Assess("InstallConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration-1.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-1.yaml", pkgv1.Healthy(), pkgv1.Active()),
+
+				funcs.ResourceCreatedWithin(2*time.Minute, cfgrev1),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, cfgrev1, "spec.revision", int64(1)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, cfgrev1, "spec.desiredState", "Active"),
+				// Check that the composition in the configuration was created.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &apiextensionsv1.Composition{ObjectMeta: metav1.ObjectMeta{Name: "xnopresources.nop.example.org"}}, "metadata.labels[e2eTestRevision]", "one"),
+			)).
+			Assess("InstallFunction", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "function-1.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "function-1.yaml", pkgv1.Healthy(), pkgv1.Active()),
+
+				funcs.ResourceCreatedWithin(2*time.Minute, funcrev1),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, funcrev1, "spec.revision", int64(1)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, funcrev1, "spec.desiredState", "Active"),
+				// Check that the function's deployment uses the correct image
+				// and its service targets the correct deployment.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, deployment(funcrev1.Name), "spec.template.spec.containers[0].image", "xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.0"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-function-dummy"), "spec.selector[pkg.crossplane.io/revision]", funcrev1.Name),
+			)).
+			Assess("InstallProvider", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-1.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-1.yaml", pkgv1.Healthy(), pkgv1.Active()),
+
+				funcs.ResourceCreatedWithin(2*time.Minute, provrev1),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, provrev1, "spec.revision", int64(1)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, provrev1, "spec.desiredState", "Active"),
+				// Check that the provider's MRD was created.
+				funcs.ResourceHasConditionWithin(2*time.Minute,
+					&apiextensionsv1alpha1.ManagedResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}},
+					apiextensionsv1alpha1.EstablishedManaged(),
+				),
+				// Check that the providers's deployment uses the correct image
+				// and its service targets the correct deployment.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, deployment(provrev1.Name), "spec.template.spec.containers[0].image", "xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.3.1"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-provider-nop"), "spec.selector[pkg.crossplane.io/revision]", provrev1.Name),
+			)).
+			Assess("UpdateConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration-2.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-2.yaml", pkgv1.Healthy(), pkgv1.Active()),
+
+				funcs.ResourceCreatedWithin(2*time.Minute, cfgrev2),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, cfgrev2, "spec.revision", int64(2)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, cfgrev2, "spec.desiredState", "Active"),
+				// Check that the old revision was deactivated.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, cfgrev1, "spec.desiredState", "Inactive"),
+				// Check that the composition in the configuration was updated.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &apiextensionsv1.Composition{ObjectMeta: metav1.ObjectMeta{Name: "xnopresources.nop.example.org"}}, "metadata.labels[e2eTestRevision]", "two"),
+			)).
+			Assess("UpdateFunction", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "function-2.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "function-2.yaml", pkgv1.Healthy(), pkgv1.Active()),
+
+				funcs.ResourceCreatedWithin(2*time.Minute, funcrev2),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, funcrev2, "spec.revision", int64(2)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, funcrev2, "spec.desiredState", "Active"),
+				// Check that the old revision was deactivated.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, funcrev1, "spec.desiredState", "Inactive"),
+				// Check that the function's deployment uses the correct image
+				// and its service targets the correct deployment.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, deployment(funcrev2.Name), "spec.template.spec.containers[0].image", "xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.1"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-function-dummy"), "spec.selector[pkg.crossplane.io/revision]", funcrev2.Name),
+			)).
+			Assess("UpdateProvider", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-2.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-2.yaml", pkgv1.Healthy(), pkgv1.Active()),
+
+				funcs.ResourceCreatedWithin(2*time.Minute, provrev2),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, provrev2, "spec.revision", int64(2)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, provrev2, "spec.desiredState", "Active"),
+				// Check that the old revision was deactivated.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, provrev1, "spec.desiredState", "Inactive"),
+				// Check that the provider's MRD is still established.
+				funcs.ResourceHasConditionWithin(2*time.Minute,
+					&apiextensionsv1alpha1.ManagedResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}},
+					apiextensionsv1alpha1.EstablishedManaged(),
+				),
+				// Check that the providers's deployment uses the correct image
+				// and its service targets the correct deployment.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, deployment(provrev2.Name), "spec.template.spec.containers[0].image", "xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.4.0"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-provider-nop"), "spec.selector[pkg.crossplane.io/revision]", provrev2.Name),
+			)).
+			WithTeardown("Cleanup", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration-2.yaml"),
+				funcs.ResourceDeletedWithin(2*time.Minute, cfgrev1),
+				funcs.ResourceDeletedWithin(2*time.Minute, cfgrev2),
+				funcs.ResourceDeletedWithin(2*time.Minute, &apiextensionsv1.Composition{ObjectMeta: metav1.ObjectMeta{Name: "xnopresources.nop.example.org"}}),
+
+				funcs.DeleteResources(manifests, "function-2.yaml"),
+				funcs.ResourceDeletedWithin(2*time.Minute, funcrev1),
+				funcs.ResourceDeletedWithin(2*time.Minute, funcrev2),
+
+				funcs.DeleteResources(manifests, "provider-2.yaml"),
+				funcs.ResourceDeletedWithin(2*time.Minute, provrev1),
+				funcs.ResourceDeletedWithin(2*time.Minute, provrev2),
+				funcs.ResourceDeletedWithin(2*time.Minute, &apiextensionsv1alpha1.ManagedResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}}),
+			)).Feature(),
+	)
+}
+
+// TODO(adamwg): Add an equivalent test for the manual revision activation
+// policy.

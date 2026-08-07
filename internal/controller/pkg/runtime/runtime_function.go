@@ -77,21 +77,7 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 	// generating certificates requires the service to be defined. This is why
 	// we're creating the service here but service account and deployment in the
 	// post-establish.
-	svc := build.Service(
-		// We want a headless service so that our gRPC client (i.e. the Crossplane
-		// FunctionComposer) can load balance across the endpoints.
-		// https://kubernetes.io/docs/concepts/services-networking/service/#headless-services
-		ServiceWithClusterIP(corev1.ClusterIPNone),
-		ServiceWithAdditionalPorts([]corev1.ServicePort{
-			{
-				Name:        GRPCPortName,
-				Protocol:    corev1.ProtocolTCP,
-				Port:        GRPCPort,
-				TargetPort:  intstr.FromString(GRPCPortName),
-				AppProtocol: &AppProtocolTLS,
-			},
-		}))
-
+	svc := build.Service(functionServiceOverrides()...)
 	if err := applyRuntimeObject(ctx, h.client.Client, svc); err != nil {
 		return errors.Wrap(err, errApplyFunctionService)
 	}
@@ -173,6 +159,21 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 		return errors.Wrap(err, errDeleteFunctionDeployment)
 	}
 
+	// Relinquish control of the service and secret, so that a new active
+	// revision can control them.
+	objs := []client.Object{
+		build.Service(functionServiceOverrides()...),
+		build.TLSServerSecret(),
+	}
+	for _, obj := range objs {
+		if obj == nil {
+			continue
+		}
+		if err := relinquishControllership(ctx, h.client.Client, obj, pr); err != nil {
+			return errors.Wrapf(err, "cannot relinquish control of %T for inactive function revision", obj)
+		}
+	}
+
 	// NOTE(turkenh): We don't delete the service account here because it might
 	// be used by other package revisions, e.g. user might have specified a
 	// service account name in the runtime config. This should not be a problem
@@ -183,6 +184,24 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 	// NOTE(ezgidemirel): Service and secret are created per package. Therefore,
 	// we're not deleting them here.
 	return nil
+}
+
+func functionServiceOverrides() []ServiceOverride {
+	return []ServiceOverride{
+		// We want a headless service so that our gRPC client (i.e. the Crossplane
+		// FunctionComposer) can load balance across the endpoints.
+		// https://kubernetes.io/docs/concepts/services-networking/service/#headless-services
+		ServiceWithClusterIP(corev1.ClusterIPNone),
+		ServiceWithAdditionalPorts([]corev1.ServicePort{
+			{
+				Name:        GRPCPortName,
+				Protocol:    corev1.ProtocolTCP,
+				Port:        GRPCPort,
+				TargetPort:  intstr.FromString(GRPCPortName),
+				AppProtocol: &AppProtocolTLS,
+			},
+		}),
+	}
 }
 
 func functionDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string) []DeploymentOverride {
