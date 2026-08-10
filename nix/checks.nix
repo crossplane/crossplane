@@ -169,7 +169,7 @@ in
         nativeBuildInputs = [
           pkgs.statix
           pkgs.deadnix
-          pkgs.nixfmt-rfc-style
+          pkgs.nixfmt
         ];
       }
       ''

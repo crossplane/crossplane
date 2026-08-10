@@ -97,7 +97,7 @@ Examples:
 
 	b := strings.Builder{}
 	for name, url := range WellKnownTemplates() {
-		b.WriteString(fmt.Sprintf(" - %s (%s)\n", name, url))
+		fmt.Fprintf(&b, " - %s (%s)\n", name, url)
 	}
 
 	return fmt.Sprintf(tpl, b.String())
@@ -250,7 +250,10 @@ func printFile(w io.Writer, path string) error {
 }
 
 func runScript(k *kong.Context, scriptFile string, args ...string) error {
-	cmd := exec.CommandContext(context.Background(), scriptFile, args...)
+	// Running the template's init.sh is the point of this command, and we only
+	// get here once the user has opted in, either with --run-init-script or by
+	// answering the prompt.
+	cmd := exec.CommandContext(context.Background(), scriptFile, args...) //nolint:gosec // G204: see above.
 	cmd.Stdout = k.Stdout
 	cmd.Stderr = k.Stderr
 	cmd.Stdin = os.Stdin

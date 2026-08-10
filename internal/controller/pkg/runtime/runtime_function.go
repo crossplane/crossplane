@@ -213,9 +213,8 @@ func functionDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string)
 				Value: string(pr.GetUID()),
 			},
 		}),
+		DeploymentRuntimeWithOptionalImage(image),
 	}
-
-	do = append(do, DeploymentRuntimeWithOptionalImage(image))
 
 	return do
 }

@@ -259,7 +259,10 @@ func extractPackageCRDs(layers []conregv1.Layer) ([][]byte, error) {
 
 		// Check if the file is in the "crds" directory and has a .yaml extension
 		if strings.Contains(path, "/crds/") && strings.HasSuffix(info.Name(), ".yaml") {
-			content, err := os.ReadFile(filepath.Clean(path))
+			// We walk a private temp directory that we created and extracted
+			// into just above, and remove again on the way out, so no other
+			// writer can swap a path out from under us mid-walk.
+			content, err := os.ReadFile(filepath.Clean(path)) //nolint:gosec // G122: see above.
 			if err != nil {
 				return errors.Wrapf(err, "failed to read file: %s", path)
 			}

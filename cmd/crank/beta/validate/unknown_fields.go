@@ -30,9 +30,9 @@ func validateUnknownFields(mr map[string]any, sch *schema.Structural) field.Erro
 	opts := schema.UnknownFieldPathOptions{
 		TrackUnknownFieldPaths: true, // to get the list of pruned unknown fields
 	}
-	errs := field.ErrorList{}
-
 	uf := pruning.PruneWithOptions(mr, sch, true, opts)
+
+	errs := make(field.ErrorList, 0, len(uf))
 	for _, f := range uf {
 		strPath := strings.Split(f, ".")
 		child := strPath[len(strPath)-1]
