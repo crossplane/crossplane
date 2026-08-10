@@ -322,6 +322,12 @@ func (e *ControllerEngine) Start(name string, o ...ControllerOption) error {
 	// instead of taking one as an argument.
 	ctx, cancel := context.WithCancel(context.Background())
 
+	r := &controller{
+		ctrl:    c,
+		cancel:  cancel,
+		sources: make(map[WatchID]*StoppableSource),
+	}
+
 	go func() {
 		// Don't start the controller until the manager is elected.
 		<-e.mgr.Elected()
@@ -335,7 +341,7 @@ func (e *ControllerEngine) Start(name string, o ...ControllerOption) error {
 
 			// Make a best effort attempt to cleanup the controller so that
 			// IsRunning will return false.
-			_ = e.Stop(ctx, name)
+			_ = e.stop(ctx, name, r)
 
 			return
 		}
@@ -358,12 +364,6 @@ func (e *ControllerEngine) Start(name string, o ...ControllerOption) error {
 		}()
 	}
 
-	r := &controller{
-		ctrl:    c,
-		cancel:  cancel,
-		sources: make(map[WatchID]*StoppableSource),
-	}
-
 	e.controllers[name] = r
 
 	return nil
@@ -371,13 +371,21 @@ func (e *ControllerEngine) Start(name string, o ...ControllerOption) error {
 
 // Stop a controller.
 func (e *ControllerEngine) Stop(ctx context.Context, name string) error {
+	return e.stop(ctx, name, nil)
+}
+
+// stop the named controller. If only is supplied the call is a no-op unless the
+// named controller is still that one, so a controller that fails after being
+// restarted doesn't stop its own replacement.
+func (e *ControllerEngine) stop(ctx context.Context, name string, only *controller) error {
 	e.mx.Lock()
 	defer e.mx.Unlock()
 
 	c, running := e.controllers[name]
 
-	// Stop is a no-op if the controller isn't running.
-	if !running {
+	// Nothing to do if the controller isn't running, or isn't the one the
+	// caller wants to stop.
+	if !running || (only != nil && c != only) {
 		return nil
 	}
 

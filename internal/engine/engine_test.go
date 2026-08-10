@@ -465,6 +465,71 @@ func TestStopController(t *testing.T) {
 	}
 }
 
+// A controller that fails to start cleans itself up, so that IsRunning reports
+// it as stopped. The engine restarts controllers under the same name whenever
+// their XRD changes, so that cleanup must leave the replacement alone.
+func TestFailedControllerDoesNotStopReplacement(t *testing.T) {
+	elected := make(chan struct{})
+	close(elected)
+
+	mgr := &MockManager{MockElected: func() <-chan struct{} { return elected }}
+	e := New(mgr, &MockTrackingInformers{}, nil, nil)
+
+	const name = "cool-controller"
+
+	// A controller fails while it's adding its sources to their informers,
+	// before it starts watching its context, so this one ignores its context
+	// and fails when we tell it to.
+	fail := make(chan struct{})
+	failed := make(chan struct{})
+
+	err := e.Start(name, WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
+		return &MockController{MockStart: func(_ context.Context) error {
+			<-fail
+			close(failed)
+
+			return errors.New("boom")
+		}}, nil
+	}))
+	if err != nil {
+		t.Fatalf("e.Start(...): %v", err)
+	}
+
+	// Restart the controller, like the XRD reconciler does when its XRD changes.
+	if err := e.Stop(context.Background(), name); err != nil {
+		t.Fatalf("e.Stop(...): %v", err)
+	}
+
+	replacementStopped := make(chan struct{})
+
+	err = e.Start(name, WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
+		return &MockController{MockStart: func(ctx context.Context) error {
+			<-ctx.Done()
+			close(replacementStopped)
+
+			return nil
+		}}, nil
+	}))
+	if err != nil {
+		t.Fatalf("e.Start(...): %v", err)
+	}
+
+	if !e.IsRunning(name) {
+		t.Fatal("the replacement isn't running, so this test can't tell whether it gets stopped")
+	}
+
+	close(fail)
+	<-failed
+
+	// The first controller cleans up in the goroutine the engine started it in.
+	// Nothing reports that it finished, so we watch for the damage instead.
+	select {
+	case <-replacementStopped:
+		t.Error("the failed controller stopped its replacement")
+	case <-time.After(time.Second):
+	}
+}
+
 func TestStartWatches(t *testing.T) {
 	type params struct {
 		mgr  manager.Manager
