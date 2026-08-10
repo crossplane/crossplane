@@ -211,3 +211,77 @@ func TestStopSource(t *testing.T) {
 		})
 	}
 }
+
+func TestStartStoppedSource(t *testing.T) {
+	type args struct {
+		stopFirst bool
+	}
+
+	type want struct {
+		err   error
+		added bool
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NotStopped": {
+			reason: "Start should add an event handler to the informer.",
+			args: args{
+				stopFirst: false,
+			},
+			want: want{
+				err:   nil,
+				added: true,
+			},
+		},
+		"StoppedFirst": {
+			reason: "Start should not add an event handler once the source has been stopped, because nothing would remove it.",
+			args: args{
+				stopFirst: true,
+			},
+			want: want{
+				err:   nil,
+				added: false,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			added := false
+			inf := &MockInformer{
+				MockAddEventHandler: func(_ kcache.ResourceEventHandler) (kcache.ResourceEventHandlerRegistration, error) {
+					added = true
+					return &MockRegistration{}, nil
+				},
+				MockRemoveEventHandler: func(_ kcache.ResourceEventHandlerRegistration) error {
+					return nil
+				},
+				MockIsStopped: func() bool { return false },
+			}
+
+			s := NewStoppableSource(inf, nil)
+
+			if tc.args.stopFirst {
+				// The engine stops a watch it started, whether or not the
+				// controller got around to starting the source behind it.
+				err := s.Stop(context.Background())
+				if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
+					t.Fatalf("\n%s\ns.Stop(...): -want error, +got error:\n%s", tc.reason, diff)
+				}
+			}
+
+			err := s.Start(context.Background(), nil)
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ns.Start(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.added, added); diff != "" {
+				t.Errorf("\n%s\ns.Start(...) added an event handler: -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}

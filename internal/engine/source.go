@@ -18,6 +18,7 @@ package engine
 
 import (
 	"context"
+	"sync"
 
 	kcache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -46,12 +47,26 @@ type StoppableSource struct {
 	handler    handler.EventHandler
 	predicates []predicate.Predicate
 
-	reg kcache.ResourceEventHandlerRegistration
+	// Guards the below. The controller decides when to start a source, so it
+	// can do so while a reconcile is stopping it.
+	mx      sync.Mutex
+	reg     kcache.ResourceEventHandlerRegistration
+	stopped bool
 }
 
 // Start is internal and should be called only by the Controller to register
 // an EventHandler with the Informer to enqueue reconcile.Requests.
 func (s *StoppableSource) Start(ctx context.Context, q workqueue.TypedRateLimitingInterface[reconcile.Request]) error {
+	s.mx.Lock()
+	defer s.mx.Unlock()
+
+	// The controller holds sources it hasn't started yet, so it can start this
+	// one after we were stopped. Nothing holds the source by then, so a handler
+	// added now would never be removed.
+	if s.stopped {
+		return nil
+	}
+
 	// TODO(negz): Should we check if the informer is stopped first?
 	reg, err := s.inf.AddEventHandler(NewEventHandler(ctx, q, s.handler, s.predicates...).HandlerFuncs())
 	if err != nil {
@@ -66,6 +81,11 @@ func (s *StoppableSource) Start(ctx context.Context, q workqueue.TypedRateLimiti
 // Stop removes the EventHandler from the source's Informer. The Informer will
 // stop sending events to the source.
 func (s *StoppableSource) Stop(_ context.Context) error {
+	s.mx.Lock()
+	defer s.mx.Unlock()
+
+	s.stopped = true
+
 	if s.reg == nil || s.inf.IsStopped() {
 		return nil
 	}
