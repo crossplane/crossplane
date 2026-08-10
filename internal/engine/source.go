@@ -60,8 +60,9 @@ func (s *StoppableSource) Start(ctx context.Context, q workqueue.TypedRateLimiti
 	s.mx.Lock()
 	defer s.mx.Unlock()
 
-	// The controller can start a source we have already stopped. Nothing holds
-	// the source by then, so a handler added now would never be removed.
+	// Controller.Watch can retain a source and start it after the engine has
+	// stopped tracking it. Don't register a handler after Stop, because there
+	// may be no later caller left to remove it.
 	if s.stopped {
 		return nil
 	}
