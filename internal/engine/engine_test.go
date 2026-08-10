@@ -465,68 +465,126 @@ func TestStopController(t *testing.T) {
 	}
 }
 
-// A controller that fails to start cleans itself up, so that IsRunning reports
-// it as stopped. The engine restarts controllers under the same name whenever
-// their XRD changes, so that cleanup must leave the replacement alone.
-func TestFailedControllerDoesNotStopReplacement(t *testing.T) {
-	elected := make(chan struct{})
-	close(elected)
-
-	mgr := &MockManager{MockElected: func() <-chan struct{} { return elected }}
-	e := New(mgr, &MockTrackingInformers{}, nil, nil)
-
-	const name = "cool-controller"
-
-	// A controller fails while it's adding its sources to their informers,
-	// before it starts watching its context, so this one ignores its context
-	// and fails when we tell it to.
-	fail := make(chan struct{})
-	failed := make(chan struct{})
-
-	err := e.Start(name, WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
-		return &MockController{MockStart: func(_ context.Context) error {
-			<-fail
-			close(failed)
-
-			return errors.New("boom")
-		}}, nil
-	}))
-	if err != nil {
-		t.Fatalf("e.Start(...): %v", err)
+func TestFailedControllerCleanup(t *testing.T) {
+	type params struct {
+		mgr  manager.Manager
+		infs TrackingInformers
+		c    client.Client
+		uc   client.Client
+		opts []ControllerEngineOption
 	}
 
-	// Restart the controller, like the XRD reconciler does when its XRD changes.
-	if err := e.Stop(context.Background(), name); err != nil {
-		t.Fatalf("e.Stop(...): %v", err)
+	type args struct {
+		name    string
+		replace bool
 	}
 
-	replacementStopped := make(chan struct{})
-
-	err = e.Start(name, WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
-		return &MockController{MockStart: func(ctx context.Context) error {
-			<-ctx.Done()
-			close(replacementStopped)
-
-			return nil
-		}}, nil
-	}))
-	if err != nil {
-		t.Fatalf("e.Start(...): %v", err)
+	type want struct {
+		running bool
 	}
 
-	if !e.IsRunning(name) {
-		t.Fatal("the replacement isn't running, so this test can't tell whether it gets stopped")
+	elected := func() <-chan struct{} {
+		e := make(chan struct{})
+		close(e)
+		return e
 	}
 
-	close(fail)
-	<-failed
+	cases := map[string]struct {
+		reason string
+		params params
+		args   args
+		want   want
+	}{
+		"NotReplaced": {
+			reason: "A controller that stops with an error should be cleaned up, so IsRunning reports it as stopped.",
+			params: params{
+				mgr:  &MockManager{MockElected: elected},
+				infs: &MockTrackingInformers{},
+			},
+			args: args{
+				name: "cool-controller",
+			},
+			want: want{
+				running: false,
+			},
+		},
+		"Replaced": {
+			reason: "A controller that stops with an error after the engine restarted it should leave the replacement running.",
+			params: params{
+				mgr:  &MockManager{MockElected: elected},
+				infs: &MockTrackingInformers{},
+			},
+			args: args{
+				name:    "cool-controller",
+				replace: true,
+			},
+			want: want{
+				running: true,
+			},
+		},
+	}
 
-	// The first controller cleans up in the goroutine the engine started it in.
-	// Nothing reports that it finished, so we watch for the damage instead.
-	select {
-	case <-replacementStopped:
-		t.Error("the failed controller stopped its replacement")
-	case <-time.After(time.Second):
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.uc, tc.params.opts...)
+
+			// A controller fails while it's adding its sources to their
+			// informers, before it starts watching its context, so this one
+			// ignores its context and fails when we tell it to.
+			fail := make(chan struct{})
+			failed := make(chan struct{})
+
+			err := e.Start(tc.args.name, WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
+				return &MockController{MockStart: func(_ context.Context) error {
+					<-fail
+					close(failed)
+
+					return errors.New("boom")
+				}}, nil
+			}))
+			if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
+				t.Fatalf("\n%s\ne.Start(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			if tc.args.replace {
+				// Restart the controller, like the XRD reconciler does when its
+				// XRD changes.
+				err = e.Stop(context.Background(), tc.args.name)
+				if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
+					t.Fatalf("\n%s\ne.Stop(...): -want error, +got error:\n%s", tc.reason, diff)
+				}
+
+				err = e.Start(tc.args.name, WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
+					return &MockController{MockStart: func(ctx context.Context) error {
+						<-ctx.Done()
+						return nil
+					}}, nil
+				}))
+				if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
+					t.Fatalf("\n%s\ne.Start(...): -want error, +got error:\n%s", tc.reason, diff)
+				}
+			}
+
+			close(fail)
+			<-failed
+
+			// Give the failed controller's goroutine a little time to clean up.
+			time.Sleep(1 * time.Second)
+
+			running := e.IsRunning(tc.args.name)
+			if diff := cmp.Diff(tc.want.running, running); diff != "" {
+				t.Errorf("\n%s\ne.IsRunning(...): -want, +got:\n%s", tc.reason, diff)
+			}
+
+			// Stop the controller. Will be a no-op if it never started.
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			err = e.Stop(ctx, tc.args.name)
+			if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ne.Stop(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
 	}
 }
 
