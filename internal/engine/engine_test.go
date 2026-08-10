@@ -536,8 +536,8 @@ func TestFailedControllerCleanup(t *testing.T) {
 
 			err := e.Start(tc.args.name, WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
 				return &MockController{MockStart: func(_ context.Context) error {
+					defer close(failed)
 					<-fail
-					close(failed)
 
 					return errors.New("boom")
 				}}, nil
