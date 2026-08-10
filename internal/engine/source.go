@@ -47,7 +47,7 @@ type StoppableSource struct {
 	handler    handler.EventHandler
 	predicates []predicate.Predicate
 
-	// Guards the below. The controller decides when to start a source, so it
+	// Protects the below. The controller decides when to start a source, so it
 	// can do so while a reconcile is stopping it.
 	mx      sync.Mutex
 	reg     kcache.ResourceEventHandlerRegistration
@@ -60,9 +60,8 @@ func (s *StoppableSource) Start(ctx context.Context, q workqueue.TypedRateLimiti
 	s.mx.Lock()
 	defer s.mx.Unlock()
 
-	// The controller holds sources it hasn't started yet, so it can start this
-	// one after we were stopped. Nothing holds the source by then, so a handler
-	// added now would never be removed.
+	// The controller can start a source we have already stopped. Nothing holds
+	// the source by then, so a handler added now would never be removed.
 	if s.stopped {
 		return nil
 	}
