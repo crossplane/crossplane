@@ -18,6 +18,7 @@ package runtime
 
 import (
 	"context"
+	"slices"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -171,9 +172,9 @@ func (b *DeploymentRuntimeBuilder) ServiceAccount(overrides ...ServiceAccountOve
 		sa = serviceAccountFromRuntimeConfig(b.runtimeConfig.Spec.ServiceAccountTemplate)
 	}
 
-	var allOverrides []ServiceAccountOverride
-
-	allOverrides = append(allOverrides,
+	// The overrides passed to the function go last so that they can override
+	// the ones we set here.
+	allOverrides := slices.Concat([]ServiceAccountOverride{
 		// Optional defaults, will be used only if the runtime config does not
 		// specify them.
 		ServiceAccountWithOptionalName(b.revision.GetName()),
@@ -182,11 +183,7 @@ func (b *DeploymentRuntimeBuilder) ServiceAccount(overrides ...ServiceAccountOve
 		ServiceAccountWithNamespace(b.namespace),
 		ServiceAccountWithOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))}),
 		ServiceAccountWithAdditionalPullSecrets(append(b.revision.GetPackagePullSecrets(), b.serviceAccountPullSecrets...)),
-	)
-
-	// We append the overrides passed to the function last so that they can
-	// override the above ones.
-	allOverrides = append(allOverrides, overrides...)
+	}, overrides)
 
 	for _, o := range allOverrides {
 		o(sa)
@@ -276,9 +273,9 @@ func (b *DeploymentRuntimeBuilder) Service(overrides ...ServiceOverride) *corev1
 		svc = serviceFromRuntimeConfig(b.runtimeConfig.Spec.ServiceTemplate)
 	}
 
-	var allOverrides []ServiceOverride
-
-	allOverrides = append(allOverrides,
+	// The overrides passed to the function go last so that they can override
+	// the ones we set here.
+	allOverrides := slices.Concat([]ServiceOverride{
 		// Optional defaults, will be used only if the runtime config does not
 		// specify them.
 		ServiceWithOptionalName(b.packageName()),
@@ -286,11 +283,8 @@ func (b *DeploymentRuntimeBuilder) Service(overrides ...ServiceOverride) *corev1
 		// Overrides that we are opinionated about.
 		ServiceWithNamespace(b.namespace),
 		ServiceWithOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))}),
-		ServiceWithSelectors(b.podSelectors()))
-
-	// We append the overrides passed to the function last so that they can
-	// override the above ones.
-	allOverrides = append(allOverrides, overrides...)
+		ServiceWithSelectors(b.podSelectors()),
+	}, overrides)
 
 	for _, o := range allOverrides {
 		o(svc)

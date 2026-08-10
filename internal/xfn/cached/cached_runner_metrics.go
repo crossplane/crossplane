@@ -21,6 +21,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const (
+	subsystemFunction = "function"
+	labelFunctionName = "function_name"
+)
+
 var (
 	_ Metrics = &NopMetrics{}
 	_ Metrics = &PrometheusMetrics{}
@@ -76,106 +81,106 @@ type PrometheusMetrics struct {
 func NewPrometheusMetrics() *PrometheusMetrics {
 	return &PrometheusMetrics{
 		hits: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "function",
+			Subsystem: subsystemFunction,
 			Name:      "run_function_response_cache_hits_total",
 			Help:      "Total number of RunFunctionResponse cache hits.",
-		}, []string{"function_name"}),
+		}, []string{labelFunctionName}),
 
 		misses: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "function",
+			Subsystem: subsystemFunction,
 			Name:      "run_function_response_cache_misses_total",
 			Help:      "Total number of RunFunctionResponse cache misses.",
-		}, []string{"function_name"}),
+		}, []string{labelFunctionName}),
 
 		errors: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "function",
+			Subsystem: subsystemFunction,
 			Name:      "run_function_response_cache_errors_total",
 			Help:      "Total number of RunFunctionResponse cache errors.",
-		}, []string{"function_name"}),
+		}, []string{labelFunctionName}),
 
 		writes: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "function",
+			Subsystem: subsystemFunction,
 			Name:      "run_function_response_cache_writes_total",
 			Help:      "Total number of RunFunctionResponses cache writes.",
-		}, []string{"function_name"}),
+		}, []string{labelFunctionName}),
 
 		deletes: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "function",
+			Subsystem: subsystemFunction,
 			Name:      "run_function_response_cache_deletes_total",
 			Help:      "Total number of RunFunctionResponses cache deletes.",
-		}, []string{"function_name"}),
+		}, []string{labelFunctionName}),
 
 		bytesWritten: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "function",
+			Subsystem: subsystemFunction,
 			Name:      "run_function_response_cache_bytes_written_total",
 			Help:      "Total number of RunFunctionResponse bytes written.",
-		}, []string{"function_name"}),
+		}, []string{labelFunctionName}),
 
 		bytesDeleted: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "function",
+			Subsystem: subsystemFunction,
 			Name:      "run_function_response_cache_bytes_deleted_total",
 			Help:      "Total number of RunFunctionResponse bytes deleted.",
-		}, []string{"function_name"}),
+		}, []string{labelFunctionName}),
 
 		readDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Subsystem: "function",
+			Subsystem: subsystemFunction,
 			Name:      "run_function_response_cache_read_seconds",
 			Help:      "Histogram of RunFunctionResponse cache read time (seconds).",
 			Buckets:   prometheus.DefBuckets,
-		}, []string{"function_name"}),
+		}, []string{labelFunctionName}),
 
 		writeDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Subsystem: "function",
+			Subsystem: subsystemFunction,
 			Name:      "run_function_response_cache_write_seconds",
 			Help:      "Histogram of RunFunctionResponse cache write time (seconds).",
 			Buckets:   prometheus.DefBuckets,
-		}, []string{"function_name"}),
+		}, []string{labelFunctionName}),
 	}
 }
 
 // Hit records a cache hit.
 func (m *PrometheusMetrics) Hit(name string) {
-	m.hits.With(prometheus.Labels{"function_name": name}).Inc()
+	m.hits.With(prometheus.Labels{labelFunctionName: name}).Inc()
 }
 
 // Miss records a cache miss.
 func (m *PrometheusMetrics) Miss(name string) {
-	m.misses.With(prometheus.Labels{"function_name": name}).Inc()
+	m.misses.With(prometheus.Labels{labelFunctionName: name}).Inc()
 }
 
 // Error records a cache error.
 func (m *PrometheusMetrics) Error(name string) {
-	m.errors.With(prometheus.Labels{"function_name": name}).Inc()
+	m.errors.With(prometheus.Labels{labelFunctionName: name}).Inc()
 }
 
 // Write records a cache write.
 func (m *PrometheusMetrics) Write(name string) {
-	m.writes.With(prometheus.Labels{"function_name": name}).Inc()
+	m.writes.With(prometheus.Labels{labelFunctionName: name}).Inc()
 }
 
 // Delete records a cache delete, i.e. due to garbage collection.
 func (m *PrometheusMetrics) Delete(name string) {
-	m.deletes.With(prometheus.Labels{"function_name": name}).Inc()
+	m.deletes.With(prometheus.Labels{labelFunctionName: name}).Inc()
 }
 
 // WroteBytes records bytes written from the cache.
 func (m *PrometheusMetrics) WroteBytes(name string, b int) {
-	m.bytesWritten.With(prometheus.Labels{"function_name": name}).Add(float64(b))
+	m.bytesWritten.With(prometheus.Labels{labelFunctionName: name}).Add(float64(b))
 }
 
 // DeletedBytes records bytes deleted from the cache.
 func (m *PrometheusMetrics) DeletedBytes(name string, b int) {
-	m.bytesDeleted.With(prometheus.Labels{"function_name": name}).Add(float64(b))
+	m.bytesDeleted.With(prometheus.Labels{labelFunctionName: name}).Add(float64(b))
 }
 
 // ReadDuration records the time taken by a cache hit.
 func (m *PrometheusMetrics) ReadDuration(name string, d time.Duration) {
-	m.readDuration.With(prometheus.Labels{"function_name": name}).Observe(d.Seconds())
+	m.readDuration.With(prometheus.Labels{labelFunctionName: name}).Observe(d.Seconds())
 }
 
 // WriteDuration records the time taken to write to cache.
 func (m *PrometheusMetrics) WriteDuration(name string, d time.Duration) {
-	m.writeDuration.With(prometheus.Labels{"function_name": name}).Observe(d.Seconds())
+	m.writeDuration.With(prometheus.Labels{labelFunctionName: name}).Observe(d.Seconds())
 }
 
 // Describe sends the super-set of all possible descriptors of metrics
