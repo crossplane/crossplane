@@ -374,9 +374,9 @@ func (e *ControllerEngine) Stop(ctx context.Context, name string) error {
 	return e.stop(ctx, name, nil)
 }
 
-// stop the named controller. If only is supplied the call is a no-op unless the
-// named controller is still that one, so a controller that fails after being
-// restarted doesn't stop its own replacement.
+// stop the named controller. When only is supplied it is a no-op unless the
+// named controller is still that one. A controller that fails after the engine
+// replaced it must not stop its replacement.
 func (e *ControllerEngine) stop(ctx context.Context, name string, only *controller) error {
 	e.mx.Lock()
 	defer e.mx.Unlock()
