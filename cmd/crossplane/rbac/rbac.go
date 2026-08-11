@@ -49,6 +49,8 @@ func (c *Command) Run() error {
 type startCommand struct {
 	Profile string `help:"Serve runtime profiling data via HTTP at /debug/pprof." placeholder:"host:port"`
 
+	Namespace string `default:"crossplane-system" env:"POD_NAMESPACE" help:"Namespace in which packages are unpacked and run. Must match core Crossplane's --namespace." short:"n"`
+
 	ProviderClusterRole string `help:"A ClusterRole enumerating the permissions provider packages may request." name:"provider-clusterrole"`
 	LeaderElection      bool   `env:"LEADER_ELECTION"                                                           help:"Use leader election for the controller manager." name:"leader-election" short:"l"`
 
@@ -95,6 +97,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 			PollInterval:            c.PollInterval,
 		},
 		AllowClusterRole: c.ProviderClusterRole,
+		Namespace:        c.Namespace,
 	}
 
 	if err := rbac.Setup(mgr, o); err != nil {
