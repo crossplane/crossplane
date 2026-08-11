@@ -397,9 +397,12 @@ func (e *ControllerEngine) Stop(ctx context.Context, name string) error {
 		e.log.Debug("Stopped watching GVK", "controller", name, "watch-type", wid.Type, "watched-gvk", wid.GVK)
 	}
 
-	// Stop and delete the controller. StartWatches may be part way through
-	// adding a watch to it, holding a pointer we're about to drop.
+	// Record the stop before dropping the controller. A StartWatches that
+	// looked this one up is still holding it, and reads this once it takes the
+	// lock we're holding.
 	c.stopped = true
+
+	// Stop and delete the controller.
 	c.cancel()
 	delete(e.controllers, name)
 
