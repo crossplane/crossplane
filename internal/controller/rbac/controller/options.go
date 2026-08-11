@@ -44,4 +44,8 @@ type Options struct {
 	// permissions may be granted to Providers that request them. The
 	// provider may request any permission that appears in the named role.
 	AllowClusterRole string
+
+	// Namespace in which core Crossplane creates package runtimes. It must match
+	// core Crossplane's --namespace.
+	Namespace string
 }
