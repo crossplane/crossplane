@@ -50,4 +50,8 @@ type Options struct {
 	// able to determine whether two packages are part of the same registry and
 	// org.
 	DefaultRegistry string
+
+	// Namespace in which core Crossplane creates package runtimes. It must match
+	// core Crossplane's --namespace.
+	Namespace string
 }

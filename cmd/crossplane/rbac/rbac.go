@@ -58,6 +58,8 @@ func (c *Command) Run() error {
 type startCommand struct {
 	Profile string `help:"Serve runtime profiling data via HTTP at /debug/pprof." placeholder:"host:port"`
 
+	Namespace string `default:"crossplane-system" env:"POD_NAMESPACE" help:"Namespace in which packages are unpacked and run. Must match core Crossplane's --namespace." short:"n"`
+
 	ProviderClusterRole string `help:"A ClusterRole enumerating the permissions provider packages may request." name:"provider-clusterrole"`
 	LeaderElection      bool   `env:"LEADER_ELECTION"                                                           help:"Use leader election for the controller manager." name:"leader-election"                                                    short:"l"`
 	Registry            string `default:"${rbac_default_registry}"                                              env:"REGISTRY"                                         help:"Default registry used to fetch packages when not specified in tag." short:"r"`
@@ -97,6 +99,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		},
 		AllowClusterRole: c.ProviderClusterRole,
 		DefaultRegistry:  c.Registry,
+		Namespace:        c.Namespace,
 	}
 
 	if err := rbac.Setup(mgr, o); err != nil {

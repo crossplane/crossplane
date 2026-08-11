@@ -14,6 +14,31 @@ Create chart name and version as used by the chart label.
 {{- end -}}
 
 {{/*
+Resolve the namespace in which core Crossplane creates package runtimes from
+its existing command-line arguments. Empty unless core Crossplane is
+explicitly passed a --namespace, in which case both it and the RBAC manager
+default to their own namespace via POD_NAMESPACE.
+*/}}
+{{- define "crossplane.packageRuntimeNamespace" -}}
+{{- $namespace := "" -}}
+{{- $nextIsNamespace := false -}}
+{{- range $value := .Values.args -}}
+{{- $arg := toString $value -}}
+{{- if $nextIsNamespace -}}
+{{- $namespace = $arg -}}
+{{- $nextIsNamespace = false -}}
+{{- else if or (eq $arg "--namespace") (eq $arg "-n") -}}
+{{- $nextIsNamespace = true -}}
+{{- else if hasPrefix "--namespace=" $arg -}}
+{{- $namespace = trimPrefix "--namespace=" $arg -}}
+{{- else if hasPrefix "-n=" $arg -}}
+{{- $namespace = trimPrefix "-n=" $arg -}}
+{{- end -}}
+{{- end -}}
+{{- $namespace -}}
+{{- end -}}
+
+{{/*
 Generate basic labels
 */}}
 {{- define "crossplane.labels" }}
