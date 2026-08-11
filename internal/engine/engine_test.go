@@ -20,6 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -944,5 +946,106 @@ func TestStopWatches(t *testing.T) {
 				t.Errorf("\n%s\ne.Stop(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
+	}
+}
+
+// StartWatches looks the controller up under the engine lock and drops it long
+// before it takes the controller's own lock. It calls ActiveInformers in that
+// gap, which is where this test stops the controller and starts a replacement
+// under the same name.
+func TestStartWatchesStoppedController(t *testing.T) {
+	elected := make(chan struct{})
+	close(elected)
+
+	const name = "cool-controller"
+
+	inGap := make(chan struct{})
+	leaveGap := make(chan struct{})
+	var once sync.Once
+
+	infs := &MockTrackingInformers{
+		MockActiveInformers: func() []schema.GroupVersionKind {
+			once.Do(func() {
+				close(inGap)
+				<-leaveGap
+			})
+			return nil
+		},
+		MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
+			return nil, nil
+		},
+	}
+	mgr := &MockManager{
+		MockElected:   func() <-chan struct{} { return elected },
+		MockGetScheme: runtime.NewScheme,
+	}
+
+	e := New(mgr, infs, nil, nil)
+
+	var stale, replacement atomic.Int32
+	newController := func(watched *atomic.Int32) NewControllerFn {
+		return func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
+			return &MockController{
+				MockStart: func(ctx context.Context) error {
+					<-ctx.Done()
+					return nil
+				},
+				MockWatch: func(_ source.Source) error {
+					watched.Add(1)
+					return nil
+				},
+			}, nil
+		}
+	}
+
+	if err := e.Start(name, WithNewControllerFn(newController(&stale))); err != nil {
+		t.Fatalf("e.Start(...): %v", err)
+	}
+
+	u := &unstructured.Unstructured{}
+	u.SetAPIVersion("test.crossplane.io/v1")
+	u.SetKind("Composed")
+
+	started := make(chan error, 1)
+	go func() {
+		started <- e.StartWatches(context.Background(), name, WatchFor(u, WatchTypeDependency, nil))
+	}()
+
+	// The call above is now holding the controller we are about to throw away.
+	<-inGap
+
+	if err := e.Stop(context.Background(), name); err != nil {
+		t.Fatalf("e.Stop(...): %v", err)
+	}
+	if err := e.Start(name, WithNewControllerFn(newController(&replacement))); err != nil {
+		t.Fatalf("e.Start(...): %v", err)
+	}
+
+	close(leaveGap)
+
+	if diff := cmp.Diff(cmpopts.AnyError, <-started, cmpopts.EquateErrors()); diff != "" {
+		t.Errorf("e.StartWatches(...) resumed against a stopped controller: -want error, +got error:\n%s", diff)
+	}
+	if got := stale.Load(); got != 0 {
+		t.Errorf("e.StartWatches(...) added %d watch(es) to the stopped controller, want 0", got)
+	}
+	if got := replacement.Load(); got != 0 {
+		t.Errorf("e.StartWatches(...) added %d watch(es) to the replacement, want 0; the stale call should not be redirected", got)
+	}
+
+	// The replacement still takes watches from a fresh call.
+	if err := e.StartWatches(context.Background(), name, WatchFor(u, WatchTypeDependency, nil)); err != nil {
+		t.Fatalf("e.StartWatches(...) on the replacement: %v", err)
+	}
+	if got := replacement.Load(); got != 1 {
+		t.Errorf("e.StartWatches(...) added %d watch(es) to the replacement, want 1", got)
+	}
+
+	// Stop the controller. Will be a no-op if it never started.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := e.Stop(ctx, name); err != nil {
+		t.Errorf("e.Stop(...): %v", err)
 	}
 }
