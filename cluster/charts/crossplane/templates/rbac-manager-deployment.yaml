@@ -94,6 +94,9 @@ spec:
         {{- range $arg := .Values.rbacManager.args }}
         - {{ $arg }}
         {{- end }}
+        {{- with include "crossplane.packageRuntimeNamespace" . }}
+        - {{ printf "--namespace=%s" . | quote }}
+        {{- end }}
         - --provider-clusterrole={{ template "crossplane.name" . }}:allowed-provider-permissions
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         resources:
@@ -120,6 +123,10 @@ spec:
                 containerName: {{ .Chart.Name }}
                 resource: limits.memory
                 divisor: "1"
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
           - name: LEADER_ELECTION
             value: "{{ .Values.rbacManager.leaderElection }}"
         {{- range $key, $value := .Values.extraEnvVarsRBACManager }}
