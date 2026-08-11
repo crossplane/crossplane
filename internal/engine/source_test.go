@@ -19,7 +19,9 @@ package engine
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -283,5 +285,62 @@ func TestStartStoppedSource(t *testing.T) {
 				t.Errorf("\n%s\ns.Start(...) added an event handler: -want, +got:\n%s", tc.reason, diff)
 			}
 		})
+	}
+}
+
+// Start holds the source lock while it registers the handler, so a Stop that
+// arrives in the middle has to wait for the registration before it can remove
+// it. Without that, Stop finds nothing to remove and the handler is left behind.
+func TestConcurrentStartStopSource(t *testing.T) {
+	var added, removed atomic.Int32
+
+	registering := make(chan struct{})
+	finishRegistering := make(chan struct{})
+
+	inf := &MockInformer{
+		MockAddEventHandler: func(_ kcache.ResourceEventHandler) (kcache.ResourceEventHandlerRegistration, error) {
+			added.Add(1)
+			close(registering)
+			<-finishRegistering
+
+			return &MockRegistration{}, nil
+		},
+		MockRemoveEventHandler: func(_ kcache.ResourceEventHandlerRegistration) error {
+			removed.Add(1)
+			return nil
+		},
+		MockIsStopped: func() bool { return false },
+	}
+
+	s := NewStoppableSource(inf, nil)
+
+	started := make(chan error, 1)
+	go func() { started <- s.Start(context.Background(), nil) }()
+
+	<-registering
+
+	stopped := make(chan error, 1)
+	go func() { stopped <- s.Stop(context.Background()) }()
+
+	// Give Stop a moment to reach the lock. It waits there however long we take,
+	// so this only decides whether the two calls overlap, not what they do. A
+	// Stop that ran to completion here would find no handler to remove, which is
+	// what this test is looking for.
+	time.Sleep(100 * time.Millisecond)
+
+	close(finishRegistering)
+
+	if diff := cmp.Diff(nil, <-started, cmpopts.EquateErrors()); diff != "" {
+		t.Errorf("s.Start(...): -want error, +got error:\n%s", diff)
+	}
+	if diff := cmp.Diff(nil, <-stopped, cmpopts.EquateErrors()); diff != "" {
+		t.Errorf("s.Stop(...): -want error, +got error:\n%s", diff)
+	}
+
+	if got := added.Load(); got != 1 {
+		t.Errorf("s.Start(...) added %d event handler(s), want 1", got)
+	}
+	if got := removed.Load(); got != 1 {
+		t.Errorf("s.Stop(...) removed %d event handler(s), want 1", got)
 	}
 }
