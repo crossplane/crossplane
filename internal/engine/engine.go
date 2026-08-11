@@ -397,12 +397,9 @@ func (e *ControllerEngine) Stop(ctx context.Context, name string) error {
 		e.log.Debug("Stopped watching GVK", "controller", name, "watch-type", wid.Type, "watched-gvk", wid.GVK)
 	}
 
-	// Record the stop before dropping the controller. A StartWatches that
-	// looked this one up is still holding it, and reads this once it takes the
-	// lock we're holding.
+	// Stop and delete the controller. A StartWatches that looked it up is still
+	// holding it, and reads this once it takes the lock we hold.
 	c.stopped = true
-
-	// Stop and delete the controller.
 	c.cancel()
 	delete(e.controllers, name)
 
@@ -532,9 +529,7 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 	c.mx.Lock()
 	defer c.mx.Unlock()
 
-	// The engine may have stopped this controller since we looked it up, and by
-	// now be running a replacement under the same name. Watches we added here
-	// would be attached to a controller nothing can stop again.
+	// Watches added now would go to a controller nothing can stop again.
 	if c.stopped {
 		return errors.Errorf("controller %q is not running", name)
 	}
