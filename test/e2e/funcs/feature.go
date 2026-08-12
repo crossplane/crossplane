@@ -1521,35 +1521,28 @@ func FilterByGK(gk schema.GroupKind) func(o k8s.Object) bool {
 	}
 }
 
-// SolelyControlledBy returns a FieldValueChecker for the "metadata.ownerReferences" field path. It
-// matches when exactly one of the references is controlling, and that reference names the given
-// owner. Kubernetes allows an object only one controlling owner reference, so this asserts both
-// that the named owner is in control and that nothing else claims to be.
+// SolelyOwnedBy returns a FieldValueChecker for the "metadata.ownerReferences" field path. It
+// matches when the object has exactly one owner reference, that reference names the given owner,
+// and it is controlling.
 //
 // It reads the unstructured form of the field, a []any of map[string]any, so it will not match at
 // any other field path.
-func SolelyControlledBy(name string) FieldValueChecker {
+func SolelyOwnedBy(name string) FieldValueChecker {
 	return func(got any) bool {
 		ors, ok := got.([]any)
+		if !ok || len(ors) != 1 {
+			return false
+		}
+
+		r, ok := ors[0].(map[string]any)
 		if !ok {
 			return false
 		}
 
-		controllers := []string{}
+		n, _ := r["name"].(string)
+		c, _ := r["controller"].(bool)
 
-		for _, or := range ors {
-			r, ok := or.(map[string]any)
-			if !ok {
-				return false
-			}
-
-			if c, ok := r["controller"].(bool); ok && c {
-				n, _ := r["name"].(string)
-				controllers = append(controllers, n)
-			}
-		}
-
-		return len(controllers) == 1 && controllers[0] == name
+		return n == name && c
 	}
 }
 

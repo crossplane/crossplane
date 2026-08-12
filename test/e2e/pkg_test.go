@@ -1298,10 +1298,10 @@ func TestActivationPolicyAutomatic(t *testing.T) {
 				// and its service targets the correct deployment.
 				funcs.ResourceHasFieldValueWithin(2*time.Minute, deployment(funcrev1.Name), "spec.template.spec.containers[0].image", "xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.0"),
 				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-function-dummy"), "spec.selector[pkg.crossplane.io/revision]", funcrev1.Name),
-				// Check that the active revision controls the objects that are
-				// shared by every revision of the function.
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-function-dummy"), "metadata.ownerReferences", funcs.SolelyControlledBy(funcrev1.Name)),
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret("e2e-activation-function-dummy-tls-server"), "metadata.ownerReferences", funcs.SolelyControlledBy(funcrev1.Name)),
+				// Check that the active revision is the sole owner of the
+				// objects that are shared by every revision of the function.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-function-dummy"), "metadata.ownerReferences", funcs.SolelyOwnedBy(funcrev1.Name)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret("e2e-activation-function-dummy-tls-server"), "metadata.ownerReferences", funcs.SolelyOwnedBy(funcrev1.Name)),
 			)).
 			Assess("InstallProvider", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-1.yaml"),
@@ -1319,11 +1319,11 @@ func TestActivationPolicyAutomatic(t *testing.T) {
 				// and its service targets the correct deployment.
 				funcs.ResourceHasFieldValueWithin(2*time.Minute, deployment(provrev1.Name), "spec.template.spec.containers[0].image", "xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.3.1"),
 				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-provider-nop"), "spec.selector[pkg.crossplane.io/revision]", provrev1.Name),
-				// Check that the active revision controls the objects that are
-				// shared by every revision of the provider.
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-provider-nop"), "metadata.ownerReferences", funcs.SolelyControlledBy(provrev1.Name)),
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret("e2e-activation-provider-nop-tls-server"), "metadata.ownerReferences", funcs.SolelyControlledBy(provrev1.Name)),
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret("e2e-activation-provider-nop-tls-client"), "metadata.ownerReferences", funcs.SolelyControlledBy(provrev1.Name)),
+				// Check that the active revision is the sole owner of the
+				// objects that are shared by every revision of the provider.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-provider-nop"), "metadata.ownerReferences", funcs.SolelyOwnedBy(provrev1.Name)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret("e2e-activation-provider-nop-tls-server"), "metadata.ownerReferences", funcs.SolelyOwnedBy(provrev1.Name)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret("e2e-activation-provider-nop-tls-client"), "metadata.ownerReferences", funcs.SolelyOwnedBy(provrev1.Name)),
 			)).
 			Assess("UpdateConfiguration", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "configuration-2.yaml"),
@@ -1350,10 +1350,11 @@ func TestActivationPolicyAutomatic(t *testing.T) {
 				// and its service targets the correct deployment.
 				funcs.ResourceHasFieldValueWithin(2*time.Minute, deployment(funcrev2.Name), "spec.template.spec.containers[0].image", "xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.1"),
 				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-function-dummy"), "spec.selector[pkg.crossplane.io/revision]", funcrev2.Name),
-				// Check that the incoming revision took control of the objects
-				// it shares with the revision it replaced.
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-function-dummy"), "metadata.ownerReferences", funcs.SolelyControlledBy(funcrev2.Name)),
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret("e2e-activation-function-dummy-tls-server"), "metadata.ownerReferences", funcs.SolelyControlledBy(funcrev2.Name)),
+				// Check that the incoming revision took sole ownership of the
+				// objects it shares with the revision it replaced, leaving the
+				// outgoing revision no owner reference at all.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-function-dummy"), "metadata.ownerReferences", funcs.SolelyOwnedBy(funcrev2.Name)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret("e2e-activation-function-dummy-tls-server"), "metadata.ownerReferences", funcs.SolelyOwnedBy(funcrev2.Name)),
 			)).
 			Assess("UpdateProvider", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-2.yaml"),
@@ -1373,11 +1374,12 @@ func TestActivationPolicyAutomatic(t *testing.T) {
 				// and its service targets the correct deployment.
 				funcs.ResourceHasFieldValueWithin(2*time.Minute, deployment(provrev2.Name), "spec.template.spec.containers[0].image", "xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.4.0"),
 				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-provider-nop"), "spec.selector[pkg.crossplane.io/revision]", provrev2.Name),
-				// Check that the incoming revision took control of the objects
-				// it shares with the revision it replaced.
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-provider-nop"), "metadata.ownerReferences", funcs.SolelyControlledBy(provrev2.Name)),
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret("e2e-activation-provider-nop-tls-server"), "metadata.ownerReferences", funcs.SolelyControlledBy(provrev2.Name)),
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret("e2e-activation-provider-nop-tls-client"), "metadata.ownerReferences", funcs.SolelyControlledBy(provrev2.Name)),
+				// Check that the incoming revision took sole ownership of the
+				// objects it shares with the revision it replaced, leaving the
+				// outgoing revision no owner reference at all.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-provider-nop"), "metadata.ownerReferences", funcs.SolelyOwnedBy(provrev2.Name)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret("e2e-activation-provider-nop-tls-server"), "metadata.ownerReferences", funcs.SolelyOwnedBy(provrev2.Name)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret("e2e-activation-provider-nop-tls-client"), "metadata.ownerReferences", funcs.SolelyOwnedBy(provrev2.Name)),
 			)).
 			WithTeardown("Cleanup", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration-2.yaml"),
