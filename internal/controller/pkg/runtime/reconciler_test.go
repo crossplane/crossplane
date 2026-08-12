@@ -373,7 +373,58 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ErrDeactivateRevision": {
-			reason: "We should return an error if deactivation fails.",
+			reason: "We should report an unhealthy runtime and return an error if deactivation fails.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								obj.SetDesiredState(v1.PackageRevisionInactive)
+								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+							want.SetDesiredState(v1.PackageRevisionInactive)
+							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+							want.SetConditions(v1.RuntimeUnhealthy().WithMessage("deactivation runtime hook failed for package: boom"))
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{
+						MockDeactivate: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
+							return errBoom
+						},
+					}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeactivateHook),
+			},
+		},
+		"DeactivateRevisionConflict": {
+			reason: "We should requeue without an error if we lose a race while deactivating.",
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
@@ -401,14 +452,14 @@ func TestReconcile(t *testing.T) {
 					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{
 						MockDeactivate: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
-							return errBoom
+							return kerrors.NewConflict(schema.GroupResource{Resource: "services"}, "test-provider", errBoom)
 						},
 					}),
 					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, "failed to run deactivation hook"),
+				r: reconcile.Result{Requeue: true},
 			},
 		},
 		"ErrNoRuntimeConfig": {
@@ -898,7 +949,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"SuccessfulInactiveRevision": {
-			reason: "An inactive revision should deactivate successfully.",
+			reason: "An inactive revision should deactivate successfully and report a healthy runtime.",
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
@@ -908,11 +959,26 @@ func TestReconcile(t *testing.T) {
 								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								obj.SetDesiredState(v1.PackageRevisionInactive)
 								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+								// set a previous RuntimeUnhealthy condition on the object, so we
+								// know the later status update clears it back to healthy
+								obj.SetConditions(v1.RuntimeUnhealthy().WithMessage("deactivation runtime hook failed for package: boom"))
 								return nil
 							case *corev1.ServiceAccount:
 								obj.Name = crossplaneName
 								obj.Namespace = testNamespace
 								return nil
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+							want.SetDesiredState(v1.PackageRevisionInactive)
+							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+							want.SetConditions(v1.RuntimeHealthy())
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
 						}),
@@ -934,6 +1000,46 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"ErrUpdateStatusInactiveRevision": {
+			reason: "We should return an error if we cannot report a deactivated revision's healthy runtime.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								obj.SetDesiredState(v1.PackageRevisionInactive)
+								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{
+						MockDeactivate: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
+							return nil
+						},
+					}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errUpdateStatus),
 			},
 		},
 		"RuntimeActivationAwaiting": {

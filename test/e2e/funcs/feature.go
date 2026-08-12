@@ -1521,6 +1521,31 @@ func FilterByGK(gk schema.GroupKind) func(o k8s.Object) bool {
 	}
 }
 
+// SolelyOwnedBy returns a FieldValueChecker for the "metadata.ownerReferences" field path. It
+// matches when the object has exactly one owner reference, that reference names the given owner,
+// and it is controlling.
+//
+// It reads the unstructured form of the field, a []any of map[string]any, so it will not match at
+// any other field path.
+func SolelyOwnedBy(name string) FieldValueChecker {
+	return func(got any) bool {
+		ors, ok := got.([]any)
+		if !ok || len(ors) != 1 {
+			return false
+		}
+
+		r, ok := ors[0].(map[string]any)
+		if !ok {
+			return false
+		}
+
+		n, _ := r["name"].(string)
+		c, _ := r["controller"].(bool)
+
+		return n == name && c
+	}
+}
+
 func toYAML(objs ...client.Object) string {
 	docs := make([]string, 0, len(objs))
 	for _, obj := range objs {
