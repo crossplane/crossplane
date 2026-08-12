@@ -369,7 +369,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 
-		return reconcile.Result{Requeue: false}, nil
+		status.MarkConditions(v1.RuntimeHealthy())
+
+		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
 	// Migrate provider deployment selector, if needed.
