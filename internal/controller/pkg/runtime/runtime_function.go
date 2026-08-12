@@ -78,7 +78,7 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 	// we're creating the service here but service account and deployment in the
 	// post-establish.
 	svc := build.Service(functionServiceOverrides()...)
-	if err := applyRuntimeObject(ctx, h.client.Client, svc); err != nil {
+	if err := applySharedRuntimeObject(ctx, h.client.Client, pr, svc); err != nil {
 		return errors.Wrap(err, errApplyFunctionService)
 	}
 
@@ -92,7 +92,14 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 
 	secServer := build.TLSServerSecret()
 
-	if err := applyRuntimeObject(ctx, h.client.Client, secServer); err != nil {
+	if secServer == nil {
+		// We should wait for the package manager to set the secret name on the
+		// revision before proceeding creating the TLS secret. This mirrors the
+		// provider hooks, which wait on the same field.
+		return nil
+	}
+
+	if err := applySharedRuntimeObject(ctx, h.client.Client, pr, secServer); err != nil {
 		return errors.Wrap(err, errApplyFunctionSecret)
 	}
 
@@ -159,21 +166,6 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 		return errors.Wrap(err, errDeleteFunctionDeployment)
 	}
 
-	// Relinquish control of the service and secret, so that a new active
-	// revision can control them.
-	objs := []client.Object{
-		build.Service(functionServiceOverrides()...),
-		build.TLSServerSecret(),
-	}
-	for _, obj := range objs {
-		if obj == nil {
-			continue
-		}
-		if err := relinquishControllership(ctx, h.client.Client, obj, pr); err != nil {
-			return errors.Wrapf(err, "cannot relinquish control of %T for inactive function revision", obj)
-		}
-	}
-
 	// NOTE(turkenh): We don't delete the service account here because it might
 	// be used by other package revisions, e.g. user might have specified a
 	// service account name in the runtime config. This should not be a problem
@@ -183,6 +175,10 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 
 	// NOTE(ezgidemirel): Service and secret are created per package. Therefore,
 	// we're not deleting them here.
+
+	// NOTE(jbw976): We leave our owner references on those shared objects alone, controlling flag
+	// included. The revision taking over demotes us as part of claiming them, which keeps the
+	// handover to a single writer.
 	return nil
 }
 

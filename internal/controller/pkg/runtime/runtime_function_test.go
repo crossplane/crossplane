@@ -117,6 +117,115 @@ func TestFunctionPreHook(t *testing.T) {
 				},
 			},
 		},
+		"WaitsForTLSServerSecretName": {
+			reason: "Should wait, rather than panic, when the package manager has not set the revision's TLS server secret name yet.",
+			args: args{
+				pkg: &pkgmetav1.Function{},
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID},
+					Spec: v1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
+					},
+				},
+				manifests: &MockManifestBuilder{
+					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
+						return &corev1.Service{ObjectMeta: metav1.ObjectMeta{
+							Name:      "shared-service",
+							Namespace: "some-namespace",
+						}}
+					},
+					// The builder returns nil for the secret until the revision knows
+					// what its secret is called.
+					TLSServerSecretFn: func() *corev1.Secret {
+						return nil
+					},
+				},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errors.New("should not apply a secret before we know its name")
+						}
+						return nil
+					},
+				},
+			},
+			want: want{
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID},
+					Spec: v1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
+					},
+					Status: v1.FunctionRevisionStatus{
+						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "shared-service", "some-namespace", revision.ServicePort),
+					},
+				},
+			},
+		},
+		"TakesControlFromOutgoingRevision": {
+			reason: "Should demote the outgoing revision's owner reference in the same apply that claims the shared object.",
+			args: args{
+				pkg: &pkgmetav1.Function{},
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID},
+					Spec: v1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSServerSecretName: ptr.To("server-tls"),
+						},
+					},
+				},
+				manifests: &MockManifestBuilder{
+					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
+						return &corev1.Service{ObjectMeta: metav1.ObjectMeta{
+							Name:            "shared-service",
+							Namespace:       "some-namespace",
+							OwnerReferences: []metav1.OwnerReference{incoming},
+						}}
+					},
+					TLSServerSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+							Name:            "server-tls",
+							OwnerReferences: []metav1.OwnerReference{incoming},
+						}}
+					},
+				},
+				client: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						if key.Name == "shared-service" || key.Name == "server-tls" {
+							obj.SetOwnerReferences([]metav1.OwnerReference{outgoing})
+						}
+						return nil
+					},
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						// The incoming revision should claim the shared objects,
+						// demoting the outgoing revision in the same apply.
+						if diff := cmp.Diff([]metav1.OwnerReference{incoming, demoted}, obj.GetOwnerReferences()); diff != "" {
+							t.Errorf("h.Pre(...): %s: -want owner references, +got:\n%s", obj.GetName(), diff)
+						}
+						return nil
+					},
+					MockUpdate: test.NewMockUpdateFn(nil),
+				},
+			},
+			want: want{
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID},
+					Spec: v1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSServerSecretName: ptr.To("server-tls"),
+						},
+					},
+					Status: v1.FunctionRevisionStatus{
+						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "shared-service", "some-namespace", revision.ServicePort),
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: ptr.To("server-tls"),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -789,16 +898,11 @@ func TestFunctionDeactivateHook(t *testing.T) {
 						}
 						return nil
 					},
+					// Deactivation doesn't touch owner references. The
+					// revision taking over demotes ours when it claims the
+					// objects we share with it.
 					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
-						owners := obj.GetOwnerReferences()
-						if len(owners) != 1 {
-							return errors.Errorf("incorrect number of owner references on %T, expected 1 got %d", obj, len(owners))
-						}
-						if owners[0].Controller != nil && *owners[0].Controller {
-							return errors.Errorf("%T owner reference is controlling", obj)
-						}
-
-						return nil
+						return errors.Errorf("deactivation should not have patched %s", obj.GetName())
 					},
 				},
 			},

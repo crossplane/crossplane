@@ -102,6 +102,13 @@ var (
 			},
 		},
 	}
+
+	// An incoming (active) revision that will claim ownership of the objects shared by other revisions of the package.
+	incoming = metav1.OwnerReference{Name: "incoming", UID: "incoming-uid", Controller: ptr.To(true), BlockOwnerDeletion: ptr.To(true)}
+	// an outgoing (inactive) revision that will be demoted/removed from ownership of shared objects.
+	outgoing = metav1.OwnerReference{Name: "outgoing", UID: "outgoing-uid", Controller: ptr.To(true), BlockOwnerDeletion: ptr.To(true)}
+	// the same outgoing (inactive) revision that has now been demoted from ownership of shared objects.
+	demoted = metav1.OwnerReference{Name: "outgoing", UID: "outgoing-uid", Controller: ptr.To(false), BlockOwnerDeletion: ptr.To(true)}
 )
 
 func TestRuntimeManifestBuilderDeployment(t *testing.T) {

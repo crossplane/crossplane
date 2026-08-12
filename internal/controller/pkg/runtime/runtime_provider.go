@@ -81,7 +81,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 	// we're creating the service here but service account and deployment in the
 	// post-establish.
 	svc := build.Service(providerServiceOverrides()...)
-	if err := applyRuntimeObject(ctx, h.client.Client, svc); err != nil {
+	if err := applySharedRuntimeObject(ctx, h.client.Client, pr, svc); err != nil {
 		return errors.Wrap(err, errApplyProviderService)
 	}
 
@@ -94,10 +94,10 @@ func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 		return nil
 	}
 
-	if err := applyRuntimeObject(ctx, h.client.Client, secClient); err != nil {
+	if err := applySharedRuntimeObject(ctx, h.client.Client, pr, secClient); err != nil {
 		return errors.Wrap(err, errApplyProviderSecret)
 	}
-	if err := applyRuntimeObject(ctx, h.client.Client, secServer); err != nil {
+	if err := applySharedRuntimeObject(ctx, h.client.Client, pr, secServer); err != nil {
 		return errors.Wrap(err, errApplyProviderSecret)
 	}
 
@@ -173,22 +173,6 @@ func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 		return errors.Wrap(err, errDeleteProviderService)
 	}
 
-	// Relinquish control of the service and secrets, so that a new active
-	// revision can control them.
-	objs := []client.Object{
-		build.Service(providerServiceOverrides()...),
-		build.TLSServerSecret(),
-		build.TLSClientSecret(),
-	}
-	for _, obj := range objs {
-		if obj == nil {
-			continue
-		}
-		if err := relinquishControllership(ctx, h.client.Client, obj, pr); err != nil {
-			return errors.Wrapf(err, "cannot relinquish control of %T for inactive provider revision", obj)
-		}
-	}
-
 	// NOTE(turkenh): We don't delete the service account here because it might
 	// be used by other package revisions, e.g. user might have specified a
 	// service account name in the runtime config. This should not be a problem
@@ -198,6 +182,10 @@ func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 
 	// NOTE(phisco): Service and TLS secrets are created per package. Therefore,
 	// we're not deleting them here.
+
+	// NOTE(jbw976): We leave our owner references on those shared objects alone, controlling flag
+	// included. The revision taking over demotes us as part of claiming them, which keeps the
+	// handover to a single writer.
 	return nil
 }
 

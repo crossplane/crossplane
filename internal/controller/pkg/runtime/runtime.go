@@ -22,8 +22,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -125,8 +123,9 @@ type Hooks interface {
 }
 
 const (
-	errCopyRuntimeObject    = "cannot copy package runtime object for deletion"
-	errGetRuntimeDeployment = "cannot get package runtime deployment for deletion"
+	errCopyRuntimeObject      = "cannot copy package runtime object for deletion"
+	errGetRuntimeDeployment   = "cannot get package runtime deployment for deletion"
+	errGetSharedRuntimeObject = "cannot get existing package runtime object"
 )
 
 func deleteRuntimeObjectControlledBy(ctx context.Context, c client.Client, owner metav1.Object, obj client.Object) error {
@@ -184,36 +183,60 @@ func applyRuntimeObject(ctx context.Context, c client.Client, obj client.Object)
 	)
 }
 
-// relinquishControllership finds obj's owner reference to owner and makes it
-// non-controlling. It is a no-op if owner is not an owner of obj or if its
-// owner reference is already non-controlling.
-func relinquishControllership(ctx context.Context, c client.Client, obj client.Object, owner client.Object) error {
-	key := types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName()}
-	var u unstructured.Unstructured
-	u.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
-
-	if err := c.Get(ctx, key, &u); err != nil {
-		return err
+// applySharedRuntimeObject applies one of the runtime objects that every revision of a package
+// shares (e.g. service and TLS secrets), and takes ownership of it by making the given owner (the
+// incoming/active revision) the controller owner.
+//
+// The handover is done in two steps so that we correctly handle cases where a previous field
+// manager owned these fields (e.g. an earlier version of Crossplane that didn't use SSA):
+//
+// 1) The first declares our own controlling reference alongside whichever controlling reference the
+// live object already had, but demoted to a plain owner. This sets the new controller and demotes
+// the old one in one write while also giving our field manager exclusive ownership.
+// 2) The second apply finds no competing controller left to demote, declares only our own
+// reference, and server-side apply prunes the demoted one.
+//
+// The incoming revision does this so the handover needs no coordination between revisions. The
+// revision that wants control just takes it, instead of waiting on another revision to reconcile
+// and give it up first.
+func applySharedRuntimeObject(ctx context.Context, c client.Client, owner metav1.Object, obj client.Object) error {
+	current, ok := obj.DeepCopyObject().(client.Object)
+	if !ok {
+		return errors.Errorf("%s: %T", errCopyRuntimeObject, obj)
 	}
 
-	for _, or := range u.GetOwnerReferences() {
-		// Ignore any other owner refs.
-		if or.UID != owner.GetUID() {
-			continue
-		}
-		// Ignore any non-controlling owner refs.
-		if !ptr.Deref(or.Controller, false) {
+	// Get the latest state of the object, but clear owner refs before the Get, so we get
+	// exactly what the API server has
+	current.SetOwnerReferences(nil)
+	err := c.Get(ctx, client.ObjectKeyFromObject(obj), current)
+	if resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errGetSharedRuntimeObject)
+	}
+
+	if err == nil {
+		// The object does already exist, demote any controller owner ref from a previous revision
+		obj.SetOwnerReferences(append(obj.GetOwnerReferences(), demotedControllers(current, owner)...))
+	}
+
+	return applyRuntimeObject(ctx, c, obj)
+}
+
+// demotedControllers returns the controlling owner references of obj that don't belong to owner,
+// made non-controlling. References that are already non-controlling are left out, which is what
+// lets SSA prune them.
+func demotedControllers(obj metav1.Object, owner metav1.Object) []metav1.OwnerReference {
+	ors := make([]metav1.OwnerReference, 0, len(obj.GetOwnerReferences()))
+
+	for _, or := range obj.GetOwnerReferences() {
+		if or.UID == owner.GetUID() || !ptr.Deref(or.Controller, false) {
 			continue
 		}
 
 		or.Controller = ptr.To(false)
-		meta.AddOwnerReference(&u, or)
-		return applyRuntimeObject(ctx, c, &u)
+		ors = append(ors, or)
 	}
 
-	// If we didn't find a relevant owner ref above, or it was already
-	// non-controlling, that's fine.
-	return nil
+	return ors
 }
 
 // BuilderWithServiceAccountPullSecrets sets the service account
