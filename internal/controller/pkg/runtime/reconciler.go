@@ -64,6 +64,7 @@ const (
 	errManifestBuilderOptions = "cannot prepare runtime manifest builder options"
 	errPreHook                = "pre establish runtime hook failed for package"
 	errPostHook               = "post establish runtime hook failed for package"
+	errDeactivateHook         = "deactivation runtime hook failed for package"
 
 	errNoRuntimeConfig          = "no deployment runtime config set"
 	errGetRuntimeConfig         = "cannot get referenced deployment runtime config"
@@ -77,6 +78,7 @@ const (
 const (
 	reasonImageConfig event.Reason = "FetchResolvedImageConfig"
 	reasonSync        event.Reason = "SyncPackage"
+	reasonDeactivate  event.Reason = "DeactivateRevision"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -350,8 +352,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Deactivate revision if it is inactive.
 	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		if err := r.runtimeHook.Deactivate(ctx, pr, builder); err != nil {
-			err := errors.Wrap(err, "failed to run deactivation hook")
-			r.log.Info("Error", "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
+
+			err = errors.Wrap(err, errDeactivateHook)
+			// A revision whose deactivation fails still has a runtime deployment
+			// running, so it keeps serving requests it should have handed over.
+			// Say so, rather than leaving the conditions it reported while it
+			// was still the active revision.
+			status.MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
+
+			_ = r.client.Status().Update(ctx, pr)
+			r.record.Event(pr, event.Warning(reasonDeactivate, err))
 
 			return reconcile.Result{}, err
 		}
