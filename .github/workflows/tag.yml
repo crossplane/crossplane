@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Create Tag
-        uses: negz/create-tag@8dce6c9d9b12d161abe01c02d2b03f19e2e9e9bb # v1
+        uses: negz/create-tag@8dce6c9d9b12d161abe01c02d2b03f19e2e9e9bb # v2
         with:
           version: ${{ github.event.inputs.version }}
           message: ${{ github.event.inputs.message }}
@@ -34,7 +34,7 @@ jobs:
       # requires submodules to be tagged with their subdirectory prefix so
       # consumers can `go get github.com/crossplane/crossplane/apis/v2@vX.Y.Z`.
       - name: Create apis/ Submodule Tag
-        uses: negz/create-tag@8dce6c9d9b12d161abe01c02d2b03f19e2e9e9bb # v1
+        uses: negz/create-tag@8dce6c9d9b12d161abe01c02d2b03f19e2e9e9bb # v2
         with:
           version: apis/${{ github.event.inputs.version }}
           message: ${{ github.event.inputs.message }}
