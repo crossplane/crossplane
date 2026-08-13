@@ -4,5 +4,5 @@ metadata:
   name: e2e-activation
 spec:
   # NOTE: This package is manually built and pushed to the registry.
-  package: xpkg.crossplane.io/crossplane/e2e-activation:v0.1.0
+  package: xpkg.crossplane.io/crossplane/e2e-activation:v0.2.0
   revisionActivationPolicy: Automatic
