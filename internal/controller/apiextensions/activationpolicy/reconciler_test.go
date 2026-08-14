@@ -300,6 +300,27 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{},
 			},
 		},
+		"StatusUnchanged": {
+			reason: "We should not update status when the activated MRDs and health condition are unchanged.",
+			args: args{
+				c: &test.MockClient{
+					MockGet: WithMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
+						mrap.Status.Activated = []string{"bucket.aws.crossplane.io"}
+						mrap.SetConditions(v1alpha1.Healthy())
+					})),
+					MockList: WithMRDList(t,
+						NewMRD("bucket.aws.crossplane.io", WithMRDState(v1alpha1.ManagedResourceDefinitionActive)),
+					),
+					MockStatusUpdate: func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
+						t.Error("Status().Update() called for unchanged status")
+						return nil
+					},
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
 		"ActivateSingleMRD": {
 			reason: "We should activate a single MRD that matches the activation policy.",
 			args: args{
