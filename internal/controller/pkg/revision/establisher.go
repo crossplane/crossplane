@@ -18,8 +18,11 @@ package revision
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"maps"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -59,6 +62,21 @@ const (
 const (
 	// ServicePort is the port number used by package services for webhook communication.
 	ServicePort = 9443
+
+	// FieldOwnerAPIEstablisher is the field manager used to apply package
+	// objects the active package revision controls.
+	FieldOwnerAPIEstablisher = "pkg.crossplane.io/establisher"
+
+	// fieldOwnerAPIEstablisherOwnership is intentionally distinct from the
+	// controlling field manager. An inactive revision applies only owner
+	// references; using the controlling manager would cause SSA to prune the
+	// package fields that manager previously applied.
+	fieldOwnerAPIEstablisherOwnership = "pkg.crossplane.io/establisher-ownership"
+
+	// annotationKeyEstablisherHash records the last package intent applied by
+	// the establisher. It lets us skip the API call when a stored object differs
+	// only by fields defaulted by the API server.
+	annotationKeyEstablisherHash = "pkg.crossplane.io/establisher-hash"
 )
 
 // An Establisher establishes control or ownership of a set of resources in the
@@ -104,13 +122,13 @@ func NewAPIEstablisher(client client.Client, namespace string, maxConcurrentPack
 	}
 }
 
-// currentDesired caches resources while checking for control or ownership so
-// that they do not have to be fetched from the API server again when control or
-// ownership is established.
-type currentDesired struct {
-	Current resource.Object
-	Desired resource.Object
-	Exists  bool
+// desiredApply caches the apply intent while checking for control or ownership
+// so that the same intent can be used for dry-run validation and establishment.
+type desiredApply struct {
+	Desired    resource.Object
+	Reference  resource.Object
+	Apply      *unstructured.Unstructured
+	FieldOwner string
 }
 
 // Establish checks that control or ownership of resources can be established by
@@ -131,7 +149,7 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 		return nil, err
 	}
 
-	resourceRefs, err := e.establish(ctx, allObjs, parent, control)
+	resourceRefs, err := e.establish(ctx, allObjs)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +284,7 @@ func (e *APIEstablisher) addAnnotations(objs []runtime.Object, parent v1.Package
 	return nil
 }
 
-func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) (allObjs []currentDesired, err error) { //nolint:gocognit // TODO(negz): Refactor this to break up complexity.
+func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) (allObjs []desiredApply, err error) { //nolint:gocognit // TODO(negz): Refactor this to break up complexity.
 	var webhookTLSCert []byte
 	if parentWithRuntime, ok := parent.(v1.PackageRevisionWithRuntime); ok && control {
 		webhookTLSCert, err = e.getWebhookTLSCert(ctx, parentWithRuntime)
@@ -278,7 +296,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(e.MaxConcurrentPackageEstablishers)
 
-	out := make(chan currentDesired, len(objs))
+	out := make(chan desiredApply, len(objs))
 	for _, res := range objs {
 		g.Go(func() error {
 			// Assert desired object to resource.Object so that we can access its
@@ -308,31 +326,64 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 				return err
 			}
 
-			// If resource does not already exist, we must attempt to dry run create
-			// it.
+			// If the resource does not already exist, dry-run the same SSA intent
+			// we will use to create it. We will not create a resource if we are not
+			// going to control it, which prevents inactive revisions from racing
+			// active revisions.
 			if kerrors.IsNotFound(err) {
-				// We will not create a resource if we are not going to control it,
-				// so we don't need to check with dry run.
 				if control {
-					if err := e.create(ctx, desired, parent, client.DryRunAll); err != nil {
+					apply, _, err := e.prepareApply(nil, desired, parent, true)
+					if err != nil {
 						return err
 					}
+					if err := e.patch(ctx, apply.DeepCopy(), FieldOwnerAPIEstablisher, client.DryRunAll); err != nil {
+						return err
+					}
+
+					select {
+					case out <- desiredApply{Desired: desired, Reference: apply, Apply: apply, FieldOwner: FieldOwnerAPIEstablisher}:
+						return nil
+					case <-ctx.Done():
+						return ctx.Err()
+					}
 				}
-				// Add to objects as not existing.
+
 				select {
-				case out <- currentDesired{Desired: desired, Current: nil, Exists: false}:
+				case out <- desiredApply{Desired: desired, Reference: desired}:
 					return nil
 				case <-ctx.Done():
 					return ctx.Err()
 				}
 			}
 
-			if err := e.update(ctx, current, desired, parent, control, client.DryRunAll); err != nil {
+			currentResource, ok := current.(resource.Object)
+			if !ok {
+				return errors.New(errAssertResourceObj)
+			}
+
+			apply, needed, err := e.prepareApply(currentResource, desired, parent, control)
+			if err != nil {
 				return err
 			}
-			// Add to objects as existing.
+			if needed {
+				owner := FieldOwnerAPIEstablisher
+				if !control {
+					owner = fieldOwnerAPIEstablisherOwnership
+				}
+				if err := e.patch(ctx, apply.DeepCopy(), owner, client.DryRunAll); err != nil {
+					return err
+				}
+
+				select {
+				case out <- desiredApply{Desired: desired, Reference: apply, Apply: apply, FieldOwner: owner}:
+					return nil
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			}
+
 			select {
-			case out <- currentDesired{Desired: desired, Current: current, Exists: true}:
+			case out <- desiredApply{Desired: desired, Reference: currentResource}:
 				return nil
 			case <-ctx.Done():
 				return ctx.Err()
@@ -475,37 +526,21 @@ func (e *APIEstablisher) getWebhookTLSCert(ctx context.Context, parentWithRuntim
 	return webhookTLSCert, nil
 }
 
-func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired, parent client.Object, control bool) ([]xpv2.TypedReference, error) {
+func (e *APIEstablisher) establish(ctx context.Context, allObjs []desiredApply) ([]xpv2.TypedReference, error) {
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(e.MaxConcurrentPackageEstablishers)
 
 	out := make(chan xpv2.TypedReference, len(allObjs))
-	for _, cd := range allObjs {
+	for _, da := range allObjs {
 		g.Go(func() error {
-			if !cd.Exists {
-				// Only create a missing resource if we are going to control it.
-				// This prevents an inactive revision from racing to create a
-				// resource before an active revision of the same parent.
-				if control {
-					if err := e.create(ctx, cd.Desired, parent); err != nil {
-						return err
-					}
+			if da.Apply != nil {
+				if err := e.patch(ctx, da.Apply, da.FieldOwner); err != nil {
+					return err
 				}
-
-				select {
-				case out <- *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()):
-					return nil
-				case <-ctx.Done():
-					return ctx.Err()
-				}
-			}
-
-			if err := e.update(ctx, cd.Current, cd.Desired, parent, control); err != nil {
-				return err
 			}
 
 			select {
-			case out <- *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()):
+			case out <- *meta.TypedReferenceTo(da.Reference, da.Desired.GetObjectKind().GroupVersionKind()):
 				return nil
 			case <-ctx.Done():
 				return ctx.Err()
@@ -527,71 +562,203 @@ func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired
 	return resourceRefs, nil
 }
 
-func (e *APIEstablisher) create(ctx context.Context, obj resource.Object, parent resource.Object, opts ...client.CreateOption) error {
-	refs := []metav1.OwnerReference{
-		meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind())),
+// prepareApply returns the SSA intent for a package object and whether applying
+// it would change fields owned by the establisher. Controlled objects include
+// the package payload. Owned objects include only owner references so inactive
+// revisions cannot modify package or user data.
+func (e *APIEstablisher) prepareApply(current, desired, parent resource.Object, control bool) (*unstructured.Unstructured, bool, error) {
+	apply, err := applyObject(desired, control)
+	if err != nil {
+		return nil, false, err
 	}
-	// We add the parent as `owner` of the resources so that the resource doesn't
-	// get deleted when the new revision doesn't include it in order not to lose
-	// user data, such as custom resources of an old CRD.
+
+	if current == nil {
+		if !control {
+			return apply, false, nil
+		}
+
+		refs := []metav1.OwnerReference{
+			meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind())),
+		}
+		if pkgRef, ok := GetPackageOwnerReference(parent); ok {
+			pkgRef.Controller = ptr.To(false)
+			refs = append(refs, pkgRef)
+		}
+		apply.SetOwnerReferences(refs)
+
+		if err := setApplyHash(apply); err != nil {
+			return nil, false, err
+		}
+		return apply, true, nil
+	}
+
+	apply.SetOwnerReferences(slices.Clone(current.GetOwnerReferences()))
 	if pkgRef, ok := GetPackageOwnerReference(parent); ok {
 		pkgRef.Controller = ptr.To(false)
-		refs = append(refs, pkgRef)
+		meta.AddOwnerReference(apply, pkgRef)
 	}
-	// Overwrite any owner references on the desired object.
-	obj.SetOwnerReferences(refs)
 
-	return e.client.Create(ctx, obj, opts...)
+	if control {
+		if err := meta.AddControllerReference(apply, meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))); err != nil {
+			return nil, false, err
+		}
+
+		// The activation policy controller, not the package establisher, owns
+		// state after an MRD has been created. Omitting it also avoids comparing
+		// the package's absent value with the API server's Inactive default.
+		if _, ok := desired.(*v1alpha1.ManagedResourceDefinition); ok {
+			unstructured.RemoveNestedField(apply.Object, "spec", "state")
+		}
+		if err := setApplyHash(apply); err != nil {
+			return nil, false, err
+		}
+	} else {
+		meta.AddOwnerReference(apply, meta.AsOwner(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind())))
+	}
+
+	if !reflect.DeepEqual(current.GetOwnerReferences(), apply.GetOwnerReferences()) {
+		return apply, true, nil
+	}
+	if !control {
+		return apply, false, nil
+	}
+
+	cu, err := runtime.DefaultUnstructuredConverter.ToUnstructured(current)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "cannot convert current object to unstructured")
+	}
+	unstructured.RemoveNestedField(cu, "metadata", "ownerReferences")
+	want := apply.DeepCopy()
+	unstructured.RemoveNestedField(want.Object, "metadata", "ownerReferences")
+	// Typed objects returned by controller-runtime are not guaranteed to have
+	// TypeMeta populated. Identity was already established by Get, so it is not
+	// part of the drift comparison.
+	delete(cu, "apiVersion")
+	delete(cu, "kind")
+	delete(want.Object, "apiVersion")
+	delete(want.Object, "kind")
+
+	return apply, !jsonSubset(want.Object, cu), nil
 }
 
-func (e *APIEstablisher) update(ctx context.Context, current, desired resource.Object, parent resource.Object, control bool, opts ...client.UpdateOption) error {
-	// We add the parent as `owner` of the resources so that the resource doesn't
-	// get deleted when the new revision doesn't include it in order not to lose
-	// user data, such as custom resources of an old CRD.
-	if pkgRef, ok := GetPackageOwnerReference(parent); ok {
-		pkgRef.Controller = ptr.To(false)
-		meta.AddOwnerReference(current, pkgRef)
+func applyObject(desired resource.Object, control bool) (*unstructured.Unstructured, error) {
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(desired)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot convert desired object to unstructured")
 	}
 
 	if !control {
-		meta.AddOwnerReference(current, meta.AsOwner(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind())))
-		return e.client.Update(ctx, current, opts...)
+		metadata := map[string]any{
+			"name": desired.GetName(),
+		}
+		if desired.GetNamespace() != "" {
+			metadata["namespace"] = desired.GetNamespace()
+		}
+		u = map[string]any{
+			"apiVersion": desired.GetObjectKind().GroupVersionKind().GroupVersion().String(),
+			"kind":       desired.GetObjectKind().GroupVersionKind().Kind,
+			"metadata":   metadata,
+		}
 	}
 
-	// If desire is to control object, we attempt to update the object by
-	// setting the desired owner references equal to that of the current, adding
-	// a controller reference to the parent, and setting the desired resource
-	// version to that of the current.
-	desired.SetOwnerReferences(current.GetOwnerReferences())
-
-	if err := meta.AddControllerReference(desired, meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))); err != nil {
-		return err
+	for _, field := range []string{
+		"creationTimestamp", "deletionGracePeriodSeconds", "deletionTimestamp",
+		"generation", "managedFields", "resourceVersion", "selfLink", "uid",
+	} {
+		unstructured.RemoveNestedField(u, "metadata", field)
 	}
+	unstructured.RemoveNestedField(u, "status")
 
-	desired.SetResourceVersion(current.GetResourceVersion())
-
-	// We need to attempt a merge here for known types.
-	if err := e.merge(ctx, current, desired); err != nil {
-		return err
-	}
-
-	// This should be a server side apply?
-	return e.client.Update(ctx, desired, opts...)
+	return &unstructured.Unstructured{Object: u}, nil
 }
 
-func (e *APIEstablisher) merge(_ context.Context, c, d resource.Object) error {
-	if current, ok := c.(*v1alpha1.ManagedResourceDefinition); ok {
-		desired, ok := d.(*v1alpha1.ManagedResourceDefinition)
-		if !ok {
-			return errors.Errorf("expected desired object to be *v1alpha1.ManagedResourceDefinition, got %T", d)
-		}
-		// Managed Resource Definitions' spec.state is controlled outside the APIEstablisher.
-		if !desired.Spec.State.IsActive() {
-			desired.Spec.State = current.Spec.State
-		}
+func setApplyHash(apply *unstructured.Unstructured) error {
+	intent := apply.DeepCopy()
+	unstructured.RemoveNestedField(intent.Object, "metadata", "ownerReferences")
+	annotations := intent.GetAnnotations()
+	delete(annotations, annotationKeyEstablisherHash)
+	if len(annotations) == 0 {
+		unstructured.RemoveNestedField(intent.Object, "metadata", "annotations")
+	} else {
+		intent.SetAnnotations(annotations)
 	}
 
+	b, err := json.Marshal(intent.Object)
+	if err != nil {
+		return errors.Wrap(err, "cannot marshal apply intent")
+	}
+
+	annotations = apply.GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
+	annotations[annotationKeyEstablisherHash] = fmt.Sprintf("%x", sha256.Sum256(b))
+	apply.SetAnnotations(annotations)
+
 	return nil
+}
+
+// jsonSubset reports whether all desired fields are present with equal values
+// in current. Extra current fields are ignored because they may be API defaults
+// or fields owned by another SSA manager.
+func jsonSubset(desired, current any) bool {
+	switch d := desired.(type) {
+	case map[string]any:
+		c, ok := current.(map[string]any)
+		if !ok {
+			return false
+		}
+		for k, dv := range d {
+			cv, ok := c[k]
+			if !ok {
+				if isJSONEmpty(dv) {
+					continue
+				}
+				return false
+			}
+			if !jsonSubset(dv, cv) {
+				return false
+			}
+		}
+		return true
+	case []any:
+		c, ok := current.([]any)
+		if !ok || len(d) != len(c) {
+			return false
+		}
+		for i := range d {
+			if !jsonSubset(d[i], c[i]) {
+				return false
+			}
+		}
+		return true
+	default:
+		return reflect.DeepEqual(desired, current)
+	}
+}
+
+func isJSONEmpty(v any) bool {
+	switch x := v.(type) {
+	case nil:
+		return true
+	case map[string]any:
+		return len(x) == 0
+	case []any:
+		return len(x) == 0
+	}
+	return false
+}
+
+func (e *APIEstablisher) patch(ctx context.Context, obj client.Object, owner string, opts ...client.PatchOption) error {
+	opts = append(opts, client.ForceOwnership, client.FieldOwner(owner))
+
+	// Force ownership deliberately handles objects previously written by the
+	// classic Update path (typically manager "crossplane"). It transfers only
+	// fields present in our apply intent; omitted defaults and user fields stay
+	// with their existing manager.
+	//
+	//nolint:staticcheck // Client.Apply requires typed apply configurations.
+	return e.client.Patch(ctx, obj, client.Apply, opts...)
 }
 
 // GetPackageOwnerReference returns the owner reference that points to the owner
