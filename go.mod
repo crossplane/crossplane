@@ -1,6 +1,6 @@
 module github.com/crossplane/crossplane
 
-go 1.25.12
+go 1.25.13
 
 require (
 	dario.cat/mergo v1.0.1
