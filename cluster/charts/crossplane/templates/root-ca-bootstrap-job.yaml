@@ -58,7 +58,12 @@ spec:
                   echo "$secret already exists, leaving it untouched"
                 else
                   echo "$secret does not exist, creating empty placeholder (init container will populate it)"
-                  kubectl create secret generic -n "$NAMESPACE" "$secret" --type=kubernetes.io/tls
+                  # The placeholder must be Opaque: the API server rejects
+                  # kubernetes.io/tls Secrets that lack tls.crt/tls.key, and
+                  # the init container populates the data via Update without
+                  # setting a type (matching the declarative fallback in
+                  # templates/secret.yaml).
+                  kubectl create secret generic -n "$NAMESPACE" "$secret"
                 fi
               done
           env:
