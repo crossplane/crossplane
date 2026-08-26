@@ -181,12 +181,45 @@ spec:
                               kind:
                                 description: Kind of the required resource.
                                 type: string
+                              matchExpressions:
+                                description: |-
+                                  MatchExpressions specifies set-based label selector requirements.
+                                  Each expression is ANDed with any MatchLabels requirements.
+                                items:
+                                  description: |-
+                                    A label selector requirement is a selector that contains values, a key, and an operator that
+                                    relates the key and values.
+                                  properties:
+                                    key:
+                                      description: key is the label key that the selector
+                                        applies to.
+                                      type: string
+                                    operator:
+                                      description: |-
+                                        operator represents a key's relationship to a set of values.
+                                        Valid operators are In, NotIn, Exists and DoesNotExist.
+                                      type: string
+                                    values:
+                                      description: |-
+                                        values is an array of string values. If the operator is In or NotIn,
+                                        the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                        the values array must be empty. This array is replaced during a strategic
+                                        merge patch.
+                                      items:
+                                        type: string
+                                      type: array
+                                      x-kubernetes-list-type: atomic
+                                  required:
+                                  - key
+                                  - operator
+                                  type: object
+                                type: array
                               matchLabels:
                                 additionalProperties:
                                   type: string
                                 description: |-
-                                  MatchLabels specifies the set of labels to match for finding the
-                                  required resource. When specified, Name is ignored.
+                                  MatchLabels specifies the set of equality-based label requirements to
+                                  match for finding the required resource.
                                 type: object
                               name:
                                 description: Name of the required resource.
@@ -206,8 +239,11 @@ spec:
                             - requirementName
                             type: object
                             x-kubernetes-validations:
-                            - message: name and matchLabels are mutually exclusive
-                              rule: '!(has(self.name) && has(self.matchLabels))'
+                            - message: Either name or at least one of matchLabels/matchExpressions
+                                must be specified, but name cannot be combined with
+                                label selectors
+                              rule: (has(self.name) && !has(self.matchLabels) && !has(self.matchExpressions))
+                                || (!has(self.name) && (has(self.matchLabels) || has(self.matchExpressions)))
                           type: array
                           x-kubernetes-list-map-keys:
                           - requirementName
