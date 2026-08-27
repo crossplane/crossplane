@@ -47,6 +47,9 @@ type initCommand struct {
 
 	EnableWebhooks bool `aliases:"webhook-enabled" default:"true" env:"ENABLE_WEBHOOKS,WEBHOOK_ENABLED" help:"Enable webhook configuration."`
 
+	EnableUsages              bool   `default:"true" env:"ENABLE_USAGES"                 group:"Beta Features:" help:"Enable support for deletion ordering and resource protection with Usages. When disabled, the Usage deletion protection webhook configuration is not installed and any existing one is removed."`
+	UsageWebhookFailurePolicy string `default:"Fail" env:"USAGE_WEBHOOK_FAILURE_POLICY" enum:"Fail,Ignore"     help:"The failurePolicy of the Usage deletion protection webhook. Set to Ignore for compatibility with managed Kubernetes operations that reject Fail-policy webhooks with wildcard rules."`
+
 	WebhookServiceName      string `env:"WEBHOOK_SERVICE_NAME"      help:"The name of the Service object that the webhook service will be run."`
 	WebhookServiceNamespace string `env:"WEBHOOK_SERVICE_NAMESPACE" help:"The namespace of the Service object that the webhook service will be run."`
 	WebhookServicePort      int32  `env:"WEBHOOK_SERVICE_PORT"      help:"The port of the Service that the webhook service will be run."`
@@ -91,6 +94,24 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 			),
 		)
 
+		const (
+			usageWebhookConfigName = "crossplane-no-usages"
+			usageWebhookName       = "nousages.protection.crossplane.io"
+		)
+
+		var whOpts []initializer.WebhookConfigurationsOption
+		if c.EnableUsages {
+			whOpts = append(whOpts,
+				initializer.WithFailurePolicyOverride(usageWebhookConfigName, admv1.FailurePolicyType(c.UsageWebhookFailurePolicy)))
+		} else {
+			// Usages are disabled: don't install the Usage deletion protection
+			// webhook, and remove one left over from a previous install.
+			whOpts = append(whOpts,
+				initializer.WithSkippedConfigurations(usageWebhookConfigName))
+			steps = append(steps,
+				initializer.NewValidatingWebhookRemover(usageWebhookConfigName, usageWebhookName))
+		}
+
 		nn := types.NamespacedName{
 			Name:      c.TLSServerSecretName,
 			Namespace: c.Namespace,
@@ -102,7 +123,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		}
 		steps = append(steps,
 			initializer.NewCoreCRDs(c.CRDsPath, s, initializer.WithWebhookTLSSecretRef(nn)),
-			initializer.NewWebhookConfigurations(c.WebhookConfigurationsPath, s, nn, svc))
+			initializer.NewWebhookConfigurations(c.WebhookConfigurationsPath, s, nn, svc, whOpts...))
 	} else {
 		log.Info("Warning: Webhooks are disabled, so deprecated ValidatingWebhookConfigurations will not be automatically deleted.")
 		steps = append(steps,
