@@ -47,8 +47,8 @@ type initCommand struct {
 
 	EnableWebhooks bool `aliases:"webhook-enabled" default:"true" env:"ENABLE_WEBHOOKS,WEBHOOK_ENABLED" help:"Enable webhook configuration."`
 
-	EnableUsages              bool   `default:"true" env:"ENABLE_USAGES"                 group:"Beta Features:" help:"Enable support for deletion ordering and resource protection with Usages. When disabled, the Usage deletion protection webhook configuration is not installed and any existing one is removed."`
-	UsageWebhookFailurePolicy string `default:"Fail" env:"USAGE_WEBHOOK_FAILURE_POLICY" enum:"Fail,Ignore"     help:"The failurePolicy of the Usage deletion protection webhook. Set to Ignore for compatibility with managed Kubernetes operations that reject Fail-policy webhooks with wildcard rules."`
+	EnableUsages              bool   `default:"true" env:"ENABLE_USAGES" group:"Beta Features:"             help:"Enable support for deletion ordering and resource protection with Usages. When disabled, the Usage deletion protection webhook configuration is not installed and any existing one is removed."`
+	UsageWebhookFailurePolicy string `default:"Fail" enum:"Fail,Ignore"  env:"USAGE_WEBHOOK_FAILURE_POLICY" help:"The failurePolicy of the Usage deletion protection webhook. Set to Ignore for compatibility with managed Kubernetes operations that reject Fail-policy webhooks with wildcard rules."`
 
 	WebhookServiceName      string `env:"WEBHOOK_SERVICE_NAME"      help:"The name of the Service object that the webhook service will be run."`
 	WebhookServiceNamespace string `env:"WEBHOOK_SERVICE_NAMESPACE" help:"The namespace of the Service object that the webhook service will be run."`
