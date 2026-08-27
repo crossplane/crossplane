@@ -2298,3 +2298,74 @@ func TestPipelineFatalErrorAs(t *testing.T) {
 		t.Errorf("errors.As recovered PipelineFatalError: -want, +got:\n%s", diff)
 	}
 }
+
+func TestComposePreservesManagedFields(t *testing.T) {
+	// Arrange
+	xr := &composite.Unstructured{
+		Unstructured: unstructured.Unstructured{
+			Object: map[string]any{
+				"metadata": map[string]any{
+					"name": "my-xr",
+					"managedFields": []any{
+						map[string]any{
+							"manager": "test-manager",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	req := CompositionRequest{
+		Revision: &v1.CompositionRevision{},
+	}
+
+	mockRunner := FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+		// Mock response typically returned by xfn logic, omitting managedFields
+		return &fnv1.RunFunctionResponse{
+			Desired: &fnv1.State{
+				Composite: &fnv1.Resource{
+					Resource: structpb.NewStructValue(&structpb.Struct{
+						Fields: map[string]*structpb.Value{
+							"metadata": structpb.NewStructValue(&structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"name": structpb.NewStringValue("my-xr"),
+								},
+							}),
+						},
+					}).GetStructValue(),
+				},
+			},
+		}, nil
+	})
+
+	c := NewFunctionComposer(
+		&test.MockClient{
+			MockGet:         test.NewMockGetFn(nil),
+			MockPatch:       test.NewMockPatchFn(nil),
+			MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+		},
+		&test.MockClient{
+			MockPatch:       test.NewMockPatchFn(nil),
+			MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+			MockGet:         test.NewMockGetFn(nil),
+		},
+		mockRunner,
+	)
+
+	// Act
+	_, err := c.Compose(context.Background(), xr, req)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Compose() returned unexpected error: %v", err)
+	}
+
+	managedFields := xr.GetManagedFields()
+	if len(managedFields) == 0 {
+		t.Fatalf("Compose() dropped managedFields. Expected 1, got 0")
+	}
+	if len(managedFields) > 0 && managedFields[0].Manager != "test-manager" {
+		t.Errorf("Compose() modified managedFields. Expected 'test-manager', got '%s'", managedFields[0].Manager)
+	}
+}

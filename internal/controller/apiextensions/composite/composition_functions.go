@@ -731,9 +731,11 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	u := xr.GetUID()
 	cs := xr.GetConditions()
 
+	mf := xr.GetManagedFields()
 	if err := xfn.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
 	}
+	xr.SetManagedFields(mf)
 
 	xr.SetAPIVersion(v)
 	xr.SetKind(k)
