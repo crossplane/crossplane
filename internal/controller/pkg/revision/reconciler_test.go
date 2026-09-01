@@ -658,6 +658,56 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
+		"SuccessfulActiveRevisionMetadataUnchanged": {
+			reason: "An active revision should not be updated when its package labels and annotations are unchanged.",
+			args: args{
+				mgr: &fake.Manager{},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ProviderRevision)
+								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
+								pr.SetAnnotations(map[string]string{"author": "crossplane"})
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ProviderRevision{}
+								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
+								want.SetConditions(v1.RevisionHealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+								t.Error("Update() called for unchanged labels and annotations")
+								return nil
+							},
+							MockDelete: test.NewMockDeleteFn(nil),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithEstablisher(NewMockEstablisher()),
+					WithClient(&xpkgfake.MockClient{
+						MockGet: xpkgfake.NewMockGetFn(mockPackage(), nil),
+					}),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
 		"SuccessfulActiveRevisionIgnoreConstraints": {
 			reason: "An active revision with incompatible Crossplane version should install successfully when constraints ignored.",
 			args: args{
