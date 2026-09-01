@@ -9,8 +9,11 @@ organizations, just like the project [governance](GOVERNANCE.md).
 ## AI usage is assumed
 
 The Crossplane team makes use of AI coding tools every day and we expect that almost all
-contributors will be doing the same. Therefore, we do not mandate any disclosure for the usage of AI
+contributors will be doing the same. Therefore, we do not require any disclosure for the usage of AI
 in any contributions.
+
+We discourage including attribution for your agent in your commits, e.g., a `Co-authored-by`
+trailer, as it pollutes contributor statistics.
 
 It is more important that we have high quality contributions and engagement with contributors, so
 this policy focuses on achieving that goal.
@@ -22,9 +25,9 @@ to produce it.
 
 - **Understand every line you are changing:** If you cannot explain the purpose and impact of every
   change without the assistance of an agent, it's not ready for submission.
-- **Think critically:** Review and test your entire change deeply, both when opening a new PR and
-  updating an existing one in response to feedback. The maintainer team should not be the first
-  human to start critiquing or verifying your changes.
+- **Think and verify critically:** Review and test your entire change deeply, both when opening a
+  new PR and updating an existing one in response to feedback. The maintainer team should not be the
+  first human to start critiquing or verifying your changes.
 - **Use the templates:** PRs and issues have templates, so use them and provide the information they
   are requesting. An incoming PR that doesn't even contain the template's checklist is a clear sign
   your agent opened the PR for you and you didn't take much care during the PR creation process.
@@ -43,16 +46,22 @@ We want to engage with human contributors, we do not want to feel like we are ju
 agent. We have our own agents that we can talk to and we can do that much faster than going through
 you. We'd much rather connect directly and intellectually with the human behind the submission.
 
-So please share your own reasoning behind your changes, e.g. why you framed the problem this way,
+So please share your own reasoning behind your changes, e.g., why you framed the problem this way,
 what you tried, what you are unsure about, or details about your use case that necessitates this
 change.
 
 ### Use the right level of detail
 
-Your comments should not make it **harder** to understand you. AI tools love to generate enormous
+Your writing should not make it **harder** to understand you. AI tools love to generate enormous
 walls of text that prematurely go into an exorbitant level of detail, which is challenging for the
 maintainer team to read and fully understand. These details often obscure the core problem and make
 it more challenging to align on the right path forward together.
+
+Code comments should help a future reader understand the reasoning behind implementation choices
+that may be subtle or difficult to see just from reading the code itself. Agents tend to write for
+the reviewer instead, narrating the alternatives they rejected or explaining why their change is
+correct. That context may be helpful while we review but becomes clutter once the change is merged,
+so it belongs in your pull request description instead of the codebase.
 
 ### Write naturally
 
