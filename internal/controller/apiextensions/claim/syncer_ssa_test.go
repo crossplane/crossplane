@@ -41,6 +41,7 @@ import (
 func TestServerSideSync(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
+	creating := xpv2.Creating()
 
 	type params struct {
 		c  client.Client
@@ -282,7 +283,7 @@ func TestServerSideSync(t *testing.T) {
 
 					// Patch the XR. Make sure it has a valid status.
 					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
-						obj.(*composite.Unstructured).SetConditions(xpv2.Creating())
+						obj.(*composite.Unstructured).SetConditions(creating)
 						return nil
 					}),
 
@@ -326,7 +327,7 @@ func TestServerSideSync(t *testing.T) {
 						Namespace: "default",
 						Name:      "cool-claim",
 					})
-					xr.SetConditions(xpv2.Creating())
+					xr.SetConditions(creating)
 				}),
 				err: errors.Wrap(errBoom, errUpdateClaimStatus),
 			},
