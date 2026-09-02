@@ -1054,6 +1054,207 @@ func TestReconcile(t *testing.T) {
 	}
 }
 
+// TestReconcileOnNameCollision covers what happens when a dependency's
+// derived name collides with an existing package object on Create. The
+// derived name is a lossy hash of the repository path alone (e.g.
+// xpkg.ToDNSLabel drops underscores and truncates at 63 characters), so two
+// distinct repository paths can land on the same name - not just the same
+// path relocated to a different registry.
+//
+// The reconciler must:
+//   - repoint the existing object when it's the same repository path but a
+//     stale source (e.g. relocated to a new registry host);
+//   - leave it untouched when it already matches;
+//   - refuse to touch it, and fail resolution, when the existing object
+//     belongs to a genuinely different repository path - repointing that
+//     would silently corrupt an unrelated, working dependency.
+//
+// This isn't folded into the table above because that table only asserts
+// reconcile.Result and error, and for the repoint/no-op cases those are
+// identical whether or not the existing object gets touched; the only
+// observable difference is whether Update was called, and with what value.
+func TestReconcileOnNameCollision(t *testing.T) {
+	const (
+		dependencyPackage = "hasheddan/provider-nop-c"
+		desiredSource     = dependencyPackage + "@" + digest1
+		staleSource       = "old-registry.example.com/hasheddan/provider-nop-c@" + digest1
+
+		// hasheddan/config_nop_c and hasheddan/confignopc both derive to the
+		// DNS label "hasheddan-confignopc" via xpkg.ToDNSLabel, which drops
+		// underscores rather than treating them as separators. They are
+		// different repository paths, so an object already installed for
+		// one must never be repointed to satisfy the other.
+		collidingDependencyPackage = "hasheddan/config_nop_c"
+		unrelatedExistingSource    = "hasheddan/confignopc@" + digest2
+
+		// A multi-segment repository path's RepositoryStr is registry-agnostic,
+		// so an existing object recorded without a registry must still be
+		// recognized as the same repository as a dependency declared with one
+		// (this is the realistic shape of the original registry-migration bug).
+		multiSegmentDependencyPackage = "xpkg.crossplane.io/hasheddan/provider-nop-c"
+		multiSegmentExistingSource    = "hasheddan/provider-nop-c@" + digest2
+
+		// A single-segment repository path is where name.Reference's
+		// implicit Docker Hub namespacing kicks in: an existing object with
+		// no registry resolves to "library/confignopc", while the same
+		// repository declared with an explicit non-default registry resolves
+		// to "confignopc" - no "library/" prefix. Without normalizing that
+		// away, this legitimate same-repository case would be misclassified
+		// as an unrelated collision.
+		singleSegmentDependencyPackage = "xpkg.crossplane.io/confignopc"
+		singleSegmentExistingSource    = "confignopc@" + digest2
+	)
+
+	// The exact error the reconciler must return for the collision case,
+	// constructed the same way production code does, so the test verifies
+	// this specific failure occurred rather than merely that some error did.
+	collidingRef, parseErr := pkgName.ParseReference(collidingDependencyPackage)
+	if parseErr != nil {
+		t.Fatalf("test setup: could not parse %q: %v", collidingDependencyPackage, parseErr)
+	}
+
+	wantCollisionErr := errors.Errorf(errFmtNameCollision,
+		xpkg.ToDNSLabel(collidingRef.Context().RepositoryStr()),
+		collidingRef.Context().RepositoryStr(),
+		unrelatedExistingSource,
+	)
+
+	cases := map[string]struct {
+		reason            string
+		dependencyPackage string
+		existingSource    string
+		wantUpdated       bool
+		wantErr           error
+	}{
+		"RepointsStaleSource": {
+			reason:            "An existing object at a different source than required must be repointed, not treated as satisfying the dependency.",
+			dependencyPackage: dependencyPackage,
+			existingSource:    staleSource,
+			wantUpdated:       true,
+		},
+		"NoopOnExactMatch": {
+			reason:            "An existing object that already matches the desired source is a true no-op and must not be updated.",
+			dependencyPackage: dependencyPackage,
+			existingSource:    desiredSource,
+			wantUpdated:       false,
+		},
+		"FailsOnUnrelatedCollision": {
+			reason:            "An existing object belonging to a different repository path is an unrelated package that happens to collide on the derived name; it must not be repointed, and resolution must fail rather than silently succeed.",
+			dependencyPackage: collidingDependencyPackage,
+			existingSource:    unrelatedExistingSource,
+			wantUpdated:       false,
+			wantErr:           wantCollisionErr,
+		},
+		"RepointsAcrossImplicitRegistryMultiSegment": {
+			reason:            "A multi-segment repository path is the same repository whether or not a registry is present in the recorded source, and must still be repointed.",
+			dependencyPackage: multiSegmentDependencyPackage,
+			existingSource:    multiSegmentExistingSource,
+			wantUpdated:       true,
+		},
+		"RepointsAcrossImplicitRegistrySingleSegment": {
+			reason:            "A single-segment repository path must not be misclassified as an unrelated collision just because name.Reference's implicit Docker Hub namespacing renders it as 'library/x' on one side and 'x' on the other.",
+			dependencyPackage: singleSegmentDependencyPackage,
+			existingSource:    singleSegmentExistingSource,
+			wantUpdated:       true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var updated *unstructured.Unstructured
+
+			c := &test.MockClient{
+				MockGet: func(_ context.Context, _ client.ObjectKey, o client.Object) error {
+					switch v := o.(type) {
+					case *v1beta1.Lock:
+						v.Packages = append(v.Packages, v1beta1.LockPackage{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+							Version: "v0.0.1",
+						})
+						return nil
+					case *unstructured.Unstructured:
+						_ = fieldpath.Pave(v.Object).SetString("spec.package", tc.existingSource)
+						return nil
+					default:
+						return errors.Errorf("unexpected object type %T passed to Get", o)
+					}
+				},
+				MockCreate: test.NewMockCreateFn(kerrors.NewAlreadyExists(schema.GroupResource{}, "")),
+				MockUpdate: func(_ context.Context, o client.Object, _ ...client.UpdateOption) error {
+					// The finalizer add/remove path also updates the Lock
+					// itself; only the dependency object's repoint matters
+					// here.
+					if u, ok := o.(*unstructured.Unstructured); ok {
+						updated = u
+					}
+					return nil
+				},
+				MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+			}
+
+			r := NewReconciler(&fake.Manager{Client: c},
+				WithLogger(testLog),
+				WithNewDagFn(func() dag.DAG {
+					return &fakedag.MockDag{
+						MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+							return []dag.Node{
+								&dag.DependencyNode{
+									Dependency: v1beta1.Dependency{
+										Package:     tc.dependencyPackage,
+										Constraints: digest1,
+										Type:        ptr.To(v1beta1.ProviderPackageType),
+									},
+								},
+							}, nil
+						},
+						MockSort: func() ([]string, error) {
+							return nil, nil
+						},
+					}
+				}),
+			)
+
+			got, err := r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}})
+			if diff := cmp.Diff(tc.wantErr, err, test.EquateErrors()); diff != "" {
+				// Not fatal: keep checking below whether the unrelated object
+				// was also wrongly updated, which is the more serious half of
+				// this failure mode.
+				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			if tc.wantErr == nil {
+				if diff := cmp.Diff(reconcile.Result{}, got); diff != "" {
+					t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+				}
+			}
+
+			if tc.wantUpdated && updated == nil {
+				t.Fatalf("\n%s\nr.Reconcile(...): the dependency object was never updated; AlreadyExists was silently treated as success", tc.reason)
+			}
+
+			if !tc.wantUpdated && updated != nil {
+				t.Fatalf("\n%s\nr.Reconcile(...): the dependency object was updated even though it should not have been (either already matched, or belongs to an unrelated package)", tc.reason)
+			}
+
+			if updated == nil {
+				return
+			}
+
+			gotSource, err := fieldpath.Pave(updated.Object).GetString("spec.package")
+			if err != nil {
+				t.Fatalf("could not read spec.package from updated object: %v", err)
+			}
+
+			wantSource := tc.dependencyPackage + "@" + digest1
+			if gotSource != wantSource {
+				t.Errorf("\n%s\nupdated object has wrong spec.package: got %q, want %q", tc.reason, gotSource, wantSource)
+			}
+		})
+	}
+}
+
 func TestFindDigestToUpdate(t *testing.T) {
 	type args struct {
 		node dag.Node

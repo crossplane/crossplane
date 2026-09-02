@@ -30,6 +30,7 @@ import (
 	conregv1 "github.com/google/go-containerregistry/pkg/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -82,6 +83,8 @@ const (
 	errFmtDiffConstraintTypes = "a dependency package has different types of parent constraints (%v)"
 	errFmtDiffDigests         = "a dependency package has different digests in parent constraints (%v)"
 	errCannotUpdateStatus     = "cannot update status"
+	errNameCollision          = "existing package name collides with a different dependency"
+	errFmtNameCollision       = "cannot resolve dependency: object %q already exists for repository %q but currently points at unrelated package %q; this is a package naming collision and requires manual intervention"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -398,13 +401,72 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		// NOTE(hasheddan): consider making the lock the controller of packages
 		// it creates.
-		if err := r.kube.Create(ctx, pack); err != nil && !kerrors.IsAlreadyExists(err) {
-			log.Debug(errCreateDependency, "error", err)
-			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errCreateDependency)))
+		if err := r.kube.Create(ctx, pack); err != nil {
+			if !kerrors.IsAlreadyExists(err) {
+				log.Debug(errCreateDependency, "error", err)
+				status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errCreateDependency)))
 
-			_ = r.kube.Status().Update(ctx, lock)
+				_ = r.kube.Status().Update(ctx, lock)
 
-			return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
+				return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
+			}
+
+			// An object with this derived name already exists. Its name is
+			// derived only from the OCI repository path, so this is the
+			// expected outcome when a version bump for the same dependency
+			// races the requeue that follows it. But if the existing
+			// object's spec.package no longer matches what we just tried to
+			// create - e.g. because the image was relocated to a new
+			// registry host, or now resolves to a different digest - the
+			// collision is masking a stale, unresolved dependency rather
+			// than reflecting what's actually installed. Repoint the
+			// existing object at the desired reference instead of treating
+			// the AlreadyExists as satisfying the dependency.
+			existing := pack.DeepCopy()
+			if err := r.kube.Get(ctx, types.NamespacedName{Name: pack.GetName()}, existing); err != nil {
+				log.Debug(errGetDependency, "error", err)
+				status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errGetDependency)))
+
+				_ = r.kube.Status().Update(ctx, lock)
+
+				return reconcile.Result{}, errors.Wrap(err, errGetDependency)
+			}
+
+			desired, _ := fieldpath.Pave(pack.Object).GetString("spec.package")
+			current, _ := fieldpath.Pave(existing.Object).GetString("spec.package")
+
+			// The derived name is a lossy hash of the repository path (e.g.
+			// underscores are dropped, long paths are truncated), so an
+			// unrelated dependency's repository can collide with this one's
+			// on the same name. Only treat the existing object as this
+			// dependency's own stale record - and safe to repoint - if it
+			// currently resolves to the same repository path we're
+			// resolving. Otherwise this is a genuine naming collision
+			// between two different packages, and repointing it would
+			// silently corrupt an unrelated, working dependency.
+			currentRef, refErr := name.ParseReference(current, name.WeakValidation)
+			if refErr != nil || !sameRepository(currentRef, ref) {
+				err := errors.Errorf(errFmtNameCollision, pack.GetName(), ref.Context().RepositoryStr(), current)
+				log.Info(errNameCollision, "error", err)
+				status.MarkConditions(v1beta1.ResolutionFailed(err))
+
+				_ = r.kube.Status().Update(ctx, lock)
+
+				return reconcile.Result{}, err
+			}
+
+			if current != desired {
+				_ = fieldpath.Pave(existing.Object).SetString("spec.package", desired)
+
+				if err := r.kube.Update(ctx, existing); err != nil {
+					log.Debug(errUpdateDependency, "error", err)
+					status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errUpdateDependency)))
+
+					_ = r.kube.Status().Update(ctx, lock)
+
+					return reconcile.Result{}, errors.Wrap(err, errUpdateDependency)
+				}
+			}
 		}
 
 		status.MarkConditions(v1beta1.ResolutionSucceeded())
@@ -698,6 +760,22 @@ func matchesAnyConstraint(version string, constraints []string) bool {
 	}
 
 	return false
+}
+
+// sameRepository reports whether a and b refer to the same OCI repository
+// path, ignoring registry host. A repository reference with no registry and
+// no namespace segment (e.g. "confignopc") is implicitly qualified as
+// "library/confignopc" by name.Repository.RepositoryStr, even though a
+// fully-qualified reference to the same repository on a non-default registry
+// (e.g. "xpkg.crossplane.io/confignopc") is not; the "library/" prefix is
+// trimmed from both sides before comparing so this defaulting quirk doesn't
+// cause a legitimate same-repository match to be misread as a collision.
+func sameRepository(a, b name.Reference) bool {
+	trim := func(r name.Reference) string {
+		return strings.TrimPrefix(r.Context().RepositoryStr(), "library/")
+	}
+
+	return trim(a) == trim(b)
 }
 
 // NewPackage creates a new package from the given dependency and version.
