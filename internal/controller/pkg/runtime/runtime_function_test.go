@@ -28,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -69,7 +68,7 @@ func TestFunctionPreHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSServerSecretName: ptr.To("some-server-secret"),
+							TLSServerSecretName: new("some-server-secret"),
 						},
 					},
 				},
@@ -105,13 +104,13 @@ func TestFunctionPreHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSServerSecretName: ptr.To("some-server-secret"),
+							TLSServerSecretName: new("some-server-secret"),
 						},
 					},
 					Status: v1.FunctionRevisionStatus{
 						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "some-service", "some-namespace", revision.ServicePort),
 						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
-							TLSServerSecretName: ptr.To("some-server-secret"),
+							TLSServerSecretName: new("some-server-secret"),
 						},
 					},
 				},
@@ -171,7 +170,7 @@ func TestFunctionPreHook(t *testing.T) {
 					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSServerSecretName: ptr.To("server-tls"),
+							TLSServerSecretName: new("server-tls"),
 						},
 					},
 				},
@@ -214,13 +213,13 @@ func TestFunctionPreHook(t *testing.T) {
 					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSServerSecretName: ptr.To("server-tls"),
+							TLSServerSecretName: new("server-tls"),
 						},
 					},
 					Status: v1.FunctionRevisionStatus{
 						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "shared-service", "some-namespace", revision.ServicePort),
 						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
-							TLSServerSecretName: ptr.To("server-tls"),
+							TLSServerSecretName: new("server-tls"),
 						},
 					},
 				},
@@ -774,7 +773,7 @@ func TestFunctionDeactivateHook(t *testing.T) {
 				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: ptr.To(true)}})
+						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
 						return nil
 					}),
 					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
@@ -830,7 +829,7 @@ func TestFunctionDeactivateHook(t *testing.T) {
 				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: ptr.To(true)}})
+						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
 						return nil
 					}),
 					MockDelete: func(_ context.Context, _ client.Object, _ ...client.DeleteOption) error {
@@ -889,7 +888,7 @@ func TestFunctionDeactivateHook(t *testing.T) {
 				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						obj.SetOwnerReferences([]metav1.OwnerReference{{UID: "active-uid", Controller: ptr.To(true)}})
+						obj.SetOwnerReferences([]metav1.OwnerReference{{UID: "active-uid", Controller: new(true)}})
 						return nil
 					}),
 					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {

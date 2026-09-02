@@ -90,7 +90,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						op := &v1alpha1.Operation{
 							ObjectMeta: metav1.ObjectMeta{
-								DeletionTimestamp: ptr.To(metav1.Now()),
+								DeletionTimestamp: new(metav1.Now()),
 							},
 						}
 						op.DeepCopyInto(obj.(*v1alpha1.Operation))
@@ -413,7 +413,7 @@ func TestReconcile(t *testing.T) {
 													RequirementName: "test-resources",
 													APIVersion:      "v1",
 													Kind:            "ConfigMap",
-													Name:            ptr.To("missing-configmap"),
+													Name:            new("missing-configmap"),
 												},
 											},
 										},
@@ -686,14 +686,14 @@ func TestAddResourceRef(t *testing.T) {
 		APIVersion: "example.org/v1",
 		Kind:       "NamespacedResource",
 		Name:       "namespaced-resource",
-		Namespace:  ptr.To("default"),
+		Namespace:  new("default"),
 	}
 
 	anotherNamespacedRef := v1alpha1.AppliedResourceRef{
 		APIVersion: "example.org/v1",
 		Kind:       "NamespacedResource",
 		Name:       "another-resource",
-		Namespace:  ptr.To("other"),
+		Namespace:  new("other"),
 	}
 
 	cases := map[string]struct {
