@@ -99,11 +99,12 @@ func (c *Command) Run() error {
 type startCommand struct {
 	Profile string `help:"Serve runtime profiling data via HTTP at /debug/pprof." placeholder:"host:port"`
 
-	Namespace      string `default:"crossplane-system"     env:"POD_NAMESPACE"                                                      help:"Namespace used to unpack and run packages."                      short:"n"`
-	ServiceAccount string `default:"crossplane"            env:"POD_SERVICE_ACCOUNT"                                                help:"Name of the Crossplane Service Account."`
-	LeaderElection bool   `default:"false"                 env:"LEADER_ELECTION"                                                    help:"Use leader election for the controller manager."                 short:"l"`
-	CABundlePath   string `env:"CA_BUNDLE_PATH"            help:"Additional CA bundle to use when fetching packages from registry."`
-	UserAgent      string `default:"${default_user_agent}" env:"USER_AGENT"                                                         help:"The User-Agent header that will be set on all package requests."`
+	Namespace            string `default:"crossplane-system"     env:"POD_NAMESPACE"                                                                         help:"Namespace used to unpack and run packages."                      short:"n"`
+	ServiceAccount       string `default:"crossplane"            env:"POD_SERVICE_ACCOUNT"                                                                   help:"Name of the Crossplane Service Account."`
+	LeaderElection       bool   `default:"false"                 env:"LEADER_ELECTION"                                                                       help:"Use leader election for the controller manager."                 short:"l"`
+	CABundlePath         string `env:"CA_BUNDLE_PATH"            help:"Additional CA bundle to use when fetching packages from registry."`
+	FunctionCABundlePath string `env:"FUNCTION_CA_BUNDLE_PATH"   help:"Additional CA bundle to use when verifying TLS connections to composition functions."`
+	UserAgent            string `default:"${default_user_agent}" env:"USER_AGENT"                                                                            help:"The User-Agent header that will be set on all package requests."`
 
 	XpkgCacheDir string `aliases:"cache-dir" default:"/cache/xpkg" env:"XPKG_CACHE_DIR,CACHE_DIR" help:"Directory used for caching package images." short:"c"`
 
@@ -281,6 +282,16 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		false)
 	if err != nil {
 		return errors.Wrap(err, "cannot load client TLS certificates")
+	}
+
+	if c.FunctionCABundlePath != "" {
+		functionCACert, err := os.ReadFile(c.FunctionCABundlePath)
+		if err != nil {
+			return errors.Wrapf(err, "cannot read function CA bundle from %q: verify the file exists and contains PEM-encoded CA certificates", c.FunctionCABundlePath)
+		}
+		if !clienttls.RootCAs.AppendCertsFromPEM(functionCACert) {
+			return errors.Errorf("cannot parse function CA bundle from %q: verify the file contains PEM-encoded CA certificates", c.FunctionCABundlePath)
+		}
 	}
 
 	pfrm := xfn.NewPrometheusMetrics()
