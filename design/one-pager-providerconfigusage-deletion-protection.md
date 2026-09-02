@@ -108,44 +108,44 @@ instances, which is the long-term direction.
 
 ### Near-term: add a `ProviderConfigUsage` finalizer (Option A)
 
-Add a finalizer to the PCU when it is created and remove it only after the MR has
-completed the deletion behavior selected by its policy and its own finalizer has
-been durably removed. This makes the PCU outlive the part of MR termination that
-still needs the PC, so the count cannot reach zero early. Of the options that cover
-both **v1 and v2**, it is the least invasive way to satisfy the invariant — it
-changes how the existing marker behaves rather than introducing a new API or a new
-controller — and it preserves the automatic UX users rely on. Concretely:
+Add a finalizer to the PCU once its MR has connected, and remove it only after
+the MR has completed the deletion behavior selected by its policy and its own
+finalizer has been durably removed. This makes the PCU outlive the part of MR
+termination that still needs the PC, so the count cannot reach zero early. Of the
+options that cover both **v1 and v2**, it is the least invasive way to satisfy
+the invariant — it changes how the existing marker behaves rather than
+introducing a new API or a new controller — and it preserves the automatic UX
+users rely on. Concretely ([crossplane-runtime#1113]):
 
-* Behind an explicit provider opt-in, add the finalizer to the PCU when the
-  provider creates it on connect. Only update an existing PCU when the finalizer
-  is actually missing; `Connect()` runs on every reconcile, so unconditional
-  updates would create unacceptable API write amplification.
-* Give crossplane-runtime's **managed reconciler** ownership of the PCU
-  lifecycle: remove the PCU finalizer only after Delete cleanup has completed,
-  or after the reconciler has intentionally selected Orphan/no-Delete behavior,
-  and only **after** the MR's own finalizer has been removed — the PCU finalizer
-  is released **last** (see [Teardown ordering](#teardown-ordering)).
-* Add a **reaper to the `ProviderConfig` reconciler** as a backstop for
-  **background** deletion: if a PCU is stuck on its finalizer but its owning MR no
-  longer exists, release it there. Once the MR is gone its own reconcile can no
-  longer release the finalizer, so without the reaper a failed teardown could
-  strand the PCU — and the PC — permanently (see
+* The **managed reconciler** owns both ends of the finalizer. Right after the
+  MR connects it *protects* the PCU the provider's tracker has just recorded,
+  adding the finalizer if it is missing and writing nothing otherwise — the
+  connect path runs on every reconcile, so an unconditional update would be
+  unacceptable API write amplification. The tracker itself never touches the
+  finalizer, and preserves whatever finalizers the PCU already carries when it
+  updates the PC reference.
+* The reconciler *releases* the PCU after the MR has completed the deletion
+  behavior selected by its policy — Delete cleanup observed complete, or
+  Orphan/no-Delete selected — and only **after** the MR's own finalizer has been
+  removed. The PCU finalizer is released **last**, on both paths (see
   [Teardown ordering](#teardown-ordering)).
-* On **v2 only**, pair all of the above with a change to the delayed-delete gate
-  from [crossplane-runtime#855]; without it foreground deletion deadlocks (see
-  [the gate](#foreground-deletion-and-the-delayed-delete-gate-v2-only)).
+* A **reaper in the `ProviderConfig` reconciler** backstops the MR-side release.
+  When a PCU is terminating and still finalized but its owning MR is gone, has
+  been replaced, or has itself finished tearing down (deleting, with no
+  finalizers other than the garbage collector's), the reaper releases the
+  finalizer, since nothing else will (see
+  [Teardown ordering](#teardown-ordering)).
 
-The wrinkle is that there is no matching teardown step today. The PCU is created
-in the provider's connection path, but the finalizer has to be removed in the
-managed **reconciler** after `Delete()`, which currently neither holds the
-tracker nor can derive the PCU GVK from the MR (in **upjet family providers** the
-PC group is a subset of the MR group). The fix is to extend the
-`ProviderConfigUsageTracker` so the managed reconciler owns the full PCU
-lifecycle. Providers already hand crossplane-runtime their PCU type when they
-build a tracker, so the per-provider change is small; the real cost is that every
-provider binary must still wire the tracker into the managed reconciler. Making
-that wiring the thing that enables the finalizer keeps adoption safe per binary,
-without requiring all providers in the ecosystem to upgrade in lockstep (see
+The PCU is created in the provider's connection path, but the finalizer has to
+be added and removed by the managed **reconciler**, which until now neither held
+the tracker nor could derive the PCU GVK from the MR (in **upjet family
+providers** the PC group is a subset of the MR group). So the tracker gains a
+protect and a release operation, and the managed reconciler gains an option
+through which the provider hands it the tracker. Providers already give
+crossplane-runtime their PCU type when they build a tracker, so the
+per-provider change is one option per managed reconciler. Making that option
+the thing that enables the finalizer keeps adoption safe per binary, without
+requiring all providers in the ecosystem to upgrade in lockstep (see
 [Rollout and adoption](#rollout-and-adoption)).
 
 ### Rollout and adoption
@@ -156,24 +156,19 @@ produces PCUs nothing will release, and ProviderConfigs that can never be delete
 Upgrading crossplane-runtime must not, on its own, start creating finalized PCUs.
 
 A feature flag alone does not deliver that — it still lets a provider enable the
-feature without wiring removal — so the rule is enforced by the shape of the API:
-finalizer creation is off unless a tracker is explicitly constructed with it, and
-the reconciler option that wires removal is what permits creation at all. A
-provider-side alpha flag then decides only whether the provider opts in, keeping
-rollout local to a provider release.
-
-The coupling is per tracker, not per controller. A provider that shares one
-tracker across many controllers but wires only some can still create finalized
-PCUs in the ones it missed — the **upjet family** shape, one binary serving many
-groups, so a real risk rather than a theoretical one. That makes this a strong
-safeguard rather than a proof, and is why the feature stays alpha and opt-in per
-binary.
+feature without wiring removal — so the rule is enforced by the shape of the API
+rather than by a flag. The finalizer is written only by the managed reconciler's
+protect step and removed only by its release step, both through the tracker the
+provider supplies with the option. A reconciler built without the option never
+adds the finalizer, never removes one, and behaves exactly as today. A tracker
+on its own cannot create a finalized PCU; adding the finalizer when the tracker
+records the usage would turn creation on for every provider that merely
+upgraded crossplane-runtime, with nothing wired to remove it.
 
 Nothing requires determining that every provider in the ecosystem has adopted the
 model first, and there is no reliable way to measure it. Providers that do not opt
 in keep today's behavior and stay exposed to the race, but do not hold back those
-that have. The feature can default on once framework wiring makes the
-per-controller gap unreachable.
+that have.
 
 ### Teardown ordering
 
@@ -195,26 +190,32 @@ finalizer off the same MR. Removing the MR finalizer first keeps the PC protecte
 until the MR is durably finalized, so `Connect` keeps working while the PC is
 still needed.
 
-Ordering alone still leaves one gap: under **background** deletion the MR is
+Ordering alone still leaves a gap. Under **background** deletion the MR is
 garbage-collected the instant its own finalizer is gone, so if the PCU-finalizer
 removal then fails (e.g. a transient API error) nothing re-queues that MR to
-retry — its reconcile no longer exists. The reaper in the **`ProviderConfig`
-reconciler** closes it. That reconciler already watches PCUs, so when it sees a
-PCU that is being deleted, still holds its finalizer, and whose owning MR no
-longer exists (checked against the API server rather than the cache, and by UID
-so a re-created MR of the same name does not count), it releases the finalizer
-itself.
+retry — its reconcile no longer exists. Under **foreground** deletion the MR
+object lingers on `foregroundDeletion` until the PCU is gone, but its reconcile
+has finished its work and will not run again on the usage's behalf. The reaper in
+the **`ProviderConfig` reconciler** closes both. That reconciler already watches
+PCUs, so when it sees a PCU that is being deleted and still holds its finalizer,
+it looks up the owning MR — against the API server rather than the cache, and by
+UID, so a re-created MR of the same name does not count — and releases the
+finalizer if the owner is gone, was replaced, or is itself being deleted with no
+finalizers other than the garbage collector's own. While the owner still exists
+and still holds its own finalizer, the reaper requeues and leaves the MR
+reconciler responsible for retrying; it never overrides protection an MR still
+needs.
 
 The reaper does **not** need to confirm that external cleanup completed: the MR's
-own finalizer comes off only after teardown has run, so "owning MR is gone" is
-already proof of it. It also never overrides a finalizer while the owning MR still
-exists — there the MR reconciler stays responsible for retrying.
+own finalizer comes off only after teardown has run, so "the owning MR is gone or
+has released its finalizer" is already proof of it.
 
-Its scope is deliberately narrow: it is a **background-deletion backstop only**,
-and the design must not lean on it further. Under foreground deletion the owning
-MR cannot disappear while its PCU is still held, so the reaper's trigger is
-unreachable and the MR-side release is the only thing that can free the PCU (see
-[Foreground deletion and the delayed-delete gate][gate-section]).
+The reaper is a backstop, not the primary path; the MR-side release normally
+runs first and the reaper finds nothing to do. Strictly, the ordering argument
+applies only while the MR still needs the PC during teardown: under Orphan or
+no-Delete it no longer does, and the PCU could be released first. The
+implementation keeps the same order on both paths so that one rule holds
+everywhere and the reaper backstops both.
 
 ### Foreground deletion and the delayed-delete gate (v2 only)
 
@@ -231,23 +232,30 @@ the PCU carries no finalizer: the GC collects it promptly and the extra finalize
 is stripped again. Give the PCU a finalizer and the wait becomes circular. The PCU
 is released only after external `Delete()`, which the gate holds back until the GC
 strips `foregroundDeletion`, which the GC will not do until the PCU is gone.
-Nothing can move first, and the reaper cannot help because the owning MR never
-disappears. Only the Orphan/no-Delete path escapes, since it releases the PCU
-before the gate is reached.
+Nothing can move first, and the reaper cannot help because the MR never releases
+its own finalizer — it is stuck before external deletion, not after it. Only the
+Orphan/no-Delete path escapes, since it never reaches the gate.
 
 The fix is for the gate to disregard Kubernetes' own garbage-collection
 finalizers and count only those belonging to other controllers. That matches the
 gate's stated intent — `foregroundDeletion` is not another controller and makes no
 claim on the external system — and it is worth doing independently of this
 proposal, since today every foreground MR deletion waits on a garbage-collection
-round trip before external deletion for no benefit.
+round trip before external deletion for no benefit. The gate therefore counts
+only finalizers other than `foregroundDeletion` and `orphan`. Anyone who runs
+their own PCU-finalizer controller as a workaround for the namespace race hits
+the same deadlock on today's gate, so the change is needed with or without the
+finalizer proposed here.
 
 ### Force-orphan escape hatch
 
 Some situations can never satisfy the invariant: an external system that stays
-unreachable, credentials that are already gone, an MR that cannot be unpaused.
-Waiting indefinitely is not an acceptable outcome, so the design requires a
-deliberate way out.
+unreachable, or credentials that are already gone (see the v2 namespace-deletion
+risk under [Cost and risks](#cost-and-risks)). A paused MR is not one of them:
+pausing is an explicit instruction not to act, deletion included, and the
+conflict with a pending delete is resolved by whoever paused it unpausing it, not
+by the controller. Waiting indefinitely on the genuinely unrecoverable cases is
+not an acceptable outcome, so the design requires a deliberate way out.
 
 The escape hatch releases protection rather than repairing it. It abandons the
 outstanding PCU finalizers so the `ProviderConfig` and its MRs can finalize, and
@@ -279,35 +287,42 @@ The price of the near-term fix is rollout and edge cases, not the diff:
   [Rollout and adoption](#rollout-and-adoption)). Providers that have not adopted
   the feature stay exposed to the existing race but do not block those that have.
 * **Upgrading existing resources (migration).** MRs predating the fix have PCUs
-  with no finalizer. Those heal on the MR's next reconcile, since the connect path
-  treats a missing finalizer as an update. The gap is an MR already
-  **`Terminating`** when the feature is enabled: its PCU may already have a
-  `deletionTimestamp`, after which Kubernetes forbids adding a finalizer, so it
-  cannot be healed and its MR could delete unprotected. Providers should preflight
-  for terminating MRs and either wait or document them as excluded. Enabling the
-  feature must not be presented as protecting objects already terminating.
-* **Upjet family providers.** Per-controller PCU wiring is more than a one-liner
-  there, for the reasons given above — and that is where most MRs live.
+  with no finalizer. Those heal on the MR's next reconcile: the protect step runs
+  after every successful connect and adds the missing finalizer in place. The
+  gap for MRs already **`Terminating`** at upgrade is narrower than it first
+  appears. A PCU with no finalizer does not linger in `Terminating` — the
+  garbage collector removes it as soon as it is marked — so there is no object
+  to which Kubernetes could refuse a finalizer. Once it is gone, the MR's next
+  reconcile re-creates the PCU and the protect step finalizes it, restoring
+  protection. What remains is the pre-existing race between that
+  collection and the re-creation, which the upgrade neither widens nor closes.
+  Enabling the feature should still not be presented as protecting objects
+  already terminating at the moment of upgrade.
 * **New failure mode: stuck resources.** Failures before MR finalization, such as
   an unreachable external system under Delete policy, correctly keep the PCU and
-  PC protected. The sharpest case is a **paused** MR that is deleted: pause
-  short-circuits the reconcile before any teardown, so no finalizer is removed,
-  and because the MR still exists the [reaper](#teardown-ordering) stays out — the
-  PC, and in v2 the namespace, is blocked until it is unpaused. Correct under the
-  invariant, but a new way to wedge deletion, and why the
-  [force-orphan escape hatch](#force-orphan-escape-hatch) is a hard requirement
-  rather than edge-case handling.
+  PC protected until the operator resolves them. A **paused** MR that is deleted
+  looks like the sharpest case: pause short-circuits the reconcile before any
+  teardown, so no finalizer is removed, and because the MR still exists and still
+  holds its finalizer the [reaper](#teardown-ordering) stays out — the PC, and in
+  v2 the namespace, is blocked until it is unpaused. That is correct under the
+  invariant and, more to the point, it is what pause means: an explicit
+  instruction not to act, deletion included. The controller should not resolve
+  the conflicting intents; whoever paused the MR does, by unpausing it, after
+  which deletion proceeds normally.
 * **v2 namespace deletion.** This risk is v2-only: in v1 the ProviderConfig, its
   MRs and their PCUs are all cluster-scoped, so no namespace lifecycle applies. In
   v2 a namespaced PCU finalizer holds up namespace finalization until external
   deletes complete — arguably correct, but a behavior change. Worse, the namespace
   controller may delete the credentials `Secret` first, after which the provider
   cannot authenticate and MR, PCU, PC and namespace finalization can all block.
+  Note the distinction from the route this proposal does close: a finalized PCU
+  is not swept with the namespace, so the case where a PCU is deleted and cannot
+  be re-created in a terminating namespace no longer arises.
   Finalizing the Secret is out of scope: Secrets are shared, often owned by other
   controllers, and only one of several credential sources. Credential lifetime
-  needs its own dependency-protection design; until then this is an explicit
-  limitation, and another reason for the
-  [escape hatch](#force-orphan-escape-hatch).
+  needs its own dependency-protection design and should be tracked as a
+  follow-up issue; until then this is an explicit limitation, and the main
+  reason the [escape hatch](#force-orphan-escape-hatch) exists.
 * **Hardens a possibly-deprecated mechanism.** If PCU is retired in v2 in favor
   of the unified model, the v2 half of this work is throwaway (still justified
   for v1), and it entrenches an indirect proxy rather than advancing the unified
@@ -401,9 +416,11 @@ GC-lifecycle marker.
 * [crossplane#7362] — Provider deletion protection via `ClusterUsage` (merged)
 * [crossplane#7442] — XRD/Configuration deletion protection (in review)
 * [crossplane-runtime#855] — delay external delete while extra finalizers exist
+* [crossplane-runtime#1113] — implementation of the near-term fix (Option A)
 * [one-pager-generic-usage-type.md][usage-onepager]
 
 [crossplane-runtime]: https://github.com/crossplane/crossplane-runtime
+[crossplane-runtime#1113]: https://github.com/crossplane/crossplane-runtime/pull/1113
 [gate-section]: #foreground-deletion-and-the-delayed-delete-gate-v2-only
 [usage-onepager]: ./one-pager-generic-usage-type.md
 [crossplane/crossplane#4661]: https://github.com/crossplane/crossplane/issues/4661
