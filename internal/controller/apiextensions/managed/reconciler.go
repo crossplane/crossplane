@@ -22,6 +22,7 @@ import (
 	"time"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -156,6 +157,11 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		return reconcile.Result{}, errors.Wrap(err, "cannot form CustomResourceDefinition")
 	}
 
+	// The CRD's controller follows the MRD's, so an upgrade hands the CRD
+	// over between package revisions just as it hands the MRD over. See
+	// handOverControl for why the apply below can't do that on its own.
+	handOverControl(patch, crd)
+
 	// Server-side apply the CRD. This handles both create and update.
 	// The Patch call updates patch in-place with the server response.
 	//
@@ -197,6 +203,42 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	}
 
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+}
+
+// handOverControl prepares patch, the CRD we are about to apply, to take
+// control of crd, the live CRD, from the package revision that still controls
+// it, by declaring that revision's owner reference demoted to a plain owner.
+//
+// Server-side apply can't complete the hand-off on its own when the outgoing
+// revision's reference was written by another field manager, as an older
+// Crossplane's establisher did client-side: owner references are merged by
+// UID and only entries we own are pruned, so the old entry survives our apply,
+// and declaring a second controller beside it is rejected, since only one
+// owner reference may control an object. Declaring the old entry demoted sets
+// the new controller and demotes the old one in one write, and gives our field
+// manager the entry, so a later apply that no longer declares it prunes it.
+//
+// Only a package revision of the same group and kind as the MRD's controller
+// is taken over. The MRD decides which revision controls what is derived from
+// it, and the establisher only hands it over between revisions of the same
+// package, so the CRD follows it. Anything else keeps control, and the apply
+// fails loudly rather than take the CRD from it.
+func handOverControl(patch, crd metav1.Object) {
+	want := metav1.GetControllerOf(patch)
+	got := metav1.GetControllerOf(crd)
+
+	if want == nil || got == nil || got.UID == want.UID {
+		return
+	}
+
+	// Compare group and kind rather than the whole API version, since the API
+	// server may serve the revision's type at more than one.
+	if schema.FromAPIVersionAndKind(got.APIVersion, got.Kind).GroupKind() != schema.FromAPIVersionAndKind(want.APIVersion, want.Kind).GroupKind() {
+		return
+	}
+
+	got.Controller = new(false)
+	meta.AddOwnerReference(patch, *got)
 }
 
 // protectionEnabled returns true if provider deletion protection is enabled.
