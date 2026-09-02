@@ -30,6 +30,7 @@ import (
 	conregv1 "github.com/google/go-containerregistry/pkg/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -398,13 +399,52 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		// NOTE(hasheddan): consider making the lock the controller of packages
 		// it creates.
-		if err := r.kube.Create(ctx, pack); err != nil && !kerrors.IsAlreadyExists(err) {
-			log.Debug(errCreateDependency, "error", err)
-			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errCreateDependency)))
+		if err := r.kube.Create(ctx, pack); err != nil {
+			if !kerrors.IsAlreadyExists(err) {
+				log.Debug(errCreateDependency, "error", err)
+				status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errCreateDependency)))
 
-			_ = r.kube.Status().Update(ctx, lock)
+				_ = r.kube.Status().Update(ctx, lock)
 
-			return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
+				return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
+			}
+
+			// An object with this derived name already exists. Its name is
+			// derived only from the OCI repository path, so this is the
+			// expected outcome when a version bump for the same dependency
+			// races the requeue that follows it. But if the existing
+			// object's spec.package no longer matches what we just tried to
+			// create - e.g. because the image was relocated to a new
+			// registry host, or now resolves to a different digest - the
+			// collision is masking a stale, unresolved dependency rather
+			// than reflecting what's actually installed. Repoint the
+			// existing object at the desired reference instead of treating
+			// the AlreadyExists as satisfying the dependency.
+			existing := pack.DeepCopy()
+			if err := r.kube.Get(ctx, types.NamespacedName{Name: pack.GetName()}, existing); err != nil {
+				log.Debug(errGetDependency, "error", err)
+				status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errGetDependency)))
+
+				_ = r.kube.Status().Update(ctx, lock)
+
+				return reconcile.Result{}, errors.Wrap(err, errGetDependency)
+			}
+
+			desired, _ := fieldpath.Pave(pack.Object).GetString("spec.package")
+			current, _ := fieldpath.Pave(existing.Object).GetString("spec.package")
+
+			if current != desired {
+				_ = fieldpath.Pave(existing.Object).SetString("spec.package", desired)
+
+				if err := r.kube.Update(ctx, existing); err != nil {
+					log.Debug(errUpdateDependency, "error", err)
+					status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errUpdateDependency)))
+
+					_ = r.kube.Status().Update(ctx, lock)
+
+					return reconcile.Result{}, errors.Wrap(err, errUpdateDependency)
+				}
+			}
 		}
 
 		status.MarkConditions(v1beta1.ResolutionSucceeded())
