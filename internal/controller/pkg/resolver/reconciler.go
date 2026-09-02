@@ -445,9 +445,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// between two different packages, and repointing it would
 			// silently corrupt an unrelated, working dependency.
 			currentRef, refErr := name.ParseReference(current, name.WeakValidation)
-			if refErr != nil || currentRef.Context().RepositoryStr() != ref.Context().RepositoryStr() {
+			if refErr != nil || !sameRepository(currentRef, ref) {
 				err := errors.Errorf(errFmtNameCollision, pack.GetName(), ref.Context().RepositoryStr(), current)
-				log.Debug(errNameCollision, "error", err)
+				log.Info(errNameCollision, "error", err)
 				status.MarkConditions(v1beta1.ResolutionFailed(err))
 
 				_ = r.kube.Status().Update(ctx, lock)
@@ -760,6 +760,22 @@ func matchesAnyConstraint(version string, constraints []string) bool {
 	}
 
 	return false
+}
+
+// sameRepository reports whether a and b refer to the same OCI repository
+// path, ignoring registry host. A repository reference with no registry and
+// no namespace segment (e.g. "confignopc") is implicitly qualified as
+// "library/confignopc" by name.Repository.RepositoryStr, even though a
+// fully-qualified reference to the same repository on a non-default registry
+// (e.g. "xpkg.crossplane.io/confignopc") is not; the "library/" prefix is
+// trimmed from both sides before comparing so this defaulting quirk doesn't
+// cause a legitimate same-repository match to be misread as a collision.
+func sameRepository(a, b name.Reference) bool {
+	trim := func(r name.Reference) string {
+		return strings.TrimPrefix(r.Context().RepositoryStr(), "library/")
+	}
+
+	return trim(a) == trim(b)
 }
 
 // NewPackage creates a new package from the given dependency and version.

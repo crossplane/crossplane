@@ -1086,6 +1086,23 @@ func TestReconcileOnNameCollision(t *testing.T) {
 		// one must never be repointed to satisfy the other.
 		collidingDependencyPackage = "hasheddan/config_nop_c"
 		unrelatedExistingSource    = "hasheddan/confignopc@" + digest2
+
+		// A multi-segment repository path's RepositoryStr is registry-agnostic,
+		// so an existing object recorded without a registry must still be
+		// recognized as the same repository as a dependency declared with one
+		// (this is the realistic shape of the original registry-migration bug).
+		multiSegmentDependencyPackage = "xpkg.crossplane.io/hasheddan/provider-nop-c"
+		multiSegmentExistingSource    = "hasheddan/provider-nop-c@" + digest2
+
+		// A single-segment repository path is where name.Reference's
+		// implicit Docker Hub namespacing kicks in: an existing object with
+		// no registry resolves to "library/confignopc", while the same
+		// repository declared with an explicit non-default registry resolves
+		// to "confignopc" - no "library/" prefix. Without normalizing that
+		// away, this legitimate same-repository case would be misclassified
+		// as an unrelated collision.
+		singleSegmentDependencyPackage = "xpkg.crossplane.io/confignopc"
+		singleSegmentExistingSource    = "confignopc@" + digest2
 	)
 
 	cases := map[string]struct {
@@ -1113,6 +1130,18 @@ func TestReconcileOnNameCollision(t *testing.T) {
 			existingSource:    unrelatedExistingSource,
 			wantUpdated:       false,
 			wantErr:           true,
+		},
+		"RepointsAcrossImplicitRegistryMultiSegment": {
+			reason:            "A multi-segment repository path is the same repository whether or not a registry is present in the recorded source, and must still be repointed.",
+			dependencyPackage: multiSegmentDependencyPackage,
+			existingSource:    multiSegmentExistingSource,
+			wantUpdated:       true,
+		},
+		"RepointsAcrossImplicitRegistrySingleSegment": {
+			reason:            "A single-segment repository path must not be misclassified as an unrelated collision just because name.Reference's implicit Docker Hub namespacing renders it as 'library/x' on one side and 'x' on the other.",
+			dependencyPackage: singleSegmentDependencyPackage,
+			existingSource:    singleSegmentExistingSource,
+			wantUpdated:       true,
 		},
 	}
 
