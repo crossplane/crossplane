@@ -1054,103 +1054,127 @@ func TestReconcile(t *testing.T) {
 	}
 }
 
-// TestReconcileRepointsStaleDependencyOnRegistryRelocation covers the case
-// where a dependency's derived name collides with an existing package whose
-// spec.package points at a stale source - e.g. because the image was
-// relocated to a new registry host while the OCI repository path (and thus
-// the derived name) stayed the same. The reconciler must repoint the
-// existing object at the desired reference rather than treating the
-// resulting AlreadyExists error as proof the dependency is satisfied.
+// TestReconcileOnNameCollision covers what happens when a dependency's
+// derived name collides with an existing package object on Create. The
+// reconciler must repoint the existing object when its spec.package has
+// diverged from what's now required (e.g. after the image was relocated to a
+// new registry host), and must leave it untouched when it already matches.
 //
-// This is asserted with a dedicated test, rather than a table case sharing
-// the generic result/error comparison above, because the bug this guards
-// against produces the exact same reconcile.Result and error as success: the
-// only observable difference is whether Update was ever called with the
-// corrected spec.package.
-func TestReconcileRepointsStaleDependencyOnRegistryRelocation(t *testing.T) {
+// This isn't folded into the table above because that table only asserts
+// reconcile.Result and error, both of which are identical whether or not the
+// existing object gets repointed; the only observable difference is whether
+// Update was called, and with what value.
+func TestReconcileOnNameCollision(t *testing.T) {
 	const (
 		dependencyPackage = "hasheddan/provider-nop-c"
-		staleSource       = "old-registry.example.com/hasheddan/provider-nop-c@" + digest1
 		desiredSource     = dependencyPackage + "@" + digest1
+		staleSource       = "old-registry.example.com/hasheddan/provider-nop-c@" + digest1
 	)
 
-	var updated *unstructured.Unstructured
-
-	c := &test.MockClient{
-		MockGet: func(_ context.Context, _ client.ObjectKey, o client.Object) error {
-			switch v := o.(type) {
-			case *v1beta1.Lock:
-				v.Packages = append(v.Packages, v1beta1.LockPackage{
-					Name:    "cool-package",
-					Type:    ptr.To(v1beta1.ProviderPackageType),
-					Source:  "xpkg.crossplane.io/cool-repo/cool-image",
-					Version: "v0.0.1",
-				})
-				return nil
-			case *unstructured.Unstructured:
-				// Simulate the object that already occupies the derived
-				// name: it exists, but still points at the pre-relocation
-				// source.
-				_ = fieldpath.Pave(v.Object).SetString("spec.package", staleSource)
-				return nil
-			default:
-				return errors.Errorf("unexpected object type %T passed to Get", o)
-			}
+	cases := map[string]struct {
+		reason         string
+		existingSource string
+		wantUpdated    bool
+	}{
+		"RepointsStaleSource": {
+			reason:         "An existing object at a different source than required must be repointed, not treated as satisfying the dependency.",
+			existingSource: staleSource,
+			wantUpdated:    true,
 		},
-		MockCreate: test.NewMockCreateFn(kerrors.NewAlreadyExists(schema.GroupResource{}, "")),
-		MockUpdate: func(_ context.Context, o client.Object, _ ...client.UpdateOption) error {
-			// The finalizer add/remove path updates the Lock itself; only
-			// the stale dependency's repoint is interesting to this test.
-			if u, ok := o.(*unstructured.Unstructured); ok {
-				updated = u
-			}
-			return nil
+		"NoopOnExactMatch": {
+			reason:         "An existing object that already matches the desired source is a true no-op and must not be updated.",
+			existingSource: desiredSource,
+			wantUpdated:    false,
 		},
-		MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 	}
 
-	r := NewReconciler(&fake.Manager{Client: c},
-		WithLogger(testLog),
-		WithNewDagFn(func() dag.DAG {
-			return &fakedag.MockDag{
-				MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-					return []dag.Node{
-						&dag.DependencyNode{
-							Dependency: v1beta1.Dependency{
-								Package:     dependencyPackage,
-								Constraints: digest1,
-								Type:        ptr.To(v1beta1.ProviderPackageType),
-							},
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var updated *unstructured.Unstructured
+
+			c := &test.MockClient{
+				MockGet: func(_ context.Context, _ client.ObjectKey, o client.Object) error {
+					switch v := o.(type) {
+					case *v1beta1.Lock:
+						v.Packages = append(v.Packages, v1beta1.LockPackage{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+							Version: "v0.0.1",
+						})
+						return nil
+					case *unstructured.Unstructured:
+						_ = fieldpath.Pave(v.Object).SetString("spec.package", tc.existingSource)
+						return nil
+					default:
+						return errors.Errorf("unexpected object type %T passed to Get", o)
+					}
+				},
+				MockCreate: test.NewMockCreateFn(kerrors.NewAlreadyExists(schema.GroupResource{}, "")),
+				MockUpdate: func(_ context.Context, o client.Object, _ ...client.UpdateOption) error {
+					// The finalizer add/remove path also updates the Lock
+					// itself; only the dependency object's repoint matters
+					// here.
+					if u, ok := o.(*unstructured.Unstructured); ok {
+						updated = u
+					}
+					return nil
+				},
+				MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+			}
+
+			r := NewReconciler(&fake.Manager{Client: c},
+				WithLogger(testLog),
+				WithNewDagFn(func() dag.DAG {
+					return &fakedag.MockDag{
+						MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+							return []dag.Node{
+								&dag.DependencyNode{
+									Dependency: v1beta1.Dependency{
+										Package:     dependencyPackage,
+										Constraints: digest1,
+										Type:        ptr.To(v1beta1.ProviderPackageType),
+									},
+								},
+							}, nil
 						},
-					}, nil
-				},
-				MockSort: func() ([]string, error) {
-					return nil, nil
-				},
+						MockSort: func() ([]string, error) {
+							return nil, nil
+						},
+					}
+				}),
+			)
+
+			got, err := r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}})
+			if err != nil {
+				t.Fatalf("\n%s\nr.Reconcile(...): unexpected error: %v", tc.reason, err)
 			}
-		}),
-	)
 
-	got, err := r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}})
-	if err != nil {
-		t.Fatalf("r.Reconcile(...): unexpected error: %v", err)
-	}
+			if diff := cmp.Diff(reconcile.Result{}, got); diff != "" {
+				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
 
-	if diff := cmp.Diff(reconcile.Result{}, got); diff != "" {
-		t.Errorf("r.Reconcile(...): -want, +got:\n%s", diff)
-	}
+			if tc.wantUpdated && updated == nil {
+				t.Fatalf("\n%s\nr.Reconcile(...): the dependency object was never updated; AlreadyExists was silently treated as success", tc.reason)
+			}
 
-	if updated == nil {
-		t.Fatal("r.Reconcile(...): the stale dependency object was never updated; AlreadyExists was silently treated as success")
-	}
+			if !tc.wantUpdated && updated != nil {
+				t.Fatalf("\n%s\nr.Reconcile(...): the dependency object was updated even though its source already matched", tc.reason)
+			}
 
-	gotSource, err := fieldpath.Pave(updated.Object).GetString("spec.package")
-	if err != nil {
-		t.Fatalf("could not read spec.package from updated object: %v", err)
-	}
+			if updated == nil {
+				return
+			}
 
-	if gotSource != desiredSource {
-		t.Errorf("updated object has wrong spec.package: got %q, want %q", gotSource, desiredSource)
+			gotSource, err := fieldpath.Pave(updated.Object).GetString("spec.package")
+			if err != nil {
+				t.Fatalf("could not read spec.package from updated object: %v", err)
+			}
+
+			if gotSource != desiredSource {
+				t.Errorf("\n%s\nupdated object has wrong spec.package: got %q, want %q", tc.reason, gotSource, desiredSource)
+			}
+		})
 	}
 }
 
