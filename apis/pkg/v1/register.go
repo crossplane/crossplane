@@ -40,7 +40,7 @@ var (
 	AddToScheme = SchemeBuilder.AddToScheme
 )
 
-// Configuation type metadata.
+// Configuration type metadata.
 var (
 	ConfigurationKind             = reflect.TypeFor[Configuration]().Name()
 	ConfigurationGroupKind        = schema.GroupKind{Group: Group, Kind: ConfigurationKind}.String()

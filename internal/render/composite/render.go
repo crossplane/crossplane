@@ -468,7 +468,7 @@ func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstruct
 		out.RequiredResources = append(out.RequiredResources, s)
 	}
 
-	// Collect required schmea selectors.
+	// Collect required schema selectors.
 	for _, ss := range rsf.GetSchemaSelectors() {
 		s, err := messageToStruct(ss)
 		if err != nil {

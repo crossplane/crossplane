@@ -60,7 +60,7 @@ func CustomToManagedResourceDefinitions(defaultActive bool, objects ...runtime.O
 			obj := obj.DeepCopyObject()
 			// The object has to be either an unstructured.Unstructured object or a CustomResourceDefinition
 			switch o := obj.(type) {
-			// to covert, all we need to worry about is the metadata and spec.state.
+			// to convert, all we need to worry about is the metadata and spec.state.
 			case *unstructured.Unstructured:
 				if !isManagedResource(o.Object) {
 					// Keep non-managed resources (like ProviderConfig) as regular CRDs
