@@ -143,6 +143,7 @@ func WatchCircuitClosed() xpv2.Condition {
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonWatchCircuitClosed,
+		Message:            "The circuit breaker is closed. Watching for changes normally.",
 	}
 }
 
@@ -158,3 +159,4 @@ func IsSystemConditionType(t xpv2.ConditionType) bool {
 	// Then check Crossplane-specific system conditions
 	return t == TypeResponsive
 }
+
