@@ -1231,6 +1231,29 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				version: "v2.0.0",
 			},
 		},
+		"SkipIncompleteVersion": {
+			reason: "We should skip incomplete version tags and select the concrete version when upgrading.",
+			args: args{
+				mgr:    &fake.Manager{Client: test.NewMockClient()},
+				insVer: "v1.0.0",
+				dep: &dag.DependencyNode{
+					Dependency: v1beta1.Dependency{
+						Package: "xpkg.crossplane.io/cool-repo/cool-image",
+						ParentConstraints: []string{
+							">v1.0.0",
+						},
+					},
+				},
+				rec: []ReconcilerOption{
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v1.0.0", "v2", "v2.0.0"}, nil),
+					}),
+				},
+			},
+			want: want{
+				version: "v2.0.0",
+			},
+		},
 		"ErrorNoValidVersion": {
 			reason: "We should return an error if no valid version exists for dependency.",
 			args: args{
