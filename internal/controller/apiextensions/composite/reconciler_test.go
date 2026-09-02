@@ -1363,6 +1363,63 @@ func TestReconcile(t *testing.T) {
 	}
 }
 
+func TestBoundRequeueByCircuitBreaker(t *testing.T) {
+	now := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	cases := map[string]struct {
+		reason string
+		result reconcile.Result
+		state  circuit.State
+		want   reconcile.Result
+	}{
+		"ClosedLeavesResultUnchanged": {
+			reason: "A closed circuit shouldn't affect the requeue - there's nothing to correct for.",
+			result: reconcile.Result{RequeueAfter: time.Hour},
+			state:  circuit.State{IsOpen: false},
+			want:   reconcile.Result{RequeueAfter: time.Hour},
+		},
+		"ImmediateRequeueLeftUnchanged": {
+			reason: "An immediate requeue (e.g. to retry a conflict) is already sooner than any circuit breaker probe, so it's left alone.",
+			result: reconcile.Result{Requeue: true},
+			state:  circuit.State{IsOpen: true, NextAllowedAt: now.Add(time.Minute)},
+			want:   reconcile.Result{Requeue: true},
+		},
+		"OpenWithNoOtherRequeueUsesNextAllowedAt": {
+			reason: "If we wouldn't otherwise requeue (e.g. realtime compositions with no TTL), we must still wake up when the circuit's next half-open probe opens - otherwise we could miss dependencies settling while events are being dropped.",
+			result: reconcile.Result{},
+			state:  circuit.State{IsOpen: true, NextAllowedAt: now.Add(30 * time.Second)},
+			want:   reconcile.Result{RequeueAfter: 30 * time.Second},
+		},
+		"OpenSoonerThanExistingRequeueOverrides": {
+			reason: "If the circuit's next probe is sooner than our normal poll interval, we should wake up for the probe instead of waiting for the poll interval.",
+			result: reconcile.Result{RequeueAfter: time.Hour},
+			state:  circuit.State{IsOpen: true, NextAllowedAt: now.Add(30 * time.Second)},
+			want:   reconcile.Result{RequeueAfter: 30 * time.Second},
+		},
+		"OpenLaterThanExistingRequeueLeftUnchanged": {
+			reason: "If our normal poll interval already fires before the circuit's next probe, there's no need to requeue sooner.",
+			result: reconcile.Result{RequeueAfter: 10 * time.Second},
+			state:  circuit.State{IsOpen: true, NextAllowedAt: now.Add(30 * time.Second)},
+			want:   reconcile.Result{RequeueAfter: 10 * time.Second},
+		},
+		"OpenWithPastNextAllowedAtRequeuesImmediately": {
+			reason: "If the circuit's next probe time has already passed, we should requeue right away. RequeueAfter: 0 wouldn't do that - controller-runtime treats it as 'no requeue' unless Requeue is also true.",
+			result: reconcile.Result{},
+			state:  circuit.State{IsOpen: true, NextAllowedAt: now.Add(-time.Minute)},
+			want:   reconcile.Result{Requeue: true},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := boundRequeueByCircuitBreaker(tc.result, tc.state, now)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\nboundRequeueByCircuitBreaker(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestEffectivePollInterval(t *testing.T) {
 	cases := map[string]struct {
 		reason          string
