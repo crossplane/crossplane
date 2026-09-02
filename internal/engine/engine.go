@@ -157,11 +157,14 @@ type controller struct {
 	// Called to stop the controller.
 	cancel context.CancelFunc
 
-	// Protects the below map.
+	// Protects the below.
 	mx sync.RWMutex
 
 	// The controller's sources, by watched GVK.
 	sources map[WatchID]*StoppableSource
+
+	// Whether the engine has stopped this controller.
+	stopped bool
 }
 
 // A WatchGarbageCollector periodically garbage collects watches.
@@ -393,7 +396,9 @@ func (e *ControllerEngine) Stop(ctx context.Context, name string) error {
 		e.log.Debug("Stopped watching GVK", "controller", name, "watch-type", wid.Type, "watched-gvk", wid.GVK)
 	}
 
-	// Stop and delete the controller.
+	// Stop and delete the controller. A StartWatches that looked it up is still
+	// holding it, and reads this once it takes the lock we hold.
+	c.stopped = true
 	c.cancel()
 	delete(e.controllers, name)
 
@@ -522,6 +527,11 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 	// read lock, so we compute everything again.
 	c.mx.Lock()
 	defer c.mx.Unlock()
+
+	// Watches added now would go to a controller nothing can stop again.
+	if c.stopped {
+		return errors.Errorf("controller %q is not running", name)
+	}
 
 	// Refresh active informers in case they changed between when we lost
 	// the read lock and took the write lock.
