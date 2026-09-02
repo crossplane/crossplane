@@ -1105,12 +1105,26 @@ func TestReconcileOnNameCollision(t *testing.T) {
 		singleSegmentExistingSource    = "confignopc@" + digest2
 	)
 
+	// The exact error the reconciler must return for the collision case,
+	// constructed the same way production code does, so the test verifies
+	// this specific failure occurred rather than merely that some error did.
+	collidingRef, parseErr := pkgName.ParseReference(collidingDependencyPackage)
+	if parseErr != nil {
+		t.Fatalf("test setup: could not parse %q: %v", collidingDependencyPackage, parseErr)
+	}
+
+	wantCollisionErr := errors.Errorf(errFmtNameCollision,
+		xpkg.ToDNSLabel(collidingRef.Context().RepositoryStr()),
+		collidingRef.Context().RepositoryStr(),
+		unrelatedExistingSource,
+	)
+
 	cases := map[string]struct {
 		reason            string
 		dependencyPackage string
 		existingSource    string
 		wantUpdated       bool
-		wantErr           bool
+		wantErr           error
 	}{
 		"RepointsStaleSource": {
 			reason:            "An existing object at a different source than required must be repointed, not treated as satisfying the dependency.",
@@ -1129,7 +1143,7 @@ func TestReconcileOnNameCollision(t *testing.T) {
 			dependencyPackage: collidingDependencyPackage,
 			existingSource:    unrelatedExistingSource,
 			wantUpdated:       false,
-			wantErr:           true,
+			wantErr:           wantCollisionErr,
 		},
 		"RepointsAcrossImplicitRegistryMultiSegment": {
 			reason:            "A multi-segment repository path is the same repository whether or not a registry is present in the recorded source, and must still be repointed.",
@@ -1203,18 +1217,14 @@ func TestReconcileOnNameCollision(t *testing.T) {
 			)
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}})
-			if tc.wantErr {
-				if err == nil {
-					// Not fatal: keep checking below whether the unrelated
-					// object was also wrongly updated, which is the more
-					// serious half of this failure mode.
-					t.Errorf("\n%s\nr.Reconcile(...): expected an error, got none", tc.reason)
-				}
-			} else if err != nil {
-				t.Fatalf("\n%s\nr.Reconcile(...): unexpected error: %v", tc.reason, err)
+			if diff := cmp.Diff(tc.wantErr, err, test.EquateErrors()); diff != "" {
+				// Not fatal: keep checking below whether the unrelated object
+				// was also wrongly updated, which is the more serious half of
+				// this failure mode.
+				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			if !tc.wantErr {
+			if tc.wantErr == nil {
 				if diff := cmp.Diff(reconcile.Result{}, got); diff != "" {
 					t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 				}
