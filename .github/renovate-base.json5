@@ -28,6 +28,9 @@
     'design/**',
     // We test upgrades, so leave it on an older version on purpose.
     "test/e2e/manifests/pkg/provider/provider-initial.yaml",
+    // We test the revision control hand-off on upgrade, so both versions must
+    // remain as they are.
+    "test/e2e/manifests/pkg/provider-handoff/**",
     // We test dependencies' upgrades, manifests must remain unchanged to avoid breaking tests.
     "test/e2e/manifests/pkg/dependency-upgrade/**",
     // We test packages signature verifications also on upgrades, manifests must remain unchanged to avoid breaking tests.
