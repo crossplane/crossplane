@@ -147,7 +147,7 @@ func deleteRuntimeObjectControlledBy(ctx context.Context, c client.Client, owner
 		return nil
 	}
 
-	return c.Delete(ctx, current, client.Preconditions{UID: ptr.To(current.GetUID())})
+	return c.Delete(ctx, current, client.Preconditions{UID: new(current.GetUID())})
 }
 
 // DeploymentRuntimeBuilder builds the Deployment runtime manifests for
@@ -232,7 +232,7 @@ func demotedControllers(obj metav1.Object, owner metav1.Object) []metav1.OwnerRe
 			continue
 		}
 
-		or.Controller = ptr.To(false)
+		or.Controller = new(false)
 		ors = append(ors, or)
 	}
 

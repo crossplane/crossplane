@@ -64,14 +64,14 @@ func TestProviderPreHook(t *testing.T) {
 		Spec: v1.ProviderRevisionSpec{
 			PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
 			PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-				TLSClientSecretName: ptr.To("client-tls"),
-				TLSServerSecretName: ptr.To("server-tls"),
+				TLSClientSecretName: new("client-tls"),
+				TLSServerSecretName: new("server-tls"),
 			},
 		},
 	}
 	sharedRevSynced := sharedRev.DeepCopy()
-	sharedRevSynced.Status.TLSClientSecretName = ptr.To("client-tls")
-	sharedRevSynced.Status.TLSServerSecretName = ptr.To("server-tls")
+	sharedRevSynced.Status.TLSClientSecretName = new("client-tls")
+	sharedRevSynced.Status.TLSServerSecretName = new("server-tls")
 
 	sharedManifests := &MockManifestBuilder{
 		ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
@@ -102,8 +102,8 @@ func TestProviderPreHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSClientSecretName: ptr.To("some-client-secret"),
-							TLSServerSecretName: ptr.To("some-server-secret"),
+							TLSClientSecretName: new("some-client-secret"),
+							TLSServerSecretName: new("some-server-secret"),
 						},
 					},
 				},
@@ -137,14 +137,14 @@ func TestProviderPreHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSClientSecretName: ptr.To("some-client-secret"),
-							TLSServerSecretName: ptr.To("some-server-secret"),
+							TLSClientSecretName: new("some-client-secret"),
+							TLSServerSecretName: new("some-server-secret"),
 						},
 					},
 					Status: v1.ProviderRevisionStatus{
 						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
-							TLSClientSecretName: ptr.To("some-client-secret"),
-							TLSServerSecretName: ptr.To("some-server-secret"),
+							TLSClientSecretName: new("some-client-secret"),
+							TLSServerSecretName: new("some-server-secret"),
 						},
 					},
 				},
@@ -835,7 +835,7 @@ func TestProviderDeactivateHook(t *testing.T) {
 				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: ptr.To(true)}})
+						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
 						return nil
 					}),
 					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
@@ -902,7 +902,7 @@ func TestProviderDeactivateHook(t *testing.T) {
 				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: ptr.To(true)}})
+						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
 						return nil
 					}),
 					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
@@ -970,7 +970,7 @@ func TestProviderDeactivateHook(t *testing.T) {
 				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						obj.SetOwnerReferences([]metav1.OwnerReference{{UID: "active-uid", Controller: ptr.To(true)}})
+						obj.SetOwnerReferences([]metav1.OwnerReference{{UID: "active-uid", Controller: new(true)}})
 						return nil
 					}),
 					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {

@@ -18,7 +18,7 @@
 { pkgs, self }:
 let
   vendorHashes = import ./vendor-hashes.nix;
-  go = pkgs.unstable.go_1_25;
+  go = pkgs.unstable.go_1_26;
 
   # If the Nix sandbox isn't available (e.g. Renovate's container), Nix falls back to building
   # without it, and $HOME is set to /homeless-shelter on the real filesystem. Give every Go build

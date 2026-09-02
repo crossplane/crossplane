@@ -26,7 +26,6 @@ import (
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -186,7 +185,7 @@ func buildClusterUsage(mrdName, providerName, mrTypeDescription string) *protect
 					Name: providerName,
 				},
 			},
-			Reason: ptr.To(fmt.Sprintf(
+			Reason: new(fmt.Sprintf(
 				"Provider has active managed resources of type %s",
 				mrTypeDescription,
 			)),

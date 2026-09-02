@@ -73,8 +73,8 @@ var (
 		},
 		Status: v1.ProviderRevisionStatus{
 			PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
-				TLSServerSecretName: ptr.To(tlsServerSecretName),
-				TLSClientSecretName: ptr.To(tlsClientSecretName),
+				TLSServerSecretName: new(tlsServerSecretName),
+				TLSClientSecretName: new(tlsClientSecretName),
 			},
 		},
 	}
@@ -98,17 +98,17 @@ var (
 		},
 		Status: v1.FunctionRevisionStatus{
 			PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
-				TLSServerSecretName: ptr.To(tlsServerSecretName),
+				TLSServerSecretName: new(tlsServerSecretName),
 			},
 		},
 	}
 
 	// An incoming (active) revision that will claim ownership of the objects shared by other revisions of the package.
-	incoming = metav1.OwnerReference{Name: "incoming", UID: "incoming-uid", Controller: ptr.To(true), BlockOwnerDeletion: ptr.To(true)}
+	incoming = metav1.OwnerReference{Name: "incoming", UID: "incoming-uid", Controller: new(true), BlockOwnerDeletion: new(true)}
 	// an outgoing (inactive) revision that will be demoted/removed from ownership of shared objects.
-	outgoing = metav1.OwnerReference{Name: "outgoing", UID: "outgoing-uid", Controller: ptr.To(true), BlockOwnerDeletion: ptr.To(true)}
+	outgoing = metav1.OwnerReference{Name: "outgoing", UID: "outgoing-uid", Controller: new(true), BlockOwnerDeletion: new(true)}
 	// the same outgoing (inactive) revision that has now been demoted from ownership of shared objects.
-	demoted = metav1.OwnerReference{Name: "outgoing", UID: "outgoing-uid", Controller: ptr.To(false), BlockOwnerDeletion: ptr.To(true)}
+	demoted = metav1.OwnerReference{Name: "outgoing", UID: "outgoing-uid", Controller: new(false), BlockOwnerDeletion: new(true)}
 )
 
 func TestRuntimeManifestBuilderDeployment(t *testing.T) {
@@ -300,7 +300,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
 								Metadata: &v1beta1.ObjectMeta{
-									Name: ptr.To("my-provider-foo"),
+									Name: new("my-provider-foo"),
 									Labels: map[string]string{
 										"x": "y",
 									},
@@ -464,8 +464,8 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 								Kind:               "ProviderRevision",
 								Name:               providerRevisionName,
 								UID:                types.UID(providerRevisionUID),
-								Controller:         ptr.To(true),
-								BlockOwnerDeletion: ptr.To(true),
+								Controller:         new(true),
+								BlockOwnerDeletion: new(true),
 							},
 						},
 					},
@@ -512,8 +512,8 @@ func deploymentProvider(provider string, rev string, image string, overrides ...
 					Kind:               "ProviderRevision",
 					Name:               rev,
 					UID:                types.UID(providerRevisionUID),
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
+					Controller:         new(true),
+					BlockOwnerDeletion: new(true),
 				},
 			},
 		},
@@ -695,8 +695,8 @@ func deploymentFunction(function string, rev string, image string, overrides ...
 					Kind:               "FunctionRevision",
 					Name:               rev,
 					UID:                types.UID(functionRevisionUID),
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
+					Controller:         new(true),
+					BlockOwnerDeletion: new(true),
 				},
 			},
 		},
