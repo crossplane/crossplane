@@ -141,8 +141,10 @@ and their default values.
 | `sidecarsCrossplane` | Add sidecar containers to the Crossplane pod. Supports template expressions. | `[]` |
 | `tolerations` | Add `tolerations` to the Crossplane pod deployment. | `[]` |
 | `topologySpreadConstraints` | Add `topologySpreadConstraints` to the Crossplane pod deployment. | `[]` |
+| `usages.enabled` | Enable support for deletion ordering and resource protection with Usages (beta, enabled by default). When disabled, the Usage deletion protection webhook is not installed. | `true` |
 | `webhooks.enabled` | Enable webhooks for Crossplane and installed Provider packages. | `true` |
 | `webhooks.port` | The port the webhook server listens on. | `""` |
+| `webhooks.usage.failurePolicy` | The `failurePolicy` of the Usage deletion protection webhook (`crossplane-no-usages`). One of `Fail` or `Ignore`. Set to `Ignore` for compatibility with managed Kubernetes operations that reject `Fail`-policy webhooks with wildcard rules, such as Azure AKS cluster stop. | `"Fail"` |
 
 ### Command Line
 

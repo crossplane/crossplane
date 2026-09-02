@@ -143,7 +143,7 @@ type startCommand struct {
 	PipelineInspectorSocket string        `default:"/var/run/pipeline-inspector/socket" env:"PIPELINE_INSPECTOR_SOCKET" group:"Alpha Features:" help:"Unix socket path for pipeline inspector sidecar. Requires --enable-pipeline-inspector."`
 
 	EnableDeploymentRuntimeConfigs          bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
-	EnableUsages                            bool `default:"true" group:"Beta Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
+	EnableUsages                            bool `default:"true" env:"ENABLE_USAGES"    group:"Beta Features:"                                                                                                                                                    help:"Enable support for deletion ordering and resource protection with Usages."`
 	EnableSSAClaims                         bool `default:"true" group:"Beta Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
 	EnableRealtimeCompositions              bool `default:"true" group:"Beta Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
 	EnableCustomToManagedResourceConversion bool `default:"true" group:"Beta Features:" help:"Enable support CRD to MRD conversion when installing a package."`
