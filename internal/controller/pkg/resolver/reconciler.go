@@ -83,6 +83,8 @@ const (
 	errFmtDiffConstraintTypes = "a dependency package has different types of parent constraints (%v)"
 	errFmtDiffDigests         = "a dependency package has different digests in parent constraints (%v)"
 	errCannotUpdateStatus     = "cannot update status"
+	errNameCollision          = "existing package name collides with a different dependency"
+	errFmtNameCollision       = "cannot resolve dependency: object %q already exists for repository %q but currently points at unrelated package %q; this is a package naming collision and requires manual intervention"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -432,6 +434,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 			desired, _ := fieldpath.Pave(pack.Object).GetString("spec.package")
 			current, _ := fieldpath.Pave(existing.Object).GetString("spec.package")
+
+			// The derived name is a lossy hash of the repository path (e.g.
+			// underscores are dropped, long paths are truncated), so an
+			// unrelated dependency's repository can collide with this one's
+			// on the same name. Only treat the existing object as this
+			// dependency's own stale record - and safe to repoint - if it
+			// currently resolves to the same repository path we're
+			// resolving. Otherwise this is a genuine naming collision
+			// between two different packages, and repointing it would
+			// silently corrupt an unrelated, working dependency.
+			currentRef, refErr := name.ParseReference(current, name.WeakValidation)
+			if refErr != nil || currentRef.Context().RepositoryStr() != ref.Context().RepositoryStr() {
+				err := errors.Errorf(errFmtNameCollision, pack.GetName(), ref.Context().RepositoryStr(), current)
+				log.Debug(errNameCollision, "error", err)
+				status.MarkConditions(v1beta1.ResolutionFailed(err))
+
+				_ = r.kube.Status().Update(ctx, lock)
+
+				return reconcile.Result{}, err
+			}
 
 			if current != desired {
 				_ = fieldpath.Pave(existing.Object).SetString("spec.package", desired)

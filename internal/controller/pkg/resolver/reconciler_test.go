@@ -1056,35 +1056,63 @@ func TestReconcile(t *testing.T) {
 
 // TestReconcileOnNameCollision covers what happens when a dependency's
 // derived name collides with an existing package object on Create. The
-// reconciler must repoint the existing object when its spec.package has
-// diverged from what's now required (e.g. after the image was relocated to a
-// new registry host), and must leave it untouched when it already matches.
+// derived name is a lossy hash of the repository path alone (e.g.
+// xpkg.ToDNSLabel drops underscores and truncates at 63 characters), so two
+// distinct repository paths can land on the same name - not just the same
+// path relocated to a different registry.
+//
+// The reconciler must:
+//   - repoint the existing object when it's the same repository path but a
+//     stale source (e.g. relocated to a new registry host);
+//   - leave it untouched when it already matches;
+//   - refuse to touch it, and fail resolution, when the existing object
+//     belongs to a genuinely different repository path - repointing that
+//     would silently corrupt an unrelated, working dependency.
 //
 // This isn't folded into the table above because that table only asserts
-// reconcile.Result and error, both of which are identical whether or not the
-// existing object gets repointed; the only observable difference is whether
-// Update was called, and with what value.
+// reconcile.Result and error, and for the repoint/no-op cases those are
+// identical whether or not the existing object gets touched; the only
+// observable difference is whether Update was called, and with what value.
 func TestReconcileOnNameCollision(t *testing.T) {
 	const (
 		dependencyPackage = "hasheddan/provider-nop-c"
 		desiredSource     = dependencyPackage + "@" + digest1
 		staleSource       = "old-registry.example.com/hasheddan/provider-nop-c@" + digest1
+
+		// hasheddan/config_nop_c and hasheddan/confignopc both derive to the
+		// DNS label "hasheddan-confignopc" via xpkg.ToDNSLabel, which drops
+		// underscores rather than treating them as separators. They are
+		// different repository paths, so an object already installed for
+		// one must never be repointed to satisfy the other.
+		collidingDependencyPackage = "hasheddan/config_nop_c"
+		unrelatedExistingSource    = "hasheddan/confignopc@" + digest2
 	)
 
 	cases := map[string]struct {
-		reason         string
-		existingSource string
-		wantUpdated    bool
+		reason            string
+		dependencyPackage string
+		existingSource    string
+		wantUpdated       bool
+		wantErr           bool
 	}{
 		"RepointsStaleSource": {
-			reason:         "An existing object at a different source than required must be repointed, not treated as satisfying the dependency.",
-			existingSource: staleSource,
-			wantUpdated:    true,
+			reason:            "An existing object at a different source than required must be repointed, not treated as satisfying the dependency.",
+			dependencyPackage: dependencyPackage,
+			existingSource:    staleSource,
+			wantUpdated:       true,
 		},
 		"NoopOnExactMatch": {
-			reason:         "An existing object that already matches the desired source is a true no-op and must not be updated.",
-			existingSource: desiredSource,
-			wantUpdated:    false,
+			reason:            "An existing object that already matches the desired source is a true no-op and must not be updated.",
+			dependencyPackage: dependencyPackage,
+			existingSource:    desiredSource,
+			wantUpdated:       false,
+		},
+		"FailsOnUnrelatedCollision": {
+			reason:            "An existing object belonging to a different repository path is an unrelated package that happens to collide on the derived name; it must not be repointed, and resolution must fail rather than silently succeed.",
+			dependencyPackage: collidingDependencyPackage,
+			existingSource:    unrelatedExistingSource,
+			wantUpdated:       false,
+			wantErr:           true,
 		},
 	}
 
@@ -1131,7 +1159,7 @@ func TestReconcileOnNameCollision(t *testing.T) {
 							return []dag.Node{
 								&dag.DependencyNode{
 									Dependency: v1beta1.Dependency{
-										Package:     dependencyPackage,
+										Package:     tc.dependencyPackage,
 										Constraints: digest1,
 										Type:        ptr.To(v1beta1.ProviderPackageType),
 									},
@@ -1146,12 +1174,21 @@ func TestReconcileOnNameCollision(t *testing.T) {
 			)
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}})
-			if err != nil {
+			if tc.wantErr {
+				if err == nil {
+					// Not fatal: keep checking below whether the unrelated
+					// object was also wrongly updated, which is the more
+					// serious half of this failure mode.
+					t.Errorf("\n%s\nr.Reconcile(...): expected an error, got none", tc.reason)
+				}
+			} else if err != nil {
 				t.Fatalf("\n%s\nr.Reconcile(...): unexpected error: %v", tc.reason, err)
 			}
 
-			if diff := cmp.Diff(reconcile.Result{}, got); diff != "" {
-				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			if !tc.wantErr {
+				if diff := cmp.Diff(reconcile.Result{}, got); diff != "" {
+					t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+				}
 			}
 
 			if tc.wantUpdated && updated == nil {
@@ -1159,7 +1196,7 @@ func TestReconcileOnNameCollision(t *testing.T) {
 			}
 
 			if !tc.wantUpdated && updated != nil {
-				t.Fatalf("\n%s\nr.Reconcile(...): the dependency object was updated even though its source already matched", tc.reason)
+				t.Fatalf("\n%s\nr.Reconcile(...): the dependency object was updated even though it should not have been (either already matched, or belongs to an unrelated package)", tc.reason)
 			}
 
 			if updated == nil {
@@ -1171,8 +1208,9 @@ func TestReconcileOnNameCollision(t *testing.T) {
 				t.Fatalf("could not read spec.package from updated object: %v", err)
 			}
 
-			if gotSource != desiredSource {
-				t.Errorf("\n%s\nupdated object has wrong spec.package: got %q, want %q", tc.reason, gotSource, desiredSource)
+			wantSource := tc.dependencyPackage + "@" + digest1
+			if gotSource != wantSource {
+				t.Errorf("\n%s\nupdated object has wrong spec.package: got %q, want %q", tc.reason, gotSource, wantSource)
 			}
 		})
 	}
