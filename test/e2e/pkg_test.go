@@ -25,11 +25,17 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sapiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
+
+	xpmeta "github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
@@ -194,6 +200,237 @@ func TestProviderUpgrade(t *testing.T) {
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider-upgrade.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-upgrade.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+// TestProviderUpgradeInactiveRevisionHoldsControl tests that the revision
+// activated by a provider upgrade takes control of the objects it installs even
+// when the revision it replaced still holds a controlling owner reference on
+// them.
+//
+// Regression test for https://github.com/crossplane/crossplane/issues/7656.
+//
+// The outgoing revision is paused before the upgrade, so it never relinquishes
+// control of its objects. That makes the hand-off deterministic: the incoming
+// revision has to take control away from a revision that still claims it,
+// rather than racing the outgoing revision's deactivation. It reproduces the
+// same establisher code path as the reported v1 to v2 upgrade failure, where the
+// outgoing revision is instead replaced before it can relinquish control.
+func TestProviderUpgradeInactiveRevisionHoldsControl(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/provider-handoff"
+
+	const providerName = "provider-nop-pkg-handoff"
+
+	revisionsOfProvider := resources.WithLabelSelector(pkgv1.LabelParentPackage + "=" + providerName)
+
+	// Recorded by the assessments below.
+	var (
+		outgoingName string
+		objectRefs   []xpv2.TypedReference
+	)
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that the revision activated by a provider upgrade takes control of its objects even when the revision it replaced still controls them.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("ApplyInitialProvider", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-initial.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-initial.yaml"),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "provider-initial.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			// Create a managed resource, so the CRD the revisions are handing
+			// over holds live data, as it does in the reported failures.
+			WithSetup("InitialManagedResourceIsReady", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "mr.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "mr.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "mr.yaml", xpv2.Available()),
+			)).
+			// Record the objects the outgoing revision controls, rather than
+			// naming them here. Which kinds the establisher controls depends on
+			// whether managed resource CRDs were converted to MRDs.
+			Assess("RecordOutgoingRevision", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+				t.Helper()
+
+				l := &pkgv1.ProviderRevisionList{}
+				if err := c.Client().Resources().List(ctx, l, revisionsOfProvider); err != nil {
+					t.Errorf("cannot list revisions of provider %s: %v", providerName, err)
+					return ctx
+				}
+
+				if len(l.Items) != 1 {
+					t.Errorf("want 1 revision of provider %s, got %d", providerName, len(l.Items))
+					return ctx
+				}
+
+				outgoing := l.Items[0]
+				if len(outgoing.Status.ObjectRefs) == 0 {
+					t.Errorf("revision %s controls no objects", outgoing.GetName())
+					return ctx
+				}
+
+				outgoingName = outgoing.GetName()
+				objectRefs = outgoing.Status.ObjectRefs
+
+				t.Logf("outgoing revision %s (UID %s) controls %d object(s)", outgoingName, outgoing.GetUID(), len(objectRefs))
+
+				return ctx
+			}).
+			// Pausing the outgoing revision stops its reconciler before it can
+			// deactivate, so it keeps its controlling owner reference on every
+			// object above for the rest of the test.
+			Assess("PauseOutgoingRevision", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+				t.Helper()
+
+				if outgoingName == "" {
+					return ctx
+				}
+
+				// The revision's own controller writes to it while we do, so
+				// retry rather than failing the test for a conflict that has
+				// nothing to do with the hand-off.
+				if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					pr := &pkgv1.ProviderRevision{}
+					if err := c.Client().Resources().Get(ctx, outgoingName, "", pr); err != nil {
+						return err
+					}
+
+					xpmeta.AddAnnotations(pr, map[string]string{xpmeta.AnnotationKeyReconciliationPaused: "true"})
+
+					return c.Client().Resources().Update(ctx, pr)
+				}); err != nil {
+					t.Errorf("cannot pause revision %s: %v", outgoingName, err)
+					return ctx
+				}
+
+				// Wait for the pause to take effect, so the revision can't
+				// relinquish control once the upgrade deactivates it.
+				return funcs.ResourceHasConditionWithin(1*time.Minute,
+					&pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: outgoingName}},
+					xpv2.ReconcilePaused(),
+				)(ctx, t, c)
+			}).
+			// Log revision conditions while the upgrade runs, so a failure of the
+			// assessment below shows why the incoming revision is unhealthy.
+			Assess("LogProviderRevisions", funcs.InBackground(funcs.LogResources(&pkgv1.ProviderRevisionList{}, revisionsOfProvider))).
+			Assess("UpgradeProvider", funcs.ApplyResources(FieldManager, manifests, "provider-upgrade.yaml")).
+			// This is the assessment that fails when the establisher can't take
+			// control from the revision it replaced. The provider stays unhealthy
+			// with "cannot establish control of object: <name> is already
+			// controlled by ProviderRevision <outgoing> (UID <uid>)".
+			Assess("ProviderBecomesHealthyAgain",
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "provider-upgrade.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("IncomingRevisionControlsAllObjects", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+				t.Helper()
+
+				if outgoingName == "" {
+					return ctx
+				}
+
+				l := &pkgv1.ProviderRevisionList{}
+				if err := c.Client().Resources().List(ctx, l, revisionsOfProvider); err != nil {
+					t.Errorf("cannot list revisions of provider %s: %v", providerName, err)
+					return ctx
+				}
+
+				var incoming *pkgv1.ProviderRevision
+
+				for i := range l.Items {
+					if l.Items[i].GetName() != outgoingName {
+						incoming = &l.Items[i]
+						break
+					}
+				}
+
+				if incoming == nil {
+					t.Errorf("no revision of provider %s other than %s", providerName, outgoingName)
+					return ctx
+				}
+
+				t.Logf("incoming revision %s (UID %s)", incoming.GetName(), incoming.GetUID())
+
+				checks := make([]features.Func, 0, 3*len(objectRefs)+1)
+
+				for _, ref := range objectRefs {
+					u := &unstructured.Unstructured{}
+					u.SetAPIVersion(ref.APIVersion)
+					u.SetKind(ref.Kind)
+					u.SetName(ref.Name)
+
+					checks = append(checks,
+						// Every object the outgoing revision controlled must
+						// now be controlled by the incoming one.
+						funcs.ResourceHasFieldValueWithin(1*time.Minute, u, "metadata.ownerReferences", funcs.ControlledBy(incoming.GetName())),
+						// The outgoing revision must survive as a plain owner,
+						// so that taking control doesn't change when the object
+						// is garbage collected.
+						funcs.ResourceHasFieldValueWithin(1*time.Minute, u, "metadata.ownerReferences", funcs.OwnedButNotControlledBy(outgoingName)),
+					)
+
+					// The CRD derived from an MRD is handed over too, by the
+					// MRD reconciler rather than the establisher. Its old
+					// controller entry is pruned by a later apply rather than
+					// kept, so only assert on the incoming controller.
+					if ref.Kind == apiextensionsv1alpha1.ManagedResourceDefinitionKind {
+						crd := &unstructured.Unstructured{}
+						crd.SetAPIVersion(k8sapiextensionsv1.SchemeGroupVersion.String())
+						crd.SetKind("CustomResourceDefinition")
+						crd.SetName(ref.Name)
+
+						checks = append(checks,
+							funcs.ResourceHasFieldValueWithin(1*time.Minute, crd, "metadata.ownerReferences", funcs.ControlledBy(incoming.GetName())),
+						)
+					}
+				}
+
+				// The runtime is only created once the revision is healthy, so
+				// this is the user visible symptom of a failed hand-off: the
+				// provider's pod is never created.
+				checks = append(checks, funcs.DeploymentBecomesAvailableWithin(2*time.Minute, namespace, incoming.GetName()))
+
+				return funcs.AllOf(checks...)(ctx, t, c)
+			}).
+			// The managed resource whose CRD was handed over must still work.
+			Assess("ManagedResourceIsStillAvailable",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "mr.yaml", xpv2.Available())).
+			// Unpause the outgoing revision before deleting anything: pausing
+			// stops its reconciler handling deletion too, so a paused revision
+			// holding a finalizer would block teardown.
+			WithTeardown("UnpauseOutgoingRevision", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+				t.Helper()
+
+				if outgoingName == "" {
+					return ctx
+				}
+
+				// Retry on conflict as above. Leaving the revision paused here
+				// would block the deletions below, since a paused reconciler
+				// never removes its finalizer.
+				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					pr := &pkgv1.ProviderRevision{}
+					if err := c.Client().Resources().Get(ctx, outgoingName, "", pr); err != nil {
+						return err
+					}
+
+					xpmeta.RemoveAnnotations(pr, xpmeta.AnnotationKeyReconciliationPaused)
+
+					return c.Client().Resources().Update(ctx, pr)
+				})
+				if err != nil && !kerrors.IsNotFound(err) {
+					t.Errorf("cannot unpause revision %s: %v", outgoingName, err)
+				}
+
+				return ctx
+			}).
+			WithTeardown("DeleteManagedResource", funcs.AllOf(
+				funcs.DeleteResources(manifests, "mr.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "mr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "provider-upgrade.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "provider-upgrade.yaml"),
 			)).
 			Feature(),
 	)
