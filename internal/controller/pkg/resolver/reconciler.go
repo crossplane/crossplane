@@ -369,7 +369,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Package does not exist. We need to create it.
 		var addVer string
 		if addVer, err = r.findDependencyVersionToInstall(ctx, &dep.Dependency, log, ref); err != nil {
-			log.Debug(errFindDependency, "error", errors.Wrapf(err, depID, dep.Constraints))
+			log.Debug(errFindDependency, "error", errors.Wrapf(err, "dependencyID: %s constraint: %v", depID, dep.Constraints))
 			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errFindDependency)))
 
 			_ = r.kube.Status().Update(ctx, lock)

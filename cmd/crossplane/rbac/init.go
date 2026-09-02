@@ -17,7 +17,6 @@ limitations under the License.
 package rbac
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -54,7 +53,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 			fmt.Sprintf("%s.%s", "providerrevisions", pkgv1.Group),
 		}, time.Minute, time.Second, log),
 	)
-	if err := i.Init(context.TODO()); err != nil {
+	if err := i.Init(ctrl.SetupSignalHandler()); err != nil {
 		return errors.Wrap(err, "cannot initialize core")
 	}
 
