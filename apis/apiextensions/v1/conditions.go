@@ -56,6 +56,8 @@ const (
 
 	ReasonWatchCircuitOpen   xpv2.ConditionReason = "WatchCircuitOpen"
 	ReasonWatchCircuitClosed xpv2.ConditionReason = "WatchCircuitClosed"
+
+	ReasonCannotEstablishComposite xpv2.ConditionReason = "CannotEstablishCompositeResource"
 )
 
 // WatchingComposite indicates that Crossplane has defined and is watching for a
@@ -66,6 +68,19 @@ func WatchingComposite() xpv2.Condition {
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonWatchingComposite,
+	}
+}
+
+// CannotEstablishComposite indicates that Crossplane could not establish
+// (i.e. create and start watching) a new kind of composite resource - for
+// example because the apiserver rejected the CustomResourceDefinition
+// derived from the XRD's schema.
+func CannotEstablishComposite() xpv2.Condition {
+	return xpv2.Condition{
+		Type:               TypeEstablished,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonCannotEstablishComposite,
 	}
 }
 
