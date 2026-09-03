@@ -24,7 +24,6 @@ import (
 	"github.com/spf13/afero"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/ptr"
 
 	opsv1alpha1 "github.com/crossplane/crossplane/v2/apis/ops/v1alpha1"
 )
@@ -367,7 +366,7 @@ func TestInjectWatchedResource(t *testing.T) {
 										RequirementName: opsv1alpha1.RequirementNameWatchedResource,
 										APIVersion:      "v1",
 										Kind:            "Node",
-										Name:            ptr.To("my-node"),
+										Name:            new("my-node"),
 									},
 								},
 							},

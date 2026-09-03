@@ -106,7 +106,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		watched.SetName(req.Name)
 		watched.SetNamespace(req.Namespace)
-		watched.SetDeletionTimestamp(ptr.To(metav1.Now()))
+		watched.SetDeletionTimestamp(new(metav1.Now()))
 		watched.SetResourceVersion(v1alpha1.SyntheticResourceVersionDeleted)
 	}
 
@@ -231,12 +231,12 @@ func NewOperation(wo *v1alpha1.WatchOperation, watched *unstructured.Unstructure
 		RequirementName: v1alpha1.RequirementNameWatchedResource,
 		APIVersion:      watched.GetAPIVersion(),
 		Kind:            watched.GetKind(),
-		Name:            ptr.To(watched.GetName()),
+		Name:            new(watched.GetName()),
 	}
 
 	// Add namespace if the resource is namespaced
 	if watched.GetNamespace() != "" {
-		sel.Namespace = ptr.To(watched.GetNamespace())
+		sel.Namespace = new(watched.GetNamespace())
 	}
 
 	// Inject the watched resource into each pipeline step

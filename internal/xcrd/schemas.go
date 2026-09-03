@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/utils/ptr"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 
@@ -145,7 +144,7 @@ func CompositeResourceSpecProps(s v1.CompositeResourceScope, defaultPol *xpv1.Up
 				},
 			},
 			// Controllers should replace the entire resourceRefs array.
-			XListType: ptr.To("atomic"),
+			XListType: new("atomic"),
 		},
 	}
 
@@ -166,7 +165,7 @@ func CompositeResourceSpecProps(s v1.CompositeResourceScope, defaultPol *xpv1.Up
 				},
 			},
 			// Controllers should replace the entire resourceRefs array.
-			XListType: ptr.To("atomic"),
+			XListType: new("atomic"),
 		}
 	}
 
@@ -300,7 +299,7 @@ func CompositeResourceStatusProps(s v1.CompositeResourceScope) map[string]extv1.
 			XListMapKeys: []string{
 				"type",
 			},
-			XListType: ptr.To("map"),
+			XListType: new("map"),
 			Items: &extv1.JSONSchemaPropsOrArray{
 				Schema: &extv1.JSONSchemaProps{
 					Type:     "object",
@@ -332,7 +331,7 @@ func CompositeResourceStatusProps(s v1.CompositeResourceScope) map[string]extv1.
 		}
 		props["claimConditionTypes"] = extv1.JSONSchemaProps{
 			Type:      "array",
-			XListType: ptr.To("set"),
+			XListType: new("set"),
 			Items: &extv1.JSONSchemaPropsOrArray{
 				Schema: &extv1.JSONSchemaProps{
 					Type: "string",

@@ -71,8 +71,8 @@ var (
 		},
 		Status: v1.ProviderRevisionStatus{
 			PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
-				TLSServerSecretName: ptr.To(tlsServerSecretName),
-				TLSClientSecretName: ptr.To(tlsClientSecretName),
+				TLSServerSecretName: new(tlsServerSecretName),
+				TLSClientSecretName: new(tlsClientSecretName),
 			},
 		},
 	}
@@ -96,7 +96,7 @@ var (
 		},
 		Status: v1.FunctionRevisionStatus{
 			PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
-				TLSServerSecretName: ptr.To(tlsServerSecretName),
+				TLSServerSecretName: new(tlsServerSecretName),
 			},
 		},
 	}
@@ -242,7 +242,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
 								Metadata: &v1beta1.ObjectMeta{
-									Name: ptr.To("my-provider-foo"),
+									Name: new("my-provider-foo"),
 									Labels: map[string]string{
 										"x": "y",
 									},
@@ -402,8 +402,8 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 								Kind:               "ProviderRevision",
 								Name:               providerRevisionName,
 								UID:                types.UID(providerRevisionUID),
-								Controller:         ptr.To(true),
-								BlockOwnerDeletion: ptr.To(true),
+								Controller:         new(true),
+								BlockOwnerDeletion: new(true),
 							},
 						},
 					},
@@ -446,8 +446,8 @@ func deploymentProvider(provider string, rev string, image string, overrides ...
 					Kind:               "ProviderRevision",
 					Name:               rev,
 					UID:                types.UID(providerRevisionUID),
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
+					Controller:         new(true),
+					BlockOwnerDeletion: new(true),
 				},
 			},
 		},
@@ -625,8 +625,8 @@ func deploymentFunction(function string, rev string, image string, overrides ...
 					Kind:               "FunctionRevision",
 					Name:               rev,
 					UID:                types.UID(functionRevisionUID),
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
+					Controller:         new(true),
+					BlockOwnerDeletion: new(true),
 				},
 			},
 		},

@@ -190,7 +190,7 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64
 	}
 
 	xName := crdv.Schema.OpenAPIV3Schema.Properties["metadata"].Properties["name"]
-	xName.MaxLength = ptr.To(maxLength)
+	xName.MaxLength = new(maxLength)
 	xName.Type = "string"
 	xMetaData := crdv.Schema.OpenAPIV3Schema.Properties["metadata"]
 	xMetaData.Properties = map[string]extv1.JSONSchemaProps{"name": xName}

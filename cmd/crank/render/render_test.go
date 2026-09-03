@@ -32,7 +32,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
@@ -345,7 +344,7 @@ name: test
 										Type:    "ProvisioningSuccess",
 										Status:  fnv1.Status_STATUS_CONDITION_TRUE,
 										Reason:  "Provisioned",
-										Message: ptr.To("Provisioned successfully"),
+										Message: new("Provisioned successfully"),
 										Target:  fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
 									},
 								},
@@ -586,7 +585,7 @@ name: test
 											Type:    "ProvisioningSuccess",
 											Status:  fnv1.Status_STATUS_CONDITION_TRUE,
 											Reason:  "Provisioned",
-											Message: ptr.To("Provisioned successfully"),
+											Message: new("Provisioned successfully"),
 											Target:  fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
 										},
 									},
