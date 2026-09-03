@@ -620,8 +620,15 @@ func (e *APIEstablisher) demoteOldController(ctx context.Context, obj, parent re
 	}
 
 	ok, err := e.controlledByReplacedRevision(ctx, *c, parent)
-	if err != nil || !ok {
+	if err != nil {
 		return err
+	}
+
+	if !ok {
+		// Leave the current controller in place. AddControllerReference then
+		// fails with the same error it always has, which is what we want for
+		// an object that belongs to something else.
+		return nil
 	}
 
 	// Keep the old revision as a plain owner rather than dropping it, so we
