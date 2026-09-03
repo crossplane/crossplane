@@ -248,6 +248,11 @@ func TestProviderUpgradeInactiveRevisionHoldsControl(t *testing.T) {
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "mr.yaml"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "mr.yaml", xpv2.Available()),
 			)).
+			// Log revision conditions for the rest of the feature, so a failure
+			// below shows why the incoming revision is unhealthy. A setup step
+			// runs on the feature-level test, so the logging outlives any one
+			// assessment.
+			WithSetup("LogProviderRevisions", funcs.InBackground(funcs.LogResources(&pkgv1.ProviderRevisionList{}, revisionsOfProvider))).
 			// Record the objects the outgoing revision controls, rather than
 			// naming them here. Which kinds the establisher controls depends on
 			// whether managed resource CRDs were converted to MRDs.
@@ -312,9 +317,6 @@ func TestProviderUpgradeInactiveRevisionHoldsControl(t *testing.T) {
 					xpv2.ReconcilePaused(),
 				)(ctx, t, c)
 			}).
-			// Log revision conditions while the upgrade runs, so a failure of the
-			// assessment below shows why the incoming revision is unhealthy.
-			Assess("LogProviderRevisions", funcs.InBackground(funcs.LogResources(&pkgv1.ProviderRevisionList{}, revisionsOfProvider))).
 			Assess("UpgradeProvider", funcs.ApplyResources(FieldManager, manifests, "provider-upgrade.yaml")).
 			// This is the assessment that fails when the establisher can't take
 			// control from the revision it replaced. The provider stays unhealthy
