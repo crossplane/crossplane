@@ -27,7 +27,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -68,7 +67,7 @@ func TestFunctionPreHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSServerSecretName: ptr.To("some-server-secret"),
+							TLSServerSecretName: new("some-server-secret"),
 						},
 					},
 				},
@@ -103,13 +102,13 @@ func TestFunctionPreHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSServerSecretName: ptr.To("some-server-secret"),
+							TLSServerSecretName: new("some-server-secret"),
 						},
 					},
 					Status: v1.FunctionRevisionStatus{
 						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "some-service", "some-namespace", revision.ServicePort),
 						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
-							TLSServerSecretName: ptr.To("some-server-secret"),
+							TLSServerSecretName: new("some-server-secret"),
 						},
 					},
 				},

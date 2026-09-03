@@ -29,7 +29,6 @@ import (
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -469,13 +468,13 @@ func TestSelectSchema(t *testing.T) {
 		"V1XRDExplicitLegacyClusterScope": {
 			reason:     "A v1 XRD with explicit Spec.Scope=LegacyCluster yields SchemaLegacy.",
 			gvk:        xrGVK,
-			def:        v1XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", ptr.To("LegacyCluster")),
+			def:        v1XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", new("LegacyCluster")),
 			wantSchema: ucomposite.SchemaLegacy,
 		},
 		"V1XRDExplicitClusterScope": {
 			reason:     "A v1 XRD with explicit Spec.Scope=Cluster (theoretical edge case) yields SchemaModern. Mirrors the production reconciler's rule.",
 			gvk:        xrGVK,
-			def:        v1XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", ptr.To("Cluster")),
+			def:        v1XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", new("Cluster")),
 			wantSchema: ucomposite.SchemaModern,
 		},
 		"V2XRD": {
@@ -487,7 +486,7 @@ func TestSelectSchema(t *testing.T) {
 		"V2FormPreservingLegacyClusterScope": {
 			reason:     "A v2-form XRD with Spec.Scope=LegacyCluster (e.g. a v1-posted XRD round-tripped through the storage version) yields SchemaLegacy. The v2 Go type's Spec.Scope is a string alias with no runtime enum validation, so 'LegacyCluster' survives the round-trip and must be honored to avoid forcing consumers to specifically fetch v1-form.",
 			gvk:        xrGVK,
-			def:        v2XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", ptr.To("LegacyCluster")),
+			def:        v2XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", new("LegacyCluster")),
 			wantSchema: ucomposite.SchemaLegacy,
 		},
 		"XRDDoesNotMatchXR": {
@@ -731,7 +730,7 @@ func TestCheckObservedResources(t *testing.T) {
 			Kind:       "XLegacyResource",
 			Name:       "my-xr",
 			UID:        uid,
-			Controller: ptr.To(true),
+			Controller: new(true),
 		}
 	}
 	nonControllerRef := func(uid types.UID) metav1.OwnerReference {

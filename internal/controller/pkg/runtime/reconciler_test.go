@@ -27,7 +27,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -821,7 +820,7 @@ func TestReconcile(t *testing.T) {
 								obj.SetGroupVersionKind(v1beta1.DeploymentRuntimeConfigGroupVersionKind)
 								obj.Spec.DeploymentTemplate = &v1beta1.DeploymentTemplate{
 									Metadata: &v1beta1.ObjectMeta{
-										Name: ptr.To("deployment-name-override"),
+										Name: new("deployment-name-override"),
 									},
 								}
 								return nil
@@ -878,7 +877,7 @@ func TestReconcile(t *testing.T) {
 								"test-image-config",
 								&v1beta1.ImageRuntime{
 									ConfigReference: &v1beta1.RuntimeConfigReference{
-										APIVersion: ptr.To(v1beta1.SchemeGroupVersion.String()),
+										APIVersion: new(v1beta1.SchemeGroupVersion.String()),
 										Kind:       &v1beta1.DeploymentRuntimeConfigKind,
 										Name:       "image-runtime-config",
 									},

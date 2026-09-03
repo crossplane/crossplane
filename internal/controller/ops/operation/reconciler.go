@@ -399,7 +399,7 @@ func AddResourceRef(refs []v1alpha1.AppliedResourceRef, u *kunstructured.Unstruc
 		Name:       u.GetName(),
 	}
 	if u.GetNamespace() != "" {
-		ref.Namespace = ptr.To(u.GetNamespace())
+		ref.Namespace = new(u.GetNamespace())
 	}
 
 	// Don't add the new ref if it's already there.
