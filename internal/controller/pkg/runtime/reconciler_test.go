@@ -876,7 +876,7 @@ func TestReconcile(t *testing.T) {
 								obj.SetGroupVersionKind(v1beta1.DeploymentRuntimeConfigGroupVersionKind)
 								obj.Spec.DeploymentTemplate = &v1beta1.DeploymentTemplate{
 									Metadata: &v1beta1.ObjectMeta{
-										Name: ptr.To("deployment-name-override"),
+										Name: new("deployment-name-override"),
 									},
 								}
 								return nil
@@ -933,7 +933,7 @@ func TestReconcile(t *testing.T) {
 								"test-image-config",
 								&v1beta1.ImageRuntime{
 									ConfigReference: &v1beta1.RuntimeConfigReference{
-										APIVersion: ptr.To(v1beta1.SchemeGroupVersion.String()),
+										APIVersion: new(v1beta1.SchemeGroupVersion.String()),
 										Kind:       &v1beta1.DeploymentRuntimeConfigKind,
 										Name:       "image-runtime-config",
 									},
@@ -1433,7 +1433,7 @@ func mrdControlledBy(uid types.UID, state extv1alpha1.ManagedResourceDefinitionS
 				Kind:       v1.ProviderRevisionKind,
 				Name:       "test-provider-1234",
 				UID:        uid,
-				Controller: ptr.To(true),
+				Controller: new(true),
 			}},
 		},
 		Spec: extv1alpha1.ManagedResourceDefinitionSpec{State: state},

@@ -237,10 +237,10 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: ptr.To("not-here-1"),
+									Provider: new("not-here-1"),
 								},
 								{
-									Provider: ptr.To("not-here-2"),
+									Provider: new("not-here-2"),
 									Version:  ">= v2.0.0",
 								},
 							},
@@ -307,10 +307,10 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: ptr.To("not-here-1"),
+									Provider: new("not-here-1"),
 								},
 								{
-									Provider: ptr.To("not-here-2"),
+									Provider: new("not-here-2"),
 								},
 							},
 						},
@@ -386,11 +386,11 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: ptr.To("not-here-1"),
+									Provider: new("not-here-1"),
 									Version:  ">=v0.1.0",
 								},
 								{
-									Provider: ptr.To("not-here-2"),
+									Provider: new("not-here-2"),
 									Version:  ">=v0.1.0",
 								},
 							},
@@ -476,15 +476,15 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: ptr.To("not-here-1"),
+									Provider: new("not-here-1"),
 									Version:  ">=v0.1.0",
 								},
 								{
-									Provider: ptr.To("not-here-2"),
+									Provider: new("not-here-2"),
 									Version:  ">=v0.1.0",
 								},
 								{
-									Function: ptr.To("function-not-here-1"),
+									Function: new("function-not-here-1"),
 									Version:  ">=v0.1.0",
 								},
 							},

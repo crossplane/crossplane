@@ -196,7 +196,7 @@
               pkgs.coreutils
               pkgs.gnused
               pkgs.ncurses
-              pkgs.unstable.go_1_25
+              pkgs.unstable.go_1_26
               pkgs.golangci-lint
               pkgs.kubectl
               pkgs.kubernetes-helm
