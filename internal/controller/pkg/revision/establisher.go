@@ -54,6 +54,7 @@ const (
 	errWebhookSecretWithoutCABundle = "the value for the key tls.crt cannot be empty"
 	errFmtGetOwnedObject            = "cannot get owned object: %s/%s"
 	errFmtUpdateOwnedObject         = "cannot update owned object: %s/%s"
+	errFmtGetControllingRevision    = "cannot get %s %q that currently controls this object"
 )
 
 const (
@@ -92,14 +93,16 @@ func (*NopEstablisher) ReleaseObjects(_ context.Context, _ v1.PackageRevision) e
 type APIEstablisher struct {
 	client                           client.Client
 	namespace                        string
+	newPackageRevision               func() v1.PackageRevision
 	MaxConcurrentPackageEstablishers int
 }
 
 // NewAPIEstablisher creates a new APIEstablisher.
-func NewAPIEstablisher(client client.Client, namespace string, maxConcurrentPackageEstablishers int) *APIEstablisher {
+func NewAPIEstablisher(client client.Client, namespace string, newPackageRevision func() v1.PackageRevision, maxConcurrentPackageEstablishers int) *APIEstablisher {
 	return &APIEstablisher{
 		client:                           client,
 		namespace:                        namespace,
+		newPackageRevision:               newPackageRevision,
 		MaxConcurrentPackageEstablishers: maxConcurrentPackageEstablishers,
 	}
 }
@@ -564,7 +567,17 @@ func (e *APIEstablisher) update(ctx context.Context, current, desired resource.O
 	// version to that of the current.
 	desired.SetOwnerReferences(current.GetOwnerReferences())
 
-	if err := meta.AddControllerReference(desired, meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))); err != nil {
+	ctrlRef := meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))
+
+	// A revision we're replacing may still be the object's controller, because
+	// it hasn't relinquished control yet or because it was replaced or deleted
+	// before it could. Demote it to be just an owner, so the hand-off doesn't depend on
+	// the order in which the two revisions reconcile.
+	if err := e.demoteOldController(ctx, desired, parent, ctrlRef); err != nil {
+		return err
+	}
+
+	if err := meta.AddControllerReference(desired, ctrlRef); err != nil {
 		return err
 	}
 
@@ -577,6 +590,106 @@ func (e *APIEstablisher) update(ctx context.Context, current, desired resource.O
 
 	// This should be a server side apply?
 	return e.client.Update(ctx, desired, opts...)
+}
+
+// demoteOldController demotes obj's controller owner reference to a plain owner
+// reference, so that want's owner can become the controller instead. It only
+// does so when the current controller is a revision this parent may take over
+// from: another revision of the same package, or a revision that no longer
+// exists.
+//
+// We only get here for a revision whose desired state is active, and a package
+// has at most one active revision, so taking control from a sibling revision is
+// safe. It's what lets a package upgrade complete even if the outgoing revision
+// never relinquishes control, e.g. because it was deleted, replaced, or paused.
+func (e *APIEstablisher) demoteOldController(ctx context.Context, obj, parent resource.Object, want metav1.OwnerReference) error {
+	c := metav1.GetControllerOf(obj)
+	if c == nil || c.UID == want.UID {
+		return nil
+	}
+
+	// Only ever take control from the same kind of revision we are. We compare
+	// group and kind rather than the whole API version, so that we still
+	// recognise a controller reference written through another version of our
+	// own type, which the API server may well still serve.
+	got := schema.FromAPIVersionAndKind(c.APIVersion, c.Kind).GroupKind()
+	ours := schema.FromAPIVersionAndKind(want.APIVersion, want.Kind).GroupKind()
+
+	if got != ours {
+		return nil
+	}
+
+	ok, err := e.controlledByReplacedRevision(ctx, *c, parent)
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		// Leave the current controller in place. AddControllerReference then
+		// fails with the same error it always has, which is what we want for
+		// an object that belongs to something else.
+		return nil
+	}
+
+	// Keep the old revision as a plain owner rather than dropping it, so we
+	// don't change when the object gets garbage collected.
+	refs := slices.Clone(obj.GetOwnerReferences())
+	for i := range refs {
+		if refs[i].UID == c.UID {
+			refs[i].Controller = new(false)
+			break
+		}
+	}
+
+	obj.SetOwnerReferences(refs)
+
+	return nil
+}
+
+// controlledByReplacedRevision returns true if the supplied controller owner
+// reference belongs to a revision of the same package as parent, or to a
+// revision that no longer exists. Either way it will never relinquish control
+// of the objects it established.
+func (e *APIEstablisher) controlledByReplacedRevision(ctx context.Context, c metav1.OwnerReference, parent resource.Object) (bool, error) {
+	pkg := parent.GetLabels()[v1.LabelParentPackage]
+	if pkg == "" {
+		// We can't tell what package we belong to, so we can't tell whether the
+		// controller is a revision of it.
+		return false, nil
+	}
+
+	// The controller is a revision of our own kind, so this is the type we need
+	// to read it into.
+	rev := e.newPackageRevision()
+
+	err := e.client.Get(ctx, types.NamespacedName{Name: c.Name}, rev)
+	if kerrors.IsNotFound(err) {
+		// The revision that took control is gone. The API server garbage
+		// collects the dangling owner reference eventually, but we don't want to
+		// wait for it.
+		return true, nil
+	}
+
+	if err != nil {
+		return false, errors.Wrapf(err, errFmtGetControllingRevision, c.Kind, c.Name)
+	}
+
+	// A revision with the same name but a different UID replaced the one that
+	// took control, so the original is gone too.
+	if rev.GetUID() != c.UID {
+		return true, nil
+	}
+
+	// Only take control from a revision of our own package.
+	if rev.GetLabels()[v1.LabelParentPackage] != pkg {
+		return false, nil
+	}
+
+	// Only take control from a revision that is on its way out. An active
+	// revision should keep control of its objects, and taking it from one would
+	// let a stale reconcile of a revision that was just deactivated take control
+	// back from the revision that replaced it, and flap between the two.
+	return rev.GetDesiredState() == v1.PackageRevisionInactive, nil
 }
 
 func (e *APIEstablisher) merge(_ context.Context, c, d resource.Object) error {

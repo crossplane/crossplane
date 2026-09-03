@@ -234,7 +234,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackageRevisionsForImageConfig(mgr.GetClient(), &v1.ProviderRevisionList{}, log))
 
 	est := NewFilteringEstablisher(
-		NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers),
+		NewAPIEstablisher(mgr.GetClient(), o.Namespace, nr, o.MaxConcurrentPackageEstablishers),
 		extv1alpha1.ManagedResourceDefinitionGroupVersionKind.GroupKind(),
 		schema.GroupKind{Group: k8sextv1.SchemeGroupVersion.Group, Kind: "CustomResourceDefinition"},
 		schema.GroupKind{Group: admv1.SchemeGroupVersion.Group, Kind: "ValidatingWebhookConfiguration"},
@@ -267,7 +267,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	log := o.Logger.WithValues("controller", name)
 
 	est := NewFilteringEstablisher(
-		NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers),
+		NewAPIEstablisher(mgr.GetClient(), o.Namespace, nr, o.MaxConcurrentPackageEstablishers),
 		extv2.CompositeResourceDefinitionGroupVersionKind.GroupKind(),
 		extv1.CompositionGroupVersionKind.GroupKind(),
 		extv1alpha1.ManagedResourceActivationPolicyGroupVersionKind.GroupKind(),
@@ -317,7 +317,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 	// any objects from function packages. Create an empty filtering establisher
 	// to filter them all out.
 	est := NewFilteringEstablisher(
-		NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers),
+		NewAPIEstablisher(mgr.GetClient(), o.Namespace, nr, o.MaxConcurrentPackageEstablishers),
 	)
 
 	r := NewReconciler(mgr,

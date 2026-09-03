@@ -1546,6 +1546,52 @@ func SolelyOwnedBy(name string) FieldValueChecker {
 	}
 }
 
+// ControlledBy returns a FieldValueChecker for the "metadata.ownerReferences" field path. It matches
+// when the object has a controlling owner reference naming the given owner. Unlike SolelyOwnedBy it
+// tolerates other, non-controlling owners.
+//
+// It reads the unstructured form of the field, a []any of map[string]any, so it will not match at
+// any other field path.
+func ControlledBy(name string) FieldValueChecker {
+	return func(got any) bool { return hasOwnerReference(got, name, true) }
+}
+
+// OwnedButNotControlledBy returns a FieldValueChecker for the "metadata.ownerReferences" field path.
+// It matches when the object has an owner reference naming the given owner that is not controlling,
+// as a revision that has handed control over to another one has. Other owners are allowed, which is
+// what distinguishes it from SolelyOwnedBy.
+//
+// It reads the unstructured form of the field, a []any of map[string]any, so it will not match at
+// any other field path.
+func OwnedButNotControlledBy(name string) FieldValueChecker {
+	return func(got any) bool { return hasOwnerReference(got, name, false) }
+}
+
+// hasOwnerReference returns true if the supplied unstructured owner references include one that
+// names the supplied owner and whose controller flag is the supplied value.
+func hasOwnerReference(got any, name string, controller bool) bool {
+	ors, ok := got.([]any)
+	if !ok {
+		return false
+	}
+
+	for _, or := range ors {
+		r, ok := or.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		n, _ := r["name"].(string)
+		c, _ := r["controller"].(bool)
+
+		if n == name && c == controller {
+			return true
+		}
+	}
+
+	return false
+}
+
 func toYAML(objs ...client.Object) string {
 	docs := make([]string, 0, len(objs))
 	for _, obj := range objs {
