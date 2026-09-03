@@ -205,24 +205,22 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
 }
 
-// handOverControl prepares patch, the CRD we are about to apply, to take
-// control of crd, the live CRD, from the package revision that still controls
-// it, by declaring that revision's owner reference demoted to a plain owner.
+// handOverControl lets the CRD we are about to apply take control from the
+// package revision that still controls the live one, by declaring that
+// revision's owner reference alongside ours, demoted to a plain owner.
 //
-// Server-side apply can't complete the hand-off on its own when the outgoing
-// revision's reference was written by another field manager, as an older
-// Crossplane's establisher did client-side: owner references are merged by
-// UID and only entries we own are pruned, so the old entry survives our apply,
-// and declaring a second controller beside it is rejected, since only one
-// owner reference may control an object. Declaring the old entry demoted sets
-// the new controller and demotes the old one in one write, and gives our field
-// manager the entry, so a later apply that no longer declares it prunes it.
+// We need this because the old reference may have been written by another
+// field manager, for example client-side by the establisher of an older
+// Crossplane. Server-side apply merges owner references by UID and only prunes
+// entries we own, so that entry survives our apply, and adding a second
+// controller next to it is rejected. Declaring it demoted flips it in the same
+// write and makes it ours, so the next apply, which no longer declares it,
+// prunes it.
 //
-// Only a package revision of the same group and kind as the MRD's controller
-// is taken over. The MRD decides which revision controls what is derived from
-// it, and the establisher only hands it over between revisions of the same
-// package, so the CRD follows it. Anything else keeps control, and the apply
-// fails loudly rather than take the CRD from it.
+// We only do this for a revision of the same group and kind as the MRD's
+// controller. The establisher already decides which revision controls the
+// MRD, so the CRD just follows. Anything else keeps control and the apply
+// fails as it always has.
 func handOverControl(patch, crd metav1.Object) {
 	want := metav1.GetControllerOf(patch)
 	got := metav1.GetControllerOf(crd)
