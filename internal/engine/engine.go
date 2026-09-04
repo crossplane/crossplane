@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	kcache "k8s.io/client-go/tools/cache"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -312,7 +311,7 @@ func (e *ControllerEngine) Start(name string, o ...ControllerOption) error {
 	// validation to keep the reconcilers idempotent and given that
 	// controllers named with claim/<GR> or composite/<GR> which are
 	// already unique in the engine.
-	co.runtime.SkipNameValidation = ptr.To(true)
+	co.runtime.SkipNameValidation = new(true)
 
 	c, err := co.nc(name, co.runtime)
 	if err != nil {
