@@ -274,8 +274,8 @@ func TestConvertToCRDs(t *testing.T) {
 									APIVersion:         "apiextensions.crossplane.io/v1",
 									Kind:               "CompositeResourceDefinition",
 									Name:               "test",
-									Controller:         ptr.To[bool](true),
-									BlockOwnerDeletion: ptr.To[bool](true),
+									Controller:         new(true),
+									BlockOwnerDeletion: new(true),
 								},
 							},
 						},
@@ -449,7 +449,7 @@ func TestConvertToCRDs(t *testing.T) {
 																	Required: []string{"apiVersion", "kind"},
 																},
 															},
-															XListType: ptr.To("atomic"),
+															XListType: new("atomic"),
 														},
 														"writeConnectionSecretToRef": {
 															Type:     "object",
@@ -470,7 +470,7 @@ func TestConvertToCRDs(t *testing.T) {
 														"conditions": {
 															Description:  "Conditions of the resource.",
 															Type:         "array",
-															XListType:    ptr.To("map"),
+															XListType:    new("map"),
 															XListMapKeys: []string{"type"},
 															Items: &extv1.JSONSchemaPropsOrArray{
 																Schema: &extv1.JSONSchemaProps{
@@ -489,7 +489,7 @@ func TestConvertToCRDs(t *testing.T) {
 														},
 														"claimConditionTypes": {
 															Type:      "array",
-															XListType: ptr.To("set"),
+															XListType: new("set"),
 															Items: &extv1.JSONSchemaPropsOrArray{
 																Schema: &extv1.JSONSchemaProps{
 																	Type: "string",
@@ -582,8 +582,8 @@ func TestConvertToCRDs(t *testing.T) {
 									APIVersion:         "apiextensions.crossplane.io/v1",
 									Kind:               "CompositeResourceDefinition",
 									Name:               "test",
-									Controller:         ptr.To[bool](true),
-									BlockOwnerDeletion: ptr.To[bool](true),
+									Controller:         new(true),
+									BlockOwnerDeletion: new(true),
 								},
 							},
 						},
@@ -757,7 +757,7 @@ func TestConvertToCRDs(t *testing.T) {
 																	Required: []string{"apiVersion", "kind"},
 																},
 															},
-															XListType: ptr.To("atomic"),
+															XListType: new("atomic"),
 														},
 														"writeConnectionSecretToRef": {
 															Type:     "object",
@@ -778,7 +778,7 @@ func TestConvertToCRDs(t *testing.T) {
 														"conditions": {
 															Description:  "Conditions of the resource.",
 															Type:         "array",
-															XListType:    ptr.To("map"),
+															XListType:    new("map"),
 															XListMapKeys: []string{"type"},
 															Items: &extv1.JSONSchemaPropsOrArray{
 																Schema: &extv1.JSONSchemaProps{
@@ -797,7 +797,7 @@ func TestConvertToCRDs(t *testing.T) {
 														},
 														"claimConditionTypes": {
 															Type:      "array",
-															XListType: ptr.To("set"),
+															XListType: new("set"),
 															Items: &extv1.JSONSchemaPropsOrArray{
 																Schema: &extv1.JSONSchemaProps{
 																	Type: "string",
@@ -827,8 +827,8 @@ func TestConvertToCRDs(t *testing.T) {
 									APIVersion:         "apiextensions.crossplane.io/v1",
 									Kind:               "CompositeResourceDefinition",
 									Name:               "test",
-									Controller:         ptr.To[bool](true),
-									BlockOwnerDeletion: ptr.To[bool](true),
+									Controller:         new(true),
+									BlockOwnerDeletion: new(true),
 								},
 							},
 						},
@@ -994,7 +994,7 @@ func TestConvertToCRDs(t *testing.T) {
 														"conditions": {
 															Description:  "Conditions of the resource.",
 															Type:         "array",
-															XListType:    ptr.To("map"),
+															XListType:    new("map"),
 															XListMapKeys: []string{"type"},
 															Items: &extv1.JSONSchemaPropsOrArray{
 																Schema: &extv1.JSONSchemaProps{
@@ -1013,7 +1013,7 @@ func TestConvertToCRDs(t *testing.T) {
 														},
 														"claimConditionTypes": {
 															Type:      "array",
-															XListType: ptr.To("set"),
+															XListType: new("set"),
 															Items: &extv1.JSONSchemaPropsOrArray{
 																Schema: &extv1.JSONSchemaProps{
 																	Type: "string",

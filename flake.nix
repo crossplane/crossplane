@@ -89,7 +89,7 @@
                 # in our build targets rather than replace Go in the global
                 # overlay so that we can still use pre-built binaries for
                 # Go-based tools from nixpkgs.
-                go-unstable = nixpkgs-unstable.legacyPackages.${system}.go_1_25;
+                go-unstable = nixpkgs-unstable.legacyPackages.${system}.go_1_26;
               })
             ];
           };

@@ -21,7 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
@@ -95,10 +94,10 @@ func InjectWatchedResource(op *opsv1alpha1.Operation, watched *unstructured.Unst
 		RequirementName: opsv1alpha1.RequirementNameWatchedResource,
 		APIVersion:      watched.GetAPIVersion(),
 		Kind:            watched.GetKind(),
-		Name:            ptr.To(watched.GetName()),
+		Name:            new(watched.GetName()),
 	}
 	if watched.GetNamespace() != "" {
-		sel.Namespace = ptr.To(watched.GetNamespace())
+		sel.Namespace = new(watched.GetNamespace())
 	}
 
 	for i := range op.Spec.Pipeline {

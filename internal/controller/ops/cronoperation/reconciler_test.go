@@ -109,7 +109,7 @@ func TestReconcile(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							co := &v1alpha1.CronOperation{
 								ObjectMeta: metav1.ObjectMeta{
-									DeletionTimestamp: ptr.To(metav1.Now()),
+									DeletionTimestamp: new(metav1.Now()),
 								},
 							}
 							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
@@ -250,7 +250,7 @@ func TestReconcile(t *testing.T) {
 								},
 								Spec: v1alpha1.CronOperationSpec{
 									Schedule:                "0 * * * *",
-									StartingDeadlineSeconds: ptr.To(int64(60)), // 1 minute deadline
+									StartingDeadlineSeconds: new(int64(60)), // 1 minute deadline
 								},
 							}
 							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
@@ -520,8 +520,8 @@ func TestReconcile(t *testing.T) {
 								},
 								Spec: v1alpha1.CronOperationSpec{
 									Schedule:               "0 * * * *",
-									SuccessfulHistoryLimit: ptr.To(int32(1)),
-									FailedHistoryLimit:     ptr.To(int32(1)),
+									SuccessfulHistoryLimit: new(int32(1)),
+									FailedHistoryLimit:     new(int32(1)),
 								},
 							}
 							co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
@@ -665,8 +665,8 @@ func TestNewOperation(t *testing.T) {
 								Kind:               "CronOperation",
 								Name:               "test-cron",
 								UID:                types.UID("test-uid"),
-								Controller:         ptr.To(true),
-								BlockOwnerDeletion: ptr.To(true),
+								Controller:         new(true),
+								BlockOwnerDeletion: new(true),
 							},
 						},
 					},

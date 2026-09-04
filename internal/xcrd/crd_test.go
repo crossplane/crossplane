@@ -382,7 +382,7 @@ func TestForCompositeResource(t *testing.T) {
 																	Required: []string{"apiVersion", "kind"},
 																},
 															},
-															XListType: ptr.To("atomic"),
+															XListType: new("atomic"),
 														},
 													},
 												},
@@ -408,7 +408,7 @@ func TestForCompositeResource(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    ptr.To("map"),
+													XListType:    new("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -618,7 +618,7 @@ func TestForCompositeResource(t *testing.T) {
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
-													XListType: ptr.To("atomic"),
+													XListType: new("atomic"),
 												},
 												"writeConnectionSecretToRef": {
 													Type:     "object",
@@ -651,7 +651,7 @@ func TestForCompositeResource(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    ptr.To("map"),
+													XListType:    new("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -670,7 +670,7 @@ func TestForCompositeResource(t *testing.T) {
 												},
 												"claimConditionTypes": {
 													Type:      "array",
-													XListType: ptr.To("set"),
+													XListType: new("set"),
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
 															Type: "string",
@@ -900,7 +900,7 @@ func TestForCompositeResource(t *testing.T) {
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
-													XListType: ptr.To("atomic"),
+													XListType: new("atomic"),
 												},
 												"writeConnectionSecretToRef": {
 													Type:     "object",
@@ -933,7 +933,7 @@ func TestForCompositeResource(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    ptr.To("map"),
+													XListType:    new("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -952,7 +952,7 @@ func TestForCompositeResource(t *testing.T) {
 												},
 												"claimConditionTypes": {
 													Type:      "array",
-													XListType: ptr.To("set"),
+													XListType: new("set"),
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
 															Type: "string",
@@ -1145,7 +1145,7 @@ func TestForCompositeResource(t *testing.T) {
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
-													XListType: ptr.To("atomic"),
+													XListType: new("atomic"),
 												},
 												"writeConnectionSecretToRef": {
 													Type:     "object",
@@ -1165,7 +1165,7 @@ func TestForCompositeResource(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    ptr.To("map"),
+													XListType:    new("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -1184,7 +1184,7 @@ func TestForCompositeResource(t *testing.T) {
 												},
 												"claimConditionTypes": {
 													Type:      "array",
-													XListType: ptr.To("set"),
+													XListType: new("set"),
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
 															Type: "string",
@@ -1380,7 +1380,7 @@ func TestForCompositeResource(t *testing.T) {
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
-													XListType: ptr.To("atomic"),
+													XListType: new("atomic"),
 												},
 												"writeConnectionSecretToRef": {
 													Type:     "object",
@@ -1413,7 +1413,7 @@ func TestForCompositeResource(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    ptr.To("map"),
+													XListType:    new("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -1432,7 +1432,7 @@ func TestForCompositeResource(t *testing.T) {
 												},
 												"claimConditionTypes": {
 													Type:      "array",
-													XListType: ptr.To("set"),
+													XListType: new("set"),
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
 															Type: "string",
@@ -1638,7 +1638,7 @@ func TestForCompositeResource(t *testing.T) {
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
-													XListType: ptr.To("atomic"),
+													XListType: new("atomic"),
 												},
 												"writeConnectionSecretToRef": {
 													Type:     "object",
@@ -1671,7 +1671,7 @@ func TestForCompositeResource(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    ptr.To("map"),
+													XListType:    new("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -1690,7 +1690,7 @@ func TestForCompositeResource(t *testing.T) {
 												},
 												"claimConditionTypes": {
 													Type:      "array",
-													XListType: ptr.To("set"),
+													XListType: new("set"),
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
 															Type: "string",
@@ -1821,7 +1821,7 @@ func TestForCompositeResource(t *testing.T) {
 											Type:                   "object",
 											Required:               []string{"storageGB", "engineVersion"},
 											Description:            "Specification of the resource.",
-											XPreserveUnknownFields: ptr.To(true),
+											XPreserveUnknownFields: new(true),
 											Properties: map[string]extv1.JSONSchemaProps{
 												// From CRDSpecTemplate.Validation
 												"storageGB": {Type: "integer", Description: "Pretend this is useful."},
@@ -1907,7 +1907,7 @@ func TestForCompositeResource(t *testing.T) {
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
-													XListType: ptr.To("atomic"),
+													XListType: new("atomic"),
 												},
 												"writeConnectionSecretToRef": {
 													Type:     "object",
@@ -1940,7 +1940,7 @@ func TestForCompositeResource(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    ptr.To("map"),
+													XListType:    new("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -1959,7 +1959,7 @@ func TestForCompositeResource(t *testing.T) {
 												},
 												"claimConditionTypes": {
 													Type:      "array",
-													XListType: ptr.To("set"),
+													XListType: new("set"),
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
 															Type: "string",
@@ -2182,7 +2182,7 @@ func TestForCompositeResource(t *testing.T) {
 																	Required: []string{"apiVersion", "kind"},
 																},
 															},
-															XListType: ptr.To("atomic"),
+															XListType: new("atomic"),
 														},
 													},
 												},
@@ -2208,7 +2208,7 @@ func TestForCompositeResource(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    ptr.To("map"),
+													XListType:    new("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -2653,7 +2653,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    ptr.To("map"),
+													XListType:    new("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -2672,7 +2672,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 												},
 												"claimConditionTypes": {
 													Type:      "array",
-													XListType: ptr.To("set"),
+													XListType: new("set"),
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
 															Type: "string",
@@ -2911,7 +2911,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    ptr.To("map"),
+													XListType:    new("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -2930,7 +2930,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 												},
 												"claimConditionTypes": {
 													Type:      "array",
-													XListType: ptr.To("set"),
+													XListType: new("set"),
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
 															Type: "string",
@@ -3183,7 +3183,7 @@ func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
 										"conditions": {
 											Description:  "Conditions of the resource.",
 											Type:         "array",
-											XListType:    ptr.To("map"),
+											XListType:    new("map"),
 											XListMapKeys: []string{"type"},
 											Items: &extv1.JSONSchemaPropsOrArray{
 												Schema: &extv1.JSONSchemaProps{
@@ -3202,7 +3202,7 @@ func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
 										},
 										"claimConditionTypes": {
 											Type:      "array",
-											XListType: ptr.To("set"),
+											XListType: new("set"),
 											Items: &extv1.JSONSchemaPropsOrArray{
 												Schema: &extv1.JSONSchemaProps{
 													Type: "string",
