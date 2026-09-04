@@ -711,9 +711,11 @@ func NewPackage(dep *v1beta1.Dependency, version string, ref name.Reference) (*u
 	// character name limit, so two different repositories can truncate to
 	// the same name. Mixing in a hash of the full repository string (the
 	// same truncate-then-append-hash shape FriendlyID already uses for
-	// package revisions) keeps them distinct.
+	// package revisions) keeps them distinct. The hash covers the registry
+	// too, not just the repository path, so the same path on two different
+	// registries doesn't collide.
 	repo := ref.Context().RepositoryStr()
-	h := sha256.Sum256([]byte(repo))
+	h := sha256.Sum256([]byte(ref.Context().Name()))
 	pack.SetName(xpkg.FriendlyID(repo, hex.EncodeToString(h[:])))
 
 	format := packageTagFmt

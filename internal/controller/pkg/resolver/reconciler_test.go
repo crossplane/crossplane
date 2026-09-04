@@ -1941,6 +1941,15 @@ func TestNewPackage(t *testing.T) {
 			},
 			want: want{namesDiffer: true},
 		},
+		"SameRepositoryOnDifferentRegistriesGetDistinctNames": {
+			reason: "The same repository path on two different registries is a different dependency and must not collapse to the same generated name.",
+			args: args{
+				version: "v1.0.0",
+				refA:    "registry-one.example.com/foo/bar",
+				refB:    "registry-two.example.com/foo/bar",
+			},
+			want: want{namesDiffer: true},
+		},
 	}
 
 	for name, tc := range cases {
