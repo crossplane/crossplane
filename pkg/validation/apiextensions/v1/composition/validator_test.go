@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/ptr"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
@@ -54,8 +53,8 @@ func TestValidatorValidate(t *testing.T) {
 			args: args{
 				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, map[string]any{"someOtherField": "test"},
 					withPatches(0, v1.Patch{
-						FromFieldPath: ptr.To("spec.someField"),
-						ToFieldPath:   ptr.To("spec.someOtherField"),
+						FromFieldPath: new("spec.someField"),
+						ToFieldPath:   new("spec.someOtherField"),
 					})),
 				gkToCRDs: nil,
 			},
@@ -84,8 +83,8 @@ func TestValidatorValidate(t *testing.T) {
 				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("spec.someField"),
-					ToFieldPath:   ptr.To("spec.someOtherField"),
+					FromFieldPath: new("spec.someField"),
+					ToFieldPath:   new("spec.someOtherField"),
 				})),
 			},
 		},
@@ -103,8 +102,8 @@ func TestValidatorValidate(t *testing.T) {
 				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("spec.someWrongField"),
-					ToFieldPath:   ptr.To("spec.someOtherField"),
+					FromFieldPath: new("spec.someWrongField"),
+					ToFieldPath:   new("spec.someOtherField"),
 				})),
 			},
 		},
@@ -122,8 +121,8 @@ func TestValidatorValidate(t *testing.T) {
 				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, map[string]any{"someOtherField": "test"}, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("spec.someField"),
-					ToFieldPath:   ptr.To("spec.someOtherWrongField"),
+					FromFieldPath: new("spec.someField"),
+					ToFieldPath:   new("spec.someOtherWrongField"),
 				})),
 			},
 		},
@@ -148,8 +147,8 @@ func TestValidatorValidate(t *testing.T) {
 				),
 				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("spec.someField"),
-					ToFieldPath:   ptr.To("spec.someOtherField"),
+					FromFieldPath: new("spec.someField"),
+					ToFieldPath:   new("spec.someOtherField"),
 				})),
 			},
 		},
@@ -167,12 +166,12 @@ func TestValidatorValidate(t *testing.T) {
 				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("spec.someField"),
-					ToFieldPath:   ptr.To("spec.someOtherField"),
+					FromFieldPath: new("spec.someField"),
+					ToFieldPath:   new("spec.someOtherField"),
 					Transforms: []v1.Transform{{
 						Type: v1.TransformTypeMath,
 						Math: &v1.MathTransform{
-							Multiply: ptr.To[int64](int64(2)),
+							Multiply: new(int64(2)),
 						},
 					}},
 				})),
@@ -192,8 +191,8 @@ func TestValidatorValidate(t *testing.T) {
 				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("spec.someField"),
-					ToFieldPath:   ptr.To("spec.someOtherField"),
+					FromFieldPath: new("spec.someField"),
+					ToFieldPath:   new("spec.someOtherField"),
 					Transforms: []v1.Transform{{
 						Type: v1.TransformTypeConvert,
 						Convert: &v1.ConvertTransform{
@@ -235,7 +234,7 @@ func TestValidatorValidate(t *testing.T) {
 							Format: "%s-%s",
 						},
 					},
-					ToFieldPath: ptr.To("spec.someOtherField"),
+					ToFieldPath: new("spec.someOtherField"),
 				})),
 			},
 		},
@@ -267,7 +266,7 @@ func TestValidatorValidate(t *testing.T) {
 							Format: "%s-%s",
 						},
 					},
-					ToFieldPath: ptr.To("spec.someOtherField"),
+					ToFieldPath: new("spec.someOtherField"),
 				})),
 			},
 		},
@@ -286,8 +285,8 @@ func TestValidatorValidate(t *testing.T) {
 				}).build(), defaultCompositeCrdBuilder().build()),
 				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: ptr.To("spec.someField"),
-					ToFieldPath:   ptr.To("spec.someOtherField"),
+					FromFieldPath: new("spec.someField"),
+					ToFieldPath:   new("spec.someOtherField"),
 				})),
 			},
 		},
@@ -303,13 +302,13 @@ func TestValidatorValidate(t *testing.T) {
 						Name: "some-patch-set",
 						Patches: []v1.Patch{{
 							Type:          v1.PatchTypeFromCompositeFieldPath,
-							FromFieldPath: ptr.To("spec.someField"),
-							ToFieldPath:   ptr.To("spec.someOtherField"),
+							FromFieldPath: new("spec.someField"),
+							ToFieldPath:   new("spec.someOtherField"),
 						}},
 					},
 				), withPatches(0, v1.Patch{
 					Type:         v1.PatchTypePatchSet,
-					PatchSetName: ptr.To("some-patch-set"),
+					PatchSetName: new("some-patch-set"),
 				})),
 			},
 		},
@@ -345,12 +344,12 @@ func TestValidatorValidate(t *testing.T) {
 										Format: "%s-%s",
 									},
 								},
-								ToFieldPath: ptr.To("spec.someOtherField"),
+								ToFieldPath: new("spec.someOtherField"),
 							}},
 						},
 					), withPatches(0, v1.Patch{
 						Type:         v1.PatchTypePatchSet,
-						PatchSetName: ptr.To("some-patch-set"),
+						PatchSetName: new("some-patch-set"),
 					})),
 			},
 		},
@@ -556,7 +555,7 @@ func buildDefaultComposition(t *testing.T, validationMode v1.CompositionValidati
 			},
 			Resources: []v1.ComposedTemplate{
 				{
-					Name: ptr.To("test"),
+					Name: new("test"),
 					Base: runtime.RawExtension{
 						Raw: marshalJSON(t, map[string]any{
 							"apiVersion": testGroup + "/v1",

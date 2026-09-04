@@ -66,8 +66,8 @@ var (
 				Package: providerImage,
 			},
 			PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-				TLSServerSecretName: ptr.To(tlsServerSecretName),
-				TLSClientSecretName: ptr.To(tlsClientSecretName),
+				TLSServerSecretName: new(tlsServerSecretName),
+				TLSClientSecretName: new(tlsClientSecretName),
 			},
 		},
 	}
@@ -88,7 +88,7 @@ var (
 				Package: functionImage,
 			},
 			PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-				TLSServerSecretName: ptr.To(tlsServerSecretName),
+				TLSServerSecretName: new(tlsServerSecretName),
 			},
 		},
 	}
@@ -139,7 +139,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 									"k": "v",
 								},
 							},
-							Image: ptr.To("crossplane/provider-foo:v1.2.4"),
+							Image: new("crossplane/provider-foo:v1.2.4"),
 							Volumes: []corev1.Volume{
 								{Name: "vol-a"},
 								{Name: "vol-b"},
@@ -275,7 +275,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
 								Metadata: &v1beta1.ObjectMeta{
-									Name: ptr.To("my-provider-foo"),
+									Name: new("my-provider-foo"),
 									Labels: map[string]string{
 										"x": "y",
 									},
@@ -502,8 +502,8 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 								APIVersion:         "pkg.crossplane.io/v1",
 								Kind:               "ProviderRevision",
 								Name:               providerRevisionName,
-								Controller:         ptr.To(true),
-								BlockOwnerDeletion: ptr.To(true),
+								Controller:         new(true),
+								BlockOwnerDeletion: new(true),
 							},
 						},
 					},
@@ -545,8 +545,8 @@ func deploymentProvider(provider string, revision string, image string, override
 					APIVersion:         "pkg.crossplane.io/v1",
 					Kind:               "ProviderRevision",
 					Name:               revision,
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
+					Controller:         new(true),
+					BlockOwnerDeletion: new(true),
 				},
 			},
 		},
@@ -707,8 +707,8 @@ func deploymentFunction(function string, revision string, image string, override
 					APIVersion:         "pkg.crossplane.io/v1beta1",
 					Kind:               "FunctionRevision",
 					Name:               revision,
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
+					Controller:         new(true),
+					BlockOwnerDeletion: new(true),
 				},
 			},
 		},

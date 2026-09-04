@@ -23,7 +23,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -938,67 +937,67 @@ func TestMigrateMergeOptions(t *testing.T) {
 		"KeepMapValuesTrueAppendSliceNil": { // case 2.a
 			reason: "AppendSlice is nil && KeepMapValues is true",
 			args: &commonv1.MergeOptions{
-				KeepMapValues: ptr.To(true),
+				KeepMapValues: new(true),
 			},
-			want: ptr.To(ToFieldPathPolicyMergeObjects),
+			want: new(ToFieldPathPolicyMergeObjects),
 		},
 		"KeepMapValuesTrueAppendSliceFalse": { // case 2.b
 			reason: "AppendSlice is false && KeepMapValues is true",
 			args: &commonv1.MergeOptions{
-				KeepMapValues: ptr.To(true),
-				AppendSlice:   ptr.To(false),
+				KeepMapValues: new(true),
+				AppendSlice:   new(false),
 			},
-			want: ptr.To(ToFieldPathPolicyMergeObjects),
+			want: new(ToFieldPathPolicyMergeObjects),
 		},
 		"KeepMapValuesNilAppendSliceTrue": { // case 3.a
 			reason: "AppendSlice is true && KeepMapValues is nil",
 			args: &commonv1.MergeOptions{
-				AppendSlice: ptr.To(true),
+				AppendSlice: new(true),
 			},
-			want: ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays),
+			want: new(ToFieldPathPolicyForceMergeObjectsAppendArrays),
 		},
 		"AppendSliceTrueKeepMapValuesFalse": { // case 3.b
 			reason: "AppendSlice is true && KeepMapValues is false",
 			args: &commonv1.MergeOptions{
-				AppendSlice:   ptr.To(true),
-				KeepMapValues: ptr.To(false),
+				AppendSlice:   new(true),
+				KeepMapValues: new(false),
 			},
-			want: ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays),
+			want: new(ToFieldPathPolicyForceMergeObjectsAppendArrays),
 		},
 		"Empty": { // case 4.a
 			reason: "Both AppendSlice and KeepMapValues are nil",
 			args:   &commonv1.MergeOptions{},
-			want:   ptr.To(ToFieldPathPolicyForceMergeObjects),
+			want:   new(ToFieldPathPolicyForceMergeObjects),
 		},
 		"KeepMapValuesNilAppendSliceFalse": { // case 4.b
 			reason: "AppendSlice is false and KeepMapValues is nil",
 			args: &commonv1.MergeOptions{
-				AppendSlice: ptr.To(false),
+				AppendSlice: new(false),
 			},
-			want: ptr.To(ToFieldPathPolicyForceMergeObjects),
+			want: new(ToFieldPathPolicyForceMergeObjects),
 		},
 		"AppendSliceNilKeepMapValuesFalse": { // case 4.c
 			reason: "AppendSlice is nil and KeepMapValues is false",
 			args: &commonv1.MergeOptions{
-				KeepMapValues: ptr.To(false),
+				KeepMapValues: new(false),
 			},
-			want: ptr.To(ToFieldPathPolicyForceMergeObjects),
+			want: new(ToFieldPathPolicyForceMergeObjects),
 		},
 		"ApepndSliceFalseKeepMapValuesFalse": { // case 4.d
 			reason: "AppendSlice is false and KeepMapValues is false",
 			args: &commonv1.MergeOptions{
-				AppendSlice:   ptr.To(false),
-				KeepMapValues: ptr.To(false),
+				AppendSlice:   new(false),
+				KeepMapValues: new(false),
 			},
-			want: ptr.To(ToFieldPathPolicyForceMergeObjects),
+			want: new(ToFieldPathPolicyForceMergeObjects),
 		},
 		"AppendSliceTrueKeepMapValuesTrue": { // case 5
 			reason: "AppendSlice is true and KeepMapValues is true",
 			args: &commonv1.MergeOptions{
-				AppendSlice:   ptr.To(true),
-				KeepMapValues: ptr.To(true),
+				AppendSlice:   new(true),
+				KeepMapValues: new(true),
 			},
-			want: ptr.To(ToFieldPathPolicyMergeObjectsAppendArrays),
+			want: new(ToFieldPathPolicyMergeObjectsAppendArrays),
 		},
 	}
 	for name, tc := range cases {

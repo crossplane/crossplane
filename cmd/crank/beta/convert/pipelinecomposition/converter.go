@@ -214,20 +214,20 @@ func migrateMergeOptions(mo *commonv1.MergeOptions) *ToFieldPathPolicy {
 	if ptr.Deref(mo.KeepMapValues, false) {
 		if !ptr.Deref(mo.AppendSlice, false) {
 			// { appendSlice: nil/false, keepMapValues: true}
-			return ptr.To(ToFieldPathPolicyMergeObjects)
+			return new(ToFieldPathPolicyMergeObjects)
 		}
 
 		// { appendSlice: true, keepMapValues: true }
-		return ptr.To(ToFieldPathPolicyMergeObjectsAppendArrays)
+		return new(ToFieldPathPolicyMergeObjectsAppendArrays)
 	}
 
 	if ptr.Deref(mo.AppendSlice, false) {
 		// { appendSlice: true, keepMapValues: nil/false }
-		return ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays)
+		return new(ToFieldPathPolicyForceMergeObjectsAppendArrays)
 	}
 
 	// { appendSlice: nil/false, keepMapValues: nil/false }
-	return ptr.To(ToFieldPathPolicyForceMergeObjects)
+	return new(ToFieldPathPolicyForceMergeObjects)
 }
 
 func getMathTransformType(tt v1.Transform) v1.MathTransformType {

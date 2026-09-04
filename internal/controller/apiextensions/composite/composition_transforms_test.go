@@ -167,7 +167,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: ptr.To("5"),
+							Literal: new("5"),
 						},
 					},
 				},
@@ -256,7 +256,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: ptr.To("foo"),
+							Literal: new("foo"),
 							Result:  asJSON("bar"),
 						},
 					},
@@ -273,12 +273,12 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: ptr.To("foo"),
+							Literal: new("foo"),
 							Result:  asJSON("bar"),
 						},
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: ptr.To("foo"),
+							Literal: new("foo"),
 							Result:  asJSON("not this"),
 						},
 					},
@@ -295,7 +295,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: ptr.To("foo"),
+							Literal: new("foo"),
 							Result: asJSON(map[string]any{
 								"Hello": "World",
 							}),
@@ -316,7 +316,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: ptr.To("foo"),
+							Literal: new("foo"),
 							Result: asJSON([]string{
 								"Hello", "World",
 							}),
@@ -337,7 +337,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: ptr.To("foo"),
+							Literal: new("foo"),
 							Result:  asJSON(5),
 						},
 					},
@@ -354,7 +354,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: ptr.To("foo"),
+							Literal: new("foo"),
 							Result:  asJSON(true),
 						},
 					},
@@ -371,7 +371,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: ptr.To("foo"),
+							Literal: new("foo"),
 							Result:  asJSON(nil),
 						},
 					},
@@ -386,7 +386,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:   v1.MatchTransformPatternTypeRegexp,
-							Regexp: ptr.To("^foo.*$"),
+							Regexp: new("^foo.*$"),
 							Result: asJSON("Hello World"),
 						},
 					},
@@ -417,7 +417,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:   v1.MatchTransformPatternTypeRegexp,
-							Regexp: ptr.To("?="),
+							Regexp: new("?="),
 						},
 					},
 				},
@@ -971,7 +971,7 @@ func TestStringResolve(t *testing.T) {
 				stype: v1.StringTransformTypeRegexp,
 				regexp: &v1.StringTransformRegexp{
 					Match: "my-([0-9]+)-string",
-					Group: ptr.To[int](1),
+					Group: new(1),
 				},
 				i: "my-1-string",
 			},
@@ -984,7 +984,7 @@ func TestStringResolve(t *testing.T) {
 				stype: v1.StringTransformTypeRegexp,
 				regexp: &v1.StringTransformRegexp{
 					Match: "my-([0-9]+)-string",
-					Group: ptr.To[int](2),
+					Group: new(2),
 				},
 				i: "my-1-string",
 			},

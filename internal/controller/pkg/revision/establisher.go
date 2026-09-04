@@ -168,7 +168,7 @@ func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRe
 				if ors[i].UID == parent.GetUID() {
 					found = true
 					if ors[i].Controller != nil && *ors[i].Controller {
-						ors[i].Controller = ptr.To(false)
+						ors[i].Controller = new(false)
 						changed = true
 					}
 					break
@@ -434,7 +434,7 @@ func (e *APIEstablisher) create(ctx context.Context, obj resource.Object, parent
 	// get deleted when the new revision doesn't include it in order not to lose
 	// user data, such as custom resources of an old CRD.
 	if pkgRef, ok := GetPackageOwnerReference(parent); ok {
-		pkgRef.Controller = ptr.To(false)
+		pkgRef.Controller = new(false)
 		refs = append(refs, pkgRef)
 	}
 	// Overwrite any owner references on the desired object.
@@ -447,7 +447,7 @@ func (e *APIEstablisher) update(ctx context.Context, current, desired resource.O
 	// get deleted when the new revision doesn't include it in order not to lose
 	// user data, such as custom resources of an old CRD.
 	if pkgRef, ok := GetPackageOwnerReference(parent); ok {
-		pkgRef.Controller = ptr.To(false)
+		pkgRef.Controller = new(false)
 		meta.AddOwnerReference(current, pkgRef)
 	}
 

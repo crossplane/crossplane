@@ -22,7 +22,6 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/ptr"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
@@ -279,7 +278,7 @@ func TestValidateReadinessCheck(t *testing.T) {
 									Properties: map[string]extv1.JSONSchemaProps{
 										"manifest": {
 											Type:                   "object",
-											XPreserveUnknownFields: ptr.To(true),
+											XPreserveUnknownFields: new(true),
 										},
 									},
 								},

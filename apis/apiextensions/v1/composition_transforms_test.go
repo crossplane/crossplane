@@ -192,7 +192,7 @@ func TestTransformValidate(t *testing.T) {
 						Patterns: []MatchTransformPattern{
 							{
 								Type:   MatchTransformPatternTypeRegexp,
-								Regexp: ptr.To(".*"),
+								Regexp: new(".*"),
 							},
 						},
 					},
@@ -208,7 +208,7 @@ func TestTransformValidate(t *testing.T) {
 						Patterns: []MatchTransformPattern{
 							{
 								Type:   MatchTransformPatternTypeRegexp,
-								Regexp: ptr.To("?"),
+								Regexp: new("?"),
 							},
 						},
 					},
@@ -230,10 +230,10 @@ func TestTransformValidate(t *testing.T) {
 						Patterns: []MatchTransformPattern{
 							{
 								Type:    MatchTransformPatternTypeLiteral,
-								Literal: ptr.To("foo"),
+								Literal: new("foo"),
 							},
 							{
-								Literal: ptr.To("bar"),
+								Literal: new("bar"),
 							},
 						},
 					},
@@ -261,7 +261,7 @@ func TestTransformValidate(t *testing.T) {
 				transform: &Transform{
 					Type: TransformTypeString,
 					String: &StringTransform{
-						Format: ptr.To("foo"),
+						Format: new("foo"),
 					},
 				},
 			},
