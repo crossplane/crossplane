@@ -34,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -558,9 +557,9 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	var ready *bool
 	switch d.GetComposite().GetReady() {
 	case fnv1.Ready_READY_TRUE:
-		ready = ptr.To(true)
+		ready = new(true)
 	case fnv1.Ready_READY_FALSE:
-		ready = ptr.To(false)
+		ready = new(false)
 	case fnv1.Ready_READY_UNSPECIFIED:
 		// Remains nil.
 	}

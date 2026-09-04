@@ -105,7 +105,7 @@ func (c *loginCmd) Run(k *kong.Context, upCtx *upbound.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to construct auth")
 	}
-	jsonStr, err := json.Marshal(auth)
+	jsonStr, err := json.Marshal(auth) //nolint:gosec // G117: Sending the password to the login endpoint is the point of this request.
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal auth")
 	}

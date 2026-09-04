@@ -20,7 +20,6 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -100,16 +99,16 @@ func ReadinessCheckFromV1(in *v1.ReadinessCheck) ReadinessCheck {
 		Type: ReadinessCheckType(in.Type),
 	}
 	if in.FieldPath != "" {
-		out.FieldPath = ptr.To(in.FieldPath)
+		out.FieldPath = new(in.FieldPath)
 	}
 
 	// NOTE(negz): ComposedTemplate doesn't use pointer values for optional
 	// strings, so today the empty string and 0 are equivalent to "unset".
 	if in.MatchString != "" {
-		out.MatchString = ptr.To(in.MatchString)
+		out.MatchString = new(in.MatchString)
 	}
 	if in.MatchInteger != 0 {
-		out.MatchInteger = ptr.To[int64](in.MatchInteger)
+		out.MatchInteger = new(in.MatchInteger)
 	}
 	if in.MatchCondition != nil {
 		out.MatchCondition = &MatchConditionReadinessCheck{

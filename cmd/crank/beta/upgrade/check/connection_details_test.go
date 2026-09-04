@@ -25,7 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -111,7 +110,7 @@ func TestCompositeConnectionDetailsRun(t *testing.T) {
 				comps: []apiextensionsv1.Composition{{
 					ObjectMeta: metav1.ObjectMeta{Name: "comp"},
 					Spec: apiextensionsv1.CompositionSpec{
-						WriteConnectionSecretsToNamespace: ptr.To("secrets-ns"),
+						WriteConnectionSecretsToNamespace: new("secrets-ns"),
 					},
 				}},
 			}),
@@ -243,7 +242,7 @@ func TestCompositeConnectionDetailsRun(t *testing.T) {
 				comps: []apiextensionsv1.Composition{{
 					ObjectMeta: metav1.ObjectMeta{Name: "comp"},
 					Spec: apiextensionsv1.CompositionSpec{
-						WriteConnectionSecretsToNamespace: ptr.To("secrets-ns"),
+						WriteConnectionSecretsToNamespace: new("secrets-ns"),
 					},
 				}},
 				xrdsErr: errBoom,

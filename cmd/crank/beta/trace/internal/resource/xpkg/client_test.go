@@ -75,7 +75,7 @@ func TestGetDependencyRef(t *testing.T) {
 							APIVersion: "pkg.crossplane.io/v1",
 							Kind:       "Provider",
 							Name:       "my-awesome-provider",
-							Controller: ptr.To(true),
+							Controller: new(true),
 						},
 					})
 					return nil
@@ -283,7 +283,7 @@ func TestGetPackageDeps(t *testing.T) {
 									APIVersion: xpkgv1.ProviderGroupVersionKind.GroupVersion().String(),
 									Kind:       xpkgv1.ProviderKind,
 									Name:       "my-awesome-provider",
-									Controller: ptr.To(true),
+									Controller: new(true),
 								},
 							})
 						}
@@ -391,7 +391,7 @@ type dependencyOpts func(d *v1beta1.Dependency)
 
 func withPackageType(pkgType v1beta1.PackageType) dependencyOpts {
 	return func(d *v1beta1.Dependency) {
-		d.Type = ptr.To(pkgType)
+		d.Type = new(pkgType)
 	}
 }
 

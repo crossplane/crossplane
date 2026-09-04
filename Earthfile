@@ -3,7 +3,7 @@ VERSION --try --raw-output 0.8
 
 PROJECT crossplane/crossplane
 
-ARG --global GO_VERSION=1.25.13
+ARG --global GO_VERSION=1.26.7
 
 # reviewable checks that a branch is ready for review. Run it before opening a
 # pull request. It will catch a lot of the things our CI workflow will catch.
@@ -229,12 +229,14 @@ go-test:
 
 # go-lint lints Go code.
 go-lint:
-  ARG GOLANGCI_LINT_VERSION=v2.6.2
+  ARG GOLANGCI_LINT_VERSION=v2.12.2
   FROM +go-modules
   # This cache is private because golangci-lint doesn't support concurrent runs.
   CACHE --id go-lint --sharing private /root/.cache/golangci-lint
   CACHE --id go-build --sharing shared /root/.cache/go-build
-  RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin ${GOLANGCI_LINT_VERSION}
+  # Install with the release's own script rather than the one on master, so
+  # the script and the assets it verifies always come from the same release.
+  RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/${GOLANGCI_LINT_VERSION}/install.sh | sh -s -- -b $(go env GOPATH)/bin ${GOLANGCI_LINT_VERSION}
   COPY .golangci.yml .
   COPY --dir apis/ cmd/ internal/ pkg/ test/ .
   RUN golangci-lint run --fix

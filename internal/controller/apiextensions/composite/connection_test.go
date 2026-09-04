@@ -26,7 +26,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -333,32 +332,32 @@ func TestExtractConnectionDetails(t *testing.T) {
 					{
 						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
 						Name:                    "bar",
-						FromConnectionSecretKey: ptr.To("bar"),
+						FromConnectionSecretKey: new("bar"),
 					},
 					{
 						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
 						Name:                    "none",
-						FromConnectionSecretKey: ptr.To("none"),
+						FromConnectionSecretKey: new("none"),
 					},
 					{
 						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
 						Name:                    "convfoo",
-						FromConnectionSecretKey: ptr.To("foo"),
+						FromConnectionSecretKey: new("foo"),
 					},
 					{
 						Type:  ConnectionDetailTypeFromValue,
 						Name:  "fixed",
-						Value: ptr.To("value"),
+						Value: new("value"),
 					},
 					{
 						Type:          ConnectionDetailTypeFromFieldPath,
 						Name:          "name",
-						FromFieldPath: ptr.To("name"),
+						FromFieldPath: new("name"),
 					},
 					{
 						Type:          ConnectionDetailTypeFromFieldPath,
 						Name:          "generation",
-						FromFieldPath: ptr.To("generation"),
+						FromFieldPath: new("generation"),
 					},
 				},
 			},
@@ -415,9 +414,9 @@ func TestExtractConfigsFromTemplate(t *testing.T) {
 			args: args{
 				t: &v1.ComposedTemplate{
 					ConnectionDetails: []v1.ConnectionDetail{{
-						Name:                    ptr.To("cool-detail"),
+						Name:                    new("cool-detail"),
 						Type:                    &tfk,
-						FromConnectionSecretKey: ptr.To("cool-key"),
+						FromConnectionSecretKey: new("cool-key"),
 					}},
 				},
 			},
@@ -425,7 +424,7 @@ func TestExtractConfigsFromTemplate(t *testing.T) {
 				cfgs: []ConnectionDetailExtractConfig{{
 					Name:                    "cool-detail",
 					Type:                    ConnectionDetailTypeFromConnectionSecretKey,
-					FromConnectionSecretKey: ptr.To("cool-key"),
+					FromConnectionSecretKey: new("cool-key"),
 				}},
 			},
 		},
@@ -435,7 +434,7 @@ func TestExtractConfigsFromTemplate(t *testing.T) {
 				t: &v1.ComposedTemplate{
 					ConnectionDetails: []v1.ConnectionDetail{{
 						Type:                    &tfk,
-						FromConnectionSecretKey: ptr.To("cool-key"),
+						FromConnectionSecretKey: new("cool-key"),
 					}},
 				},
 			},
@@ -443,7 +442,7 @@ func TestExtractConfigsFromTemplate(t *testing.T) {
 				cfgs: []ConnectionDetailExtractConfig{{
 					Name:                    "cool-key",
 					Type:                    ConnectionDetailTypeFromConnectionSecretKey,
-					FromConnectionSecretKey: ptr.To("cool-key"),
+					FromConnectionSecretKey: new("cool-key"),
 				}},
 			},
 		},

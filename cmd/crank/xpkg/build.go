@@ -166,11 +166,12 @@ func (c *buildCmd) GetOutputFileName(meta runtime.Object, hash v1.Hash) (string,
 
 // Run executes the build command.
 func (c *buildCmd) Run(logger logging.Logger) error {
-	var buildOpts []xpkg.BuildOpt
 	rtBuildOpts, err := c.GetRuntimeBaseImageOpts()
 	if err != nil {
 		return errors.Wrap(err, errGetRuntimeBaseImageOpts)
 	}
+
+	buildOpts := make([]xpkg.BuildOpt, 0, len(rtBuildOpts))
 	buildOpts = append(buildOpts, rtBuildOpts...)
 
 	img, meta, err := c.builder.Build(context.Background(), buildOpts...)

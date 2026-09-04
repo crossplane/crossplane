@@ -26,7 +26,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -833,7 +832,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.ReplayDeletion = ptr.To(true)
+									o.Spec.ReplayDeletion = new(true)
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									return nil
 								}

@@ -27,7 +27,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -68,7 +67,7 @@ func TestFunctionPreHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSServerSecretName: ptr.To("some-server-secret"),
+							TLSServerSecretName: new("some-server-secret"),
 						},
 					},
 				},
@@ -103,7 +102,7 @@ func TestFunctionPreHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSServerSecretName: ptr.To("some-server-secret"),
+							TLSServerSecretName: new("some-server-secret"),
 						},
 					},
 					Status: v1.FunctionRevisionStatus{
@@ -752,7 +751,7 @@ func TestGetFunctionImage(t *testing.T) {
 			args: args{
 				functionMeta: &pkgmetav1.Function{
 					Spec: pkgmetav1.FunctionSpec{
-						Image: ptr.To("crossplane/func-bar-server:v1.2.3"),
+						Image: new("crossplane/func-bar-server:v1.2.3"),
 					},
 				},
 				functionRevision: &v1.FunctionRevision{

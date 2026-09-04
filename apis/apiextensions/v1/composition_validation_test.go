@@ -23,7 +23,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/ptr"
 )
 
 // SortFieldErrors sorts the given field.ErrorList by the error message.
@@ -55,7 +54,7 @@ func TestCompositionValidateMode(t *testing.T) {
 				spec: CompositionSpec{
 					Mode: &resources,
 					Resources: []ComposedTemplate{
-						{Name: ptr.To("cool-template")},
+						{Name: new("cool-template")},
 					},
 				},
 			},
@@ -69,7 +68,7 @@ func TestCompositionValidateMode(t *testing.T) {
 				spec: CompositionSpec{
 					// This Composition uses Resources mode implicitly.
 					Resources: []ComposedTemplate{
-						{Name: ptr.To("cool-template")},
+						{Name: new("cool-template")},
 					},
 				},
 			},
@@ -157,10 +156,10 @@ func TestCompositionValidateResourceName(t *testing.T) {
 				spec: CompositionSpec{
 					Resources: []ComposedTemplate{
 						{
-							Name: ptr.To("foo"),
+							Name: new("foo"),
 						},
 						{
-							Name: ptr.To("bar"),
+							Name: new("bar"),
 						},
 					},
 				},
@@ -183,7 +182,7 @@ func TestCompositionValidateResourceName(t *testing.T) {
 				spec: CompositionSpec{
 					Resources: []ComposedTemplate{
 						{},
-						{Name: ptr.To("bar")},
+						{Name: new("bar")},
 					},
 				},
 			},
@@ -202,7 +201,7 @@ func TestCompositionValidateResourceName(t *testing.T) {
 			args: args{
 				spec: CompositionSpec{
 					Resources: []ComposedTemplate{
-						{Name: ptr.To("bar")},
+						{Name: new("bar")},
 						{},
 					},
 				},
@@ -222,8 +221,8 @@ func TestCompositionValidateResourceName(t *testing.T) {
 			args: args{
 				spec: CompositionSpec{
 					Resources: []ComposedTemplate{
-						{Name: ptr.To("foo")},
-						{Name: ptr.To("bar")},
+						{Name: new("foo")},
+						{Name: new("bar")},
 					},
 					Pipeline: []PipelineStep{
 						{
@@ -262,9 +261,9 @@ func TestCompositionValidateResourceName(t *testing.T) {
 			args: args{
 				spec: CompositionSpec{
 					Resources: []ComposedTemplate{
-						{Name: ptr.To("foo")},
-						{Name: ptr.To("bar")},
-						{Name: ptr.To("foo")},
+						{Name: new("foo")},
+						{Name: new("bar")},
+						{Name: new("foo")},
 					},
 				},
 			},
@@ -335,7 +334,7 @@ func TestCompositionValidatePatchSets(t *testing.T) {
 								Name: "foo",
 								Patches: []Patch{
 									{
-										FromFieldPath: ptr.To("spec.foo"),
+										FromFieldPath: new("spec.foo"),
 									},
 								},
 							},
@@ -409,7 +408,7 @@ func TestCompositionValidatePatchSets(t *testing.T) {
 								Patches: []Patch{
 									{
 										Type:          PatchTypeFromCompositeFieldPath,
-										FromFieldPath: ptr.To("spec.something"),
+										FromFieldPath: new("spec.something"),
 									},
 								},
 							},
@@ -419,7 +418,7 @@ func TestCompositionValidatePatchSets(t *testing.T) {
 								Patches: []Patch{
 									{
 										Type:         PatchTypePatchSet,
-										PatchSetName: ptr.To("wrong"),
+										PatchSetName: new("wrong"),
 									},
 								},
 							},
@@ -515,7 +514,7 @@ func TestCompositionValidatePipeline(t *testing.T) {
 			args: args{
 				comp: &Composition{
 					Spec: CompositionSpec{
-						Mode: ptr.To(CompositionModePipeline),
+						Mode: new(CompositionModePipeline),
 						Pipeline: []PipelineStep{
 							{
 								Step: "duplicate-creds",
@@ -547,7 +546,7 @@ func TestCompositionValidatePipeline(t *testing.T) {
 			args: args{
 				comp: &Composition{
 					Spec: CompositionSpec{
-						Mode: ptr.To(CompositionModePipeline),
+						Mode: new(CompositionModePipeline),
 						Pipeline: []PipelineStep{
 							{
 								Step: "duplicate-creds",
@@ -610,14 +609,14 @@ func TestCompositionValidateResources(t *testing.T) {
 					Spec: CompositionSpec{
 						Resources: []ComposedTemplate{
 							{
-								Name: ptr.To("foo"),
+								Name: new("foo"),
 							},
 							{
-								Name: ptr.To("bar"),
+								Name: new("bar"),
 								Patches: []Patch{
 									{
 										Type:          PatchTypeFromCompositeFieldPath,
-										FromFieldPath: ptr.To("spec.foo"),
+										FromFieldPath: new("spec.foo"),
 									},
 								},
 								ReadinessChecks: []ReadinessCheck{
@@ -638,14 +637,14 @@ func TestCompositionValidateResources(t *testing.T) {
 					Spec: CompositionSpec{
 						Resources: []ComposedTemplate{
 							{
-								Name: ptr.To("foo"),
+								Name: new("foo"),
 							},
 							{
-								Name: ptr.To("foo"),
+								Name: new("foo"),
 								Patches: []Patch{
 									{
 										Type:          PatchTypeFromCompositeFieldPath,
-										FromFieldPath: ptr.To("spec.foo"),
+										FromFieldPath: new("spec.foo"),
 									},
 								},
 								ReadinessChecks: []ReadinessCheck{
@@ -675,13 +674,13 @@ func TestCompositionValidateResources(t *testing.T) {
 					Spec: CompositionSpec{
 						Resources: []ComposedTemplate{
 							{
-								Name: ptr.To("foo"),
+								Name: new("foo"),
 							},
 							{
 								Patches: []Patch{
 									{
 										Type:          PatchTypeFromCompositeFieldPath,
-										FromFieldPath: ptr.To("spec.foo"),
+										FromFieldPath: new("spec.foo"),
 									},
 								},
 							},
@@ -707,7 +706,7 @@ func TestCompositionValidateResources(t *testing.T) {
 						Resources: []ComposedTemplate{
 							{},
 							{
-								Name: ptr.To("foo"),
+								Name: new("foo"),
 								Patches: []Patch{
 									{
 										Type: PatchTypeFromCompositeFieldPath,
