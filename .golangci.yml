@@ -95,6 +95,9 @@ linters:
     # against idiomatic Go programming, which encourages this approach - e.g.
     # to scope errors.
     - noinlineerr
+
+    # Deprecated in favour of gomodguard_v2, which is enabled by default: all
+    - gomodguard
   settings:
     depguard:
       rules:
@@ -117,6 +120,7 @@ linters:
     goconst:
       min-len: 3
       min-occurrences: 5
+      ignore-tests: true
     gocritic:
       enabled-tags:
         - performance
@@ -177,6 +181,13 @@ linters:
           - gochecknoglobals
           - gochecknoinits
         path: apis/
+
+      # internal/xcrd hand-writes OpenAPI v3 schemas. Its repeated string
+      # literals are JSON Schema keywords and Kubernetes field names, so
+      # hoisting them into constants would make the schemas harder to read.
+      - linters:
+          - goconst
+        path: internal/xcrd/
 
       # The omitzero check warns that omitempty has no effect on struct fields
       # in Go's encoding/json, which is true. However, kubebuilder uses

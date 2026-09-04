@@ -186,6 +186,7 @@ func (c *Context) BuildSDKConfig() (*up.Config, error) {
 	}
 	if c.Profile.Session != "" {
 		cj.SetCookies(c.APIEndpoint, []*http.Cookie{
+			//nolint:gosec // G124: We're a client sending a session cookie we were issued, not a server setting one.
 			{
 				Name:  CookieName,
 				Value: c.Profile.Session,

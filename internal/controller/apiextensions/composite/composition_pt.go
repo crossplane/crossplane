@@ -266,8 +266,11 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 			continue
 		}
 
-		o := []resource.ApplyOption{resource.MustBeControllableBy(xr.GetUID()), usage.RespectOwnerRefs()}
-		o = append(o, mergeOptions(filterPatches(t.Patches, patchTypesFromXR()...))...)
+		mo := mergeOptions(filterPatches(t.Patches, patchTypesFromXR()...))
+
+		o := make([]resource.ApplyOption, 0, 2+len(mo))
+		o = append(o, resource.MustBeControllableBy(xr.GetUID()), usage.RespectOwnerRefs())
+		o = append(o, mo...)
 		if err := c.client.Apply(ctx, cd, o...); err != nil {
 			if kerrors.IsInvalid(err) {
 				// We tried applying an invalid resource, we can't tell whether

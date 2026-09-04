@@ -19,6 +19,7 @@ package printer
 import (
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	gcrname "github.com/google/go-containerregistry/pkg/name"
@@ -175,11 +176,11 @@ func (p *DefaultPrinter) Print(w io.Writer, root *resource.Resource) error {
 			childPrefix += "│  "
 		}
 
-		name.WriteString(fmt.Sprintf("%s/%s", item.resource.Unstructured.GetKind(), item.resource.Unstructured.GetName()))
+		fmt.Fprintf(&name, "%s/%s", item.resource.Unstructured.GetKind(), item.resource.Unstructured.GetName())
 
 		// Append the namespace if it's not empty
 		if item.resource.Unstructured.GetNamespace() != "" {
-			name.WriteString(fmt.Sprintf(" (%s)", item.resource.Unstructured.GetNamespace()))
+			fmt.Fprintf(&name, " (%s)", item.resource.Unstructured.GetNamespace())
 		}
 
 		var row fmt.Stringer
@@ -196,9 +197,9 @@ func (p *DefaultPrinter) Print(w io.Writer, root *resource.Resource) error {
 		// Enqueue the children of the current node in reverse order to ensure
 		// that they are dequeued from the LIFO queue in the same order w.r.t.
 		// the way they are defined by the resources.
-		for idx := len(item.resource.Children) - 1; idx >= 0; idx-- {
+		for idx, v := range slices.Backward(item.resource.Children) {
 			isLast := idx == len(item.resource.Children)-1
-			queue = append(queue, &queueItem{resource: item.resource.Children[idx], depth: item.depth + 1, isLast: isLast, prefix: childPrefix})
+			queue = append(queue, &queueItem{resource: v, depth: item.depth + 1, isLast: isLast, prefix: childPrefix})
 		}
 	}
 

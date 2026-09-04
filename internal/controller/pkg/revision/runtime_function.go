@@ -181,16 +181,15 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWith
 }
 
 func functionDeploymentOverrides(image string) []DeploymentOverride {
-	do := []DeploymentOverride{
+	do := make([]DeploymentOverride, 0, 2)
+	do = append(do,
 		DeploymentRuntimeWithAdditionalPorts([]corev1.ContainerPort{
 			{
 				Name:          grpcPortName,
 				ContainerPort: grpcPort,
 			},
 		}),
-	}
-
-	do = append(do, DeploymentRuntimeWithOptionalImage(image))
+		DeploymentRuntimeWithOptionalImage(image))
 
 	return do
 }

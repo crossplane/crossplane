@@ -339,7 +339,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if policy, ok := used.GetAnnotations()[usage.AnnotationKeyDeletionAttempt]; ok {
 				// We have already recorded a deletion attempt and want to replay deletion, let's delete the used resource.
 
-				//nolint:contextcheck // We cannot use the context from the reconcile function since it will be cancelled after the reconciliation.
+				//nolint:contextcheck,gosec // G118: We cannot use the context from the reconcile function since it will be cancelled after the reconciliation.
 				go func() {
 					// We do the deletion async and after some delay to make sure the usage is deleted before the
 					// deletion attempt. We remove the finalizer on this Usage right below, so, we know it will disappear

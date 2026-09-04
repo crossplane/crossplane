@@ -276,7 +276,7 @@ func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverride) *corev1.S
 		svc = serviceFromRuntimeConfig(b.runtimeConfig.Spec.ServiceTemplate)
 	}
 
-	var allOverrides []ServiceOverride
+	allOverrides := make([]ServiceOverride, 0, 4+len(overrides))
 	allOverrides = append(allOverrides,
 		// Optional defaults, will be used only if the runtime config does not
 		// specify them.
