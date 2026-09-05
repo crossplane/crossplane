@@ -370,7 +370,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		// the informer within 60 seconds. This handler tries to make the error
 		// a little more informative, and less scary.
 		DefaultWatchErrorHandler: func(_ context.Context, _ *kcache.Reflector, err error) {
-			if errors.Is(io.EOF, err) {
+			if errors.Is(err, io.EOF) {
 				// Watch closed normally.
 				return
 			}

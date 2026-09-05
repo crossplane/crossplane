@@ -364,6 +364,53 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errors.Wrap(errors.New("improper constraint: \"\""), errInvalidConstraint), errFindDependency),
 			},
 		},
+		"ErrorImpliedNodeNotDependencyNode": {
+			reason: "We should return without error if an implied node is not a DependencyNode (guards the nil pointer dereference).",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
+								Name:    "cool-package",
+								Type:    ptr.To(v1beta1.ProviderPackageType),
+								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+								Version: "v0.0.1",
+							})
+							return nil
+						}),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								// Return a PackageNode, not a DependencyNode.
+								// Before the fix, this would panic; now it
+								// returns without error.
+								return []dag.Node{
+									&dag.PackageNode{
+										LockPackage: v1beta1.LockPackage{
+											Name:   "cool-package",
+											Source: "xpkg.crossplane.io/cool-repo/cool-image",
+										},
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
 		"ErrorListVersions": {
 			reason: "We should return an error if fail to list package versions.",
 			args: args{
