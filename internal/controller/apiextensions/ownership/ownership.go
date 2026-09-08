@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package ownership protects CRDs from adoption by editable definitions.
+// Package ownership provides apply options that require existing ownership.
 package ownership
 
 import (
@@ -28,9 +28,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-// MustBeControlledBy requires an existing CRD to already be controlled by owner.
-// New CRDs are created separately by the applicator. Unlike controllability,
-// existing control does not permit adoption of unrelated, uncontrolled CRDs.
+// MustBeControlledBy requires the current object's controller reference to match
+// owner's non-empty UID. Objects with no controller reference are rejected.
+// The applicator creates new objects without calling this option.
 func MustBeControlledBy(owner metav1.Object) resource.ApplyOption {
 	return func(_ context.Context, current, _ runtime.Object) error {
 		m, err := meta.Accessor(current)
@@ -38,7 +38,7 @@ func MustBeControlledBy(owner metav1.Object) resource.ApplyOption {
 			return err
 		}
 		if owner.GetUID() == "" || !metav1.IsControlledBy(m, owner) {
-			return errors.Errorf("CustomResourceDefinition %q is not controlled by %q (UID %q)", m.GetName(), owner.GetName(), owner.GetUID())
+			return errors.Errorf("existing object %q is not controlled by %q (UID %q)", m.GetName(), owner.GetName(), owner.GetUID())
 		}
 		return nil
 	}

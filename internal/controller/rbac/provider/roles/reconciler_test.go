@@ -28,12 +28,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -42,6 +44,44 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
+
+func TestDiscoveryConflictsRequeueWithoutEvents(t *testing.T) {
+	for _, source := range []string{"CRDs", "ProviderFamily"} {
+		t.Run(source, func(t *testing.T) {
+			recorder := record.NewFakeRecorder(1)
+			c := &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					obj.SetName("provider")
+					obj.SetUID("revision-uid")
+					obj.SetLabels(map[string]string{v1.LabelProviderFamily: "family"})
+					return nil
+				}),
+				MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+					if _, ok := list.(*metav1.PartialObjectMetadataList); ok && source != "CRDs" {
+						return nil
+					}
+					return kerrors.NewConflict(schema.GroupResource{}, "provider", nil)
+				},
+			}
+			r := NewReconciler(&fake.Manager{}, WithRecorder(event.NewAPIRecorder(recorder)), WithClientApplicator(resource.ClientApplicator{
+				Client: c,
+				Applicator: resource.ApplyFn(func(context.Context, client.Object, ...resource.ApplyOption) error {
+					t.Error("must not apply roles after a discovery conflict")
+					return nil
+				}),
+			}))
+			result, err := r.Reconcile(context.Background(), reconcile.Request{})
+			if err != nil || result != (reconcile.Result{Requeue: true}) {
+				t.Errorf("Reconcile = %v, %v; want a quiet retry", result, err)
+			}
+			select {
+			case e := <-recorder.Events:
+				t.Errorf("conflict emitted event %q", e)
+			default:
+			}
+		})
+	}
+}
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")

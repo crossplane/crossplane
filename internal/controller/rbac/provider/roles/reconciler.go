@@ -265,6 +265,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	resources, err := r.definedResources(ctx, pr)
 	if err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		r.record.Event(pr, event.Warning(reasonApplyRoles, err))
 		return reconcile.Result{}, err
 	}

@@ -164,6 +164,14 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 		},
 	}
 
+	if !grant.Permitted(d.Spec.Group, d.Spec.Names.Plural) {
+		// Clear composite grants independently; an owned claim CRD can remain
+		// available while its composite CRD is absent.
+		for _, role := range []*rbacv1.ClusterRole{system, edit, view, browse} {
+			role.Rules = nil
+		}
+	}
+
 	if d.Spec.ClaimNames != nil && grant.Permitted(d.Spec.Group, d.Spec.ClaimNames.Plural) {
 		system.Rules = append(system.Rules, rbacv1.PolicyRule{
 			APIGroups: []string{d.Spec.Group},
@@ -209,14 +217,6 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 		meta.AddOwnerReference(o, meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)))
 	}
 
-	roles := []rbacv1.ClusterRole{*system, *edit, *view, *browse}
-	if !grant.Permitted(d.Spec.Group, d.Spec.Names.Plural) {
-		// Keep the roles and their ownership so reconciliation replaces any
-		// previously granted rules with empty rules, including after upgrade.
-		for i := range roles {
-			roles[i].Rules = nil
-		}
-	}
-
-	return roles
+	// Keep empty roles to revoke previously granted rules during reconciliation.
+	return []rbacv1.ClusterRole{*system, *edit, *view, *browse}
 }

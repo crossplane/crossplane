@@ -116,8 +116,15 @@ func TestReconcileReplacesStaleRules(t *testing.T) {
 				if err := c.Get(ctx, client.ObjectKey{Name: prefix + suffix}, got); err != nil {
 					t.Fatal(err)
 				}
-				if len(got.Rules) != 0 {
-					t.Errorf("role %q retains rules after reconciliation: %v", got.Name, got.Rules)
+				var want []rbacv1.PolicyRule
+				if suffix == ":system" {
+					want = []rbacv1.PolicyRule{{
+						APIGroups: []string{"", "coordination.k8s.io", "events.k8s.io"},
+						Resources: []string{"secrets", "configmaps", "events", "leases"}, Verbs: []string{"*"},
+					}}
+				}
+				if diff := cmp.Diff(want, got.Rules); diff != "" {
+					t.Errorf("role %q rules after reconciliation (-want +got):\n%s", got.Name, diff)
 				}
 				if !metav1.IsControlledBy(got, parent) {
 					t.Errorf("role %q lost its controller reference", got.Name)
@@ -238,6 +245,15 @@ func TestXRDGrantsRequireOwnedCompositeAndClaimCRDs(t *testing.T) {
 	check(true, false)
 	claim.OwnerReferences = []metav1.OwnerReference{owner}
 	if err := c.Update(ctx, claim); err != nil {
+		t.Fatal(err)
+	}
+	check(true, true)
+	if err := c.Delete(ctx, xr); err != nil {
+		t.Fatal(err)
+	}
+	check(false, true)
+	xr.ResourceVersion = ""
+	if err := c.Create(ctx, xr); err != nil {
 		t.Fatal(err)
 	}
 	check(true, true)
