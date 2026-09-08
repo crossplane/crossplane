@@ -54,25 +54,28 @@ func TestReconcileCRDOwnership(t *testing.T) {
 	oldInstaller.UID = "old-revision-uid"
 	foreign := installer
 	foreign.Kind = "UnrelatedController"
+	// Only the CRD's reference to this MRD allows an existing CRD to be
+	// updated.
 	for name, tc := range map[string]struct {
 		owners                []metav1.OwnerReference
 		installer             *metav1.OwnerReference
 		absent, allowed, race bool
 		upgradeRace           bool
 	}{
-		"Create":                 {absent: true, allowed: true},
-		"CreateRace":             {absent: true, allowed: true, race: true},
-		"Unowned":                {},
-		"OwnedByMRD":             {owners: []metav1.OwnerReference{mrdOwner}, allowed: true},
-		"RevisionHandoff":        {owners: []metav1.OwnerReference{mrdOwner, foreign}, allowed: true},
-		"MigrateDirectCRD":       {owners: []metav1.OwnerReference{installer}, allowed: true},
-		"MigrateAcrossRevisions": {owners: []metav1.OwnerReference{provider, oldInstaller}, allowed: true},
-		"WrongUID":               {owners: []metav1.OwnerReference{wrongUID}},
-		"WrongName":              {owners: []metav1.OwnerReference{wrongName}},
-		"WrongKind":              {owners: []metav1.OwnerReference{wrongKind}},
-		"ForeignInstaller":       {owners: []metav1.OwnerReference{foreign}, installer: &foreign},
-		"UpgradeRace":            {owners: []metav1.OwnerReference{mrdOwner}, allowed: true, upgradeRace: true},
-		"UpdateRace":             {owners: []metav1.OwnerReference{mrdOwner}, allowed: true, race: true},
+		"Create":                            {absent: true, allowed: true},
+		"CreateRace":                        {absent: true, allowed: true, race: true},
+		"Unowned":                           {},
+		"OwnedByMRD":                        {owners: []metav1.OwnerReference{mrdOwner}, allowed: true},
+		"RevisionHandoff":                   {owners: []metav1.OwnerReference{mrdOwner, foreign}, allowed: true},
+		"InstallerReferenceOnly":            {owners: []metav1.OwnerReference{installer}},
+		"ProviderReferenceOnly":             {owners: []metav1.OwnerReference{provider, oldInstaller}},
+		"ProviderReferenceWithoutInstaller": {owners: []metav1.OwnerReference{provider, oldInstaller}, installer: &provider},
+		"WrongUID":                          {owners: []metav1.OwnerReference{wrongUID}},
+		"WrongName":                         {owners: []metav1.OwnerReference{wrongName}},
+		"WrongKind":                         {owners: []metav1.OwnerReference{wrongKind}},
+		"ForeignInstaller":                  {owners: []metav1.OwnerReference{foreign}, installer: &foreign},
+		"UpgradeRace":                       {owners: []metav1.OwnerReference{mrdOwner}, allowed: true, upgradeRace: true},
+		"UpdateRace":                        {owners: []metav1.OwnerReference{mrdOwner}, allowed: true, race: true},
 	} {
 		t.Run(name, func(t *testing.T) {
 			parent := mrd.DeepCopy()
@@ -80,6 +83,7 @@ func TestReconcileCRDOwnership(t *testing.T) {
 				parent.OwnerReferences = []metav1.OwnerReference{*tc.installer}
 			}
 			writes := 0
+			upgrades := 0
 			statusUpdates := 0
 			recorder := &testRecorder{}
 			c := &test.MockClient{
@@ -127,12 +131,13 @@ func TestReconcileCRDOwnership(t *testing.T) {
 					return nil
 				},
 			}
-			var upgrader ssa.ManagedFieldsUpgrader = &ssa.NopManagedFieldsUpgrader{}
-			if tc.upgradeRace {
-				upgrader = managedFieldsUpgradeFn(func(context.Context, client.Object) error {
+			upgrader := managedFieldsUpgradeFn(func(context.Context, client.Object) error {
+				upgrades++
+				if tc.upgradeRace {
 					return kerrors.NewConflict(schema.GroupResource{}, parent.Name, nil)
-				})
-			}
+				}
+				return nil
+			})
 			r := &Reconciler{client: c, managedFields: upgrader, log: logging.NewNopLogger(), record: recorder, conditions: conditions.ObservedGenerationPropagationManager{}}
 			result, err := r.Reconcile(context.Background(), reconcile.Request{NamespacedName: client.ObjectKeyFromObject(parent)})
 			if got, want := err != nil, !tc.allowed; got != want {
@@ -152,6 +157,9 @@ func TestReconcileCRDOwnership(t *testing.T) {
 			}
 			if writes != wantWrites {
 				t.Errorf("CRD writes = %d, want %d", writes, wantWrites)
+			}
+			if !tc.allowed && upgrades != 0 {
+				t.Errorf("upgraded managed fields %d times before rejecting ownership", upgrades)
 			}
 		})
 	}

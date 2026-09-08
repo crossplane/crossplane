@@ -66,7 +66,7 @@ func TestRenderClusterRoles(t *testing.T) {
 		want   []rbacv1.ClusterRole
 	}{
 		"EmptyResources": {
-			reason: "Empty roles must replace previously granted rules when no resources are permitted.",
+			reason: "Revoke derived grants while preserving provider startup permissions when no resources are permitted.",
 			args: args{
 				pr:        &v1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: prName, UID: prUID}},
 				resources: []Resource{},
@@ -83,7 +83,7 @@ func TestRenderClusterRoles(t *testing.T) {
 				{ObjectMeta: metav1.ObjectMeta{
 					Name: nameSystem, OwnerReferences: []metav1.OwnerReference{crCtrlr},
 					Labels: map[string]string{keyProviderName: prName},
-				}},
+				}, Rules: rulesSystemExtra},
 			},
 		},
 		"MergeGroups": {
@@ -282,11 +282,16 @@ func TestRenderClusterRoles(t *testing.T) {
 	allRefused.args.resources = refused
 	cases["AllResourcesRefused"] = allRefused
 
-	// Safe-start capabilities must not preserve extra permissions when all
-	// resources are refused.
+	// Safe-start providers must be able to watch for CRDs before any appear.
 	allRefused.args.pr = allRefused.args.pr.DeepCopy()
 	allRefused.args.pr.Status.Capabilities = []string{pkgmetav1.ProviderCapabilitySafeStart}
+	allRefused.want = append([]rbacv1.ClusterRole(nil), allRefused.want...)
+	allRefused.want[2].Rules = append(append([]rbacv1.PolicyRule(nil), rulesSystemExtra...), rbacv1.PolicyRule{
+		APIGroups: []string{"apiextensions.k8s.io"}, Resources: []string{"customresourcedefinitions"}, Verbs: verbsView,
+	})
 	cases["AllResourcesRefusedWithSafeStart"] = allRefused
+	allRefused.args.resources = nil
+	cases["EmptyResourcesWithSafeStart"] = allRefused
 
 	mixed := cases["MergeGroups"]
 	mixed.reason = "Refused resources must not change the roles granted for valid resources alongside them."

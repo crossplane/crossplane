@@ -192,8 +192,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	for _, crd := range crds {
 		names[crd.Name] = true
 	}
-	// Render only resources backed by CRDs this XRD actually owns. Keeping
-	// the original identity allows empty roles to revoke stale permissions.
+	// Check composite and claim CRDs independently so loss of one revokes
+	// only its grants. Keep the XRD identity to update existing roles.
 	desired := d.DeepCopy()
 	if !names[d.Spec.Names.Plural+"."+d.Spec.Group] {
 		desired.Spec.Names.Plural = ""
