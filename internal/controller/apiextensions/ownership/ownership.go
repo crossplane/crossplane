@@ -38,7 +38,7 @@ func MustBeControlledBy(owner metav1.Object) resource.ApplyOption {
 			return err
 		}
 		if owner.GetUID() == "" || !metav1.IsControlledBy(m, owner) {
-			return errors.New("CustomResourceDefinition is not controlled by this CompositeResourceDefinition")
+			return errors.Errorf("CustomResourceDefinition %q is not controlled by %q (UID %q)", m.GetName(), owner.GetName(), owner.GetUID())
 		}
 		return nil
 	}
