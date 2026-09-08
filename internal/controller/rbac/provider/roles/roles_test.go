@@ -64,10 +64,24 @@ func TestRenderClusterRoles(t *testing.T) {
 		want   []rbacv1.ClusterRole
 	}{
 		"EmptyResources": {
-			reason: "If there are no resources (yet) we should not produce any ClusterRoles.",
+			reason: "Empty roles must replace previously granted rules when no resources are permitted.",
 			args: args{
 				pr:        &v1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: prName, UID: prUID}},
 				resources: []Resource{},
+			},
+			want: []rbacv1.ClusterRole{
+				{ObjectMeta: metav1.ObjectMeta{
+					Name: nameEdit, OwnerReferences: []metav1.OwnerReference{crCtrlr},
+					Labels: map[string]string{keyAggregateToCrossplane: valTrue, keyAggregateToAdmin: valTrue, keyAggregateToEdit: valTrue},
+				}},
+				{ObjectMeta: metav1.ObjectMeta{
+					Name: nameView, OwnerReferences: []metav1.OwnerReference{crCtrlr},
+					Labels: map[string]string{keyAggregateToView: valTrue},
+				}},
+				{ObjectMeta: metav1.ObjectMeta{
+					Name: nameSystem, OwnerReferences: []metav1.OwnerReference{crCtrlr},
+					Labels: map[string]string{keyProviderName: prName},
+				}},
 			},
 		},
 		"MergeGroups": {
@@ -161,6 +175,34 @@ func TestRenderClusterRoles(t *testing.T) {
 			},
 		},
 	}
+
+	refused := []Resource{
+		{Group: "*", Plural: "*"},
+		{Group: "", Plural: "secrets"},
+		{Group: "apps", Plural: "deployments"},
+		{Group: "rbac.authorization.k8s.io", Plural: "clusterroles"},
+		{Group: "rbac.authorization.k8s.io", Plural: "clusterrolebindings"},
+		{Group: "pkg.crossplane.io", Plural: "providerrevisions"},
+		{Group: groupA, Plural: "*"},
+		{Group: groupA, Plural: "*/status"},
+	}
+
+	allRefused := cases["EmptyResources"]
+	allRefused.args.resources = refused
+	cases["AllResourcesRefused"] = allRefused
+
+	// Permission requests must not preserve extra permissions when all
+	// resources are refused.
+	allRefused.args.pr = allRefused.args.pr.DeepCopy()
+	allRefused.args.pr.Status.PermissionRequests = []rbacv1.PolicyRule{{
+		APIGroups: []string{"apiextensions.k8s.io"}, Resources: []string{"customresourcedefinitions"}, Verbs: verbsView,
+	}}
+	cases["AllResourcesRefusedWithPermissionRequests"] = allRefused
+
+	mixed := cases["MergeGroups"]
+	mixed.reason = "Refused resources must not change the roles granted for valid resources alongside them."
+	mixed.args.resources = append(mixed.args.resources, refused...)
+	cases["MixedResources"] = mixed
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

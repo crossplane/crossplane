@@ -23,6 +23,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/controller/rbac/grant"
 )
 
 const (
@@ -163,7 +164,7 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 		},
 	}
 
-	if d.Spec.ClaimNames != nil {
+	if d.Spec.ClaimNames != nil && grant.Permitted(d.Spec.Group, d.Spec.ClaimNames.Plural) {
 		system.Rules = append(system.Rules, rbacv1.PolicyRule{
 			APIGroups: []string{d.Spec.Group},
 			Resources: []string{
@@ -208,5 +209,14 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 		meta.AddOwnerReference(o, meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)))
 	}
 
-	return []rbacv1.ClusterRole{*system, *edit, *view, *browse}
+	roles := []rbacv1.ClusterRole{*system, *edit, *view, *browse}
+	if !grant.Permitted(d.Spec.Group, d.Spec.Names.Plural) {
+		// Keep the roles and their ownership so reconciliation replaces any
+		// previously granted rules with empty rules, including after upgrade.
+		for i := range roles {
+			roles[i].Rules = nil
+		}
+	}
+
+	return roles
 }

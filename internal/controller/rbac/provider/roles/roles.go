@@ -26,6 +26,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/internal/controller/rbac/grant"
 )
 
 const (
@@ -94,11 +95,6 @@ type Resource struct {
 
 // RenderClusterRoles returns ClusterRoles for the supplied ProviderRevision.
 func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.ClusterRole {
-	// Return early if we have no resources to render roles for.
-	if len(rs) == 0 {
-		return nil
-	}
-
 	// Our list of resources has no guaranteed order, so we sort them in order
 	// to ensure we don't reorder our RBAC rules on each update.
 	sort.Slice(rs, func(i, j int) bool {
@@ -108,6 +104,11 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 	groups := make([]string, 0)            // Allows deterministic iteration over groups.
 	resources := make(map[string][]string) // Resources by group.
 	for _, r := range rs {
+		// Keep built-in APIs and wildcard selectors out of generated grants.
+		if !grant.Permitted(r.Group, r.Plural) {
+			continue
+		}
+
 		if _, ok := resources[r.Group]; !ok {
 			resources[r.Group] = make([]string, 0)
 			groups = append(groups, r.Group)
@@ -115,7 +116,7 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 		resources[r.Group] = append(resources[r.Group], r.Plural, r.Plural+suffixStatus)
 	}
 
-	rules := []rbacv1.PolicyRule{}
+	rules := make([]rbacv1.PolicyRule, 0, len(groups))
 	for _, g := range groups {
 		rules = append(rules, rbacv1.PolicyRule{
 			APIGroups: []string{g},
@@ -176,6 +177,12 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}
 	for i := range roles {
+		// Apply empty roles when nothing is permitted, so reconciliation
+		// revokes any rules granted before validation was introduced.
+		if len(groups) == 0 {
+			roles[i].Rules = nil
+		}
+
 		ref := meta.AsController(meta.TypedReferenceTo(pr, v1.ProviderRevisionGroupVersionKind))
 		roles[i].SetOwnerReferences([]metav1.OwnerReference{ref})
 	}
