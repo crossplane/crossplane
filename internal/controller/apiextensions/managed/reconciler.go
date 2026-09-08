@@ -22,6 +22,7 @@ import (
 	"time"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -146,6 +147,9 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	// apply. This is necessary when a CRD was previously managed using
 	// client-side apply, but should now be managed using server-side apply.
 	if err := r.managedFields.Upgrade(ctx, crd); err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		log.Debug("cannot upgrade managed fields", "error", err)
 		r.record.Event(mrd, event.Warning(reasonReconcile, err))
 		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to upgrade managed fields, see events"))
@@ -175,13 +179,20 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	// pin apply to the resource version whose ownership we checked. Upgrade
 	// refreshes that version if it patches managed fields.
 	if getErr != nil {
-		err = r.client.Create(ctx, patch, client.FieldOwner(FieldOwnerMRD))
+		// A distinct create manager lets the upgrader transfer its Update
+		// ownership to Apply. Otherwise omitted fields can remain co-owned.
+		err = r.client.Create(ctx, patch, client.FieldOwner(FieldOwnerMRD+"/create"))
 	} else {
 		patch.SetResourceVersion(crd.GetResourceVersion())
 		//nolint:staticcheck // TODO(adamwg): Stop using client.Apply after the v2.2 release.
 		err = r.client.Patch(ctx, patch, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerMRD))
 	}
 	if err != nil {
+		// Cached reads may trail CRD status updates or concurrent creation.
+		// Retry without replacing healthy conditions or emitting warnings.
+		if kerrors.IsConflict(err) || kerrors.IsAlreadyExists(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		log.Debug("cannot apply CustomResourceDefinition", "error", err)
 		r.record.Event(mrd, event.Warning(reasonApplyCRD, err))
 		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to apply CustomResourceDefinition, see events"))

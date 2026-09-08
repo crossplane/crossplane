@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
@@ -59,6 +58,7 @@ func TestReconcileCRDOwnership(t *testing.T) {
 		owners                []metav1.OwnerReference
 		installer             *metav1.OwnerReference
 		absent, allowed, race bool
+		upgradeRace           bool
 	}{
 		"Create":                 {absent: true, allowed: true},
 		"CreateRace":             {absent: true, allowed: true, race: true},
@@ -71,6 +71,7 @@ func TestReconcileCRDOwnership(t *testing.T) {
 		"WrongName":              {owners: []metav1.OwnerReference{wrongName}},
 		"WrongKind":              {owners: []metav1.OwnerReference{wrongKind}},
 		"ForeignInstaller":       {owners: []metav1.OwnerReference{foreign}, installer: &foreign},
+		"UpgradeRace":            {owners: []metav1.OwnerReference{mrdOwner}, allowed: true, upgradeRace: true},
 		"UpdateRace":             {owners: []metav1.OwnerReference{mrdOwner}, allowed: true, race: true},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -79,6 +80,8 @@ func TestReconcileCRDOwnership(t *testing.T) {
 				parent.OwnerReferences = []metav1.OwnerReference{*tc.installer}
 			}
 			writes := 0
+			statusUpdates := 0
+			recorder := &testRecorder{}
 			c := &test.MockClient{
 				MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
 					switch o := obj.(type) {
@@ -92,7 +95,11 @@ func TestReconcileCRDOwnership(t *testing.T) {
 					}
 					return nil
 				},
-				MockCreate: func(_ context.Context, _ client.Object, _ ...client.CreateOption) error {
+				MockCreate: func(_ context.Context, _ client.Object, opts ...client.CreateOption) error {
+					options := (&client.CreateOptions{}).ApplyOptions(opts)
+					if ssa.ExactMatch(FieldOwnerMRD)(options.FieldManager) {
+						t.Error("create manager must trigger the managed-fields upgrade")
+					}
 					writes++
 					if !tc.absent {
 						t.Error("must update an existing CRD")
@@ -115,15 +122,32 @@ func TestReconcileCRDOwnership(t *testing.T) {
 					}
 					return nil
 				},
-				MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				MockStatusUpdate: func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
+					statusUpdates++
+					return nil
+				},
 			}
-			r := &Reconciler{client: c, managedFields: &ssa.NopManagedFieldsUpgrader{}, log: logging.NewNopLogger(), record: event.NewNopRecorder(), conditions: conditions.ObservedGenerationPropagationManager{}}
-			_, err := r.Reconcile(context.Background(), reconcile.Request{NamespacedName: client.ObjectKeyFromObject(parent)})
-			if got, want := err != nil, !tc.allowed || tc.race; got != want {
+			var upgrader ssa.ManagedFieldsUpgrader = &ssa.NopManagedFieldsUpgrader{}
+			if tc.upgradeRace {
+				upgrader = managedFieldsUpgradeFn(func(context.Context, client.Object) error {
+					return kerrors.NewConflict(schema.GroupResource{}, parent.Name, nil)
+				})
+			}
+			r := &Reconciler{client: c, managedFields: upgrader, log: logging.NewNopLogger(), record: recorder, conditions: conditions.ObservedGenerationPropagationManager{}}
+			result, err := r.Reconcile(context.Background(), reconcile.Request{NamespacedName: client.ObjectKeyFromObject(parent)})
+			if got, want := err != nil, !tc.allowed; got != want {
 				t.Errorf("error = %v, want error %v", err, want)
 			}
+			retry := tc.race || tc.upgradeRace
+			wantResult := reconcile.Result{Requeue: retry}
+			if result != wantResult {
+				t.Errorf("result = %v, want %v", result, wantResult)
+			}
+			if retry && (len(recorder.events) != 0 || statusUpdates != 0) {
+				t.Errorf("retry emitted %d events and %d status updates", len(recorder.events), statusUpdates)
+			}
 			wantWrites := 0
-			if tc.allowed {
+			if tc.allowed && !tc.upgradeRace {
 				wantWrites = 1
 			}
 			if writes != wantWrites {
@@ -131,4 +155,10 @@ func TestReconcileCRDOwnership(t *testing.T) {
 			}
 		})
 	}
+}
+
+type managedFieldsUpgradeFn func(context.Context, client.Object) error
+
+func (fn managedFieldsUpgradeFn) Upgrade(ctx context.Context, obj client.Object) error {
+	return fn(ctx, obj)
 }

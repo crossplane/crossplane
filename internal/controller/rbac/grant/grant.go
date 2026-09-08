@@ -53,6 +53,7 @@ func Permitted(group, plural string) bool {
 		return false
 	}
 
+	// Groups under k8s.io are reserved for Kubernetes APIs.
 	if group == "k8s.io" || strings.HasSuffix(group, ".k8s.io") {
 		return false
 	}
