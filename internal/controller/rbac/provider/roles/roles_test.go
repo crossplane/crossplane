@@ -168,8 +168,13 @@ func TestRenderClusterRoles(t *testing.T) {
 							Verbs:     verbsSystem,
 						},
 						{
-							APIGroups: []string{groupA, groupC},
-							Resources: []string{rbacv1.ResourceAll + suffixFinalizers},
+							APIGroups: []string{groupA},
+							Resources: []string{pluralA + suffixFinalizers, pluralB + suffixFinalizers},
+							Verbs:     verbsUpdate,
+						},
+						{
+							APIGroups: []string{groupC},
+							Resources: []string{pluralC + suffixFinalizers},
 							Verbs:     verbsUpdate,
 						},
 					}, rulesSystemExtra...),
@@ -243,7 +248,7 @@ func TestRenderClusterRoles(t *testing.T) {
 						},
 						{
 							APIGroups: []string{groupA},
-							Resources: []string{rbacv1.ResourceAll + suffixFinalizers},
+							Resources: []string{pluralA + suffixFinalizers},
 							Verbs:     verbsUpdate,
 						},
 						{
