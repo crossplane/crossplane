@@ -565,6 +565,30 @@ func TestRenderClusterRoles(t *testing.T) {
 		},
 	}
 
+	for name, spec := range map[string]v1.CompositeResourceDefinitionSpec{
+		"WildcardGroup":   {Group: "*", Names: extv1.CustomResourceDefinitionNames{Plural: pluralXR}},
+		"WildcardPlural":  {Group: group, Names: extv1.CustomResourceDefinitionNames{Plural: "*"}},
+		"CoreGroup":       {Group: "", Names: extv1.CustomResourceDefinitionNames{Plural: "secrets"}},
+		"KubernetesGroup": {Group: "rbac.authorization.k8s.io", Names: extv1.CustomResourceDefinitionNames{Plural: "clusterroles"}},
+		"CrossplaneGroup": {Group: "pkg.crossplane.io", Names: extv1.CustomResourceDefinitionNames{Plural: "providerrevisions"}},
+	} {
+		tc := cases["DoesNotOfferClaim"]
+		tc.reason = "Refused definitions must render empty roles to revoke previously granted rules."
+		tc.d = tc.d.DeepCopy()
+		tc.d.Spec = spec
+		tc.want = append([]rbacv1.ClusterRole(nil), tc.want...)
+		for i := range tc.want {
+			tc.want[i].Rules = nil
+		}
+		cases[name] = tc
+	}
+
+	claim := cases["DoesNotOfferClaim"]
+	claim.reason = "An invalid claim plural is skipped without removing valid composite rules."
+	claim.d = claim.d.DeepCopy()
+	claim.d.Spec.ClaimNames = &extv1.CustomResourceDefinitionNames{Plural: "*"}
+	cases["WildcardClaimPlural"] = claim
+
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := RenderClusterRoles(tc.d)
