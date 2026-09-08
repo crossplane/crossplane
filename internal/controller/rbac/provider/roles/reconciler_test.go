@@ -23,7 +23,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	rbacv1 "k8s.io/api/rbac/v1"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
@@ -204,6 +202,9 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
+								if _, ok := o.(*metav1.PartialObjectMetadataList); ok {
+									return nil
+								}
 								l := o.(*v1.ProviderRevisionList)
 								l.Items = []v1.ProviderRevision{
 									{
@@ -278,55 +279,16 @@ func TestReconcile(t *testing.T) {
 }
 
 func TestDefinedResources(t *testing.T) {
-	cases := map[string]struct {
-		refs []xpv1.TypedReference
+	for name, tc := range map[string]struct {
+		crds []metav1.PartialObjectMetadata
 		want []Resource
 	}{
-		"UnparseableAPIVersion": {
-			refs: []xpv1.TypedReference{{
-				APIVersion: "too/many/slashes",
-			}},
-			want: []Resource{},
-		},
-		"WrongGroup": {
-			refs: []xpv1.TypedReference{{
-				APIVersion: "example.org/v1",
-				Kind:       "CustomResourceDefinition",
-			}},
-			want: []Resource{},
-		},
-		"WrongKind": {
-			refs: []xpv1.TypedReference{{
-				APIVersion: extv1.SchemeGroupVersion.String(),
-				Kind:       "ConversionReview",
-			}},
-			want: []Resource{},
-		},
-		"InvalidName": {
-			refs: []xpv1.TypedReference{{
-				APIVersion: extv1.SchemeGroupVersion.String(),
-				Kind:       "CustomResourceDefinition",
-				Name:       "I'm different!",
-			}},
-			want: []Resource{},
-		},
-		"DefinedResource": {
-			refs: []xpv1.TypedReference{{
-				APIVersion: extv1.SchemeGroupVersion.String(),
-				Kind:       "CustomResourceDefinition",
-				Name:       "pinballs.example.org",
-			}},
-			want: []Resource{{
-				Group:  "example.org",
-				Plural: "pinballs",
-			}},
-		},
-	}
-
-	for name, tc := range cases {
+		"Empty":           {want: []Resource{}},
+		"InvalidName":     {crds: []metav1.PartialObjectMetadata{{ObjectMeta: metav1.ObjectMeta{Name: "invalid"}}}, want: []Resource{}},
+		"DefinedResource": {crds: []metav1.PartialObjectMetadata{{ObjectMeta: metav1.ObjectMeta{Name: "pinballs.example.org"}}}, want: []Resource{{Group: "example.org", Plural: "pinballs"}}},
+	} {
 		t.Run(name, func(t *testing.T) {
-			got := DefinedResources(tc.refs)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
+			if diff := cmp.Diff(tc.want, DefinedResources(tc.crds)); diff != "" {
 				t.Errorf("DefinedResources(...): -want, +got:\n%s", diff)
 			}
 		})

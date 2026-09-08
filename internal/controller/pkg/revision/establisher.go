@@ -179,13 +179,10 @@ func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRe
 			}
 
 			ors := u.GetOwnerReferences()
-			found := false
 			changed := false
 
 			for i := range ors {
 				if ors[i].UID == parent.GetUID() {
-					found = true
-
 					if ors[i].Controller != nil && *ors[i].Controller {
 						ors[i].Controller = new(false)
 						changed = true
@@ -193,20 +190,9 @@ func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRe
 
 					break
 				}
-				// Note(turkenh): What if we cannot find our UID in the owner
-				// references? This is not expected unless another party stripped
-				// out ownerRefs. I believe this is a fairly unlikely scenario,
-				// and we can ignore it for now especially considering that if that
-				// happens active revision or the package itself will still take
-				// over the ownership of such resources.
 			}
 
-			if !found {
-				// Make sure the package revision exists as an owner.
-				ors = append(ors, meta.AsOwner(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind())))
-				changed = true
-			}
-
+			// Only release existing control here.
 			if changed {
 				u.SetOwnerReferences(ors)
 

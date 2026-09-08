@@ -213,7 +213,7 @@ func TestReconcile(t *testing.T) {
 							return kerrors.NewNotFound(schema.GroupResource{}, "")
 						}
 					},
-					MockPatch: test.NewMockPatchFn(nil),
+					MockCreate: test.NewMockCreateFn(nil),
 					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
 						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
 						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
@@ -283,7 +283,7 @@ func TestReconcile(t *testing.T) {
 							return kerrors.NewNotFound(schema.GroupResource{}, "")
 						}
 					},
-					MockPatch: test.NewMockPatchFn(errBoom),
+					MockCreate: test.NewMockCreateFn(errBoom),
 					MockStatusUpdate: wantMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
 						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
 						mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
@@ -349,6 +349,9 @@ func TestReconcile(t *testing.T) {
 							}))(ctx, key, o)
 						case *extv1.CustomResourceDefinition:
 							o.Name = key.Name
+							o.UID = "crd-uid"
+							o.ResourceVersion = "123"
+							o.OwnerReferences = []metav1.OwnerReference{meta.AsOwner(meta.TypedReferenceTo(newMRD(), v1alpha1.ManagedResourceDefinitionGroupVersionKind))}
 							o.Spec = extv1.CustomResourceDefinitionSpec{
 								Group: "example.com",
 								Names: extv1.CustomResourceDefinitionNames{
@@ -553,8 +556,10 @@ func TestReconcileCRDControllerHandoff(t *testing.T) {
 		})
 	}
 
+	// The live CRD. It's always owned by the MRD, since we refuse to apply to
+	// a CRD we don't already own.
 	crd := func(refs ...metav1.OwnerReference) *extv1.CustomResourceDefinition {
-		return &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{OwnerReferences: refs}}
+		return &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{OwnerReferences: append([]metav1.OwnerReference{mrdOwner}, refs...)}}
 	}
 
 	type args struct {
@@ -642,6 +647,11 @@ func TestReconcileCRDControllerHandoff(t *testing.T) {
 
 						*o = *tc.args.crd
 					}
+
+					return nil
+				},
+				MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
+					got = obj.GetOwnerReferences()
 
 					return nil
 				},

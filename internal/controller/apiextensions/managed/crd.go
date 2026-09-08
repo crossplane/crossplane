@@ -23,12 +23,14 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 
 	"github.com/crossplane/crossplane/v2/apis/apiextensions/v1alpha1"
+	pkgv1 "github.com/crossplane/crossplane/v2/apis/pkg/v1"
 )
 
 // CRDAsUnstructured builds an Unstructured CRD from an MRD.
@@ -147,4 +149,36 @@ func buildVersion(version v1alpha1.CustomResourceDefinitionVersion) (map[string]
 	}
 
 	return p.UnstructuredContent(), nil
+}
+
+// mayApplyTo permits updates to CRDs already owned by this MRD, or by its
+// installing ProviderRevision or Provider when migrating a directly installed
+// CRD to an MRD, including migration during a revision upgrade.
+// An editable MRD must not establish ownership of an unrelated existing CRD.
+func mayApplyTo(mrd *v1alpha1.ManagedResourceDefinition, crd metav1.Object) bool {
+	installer := metav1.GetControllerOf(mrd)
+	for _, owner := range crd.GetOwnerReferences() {
+		if owner.UID == "" {
+			continue
+		}
+		gk := schema.FromAPIVersionAndKind(owner.APIVersion, owner.Kind).GroupKind()
+		if owner.UID == mrd.GetUID() && owner.Name == mrd.GetName() && gk == v1alpha1.ManagedResourceDefinitionGroupVersionKind.GroupKind() {
+			return true
+		}
+		if installer != nil && owner.UID == installer.UID && owner.Name == installer.Name &&
+			gk == pkgv1.ProviderRevisionGroupVersionKind.GroupKind() &&
+			schema.FromAPIVersionAndKind(installer.APIVersion, installer.Kind).GroupKind() == gk {
+			return true
+		}
+		// The stable Provider owner survives revision changes. Only accept this
+		// package kind, never an arbitrary owner copied onto an editable MRD.
+		if gk == pkgv1.ProviderGroupVersionKind.GroupKind() {
+			for _, parent := range mrd.GetOwnerReferences() {
+				if parent.UID == owner.UID && parent.Name == owner.Name && schema.FromAPIVersionAndKind(parent.APIVersion, parent.Kind).GroupKind() == gk {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
