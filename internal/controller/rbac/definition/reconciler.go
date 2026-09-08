@@ -184,6 +184,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	crds, err := grant.OwnedCRDs(ctx, r.client, d, v1.CompositeResourceDefinitionGroupVersionKind.GroupKind())
 	if err != nil {
+		log.Debug("Cannot discover owned CustomResourceDefinitions", "error", err)
+		r.record.Event(d, event.Warning(reasonApplyRoles, err))
 		return reconcile.Result{}, err
 	}
 	names := make(map[string]bool, len(crds))

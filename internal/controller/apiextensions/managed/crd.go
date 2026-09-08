@@ -99,6 +99,7 @@ func CRDAsUnstructured(mrd *v1alpha1.ManagedResourceDefinition) (*unstructured.U
 
 	// Add owner references
 	meta.AddOwnerReference(u, meta.AsOwner(meta.TypedReferenceTo(mrd, v1alpha1.ManagedResourceDefinitionGroupVersionKind)))
+	// This reference records the installing package.
 	if owner := metav1.GetControllerOf(mrd); owner != nil {
 		meta.AddOwnerReference(u, *owner)
 	}
