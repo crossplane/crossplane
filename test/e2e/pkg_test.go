@@ -18,6 +18,7 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8sapiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
@@ -302,66 +304,190 @@ func CurrentPackageRevisionHasConditionWithin(
 
 // Tests that a new package revision is upon spec update (via .metadada.generation).
 func TestPackageRevisionLifeCycle(t *testing.T) {
+	const functionName = "function-image-config-runtime"
+
 	manifests := "test/e2e/manifests/pkg/image-config/runtime-config"
+	function := &pkgv1.Function{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: functionName,
+		},
+	}
+
 	var firstRevision string
+
 	environment.Test(t,
-		features.NewWithDescription(t.Name(), "Tests that a package (Function, Provider) get a new revision on spec change.").
+		features.NewWithDescription(
+			t.Name(),
+			"Tests that a package (Function, Provider) gets a new revision on spec change.",
+		).
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("CreatePackage", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "deployment-runtime-config.yaml"),
-				funcs.ApplyResources(FieldManager, manifests, "function.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "deployment-runtime-config.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "function.yaml"),
+				funcs.ApplyResources(
+					FieldManager,
+					manifests,
+					"deployment-runtime-config.yaml",
+				),
+				funcs.ApplyResources(
+					FieldManager,
+					manifests,
+					"function.yaml",
+				),
+				funcs.ResourcesCreatedWithin(
+					30*time.Second,
+					manifests,
+					"deployment-runtime-config.yaml",
+				),
+				funcs.ResourcesCreatedWithin(
+					30*time.Second,
+					manifests,
+					"function.yaml",
+				),
 			)).
 			Assess("PackageRevisionOneCreated", funcs.AllOf(
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Function{ObjectMeta: metav1.ObjectMeta{Name: "function-image-config-runtime"}}, "metadata.generation", int64(1)),
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Function{ObjectMeta: metav1.ObjectMeta{Name: "function-image-config-runtime"}}, "status.currentRevision", funcs.Any),
-				CurrentPackageRevisionHasConditionWithin(2*time.Minute, &pkgv1.Function{ObjectMeta: metav1.ObjectMeta{Name: "function-image-config-runtime"}}, &pkgv1.FunctionRevision{}, pkgv1.RevisionHealthy()),
-				funcs.ResourceHasConditionWithin(2*time.Minute, &pkgv1.Function{ObjectMeta: metav1.ObjectMeta{Name: "function-image-config-runtime"}}, pkgv1.Active(), pkgv1.Healthy()),
+				funcs.ResourceHasFieldValueWithin(
+					2*time.Minute,
+					function,
+					"metadata.generation",
+					int64(1),
+				),
+				funcs.ResourceHasFieldValueWithin(
+					2*time.Minute,
+					function,
+					"status.currentRevision",
+					funcs.Any,
+				),
+				CurrentPackageRevisionHasConditionWithin(
+					2*time.Minute,
+					function,
+					&pkgv1.FunctionRevision{},
+					pkgv1.RevisionHealthy(),
+				),
+				funcs.ResourceHasConditionWithin(
+					2*time.Minute,
+					function,
+					pkgv1.Active(),
+					pkgv1.Healthy(),
+				),
+			)).
+			Assess(
+				"RecordPackageRevisionOne",
 				func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 					t.Helper()
 
 					f := &pkgv1.Function{}
-					if err := c.Client().Resources().Get(ctx, "function-image-config-runtime", "", f); err != nil {
-						t.Errorf("cannot get Function: %v", err)
+					if err := c.Client().Resources().Get(
+						ctx,
+						functionName,
+						"",
+						f,
+					); err != nil {
+						t.Errorf(
+							"cannot read Function %q while recording its current revision: %v",
+							functionName,
+							err,
+						)
+						return ctx
+					}
+
+					if f.Status.CurrentRevision == "" {
+						t.Errorf(
+							"expected Function %q to have a current revision",
+							functionName,
+						)
 						return ctx
 					}
 
 					firstRevision = f.Status.CurrentRevision
 					return ctx
 				},
-			)).
+			).
 			Assess("UpdatePackageRuntime", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "function-new-runtime.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "function-new-runtime.yaml"),
+				funcs.ApplyResources(
+					FieldManager,
+					manifests,
+					"function-new-runtime.yaml",
+				),
+				funcs.ResourcesCreatedWithin(
+					30*time.Second,
+					manifests,
+					"function-new-runtime.yaml",
+				),
 			)).
-			Assess("PackageRevisionTwoCreated", funcs.AllOf(
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Function{ObjectMeta: metav1.ObjectMeta{Name: "function-image-config-runtime"}}, "metadata.generation", int64(2)),
+			Assess(
+				"PackageGenerationUpdated",
+				funcs.ResourceHasFieldValueWithin(
+					2*time.Minute,
+					function,
+					"metadata.generation",
+					int64(2),
+				),
+			).
+			Assess(
+				"PackageRevisionTwoCreated",
 				func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 					t.Helper()
 
-					f := &pkgv1.Function{}
-					if err := c.Client().Resources().Get(ctx, "function-image-config-runtime", "", f); err != nil {
-						t.Errorf("cannot get Function: %v", err)
-						return ctx
-					}
+					err := wait.PollUntilContextTimeout(
+						ctx,
+						500*time.Millisecond,
+						2*time.Minute,
+						true,
+						func(ctx context.Context) (bool, error) {
+							f := &pkgv1.Function{}
+							if err := c.Client().Resources().Get(
+								ctx,
+								functionName,
+								"",
+								f,
+							); err != nil {
+								return false, fmt.Errorf(
+									"cannot read Function %q while waiting for its current revision to change: %w",
+									functionName,
+									err,
+								)
+							}
 
-					if f.Status.CurrentRevision == firstRevision {
-						t.Errorf("expected current revision to change, still %q", firstRevision)
+							return f.Status.CurrentRevision != "" &&
+								f.Status.CurrentRevision != firstRevision, nil
+						},
+					)
+					if err != nil {
+						t.Errorf(
+							"expected Function %q current revision to change from %q: %v",
+							functionName,
+							firstRevision,
+							err,
+						)
 					}
 
 					return ctx
 				},
-			)).
+			).
 			WithTeardown("DeleteFunction", funcs.AllOf(
-				funcs.DeleteResourcesWithPropagationPolicy(manifests, "function-new-runtime.yaml", metav1.DeletePropagationForeground),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "function-new-runtime.yaml"),
+				funcs.DeleteResourcesWithPropagationPolicy(
+					manifests,
+					"function-new-runtime.yaml",
+					metav1.DeletePropagationForeground,
+				),
+				funcs.ResourcesDeletedWithin(
+					3*time.Minute,
+					manifests,
+					"function-new-runtime.yaml",
+				),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResourcesWithPropagationPolicy(manifests, "deployment-runtime-config.yaml", metav1.DeletePropagationForeground),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "deployment-runtime-config.yaml"),
+				funcs.DeleteResourcesWithPropagationPolicy(
+					manifests,
+					"deployment-runtime-config.yaml",
+					metav1.DeletePropagationForeground,
+				),
+				funcs.ResourcesDeletedWithin(
+					time.Minute,
+					manifests,
+					"deployment-runtime-config.yaml",
+				),
 			)).
 			Feature(),
 	)
