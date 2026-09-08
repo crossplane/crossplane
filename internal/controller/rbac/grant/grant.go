@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package grant validates resource names used to render RBAC rules.
+// Package grant discovers and validates CRDs used to render RBAC rules.
 package grant
 
 import (
