@@ -41,6 +41,7 @@ import (
 
 // TestCRDPrunesFieldsAfterCreate needs real managedFields and CRD merge semantics.
 // Set KUBEBUILDER_ASSETS to a directory containing kube-apiserver and etcd.
+// This is an opt-in local regression; CI does not currently provide the assets.
 func TestCRDPrunesFieldsAfterCreate(t *testing.T) {
 	assets := os.Getenv("KUBEBUILDER_ASSETS")
 	if assets == "" {

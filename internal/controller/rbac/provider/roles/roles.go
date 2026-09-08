@@ -194,14 +194,10 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 		}}, verbsView)...)
 	}
 
+	// Always apply roles to revoke stale derived grants. Fixed system rules
+	// let providers start and SafeStart providers watch for their first CRD.
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}
 	for i := range roles {
-		// Apply empty roles when nothing is permitted, so reconciliation
-		// revokes any rules granted before validation was introduced.
-		if len(groups) == 0 {
-			roles[i].Rules = nil
-		}
-
 		ref := meta.AsController(meta.TypedReferenceTo(pr, v1.ProviderRevisionGroupVersionKind))
 		roles[i].SetOwnerReferences([]metav1.OwnerReference{ref})
 	}
@@ -210,6 +206,9 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 }
 
 func withVerbs(r []rbacv1.PolicyRule, verbs []string) []rbacv1.PolicyRule {
+	if len(r) == 0 {
+		return nil
+	}
 	verbal := make([]rbacv1.PolicyRule, len(r))
 	for i := range r {
 		verbal[i] = r[i]
