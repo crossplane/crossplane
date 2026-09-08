@@ -17,6 +17,7 @@ limitations under the License.
 package roles
 
 import (
+	"slices"
 	"sort"
 
 	coordinationv1 "k8s.io/api/coordination/v1"
@@ -103,6 +104,7 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 
 	groups := make([]string, 0)            // Allows deterministic iteration over groups.
 	resources := make(map[string][]string) // Resources by group.
+	finalizers := make(map[string][]string)
 	for _, r := range rs {
 		// Keep built-in APIs and wildcard selectors out of generated grants.
 		if !grant.Permitted(r.Group, r.Plural) {
@@ -113,7 +115,11 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 			resources[r.Group] = make([]string, 0)
 			groups = append(groups, r.Group)
 		}
-		resources[r.Group] = append(resources[r.Group], r.Plural, r.Plural+suffixStatus)
+
+		if !slices.Contains(resources[r.Group], r.Plural) {
+			resources[r.Group] = append(resources[r.Group], r.Plural, r.Plural+suffixStatus)
+			finalizers[r.Group] = append(finalizers[r.Group], r.Plural+suffixFinalizers)
+		}
 	}
 
 	rules := make([]rbacv1.PolicyRule, 0, len(groups))
@@ -128,10 +134,13 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 	// These secrets are controlled (in the owner reference sense) by the managed resource.
 	// Crossplane needs permission to set finalizers on managed resources in order to create secrets
 	// that block their deletion when the OwnerReferencesPermissionEnforcement admission controller is enabled.
-	ruleFinalizers := rbacv1.PolicyRule{
-		APIGroups: groups,
-		Resources: []string{rbacv1.ResourceAll + suffixFinalizers},
-		Verbs:     verbsUpdate,
+	// Scope finalizer access to each owned resource, rather than all resources
+	// in its group (which may include unrelated CRDs).
+	rulesFinalizers := make([]rbacv1.PolicyRule, 0, len(groups))
+	for _, g := range groups {
+		rulesFinalizers = append(rulesFinalizers, rbacv1.PolicyRule{
+			APIGroups: []string{g}, Resources: finalizers[g], Verbs: verbsUpdate,
+		})
 	}
 
 	edit := &rbacv1.ClusterRole{
@@ -172,7 +181,7 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 				keyProviderName: pr.GetName(),
 			},
 		},
-		Rules: append(append(append(withVerbs(rules, verbsSystem), ruleFinalizers), rulesSystemExtra...), pr.Status.PermissionRequests...),
+		Rules: append(append(append(withVerbs(rules, verbsSystem), rulesFinalizers...), rulesSystemExtra...), pr.Status.PermissionRequests...),
 	}
 
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}
