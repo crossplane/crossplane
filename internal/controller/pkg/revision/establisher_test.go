@@ -534,6 +534,32 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				err: errBoom,
 			},
 		},
+		"FailedTruncatedManagedResourceDefinition": {
+			reason: "Establishment should reject a ManagedResourceDefinition without a storage version before updating an existing object.",
+			args: args{
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+						return errors.New("unexpected update")
+					},
+				}),
+				objs: []runtime.Object{
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Name: "truncated-mrd"},
+						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+								Versions: []v1alpha1.CustomResourceDefinitionVersion{{Name: "v1alpha1"}},
+							},
+						},
+					},
+				},
+				parent:  &v1.ProviderRevision{},
+				control: true,
+			},
+			want: want{
+				err: errors.New(`invalid ManagedResourceDefinition "truncated-mrd" must have exactly one storage version`),
+			},
+		},
 		"SuccessfulManagedResourceDefinitionUnsetState": {
 			reason: "Establishment should be successful for ManagedResourceDefinitions with various spec.state values.",
 			args: args{
