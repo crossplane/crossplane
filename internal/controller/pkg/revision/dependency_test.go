@@ -546,7 +546,7 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: ptr.To("xpkg.upbound.io/upbound/provider-family-azure"),
+									Provider: new("xpkg.upbound.io/upbound/provider-family-azure"),
 									Version:  "v2.5.6",
 								},
 							},
