@@ -29,7 +29,7 @@ require (
 	github.com/upbound/up-sdk-go v0.1.1-0.20240122203953-2d00664aab8e
 	github.com/willabides/kongplete v0.4.0
 	golang.org/x/sync v0.22.0
-	google.golang.org/grpc v1.83.1
+	google.golang.org/grpc v1.83.2
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.6.1
 	google.golang.org/protobuf v1.36.11
 	k8s.io/api v0.34.1
