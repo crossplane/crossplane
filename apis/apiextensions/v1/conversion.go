@@ -26,9 +26,9 @@ import (
 //
 // goverter:converter
 // goverter:name GeneratedRevisionSpecConverter
+// goverter:output:file ./zz_generated.conversion.go
 // goverter:extend ConvertRawExtension ConvertResourceQuantity
 // goverter:enum:unknown @ignore
-// goverter:output:file ./zz_generated.conversion.go
 // +k8s:deepcopy-gen=false
 type RevisionSpecConverter interface {
 	// goverter:ignore Revision

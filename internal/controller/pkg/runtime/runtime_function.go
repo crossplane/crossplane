@@ -77,21 +77,8 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 	// generating certificates requires the service to be defined. This is why
 	// we're creating the service here but service account and deployment in the
 	// post-establish.
-	svc := build.Service(
-		// We want a headless service so that our gRPC client (i.e. the Crossplane
-		// FunctionComposer) can load balance across the endpoints.
-		// https://kubernetes.io/docs/concepts/services-networking/service/#headless-services
-		ServiceWithClusterIP(corev1.ClusterIPNone),
-		ServiceWithAdditionalPorts([]corev1.ServicePort{
-			{
-				Name:        GRPCPortName,
-				Protocol:    corev1.ProtocolTCP,
-				Port:        GRPCPort,
-				TargetPort:  intstr.FromString(GRPCPortName),
-				AppProtocol: &AppProtocolTLS,
-			},
-		}))
-	if err := h.client.Applicator.Apply(ctx, svc); err != nil {
+	svc := build.Service(functionServiceOverrides()...)
+	if err := applySharedRuntimeObject(ctx, h.client.Client, pr, svc); err != nil {
 		return errors.Wrap(err, errApplyFunctionService)
 	}
 
@@ -104,7 +91,15 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 	fRev.Status.Endpoint = fmt.Sprintf(ServiceEndpointFmt, svc.Name, svc.Namespace, GRPCPort)
 
 	secServer := build.TLSServerSecret()
-	if err := h.client.Applicator.Apply(ctx, secServer); err != nil {
+
+	if secServer == nil {
+		// We should wait for the package manager to set the secret name on the
+		// revision before proceeding creating the TLS secret. This mirrors the
+		// provider hooks, which wait on the same field.
+		return nil
+	}
+
+	if err := applySharedRuntimeObject(ctx, h.client.Client, pr, secServer); err != nil {
 		return errors.Wrap(err, errApplyFunctionSecret)
 	}
 
@@ -143,7 +138,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 		}
 	}
 
-	if err := h.client.Applicator.Apply(ctx, d); err != nil {
+	if err := applyRuntimeObject(ctx, h.client.Client, d); err != nil {
 		return errors.Wrap(err, errApplyFunctionDeployment)
 	}
 
@@ -161,13 +156,13 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 }
 
 // Deactivate performs operations meant to happen before deactivating a revision.
-func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
+func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
 	sa := build.ServiceAccount()
 	// Delete the deployment if it exists.
 	// Different from the Post runtimeHook, we don't need to pass the
 	// "functionDeploymentOverrides()" here, because we're only interested
 	// in the name and namespace of the deployment to delete it.
-	if err := h.client.Delete(ctx, build.Deployment(sa.Name)); resource.IgnoreNotFound(err) != nil {
+	if err := deleteRuntimeObjectControlledBy(ctx, h.client.Client, pr, build.Deployment(sa.Name)); err != nil {
 		return errors.Wrap(err, errDeleteFunctionDeployment)
 	}
 
@@ -180,7 +175,29 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWith
 
 	// NOTE(ezgidemirel): Service and secret are created per package. Therefore,
 	// we're not deleting them here.
+
+	// NOTE(jbw976): We leave our owner references on those shared objects alone, controlling flag
+	// included. The revision taking over demotes us as part of claiming them, which keeps the
+	// handover to a single writer.
 	return nil
+}
+
+func functionServiceOverrides() []ServiceOverride {
+	return []ServiceOverride{
+		// We want a headless service so that our gRPC client (i.e. the Crossplane
+		// FunctionComposer) can load balance across the endpoints.
+		// https://kubernetes.io/docs/concepts/services-networking/service/#headless-services
+		ServiceWithClusterIP(corev1.ClusterIPNone),
+		ServiceWithAdditionalPorts([]corev1.ServicePort{
+			{
+				Name:        GRPCPortName,
+				Protocol:    corev1.ProtocolTCP,
+				Port:        GRPCPort,
+				TargetPort:  intstr.FromString(GRPCPortName),
+				AppProtocol: &AppProtocolTLS,
+			},
+		}),
+	}
 }
 
 func functionDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string) []DeploymentOverride {
@@ -213,9 +230,8 @@ func functionDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string)
 				Value: string(pr.GetUID()),
 			},
 		}),
+		DeploymentRuntimeWithOptionalImage(image),
 	}
-
-	do = append(do, DeploymentRuntimeWithOptionalImage(image))
 
 	return do
 }

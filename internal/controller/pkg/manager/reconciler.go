@@ -473,7 +473,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	controlRef := meta.AsController(meta.TypedReferenceTo(p, p.GetObjectKind().GroupVersionKind()))
-	controlRef.BlockOwnerDeletion = ptr.To(true)
+	controlRef.BlockOwnerDeletion = new(true)
 	meta.AddOwnerReference(pr, controlRef)
 
 	if err := r.kube.Applicator.Apply(ctx, pr, resource.MustBeControllableBy(p.GetUID())); err != nil {

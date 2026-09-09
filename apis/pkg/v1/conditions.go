@@ -27,27 +27,35 @@ import (
 
 // Condition types.
 const (
-	// A TypeInstalled indicates whether a package has been installed.
+	// TypeInstalled indicates whether a package has been installed.
 	TypeInstalled xpv2.ConditionType = "Installed"
 
-	// A TypeHealthy indicates whether a package is healthy.
+	// TypeHealthy indicates whether a package is healthy.
 	TypeHealthy xpv2.ConditionType = "Healthy"
 
-	// A TypeRevisionHealthy indicates whether a package revision is healthy.
+	// TypeRevisionHealthy indicates whether a package revision is healthy.
 	TypeRevisionHealthy xpv2.ConditionType = "RevisionHealthy"
 
-	// A TypeRuntimeHealthy indicates whether a package revision runtime is healthy.
+	// TypeRuntimeHealthy indicates whether a package revision runtime is healthy.
 	TypeRuntimeHealthy xpv2.ConditionType = "RuntimeHealthy"
+
+	// TypeRuntimeActive indicates whether a package revision runtime is
+	// scaled up. It is false while the runtime is intentionally scaled to
+	// zero, awaiting activation of the first ManagedResourceDefinition owned
+	// by the revision.
+	TypeRuntimeActive xpv2.ConditionType = "RuntimeActive"
 )
 
 // Reasons a package is or is not installed.
 const (
-	ReasonUnpacking     xpv2.ConditionReason = "UnpackingPackage"
-	ReasonInactive      xpv2.ConditionReason = "InactivePackageRevision"
-	ReasonActive        xpv2.ConditionReason = "ActivePackageRevision"
-	ReasonUnhealthy     xpv2.ConditionReason = "UnhealthyPackageRevision"
-	ReasonHealthy       xpv2.ConditionReason = "HealthyPackageRevision"
-	ReasonUnknownHealth xpv2.ConditionReason = "UnknownPackageRevisionHealth"
+	ReasonUnpacking          xpv2.ConditionReason = "UnpackingPackage"
+	ReasonInactive           xpv2.ConditionReason = "InactivePackageRevision"
+	ReasonActive             xpv2.ConditionReason = "ActivePackageRevision"
+	ReasonUnhealthy          xpv2.ConditionReason = "UnhealthyPackageRevision"
+	ReasonHealthy            xpv2.ConditionReason = "HealthyPackageRevision"
+	ReasonUnknownHealth      xpv2.ConditionReason = "UnknownPackageRevisionHealth"
+	ReasonActiveRuntime      xpv2.ConditionReason = "ActiveRuntime"
+	ReasonAwaitingActivation xpv2.ConditionReason = "AwaitingActivation"
 )
 
 // Unpacking indicates that the package manager is waiting for a package
@@ -100,6 +108,18 @@ func Healthy() xpv2.Condition {
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonHealthy,
+	}
+}
+
+// HealthyAwaitingActivation indicates that the current revision is healthy
+// and its runtime is intentionally scaled to zero until the first
+// ManagedResourceDefinition owned by the revision becomes Active.
+func HealthyAwaitingActivation() xpv2.Condition {
+	return xpv2.Condition{
+		Type:               TypeHealthy,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonAwaitingActivation,
 	}
 }
 
@@ -163,6 +183,30 @@ func RuntimeHealthy() xpv2.Condition {
 	}
 }
 
+// RuntimeActive indicates that the current package revision runtime is
+// scaled up.
+func RuntimeActive() xpv2.Condition {
+	return xpv2.Condition{
+		Type:               TypeRuntimeActive,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonActiveRuntime,
+	}
+}
+
+// RuntimeAwaitingActivation indicates that the current package revision
+// runtime is intentionally scaled to zero until the first
+// ManagedResourceDefinition owned by the revision becomes Active. The runtime
+// is considered healthy.
+func RuntimeAwaitingActivation() xpv2.Condition {
+	return xpv2.Condition{
+		Type:               TypeRuntimeActive,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonAwaitingActivation,
+	}
+}
+
 // RuntimeUnknownHealth indicates that the health of the current package revision runtime is unknown.
 func RuntimeUnknownHealth() xpv2.Condition {
 	return xpv2.Condition{
@@ -186,12 +230,7 @@ func PackageHealth(pr PackageRevision) xpv2.Condition {
 
 	runtimeHealthy := runtimeHealth.Status == corev1.ConditionTrue
 	if _, hasRuntime := pr.(PackageRevisionWithRuntime); !hasRuntime {
-		// If the package revision does not have a runtime, we skip checking the runtime health.
 		runtimeHealthy = true
-	}
-
-	if revisionHealthy && runtimeHealthy {
-		return Healthy()
 	}
 
 	if !revisionHealthy {
@@ -208,9 +247,16 @@ func PackageHealth(pr PackageRevision) xpv2.Condition {
 		if runtimeHealth.Message != "" {
 			m += " with message: " + runtimeHealth.Message
 		}
+		if runtimeActive := pr.GetCondition(TypeRuntimeActive); runtimeActive.Reason == ReasonAwaitingActivation {
+			m += "; runtime is scaled to zero awaiting activation"
+		}
 
 		return Unhealthy().WithMessage(m)
 	}
 
-	return UnknownHealth()
+	if runtimeActive := pr.GetCondition(TypeRuntimeActive); runtimeActive.Reason == ReasonAwaitingActivation {
+		return HealthyAwaitingActivation().WithMessage(runtimeActive.Message)
+	}
+
+	return Healthy()
 }

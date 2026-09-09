@@ -26,6 +26,8 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -55,6 +57,34 @@ func TestProviderPreHook(t *testing.T) {
 		rev v1.PackageRevisionWithRuntime
 	}
 
+	// A test provider revision, along with the manifests it builds for the three objects it shares
+	// with its package's other revisions.
+	sharedRev := &v1.ProviderRevision{
+		ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID},
+		Spec: v1.ProviderRevisionSpec{
+			PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
+			PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+				TLSClientSecretName: new("client-tls"),
+				TLSServerSecretName: new("server-tls"),
+			},
+		},
+	}
+	sharedRevSynced := sharedRev.DeepCopy()
+	sharedRevSynced.Status.TLSClientSecretName = new("client-tls")
+	sharedRevSynced.Status.TLSServerSecretName = new("server-tls")
+
+	sharedManifests := &MockManifestBuilder{
+		ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
+			return &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "shared-service", OwnerReferences: []metav1.OwnerReference{incoming}}}
+		},
+		TLSClientSecretFn: func() *corev1.Secret {
+			return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "client-tls", OwnerReferences: []metav1.OwnerReference{incoming}}}
+		},
+		TLSServerSecretFn: func() *corev1.Secret {
+			return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "server-tls", OwnerReferences: []metav1.OwnerReference{incoming}}}
+		},
+	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -72,8 +102,8 @@ func TestProviderPreHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSClientSecretName: ptr.To("some-client-secret"),
-							TLSServerSecretName: ptr.To("some-server-secret"),
+							TLSClientSecretName: new("some-client-secret"),
+							TLSServerSecretName: new("some-server-secret"),
 						},
 					},
 				},
@@ -107,17 +137,102 @@ func TestProviderPreHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSClientSecretName: ptr.To("some-client-secret"),
-							TLSServerSecretName: ptr.To("some-server-secret"),
+							TLSClientSecretName: new("some-client-secret"),
+							TLSServerSecretName: new("some-server-secret"),
 						},
 					},
 					Status: v1.ProviderRevisionStatus{
 						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
-							TLSClientSecretName: ptr.To("some-client-secret"),
-							TLSServerSecretName: ptr.To("some-server-secret"),
+							TLSClientSecretName: new("some-client-secret"),
+							TLSServerSecretName: new("some-server-secret"),
 						},
 					},
 				},
+			},
+		},
+		"TakesControlFromOutgoingRevision": {
+			reason: "Should demote the outgoing revision's owner reference in the same apply that claims the shared object.",
+			args: args{
+				pkg:       &pkgmetav1.Provider{},
+				rev:       sharedRev.DeepCopy(),
+				manifests: sharedManifests,
+				client: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						if key.Name == "shared-service" || key.Name == "client-tls" || key.Name == "server-tls" {
+							obj.SetOwnerReferences([]metav1.OwnerReference{outgoing})
+						}
+						return nil
+					},
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						if diff := cmp.Diff([]metav1.OwnerReference{incoming, demoted}, obj.GetOwnerReferences()); diff != "" {
+							t.Errorf("h.Pre(...): %s: -want owner references, +got:\n%s", obj.GetName(), diff)
+						}
+						return nil
+					},
+					MockUpdate: test.NewMockUpdateFn(nil),
+				},
+			},
+			want: want{rev: sharedRevSynced.DeepCopy()},
+		},
+		"DropsOwnerReferencesThatNoLongerControl": {
+			reason: "Should stop declaring an owner reference once it is non-controlling, so that server-side apply prunes it.",
+			args: args{
+				pkg:       &pkgmetav1.Provider{},
+				rev:       sharedRev.DeepCopy(),
+				manifests: sharedManifests,
+				client: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						if key.Name == "shared-service" || key.Name == "client-tls" || key.Name == "server-tls" {
+							obj.SetOwnerReferences([]metav1.OwnerReference{demoted, incoming})
+						}
+						return nil
+					},
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						if diff := cmp.Diff([]metav1.OwnerReference{incoming}, obj.GetOwnerReferences()); diff != "" {
+							t.Errorf("h.Pre(...): %s: -want owner references, +got:\n%s", obj.GetName(), diff)
+						}
+						return nil
+					},
+					MockUpdate: test.NewMockUpdateFn(nil),
+				},
+			},
+			want: want{rev: sharedRevSynced.DeepCopy()},
+		},
+		"CreatesSharedObjectsThatDoNotExist": {
+			reason: "Should apply the shared objects with only our owner reference when there is no incumbent to displace.",
+			args: args{
+				pkg:       &pkgmetav1.Provider{},
+				rev:       sharedRev.DeepCopy(),
+				manifests: sharedManifests,
+				client: &test.MockClient{
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockCreate: test.NewMockCreateFn(nil),
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						if diff := cmp.Diff([]metav1.OwnerReference{incoming}, obj.GetOwnerReferences()); diff != "" {
+							t.Errorf("h.Pre(...): %s: -want owner references, +got:\n%s", obj.GetName(), diff)
+						}
+						return nil
+					},
+				},
+			},
+			want: want{rev: sharedRevSynced.DeepCopy()},
+		},
+		"ErrGetSharedObject": {
+			reason: "Should return an error if we cannot read the shared object to see who controls it.",
+			args: args{
+				pkg:       &pkgmetav1.Provider{},
+				rev:       sharedRev.DeepCopy(),
+				manifests: sharedManifests,
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						return errors.Errorf("%s should not be applied when we can't tell who controls it", obj.GetName())
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Wrap(errBoom, errGetSharedRuntimeObject), errApplyProviderService),
+				rev: sharedRevSynced.DeepCopy(),
 			},
 		},
 	}
@@ -226,7 +341,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 				},
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyProviderSA),
+				err: errors.Wrap(errBoom, errApplyProviderSA),
 			},
 		},
 		"ErrApplyDeployment": {
@@ -258,8 +373,18 @@ func TestProviderPostHook(t *testing.T) {
 					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
 					},
-					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+					MockPatch: func(_ context.Context, obj client.Object, p client.Patch, opts ...client.PatchOption) error {
 						if _, ok := obj.(*appsv1.Deployment); ok {
+							if got := p.Type(); got != types.ApplyPatchType {
+								t.Fatalf("expected SSA patch type, got %s", got)
+							}
+							po := &client.PatchOptions{}
+							for _, opt := range opts {
+								opt.ApplyToPatch(po)
+							}
+							if po.FieldManager != FieldOwnerRuntime || po.Force == nil || !*po.Force {
+								t.Fatalf("expected SSA field owner and force ownership options")
+							}
 							return errBoom
 						}
 						return nil
@@ -280,7 +405,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 				},
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyProviderDeployment),
+				err: errors.Wrap(errBoom, errApplyProviderDeployment),
 			},
 		},
 		"ErrDeploymentNoAvailableConditionYet": {
@@ -424,6 +549,70 @@ func TestProviderPostHook(t *testing.T) {
 					},
 					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						if d, ok := obj.(*appsv1.Deployment); ok {
+							d.Status.Conditions = []appsv1.DeploymentCondition{{
+								Type:   appsv1.DeploymentAvailable,
+								Status: corev1.ConditionTrue,
+							}}
+							return nil
+						}
+						return nil
+					},
+				},
+			},
+			want: want{
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
+							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
+					},
+				},
+			},
+		},
+		"SuccessfulScaledToZero": {
+			reason: "Should not return error for a deployment scaled to zero replicas, which Kubernetes marks as available.",
+			args: args{
+				pkg: &pkgmetav1.Provider{},
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
+							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ResolvedPackage: providerImage,
+						},
+					},
+				},
+				manifests: &MockManifestBuilder{
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
+						return &corev1.ServiceAccount{}
+					},
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
+						return &appsv1.Deployment{
+							Spec: appsv1.DeploymentSpec{
+								Replicas: ptr.To[int32](0),
+							},
+						}
+					},
+				},
+				client: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
+						return nil
+					},
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						if d, ok := obj.(*appsv1.Deployment); ok {
+							// A deployment with zero replicas has a minimum
+							// availability of zero, so Kubernetes marks it
+							// available.
 							d.Status.Conditions = []appsv1.DeploymentCondition{{
 								Type:   appsv1.DeploymentAvailable,
 								Status: corev1.ConditionTrue,
@@ -635,6 +824,7 @@ func TestProviderDeactivateHook(t *testing.T) {
 		"ErrDeleteDeployment": {
 			reason: "Should return error if we fail to delete deployment.",
 			args: args{
+				rev: &v1.ProviderRevision{},
 				manifests: &MockManifestBuilder{
 					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
@@ -644,6 +834,10 @@ func TestProviderDeactivateHook(t *testing.T) {
 					},
 				},
 				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
+						return nil
+					}),
 					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
 						if _, ok := obj.(*appsv1.Deployment); ok {
 							return errBoom
@@ -654,6 +848,7 @@ func TestProviderDeactivateHook(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errDeleteProviderDeployment),
+				rev: &v1.ProviderRevision{},
 			},
 		},
 		"Successful": {
@@ -690,8 +885,26 @@ func TestProviderDeactivateHook(t *testing.T) {
 						}
 						return s
 					},
+					TLSClientSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "client-tls",
+							},
+						}
+					},
+					TLSServerSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "server-tls",
+							},
+						}
+					},
 				},
 				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
+						return nil
+					}),
 					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
 						switch obj.(type) {
 						case *corev1.ServiceAccount:
@@ -710,12 +923,74 @@ func TestProviderDeactivateHook(t *testing.T) {
 						}
 						return errors.New("unexpected object type")
 					},
+					// Deactivation doesn't touch owner references. The revision taking over demotes
+					// ours when it claims the objects we share with it.
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						return errors.Errorf("deactivation should not have patched %s", obj.GetName())
+					},
 				},
 			},
 			want: want{
 				rev: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "some-name",
+					},
+				},
+			},
+		},
+		"DeploymentControlledByDifferentRevision": {
+			reason: "Should not delete deployment controlled by a different package revision.",
+			args: args{
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "some-name",
+						UID:  "inactive-uid",
+					},
+				},
+				manifests: &MockManifestBuilder{
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
+						return &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "some-sa"}}
+					},
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
+						return &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "some-deployment"}}
+					},
+					ServiceFn: func(overrides ...ServiceOverride) *corev1.Service {
+						s := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "some-service"}}
+						for _, o := range overrides {
+							o(s)
+						}
+						return s
+					},
+					TLSClientSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "client-tls"}}
+					},
+					TLSServerSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "server-tls"}}
+					},
+				},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetOwnerReferences([]metav1.OwnerReference{{UID: "active-uid", Controller: new(true)}})
+						return nil
+					}),
+					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
+						if _, ok := obj.(*appsv1.Deployment); ok {
+							return errors.New("deployment should not be deleted")
+						}
+						return nil
+					},
+					// Deactivation doesn't touch owner references. The revision taking over demotes
+					// ours when it claims the objects we share with it.
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						return errors.Errorf("deactivation should not have patched %s", obj.GetName())
+					},
+				},
+			},
+			want: want{
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "some-name",
+						UID:  "inactive-uid",
 					},
 				},
 			},
@@ -728,11 +1003,11 @@ func TestProviderDeactivateHook(t *testing.T) {
 
 			err := h.Deactivate(context.TODO(), tc.args.rev, tc.args.manifests)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nh.Deactivate(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
 			if diff := cmp.Diff(tc.want.rev, tc.args.rev, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nh.Pre(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nh.Deactivate(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

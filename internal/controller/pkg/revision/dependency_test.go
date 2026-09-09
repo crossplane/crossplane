@@ -161,17 +161,8 @@ func TestResolve(t *testing.T) {
 							return nil
 						}),
 					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return nil, nil
-							},
-							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
-								return nil, nil
-							},
-						}
-					},
-					log: logging.NewNopLogger(),
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
@@ -212,18 +203,8 @@ func TestResolve(t *testing.T) {
 							return nil
 						}),
 					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return nil, nil
-							},
-							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
-								return nil, nil
-							},
-							MockAddOrUpdateNodes: func(_ ...dag.Node) {},
-						}
-					},
-					log: logging.NewNopLogger(),
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
@@ -248,31 +229,18 @@ func TestResolve(t *testing.T) {
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return nil, nil
-							},
-							MockNodeExists: func(_ string) bool {
-								return false
-							},
-							MockAddNode: func(_ dag.Node) error {
-								return nil
-							},
-							MockAddOrUpdateNodes: func(_ ...dag.Node) {},
-						}
-					},
-					log: logging.NewNopLogger(),
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: ptr.To("not-here-1"),
+									Provider: new("not-here-1"),
 								},
 								{
-									Provider: ptr.To("not-here-2"),
+									Provider: new("not-here-2"),
 									Version:  ">= v2.0.0",
 								},
 							},
@@ -331,42 +299,18 @@ func TestResolve(t *testing.T) {
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return []dag.Node{
-									&dag.DependencyNode{
-										Dependency: v1beta1.Dependency{
-											Package: "not-here-2",
-										},
-									},
-									&dag.DependencyNode{
-										Dependency: v1beta1.Dependency{
-											Package: "not-here-3",
-										},
-									},
-								}, nil
-							},
-							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
-								return map[string]dag.Node{
-									"not-here-1": &dag.DependencyNode{},
-									"not-here-2": &dag.DependencyNode{},
-									"not-here-3": &dag.DependencyNode{},
-								}, nil
-							},
-						}
-					},
-					log: logging.NewNopLogger(),
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: ptr.To("not-here-1"),
+									Provider: new("not-here-1"),
 								},
 								{
-									Provider: ptr.To("not-here-2"),
+									Provider: new("not-here-2"),
 								},
 							},
 						},
@@ -389,7 +333,7 @@ func TestResolve(t *testing.T) {
 			},
 		},
 		"ErrorSelfExistInvalidDependencies": {
-			reason: "Should return error if self exists and missing dependencies.",
+			reason: "Should return error if self exists and dependencies have incompatible versions.",
 			args: args{
 				dep: &PackageDependencyManager{
 					client: &test.MockClient{
@@ -412,7 +356,8 @@ func TestResolve(t *testing.T) {
 									},
 								},
 								{
-									Source: "not-here-1",
+									Source:  "not-here-1",
+									Version: "v0.0.1",
 									Dependencies: []v1beta1.Dependency{
 										{
 											Package: "not-here-3",
@@ -420,56 +365,32 @@ func TestResolve(t *testing.T) {
 										},
 									},
 								},
+								{
+									Source:  "not-here-2",
+									Version: "v0.0.1",
+								},
+								{
+									Source:  "not-here-3",
+									Version: "v0.0.1",
+								},
 							}
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return nil, nil
-							},
-							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
-								return map[string]dag.Node{
-									"not-here-1": &dag.DependencyNode{},
-									"not-here-2": &dag.DependencyNode{},
-									"not-here-3": &dag.DependencyNode{},
-								}, nil
-							},
-							MockGetNode: func(s string) (dag.Node, error) {
-								if s == "not-here-1" {
-									return &dag.PackageNode{
-										LockPackage: v1beta1.LockPackage{
-											Source:  "not-here-1",
-											Version: "v0.0.1",
-										},
-									}, nil
-								}
-								if s == "not-here-2" {
-									return &dag.PackageNode{
-										LockPackage: v1beta1.LockPackage{
-											Source:  "not-here-2",
-											Version: "v0.0.1",
-										},
-									}, nil
-								}
-								return nil, nil
-							},
-						}
-					},
-					log: logging.NewNopLogger(),
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: ptr.To("not-here-1"),
+									Provider: new("not-here-1"),
 									Version:  ">=v0.1.0",
 								},
 								{
-									Provider: ptr.To("not-here-2"),
+									Provider: new("not-here-2"),
 									Version:  ">=v0.1.0",
 								},
 							},
@@ -521,7 +442,8 @@ func TestResolve(t *testing.T) {
 									},
 								},
 								{
-									Source: "not-here-1",
+									Source:  "not-here-1",
+									Version: "v0.20.0",
 									Dependencies: []v1beta1.Dependency{
 										{
 											Package: "not-here-3",
@@ -529,73 +451,40 @@ func TestResolve(t *testing.T) {
 										},
 									},
 								},
+								{
+									Source:  "not-here-2",
+									Version: "v0.100.1",
+								},
+								{
+									Source:  "not-here-3",
+									Version: "v0.20.0",
+								},
+								{
+									Source:  "function-not-here-1",
+									Version: "v0.1.0",
+								},
 							}
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return nil, nil
-							},
-							MockNodeExists: func(_ string) bool {
-								return true
-							},
-							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
-								return map[string]dag.Node{
-									"not-here-1":          &dag.DependencyNode{},
-									"not-here-2":          &dag.DependencyNode{},
-									"not-here-3":          &dag.DependencyNode{},
-									"function-not-here-1": &dag.DependencyNode{},
-								}, nil
-							},
-							MockGetNode: func(s string) (dag.Node, error) {
-								if s == "not-here-1" {
-									return &dag.PackageNode{
-										LockPackage: v1beta1.LockPackage{
-											Source:  "not-here-1",
-											Version: "v0.20.0",
-										},
-									}, nil
-								}
-								if s == "not-here-2" {
-									return &dag.PackageNode{
-										LockPackage: v1beta1.LockPackage{
-											Source:  "not-here-2",
-											Version: "v0.100.1",
-										},
-									}, nil
-								}
-								if s == "function-not-here-1" {
-									return &dag.PackageNode{
-										LockPackage: v1beta1.LockPackage{
-											Source:  "function-not-here-1",
-											Version: "v0.1.0",
-										},
-									}, nil
-								}
-
-								return nil, nil
-							},
-						}
-					},
-					log: logging.NewNopLogger(),
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: ptr.To("not-here-1"),
+									Provider: new("not-here-1"),
 									Version:  ">=v0.1.0",
 								},
 								{
-									Provider: ptr.To("not-here-2"),
+									Provider: new("not-here-2"),
 									Version:  ">=v0.1.0",
 								},
 								{
-									Function: ptr.To("function-not-here-1"),
+									Function: new("function-not-here-1"),
 									Version:  ">=v0.1.0",
 								},
 							},
@@ -649,34 +538,8 @@ func TestResolve(t *testing.T) {
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return nil, nil
-							},
-							MockNodeExists: func(_ string) bool {
-								return true
-							},
-							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
-								return map[string]dag.Node{
-									"xpkg.upbound.io/upbound/provider-family-azure": &dag.PackageNode{},
-								}, nil
-							},
-							MockGetNode: func(s string) (dag.Node, error) {
-								if s == "xpkg.upbound.io/upbound/provider-family-azure" {
-									return &dag.PackageNode{
-										LockPackage: v1beta1.LockPackage{
-											Source:          "xpkg.upbound.io/upbound/provider-family-azure",
-											Version:         "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5",
-											ResolvedVersion: "v2.5.6",
-										},
-									}, nil
-								}
-								return nil, nil
-							},
-						}
-					},
-					log: logging.NewNopLogger(),
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Provider{
 					Spec: pkgmetav1.ProviderSpec{
@@ -734,23 +597,8 @@ func TestResolve(t *testing.T) {
 							return nil
 						},
 					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return []dag.Node{}, nil
-							},
-							MockTraceNode: func(s string) (map[string]dag.Node, error) {
-								if s == "xpkg.crossplane.io/hasheddan/config-nop-a" {
-									return map[string]dag.Node{
-										s: &dag.DependencyNode{},
-									}, nil
-								}
-								return nil, errors.New("missing node in tree")
-							},
-							MockAddOrUpdateNodes: func(_ ...dag.Node) {},
-						}
-					},
-					log: logging.NewNopLogger(),
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
@@ -763,10 +611,7 @@ func TestResolve(t *testing.T) {
 					},
 				},
 			},
-			want: want{
-				total:     1,
-				installed: 1,
-			},
+			want: want{},
 		},
 	}
 
@@ -789,6 +634,106 @@ func TestResolve(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.invalid, invalid); diff != "" {
 				t.Errorf("\n%s\nInvalid(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestParseRef(t *testing.T) {
+	const digest = "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5"
+
+	cases := map[string]struct {
+		source  string
+		tag     string
+		digest  string
+		wantErr bool
+	}{
+		"Tag":                 {source: "registry.example.com/ns/pkg:v1.2.3", tag: "v1.2.3"},
+		"TagAndDigest":        {source: "registry.example.com/ns/pkg:v1.2.3@" + digest, tag: "v1.2.3", digest: digest},
+		"DigestOnly":          {source: "registry.example.com/ns/pkg@" + digest, digest: digest},
+		"PortAndTagAndDigest": {source: "registry.example.com:5000/ns/pkg:v1.2.3@" + digest, tag: "v1.2.3", digest: digest},
+		"PortAndDigestOnly":   {source: "registry.example.com:5000/ns/pkg@" + digest, digest: digest},
+		"PortAndTag":          {source: "registry.example.com:5000/ns/pkg:v1.2.3", tag: "v1.2.3"},
+		"MissingTag":          {source: "registry.example.com/ns/pkg", wantErr: true},
+		"InvalidDigest":       {source: "registry.example.com/ns/pkg:v1.2.3@sha256:invalid", wantErr: true},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tag, digest, err := parseRef(tc.source)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("parseRef(%q) error = %v, want error = %t", tc.source, err, tc.wantErr)
+			}
+			if tag != tc.tag || digest != tc.digest {
+				t.Errorf("parseRef(%q) = (%q, %q), want (%q, %q)", tc.source, tag, digest, tc.tag, tc.digest)
+			}
+		})
+	}
+}
+
+func TestResolveUpdatesResolvedVersion(t *testing.T) {
+	const source = "registry.example.com:5000/ns/pkg"
+	const digest = "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5"
+
+	cases := map[string]struct {
+		source         string
+		previous       string
+		previousSource string
+		want           string
+	}{
+		"NormalizeLegacySource":   {source: source + ":v1.2.3@" + digest, previousSource: source + ":v1.2.3", previous: "v1.2.3", want: "v1.2.3"},
+		"BackfillExistingDigest":  {source: source + ":v1.2.3@" + digest, want: "v1.2.3"},
+		"UpdateTagWithSameDigest": {source: source + ":v1.2.4@" + digest, previous: "v1.2.3", want: "v1.2.4"},
+		"RemoveTagWithSameDigest": {source: source + "@" + digest, previous: "v1.2.3"},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			updates := 0
+			previousSource := tc.previousSource
+			if previousSource == "" {
+				previousSource = source
+			}
+			m := &PackageDependencyManager{
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.(*v1beta1.Lock).Packages = []v1beta1.LockPackage{{
+							Name:            "pkg-revision",
+							Source:          previousSource,
+							Type:            new(v1beta1.ConfigurationPackageType),
+							Version:         digest,
+							ResolvedVersion: tc.previous,
+						}}
+						return nil
+					}),
+					MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+						updates++
+						packages := obj.(*v1beta1.Lock).Packages
+						if len(packages) != 1 {
+							t.Fatalf("lock has %d packages, want 1", len(packages))
+						}
+						lp := packages[0]
+						if lp.Source != source {
+							t.Errorf("lock source = %q, want %q", lp.Source, source)
+						}
+						if lp.Version != digest || lp.ResolvedVersion != tc.want {
+							t.Errorf("updated lock = (%q, %q), want (%q, %q)", lp.Version, lp.ResolvedVersion, digest, tc.want)
+						}
+						return nil
+					}),
+				},
+				newDag: dag.NewMapDag,
+				log:    logging.NewNopLogger(),
+			}
+			pr := &v1.ConfigurationRevision{
+				ObjectMeta: metav1.ObjectMeta{Name: "pkg-revision"},
+				Spec:       v1.PackageRevisionSpec{Package: tc.source, DesiredState: v1.PackageRevisionActive},
+			}
+			if _, _, _, err := m.Resolve(context.Background(), &pkgmetav1.Configuration{}, pr); err != nil {
+				t.Fatal(err)
+			}
+			if updates != 1 {
+				t.Errorf("lock updates = %d, want 1", updates)
 			}
 		})
 	}

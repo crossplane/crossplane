@@ -62,6 +62,7 @@ type LockPackage struct {
 	// digest in Version. This is set when a package is installed using a
 	// tag@digest reference (e.g. v1.0.0@sha256:...), so that dependency
 	// resolution can evaluate semver constraints against the original tag.
+	// +optional
 	ResolvedVersion string `json:"resolvedVersion,omitempty"`
 
 	// Dependencies are the list of dependencies of this package. The order of

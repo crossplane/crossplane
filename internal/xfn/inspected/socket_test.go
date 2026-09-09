@@ -18,6 +18,7 @@ package inspected
 import (
 	"context"
 	"errors"
+	"maps"
 	"testing"
 	"time"
 
@@ -723,6 +724,109 @@ func TestSanitizeState(t *testing.T) {
 				},
 			},
 		},
+		"DropsSecretLastAppliedConfiguration": {
+			reason: "Should drop the kubectl last-applied-configuration annotation from Secret resources, since it embeds the data we just redacted.",
+			state: &fnv1.State{
+				Resources: map[string]*fnv1.Resource{
+					"my-secret": {
+						Resource: &structpb.Struct{
+							Fields: map[string]*structpb.Value{
+								"apiVersion": structpb.NewStringValue("v1"),
+								"kind":       structpb.NewStringValue("Secret"),
+								"metadata": structpb.NewStructValue(&structpb.Struct{
+									Fields: map[string]*structpb.Value{
+										"name": structpb.NewStringValue("my-secret"),
+										"annotations": structpb.NewStructValue(&structpb.Struct{
+											Fields: map[string]*structpb.Value{
+												lastAppliedConfigAnnotation:   structpb.NewStringValue(`{"apiVersion":"v1","kind":"Secret","data":{"password":"c2VjcmV0"}}`),
+												"crossplane.io/external-name": structpb.NewStringValue("my-secret"),
+											},
+										}),
+									},
+								}),
+								"data": structpb.NewStructValue(&structpb.Struct{
+									Fields: map[string]*structpb.Value{
+										"password": structpb.NewStringValue("c2VjcmV0"), // base64 encoded
+									},
+								}),
+							},
+						},
+					},
+				},
+			},
+			want: &fnv1.State{
+				Resources: map[string]*fnv1.Resource{
+					"my-secret": {
+						Resource: &structpb.Struct{
+							Fields: map[string]*structpb.Value{
+								"apiVersion": structpb.NewStringValue("v1"),
+								"kind":       structpb.NewStringValue("Secret"),
+								"metadata": structpb.NewStructValue(&structpb.Struct{
+									Fields: map[string]*structpb.Value{
+										"name": structpb.NewStringValue("my-secret"),
+										"annotations": structpb.NewStructValue(&structpb.Struct{
+											Fields: map[string]*structpb.Value{
+												"crossplane.io/external-name": structpb.NewStringValue("my-secret"),
+											},
+										}),
+									},
+								}),
+								"data": structpb.NewStructValue(&structpb.Struct{
+									Fields: map[string]*structpb.Value{
+										"password": structpb.NewStringValue(redactedValue),
+									},
+								}),
+							},
+						},
+					},
+				},
+			},
+		},
+		"PreservesNonSecretAnnotations": {
+			reason: "Should preserve the last-applied-configuration annotation on non-Secret resources.",
+			state: &fnv1.State{
+				Resources: map[string]*fnv1.Resource{
+					"my-config": {
+						Resource: &structpb.Struct{
+							Fields: map[string]*structpb.Value{
+								"apiVersion": structpb.NewStringValue("v1"),
+								"kind":       structpb.NewStringValue("ConfigMap"),
+								"metadata": structpb.NewStructValue(&structpb.Struct{
+									Fields: map[string]*structpb.Value{
+										"annotations": structpb.NewStructValue(&structpb.Struct{
+											Fields: map[string]*structpb.Value{
+												lastAppliedConfigAnnotation: structpb.NewStringValue(`{"apiVersion":"v1","kind":"ConfigMap"}`),
+											},
+										}),
+									},
+								}),
+							},
+						},
+					},
+				},
+			},
+			want: &fnv1.State{
+				Resources: map[string]*fnv1.Resource{
+					"my-config": {
+						Resource: &structpb.Struct{
+							Fields: map[string]*structpb.Value{
+								"apiVersion": structpb.NewStringValue("v1"),
+								"kind":       structpb.NewStringValue("ConfigMap"),
+								"metadata": structpb.NewStructValue(&structpb.Struct{
+									Fields: map[string]*structpb.Value{
+										"annotations": structpb.NewStructValue(&structpb.Struct{
+											Fields: map[string]*structpb.Value{
+												lastAppliedConfigAnnotation: structpb.NewStringValue(`{"apiVersion":"v1","kind":"ConfigMap"}`),
+											},
+										}),
+									},
+								}),
+							},
+						},
+					},
+				},
+			},
+		},
 		"PreservesNonSecretData": {
 			reason: "Should preserve data-like fields on non-Secret resources.",
 			state: &fnv1.State{
@@ -972,6 +1076,61 @@ func TestSanitizeRequiredResources(t *testing.T) {
 				},
 			},
 		},
+		"DropsSecretLastAppliedConfiguration": {
+			reason: "Should drop the kubectl last-applied-configuration annotation from required Secret resources.",
+			resources: map[string]*fnv1.Resources{
+				"credentials": {
+					Items: []*fnv1.Resource{
+						{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("v1"),
+									"kind":       structpb.NewStringValue("Secret"),
+									"metadata": structpb.NewStructValue(&structpb.Struct{
+										Fields: map[string]*structpb.Value{
+											"annotations": structpb.NewStructValue(&structpb.Struct{
+												Fields: map[string]*structpb.Value{
+													lastAppliedConfigAnnotation: structpb.NewStringValue(`{"apiVersion":"v1","kind":"Secret","data":{"password":"c2VjcmV0"}}`),
+												},
+											}),
+										},
+									}),
+									"data": structpb.NewStructValue(&structpb.Struct{
+										Fields: map[string]*structpb.Value{
+											"password": structpb.NewStringValue("c2VjcmV0"), // base64 encoded
+										},
+									}),
+								},
+							},
+						},
+					},
+				},
+			},
+			want: map[string]*fnv1.Resources{
+				"credentials": {
+					Items: []*fnv1.Resource{
+						{
+							Resource: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("v1"),
+									"kind":       structpb.NewStringValue("Secret"),
+									"metadata": structpb.NewStructValue(&structpb.Struct{
+										Fields: map[string]*structpb.Value{
+											"annotations": structpb.NewStructValue(&structpb.Struct{}),
+										},
+									}),
+									"data": structpb.NewStructValue(&structpb.Struct{
+										Fields: map[string]*structpb.Value{
+											"password": structpb.NewStringValue(redactedValue),
+										},
+									}),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 		"PreservesNonSecretData": {
 			reason: "Should preserve data-like fields on non-Secret resources.",
 			resources: map[string]*fnv1.Resources{
@@ -1142,6 +1301,85 @@ func TestRedactConnectionDetails(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want, tc.connectionDetails); diff != "" {
 				t.Errorf("\n%s\nredactConnectionDetails(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+// The last-applied-configuration lookup walks metadata and then annotations,
+// neither of which a function is obliged to send us. Every level must degrade
+// to a no-op rather than panic, and the data redaction must still happen when
+// it does.
+func TestStripSecretDataMalformedMetadata(t *testing.T) {
+	metadata := func(v *structpb.Value) map[string]*structpb.Value {
+		return map[string]*structpb.Value{"metadata": v}
+	}
+	annotations := func(v *structpb.Value) *structpb.Value {
+		return structpb.NewStructValue(&structpb.Struct{
+			Fields: map[string]*structpb.Value{"annotations": v},
+		})
+	}
+
+	cases := map[string]struct {
+		reason string
+		// Merged over a minimal Secret carrying data.password.
+		extra map[string]*structpb.Value
+	}{
+		"NoMetadata": {
+			reason: "A Secret with no metadata at all should still have its data redacted.",
+			extra:  nil,
+		},
+		"NilMetadataValue": {
+			reason: "A nil metadata value should be treated as absent.",
+			extra:  metadata(nil),
+		},
+		"MetadataNotAStruct": {
+			reason: "A metadata value that isn't a struct should be treated as absent.",
+			extra:  metadata(structpb.NewStringValue("not-a-struct")),
+		},
+		"MetadataNilStruct": {
+			reason: "A metadata value wrapping a nil struct should be treated as absent.",
+			extra:  metadata(structpb.NewStructValue(nil)),
+		},
+		"NoAnnotations": {
+			reason: "Metadata without annotations should be treated as absent.",
+			extra: metadata(structpb.NewStructValue(&structpb.Struct{
+				Fields: map[string]*structpb.Value{"name": structpb.NewStringValue("my-secret")},
+			})),
+		},
+		"NilAnnotationsValue": {
+			reason: "A nil annotations value should be treated as absent.",
+			extra:  metadata(annotations(nil)),
+		},
+		"AnnotationsNotAStruct": {
+			reason: "An annotations value that isn't a struct should be treated as absent.",
+			extra:  metadata(annotations(structpb.NewStringValue("not-a-struct"))),
+		},
+		"EmptyAnnotations": {
+			reason: "Annotations with no entries should be treated as absent.",
+			extra:  metadata(annotations(structpb.NewStructValue(&structpb.Struct{}))),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			fields := map[string]*structpb.Value{
+				"apiVersion": structpb.NewStringValue("v1"),
+				"kind":       structpb.NewStringValue("Secret"),
+				"data": structpb.NewStructValue(&structpb.Struct{
+					Fields: map[string]*structpb.Value{
+						"password": structpb.NewStringValue("c2VjcmV0"), // base64 encoded
+					},
+				}),
+			}
+			maps.Copy(fields, tc.extra)
+
+			// Must not panic, whatever shape metadata is in.
+			stripSecretData(&structpb.Struct{Fields: fields})
+
+			got := fields["data"].GetStructValue().GetFields()["password"].GetStringValue()
+			if got != redactedValue {
+				t.Errorf("\n%s\nstripSecretData(...): want data.password %q, got %q", tc.reason, redactedValue, got)
 			}
 		})
 	}

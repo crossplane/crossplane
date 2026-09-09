@@ -8,8 +8,9 @@
   // We only want renovate to rebase PRs when they have conflicts, default
   // "auto" mode is not required.
   rebaseWhen: 'conflicted',
-  // The maximum number of PRs to be created in parallel
-  prConcurrentLimit: 5,
+  // The maximum number of PRs to be created in parallel - branchConcurrentLimit
+  // inherits this value as well
+  prConcurrentLimit: 10,
   // Disable the default 2 per hour PR creation limit. prConcurrentLimit already caps how many PRs
   // can be open at once and our renovate job runs on a daily schedule, so having any hourly
   // throttling can actually slow us down.
@@ -19,14 +20,17 @@
   baseBranches: [
     'main',
     'release-1.20',
-    'release-2.1',
     'release-2.2',
     'release-2.3',
+    'release-2.4',
   ],
   ignorePaths: [
     'design/**',
     // We test upgrades, so leave it on an older version on purpose.
     "test/e2e/manifests/pkg/provider/provider-initial.yaml",
+    // We test the revision control hand-off on upgrade, so both versions must
+    // remain as they are.
+    "test/e2e/manifests/pkg/provider-handoff/**",
     // We test dependencies' upgrades, manifests must remain unchanged to avoid breaking tests.
     "test/e2e/manifests/pkg/dependency-upgrade/**",
     // We test packages signature verifications also on upgrades, manifests must remain unchanged to avoid breaking tests.
@@ -66,6 +70,9 @@
     addLabels: [
       'security',
     ],
+    // Set a static groupName for security fixes so they all get batched into a
+    // single PR per base branch, instead of one per CVE.
+    groupName: 'vulnerable dependencies',
   },
   osvVulnerabilityAlerts: true,
   // Renovate evaluates all packageRules in order, so low priority rules should

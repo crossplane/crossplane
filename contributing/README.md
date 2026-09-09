@@ -161,6 +161,8 @@ Wondering whether something on the pull request checklist applies to your PR?
 Generally:
 
 * Everyone must read and follow this contribution process.
+* Everyone must read and follow our [AI policy]. We want authentic collaboration
+  with other humans.
 * Every PR must run (and pass) `./nix.sh flake check`.
 * Most PRs that touch code should touch unit tests. We want ~80% coverage.
 * Any significant feature should be covered by E2E tests. If you're adding a new
@@ -252,6 +254,15 @@ Thank you for reading through our contributing guide! We appreciate you taking
 the time to ensure your contributions are high quality and easy for our
 community to review and accept. Please don't hesitate to [reach out to
 us][Slack] if you have any questions about contributing!
+
+## Using AI Tools
+
+We support contributors using AI tools to assist their contributions to the
+project. However, we highly value genuine engagement with other humans and we
+want collaboration with contributors to feel that way.
+
+Please review our [AI policy] before contributing to the Crossplane project and
+ensure that you adhere to all of its guidelines.
 
 ## Certificate of Origin
 
@@ -967,6 +978,7 @@ func TestExample(t *testing.T) {
 
 [Slack]: https://slack.crossplane.io/
 [code of conduct]: https://github.com/cncf/foundation/blob/main/code-of-conduct.md
+[AI policy]: ../AI_POLICY.md
 [Nix]: ../design/one-pager-build-with-nix.md
 [install-nix]: https://nixos.org/download/
 [enable-flakes]: https://wiki.nixos.org/wiki/Flakes#Nix_standalone

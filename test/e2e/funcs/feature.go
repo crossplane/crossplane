@@ -854,7 +854,7 @@ func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 
 		t.Logf("Ensuring claim %s does not change within %s", identifier(cm), d.String())
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			if deadlineExceed(err) {
 				t.Logf("Claim %s did not change within %s", identifier(cm), d.String())
 				return ctx
@@ -909,7 +909,7 @@ func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 
 		t.Logf("Ensuring composite resource %s does not change within %s", identifier(cp), d.String())
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			if deadlineExceed(err) {
 				t.Logf("Composite resource %s did not change within %s", identifier(cp), d.String())
 				return ctx
@@ -963,7 +963,7 @@ func CompositeResourceMustMatchWithin(d time.Duration, dir, claimFile string, ma
 			return match(&composite.Unstructured{Unstructured: *u})
 		}
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil && count.Load() > 0 {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil && count.Load() > 0 {
 			t.Errorf("composite %s did not match the condition before timeout (%s): %s\n\n", identifier(&uxr), d.String(), err)
 			return ctx
 		}
@@ -1488,7 +1488,7 @@ func identifier(o k8s.Object) string {
 	if k == "" {
 		t := reflect.TypeOf(o)
 		if t != nil {
-			if t.Kind() == reflect.Ptr {
+			if t.Kind() == reflect.Pointer {
 				t = t.Elem()
 			}
 
@@ -1519,6 +1519,77 @@ func FilterByGK(gk schema.GroupKind) func(o k8s.Object) bool {
 
 		return o.GetObjectKind().GroupVersionKind().Group == gk.Group && o.GetObjectKind().GroupVersionKind().Kind == gk.Kind
 	}
+}
+
+// SolelyOwnedBy returns a FieldValueChecker for the "metadata.ownerReferences" field path. It
+// matches when the object has exactly one owner reference, that reference names the given owner,
+// and it is controlling.
+//
+// It reads the unstructured form of the field, a []any of map[string]any, so it will not match at
+// any other field path.
+func SolelyOwnedBy(name string) FieldValueChecker {
+	return func(got any) bool {
+		ors, ok := got.([]any)
+		if !ok || len(ors) != 1 {
+			return false
+		}
+
+		r, ok := ors[0].(map[string]any)
+		if !ok {
+			return false
+		}
+
+		n, _ := r["name"].(string)
+		c, _ := r["controller"].(bool)
+
+		return n == name && c
+	}
+}
+
+// ControlledBy returns a FieldValueChecker for the "metadata.ownerReferences" field path. It matches
+// when the object has a controlling owner reference naming the given owner. Unlike SolelyOwnedBy it
+// tolerates other, non-controlling owners.
+//
+// It reads the unstructured form of the field, a []any of map[string]any, so it will not match at
+// any other field path.
+func ControlledBy(name string) FieldValueChecker {
+	return func(got any) bool { return hasOwnerReference(got, name, true) }
+}
+
+// OwnedButNotControlledBy returns a FieldValueChecker for the "metadata.ownerReferences" field path.
+// It matches when the object has an owner reference naming the given owner that is not controlling,
+// as a revision that has handed control over to another one has. Other owners are allowed, which is
+// what distinguishes it from SolelyOwnedBy.
+//
+// It reads the unstructured form of the field, a []any of map[string]any, so it will not match at
+// any other field path.
+func OwnedButNotControlledBy(name string) FieldValueChecker {
+	return func(got any) bool { return hasOwnerReference(got, name, false) }
+}
+
+// hasOwnerReference returns true if the supplied unstructured owner references include one that
+// names the supplied owner and whose controller flag is the supplied value.
+func hasOwnerReference(got any, name string, controller bool) bool {
+	ors, ok := got.([]any)
+	if !ok {
+		return false
+	}
+
+	for _, or := range ors {
+		r, ok := or.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		n, _ := r["name"].(string)
+		c, _ := r["controller"].(bool)
+
+		if n == name && c == controller {
+			return true
+		}
+	}
+
+	return false
 }
 
 func toYAML(objs ...client.Object) string {

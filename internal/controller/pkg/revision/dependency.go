@@ -168,23 +168,24 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 	}
 
 	lockRef := xpkg.ParsePackageSourceFromReference(prRef)
+	var resolvedVersion string
+	if tag, digest, err := parseRef(pr.GetSource()); err == nil && tag != "" && digest != "" {
+		// ParsePackageSourceFromReference strips the digest but leaves the tag
+		// in a tag@digest reference. The lock source must contain neither so
+		// it matches the package names used by dependencies.
+		lockRef = strings.TrimSuffix(lockRef, ":"+tag)
+		resolvedVersion = tag
+	}
 	// NOTE(hasheddan): consider adding health of package to lock so that it can
 	// be rolled up to any dependent packages.
 	self := v1beta1.LockPackage{
-		APIVersion:   ptr.To(m.packageType.GroupVersion().String()),
-		Kind:         ptr.To(m.packageType.Kind),
-		Name:         pr.GetName(),
-		Source:       lockRef,
-		Version:      prRef.Identifier(),
-		Dependencies: sources,
-	}
-	// If the reference includes both a tag and a digest (e.g. v1.0.0@sha256:...),
-	// preserve the tag as ResolvedVersion so that semver constraints can be
-	// evaluated during dependency resolution. go-containerregistry parses
-	// tag@digest references as name.Digest, so the tag is recovered from the
-	// original reference string.
-	if tag, digest, err := parseRef(pr.GetSource()); err == nil && tag != "" && digest != "" {
-		self.ResolvedVersion = tag
+		APIVersion:      new(m.packageType.GroupVersion().String()),
+		Kind:            new(m.packageType.Kind),
+		Name:            pr.GetName(),
+		Source:          lockRef,
+		Version:         prRef.Identifier(),
+		ResolvedVersion: resolvedVersion,
+		Dependencies:    sources,
 	}
 
 	// Delete packages in lock with same name and distinct source
@@ -216,11 +217,11 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 		if lp.Name == pr.GetName() {
 			prExists = true
 
-			if lp.Version != self.Version || lp.ResolvedVersion != self.ResolvedVersion {
-				// Version was updated without creating a new revision (e.g., because
-				// there were no changes between two semvers). Update the lock to
-				// reflect which version is installed, in case other packages are
-				// depending on the new version.
+			if lp.Source != self.Source || lp.Version != self.Version || lp.ResolvedVersion != self.ResolvedVersion {
+				// A source or tag can change without creating a new revision when
+				// the image digest stays the same. Keep the lock consistent with
+				// the revision so other packages can resolve their dependencies.
+				lock.Packages[i].Source = self.Source
 				lock.Packages[i].Version = self.Version
 				lock.Packages[i].ResolvedVersion = self.ResolvedVersion
 				if err := m.client.Update(ctx, lock); err != nil {

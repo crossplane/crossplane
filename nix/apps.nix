@@ -21,7 +21,7 @@
     program = pkgs.lib.getExe (
       pkgs.writeShellApplication {
         name = "crossplane-test";
-        runtimeInputs = [ pkgs.unstable.go_1_25 ];
+        runtimeInputs = [ pkgs.unstable.go_1_26 ];
         inheritPath = false;
         text = ''
           export CGO_ENABLED=0
@@ -41,11 +41,11 @@
         name = "crossplane-lint";
         runtimeInputs = [
           pkgs.findutils
-          pkgs.unstable.go_1_25
+          pkgs.unstable.go_1_26
           pkgs.golangci-lint
           pkgs.statix
           pkgs.deadnix
-          pkgs.nixfmt-rfc-style
+          pkgs.nixfmt
           pkgs.shellcheck
           pkgs.gnupatch
           pkgs.shfmt
@@ -84,8 +84,9 @@
         name = "crossplane-generate";
         runtimeInputs = [
           pkgs.coreutils
+          pkgs.gnugrep
           pkgs.gnused
-          pkgs.unstable.go_1_25
+          pkgs.unstable.go_1_26
           pkgs.kubectl
           pkgs.helm-docs
 
@@ -122,16 +123,19 @@
     );
   };
 
-  # Run go mod tidy and regenerate gomod2nix.toml.
+  # Run go mod tidy and refresh the Go vendor hashes in nix/vendor-hashes.nix.
   tidy = _: {
     type = "app";
-    meta.description = "Run go mod tidy and regenerate gomod2nix.toml";
+    meta.description = "Run go mod tidy and refresh Go vendor hashes";
     program = pkgs.lib.getExe (
       pkgs.writeShellApplication {
         name = "crossplane-tidy";
         runtimeInputs = [
-          pkgs.unstable.go_1_25
-          pkgs.gomod2nix
+          pkgs.unstable.go_1_26
+          pkgs.nix
+          pkgs.git
+          pkgs.gnused
+          pkgs.coreutils
         ];
         inheritPath = false;
         text = ''
@@ -139,14 +143,43 @@
 
           echo "Running go mod tidy..."
           go mod tidy
-          echo "Regenerating gomod2nix.toml..."
-          gomod2nix generate --with-deps
+          (cd apis && go mod tidy)
 
-          echo "Running go mod tidy for apis/..."
-          cd apis
-          go mod tidy
-          echo "Regenerating apis/gomod2nix.toml..."
-          gomod2nix generate --with-deps
+          # Refresh a module's vendor hash in nix/vendor-hashes.nix by resetting
+          # it to a placeholder and reading the real hash back from the build
+          # error - the same trick nix-update uses for Go vendor hashes.
+          refresh() {
+            key="$1"   # attribute in nix/vendor-hashes.nix (root|apis)
+            attr="$2"  # flake package that builds that module's vendor dir
+            orig="" got=""
+
+            # Remember the current value so we can restore it if anything fails.
+            orig=$(sed -n "s|.*$key = \"\(sha256-[^\"]*\)\";.*|\1|p" nix/vendor-hashes.nix | head -n1)
+
+            # Set a placeholder so the build is forced to report the real hash.
+            sed -i "s|$key = \"sha256-[^\"]*\";|$key = \"${pkgs.lib.fakeHash}\";|" nix/vendor-hashes.nix
+
+            # --option eval-cache false: we just edited nix/vendor-hashes.nix,
+            # and Nix's flake eval cache can otherwise serve a stale evaluation
+            # that ignores the change and reports no/old hash.
+            got=$(nix build ".#$attr" --no-link --option eval-cache false 2>&1 \
+              | sed -n 's|.*got:[[:space:]]*\(sha256-[A-Za-z0-9+/=]*\).*|\1|p' \
+              | head -n1 || true)
+            if [ -z "$got" ]; then
+              # Build failed for some other reason (e.g. network); restore the
+              # previous value rather than leaving the placeholder committed.
+              sed -i "s|$key = \"sha256-[^\"]*\";|$key = \"$orig\";|" nix/vendor-hashes.nix
+              echo "ERROR: could not determine vendor hash for '$key' (restored previous value)" >&2
+              exit 1
+            fi
+
+            sed -i "s|$key = \"sha256-[^\"]*\";|$key = \"$got\";|" nix/vendor-hashes.nix
+            echo "  $key = $got"
+          }
+
+          echo "Refreshing Go vendor hashes..."
+          refresh root crossplane-vendor
+          refresh apis crossplane-apis-vendor
 
           echo "Done"
         '';
@@ -178,7 +211,7 @@
           name = "crossplane-e2e";
           runtimeInputs = [
             pkgs.coreutils
-            pkgs.unstable.go_1_25
+            pkgs.unstable.go_1_26
             pkgs.docker-client
             pkgs.gotestsum
             pkgs.kind

@@ -1987,3 +1987,35 @@ func TestPruneOutdatedDependencies(t *testing.T) {
 		})
 	}
 }
+
+func TestParseRef(t *testing.T) {
+	const digest = "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5"
+
+	cases := map[string]struct {
+		source  string
+		tag     string
+		digest  string
+		wantErr bool
+	}{
+		"Tag":                 {source: "registry.example.com/ns/pkg:v1.2.3", tag: "v1.2.3"},
+		"TagAndDigest":        {source: "registry.example.com/ns/pkg:v1.2.3@" + digest, tag: "v1.2.3", digest: digest},
+		"DigestOnly":          {source: "registry.example.com/ns/pkg@" + digest, digest: digest},
+		"PortAndTagAndDigest": {source: "registry.example.com:5000/ns/pkg:v1.2.3@" + digest, tag: "v1.2.3", digest: digest},
+		"PortAndDigestOnly":   {source: "registry.example.com:5000/ns/pkg@" + digest, digest: digest},
+		"PortAndTag":          {source: "registry.example.com:5000/ns/pkg:v1.2.3", tag: "v1.2.3"},
+		"MissingTag":          {source: "registry.example.com/ns/pkg", wantErr: true},
+		"InvalidDigest":       {source: "registry.example.com/ns/pkg:v1.2.3@sha256:invalid", wantErr: true},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tag, digest, err := parseRef(tc.source)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("parseRef(%q) error = %v, want error = %t", tc.source, err, tc.wantErr)
+			}
+			if tag != tc.tag || digest != tc.digest {
+				t.Errorf("parseRef(%q) = (%q, %q), want (%q, %q)", tc.source, tag, digest, tc.tag, tc.digest)
+			}
+		})
+	}
+}

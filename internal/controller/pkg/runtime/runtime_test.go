@@ -29,6 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
+	extv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
@@ -71,8 +73,8 @@ var (
 		},
 		Status: v1.ProviderRevisionStatus{
 			PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
-				TLSServerSecretName: ptr.To(tlsServerSecretName),
-				TLSClientSecretName: ptr.To(tlsClientSecretName),
+				TLSServerSecretName: new(tlsServerSecretName),
+				TLSClientSecretName: new(tlsClientSecretName),
 			},
 		},
 	}
@@ -96,10 +98,17 @@ var (
 		},
 		Status: v1.FunctionRevisionStatus{
 			PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
-				TLSServerSecretName: ptr.To(tlsServerSecretName),
+				TLSServerSecretName: new(tlsServerSecretName),
 			},
 		},
 	}
+
+	// An incoming (active) revision that will claim ownership of the objects shared by other revisions of the package.
+	incoming = metav1.OwnerReference{Name: "incoming", UID: "incoming-uid", Controller: new(true), BlockOwnerDeletion: new(true)}
+	// an outgoing (inactive) revision that will be demoted/removed from ownership of shared objects.
+	outgoing = metav1.OwnerReference{Name: "outgoing", UID: "outgoing-uid", Controller: new(true), BlockOwnerDeletion: new(true)}
+	// the same outgoing (inactive) revision that has now been demoted from ownership of shared objects.
+	demoted = metav1.OwnerReference{Name: "outgoing", UID: "outgoing-uid", Controller: new(false), BlockOwnerDeletion: new(true)}
 )
 
 func TestRuntimeManifestBuilderDeployment(t *testing.T) {
@@ -133,6 +142,55 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					v1.LabelProvider: providerName,
 					v1.LabelRevision: providerRevisionName,
 				})),
+			},
+		},
+		"ProviderDeploymentScaleToZero": {
+			reason: "Awaiting activation should scale the deployment to zero replicas",
+			args: args{
+				builder: &DeploymentRuntimeBuilder{
+					revision:           providerRevision,
+					namespace:          namespace,
+					awaitingActivation: true,
+				},
+				serviceAccountName: providerRevisionName,
+				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
+			},
+			want: want{
+				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
+					v1.LabelProvider: providerName,
+					v1.LabelRevision: providerRevisionName,
+				}), func(deployment *appsv1.Deployment) {
+					deployment.Spec.Replicas = ptr.To[int32](0)
+				}),
+			},
+		},
+		"ProviderDeploymentScaleToZeroWithRuntimeConfigReplicas": {
+			reason: "Awaiting activation should scale to zero even when the runtime config sets an explicit replica count",
+			args: args{
+				builder: &DeploymentRuntimeBuilder{
+					revision:           providerRevision,
+					namespace:          namespace,
+					awaitingActivation: true,
+					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
+						Spec: v1beta1.DeploymentRuntimeConfigSpec{
+							DeploymentTemplate: &v1beta1.DeploymentTemplate{
+								Spec: &appsv1.DeploymentSpec{
+									Replicas: ptr.To[int32](3),
+								},
+							},
+						},
+					},
+				},
+				serviceAccountName: providerRevisionName,
+				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
+			},
+			want: want{
+				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
+					v1.LabelProvider: providerName,
+					v1.LabelRevision: providerRevisionName,
+				}), func(deployment *appsv1.Deployment) {
+					deployment.Spec.Replicas = ptr.To[int32](0)
+				}),
 			},
 		},
 		"ProviderDeploymentWithRuntimeConfig": {
@@ -242,7 +300,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
 								Metadata: &v1beta1.ObjectMeta{
-									Name: ptr.To("my-provider-foo"),
+									Name: new("my-provider-foo"),
 									Labels: map[string]string{
 										"x": "y",
 									},
@@ -393,6 +451,10 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 			},
 			want: want{
 				want: &corev1.Service{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: corev1.SchemeGroupVersion.String(),
+						Kind:       "Service",
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      providerName,
 						Namespace: namespace,
@@ -402,8 +464,8 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 								Kind:               "ProviderRevision",
 								Name:               providerRevisionName,
 								UID:                types.UID(providerRevisionUID),
-								Controller:         ptr.To(true),
-								BlockOwnerDeletion: ptr.To(true),
+								Controller:         new(true),
+								BlockOwnerDeletion: new(true),
 							},
 						},
 					},
@@ -437,6 +499,10 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 
 func deploymentProvider(provider string, rev string, image string, overrides ...DeploymentOverride) *appsv1.Deployment {
 	d := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: appsv1.SchemeGroupVersion.String(),
+			Kind:       "Deployment",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      rev,
 			Namespace: namespace,
@@ -446,8 +512,8 @@ func deploymentProvider(provider string, rev string, image string, overrides ...
 					Kind:               "ProviderRevision",
 					Name:               rev,
 					UID:                types.UID(providerRevisionUID),
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
+					Controller:         new(true),
+					BlockOwnerDeletion: new(true),
 				},
 			},
 		},
@@ -616,6 +682,10 @@ func deploymentProvider(provider string, rev string, image string, overrides ...
 
 func deploymentFunction(function string, rev string, image string, overrides ...DeploymentOverride) *appsv1.Deployment {
 	d := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: appsv1.SchemeGroupVersion.String(),
+			Kind:       "Deployment",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      rev,
 			Namespace: namespace,
@@ -625,8 +695,8 @@ func deploymentFunction(function string, rev string, image string, overrides ...
 					Kind:               "FunctionRevision",
 					Name:               rev,
 					UID:                types.UID(functionRevisionUID),
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
+					Controller:         new(true),
+					BlockOwnerDeletion: new(true),
 				},
 			},
 		},
@@ -777,4 +847,93 @@ func (b *MockManifestBuilder) TLSClientSecret() *corev1.Secret {
 // TLSServerSecret returns the result of calling TLSServerSecretFn.
 func (b *MockManifestBuilder) TLSServerSecret() *corev1.Secret {
 	return b.TLSServerSecretFn()
+}
+
+func TestBuilderWithMRDs(t *testing.T) {
+	inactiveMRD := extv1alpha1.ManagedResourceDefinition{
+		Spec: extv1alpha1.ManagedResourceDefinitionSpec{
+			State: extv1alpha1.ManagedResourceDefinitionInactive,
+		},
+	}
+
+	safeStartRevision := func() *v1.ProviderRevision {
+		pr := &v1.ProviderRevision{}
+		pr.SetCapabilities([]string{pkgmetav1.ProviderCapabilitySafeStart})
+		return pr
+	}
+
+	safeStartRevisionActive := func() *v1.ProviderRevision {
+		pr := safeStartRevision()
+		pr.SetConditions(v1.RuntimeActive())
+		return pr
+	}
+
+	cases := map[string]struct {
+		revision        v1.PackageRevisionWithRuntime
+		mrds            []extv1alpha1.ManagedResourceDefinition
+		runtimeConfig   *v1beta1.DeploymentRuntimeConfig
+		wantScaleToZero bool
+	}{
+		"NoSafeStartCapability": {
+			revision:        &v1.ProviderRevision{},
+			mrds:            []extv1alpha1.ManagedResourceDefinition{inactiveMRD},
+			wantScaleToZero: false,
+		},
+		"NoMRDs": {
+			revision:        safeStartRevision(),
+			mrds:            nil,
+			wantScaleToZero: false,
+		},
+		"ActiveMRD": {
+			revision: safeStartRevision(),
+			mrds: []extv1alpha1.ManagedResourceDefinition{{
+				Spec: extv1alpha1.ManagedResourceDefinitionSpec{State: extv1alpha1.ManagedResourceDefinitionActive},
+			}},
+			wantScaleToZero: false,
+		},
+		"AllInactiveMRDs": {
+			revision:        safeStartRevision(),
+			mrds:            []extv1alpha1.ManagedResourceDefinition{inactiveMRD},
+			wantScaleToZero: true,
+		},
+		"AlreadyActivatedRuntimeWithInactiveMRDs": {
+			// Once TypeRuntimeActive is True the runtime must not be scaled
+			// back to zero, even if MRDs later appear inactive (e.g. via a
+			// manual edit). This guards the one-way activation latch.
+			revision:        safeStartRevisionActive(),
+			mrds:            []extv1alpha1.ManagedResourceDefinition{inactiveMRD},
+			wantScaleToZero: false,
+		},
+		"RuntimeConfigWithExplicitReplicas": {
+			// Awaiting activation scales the runtime to zero regardless of an
+			// explicit replica count in the DeploymentRuntimeConfig. The
+			// configured count only takes effect once the runtime is activated.
+			revision: safeStartRevision(),
+			mrds:     []extv1alpha1.ManagedResourceDefinition{inactiveMRD},
+			runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
+				Spec: v1beta1.DeploymentRuntimeConfigSpec{
+					DeploymentTemplate: &v1beta1.DeploymentTemplate{
+						Spec: &appsv1.DeploymentSpec{
+							Replicas: ptr.To[int32](2),
+						},
+					},
+				},
+			},
+			wantScaleToZero: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			opts := []BuilderOption{BuilderWithMRDs(tc.mrds)}
+			if tc.runtimeConfig != nil {
+				opts = append(opts, BuilderWithRuntimeConfig(tc.runtimeConfig))
+			}
+			b := NewDeploymentRuntimeBuilder(tc.revision, namespace, opts...)
+			got := b.AwaitingActivation()
+			if diff := cmp.Diff(tc.wantScaleToZero, got); diff != "" {
+				t.Errorf("BuilderWithMRDs(...): AwaitingActivation() -want, +got:\n%s", diff)
+			}
+		})
+	}
 }

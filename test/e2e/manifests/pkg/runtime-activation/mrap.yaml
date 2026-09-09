@@ -1,0 +1,7 @@
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: runtime-activation
+spec:
+  activate:
+  - "*.nop.crossplane.io"

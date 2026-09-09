@@ -21,12 +21,14 @@ package composite
 
 import (
 	"context"
+	"slices"
 
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -45,6 +47,7 @@ import (
 	apiextensionsv2 "github.com/crossplane/crossplane/apis/v2/apiextensions/v2"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composition"
 	"github.com/crossplane/crossplane/v2/internal/render"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
@@ -87,11 +90,13 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		return nil, errors.Wrap(err, "cannot convert composite resource from protobuf")
 	}
 
-	// Set a deterministic fake UID. The NameGenerator uses the owner UID for
-	// deterministic name generation of composed resources. The namespace is
-	// included so that two namespaced XRs with the same GVK and name in
-	// different namespaces produce different composed resource names.
-	xr.SetUID(types.UID(uuid.NewSHA1(uuid.Nil, []byte(gvk.String()+"\x00"+xr.GetNamespace()+"\x00"+xr.GetName())).String()))
+	// Set a deterministic fake UID for the input XR if it doesn't have
+	// one. Generating a deterministic UID keeps output stable across runs, but
+	// we don't want to overwrite an existing UID because the user might have
+	// observed resources with ownerRefs that match it.
+	if xr.GetUID() == "" {
+		xr.SetUID(types.UID(uuid.NewSHA1(uuid.Nil, []byte(gvk.String()+"\x00"+xr.GetNamespace()+"\x00"+xr.GetName())).String()))
+	}
 
 	// Set a resourceVersion to avoid "object has no resource version" errors.
 	xr.SetResourceVersion("999")
@@ -104,6 +109,10 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 			return nil, errors.Wrap(err, "cannot convert observed resource from protobuf")
 		}
 		observed = append(observed, *u)
+	}
+
+	if err := CheckObservedResources(xr, observed); err != nil {
+		return nil, errors.Wrap(err, "invalid observed resources")
 	}
 
 	// Inject spec.resourceRefs for observed resources so the real
@@ -206,7 +215,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 				return false, nil
 			},
 		)),
-		composite.WithWatchStarter("render", nil, &composite.NopWatchStarter{}),
+		composite.WithWatchStarter("render", nil, &composite.NopWatchStarter{}, dependency.NopTracker{}),
 		composite.WithCircuitBreaker(&circuit.NopBreaker{}),
 		composite.WithRecorder(rec),
 		composite.WithLogger(log),
@@ -330,6 +339,32 @@ func selectSchema(gvk schema.GroupVersionKind, def *structpb.Struct) (ucomposite
 	return cschema, nil
 }
 
+// CheckObservedResources validates that all observed resources will be
+// correctly read by the controller. This requires that they:
+//
+//  1. Either have no controller ref or have a controller ref that matches the
+//     XR.
+//  2. Are in the same namespace as the XR if the XR is namespaced.
+func CheckObservedResources(xr *ucomposite.Unstructured, observed []kunstructured.Unstructured) error {
+	var errs []error
+
+	xrUID := xr.GetUID()
+	for _, o := range observed {
+		if c := metav1.GetControllerOf(&o); c != nil && c.UID != xrUID {
+			errs = append(errs,
+				errors.Errorf("observed resource %s has a controller ref but is not controlled by the XR", o.GetName()),
+			)
+		}
+		if xr.GetNamespace() != "" && o.GetNamespace() != xr.GetNamespace() {
+			errs = append(errs,
+				errors.Errorf("observed resource %s is not in the same namespace as the XR", o.GetName()),
+			)
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
 // InjectResourceRefs sets spec.resourceRefs on the XR for each observed
 // resource. The real ExistingComposedResourceObserver reads these refs to
 // discover existing composed resources. Any preexisting refs are replaced.
@@ -373,8 +408,7 @@ func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstruct
 
 	// Find the final XR state. It's the last Status().Update or
 	// Status().Patch call for the XR.
-	for i := len(c.Updated()) - 1; i >= 0; i-- {
-		u := c.Updated()[i]
+	for _, u := range slices.Backward(c.Updated()) {
 		if isPrimary(u) {
 			s, err := xfn.AsStruct(&u)
 			if err != nil {
@@ -388,8 +422,7 @@ func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstruct
 	// If the XR wasn't in the updated list, check applied (from
 	// Status().Patch, which records to applied).
 	if out.GetCompositeResource() == nil {
-		for i := len(c.Applied()) - 1; i >= 0; i-- {
-			u := c.Applied()[i]
+		for _, u := range slices.Backward(c.Applied()) {
 			if isPrimary(u) {
 				s, err := xfn.AsStruct(&u)
 				if err != nil {
@@ -435,7 +468,7 @@ func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstruct
 		out.RequiredResources = append(out.RequiredResources, s)
 	}
 
-	// Collect required schmea selectors.
+	// Collect required schema selectors.
 	for _, ss := range rsf.GetSchemaSelectors() {
 		s, err := messageToStruct(ss)
 		if err != nil {

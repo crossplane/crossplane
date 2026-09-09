@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-configmap
+  namespace: default
+data:
+  test-key: "updated-value"
+  another-key: "another-value"

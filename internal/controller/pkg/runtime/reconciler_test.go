@@ -23,10 +23,12 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -42,6 +44,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 	fakexpkg "github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/fake"
 
+	extv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/features"
@@ -369,7 +373,58 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ErrDeactivateRevision": {
-			reason: "We should return an error if deactivation fails.",
+			reason: "We should report an unhealthy runtime and return an error if deactivation fails.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								obj.SetDesiredState(v1.PackageRevisionInactive)
+								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+							want.SetDesiredState(v1.PackageRevisionInactive)
+							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+							want.SetConditions(v1.RuntimeUnhealthy().WithMessage("deactivation runtime hook failed for package: boom"))
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{
+						MockDeactivate: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
+							return errBoom
+						},
+					}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeactivateHook),
+			},
+		},
+		"DeactivateRevisionConflict": {
+			reason: "We should requeue without an error if we lose a race while deactivating.",
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
@@ -397,14 +452,14 @@ func TestReconcile(t *testing.T) {
 					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{
 						MockDeactivate: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
-							return errBoom
+							return kerrors.NewConflict(schema.GroupResource{Resource: "services"}, "test-provider", errBoom)
 						},
 					}),
 					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, "failed to run deactivation hook"),
+				r: reconcile.Result{Requeue: true},
 			},
 		},
 		"ErrNoRuntimeConfig": {
@@ -574,7 +629,7 @@ func TestReconcile(t *testing.T) {
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-function"})
 							want.SetConditions(v1.RevisionHealthy())
-							want.SetConditions(v1.RuntimeHealthy())
+							want.SetConditions(v1.RuntimeHealthy(), v1.RuntimeActive())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -681,7 +736,7 @@ func TestReconcile(t *testing.T) {
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
 							want.SetConditions(v1.RevisionHealthy())
-							want.SetConditions(v1.RuntimeHealthy())
+							want.SetConditions(v1.RuntimeHealthy(), v1.RuntimeActive())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -756,7 +811,7 @@ func TestReconcile(t *testing.T) {
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
 							want.SetConditions(v1.RevisionHealthy())
-							want.SetConditions(v1.RuntimeHealthy())
+							want.SetConditions(v1.RuntimeHealthy(), v1.RuntimeActive())
 							want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 								Name:   "test-image-config",
 								Reason: v1.ImageConfigReasonSetPullSecret,
@@ -821,7 +876,7 @@ func TestReconcile(t *testing.T) {
 								obj.SetGroupVersionKind(v1beta1.DeploymentRuntimeConfigGroupVersionKind)
 								obj.Spec.DeploymentTemplate = &v1beta1.DeploymentTemplate{
 									Metadata: &v1beta1.ObjectMeta{
-										Name: ptr.To("deployment-name-override"),
+										Name: new("deployment-name-override"),
 									},
 								}
 								return nil
@@ -834,7 +889,7 @@ func TestReconcile(t *testing.T) {
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
 							want.SetConditions(v1.RevisionHealthy())
-							want.SetConditions(v1.RuntimeHealthy())
+							want.SetConditions(v1.RuntimeHealthy(), v1.RuntimeActive())
 							want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default-runtime-config"})
 							want.SetResolvedSource("example.com/test-provider:v1.0.0")
 							want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
@@ -878,7 +933,7 @@ func TestReconcile(t *testing.T) {
 								"test-image-config",
 								&v1beta1.ImageRuntime{
 									ConfigReference: &v1beta1.RuntimeConfigReference{
-										APIVersion: ptr.To(v1beta1.SchemeGroupVersion.String()),
+										APIVersion: new(v1beta1.SchemeGroupVersion.String()),
 										Kind:       &v1beta1.DeploymentRuntimeConfigKind,
 										Name:       "image-runtime-config",
 									},
@@ -894,7 +949,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"SuccessfulInactiveRevision": {
-			reason: "An inactive revision should deactivate successfully.",
+			reason: "An inactive revision should deactivate successfully and report a healthy runtime.",
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
@@ -904,11 +959,26 @@ func TestReconcile(t *testing.T) {
 								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								obj.SetDesiredState(v1.PackageRevisionInactive)
 								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+								// set a previous RuntimeUnhealthy condition on the object, so we
+								// know the later status update clears it back to healthy
+								obj.SetConditions(v1.RuntimeUnhealthy().WithMessage("deactivation runtime hook failed for package: boom"))
 								return nil
 							case *corev1.ServiceAccount:
 								obj.Name = crossplaneName
 								obj.Namespace = testNamespace
 								return nil
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+							want.SetDesiredState(v1.PackageRevisionInactive)
+							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+							want.SetConditions(v1.RuntimeHealthy())
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
 						}),
@@ -932,6 +1002,394 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
+		"ErrUpdateStatusInactiveRevision": {
+			reason: "We should return an error if we cannot report a deactivated revision's healthy runtime.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								obj.SetDesiredState(v1.PackageRevisionInactive)
+								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{
+						MockDeactivate: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
+							return nil
+						},
+					}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errUpdateStatus),
+			},
+		},
+		"RuntimeActivationAwaiting": {
+			reason: "A safe-start revision with only inactive MRDs should be scaled to zero and marked as awaiting activation.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								setRuntimeActivationRevision(obj, pkgmetav1.ProviderCapabilitySafeStart)
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							}
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil, func(l client.ObjectList) error {
+							mrds := l.(*extv1alpha1.ManagedResourceDefinitionList)
+							mrds.Items = []extv1alpha1.ManagedResourceDefinition{
+								mrdControlledBy(runtimeActivationUID, extv1alpha1.ManagedResourceDefinitionInactive),
+								// An active MRD controlled by another revision
+								// must not activate this revision's runtime.
+								mrdControlledBy("other-revision-uid", extv1alpha1.ManagedResourceDefinitionActive),
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							setRuntimeActivationRevision(want, pkgmetav1.ProviderCapabilitySafeStart)
+							want.SetConditions(v1.RuntimeHealthy(), v1.RuntimeAwaitingActivation().WithMessage("Package runtime is scaled to zero; awaiting the first ManagedResourceDefinition to be activated"))
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"RuntimeActivationActiveMRD": {
+			reason: "A safe-start revision with an active MRD should run its runtime and be marked healthy.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								setRuntimeActivationRevision(obj, pkgmetav1.ProviderCapabilitySafeStart)
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							}
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil, func(l client.ObjectList) error {
+							mrds := l.(*extv1alpha1.ManagedResourceDefinitionList)
+							mrds.Items = []extv1alpha1.ManagedResourceDefinition{
+								mrdControlledBy(runtimeActivationUID, extv1alpha1.ManagedResourceDefinitionActive),
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							setRuntimeActivationRevision(want, pkgmetav1.ProviderCapabilitySafeStart)
+							want.SetConditions(v1.RuntimeHealthy(), v1.RuntimeActive())
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"RuntimeActivationNoSafeStart": {
+			reason: "A revision without the safe-start capability should run its runtime as usual.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								setRuntimeActivationRevision(obj)
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							setRuntimeActivationRevision(want)
+							want.SetConditions(v1.RuntimeHealthy(), v1.RuntimeActive())
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"RuntimeActivationNoOwnedMRDs": {
+			reason: "A safe-start revision that owns no MRDs should run its runtime, as nothing could ever activate it.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								setRuntimeActivationRevision(obj, pkgmetav1.ProviderCapabilitySafeStart)
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							}
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							setRuntimeActivationRevision(want, pkgmetav1.ProviderCapabilitySafeStart)
+							want.SetConditions(v1.RuntimeHealthy(), v1.RuntimeActive())
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"RuntimeActivationAlreadyRunning": {
+			reason: "A safe-start revision with all-inactive MRDs scales its runtime to zero even if the deployment was previously running.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								setRuntimeActivationRevision(obj, pkgmetav1.ProviderCapabilitySafeStart)
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							}
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil, func(l client.ObjectList) error {
+							mrds := l.(*extv1alpha1.ManagedResourceDefinitionList)
+							mrds.Items = []extv1alpha1.ManagedResourceDefinition{
+								mrdControlledBy(runtimeActivationUID, extv1alpha1.ManagedResourceDefinitionInactive),
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							setRuntimeActivationRevision(want, pkgmetav1.ProviderCapabilitySafeStart)
+							want.SetConditions(v1.RuntimeHealthy(), v1.RuntimeAwaitingActivation().WithMessage("Package runtime is scaled to zero; awaiting the first ManagedResourceDefinition to be activated"))
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"RuntimeActivationAwaitingWithDRCExplicitReplicas": {
+			reason: "A safe-start revision with all-inactive MRDs should scale its runtime to zero and be marked " +
+				"AwaitingActivation even when a DRC sets an explicit replica count.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								setRuntimeActivationRevision(obj, pkgmetav1.ProviderCapabilitySafeStart)
+								obj.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "explicit-replicas-rc"})
+								return nil
+							case *v1beta1.DeploymentRuntimeConfig:
+								obj.Spec.DeploymentTemplate = &v1beta1.DeploymentTemplate{
+									Spec: &appsv1.DeploymentSpec{
+										Replicas: ptr.To[int32](2),
+									},
+								}
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							}
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil, func(l client.ObjectList) error {
+							mrds := l.(*extv1alpha1.ManagedResourceDefinitionList)
+							mrds.Items = []extv1alpha1.ManagedResourceDefinition{
+								mrdControlledBy(runtimeActivationUID, extv1alpha1.ManagedResourceDefinitionInactive),
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							setRuntimeActivationRevision(want, pkgmetav1.ProviderCapabilitySafeStart)
+							want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "explicit-replicas-rc"})
+							want.SetConditions(v1.RuntimeHealthy(), v1.RuntimeAwaitingActivation().WithMessage("Package runtime is scaled to zero; awaiting the first ManagedResourceDefinition to be activated"))
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{}),
+					WithFeatureFlags(flagsWithFeatures(features.EnableBetaDeploymentRuntimeConfigs)),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+					WithConfigStore(&fakexpkg.MockConfigStore{
+						MockRuntimeConfigFor: fakexpkg.NewMockRuntimeConfigForFn("", nil, nil),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"RuntimeActivationErrListMRDs": {
+			reason: "Should return an error and mark the runtime unhealthy when MRDs cannot be listed.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								setRuntimeActivationRevision(obj, pkgmetav1.ProviderCapabilitySafeStart)
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							}
+							return nil
+						}),
+						MockList: test.NewMockListFn(errBoom),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							setRuntimeActivationRevision(want, pkgmetav1.ProviderCapabilitySafeStart)
+							want.SetConditions(v1.RuntimeUnhealthy().WithMessage("cannot list ManagedResourceDefinitions to determine whether the provider runtime can start: boom"))
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errListMRDs),
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -948,6 +1406,37 @@ func TestReconcile(t *testing.T) {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
+	}
+}
+
+const runtimeActivationUID = "12345678-1234-1234-1234-123456789012"
+
+// setRuntimeActivationRevision configures a healthy, active provider revision
+// with the given capabilities for runtime activation test cases.
+func setRuntimeActivationRevision(obj *v1.ProviderRevision, capabilities ...string) {
+	obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+	obj.SetUID(runtimeActivationUID)
+	obj.SetDesiredState(v1.PackageRevisionActive)
+	obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+	obj.SetConditions(v1.RevisionHealthy())
+	obj.SetCapabilities(capabilities)
+}
+
+// mrdControlledBy returns an MRD in the given state controlled by a provider
+// revision with the given UID.
+func mrdControlledBy(uid types.UID, state extv1alpha1.ManagedResourceDefinitionState) extv1alpha1.ManagedResourceDefinition {
+	return extv1alpha1.ManagedResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "buckets.example.org",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: v1.SchemeGroupVersion.String(),
+				Kind:       v1.ProviderRevisionKind,
+				Name:       "test-provider-1234",
+				UID:        uid,
+				Controller: new(true),
+			}},
+		},
+		Spec: extv1alpha1.ManagedResourceDefinitionSpec{State: state},
 	}
 }
 

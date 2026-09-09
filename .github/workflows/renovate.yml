@@ -16,7 +16,7 @@ permissions:
 
 env:
   LOG_LEVEL: "info"
-  RENOVATE_VERSION: "43.230.0"
+  RENOVATE_VERSION: "44.27.0"
 
 jobs:
   renovate:
@@ -26,7 +26,7 @@ jobs:
       !github.event.pull_request.head.repo.fork
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Don't waste time starting Renovate if JSON is invalid
       - name: Validate Renovate JSON
@@ -40,13 +40,13 @@ jobs:
           private-key: ${{ secrets.RENOVATE_GITHUB_APP_PRIVATE_KEY }}
 
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@8217b3fc286df088d7c27f3255fe8414463bc0fd # v46.1.15
+        uses: renovatebot/github-action@5402b206248e5a8c8427a15102702eb9c1793efc # v46.2.4
         env:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           # Use GitHub API to create commits
           RENOVATE_PLATFORM_COMMIT: "true"
           LOG_LEVEL: ${{ github.event.inputs.logLevel || env.LOG_LEVEL }}
-          RENOVATE_ALLOWED_COMMANDS: '["^nix .+", "^earthly .+"]'
+          RENOVATE_ALLOWED_COMMANDS: '["^crossplane-nix .+", "^earthly .+"]'
         with:
           configurationFile: .github/renovate.json5
           token: '${{ steps.get-github-app-token.outputs.token }}'

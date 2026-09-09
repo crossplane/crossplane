@@ -35,7 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -257,7 +256,7 @@ func TestFunctionCompose(t *testing.T) {
 							// result. The reason should be kept. The target should be kept.
 							{
 								Severity: fnv1.Severity_SEVERITY_NORMAL,
-								Reason:   ptr.To("SomeReason"),
+								Reason:   new("SomeReason"),
 								Message:  "A result before the fatal result with a specific Reason.",
 								Target:   fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
 							},
@@ -287,7 +286,7 @@ func TestFunctionCompose(t *testing.T) {
 								Type:    "DeploymentReady",
 								Status:  fnv1.Status_STATUS_CONDITION_TRUE,
 								Reason:  "Available",
-								Message: ptr.To("The deployment is ready."),
+								Message: new("The deployment is ready."),
 								Target:  fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
 							},
 						},
@@ -1112,7 +1111,7 @@ func TestFunctionCompose(t *testing.T) {
 												RequirementName: "test-requirement",
 												APIVersion:      "v1",
 												Kind:            "ConfigMap",
-												Name:            ptr.To("test-config"),
+												Name:            new("test-config"),
 											},
 										},
 									},
@@ -1196,7 +1195,7 @@ func TestFunctionCompose(t *testing.T) {
 							},
 							{
 								Severity: fnv1.Severity_SEVERITY_NORMAL,
-								Reason:   ptr.To("SomeReason"),
+								Reason:   new("SomeReason"),
 								Message:  "A result with all values explicitly set.",
 								Target:   fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
 							},
@@ -1215,7 +1214,7 @@ func TestFunctionCompose(t *testing.T) {
 								Type:    "DeploymentReady",
 								Status:  fnv1.Status_STATUS_CONDITION_TRUE,
 								Reason:  "Available",
-								Message: ptr.To("The deployment is ready."),
+								Message: new("The deployment is ready."),
 								Target:  fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
 							},
 						},
@@ -1609,7 +1608,7 @@ func TestGetComposedResources(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						_ = meta.AddControllerReference(obj, metav1.OwnerReference{
 							UID:        types.UID("someone-else"),
-							Controller: ptr.To(true),
+							Controller: new(true),
 						})
 
 						return nil
@@ -1925,7 +1924,7 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{
 							// This resource isn't controlled by the XR.
 							OwnerReferences: []metav1.OwnerReference{{
-								Controller: ptr.To(true),
+								Controller: new(true),
 								UID:        "a-different-xr",
 								Kind:       "XR",
 								Name:       "different",
@@ -1936,6 +1935,35 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 			},
 			want: want{
 				err: errors.New(`refusing to delete composed resource "undesired-resource" that is controlled by XR "different"`),
+			},
+		},
+		"OrphanedResourceNotDeleted": {
+			reason: "A referenced resource with no controller reference is not one we can prove we composed, so we must not delete it - even though it's observed and undesired.",
+			params: params{
+				client: &test.MockClient{
+					// Update and Delete are nil functions and would panic if
+					// called, proving we neither cleaned up labels nor deleted.
+				},
+			},
+			args: args{
+				owner: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "cool-xr",
+					},
+				},
+				observed: ComposedResourceStates{
+					"undesired-resource": ComposedResourceState{Resource: &fake.Composed{
+						ObjectMeta: metav1.ObjectMeta{
+							// This resource has no controller reference. It could
+							// be an arbitrary resource smuggled into the XR's
+							// spec.resourceRefs, so we leave it alone.
+							Name: "orphan",
+						},
+					}},
+				},
+			},
+			want: want{
+				err: nil,
 			},
 		},
 		"UpdateError": {
@@ -1957,7 +1985,7 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 							ObjectMeta: metav1.ObjectMeta{
 								// This resource is controlled by the XR.
 								OwnerReferences: []metav1.OwnerReference{{
-									Controller: ptr.To(true),
+									Controller: new(true),
 									UID:        "cool-xr",
 								}},
 							},
@@ -1989,7 +2017,7 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 							ObjectMeta: metav1.ObjectMeta{
 								// This resource is controlled by the XR.
 								OwnerReferences: []metav1.OwnerReference{{
-									Controller: ptr.To(true),
+									Controller: new(true),
 									UID:        "cool-xr",
 								}},
 							},
@@ -2027,7 +2055,7 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 							ObjectMeta: metav1.ObjectMeta{
 								// This resource is controlled by the XR.
 								OwnerReferences: []metav1.OwnerReference{{
-									Controller: ptr.To(true),
+									Controller: new(true),
 									UID:        "cool-xr",
 								}},
 								// With composed resource labels.
@@ -2065,7 +2093,7 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 							ObjectMeta: metav1.ObjectMeta{
 								// This resource is controlled by the XR.
 								OwnerReferences: []metav1.OwnerReference{{
-									Controller: ptr.To(true),
+									Controller: new(true),
 									UID:        "cool-xr",
 								}},
 							},

@@ -1,34 +1,37 @@
 # CI check builders for Crossplane.
 #
 # Checks run inside the Nix sandbox without network or filesystem access. This
-# makes them fully reproducible but means Go modules must come from gomod2nix.
+# makes them fully reproducible but means Go modules must come from the module
+# cache pinned by nix/vendor-hashes.nix.
 #
-# Most checks use buildGoApplication, which sets up the Go environment with
-# modules from gomod2nix.toml. This is different from apps, which run outside
-# the sandbox and can access Go modules normally.
+# Most checks use buildGoModule with proxyVendor, which makes the full module
+# graph available offline (so the sandboxed checkPhase can `go test`/`go
+# generate`). This is different from apps, which run outside the sandbox and
+# can access Go modules normally.
 #
 # All checks are builder functions that take an attrset of arguments and return
 # a derivation. The actual check definitions live in flake.nix.
 { pkgs, self }:
+let
+  # Go builders backed by a single shared per-module vendor cache.
+  # See nix/go-builders.nix.
+  inherit (import ./go-builders.nix { inherit pkgs self; }) buildRoot buildApis;
+in
 {
   # Run Go unit tests with coverage
   test =
     { version }:
-    pkgs.buildGoApplication {
+    buildRoot {
       pname = "crossplane-test";
       inherit version;
       src = self;
-      pwd = self;
-      modules = ../gomod2nix.toml;
-      go = pkgs.unstable.go_1_25;
 
-      CGO_ENABLED = "0";
+      env.CGO_ENABLED = "0";
 
       dontBuild = true;
 
       checkPhase = ''
         runHook preCheck
-        export HOME=$TMPDIR
         go test -covermode=count -coverprofile=coverage.txt ./cmd/... ./internal/...
         runHook postCheck
       '';
@@ -42,21 +45,17 @@
   # Run Go unit tests with coverage for the apis module.
   testAPIs =
     { version }:
-    pkgs.buildGoApplication {
+    buildApis {
       pname = "crossplane-apis-test";
       inherit version;
       src = "${self}/apis";
-      pwd = "${self}/apis";
-      modules = "${self}/apis/gomod2nix.toml";
-      go = pkgs.unstable.go_1_25;
 
-      CGO_ENABLED = "0";
+      env.CGO_ENABLED = "0";
 
       dontBuild = true;
 
       checkPhase = ''
         runHook preCheck
-        export HOME=$TMPDIR
         go test -covermode=count -coverprofile=coverage.txt ./...
         runHook postCheck
       '';
@@ -70,15 +69,12 @@
   # Run golangci-lint (without --fix, since source is read-only)
   goLint =
     { version }:
-    pkgs.buildGoApplication {
+    buildRoot {
       pname = "crossplane-go-lint";
       inherit version;
       src = self;
-      pwd = self;
-      modules = ../gomod2nix.toml;
-      go = pkgs.unstable.go_1_25;
 
-      CGO_ENABLED = "0";
+      env.CGO_ENABLED = "0";
 
       nativeBuildInputs = [ pkgs.golangci-lint ];
 
@@ -86,7 +82,6 @@
 
       checkPhase = ''
         runHook preCheck
-        export HOME=$TMPDIR
         export GOLANGCI_LINT_CACHE=$TMPDIR/.cache/golangci-lint
         golangci-lint run
         runHook postCheck
@@ -101,15 +96,12 @@
   # Run golangci-lint (without --fix, since source is read-only) for the apis module.
   goLintAPIs =
     { version }:
-    pkgs.buildGoApplication {
+    buildApis {
       pname = "crossplane-apis-go-lint";
       inherit version;
       src = "${self}/apis";
-      pwd = "${self}/apis";
-      modules = "${self}/apis/gomod2nix.toml";
-      go = pkgs.unstable.go_1_25;
 
-      CGO_ENABLED = "0";
+      env.CGO_ENABLED = "0";
 
       nativeBuildInputs = [ pkgs.golangci-lint ];
 
@@ -117,7 +109,6 @@
 
       checkPhase = ''
         runHook preCheck
-        export HOME=$TMPDIR
         export GOLANGCI_LINT_CACHE=$TMPDIR/.cache/golangci-lint
         golangci-lint run --config=${self}/.golangci.yml
         runHook postCheck
@@ -145,15 +136,12 @@
   # Verify generated code matches committed code
   generate =
     { version }:
-    pkgs.buildGoApplication {
+    buildRoot {
       pname = "crossplane-generate-check";
       inherit version;
       src = self;
-      pwd = self;
-      modules = ../gomod2nix.toml;
-      go = pkgs.unstable.go_1_25;
 
-      CGO_ENABLED = "0";
+      env.CGO_ENABLED = "0";
 
       nativeBuildInputs = [
         pkgs.kubectl
@@ -169,7 +157,6 @@
 
       checkPhase = ''
         runHook preCheck
-        export HOME=$TMPDIR
 
         echo "Running go generate..."
         go generate -tags generate .
@@ -200,15 +187,12 @@
   # Verify generated code matches committed code for the apis module.
   generateAPIs =
     { version }:
-    pkgs.buildGoApplication {
+    buildApis {
       pname = "crossplane-apis-generate-check";
       inherit version;
       src = "${self}/apis";
-      pwd = "${self}/apis";
-      modules = "${self}/apis/gomod2nix.toml";
-      go = pkgs.unstable.go_1_25;
 
-      CGO_ENABLED = "0";
+      env.CGO_ENABLED = "0";
 
       nativeBuildInputs = [
         pkgs.kubectl
@@ -221,7 +205,6 @@
 
       checkPhase = ''
         runHook preCheck
-        export HOME=$TMPDIR
 
         # cluster/webhookconfigurations contains some non-generated files. Copy
         # the existing version into our build context so we can detect changes
@@ -285,7 +268,7 @@
         nativeBuildInputs = [
           pkgs.statix
           pkgs.deadnix
-          pkgs.nixfmt-rfc-style
+          pkgs.nixfmt
         ];
       }
       ''

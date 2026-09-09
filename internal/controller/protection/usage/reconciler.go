@@ -20,12 +20,14 @@ package usage
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -397,7 +399,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if policy, ok := used.GetAnnotations()[protection.AnnotationKeyDeletionAttempt]; ok {
 				// We have already recorded a deletion attempt and want to replay deletion, let's delete the used resource.
 
-				//nolint:contextcheck // We cannot use the context from the reconcile function since it will be cancelled after the reconciliation.
+				//nolint:contextcheck,gosec // G118: We cannot use the context from the reconcile function since it will be cancelled after the reconciliation.
 				go func() {
 					// We do the deletion async and after some delay to make sure the usage is deleted before the
 					// deletion attempt. We remove the finalizer on this Usage right below, so, we know it will disappear
@@ -512,7 +514,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		// usageResource should have a finalizer and be owned by the using resource.
-		if owners := uu.GetOwnerReferences(); len(owners) == 0 || owners[0].UID != using.GetUID() {
+		if !slices.ContainsFunc(uu.GetOwnerReferences(), func(owner metav1.OwnerReference) bool {
+			return owner.UID == using.GetUID()
+		}) {
 			meta.AddOwnerReference(uu, meta.AsOwner(
 				meta.TypedReferenceTo(using, using.GetObjectKind().GroupVersionKind()),
 			))

@@ -30,7 +30,6 @@ import (
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -214,7 +213,7 @@ func TestProtectionReconcilerReconcile(t *testing.T) {
 								APIVersion: pkgv1.SchemeGroupVersion.String(),
 								Kind:       pkgv1.ProviderRevisionKind,
 								Name:       "test-provider-revision",
-								Controller: ptr.To(true),
+								Controller: new(true),
 							}}
 							return nil
 						case *pkgv1.ProviderRevision:
@@ -251,7 +250,7 @@ func TestProtectionReconcilerReconcile(t *testing.T) {
 								APIVersion: pkgv1.SchemeGroupVersion.String(),
 								Kind:       pkgv1.ProviderRevisionKind,
 								Name:       "test-provider-revision",
-								Controller: ptr.To(true),
+								Controller: new(true),
 							}}
 							return nil
 						case *pkgv1.ProviderRevision:
@@ -294,7 +293,7 @@ func TestProtectionReconcilerReconcile(t *testing.T) {
 								APIVersion: pkgv1.SchemeGroupVersion.String(),
 								Kind:       pkgv1.ProviderRevisionKind,
 								Name:       "test-provider-revision",
-								Controller: ptr.To(true),
+								Controller: new(true),
 							}}
 							return nil
 						case *pkgv1.ProviderRevision:
@@ -510,7 +509,7 @@ func TestResolveProviderName(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					OwnerReferences: []metav1.OwnerReference{{
 						Name:       "test-rev",
-						Controller: ptr.To(true),
+						Controller: new(true),
 					}},
 				},
 			},
@@ -525,7 +524,7 @@ func TestResolveProviderName(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					OwnerReferences: []metav1.OwnerReference{{
 						Name:       "test-rev",
-						Controller: ptr.To(true),
+						Controller: new(true),
 					}},
 				},
 			},
@@ -547,7 +546,7 @@ func TestResolveProviderName(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					OwnerReferences: []metav1.OwnerReference{{
 						Name:       "test-rev",
-						Controller: ptr.To(true),
+						Controller: new(true),
 					}},
 				},
 			},
@@ -613,7 +612,7 @@ func TestBuildClusterUsage(t *testing.T) {
 								Name: "my-provider",
 							},
 						},
-						Reason: ptr.To("Provider has active managed resources of type Database.example.com"),
+						Reason: new("Provider has active managed resources of type Database.example.com"),
 					},
 				},
 			},

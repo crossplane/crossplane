@@ -19,6 +19,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const labelController = "controller"
+
 // NopMetrics does nothing.
 type NopMetrics struct{}
 
@@ -50,46 +52,46 @@ func NewPrometheusMetrics() *PrometheusMetrics {
 			Subsystem: "engine",
 			Name:      "controllers_started_total",
 			Help:      "Total number of controllers started.",
-		}, []string{"controller"}),
+		}, []string{labelController}),
 
 		controllersStopped: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Subsystem: "engine",
 			Name:      "controllers_stopped_total",
 			Help:      "Total number of controllers stopped.",
-		}, []string{"controller"}),
+		}, []string{labelController}),
 
 		watchesStarted: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Subsystem: "engine",
 			Name:      "watches_started_total",
 			Help:      "Total number of watches started.",
-		}, []string{"controller", "type"}),
+		}, []string{labelController, "type"}),
 
 		watchesStopped: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Subsystem: "engine",
 			Name:      "watches_stopped_total",
 			Help:      "Total number of watches stopped.",
-		}, []string{"controller", "type"}),
+		}, []string{labelController, "type"}),
 	}
 }
 
 // ControllerStarted records a controller start.
 func (m *PrometheusMetrics) ControllerStarted(name string) {
-	m.controllersStarted.With(prometheus.Labels{"controller": name}).Inc()
+	m.controllersStarted.With(prometheus.Labels{labelController: name}).Inc()
 }
 
 // ControllerStopped records a controller stop.
 func (m *PrometheusMetrics) ControllerStopped(name string) {
-	m.controllersStopped.With(prometheus.Labels{"controller": name}).Inc()
+	m.controllersStopped.With(prometheus.Labels{labelController: name}).Inc()
 }
 
 // WatchStarted records a watch start for a controller.
 func (m *PrometheusMetrics) WatchStarted(name string, t WatchType) {
-	m.watchesStarted.With(prometheus.Labels{"controller": name, "type": string(t)}).Inc()
+	m.watchesStarted.With(prometheus.Labels{labelController: name, "type": string(t)}).Inc()
 }
 
 // WatchStopped records a watch stop for a controller.
 func (m *PrometheusMetrics) WatchStopped(name string, t WatchType) {
-	m.watchesStopped.With(prometheus.Labels{"controller": name, "type": string(t)}).Inc()
+	m.watchesStopped.With(prometheus.Labels{labelController: name, "type": string(t)}).Inc()
 }
 
 // Describe sends the super-set of all possible descriptors of metrics
