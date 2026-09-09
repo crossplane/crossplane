@@ -557,7 +557,33 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				control: true,
 			},
 			want: want{
-				err: errors.New(`invalid ManagedResourceDefinition "truncated-mrd" must have exactly one storage version`),
+				err: errors.New(`invalid ManagedResourceDefinition "truncated-mrd": spec.versions must contain exactly one storage version; mark exactly one version as storage before retrying`),
+			},
+		},
+		"FailedEmptyManagedResourceDefinitionVersions": {
+			reason: "Establishment should reject a ManagedResourceDefinition with no versions before updating an existing object.",
+			args: args{
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+						return errors.New("unexpected update")
+					},
+				}),
+				objs: []runtime.Object{
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Name: "empty-mrd"},
+						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+								Versions: []v1alpha1.CustomResourceDefinitionVersion{},
+							},
+						},
+					},
+				},
+				parent:  &v1.ProviderRevision{},
+				control: true,
+			},
+			want: want{
+				err: errors.New(`invalid ManagedResourceDefinition "empty-mrd": spec.versions must contain exactly one storage version; mark exactly one version as storage before retrying`),
 			},
 		},
 		"SuccessfulManagedResourceDefinitionUnsetState": {
@@ -583,6 +609,13 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							Name: "test-mrd-unset",
 						},
 						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+								Versions: []v1alpha1.CustomResourceDefinitionVersion{{
+									Name:    "v1alpha1",
+									Storage: true,
+									Served:  true,
+								}},
+							},
 							// spec.state field is intentionally unset (zero value)
 						},
 					},
@@ -591,6 +624,13 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							Name: "test-mrd-active",
 						},
 						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+								Versions: []v1alpha1.CustomResourceDefinitionVersion{{
+									Name:    "v1alpha1",
+									Storage: true,
+									Served:  true,
+								}},
+							},
 							State: v1alpha1.ManagedResourceDefinitionActive,
 						},
 					},
@@ -599,6 +639,13 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							Name: "test-mrd-inactive",
 						},
 						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+								Versions: []v1alpha1.CustomResourceDefinitionVersion{{
+									Name:    "v1alpha1",
+									Storage: true,
+									Served:  true,
+								}},
+							},
 							State: v1alpha1.ManagedResourceDefinitionInactive,
 						},
 					},
@@ -762,6 +809,13 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							Name: "active-to-unset",
 						},
 						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+								Versions: []v1alpha1.CustomResourceDefinitionVersion{{
+									Name:    "v1alpha1",
+									Storage: true,
+									Served:  true,
+								}},
+							},
 							// spec.state field is intentionally unset (zero value)
 						},
 					},
@@ -770,6 +824,13 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							Name: "active-to-active",
 						},
 						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+								Versions: []v1alpha1.CustomResourceDefinitionVersion{{
+									Name:    "v1alpha1",
+									Storage: true,
+									Served:  true,
+								}},
+							},
 							State: v1alpha1.ManagedResourceDefinitionActive,
 						},
 					},
@@ -778,6 +839,13 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							Name: "active-to-inactive",
 						},
 						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+								Versions: []v1alpha1.CustomResourceDefinitionVersion{{
+									Name:    "v1alpha1",
+									Storage: true,
+									Served:  true,
+								}},
+							},
 							State: v1alpha1.ManagedResourceDefinitionInactive,
 						},
 					},
@@ -786,6 +854,13 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							Name: "inactive-to-unset",
 						},
 						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+								Versions: []v1alpha1.CustomResourceDefinitionVersion{{
+									Name:    "v1alpha1",
+									Storage: true,
+									Served:  true,
+								}},
+							},
 							// spec.state field is intentionally unset (zero value)
 						},
 					},
@@ -794,6 +869,13 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							Name: "inactive-to-active",
 						},
 						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+								Versions: []v1alpha1.CustomResourceDefinitionVersion{{
+									Name:    "v1alpha1",
+									Storage: true,
+									Served:  true,
+								}},
+							},
 							State: v1alpha1.ManagedResourceDefinitionActive,
 						},
 					},
@@ -802,6 +884,13 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							Name: "inactive-to-inactive",
 						},
 						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+								Versions: []v1alpha1.CustomResourceDefinitionVersion{{
+									Name:    "v1alpha1",
+									Storage: true,
+									Served:  true,
+								}},
+							},
 							State: v1alpha1.ManagedResourceDefinitionInactive,
 						},
 					},

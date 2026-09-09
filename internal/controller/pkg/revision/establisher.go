@@ -371,10 +371,6 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 }
 
 func validateManagedResourceDefinition(mrd *v1alpha1.ManagedResourceDefinition) error {
-	if len(mrd.Spec.Versions) == 0 {
-		return nil
-	}
-
 	storageVersions := 0
 	for _, version := range mrd.Spec.Versions {
 		if version.Storage {
@@ -383,7 +379,7 @@ func validateManagedResourceDefinition(mrd *v1alpha1.ManagedResourceDefinition) 
 	}
 
 	if storageVersions != 1 {
-		return errors.Errorf("%s %q must have exactly one storage version", errInvalidManagedResourceDef, mrd.GetName())
+		return errors.Errorf("%s %q: spec.versions must contain exactly one storage version; mark exactly one version as storage before retrying", errInvalidManagedResourceDef, mrd.GetName())
 	}
 
 	return nil
