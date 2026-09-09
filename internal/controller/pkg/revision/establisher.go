@@ -305,12 +305,6 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 				return errors.New(errAssertResourceObj)
 			}
 
-			if mrd, ok := desired.(*v1alpha1.ManagedResourceDefinition); ok {
-				if err := validateManagedResourceDefinition(mrd); err != nil {
-					return err
-				}
-			}
-
 			if control {
 				if err := e.enrichControlledResource(res, webhookTLSCert, parent); err != nil {
 					return err
