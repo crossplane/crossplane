@@ -507,6 +507,71 @@ func TestResolve(t *testing.T) {
 				invalid:   0,
 			},
 		},
+		"SuccessfulDigestWithResolvedVersion": {
+			reason: "Should resolve dependencies when a package is installed with a tag@digest reference and ResolvedVersion is set.",
+			args: args{
+				dep: &PackageDependencyManager{
+					client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							l := obj.(*v1beta1.Lock)
+							l.Packages = []v1beta1.LockPackage{
+								{
+									Name:            "provider-family-azure-abc123",
+									Source:          "xpkg.upbound.io/upbound/provider-family-azure",
+									Version:         "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5",
+									ResolvedVersion: "v2.5.6",
+								},
+								{
+									Name:            "provider-azure-storage-def456",
+									Source:          "xpkg.upbound.io/upbound/provider-azure-storage",
+									Version:         "sha256:2e10e0d89075cfdf3a1fe097f26f1941229e94593d2cf5f3886d8d46e5fb6a49",
+									ResolvedVersion: "v2.5.6",
+									Dependencies: []v1beta1.Dependency{
+										{
+											Package:     "xpkg.upbound.io/upbound/provider-family-azure",
+											Constraints: "v2.5.6",
+										},
+									},
+								},
+							}
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
+				},
+				meta: &pkgmetav1.Provider{
+					Spec: pkgmetav1.ProviderSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							DependsOn: []pkgmetav1.Dependency{
+								{
+									Provider: new("xpkg.upbound.io/upbound/provider-family-azure"),
+									Version:  "v2.5.6",
+								},
+							},
+						},
+					},
+				},
+				pr: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "provider-azure-storage-def456",
+					},
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      "xpkg.upbound.io/upbound/provider-azure-storage:v2.5.6@sha256:2e10e0d89075cfdf3a1fe097f26f1941229e94593d2cf5f3886d8d46e5fb6a49",
+							DesiredState: v1.PackageRevisionActive,
+						},
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{},
+					},
+				},
+			},
+			want: want{
+				total:     1,
+				installed: 1,
+				invalid:   0,
+			},
+		},
 		"SuccessfulLockPackageSourceMismatch": {
 			reason: "Should not return error if source in packages does not match provider revision package.",
 			args: args{
@@ -569,6 +634,106 @@ func TestResolve(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.invalid, invalid); diff != "" {
 				t.Errorf("\n%s\nInvalid(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestParseRef(t *testing.T) {
+	const digest = "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5"
+
+	cases := map[string]struct {
+		source  string
+		tag     string
+		digest  string
+		wantErr bool
+	}{
+		"Tag":                 {source: "registry.example.com/ns/pkg:v1.2.3", tag: "v1.2.3"},
+		"TagAndDigest":        {source: "registry.example.com/ns/pkg:v1.2.3@" + digest, tag: "v1.2.3", digest: digest},
+		"DigestOnly":          {source: "registry.example.com/ns/pkg@" + digest, digest: digest},
+		"PortAndTagAndDigest": {source: "registry.example.com:5000/ns/pkg:v1.2.3@" + digest, tag: "v1.2.3", digest: digest},
+		"PortAndDigestOnly":   {source: "registry.example.com:5000/ns/pkg@" + digest, digest: digest},
+		"PortAndTag":          {source: "registry.example.com:5000/ns/pkg:v1.2.3", tag: "v1.2.3"},
+		"MissingTag":          {source: "registry.example.com/ns/pkg", wantErr: true},
+		"InvalidDigest":       {source: "registry.example.com/ns/pkg:v1.2.3@sha256:invalid", wantErr: true},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tag, digest, err := parseRef(tc.source)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("parseRef(%q) error = %v, want error = %t", tc.source, err, tc.wantErr)
+			}
+			if tag != tc.tag || digest != tc.digest {
+				t.Errorf("parseRef(%q) = (%q, %q), want (%q, %q)", tc.source, tag, digest, tc.tag, tc.digest)
+			}
+		})
+	}
+}
+
+func TestResolveUpdatesResolvedVersion(t *testing.T) {
+	const source = "registry.example.com:5000/ns/pkg"
+	const digest = "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5"
+
+	cases := map[string]struct {
+		source         string
+		previous       string
+		previousSource string
+		want           string
+	}{
+		"NormalizeLegacySource":   {source: source + ":v1.2.3@" + digest, previousSource: source + ":v1.2.3", previous: "v1.2.3", want: "v1.2.3"},
+		"BackfillExistingDigest":  {source: source + ":v1.2.3@" + digest, want: "v1.2.3"},
+		"UpdateTagWithSameDigest": {source: source + ":v1.2.4@" + digest, previous: "v1.2.3", want: "v1.2.4"},
+		"RemoveTagWithSameDigest": {source: source + "@" + digest, previous: "v1.2.3"},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			updates := 0
+			previousSource := tc.previousSource
+			if previousSource == "" {
+				previousSource = source
+			}
+			m := &PackageDependencyManager{
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.(*v1beta1.Lock).Packages = []v1beta1.LockPackage{{
+							Name:            "pkg-revision",
+							Source:          previousSource,
+							Type:            new(v1beta1.ConfigurationPackageType),
+							Version:         digest,
+							ResolvedVersion: tc.previous,
+						}}
+						return nil
+					}),
+					MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+						updates++
+						packages := obj.(*v1beta1.Lock).Packages
+						if len(packages) != 1 {
+							t.Fatalf("lock has %d packages, want 1", len(packages))
+						}
+						lp := packages[0]
+						if lp.Source != source {
+							t.Errorf("lock source = %q, want %q", lp.Source, source)
+						}
+						if lp.Version != digest || lp.ResolvedVersion != tc.want {
+							t.Errorf("updated lock = (%q, %q), want (%q, %q)", lp.Version, lp.ResolvedVersion, digest, tc.want)
+						}
+						return nil
+					}),
+				},
+				newDag: dag.NewMapDag,
+				log:    logging.NewNopLogger(),
+			}
+			pr := &v1.ConfigurationRevision{
+				ObjectMeta: metav1.ObjectMeta{Name: "pkg-revision"},
+				Spec:       v1.PackageRevisionSpec{Package: tc.source, DesiredState: v1.PackageRevisionActive},
+			}
+			if _, _, _, err := m.Resolve(context.Background(), &pkgmetav1.Configuration{}, pr); err != nil {
+				t.Fatal(err)
+			}
+			if updates != 1 {
+				t.Errorf("lock updates = %d, want 1", updates)
 			}
 		})
 	}

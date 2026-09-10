@@ -1892,6 +1892,90 @@ func TestPruneOutdatedDependencies(t *testing.T) {
 				},
 			},
 		},
+		"DigestWithResolvedVersion": {
+			reason: "Should keep packages installed with tag@digest when ResolvedVersion satisfies semver constraints.",
+			args: args{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-digest",
+								Constraints: "v2.5.6",
+							},
+						},
+					},
+					{
+						Name:            "dep-digest",
+						Source:          "example.com/dep-digest",
+						Version:         "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5",
+						ResolvedVersion: "v2.5.6",
+					},
+				},
+			},
+			want: want{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-digest",
+								Constraints: "v2.5.6",
+							},
+						},
+					},
+					{
+						Name:            "dep-digest",
+						Source:          "example.com/dep-digest",
+						Version:         "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5",
+						ResolvedVersion: "v2.5.6",
+					},
+				},
+			},
+		},
+		"DigestWithResolvedVersionMismatch": {
+			reason: "Should prune packages when ResolvedVersion does not satisfy semver constraints.",
+			args: args{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-digest",
+								Constraints: ">=v3.0.0",
+							},
+						},
+					},
+					{
+						Name:            "dep-digest",
+						Source:          "example.com/dep-digest",
+						Version:         "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5",
+						ResolvedVersion: "v2.5.6",
+					},
+				},
+			},
+			want: want{
+				pkgs: []v1beta1.LockPackage{
+					{
+						Name:    "root",
+						Source:  "example.com/root",
+						Version: "v1.0.0",
+						Dependencies: []v1beta1.Dependency{
+							{
+								Package:     "example.com/dep-digest",
+								Constraints: ">=v3.0.0",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -1899,6 +1983,38 @@ func TestPruneOutdatedDependencies(t *testing.T) {
 			got := pruneOutdatedDependencies(tc.args.pkgs)
 			if diff := cmp.Diff(tc.want.pkgs, got); diff != "" {
 				t.Errorf("\n%s\npruneOutdatedDependencies(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestParseRef(t *testing.T) {
+	const digest = "sha256:b6f5cbc791b131a76b8e6b031333dae62db05266d1b12988bb12ff14226215d5"
+
+	cases := map[string]struct {
+		source  string
+		tag     string
+		digest  string
+		wantErr bool
+	}{
+		"Tag":                 {source: "registry.example.com/ns/pkg:v1.2.3", tag: "v1.2.3"},
+		"TagAndDigest":        {source: "registry.example.com/ns/pkg:v1.2.3@" + digest, tag: "v1.2.3", digest: digest},
+		"DigestOnly":          {source: "registry.example.com/ns/pkg@" + digest, digest: digest},
+		"PortAndTagAndDigest": {source: "registry.example.com:5000/ns/pkg:v1.2.3@" + digest, tag: "v1.2.3", digest: digest},
+		"PortAndDigestOnly":   {source: "registry.example.com:5000/ns/pkg@" + digest, digest: digest},
+		"PortAndTag":          {source: "registry.example.com:5000/ns/pkg:v1.2.3", tag: "v1.2.3"},
+		"MissingTag":          {source: "registry.example.com/ns/pkg", wantErr: true},
+		"InvalidDigest":       {source: "registry.example.com/ns/pkg:v1.2.3@sha256:invalid", wantErr: true},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tag, digest, err := parseRef(tc.source)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("parseRef(%q) error = %v, want error = %t", tc.source, err, tc.wantErr)
+			}
+			if tag != tc.tag || digest != tc.digest {
+				t.Errorf("parseRef(%q) = (%q, %q), want (%q, %q)", tc.source, tag, digest, tc.tag, tc.digest)
 			}
 		})
 	}

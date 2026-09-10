@@ -77,6 +77,34 @@ func NewPackageDependencyManager(c client.Client, nd dag.NewDAGFn, pkgType schem
 	}
 }
 
+// parseRef splits an OCI reference into its tag and digest components.
+// A reference may carry both (e.g. v1.0.0@sha256:...), in which case
+// go-containerregistry parses it as a name.Digest and Identifier() returns
+// only the digest, so the tag is recovered from the original string.
+func parseRef(s string) (tag, digest string, err error) {
+	ref, err := name.ParseReference(s, name.StrictValidation)
+	if err != nil {
+		return "", "", errors.Wrap(err, "invalid reference")
+	}
+
+	switch r := ref.(type) {
+	case name.Digest:
+		// Check whether there was also a tag.
+		stripped := strings.TrimSuffix(s, "@"+r.DigestStr())
+		if tag, err := name.NewTag(stripped, name.StrictValidation); err == nil {
+			return tag.TagStr(), r.DigestStr(), nil
+		}
+
+		return "", r.DigestStr(), nil
+
+	case name.Tag:
+		return r.TagStr(), "", nil
+
+	default:
+		return "", "", errors.Errorf("unknown reference type %T", ref)
+	}
+}
+
 // Resolve resolves package dependencies.
 func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.Pkg, pr v1.PackageRevision) (found, installed, invalid int, err error) { //nolint:gocognit // TODO(negz): Can this be refactored for less complexity?
 	// If we are inactive, we don't need to resolve dependencies.
@@ -140,15 +168,24 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 	}
 
 	lockRef := xpkg.ParsePackageSourceFromReference(prRef)
+	var resolvedVersion string
+	if tag, digest, err := parseRef(pr.GetSource()); err == nil && tag != "" && digest != "" {
+		// ParsePackageSourceFromReference strips the digest but leaves the tag
+		// in a tag@digest reference. The lock source must contain neither so
+		// it matches the package names used by dependencies.
+		lockRef = strings.TrimSuffix(lockRef, ":"+tag)
+		resolvedVersion = tag
+	}
 	// NOTE(hasheddan): consider adding health of package to lock so that it can
 	// be rolled up to any dependent packages.
 	self := v1beta1.LockPackage{
-		APIVersion:   new(m.packageType.GroupVersion().String()),
-		Kind:         new(m.packageType.Kind),
-		Name:         pr.GetName(),
-		Source:       lockRef,
-		Version:      prRef.Identifier(),
-		Dependencies: sources,
+		APIVersion:      new(m.packageType.GroupVersion().String()),
+		Kind:            new(m.packageType.Kind),
+		Name:            pr.GetName(),
+		Source:          lockRef,
+		Version:         prRef.Identifier(),
+		ResolvedVersion: resolvedVersion,
+		Dependencies:    sources,
 	}
 
 	// Delete packages in lock with same name and distinct source
@@ -180,12 +217,13 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 		if lp.Name == pr.GetName() {
 			prExists = true
 
-			if lp.Version != self.Version {
-				// Version was updated without creating a new revision (e.g., because
-				// there were no changes between two semvers). Update the lock to
-				// reflect which version is installed, in case other packages are
-				// depending on the new version.
+			if lp.Source != self.Source || lp.Version != self.Version || lp.ResolvedVersion != self.ResolvedVersion {
+				// A source or tag can change without creating a new revision when
+				// the image digest stays the same. Keep the lock consistent with
+				// the revision so other packages can resolve their dependencies.
+				lock.Packages[i].Source = self.Source
 				lock.Packages[i].Version = self.Version
+				lock.Packages[i].ResolvedVersion = self.ResolvedVersion
 				if err := m.client.Update(ctx, lock); err != nil {
 					return found, installed, invalid, err
 				}
@@ -275,7 +313,15 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 			return found, installed, invalid, err
 		}
 
-		v, err := semver.NewVersion(lp.Version)
+		// When the installed package has a digest version but also a resolved
+		// version tag (from a tag@digest reference), use the resolved tag for
+		// semver constraint evaluation.
+		versionToCheck := lp.Version
+		if _, err := conregv1.NewHash(versionToCheck); err == nil && lp.ResolvedVersion != "" {
+			versionToCheck = lp.ResolvedVersion
+		}
+
+		v, err := semver.NewVersion(versionToCheck)
 		if err != nil {
 			return found, installed, invalid, err
 		}
