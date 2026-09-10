@@ -143,6 +143,15 @@ func WatchCircuitClosed() xpv2.Condition {
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonWatchCircuitClosed,
+		// The message must be non-empty. The XR status is written with
+		// server-side apply, which only owns fields present in the patch.
+		// Message is serialized with omitempty, so an empty message here would
+		// leave the key out of the patch and a message written by
+		// WatchCircuitOpen (or any other field manager) could never be
+		// cleared. Condition.Equal compares messages, so that orphan makes
+		// SetConditions rewrite the XR status on every reconcile, and the XR's
+		// self-watch turns the rewrite into an infinite reconcile loop.
+		Message: "Watch events are within limits. Allowing all events.",
 	}
 }
 
