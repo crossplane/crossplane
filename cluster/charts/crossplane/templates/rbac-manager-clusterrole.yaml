@@ -48,6 +48,9 @@ rules:
   - apiextensions.crossplane.io
   resources:
   - compositeresourcedefinitions
+  # The RBAC manager derives a provider's permissions from the CRDs and MRDs its
+  # ProviderRevision owns, so it needs to read (and watch) ManagedResourceDefinitions.
+  - managedresourcedefinitions
   verbs:
   - get
   - list
