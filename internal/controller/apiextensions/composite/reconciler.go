@@ -600,9 +600,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Check circuit breaker state and set condition accordingly.
 	condition := v1.WatchCircuitClosed()
-	if s := r.circuit.GetState(ctx, req.NamespacedName); s.IsOpen {
-		condition = v1.WatchCircuitOpen(s.TriggeredBy)
-		log.Info("Circuit breaker is open", "triggered-by", s.TriggeredBy, "next-allowed-at", s.NextAllowedAt)
+	circuitState := r.circuit.GetState(ctx, req.NamespacedName)
+	if circuitState.IsOpen {
+		condition = v1.WatchCircuitOpen(circuitState.TriggeredBy)
+		log.Info("Circuit breaker is open", "triggered-by", circuitState.TriggeredBy, "next-allowed-at", circuitState.NextAllowedAt)
 	}
 	status.MarkConditions(condition)
 
@@ -926,6 +927,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		result = reconcile.Result{RequeueAfter: jitter(res.TTL)}
 	}
 
+	result = boundRequeueByCircuitBreaker(result, circuitState, time.Now())
+
 	if !cmp.Equal(statusBefore, xr.Object["status"]) {
 		return result, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
@@ -1011,4 +1014,31 @@ func getClaimFromXR(ctx context.Context, c client.Client, xr *composite.Unstruct
 // Jitter the supplied duration by up to +/- 10%.
 func jitter(d time.Duration) time.Duration {
 	return d + time.Duration((rand.Float64()-0.5)*2*(float64(d)*0.1)) //nolint:gosec // No need for secure randomness
+}
+
+// boundRequeueByCircuitBreaker ensures the supplied result requeues no later
+// than the circuit breaker's next half-open probe, if it's open. Without
+// this, an XR whose watch events are being dropped by an open circuit
+// breaker could miss its dependencies settling (e.g. becoming ready) while
+// the circuit is open - there would be no more events left to trigger
+// another reconcile once the circuit closes.
+func boundRequeueByCircuitBreaker(result reconcile.Result, cs circuit.State, now time.Time) reconcile.Result {
+	if result.Requeue || !cs.IsOpen {
+		return result
+	}
+
+	until := cs.NextAllowedAt.Sub(now)
+	switch {
+	case until <= 0:
+		// The circuit's next half-open probe is already due. We can't
+		// express "requeue now" with RequeueAfter: 0 - controller-runtime
+		// only requeues when RequeueAfter > 0 or Requeue is true - so
+		// request an immediate (rate-limited) requeue instead.
+		result.RequeueAfter = 0
+		result.Requeue = true
+	case result.RequeueAfter <= 0 || until < result.RequeueAfter:
+		result.RequeueAfter = until
+	}
+
+	return result
 }
