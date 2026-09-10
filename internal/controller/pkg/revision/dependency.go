@@ -19,6 +19,7 @@ package revision
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -261,10 +262,12 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 			return found, installed, invalid, errors.New(errDependencyNotLockPackage)
 		}
 
+		versions := lp.GetVersions()
+
 		// Check if the constraint is a digest, if so, compare it directly.
 		if d, err := conregv1.NewHash(dep.Constraints); err == nil {
-			if lp.Version != d.String() {
-				return found, installed, invalid, errors.Errorf("existing package %s@%s is incompatible with constraint %s", lp.Identifier(), lp.Version, strings.TrimSpace(dep.Constraints))
+			if !slices.Contains(versions, d.String()) {
+				return found, installed, invalid, errors.Errorf("existing package %s@%s is incompatible with constraint %s", lp.Identifier(), strings.Join(versions, ","), strings.TrimSpace(dep.Constraints))
 			}
 
 			continue
@@ -275,13 +278,8 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 			return found, installed, invalid, err
 		}
 
-		v, err := semver.NewVersion(lp.Version)
-		if err != nil {
-			return found, installed, invalid, err
-		}
-
-		if !c.Check(v) {
-			s := fmt.Sprintf("existing package %s@%s", lp.Identifier(), lp.Version)
+		if !anyVersionSatisfies(versions, c) {
+			s := fmt.Sprintf("existing package %s@%s", lp.Identifier(), strings.Join(versions, ","))
 			if dep.Constraints != "" {
 				s = fmt.Sprintf("%s is incompatible with constraint %s", s, strings.TrimSpace(dep.Constraints))
 			}
@@ -325,6 +323,24 @@ func (m *PackageDependencyManager) RemoveSelf(ctx context.Context, pr v1.Package
 	}
 
 	return nil
+}
+
+// anyVersionSatisfies reports whether any of the supplied versions satisfies
+// the constraint. Versions that aren't valid semantic versions (e.g. digests)
+// are skipped.
+func anyVersionSatisfies(versions []string, c *semver.Constraints) bool {
+	for _, v := range versions {
+		sv, err := semver.NewVersion(v)
+		if err != nil {
+			continue
+		}
+
+		if c.Check(sv) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // NDependenciesAndSomeMore returns the first n dependencies in detail, and a
