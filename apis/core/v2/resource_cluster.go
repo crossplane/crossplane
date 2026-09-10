@@ -46,6 +46,10 @@ type ClusterManagedResourceSpec struct {
 	// +kubebuilder:default={"*"}
 	ManagementPolicies ManagementPolicies `json:"managementPolicies,omitempty"`
 
+	// ManagementPoliciesOptions determines the behavior of the management actions in specific scenarios.
+	// +optional
+	ManagementPoliciesOptions *ManagementPoliciesOptions `json:"managementPoliciesOptions,omitempty"`
+
 	// DeletionPolicy specifies what will happen to the underlying external
 	// when this managed resource is deleted - either "Delete" or "Orphan" the
 	// external resource.

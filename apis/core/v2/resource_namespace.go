@@ -41,4 +41,7 @@ type ManagedResourceSpec struct {
 	// +optional
 	// +kubebuilder:default={"*"}
 	ManagementPolicies ManagementPolicies `json:"managementPolicies,omitempty"`
+	// ManagementPoliciesOptions determines the behavior of the management actions in specific scenarios.
+	// +optional
+	ManagementPoliciesOptions *ManagementPoliciesOptions `json:"managementPoliciesOptions,omitempty"`
 }
