@@ -586,6 +586,69 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				err: errors.New(`invalid ManagedResourceDefinition "empty-mrd": spec.versions must contain exactly one storage version; mark exactly one version as storage before retrying`),
 			},
 		},
+		"PreservesTruncatedManagedResourceDefinitionFields": {
+			reason: "Establishment should preserve optional fields from an existing ManagedResourceDefinition when they are absent from the desired object.",
+			args: args{
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{Data: map[string][]byte{"tls.crt": caBundle}}).DeepCopyInto(s)
+							return nil
+						}
+						if mrd, ok := obj.(*v1alpha1.ManagedResourceDefinition); ok {
+							(&v1alpha1.ManagedResourceDefinition{
+								ObjectMeta: metav1.ObjectMeta{Name: "truncated-mrd", ResourceVersion: "1"},
+								Spec: v1alpha1.ManagedResourceDefinitionSpec{
+									CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+										Versions: []v1alpha1.CustomResourceDefinitionVersion{{
+											Name:         "v1alpha1",
+											Served:       true,
+											Storage:      true,
+											Subresources: &extv1.CustomResourceSubresources{},
+										}},
+									},
+								},
+							}).DeepCopyInto(mrd)
+							return nil
+						}
+						return nil
+					},
+					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						mrd, ok := obj.(*v1alpha1.ManagedResourceDefinition)
+						if !ok || len(mrd.Spec.Versions) != 1 || mrd.Spec.Versions[0].Subresources == nil {
+							return errors.New("expected existing subresources to be preserved")
+						}
+						return nil
+					},
+				}),
+				objs: []runtime.Object{
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Name: "truncated-mrd"},
+						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+								Versions: []v1alpha1.CustomResourceDefinitionVersion{{
+									Name:    "v1alpha1",
+									Served:  true,
+									Storage: true,
+								}},
+							},
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: "test"},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
+				},
+				control: true,
+			},
+			want: want{
+				refs: []xpv2.TypedReference{{Name: "truncated-mrd"}},
+			},
+		},
 		"SuccessfulManagedResourceDefinitionUnsetState": {
 			reason: "Establishment should be successful for ManagedResourceDefinitions with various spec.state values.",
 			args: args{
