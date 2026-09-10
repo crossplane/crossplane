@@ -1903,3 +1903,81 @@ func TestPruneOutdatedDependencies(t *testing.T) {
 		})
 	}
 }
+
+func TestNewPackage(t *testing.T) {
+	type args struct {
+		version string
+		refA    string
+		refB    string
+	}
+
+	type want struct {
+		namesDiffer bool
+	}
+
+	fn := v1beta1.FunctionPackageType
+	dep := &v1beta1.Dependency{Type: &fn}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"LongSharedPrefixDependenciesGetDistinctNames": {
+			reason: "Two dependencies whose repositories share a prefix long enough to exhaust the Kubernetes 63 character name limit must not collapse to the same generated name (#7813).",
+			args: args{
+				version: "v1.0.0",
+				refA:    "reg.example.com/some-org/very-long-subgroup-path/that-is-definitely-longer-than-sixty-three-characters-total/foo",
+				refB:    "reg.example.com/some-org/very-long-subgroup-path/that-is-definitely-longer-than-sixty-three-characters-total/bar",
+			},
+			want: want{namesDiffer: true},
+		},
+		"ShortDistinctRepositoriesGetDistinctNames": {
+			reason: "Two short, obviously different repositories must also produce distinct names.",
+			args: args{
+				version: "v1.0.0",
+				refA:    "reg.example.com/foo",
+				refB:    "reg.example.com/bar",
+			},
+			want: want{namesDiffer: true},
+		},
+		"SameRepositoryOnDifferentRegistriesGetDistinctNames": {
+			reason: "The same repository path on two different registries is a different dependency and must not collapse to the same generated name.",
+			args: args{
+				version: "v1.0.0",
+				refA:    "registry-one.example.com/foo/bar",
+				refB:    "registry-two.example.com/foo/bar",
+			},
+			want: want{namesDiffer: true},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			refA, err := pkgName.ParseReference(tc.args.refA)
+			if err != nil {
+				t.Fatalf("could not parse test reference %q: %v", tc.args.refA, err)
+			}
+
+			refB, err := pkgName.ParseReference(tc.args.refB)
+			if err != nil {
+				t.Fatalf("could not parse test reference %q: %v", tc.args.refB, err)
+			}
+
+			packA, err := NewPackage(dep, tc.args.version, refA)
+			if err != nil {
+				t.Fatalf("NewPackage(...): unexpected error for refA: %v", err)
+			}
+
+			packB, err := NewPackage(dep, tc.args.version, refB)
+			if err != nil {
+				t.Fatalf("NewPackage(...): unexpected error for refB: %v", err)
+			}
+
+			differ := packA.GetName() != packB.GetName()
+			if diff := cmp.Diff(tc.want.namesDiffer, differ); diff != "" {
+				t.Errorf("\n%s\nNewPackage(...): -want namesDiffer, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
