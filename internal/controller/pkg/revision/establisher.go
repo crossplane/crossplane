@@ -728,12 +728,25 @@ func (e *APIEstablisher) merge(_ context.Context, c, d resource.Object) error {
 			return errors.Errorf("expected desired object to be *v1alpha1.ManagedResourceDefinition, got %T", d)
 		}
 
-		for i := range desired.Spec.Versions {
-			if i >= len(current.Spec.Versions) {
-				break
+		currentVersions := make(map[string]v1alpha1.CustomResourceDefinitionVersion, len(current.Spec.Versions))
+		for _, version := range current.Spec.Versions {
+			currentVersions[version.Name] = version
+		}
+		desiredVersions := make(map[string]struct{}, len(desired.Spec.Versions))
+		for _, version := range desired.Spec.Versions {
+			desiredVersions[version.Name] = struct{}{}
+		}
+		for name := range currentVersions {
+			if _, ok := desiredVersions[name]; !ok {
+				return errors.Errorf("invalid ManagedResourceDefinition %q: desired spec.versions must include all existing versions", desired.GetName())
 			}
+		}
 
-			currentVersion := current.Spec.Versions[i]
+		for i := range desired.Spec.Versions {
+			currentVersion, ok := currentVersions[desired.Spec.Versions[i].Name]
+			if !ok {
+				continue
+			}
 			desiredVersion := &desired.Spec.Versions[i]
 			if desiredVersion.Schema == nil {
 				desiredVersion.Schema = currentVersion.Schema.DeepCopy()

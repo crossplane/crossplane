@@ -649,6 +649,117 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				refs: []xpv2.TypedReference{{Name: "truncated-mrd"}},
 			},
 		},
+		"PreservesTruncatedManagedResourceDefinitionFieldsByVersionName": {
+			reason: "Establishment should preserve optional fields from the matching existing version when desired versions are reordered.",
+			args: args{
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{Data: map[string][]byte{"tls.crt": caBundle}}).DeepCopyInto(s)
+							return nil
+						}
+						if mrd, ok := obj.(*v1alpha1.ManagedResourceDefinition); ok {
+							(&v1alpha1.ManagedResourceDefinition{
+								ObjectMeta: metav1.ObjectMeta{Name: "reordered-mrd", ResourceVersion: "1"},
+								Spec: v1alpha1.ManagedResourceDefinitionSpec{
+									CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+										Versions: []v1alpha1.CustomResourceDefinitionVersion{
+											{Name: "v1", Served: true, Storage: true, AdditionalPrinterColumns: []extv1.CustomResourceColumnDefinition{{Name: "v1", Type: "string", JSONPath: ".spec.v1"}}},
+											{Name: "v2", Served: true, AdditionalPrinterColumns: []extv1.CustomResourceColumnDefinition{{Name: "v2", Type: "string", JSONPath: ".spec.v2"}}},
+										},
+									},
+								},
+							}).DeepCopyInto(mrd)
+							return nil
+						}
+						return nil
+					},
+					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						mrd, ok := obj.(*v1alpha1.ManagedResourceDefinition)
+						if !ok || len(mrd.Spec.Versions) != 2 || mrd.Spec.Versions[0].Name != "v2" || len(mrd.Spec.Versions[0].AdditionalPrinterColumns) != 1 || mrd.Spec.Versions[0].AdditionalPrinterColumns[0].Name != "v2" || mrd.Spec.Versions[1].Name != "v1" || len(mrd.Spec.Versions[1].AdditionalPrinterColumns) != 1 || mrd.Spec.Versions[1].AdditionalPrinterColumns[0].Name != "v1" {
+							return errors.New("expected printer columns to be preserved by version name")
+						}
+						return nil
+					},
+				}),
+				objs: []runtime.Object{
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Name: "reordered-mrd"},
+						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+								Versions: []v1alpha1.CustomResourceDefinitionVersion{
+									{Name: "v2", Served: true},
+									{Name: "v1", Served: true, Storage: true},
+								},
+							},
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
+				},
+				control: true,
+			},
+			want: want{
+				refs: []xpv2.TypedReference{{Name: "reordered-mrd"}},
+			},
+		},
+		"RejectsTruncatedManagedResourceDefinitionVersionList": {
+			reason: "Establishment should reject a desired ManagedResourceDefinition that omits an existing version before updating it.",
+			args: args{
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{Data: map[string][]byte{"tls.crt": caBundle}}).DeepCopyInto(s)
+							return nil
+						}
+						if mrd, ok := obj.(*v1alpha1.ManagedResourceDefinition); ok {
+							(&v1alpha1.ManagedResourceDefinition{
+								ObjectMeta: metav1.ObjectMeta{Name: "shortened-mrd", ResourceVersion: "1"},
+								Spec: v1alpha1.ManagedResourceDefinitionSpec{
+									CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+										Versions: []v1alpha1.CustomResourceDefinitionVersion{
+											{Name: "v1", Served: true, Storage: true},
+											{Name: "v2", Served: true},
+										},
+									},
+								},
+							}).DeepCopyInto(mrd)
+							return nil
+						}
+						return nil
+					},
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+						return errors.New("unexpected update")
+					},
+				}),
+				objs: []runtime.Object{
+					&v1alpha1.ManagedResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{Name: "shortened-mrd"},
+						Spec: v1alpha1.ManagedResourceDefinitionSpec{
+							CustomResourceDefinitionSpec: v1alpha1.CustomResourceDefinitionSpec{
+								Versions: []v1alpha1.CustomResourceDefinitionVersion{{Name: "v1", Served: true, Storage: true}},
+							},
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
+				},
+				control: true,
+			},
+			want: want{
+				err: errors.New(`invalid ManagedResourceDefinition "shortened-mrd": desired spec.versions must include all existing versions`),
+			},
+		},
 		"SuccessfulManagedResourceDefinitionUnsetState": {
 			reason: "Establishment should be successful for ManagedResourceDefinitions with various spec.state values.",
 			args: args{
