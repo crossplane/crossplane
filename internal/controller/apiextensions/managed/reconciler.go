@@ -22,6 +22,7 @@ import (
 	"time"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -156,6 +157,11 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		return reconcile.Result{}, errors.Wrap(err, "cannot form CustomResourceDefinition")
 	}
 
+	// The CRD's controller follows the MRD's, so an upgrade hands the CRD
+	// over between package revisions just as it hands the MRD over. See
+	// handOverControl for why the apply below can't do that on its own.
+	handOverControl(patch, crd)
+
 	// Server-side apply the CRD. This handles both create and update.
 	// The Patch call updates patch in-place with the server response.
 	//
@@ -197,6 +203,40 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	}
 
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+}
+
+// handOverControl lets the CRD we are about to apply take control from the
+// package revision that still controls the live one, by declaring that
+// revision's owner reference alongside ours, demoted to a plain owner.
+//
+// We need this because the old reference may have been written by another
+// field manager, for example client-side by the establisher of an older
+// Crossplane. Server-side apply merges owner references by UID and only prunes
+// entries we own, so that entry survives our apply, and adding a second
+// controller next to it is rejected. Declaring it demoted flips it in the same
+// write and makes it ours, so the next apply, which no longer declares it,
+// prunes it.
+//
+// We only do this for a revision of the same group and kind as the MRD's
+// controller. The establisher already decides which revision controls the
+// MRD, so the CRD just follows. Anything else keeps control and the apply
+// fails as it always has.
+func handOverControl(patch, crd metav1.Object) {
+	want := metav1.GetControllerOf(patch)
+	got := metav1.GetControllerOf(crd)
+
+	if want == nil || got == nil || got.UID == want.UID {
+		return
+	}
+
+	// Compare group and kind rather than the whole API version, since the API
+	// server may serve the revision's type at more than one.
+	if schema.FromAPIVersionAndKind(got.APIVersion, got.Kind).GroupKind() != schema.FromAPIVersionAndKind(want.APIVersion, want.Kind).GroupKind() {
+		return
+	}
+
+	got.Controller = new(false)
+	meta.AddOwnerReference(patch, *got)
 }
 
 // protectionEnabled returns true if provider deletion protection is enabled.

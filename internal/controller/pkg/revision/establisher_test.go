@@ -1158,6 +1158,299 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 	}
 }
 
+func TestAPIEstablisherDemoteOldController(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	prAPIVersion := v1.ProviderRevisionGroupVersionKind.GroupVersion().String()
+
+	// The revision that wants to take control.
+	newParent := func() *v1.ProviderRevision {
+		pr := &v1.ProviderRevision{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "cool-package-b",
+				UID:    "uid-b",
+				Labels: map[string]string{v1.LabelParentPackage: "cool-package"},
+			},
+		}
+		pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+
+		return pr
+	}
+
+	// The controlling owner reference newParent() wants.
+	want := metav1.OwnerReference{
+		APIVersion:         prAPIVersion,
+		Kind:               v1.ProviderRevisionGroupVersionKind.Kind,
+		Name:               "cool-package-b",
+		UID:                "uid-b",
+		Controller:         new(true),
+		BlockOwnerDeletion: new(true),
+	}
+
+	// A controlling owner reference held by the revision we're replacing.
+	outgoing := metav1.OwnerReference{
+		APIVersion:         prAPIVersion,
+		Kind:               v1.ProviderRevisionGroupVersionKind.Kind,
+		Name:               "cool-package-a",
+		UID:                "uid-a",
+		Controller:         new(true),
+		BlockOwnerDeletion: new(true),
+	}
+
+	// The parent package's owner reference, which every established object
+	// carries alongside the revision's, and which we must never touch.
+	pkgOwner := metav1.OwnerReference{
+		APIVersion:         v1.ProviderGroupVersionKind.GroupVersion().String(),
+		Kind:               v1.ProviderGroupVersionKind.Kind,
+		Name:               "cool-package",
+		UID:                "uid-pkg",
+		Controller:         new(false),
+		BlockOwnerDeletion: new(true),
+	}
+
+	// The same reference, as an older version of Crossplane would have written
+	// it, through the API version it served our type at back then.
+	outgoingOldAPIVersion := func() metav1.OwnerReference {
+		r := outgoing
+		r.APIVersion = "pkg.crossplane.io/v1beta1"
+
+		return r
+	}()
+
+	// The same reference, demoted to a plain owner.
+	released := func() metav1.OwnerReference {
+		r := outgoing
+		r.Controller = new(false)
+
+		return r
+	}()
+
+	// The older-API-version reference, demoted to a plain owner.
+	releasedOldAPIVersion := func() metav1.OwnerReference {
+		r := outgoingOldAPIVersion
+		r.Controller = new(false)
+
+		return r
+	}()
+
+	// Returns a revision with the supplied UID, package label, and desired state.
+	revision := func(uid types.UID, pkg string, state v1.PackageRevisionDesiredState) func(context.Context, client.ObjectKey, client.Object) error {
+		return func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+			pr, ok := obj.(*v1.ProviderRevision)
+			if !ok {
+				t.Errorf("want *v1.ProviderRevision, got %T", obj)
+				return nil
+			}
+
+			pr.SetName(key.Name)
+			pr.SetUID(uid)
+			pr.SetLabels(map[string]string{v1.LabelParentPackage: pkg})
+			pr.SetDesiredState(state)
+
+			return nil
+		}
+	}
+
+	type args struct {
+		client client.Client
+		obj    resource.Object
+		parent resource.Object
+	}
+
+	type wantT struct {
+		err  error
+		refs []metav1.OwnerReference
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   wantT
+	}{
+		"NoController": {
+			reason: "An object with no controller should be left alone, so we can simply become its controller.",
+			args: args{
+				obj: &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{released},
+				}},
+				parent: newParent(),
+			},
+			want: wantT{refs: []metav1.OwnerReference{released}},
+		},
+		"AlreadyOurs": {
+			reason: "An object we already control should be left alone.",
+			args: args{
+				obj: &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{want},
+				}},
+				parent: newParent(),
+			},
+			want: wantT{refs: []metav1.OwnerReference{want}},
+		},
+		"ControlledByAnotherKind": {
+			reason: "We should not take control from a controller that isn't a revision of our kind.",
+			args: args{
+				obj: &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: prAPIVersion,
+						Kind:       "Provider",
+						Name:       "cool-package",
+						UID:        "uid-pkg",
+						Controller: new(true),
+					}},
+				}},
+				parent: newParent(),
+			},
+			want: wantT{refs: []metav1.OwnerReference{{
+				APIVersion: prAPIVersion,
+				Kind:       "Provider",
+				Name:       "cool-package",
+				UID:        "uid-pkg",
+				Controller: new(true),
+			}}},
+		},
+		"ControlledByAnotherAPIVersionOfOurKind": {
+			reason: "We should take control from a revision of our own group and kind whose owner reference was written through another API version, since the API server may serve our type at more than one.",
+			args: args{
+				client: &test.MockClient{MockGet: revision("uid-a", "cool-package", v1.PackageRevisionInactive)},
+				obj: &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{outgoingOldAPIVersion},
+				}},
+				parent: newParent(),
+			},
+			want: wantT{refs: []metav1.OwnerReference{releasedOldAPIVersion}},
+		},
+		"ControlledByAnotherGroup": {
+			reason: "We should not take control from a controller of another group, even if it shares our kind.",
+			args: args{
+				obj: &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: "pkg.example.org/v1",
+						Kind:       v1.ProviderRevisionGroupVersionKind.Kind,
+						Name:       "cool-package-a",
+						UID:        "uid-a",
+						Controller: new(true),
+					}},
+				}},
+				parent: newParent(),
+			},
+			want: wantT{refs: []metav1.OwnerReference{{
+				APIVersion: "pkg.example.org/v1",
+				Kind:       v1.ProviderRevisionGroupVersionKind.Kind,
+				Name:       "cool-package-a",
+				UID:        "uid-a",
+				Controller: new(true),
+			}}},
+		},
+		"OtherOwnersAreLeftAlone": {
+			reason: "We should demote only the controller we're taking over from, leaving the parent package's owner reference untouched and in place.",
+			args: args{
+				client: &test.MockClient{MockGet: revision("uid-a", "cool-package", v1.PackageRevisionInactive)},
+				obj: &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{pkgOwner, outgoing},
+				}},
+				parent: newParent(),
+			},
+			want: wantT{refs: []metav1.OwnerReference{pkgOwner, released}},
+		},
+		"ControlledByInactiveRevisionOfSamePackage": {
+			reason: "We should take control from an inactive revision of our package, e.g. one that hasn't relinquished control yet.",
+			args: args{
+				client: &test.MockClient{MockGet: revision("uid-a", "cool-package", v1.PackageRevisionInactive)},
+				obj: &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{outgoing},
+				}},
+				parent: newParent(),
+			},
+			want: wantT{refs: []metav1.OwnerReference{released}},
+		},
+		"ControlledByDeletedRevision": {
+			reason: "We should take control from a revision that no longer exists, since it can never relinquish it.",
+			args: args{
+				client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "cool-package-a"))},
+				obj: &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{outgoing},
+				}},
+				parent: newParent(),
+			},
+			want: wantT{refs: []metav1.OwnerReference{released}},
+		},
+		"ControlledByActiveRevisionOfSamePackage": {
+			reason: "We should not take control from a revision of our package that is still active, so that a stale reconcile can't take control back from the revision that replaced it.",
+			args: args{
+				client: &test.MockClient{MockGet: revision("uid-a", "cool-package", v1.PackageRevisionActive)},
+				obj: &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{outgoing},
+				}},
+				parent: newParent(),
+			},
+			want: wantT{refs: []metav1.OwnerReference{outgoing}},
+		},
+		"ControlledByReplacedRevision": {
+			reason: "We should take control from a revision that was replaced by one with the same name, as happens when Crossplane is upgraded, whatever state the replacement is in.",
+			args: args{
+				client: &test.MockClient{MockGet: revision("uid-a-new", "cool-package", v1.PackageRevisionActive)},
+				obj: &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{outgoing},
+				}},
+				parent: newParent(),
+			},
+			want: wantT{refs: []metav1.OwnerReference{released}},
+		},
+		"ControlledByRevisionOfAnotherPackage": {
+			reason: "We should not take control from a revision of a different package.",
+			args: args{
+				client: &test.MockClient{MockGet: revision("uid-a", "uncool-package", v1.PackageRevisionInactive)},
+				obj: &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{outgoing},
+				}},
+				parent: newParent(),
+			},
+			want: wantT{refs: []metav1.OwnerReference{outgoing}},
+		},
+		"ParentHasNoPackageLabel": {
+			reason: "We should not take control if we can't tell which package we belong to.",
+			args: args{
+				obj: &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{outgoing},
+				}},
+				parent: &v1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "cool-package-b", UID: "uid-b"}},
+			},
+			want: wantT{refs: []metav1.OwnerReference{outgoing}},
+		},
+		"GetControllingRevisionError": {
+			reason: "We should return an error if we can't tell whether the controlling revision is one of ours.",
+			args: args{
+				client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+				obj: &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{outgoing},
+				}},
+				parent: newParent(),
+			},
+			want: wantT{
+				err:  errors.Wrapf(errBoom, errFmtGetControllingRevision, v1.ProviderRevisionGroupVersionKind.Kind, "cool-package-a"),
+				refs: []metav1.OwnerReference{outgoing},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			e := newAPIEstablisher(tc.args.client)
+
+			err := e.demoteOldController(context.TODO(), tc.args.obj, tc.args.parent, want)
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ne.demoteOldController(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.refs, tc.args.obj.GetOwnerReferences()); diff != "" {
+				t.Errorf("\n%s\ne.demoteOldController(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestGetPackageOwnerReference(t *testing.T) {
 	type args struct {
 		revision resource.Object
@@ -1459,6 +1752,7 @@ func TestAddAnnotations(t *testing.T) {
 func newAPIEstablisher(client client.Client) *APIEstablisher {
 	return &APIEstablisher{
 		client:                           client,
+		newPackageRevision:               func() v1.PackageRevision { return &v1.ProviderRevision{} },
 		MaxConcurrentPackageEstablishers: 10, // Use the current default
 	}
 }
