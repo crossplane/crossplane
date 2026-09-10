@@ -727,6 +727,28 @@ func (e *APIEstablisher) merge(_ context.Context, c, d resource.Object) error {
 		if !ok {
 			return errors.Errorf("expected desired object to be *v1alpha1.ManagedResourceDefinition, got %T", d)
 		}
+
+		for i := range desired.Spec.Versions {
+			if i >= len(current.Spec.Versions) {
+				break
+			}
+
+			currentVersion := current.Spec.Versions[i]
+			desiredVersion := &desired.Spec.Versions[i]
+			if desiredVersion.Schema == nil {
+				desiredVersion.Schema = currentVersion.Schema.DeepCopy()
+			}
+			if desiredVersion.Subresources == nil {
+				desiredVersion.Subresources = currentVersion.Subresources.DeepCopy()
+			}
+			if desiredVersion.AdditionalPrinterColumns == nil {
+				desiredVersion.AdditionalPrinterColumns = slices.Clone(currentVersion.AdditionalPrinterColumns)
+			}
+			if desiredVersion.SelectableFields == nil {
+				desiredVersion.SelectableFields = slices.Clone(currentVersion.SelectableFields)
+			}
+		}
+
 		// Managed Resource Definitions' spec.state is controlled outside the APIEstablisher.
 		if !desired.Spec.State.IsActive() {
 			desired.Spec.State = current.Spec.State
