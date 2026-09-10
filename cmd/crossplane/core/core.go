@@ -114,6 +114,7 @@ type startCommand struct {
 	MinPollInterval                  time.Duration `default:"1s"                 help:"Minimum per-resource poll interval allowed via the crossplane.io/poll-interval annotation."`
 	MaxConcurrentReconciles          int           `aliases:"max-reconcile-rate" default:"100"                                                                                            help:"The maximum number of concurrent reconcile operations (worker pool size)."`
 	MaxConcurrentPackageEstablishers int           `default:"10"                 help:"The maximum number of goroutines to use for establishing Providers, Configurations and Functions."`
+	PackagePollInterval              time.Duration `default:"1m"                 help:"How often packages with PullPolicy Always are re-checked for updated content in the registry. Distinct from --poll-interval (drift detection) to avoid coupling drift checks to expensive registry re-pulls."`
 
 	CircuitBreakerBurst      float64       `default:"100.0" help:"XR circuit breaker token bucket capacity."`
 	CircuitBreakerRefillRate float64       `default:"1.0"   help:"XR circuit breaker token refill rate (tokens/second)."`
@@ -637,6 +638,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		ServiceAccount:                   c.ServiceAccount,
 		PackageRuntime:                   pr,
 		MaxConcurrentPackageEstablishers: c.MaxConcurrentPackageEstablishers,
+		PackagePollInterval:              c.PackagePollInterval,
 	}
 
 	if err := pkg.Setup(mgr, po); err != nil {
