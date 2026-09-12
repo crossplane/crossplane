@@ -118,8 +118,17 @@ spec:
                 fieldPath: metadata.namespace
           - name: "WEBHOOK_SERVICE_PORT"
             value: "9443"
+          {{- if not (has .Values.webhooks.usage.failurePolicy (list "Fail" "Ignore")) }}
+          {{- fail "webhooks.usage.failurePolicy must be one of Fail or Ignore" }}
+          {{- end }}
+          - name: "USAGE_WEBHOOK_FAILURE_POLICY"
+            value: "{{ .Values.webhooks.usage.failurePolicy }}"
           {{- else }}
           - name: "ENABLE_WEBHOOKS"
+            value: "false"
+          {{- end }}
+          {{- if not .Values.usages.enabled }}
+          - name: "ENABLE_USAGES"
             value: "false"
           {{- end }}
           - name: "TLS_CA_SECRET_NAME"
@@ -197,6 +206,10 @@ spec:
           {{- end}}
           {{- if not .Values.webhooks.enabled }}
           - name: "ENABLE_WEBHOOKS"
+            value: "false"
+          {{- end }}
+          {{- if not .Values.usages.enabled }}
+          - name: "ENABLE_USAGES"
             value: "false"
           {{- end }}
           {{- if and .Values.webhooks.enabled .Values.webhooks.port }}

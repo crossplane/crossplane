@@ -90,6 +90,13 @@ webhooks:
   enabled: true
   # -- The port the webhook server listens on.
   port: ""
+  usage:
+    # -- The `failurePolicy` of the Usage deletion protection webhook (`crossplane-no-usages`). One of `Fail` or `Ignore`. Set to `Ignore` for compatibility with managed Kubernetes operations that reject `Fail`-policy webhooks with wildcard rules, such as Azure AKS cluster stop.
+    failurePolicy: Fail
+
+usages:
+  # -- Enable support for deletion ordering and resource protection with Usages (beta, enabled by default). When disabled, the Usage deletion protection webhook is not installed.
+  enabled: true
 
 rbacManager:
   # -- Deploy the RBAC Manager pod and its required roles.

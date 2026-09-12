@@ -157,6 +157,8 @@ jobs:
             test-suite: ops
           - test-area: mrap
             test-suite: mrap
+          - test-area: protection
+            test-suite: usage-webhook-ignore-failure-policy
 
     steps:
       - name: Checkout
