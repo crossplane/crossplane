@@ -19,6 +19,8 @@ package lifecycle
 
 import (
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -35,6 +37,44 @@ func LatestCreateTime(ops ...v1alpha1.Operation) time.Time {
 	for _, op := range ops {
 		if t := op.GetCreationTimestamp(); t.After(latest) {
 			latest = t.Time
+		}
+	}
+
+	return latest
+}
+
+// LatestScheduledTime returns the latest schedule time encoded in the names
+// of the supplied Operations, for the CronOperation with the supplied name.
+//
+// CronOperation names the Operations it creates "<cronName>-<unix>", where
+// unix is the Unix timestamp of the schedule slot the Operation was created
+// for (see cronoperation.NewOperation). Deriving the latest schedule time
+// from this name - rather than from the Operations' Kubernetes
+// creationTimestamp - avoids clock skew between the controller and the API
+// server: creationTimestamp is stamped by the API server's clock and can
+// land a second or more before or after the schedule boundary the
+// controller computed, which would otherwise cause the controller to
+// recompute the same scheduled slot forever.
+//
+// Operations that don't match the expected name format (e.g. because they
+// weren't created by this CronOperation) are ignored.
+func LatestScheduledTime(cronName string, ops ...v1alpha1.Operation) time.Time {
+	prefix := cronName + "-"
+	latest := time.Time{}
+
+	for _, op := range ops {
+		suffix, ok := strings.CutPrefix(op.GetName(), prefix)
+		if !ok {
+			continue
+		}
+
+		unix, err := strconv.ParseInt(suffix, 10, 64)
+		if err != nil {
+			continue
+		}
+
+		if t := time.Unix(unix, 0); t.After(latest) {
+			latest = t
 		}
 	}
 

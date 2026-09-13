@@ -23,6 +23,7 @@ import (
 	"slices"
 	"time"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -111,9 +112,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// Derive our last scheduled time from the last time we created an
-	// Operation.
-	if t := lifecycle.LatestCreateTime(ol.Items...); !t.IsZero() {
+	// Derive our last scheduled time from the scheduled time encoded in the
+	// name of the last Operation we created. We use the name - not the
+	// Operation's creationTimestamp - because creationTimestamp is set by
+	// the API server's clock, which can differ from the controller's clock
+	// by a second or more. That skew could otherwise make Next() below
+	// recompute the same scheduled slot forever, since the Operation we'd
+	// try to create already exists (see
+	// https://github.com/crossplane/crossplane/issues/7524).
+	if t := lifecycle.LatestScheduledTime(co.GetName(), ol.Items...); !t.IsZero() {
 		co.Status.LastScheduleTime = &metav1.Time{Time: t}
 	}
 
@@ -211,7 +218,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	op := NewOperation(co, next)
-	if err := r.client.Create(ctx, op); err != nil {
+	if err := createOperationIfNotExists(ctx, r.client, op); err != nil {
 		log.Debug("Cannot create scheduled Operation", "error", err, "operation", op.GetName())
 		err = errors.Wrapf(err, "cannot create scheduled Operation %q", op.GetName())
 		r.record.Event(co, event.Warning(reasonCreateOperation, err))
@@ -220,11 +227,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// We rely on our watch to add the new Operation to status at the top of
-	// the Reconcile.
+	// We rely on our watch to add the new (or pre-existing) Operation to
+	// status at the top of the Reconcile.
 
 	status.MarkConditions(xpv2.ReconcileSuccess())
 	return reconcile.Result{RequeueAfter: future.Sub(now)}, errors.Wrap(r.client.Status().Update(ctx, co), "cannot update CronOperation status")
+}
+
+// createOperationIfNotExists creates op, unless an Operation with the same
+// name already exists. An Operation already existing under the exact name
+// we just computed isn't an error: it means an Operation for this schedule
+// slot already exists, whether because we're retrying a partially failed
+// reconcile, or because our cache hasn't yet observed an Operation that an
+// earlier reconcile created. Either way the state we wanted already exists.
+func createOperationIfNotExists(ctx context.Context, c client.Client, op *v1alpha1.Operation) error {
+	err := c.Create(ctx, op)
+	if kerrors.IsAlreadyExists(err) {
+		return nil
+	}
+
+	return err
 }
 
 // NewOperation creates a new operation given the CronOperation's template.
