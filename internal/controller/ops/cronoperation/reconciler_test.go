@@ -18,6 +18,7 @@ package cronoperation
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -573,6 +574,178 @@ func TestReconcile(t *testing.T) {
 				t.Errorf("\n%s\nr.Reconcile(...): -want result, +got result:\n%s", tc.reason, diff)
 			}
 		})
+	}
+}
+
+// TestReconcileClockSkewCollision reproduces
+// https://github.com/crossplane/crossplane/issues/7524.
+//
+// It simulates an Operation that was created for a scheduled slot, but
+// whose K8s creationTimestamp was stamped by the API server ~1s before that
+// slot's boundary (clock skew between the controller and the API server).
+//
+// Before the fix, LastScheduleTime is derived from the skewed
+// creationTimestamp, so Next(schedule, creationTimestamp) recomputes the
+// *same* scheduled slot on every subsequent reconcile, and the controller
+// tries - forever - to re-create an Operation that already exists.
+//
+// After the fix, LastScheduleTime is derived from the scheduled time
+// encoded in the Operation's own name, which is not affected by clock
+// skew, so the controller correctly advances to the next slot instead of
+// colliding with the existing Operation.
+func TestReconcileClockSkewCollision(t *testing.T) {
+	now := time.Now().UTC()
+
+	// A real "*/5 * * * *" tick, comfortably in the past so it's due.
+	boundary := now.Truncate(5 * time.Minute)
+	scheduled := boundary.Add(-10 * time.Minute)
+
+	// The API server stamped creationTimestamp 1s *before* the scheduled
+	// boundary - the clock skew described in the issue.
+	skewedCreation := scheduled.Add(-1 * time.Second)
+
+	// The CronOperation itself is much older, so its own creation
+	// timestamp is never the deciding factor here.
+	coCreation := scheduled.Add(-24 * time.Hour)
+
+	existingOpName := fmt.Sprintf("test-cron-%d", scheduled.Unix())
+
+	c := &test.MockClient{
+		MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+			co := &v1alpha1.CronOperation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test-cron",
+					CreationTimestamp: metav1.Time{Time: coCreation},
+				},
+				Spec: v1alpha1.CronOperationSpec{
+					Schedule: "*/5 * * * *",
+					OperationTemplate: v1alpha1.OperationTemplate{
+						Spec: v1alpha1.OperationSpec{
+							Mode: v1alpha1.OperationModePipeline,
+							Pipeline: []v1alpha1.PipelineStep{
+								{
+									Step:        "test-step",
+									FunctionRef: v1alpha1.FunctionReference{Name: "test-function"},
+								},
+							},
+						},
+					},
+				},
+			}
+			co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+			return nil
+		}),
+		MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+			list := obj.(*v1alpha1.OperationList)
+			list.Items = []v1alpha1.Operation{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              existingOpName,
+						CreationTimestamp: metav1.Time{Time: skewedCreation},
+					},
+					Status: v1alpha1.OperationStatus{
+						ConditionedStatus: xpv2.ConditionedStatus{
+							Conditions: []xpv2.Condition{
+								{
+									Type:   v1alpha1.TypeSucceeded,
+									Status: "True",
+									Reason: v1alpha1.ReasonPipelineSuccess,
+								},
+							},
+						},
+					},
+				},
+			}
+			return nil
+		}),
+		MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
+			op := obj.(*v1alpha1.Operation)
+			if op.GetName() == existingOpName {
+				// The exact race from the issue: the controller tries to
+				// recreate the Operation that already occupies this slot.
+				return kerrors.NewAlreadyExists(schema.GroupResource{Resource: "operations"}, op.GetName())
+			}
+			return nil
+		}),
+		MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+	}
+
+	// Deliberately use the real cron scheduler (the Reconciler's default),
+	// not a mocked one, so we exercise the actual Next() computation the
+	// issue describes.
+	r := NewReconciler(c)
+
+	got, err := r.Reconcile(context.Background(), reconcile.Request{
+		NamespacedName: types.NamespacedName{Name: "test-cron"},
+	})
+	if err != nil {
+		t.Errorf("r.Reconcile(...): unexpected error - this is the infinite AlreadyExists loop from issue #7524: %v", err)
+	}
+
+	if got.RequeueAfter <= 0 {
+		t.Errorf("r.Reconcile(...): got RequeueAfter = %v, want a positive requeue interval for the next tick", got.RequeueAfter)
+	}
+}
+
+// TestReconcileCreateAlreadyExistsIsTreatedAsSuccess exercises the
+// defensive half of the fix for issue #7524: even independent of the
+// clock-skew root cause, if Create() reports AlreadyExists for the exact
+// Operation name we just computed, that's not a real error - an Operation
+// for this schedule slot already exists (e.g. because our informer cache
+// hasn't yet observed an Operation created by an earlier reconcile). The
+// controller should treat that as success rather than erroring out and
+// requeuing forever.
+func TestReconcileCreateAlreadyExistsIsTreatedAsSuccess(t *testing.T) {
+	now := time.Now()
+	past := now.Add(-time.Hour)
+	future := now.Add(time.Hour)
+	due := now.Add(-time.Minute)
+
+	calls := 0
+	c := &test.MockClient{
+		MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+			co := &v1alpha1.CronOperation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test-cron",
+					CreationTimestamp: metav1.Time{Time: past},
+				},
+				Spec: v1alpha1.CronOperationSpec{
+					Schedule: "0 * * * *",
+				},
+			}
+			co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+			return nil
+		}),
+		// The Operation that already occupies this slot isn't visible in
+		// our list yet (e.g. informer cache lag after a partial previous
+		// reconcile).
+		MockList: test.NewMockListFn(nil),
+		MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
+			return kerrors.NewAlreadyExists(schema.GroupResource{Resource: "operations"}, obj.(*v1alpha1.Operation).GetName())
+		}),
+		MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+	}
+
+	r := NewReconciler(c, WithScheduler(SchedulerFn(func(_ string, _ time.Time) (time.Time, error) {
+		calls++
+		if calls == 1 {
+			// First call determines "next" - due now.
+			return due, nil
+		}
+		// Second call determines "future".
+		return future, nil
+	})))
+
+	got, err := r.Reconcile(context.Background(), reconcile.Request{
+		NamespacedName: types.NamespacedName{Name: "test-cron"},
+	})
+	if err != nil {
+		t.Errorf("r.Reconcile(...): unexpected error treating Create's AlreadyExists as success: %v", err)
+	}
+
+	want := reconcile.Result{RequeueAfter: future.Sub(now)}
+	if diff := cmp.Diff(want, got, EquateApproxDuration(time.Second)); diff != "" {
+		t.Errorf("r.Reconcile(...): -want, +got:\n%s", diff)
 	}
 }
 
