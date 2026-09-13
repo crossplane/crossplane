@@ -24,6 +24,7 @@ import (
 	"maps"
 	"reflect"
 	"slices"
+	"sort"
 	"strings"
 
 	"golang.org/x/sync/errgroup"
@@ -652,7 +653,25 @@ func (e *APIEstablisher) prepareApply(ctx context.Context, current, desired, par
 	delete(want.Object, "apiVersion")
 	delete(want.Object, "kind")
 
+	// Kubernetes treats finalizers as an unordered set. jsonSubset compares
+	// arrays by position, so sort both sides the same way to avoid treating a
+	// reordering (e.g. another controller removing and re-adding its own
+	// finalizer) as a change to apply.
+	sortFinalizers(want.Object)
+	sortFinalizers(cu)
+
 	return apply, !jsonSubset(want.Object, cu), nil
+}
+
+// sortFinalizers sorts obj's metadata.finalizers in place, if present.
+func sortFinalizers(obj map[string]any) {
+	f, ok, err := unstructured.NestedStringSlice(obj, "metadata", "finalizers")
+	if err != nil || !ok {
+		return
+	}
+
+	sort.Strings(f)
+	_ = unstructured.SetNestedStringSlice(obj, f, "metadata", "finalizers")
 }
 
 // demoteOldController demotes obj's controller owner reference to a plain owner

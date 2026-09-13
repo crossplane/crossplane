@@ -132,6 +132,35 @@ func TestAPIEstablisherPrepareApply(t *testing.T) {
 		}
 	})
 
+	t.Run("IgnoreFinalizerOrder", func(t *testing.T) {
+		desired := &corev1.ConfigMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "ConfigMap"},
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Finalizers: []string{"a.example.org", "b.example.org"}},
+		}
+		current := desired.DeepCopy()
+		current.SetOwnerReferences([]metav1.OwnerReference{pkgRef, controllerRef})
+
+		e := newAPIEstablisher(nil)
+		apply, _, err := e.prepareApply(context.Background(), current, desired, parent, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		current.SetAnnotations(map[string]string{
+			annotationKeyEstablisherHash: apply.GetAnnotations()[annotationKeyEstablisherHash],
+		})
+		// Another actor removed and re-added its finalizer, changing its
+		// position without changing the resource's set of finalizers.
+		current.SetFinalizers([]string{"b.example.org", "a.example.org"})
+
+		_, needed, err := e.prepareApply(context.Background(), current, desired, parent, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if needed {
+			t.Error("prepareApply(...) reported a change caused only by finalizer order")
+		}
+	})
+
 	t.Run("PreserveExistingOwnersWithoutControl", func(t *testing.T) {
 		userRef := metav1.OwnerReference{APIVersion: "example.org/v1", Kind: "Owner", Name: "user", UID: "user-uid"}
 		current := &corev1.ConfigMap{
