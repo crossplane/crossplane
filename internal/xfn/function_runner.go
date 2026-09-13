@@ -26,6 +26,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -73,6 +74,22 @@ const svcConfig = `
 	]
 }`
 
+// gRPC client keepalive parameters. Without keepalive, a connection to a
+// Function pod that goes away without closing its TCP connection (e.g. due to
+// a node failure or network partition) is never detected as broken. Its
+// subconn stays READY, so round_robin keeps routing RPCs to it and gRPC never
+// re-resolves the Function's Service. Keepalive pings detect the dead
+// connection, which drops the subconn and triggers re-resolution.
+//
+// gRPC servers respond to pings more frequent than their keepalive
+// EnforcementPolicy MinTime with a GOAWAY. The default MinTime is five minutes,
+// and Function servers built with the Crossplane SDKs use that default, so we
+// don't ping more often than that.
+const (
+	defaultKeepaliveTime    = 5 * time.Minute
+	defaultKeepaliveTimeout = 20 * time.Second
+)
+
 // A FunctionRunner runs a composition function.
 type FunctionRunner interface {
 	// RunFunction runs the named composition function.
@@ -95,6 +112,7 @@ func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fn
 type PackagedFunctionRunner struct {
 	client       client.Reader
 	creds        credentials.TransportCredentials
+	keepalive    keepalive.ClientParameters
 	interceptors []InterceptorCreator
 
 	connsMx sync.RWMutex
@@ -128,6 +146,14 @@ func WithTLSConfig(cfg *tls.Config) PackagedFunctionRunnerOption {
 	}
 }
 
+// WithKeepaliveParameters configures the gRPC client keepalive parameters the
+// PackagedFunctionRunner should use for its connections to Functions.
+func WithKeepaliveParameters(kp keepalive.ClientParameters) PackagedFunctionRunnerOption {
+	return func(r *PackagedFunctionRunner) {
+		r.keepalive = kp
+	}
+}
+
 // WithInterceptorCreators configures the interceptors the
 // PackagedFunctionRunner should create for each function.
 func WithInterceptorCreators(ics ...InterceptorCreator) PackagedFunctionRunnerOption {
@@ -142,8 +168,12 @@ func NewPackagedFunctionRunner(c client.Reader, o ...PackagedFunctionRunnerOptio
 	r := &PackagedFunctionRunner{
 		client: c,
 		creds:  insecure.NewCredentials(),
-		conns:  make(map[string]*grpc.ClientConn),
-		log:    logging.NewNopLogger(),
+		keepalive: keepalive.ClientParameters{
+			Time:    defaultKeepaliveTime,
+			Timeout: defaultKeepaliveTimeout,
+		},
+		conns: make(map[string]*grpc.ClientConn),
+		log:   logging.NewNopLogger(),
 	}
 
 	for _, fn := range o {
@@ -254,6 +284,7 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 	conn, err := grpc.NewClient(active.Status.Endpoint,
 		grpc.WithTransportCredentials(r.creds),
 		grpc.WithDefaultServiceConfig(svcConfig),
+		grpc.WithKeepaliveParams(r.keepalive),
 		grpc.WithChainUnaryInterceptor(is...))
 	if err != nil {
 		return nil, errors.Wrapf(err, errFmtDialFunction, active.Status.Endpoint, active.GetName())
