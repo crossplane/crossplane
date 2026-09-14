@@ -99,11 +99,14 @@ func (c *Command) Run() error {
 type startCommand struct {
 	Profile string `help:"Serve runtime profiling data via HTTP at /debug/pprof." placeholder:"host:port"`
 
-	Namespace      string `default:"crossplane-system"     env:"POD_NAMESPACE"                                                      help:"Namespace used to unpack and run packages."                      short:"n"`
-	ServiceAccount string `default:"crossplane"            env:"POD_SERVICE_ACCOUNT"                                                help:"Name of the Crossplane Service Account."`
-	LeaderElection bool   `default:"false"                 env:"LEADER_ELECTION"                                                    help:"Use leader election for the controller manager."                 short:"l"`
-	CABundlePath   string `env:"CA_BUNDLE_PATH"            help:"Additional CA bundle to use when fetching packages from registry."`
-	UserAgent      string `default:"${default_user_agent}" env:"USER_AGENT"                                                         help:"The User-Agent header that will be set on all package requests."`
+	Namespace                   string        `default:"crossplane-system"     env:"POD_NAMESPACE"                                                      help:"Namespace used to unpack and run packages."                      short:"n"`
+	ServiceAccount              string        `default:"crossplane"            env:"POD_SERVICE_ACCOUNT"                                                help:"Name of the Crossplane Service Account."`
+	LeaderElection              bool          `default:"false"                 env:"LEADER_ELECTION"                                                    help:"Use leader election for the controller manager."                 short:"l"`
+	LeaderElectionLeaseDuration time.Duration `default:"60s" env:"LEADER_ELECTION_LEASE_DURATION" help:"Duration that non-leader candidates will wait after observing a leader before attempting to acquire leadership."`
+	LeaderElectionRenewDeadline time.Duration `default:"50s" env:"LEADER_ELECTION_RENEW_DEADLINE" help:"Duration that the acting controlplane will retry refreshing leadership before giving up."`
+	LeaderElectionRetryPeriod   time.Duration `default:"2s" env:"LEADER_ELECTION_RETRY_PERIOD" help:"How often the leader and candidates retry lease operations."`
+	CABundlePath                string        `env:"CA_BUNDLE_PATH"            help:"Additional CA bundle to use when fetching packages from registry."`
+	UserAgent                   string        `default:"${default_user_agent}" env:"USER_AGENT"                                                         help:"The User-Agent header that will be set on all package requests."`
 
 	XpkgCacheDir string `aliases:"cache-dir" default:"/cache/xpkg" env:"XPKG_CACHE_DIR,CACHE_DIR" help:"Directory used for caching package images." short:"c"`
 
@@ -236,13 +239,15 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		// renewal deadlines being exceeded when under high load - i.e.
 		// hundreds of reconciles per second and ~200rps to the API
 		// server. Switching to Leases only and longer leases appears to
-		// alleviate this.
+		// alleviate this. The lease duration, renew deadline, and retry
+		// period are now configurable.
 		LeaderElection:                c.LeaderElection,
 		LeaderElectionID:              "crossplane-leader-election-core",
 		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
 		LeaderElectionReleaseOnCancel: true,
-		LeaseDuration:                 func() *time.Duration { d := 60 * time.Second; return &d }(),
-		RenewDeadline:                 func() *time.Duration { d := 50 * time.Second; return &d }(),
+		LeaseDuration:                 &c.LeaderElectionLeaseDuration,
+		RenewDeadline:                 &c.LeaderElectionRenewDeadline,
+		RetryPeriod:                   &c.LeaderElectionRetryPeriod,
 
 		PprofBindAddress:       c.Profile,
 		HealthProbeBindAddress: fmt.Sprintf(":%d", c.HealthProbePort),

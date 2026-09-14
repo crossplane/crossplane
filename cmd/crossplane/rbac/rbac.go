@@ -49,8 +49,11 @@ func (c *Command) Run() error {
 type startCommand struct {
 	Profile string `help:"Serve runtime profiling data via HTTP at /debug/pprof." placeholder:"host:port"`
 
-	ProviderClusterRole string `help:"A ClusterRole enumerating the permissions provider packages may request." name:"provider-clusterrole"`
-	LeaderElection      bool   `env:"LEADER_ELECTION"                                                           help:"Use leader election for the controller manager." name:"leader-election" short:"l"`
+	ProviderClusterRole         string        `help:"A ClusterRole enumerating the permissions provider packages may request." name:"provider-clusterrole"`
+	LeaderElection              bool          `env:"LEADER_ELECTION"                                                           help:"Use leader election for the controller manager." name:"leader-election" short:"l"`
+	LeaderElectionLeaseDuration time.Duration `default:"60s" env:"LEADER_ELECTION_LEASE_DURATION" help:"Duration that non-leader candidates will wait after observing a leader before attempting to acquire leadership."`
+	LeaderElectionRenewDeadline time.Duration `default:"50s" env:"LEADER_ELECTION_RENEW_DEADLINE" help:"Duration that the acting controlplane will retry refreshing leadership before giving up."`
+	LeaderElectionRetryPeriod   time.Duration `default:"2s" env:"LEADER_ELECTION_RETRY_PERIOD" help:"How often the leader and candidates retry lease operations."`
 
 	SyncInterval            time.Duration `default:"1h"                 help:"How often all resources will be double-checked for drift from the desired state." short:"s"`
 	PollInterval            time.Duration `default:"1m"                 help:"How often individual resources will be checked for drift from the desired state."`
@@ -79,6 +82,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		LeaderElection:             c.LeaderElection,
 		LeaderElectionID:           "crossplane-leader-election-rbac",
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
+		LeaseDuration:              &c.LeaderElectionLeaseDuration,
+		RenewDeadline:              &c.LeaderElectionRenewDeadline,
+		RetryPeriod:                &c.LeaderElectionRetryPeriod,
 		Cache: cache.Options{
 			SyncPeriod: &c.SyncInterval,
 		},
