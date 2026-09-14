@@ -429,8 +429,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		*p.GetRevisionHistoryLimit() != 0 &&
 		len(revisions) > (int(*p.GetRevisionHistoryLimit())+1) {
 		gcRev := revisions[oldestRevisionIndex]
-		// Find the oldest revision and delete it.
-		if err := r.kube.Delete(ctx, gcRev); err != nil {
+		// Find the oldest revision and delete it. The cache can be behind the
+		// API server, so a revision that is already gone is collected as far
+		// as we are concerned.
+		if err := resource.IgnoreNotFound(r.kube.Delete(ctx, gcRev)); err != nil {
 			err = errors.Wrap(err, errGCPackageRevision)
 			r.record.Event(p, event.Warning(reasonGarbageCollect, err))
 
