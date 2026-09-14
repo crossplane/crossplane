@@ -25,10 +25,22 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 )
+
+// controlledBy returns a copy of op with a controller owner reference set to
+// the supplied UID, for tests exercising LatestScheduledTime's ownership
+// check.
+func controlledBy(op v1alpha1.Operation, uid types.UID) v1alpha1.Operation {
+	op.OwnerReferences = append(op.OwnerReferences, metav1.OwnerReference{
+		Controller: new(true),
+		UID:        uid,
+	})
+	return op
+}
 
 func TestLatestCreateTime(t *testing.T) {
 	now := time.Now()
@@ -120,8 +132,12 @@ func TestLatestScheduledTime(t *testing.T) {
 	// the name instead.
 	skewedCreation := scheduled.Add(-1 * time.Second)
 
+	const cronUID = types.UID("cron-uid")
+	const otherUID = types.UID("some-other-controller-uid")
+
 	type args struct {
 		cronName string
+		cronUID  types.UID
 		ops      []v1alpha1.Operation
 	}
 	type want struct {
@@ -137,6 +153,7 @@ func TestLatestScheduledTime(t *testing.T) {
 			reason: "Should return zero time for empty slice",
 			args: args{
 				cronName: "test-cron",
+				cronUID:  cronUID,
 				ops:      []v1alpha1.Operation{},
 			},
 			want: want{
@@ -147,13 +164,14 @@ func TestLatestScheduledTime(t *testing.T) {
 			reason: "Should derive the scheduled time from the Operation's name, ignoring a skewed creationTimestamp",
 			args: args{
 				cronName: "test-cron",
+				cronUID:  cronUID,
 				ops: []v1alpha1.Operation{
-					{
+					controlledBy(v1alpha1.Operation{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:              fmt.Sprintf("test-cron-%d", scheduled.Unix()),
 							CreationTimestamp: metav1.Time{Time: skewedCreation},
 						},
-					},
+					}, cronUID),
 				},
 			},
 			want: want{
@@ -164,10 +182,11 @@ func TestLatestScheduledTime(t *testing.T) {
 			reason: "Should return the latest scheduled time from multiple operations",
 			args: args{
 				cronName: "test-cron",
+				cronUID:  cronUID,
 				ops: []v1alpha1.Operation{
-					{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("test-cron-%d", earlier.Unix())}},
-					{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("test-cron-%d", later.Unix())}},
-					{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("test-cron-%d", scheduled.Unix())}},
+					controlledBy(v1alpha1.Operation{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("test-cron-%d", earlier.Unix())}}, cronUID),
+					controlledBy(v1alpha1.Operation{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("test-cron-%d", later.Unix())}}, cronUID),
+					controlledBy(v1alpha1.Operation{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("test-cron-%d", scheduled.Unix())}}, cronUID),
 				},
 			},
 			want: want{
@@ -178,11 +197,39 @@ func TestLatestScheduledTime(t *testing.T) {
 			reason: "Should ignore Operations whose name doesn't match <cronName>-<unix>",
 			args: args{
 				cronName: "test-cron",
+				cronUID:  cronUID,
 				ops: []v1alpha1.Operation{
-					{ObjectMeta: metav1.ObjectMeta{Name: "some-other-name"}},
-					{ObjectMeta: metav1.ObjectMeta{Name: "other-cron-" + fmt.Sprint(later.Unix())}},
-					{ObjectMeta: metav1.ObjectMeta{Name: "test-cron-not-a-number"}},
+					controlledBy(v1alpha1.Operation{ObjectMeta: metav1.ObjectMeta{Name: "some-other-name"}}, cronUID),
+					controlledBy(v1alpha1.Operation{ObjectMeta: metav1.ObjectMeta{Name: "other-cron-" + fmt.Sprint(later.Unix())}}, cronUID),
+					controlledBy(v1alpha1.Operation{ObjectMeta: metav1.ObjectMeta{Name: "test-cron-not-a-number"}}, cronUID),
+					controlledBy(v1alpha1.Operation{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("test-cron-%d", scheduled.Unix())}}, cronUID),
+				},
+			},
+			want: want{
+				latest: scheduled,
+			},
+		},
+		"IgnoresUncontrolledOperations": {
+			reason: "Should ignore a name-matching Operation with no controller owner reference at all",
+			args: args{
+				cronName: "test-cron",
+				cronUID:  cronUID,
+				ops: []v1alpha1.Operation{
 					{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("test-cron-%d", scheduled.Unix())}},
+				},
+			},
+			want: want{
+				latest: time.Time{},
+			},
+		},
+		"IgnoresOperationsControlledByADifferentCronOperation": {
+			reason: "Should ignore a name-matching Operation controlled by a different CronOperation - e.g. stale state left behind by a deleted-and-recreated CronOperation that reused the name (see #7524)",
+			args: args{
+				cronName: "test-cron",
+				cronUID:  cronUID,
+				ops: []v1alpha1.Operation{
+					controlledBy(v1alpha1.Operation{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("test-cron-%d", later.Unix())}}, otherUID),
+					controlledBy(v1alpha1.Operation{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("test-cron-%d", scheduled.Unix())}}, cronUID),
 				},
 			},
 			want: want{
@@ -193,7 +240,7 @@ func TestLatestScheduledTime(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := LatestScheduledTime(tc.args.cronName, tc.args.ops...)
+			got := LatestScheduledTime(tc.args.cronName, tc.args.cronUID, tc.args.ops...)
 			if diff := cmp.Diff(tc.want.latest, got); diff != "" {
 				t.Errorf("\n%s\nLatestScheduledTime(...): -want, +got:\n%s", tc.reason, diff)
 			}

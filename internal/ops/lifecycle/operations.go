@@ -24,6 +24,8 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
@@ -56,15 +58,23 @@ func LatestCreateTime(ops ...v1alpha1.Operation) time.Time {
 // controller computed, which would otherwise cause the controller to
 // recompute the same scheduled slot forever.
 //
-// Operations that don't match the expected name format (e.g. because they
-// weren't created by this CronOperation) are ignored.
-func LatestScheduledTime(cronName string, ops ...v1alpha1.Operation) time.Time {
+// Operations that don't match the expected name format, or that aren't
+// controlled by the CronOperation with the supplied UID, are ignored. The
+// name match alone isn't enough to trust an Operation: a stale Operation
+// left behind by a deleted-and-recreated CronOperation that reused the same
+// name, or a manually created object, could otherwise match by name without
+// actually being one this CronOperation created.
+func LatestScheduledTime(cronName string, cronUID types.UID, ops ...v1alpha1.Operation) time.Time {
 	prefix := cronName + "-"
 	latest := time.Time{}
 
 	for _, op := range ops {
 		suffix, ok := strings.CutPrefix(op.GetName(), prefix)
 		if !ok {
+			continue
+		}
+
+		if ctrl := metav1.GetControllerOf(&op); ctrl == nil || ctrl.UID != cronUID {
 			continue
 		}
 

@@ -65,7 +65,11 @@ func (fn SchedulerFn) Next(schedule string, last time.Time) (time.Time, error) {
 
 // A Reconciler reconciles CronOperations.
 type Reconciler struct {
-	client     client.Client
+	client client.Client
+	// apiReader reads directly from the API server, bypassing the client's
+	// cache. Used only where staleness would be a correctness problem, not
+	// just a delay - see createOperationIfNotExists.
+	apiReader  client.Reader
 	log        logging.Logger
 	record     event.Recorder
 	conditions conditions.Manager
@@ -120,7 +124,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// recompute the same scheduled slot forever, since the Operation we'd
 	// try to create already exists (see
 	// https://github.com/crossplane/crossplane/issues/7524).
-	if t := lifecycle.LatestScheduledTime(co.GetName(), ol.Items...); !t.IsZero() {
+	if t := lifecycle.LatestScheduledTime(co.GetName(), co.GetUID(), ol.Items...); !t.IsZero() {
 		co.Status.LastScheduleTime = &metav1.Time{Time: t}
 	}
 
@@ -218,7 +222,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	op := NewOperation(co, next)
-	if err := createOperationIfNotExists(ctx, r.client, op); err != nil {
+	if err := r.createOperationIfNotExists(ctx, op); err != nil {
 		log.Debug("Cannot create scheduled Operation", "error", err, "operation", op.GetName())
 		err = errors.Wrapf(err, "cannot create scheduled Operation %q", op.GetName())
 		r.record.Event(co, event.Warning(reasonCreateOperation, err))
@@ -234,19 +238,52 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{RequeueAfter: future.Sub(now)}, errors.Wrap(r.client.Status().Update(ctx, co), "cannot update CronOperation status")
 }
 
+// errOperationNotOurs is wrapped into the error createOperationIfNotExists
+// returns when an existing, name-colliding Operation isn't controlled by
+// the CronOperation we're reconciling. It's a sentinel - not embedded
+// directly in a formatted string - so tests can assert on this specific
+// failure via errors.Is (e.g. via cmpopts.EquateErrors()) rather than only
+// on any error having occurred.
+var errOperationNotOurs = errors.New("Operation already exists but isn't controlled by this CronOperation")
+
 // createOperationIfNotExists creates op, unless an Operation with the same
 // name already exists. An Operation already existing under the exact name
-// we just computed isn't an error: it means an Operation for this schedule
-// slot already exists, whether because we're retrying a partially failed
-// reconcile, or because our cache hasn't yet observed an Operation that an
-// earlier reconcile created. Either way the state we wanted already exists.
-func createOperationIfNotExists(ctx context.Context, c client.Client, op *v1alpha1.Operation) error {
-	err := c.Create(ctx, op)
-	if kerrors.IsAlreadyExists(err) {
+// we just computed isn't necessarily an error: it can mean an Operation for
+// this schedule slot already exists, whether because we're retrying a
+// partially failed reconcile, or because our cache hasn't yet observed an
+// Operation that an earlier reconcile created - in either case the state we
+// wanted already exists. But name and schedule slot alone don't prove that:
+// an unrelated Operation - stale from a deleted-and-recreated CronOperation
+// that reused the same name, or manually created - could coincidentally
+// collide on the same computed name. Confirm the existing Operation is
+// actually controlled by this CronOperation before treating AlreadyExists as
+// success, and look it up with a live read rather than relying on r.client's
+// cache, since that's exactly the same cache whose staleness AlreadyExists
+// can indicate.
+func (r *Reconciler) createOperationIfNotExists(ctx context.Context, op *v1alpha1.Operation) error {
+	err := r.client.Create(ctx, op)
+	if err == nil {
 		return nil
 	}
 
-	return err
+	if !kerrors.IsAlreadyExists(err) {
+		return err
+	}
+
+	existing := &v1alpha1.Operation{}
+	if gerr := r.apiReader.Get(ctx, client.ObjectKeyFromObject(op), existing); gerr != nil {
+		return errors.Wrap(gerr, "cannot get existing Operation to verify it's controlled by this CronOperation")
+	}
+
+	wantCtrl := metav1.GetControllerOf(op)
+	haveCtrl := metav1.GetControllerOf(existing)
+	if wantCtrl == nil || haveCtrl == nil || wantCtrl.UID != haveCtrl.UID {
+		// The caller (Reconcile) already wraps this with the Operation's
+		// name, so return the sentinel directly rather than repeating it.
+		return errOperationNotOurs
+	}
+
+	return nil
 }
 
 // NewOperation creates a new operation given the CronOperation's template.
