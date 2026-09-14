@@ -59,7 +59,8 @@ const (
 	errGetPackageRevision = "cannot get package revision"
 	errUpdateStatus       = "cannot update package revision status"
 
-	errGetPullConfig = "cannot get image pull secret from config"
+	errGetPullConfig     = "cannot get image pull secret from config"
+	errMissingPullSecret = "image config referenced for pull secret has no registry authentication"
 
 	errManifestBuilderOptions = "cannot prepare runtime manifest builder options"
 	errPreHook                = "pre establish runtime hook failed for package"
@@ -313,7 +314,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				return reconcile.Result{}, err
 			}
 
-			pullSecretFromConfig = ic.Spec.Registry.Authentication.PullSecretRef.Name
+			pullSecretFromConfig = imageConfigPullSecret(ic)
+			if pullSecretFromConfig == "" {
+				err := errors.New(errMissingPullSecret)
+				status.MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
+
+				_ = r.client.Status().Update(ctx, pr)
+				r.record.Event(pr, event.Warning(reasonImageConfig, err))
+
+				return reconcile.Result{}, err
+			}
 
 			break
 		}
@@ -437,6 +447,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+}
+
+func imageConfigPullSecret(ic *v1beta1.ImageConfig) string {
+	if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil {
+		return ""
+	}
+
+	return ic.Spec.Registry.Authentication.PullSecretRef.Name
 }
 
 // ownedMRDs returns the ManagedResourceDefinitions controlled by pr.
