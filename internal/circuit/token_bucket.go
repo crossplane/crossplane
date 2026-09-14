@@ -247,7 +247,12 @@ func (b *TokenBucketBreaker) GetState(_ context.Context, target types.Namespaced
 	state.mu.RLock()
 	defer state.mu.RUnlock()
 
-	if !state.isOpen {
+	// Mirror the cooldown expiry check RecordEvent uses to close the
+	// circuit. Without this, a target that stops receiving events (e.g.
+	// because its dependencies settled and stopped changing) would report
+	// IsOpen: true forever - RecordEvent is the only place that closes the
+	// circuit, and it only runs when a new event arrives.
+	if !state.isOpen || time.Since(state.openedAt) >= b.config.cooldownTime {
 		return State{IsOpen: false}
 	}
 

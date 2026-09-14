@@ -242,6 +242,32 @@ func TestTokenBucketBreakerGetState(t *testing.T) {
 				},
 			},
 		},
+		"CooldownExpiredWithoutFurtherEvents": {
+			reason: "Once the cooldown period has elapsed, GetState should report a closed circuit even without an intervening RecordEvent call, so callers that only poll GetState (e.g. a reconciler waking itself up on a timer) can observe the circuit closing.",
+			breaker: NewTokenBucketBreaker(
+				"test-controller",
+				WithBurst(1),
+				WithRefillRatePerSecond(0.1),
+				WithOpenDuration(50*time.Millisecond),
+				WithHalfOpenInterval(30*time.Second),
+			),
+			setup: func(b *TokenBucketBreaker) {
+				ctx := context.Background()
+				// Open circuit by exhausting tokens.
+				b.RecordEvent(ctx, target, source, EventAllowed)
+				b.RecordEvent(ctx, target, source, EventAllowed)
+				// Let the cooldown expire without recording any further
+				// events.
+				time.Sleep(100 * time.Millisecond)
+			},
+			args: args{
+				ctx:    context.Background(),
+				target: target,
+			},
+			want: want{
+				state: State{IsOpen: false},
+			},
+		},
 		"HalfOpenUpdatesNextAllowedAt": {
 			reason: "Recording half-open allowed event should update NextAllowedAt forward",
 			breaker: NewTokenBucketBreaker(
