@@ -696,10 +696,9 @@ func TestReconcile(t *testing.T) {
 						eventArgs{
 							Kind: compositeKind,
 							Event: event.Event{
-								Type:        event.Type(corev1.EventTypeNormal),
-								Reason:      "SelectComposition",
-								Message:     "Successfully selected composition: ",
-								Annotations: map[string]string{},
+								Type:    event.Type(corev1.EventTypeNormal),
+								Reason:  "SelectComposition",
+								Message: "Successfully selected composition: ",
 							},
 						},
 						eventArgs{
@@ -708,8 +707,7 @@ func TestReconcile(t *testing.T) {
 								Type:   event.TypeNormal,
 								Reason: "DatabaseAvailable",
 								// The composite should have the "Pipeline step" prefix.
-								Message:     "Pipeline step \"some-function\": This is an event for database availability.",
-								Annotations: map[string]string{},
+								Message: "Pipeline step \"some-function\": This is an event for database availability.",
 							},
 						},
 						eventArgs{
@@ -718,17 +716,15 @@ func TestReconcile(t *testing.T) {
 								Type:   event.TypeNormal,
 								Reason: "DatabaseAvailable",
 								// The claim should not have the "Pipeline step" prefix.
-								Message:     "This is an event for database availability.",
-								Annotations: map[string]string{},
+								Message: "This is an event for database availability.",
 							},
 						},
 						eventArgs{
 							Kind: compositeKind,
 							Event: event.Event{
-								Type:        event.TypeNormal,
-								Reason:      "SyncSuccess",
-								Message:     "Pipeline step \"some-function\": Internal sync was successful.",
-								Annotations: map[string]string{},
+								Type:    event.TypeNormal,
+								Reason:  "SyncSuccess",
+								Message: "Pipeline step \"some-function\": Internal sync was successful.",
 							},
 						},
 					)),
@@ -750,20 +746,18 @@ func TestReconcile(t *testing.T) {
 							Events: []TargetedEvent{
 								{
 									Event: event.Event{
-										Type:        event.TypeNormal,
-										Reason:      "DatabaseAvailable",
-										Message:     "This is an event for database availability.",
-										Annotations: map[string]string{},
+										Type:    event.TypeNormal,
+										Reason:  "DatabaseAvailable",
+										Message: "This is an event for database availability.",
 									},
 									Detail: "Pipeline step \"some-function\"",
 									Target: CompositionTargetCompositeAndClaim,
 								},
 								{
 									Event: event.Event{
-										Type:        event.TypeNormal,
-										Reason:      "SyncSuccess",
-										Message:     "Internal sync was successful.",
-										Annotations: map[string]string{},
+										Type:    event.TypeNormal,
+										Reason:  "SyncSuccess",
+										Message: "Internal sync was successful.",
 									},
 									Detail: "Pipeline step \"some-function\"",
 									Target: CompositionTargetComposite,
@@ -866,10 +860,9 @@ func TestReconcile(t *testing.T) {
 						eventArgs{
 							Kind: compositeKind,
 							Event: event.Event{
-								Type:        event.Type(corev1.EventTypeNormal),
-								Reason:      "SelectComposition",
-								Message:     "Successfully selected composition: ",
-								Annotations: map[string]string{},
+								Type:    event.Type(corev1.EventTypeNormal),
+								Reason:  "SelectComposition",
+								Message: "Successfully selected composition: ",
 							},
 						},
 						eventArgs{
@@ -899,8 +892,7 @@ func TestReconcile(t *testing.T) {
 								Type:   event.TypeNormal,
 								Reason: "SyncSuccess",
 								// The composite should have the "Pipeline step" prefix.
-								Message:     "Pipeline step \"some-function\": Internal sync was successful.",
-								Annotations: map[string]string{},
+								Message: "Pipeline step \"some-function\": Internal sync was successful.",
 							},
 						},
 						eventArgs{
@@ -910,8 +902,7 @@ func TestReconcile(t *testing.T) {
 								Reason: "EventNoDetail",
 								// The composite should not have the prefix as it had an empty
 								// detail.
-								Message:     "This event should not contain a detail prefix.",
-								Annotations: map[string]string{},
+								Message: "This event should not contain a detail prefix.",
 							},
 						},
 					)),
@@ -942,20 +933,18 @@ func TestReconcile(t *testing.T) {
 								},
 								{
 									Event: event.Event{
-										Type:        event.TypeNormal,
-										Reason:      "SyncSuccess",
-										Message:     "Internal sync was successful.",
-										Annotations: map[string]string{},
+										Type:    event.TypeNormal,
+										Reason:  "SyncSuccess",
+										Message: "Internal sync was successful.",
 									},
 									Detail: "Pipeline step \"some-function\"",
 									Target: CompositionTargetComposite,
 								},
 								{
 									Event: event.Event{
-										Type:        event.TypeNormal,
-										Reason:      "EventNoDetail",
-										Message:     "This event should not contain a detail prefix.",
-										Annotations: map[string]string{},
+										Type:    event.TypeNormal,
+										Reason:  "EventNoDetail",
+										Message: "This event should not contain a detail prefix.",
 									},
 									Target: CompositionTargetComposite,
 								},
@@ -1075,10 +1064,9 @@ func TestReconcile(t *testing.T) {
 						eventArgs{
 							Kind: compositeKind,
 							Event: event.Event{
-								Type:        event.Type(corev1.EventTypeNormal),
-								Reason:      "SelectComposition",
-								Message:     "Successfully selected composition: ",
-								Annotations: map[string]string{},
+								Type:    event.Type(corev1.EventTypeNormal),
+								Reason:  "SelectComposition",
+								Message: "Successfully selected composition: ",
 							},
 						},
 					)),
@@ -1162,10 +1150,9 @@ func TestReconcile(t *testing.T) {
 						eventArgs{
 							Kind: compositeKind,
 							Event: event.Event{
-								Type:        event.Type(corev1.EventTypeNormal),
-								Reason:      "SelectComposition",
-								Message:     "Successfully selected composition: ",
-								Annotations: map[string]string{},
+								Type:    event.Type(corev1.EventTypeNormal),
+								Reason:  "SelectComposition",
+								Message: "Successfully selected composition: ",
 							},
 						},
 					)),
@@ -1225,19 +1212,17 @@ func TestReconcile(t *testing.T) {
 						eventArgs{
 							Kind: compositeKind,
 							Event: event.Event{
-								Type:        event.Type(corev1.EventTypeNormal),
-								Reason:      "SelectComposition",
-								Message:     "Successfully selected composition: ",
-								Annotations: map[string]string{},
+								Type:    event.Type(corev1.EventTypeNormal),
+								Reason:  "SelectComposition",
+								Message: "Successfully selected composition: ",
 							},
 						},
 						eventArgs{
 							Kind: compositeKind,
 							Event: event.Event{
-								Type:        event.TypeNormal,
-								Reason:      "DatabaseAvailable",
-								Message:     "Pipeline step \"some-function\": This is an event for database availability.",
-								Annotations: map[string]string{},
+								Type:    event.TypeNormal,
+								Reason:  "DatabaseAvailable",
+								Message: "Pipeline step \"some-function\": This is an event for database availability.",
 							},
 						},
 					)),
@@ -1259,10 +1244,9 @@ func TestReconcile(t *testing.T) {
 							Events: []TargetedEvent{
 								{
 									Event: event.Event{
-										Type:        event.TypeNormal,
-										Reason:      "DatabaseAvailable",
-										Message:     "This is an event for database availability.",
-										Annotations: map[string]string{},
+										Type:    event.TypeNormal,
+										Reason:  "DatabaseAvailable",
+										Message: "This is an event for database availability.",
 									},
 									Detail: "Pipeline step \"some-function\"",
 									Target: CompositionTargetCompositeAndClaim,
@@ -1355,7 +1339,13 @@ func TestReconcile(t *testing.T) {
 			}
 
 			if tr, ok := r.record.(*testRecorder); ok {
-				if diff := cmp.Diff(tr.Want, tr.Got); diff != "" {
+				opts := []cmp.Option{
+					cmp.Comparer(func(a, b map[string]string) bool {
+						// Treat nil and empty map as equal
+						return (len(a) == 0 && len(b) == 0) || cmp.Equal(a, b)
+					}),
+				}
+				if diff := cmp.Diff(tr.Want, tr.Got, opts...); diff != "" {
 					t.Errorf("\n%s\nr.Reconcile(...): -want events, +got events:\n%s", tc.reason, diff)
 				}
 			}
@@ -1594,28 +1584,25 @@ func TestReconcileRequestAnnotation(t *testing.T) {
 						eventArgs{
 							Kind: compositeKind,
 							Event: event.Event{
-								Type:        event.TypeNormal,
-								Reason:      "ReconcileRequestHandled",
-								Message:     "Handling reconcile request",
-								Annotations: map[string]string{"token": "1705312200"},
+								Type:    event.TypeNormal,
+								Reason:  "ReconcileRequestHandled",
+								Message: "Handling reconcile request (token: 1705312200)",
 							},
 						},
 						eventArgs{
 							Kind: compositeKind,
 							Event: event.Event{
-								Type:        event.TypeNormal,
-								Reason:      "SelectComposition",
-								Message:     "Successfully selected composition: ",
-								Annotations: map[string]string{},
+								Type:    event.TypeNormal,
+								Reason:  "SelectComposition",
+								Message: "Successfully selected composition: ",
 							},
 						},
 						eventArgs{
 							Kind: compositeKind,
 							Event: event.Event{
-								Type:        event.TypeNormal,
-								Reason:      "PublishConnectionSecret",
-								Message:     "Successfully published connection details",
-								Annotations: map[string]string{},
+								Type:    event.TypeNormal,
+								Reason:  "PublishConnectionSecret",
+								Message: "Successfully published connection details",
 							},
 						},
 					)),
@@ -1664,19 +1651,17 @@ func TestReconcileRequestAnnotation(t *testing.T) {
 						eventArgs{
 							Kind: compositeKind,
 							Event: event.Event{
-								Type:        event.TypeNormal,
-								Reason:      "SelectComposition",
-								Message:     "Successfully selected composition: ",
-								Annotations: map[string]string{},
+								Type:    event.TypeNormal,
+								Reason:  "SelectComposition",
+								Message: "Successfully selected composition: ",
 							},
 						},
 						eventArgs{
 							Kind: compositeKind,
 							Event: event.Event{
-								Type:        event.TypeNormal,
-								Reason:      "PublishConnectionSecret",
-								Message:     "Successfully published connection details",
-								Annotations: map[string]string{},
+								Type:    event.TypeNormal,
+								Reason:  "PublishConnectionSecret",
+								Message: "Successfully published connection details",
 							},
 						},
 					)),
@@ -1699,7 +1684,13 @@ func TestReconcileRequestAnnotation(t *testing.T) {
 			}
 
 			if tr, ok := r.record.(*testRecorder); ok {
-				if diff := cmp.Diff(tr.Want, tr.Got); diff != "" {
+				opts := []cmp.Option{
+					cmp.Comparer(func(a, b map[string]string) bool {
+						// Treat nil and empty map as equal
+						return (len(a) == 0 && len(b) == 0) || cmp.Equal(a, b)
+					}),
+				}
+				if diff := cmp.Diff(tr.Want, tr.Got, opts...); diff != "" {
 					t.Errorf("\n%s\nr.Reconcile(...): -want events, +got events:\n%s", tc.reason, diff)
 				}
 			}
