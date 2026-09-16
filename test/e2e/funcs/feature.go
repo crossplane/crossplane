@@ -387,7 +387,6 @@ func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv2.Condi
 
 		t.Logf("Waiting %s for %s to become %s...", d, identifier(o), desired)
 
-		ogReport := make(map[string]bool)
 		old := make([]xpv2.Condition, len(cds))
 		match := func(o k8s.Object) bool {
 			u := asUnstructured(o)
@@ -395,25 +394,7 @@ func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv2.Condi
 			_ = fieldpath.Pave(u.Object).GetValueInto("status", &s)
 
 			for i, want := range cds {
-				// Update the wanted observed generation to the latest object generation.
-				want.ObservedGeneration = u.GetGeneration()
-
 				got := s.GetCondition(want.Type)
-
-				// Until https://github.com/crossplane/crossplane/issues/6420 is resolved, crossplane will be in a
-				// transition period. A condition with an observedGeneration of zero means it is not yet being
-				// propagated when setting the conditions. To help that transition, we will move the generation forward
-				// ONLY if it is zero. But we will also log this fact to find it in the logs.
-				if got.ObservedGeneration == 0 {
-					got.ObservedGeneration = u.GetGeneration()
-
-					key := fmt.Sprintf("%s[%s]", u.GetKind(), got.Type)
-					if !ogReport[key] {
-						ogReport[key] = true
-
-						t.Logf("https://github.com/crossplane/crossplane/issues/6420: Warning, an unset observedGeneration was artificially updated for %s.status.conditions[%s]", u.GetKind(), got.Type)
-					}
-				}
 
 				if !got.Equal(old[i]) {
 					old[i] = got
