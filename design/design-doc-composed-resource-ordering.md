@@ -159,7 +159,7 @@ graph:
 ]
 ```
 
-The creates a clear separation of responsibility; the Function is responsible
+This creates a clear separation of responsibility; the Function is responsible
 for returning dependency pairs. The Composition engine reads the pairs and
 generates the resource graph which it uses to create and delete resources in
 order.
@@ -218,6 +218,13 @@ message RequiredResourceDependency {
 }
 ```
 
+A requirement can match objects in more than one namespace, so `name` on its own
+is not necessarily unique. Naming a namespaced resource therefore requires
+`namespace` as well; an edge that sets `name` without it, where the matched
+resources are namespaced, is rejected by the validation below rather than
+resolved arbitrarily. `namespace` stays unset for cluster-scoped resources,
+where `name` is unique on its own.
+
 The same pair notation extends to required resources. An edge naming only the
 requirement waits on every object that requirement matched; adding `name`
 narrows it to a single one of them, and `namespace` qualifies that name when the
@@ -232,8 +239,8 @@ resource is namespaced:
 ]
 ```
 
-Because the XR does not own the lifecycle of a Required resource, the effect a
-dependency is different than within the composition:
+Because the XR does not own the lifecycle of a Required resource, the effect of
+a dependency differs from one within the composition:
 
 * **It only supports Creation ordering** Any `lifecycle` other than
   `DEPENDENCY_LIFECYCLE_UNSPECIFIED` should be rejected by the core engine.
@@ -254,8 +261,8 @@ are always leaves in the graph, so they cannot introduce cycles.
 
 This facilitates ordering across Composite Resources. If the resource an XR
 requires happens to be another XR, this expresses "don't create my resource
-until that XR is ready" in a read-only mode. It is only enforced only on the
-create side. Sequencing the deletion of resources across XR boundaries remains
+until that XR is ready" in a read-only mode. It is enforced only on the create
+side. Sequencing the deletion of resources across XR boundaries remains
 out of scope, and remains what `Usage` is for.
 
 ### Dependencies accumulate like Desired Resources
@@ -290,8 +297,11 @@ improvement.
 
 ### Validation in the Core Engine for Valid and Acyclic Graphs
 
-After each function's response, before building the next request, Crossplane
-checks:
+Validation runs once, after the pipeline has finished, against the graph the
+whole pipeline accumulated. It cannot run per response: dependencies accumulate,
+so a function is free to declare an edge whose endpoint a later function adds,
+and pruning that edge as each response arrives would delete it before the
+function that satisfies it ever runs. Crossplane checks:
 
 1. Every `resource` and `depends_on` name is resolved against the union of
    `Desired.Resources` and `Observed.Resources`. A composed resource dropped
@@ -321,8 +331,10 @@ doesn't need to separately implement validation.
 The graph's primary consumer is Crossplane's own applier and garbage collector
 that runs as part of the reconciler loop.
 
-* **Create and update.** The applier issues a patch for a composed resource only
-  once every resource it `depends_on` is ready.
+* **Create.** The applier issues the first patch for a composed resource only
+  once every resource it `depends_on` is ready. Ordering gates creation, not
+  updates: a resource that already exists keeps reconciling, so a dependency
+  that goes un-ready cannot freeze it.
 * **Delete.** The garbage collector issues a delete only once every resource
   that `depends_on` it has left observed state.
 
@@ -363,9 +375,6 @@ flowchart TD
     DL --> SYNC
     DL --> WARN["Warning event, and readiness withheld so the<br/>XR cannot report Available while permanently stuck"]
 ```
-
-Once a resource exists it keeps reconciling, so a dependency that goes un-ready
-cannot freeze it.
 
 A resource blocked this reconcile is picked up on a later pass, so no new
 scheduling primitive is needed. With realtime compositions enabled the
@@ -437,6 +446,20 @@ resource.
 On teardown core rebuilds the edges from the references, prunes those naming
 resources that have left observed state, and asks the same `Decide` the live
 path uses. No function runs.
+
+`dependsOn` records the edge but deliberately not its `lifecycle`. The only
+lifecycle value is create-before-destroy, which says a replacement must exist
+and be ready before its predecessor goes away. That question cannot arise
+during teardown, where nothing is desired and no replacement is coming, and
+honoring the flag there would hold every such edge open waiting for one.
+Teardown therefore treats every edge as ordinary, which is the behavior
+create-before-destroy asks for once there is nothing to create.
+
+An XR whose references predate these fields carries neither, so core finds no
+edges and tears it down exactly as it does today, in no particular order. The
+graph appears on the next reconcile that runs the pipeline, and teardown is
+ordered from then on. Enabling the feature therefore changes nothing about an
+existing XR until its pipeline has run once more, and never leaves one stuck.
 
 The graph becomes readable by any tool with a `GET` on the XR, so `crossplane
 resource trace` and dashboards can render it without replaying a pipeline. And
