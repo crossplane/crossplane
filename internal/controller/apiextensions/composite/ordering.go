@@ -18,6 +18,7 @@ package composite
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -292,11 +293,10 @@ func mergeRequiredResources(into, from map[string]*fnv1.Resources) {
 			continue
 		}
 
-		// Always allocate. Appending in place could write into the spare
-		// capacity of a slice still owned by a function's request.
-		items := make([]*fnv1.Resource, 0, len(existing.GetItems())+len(res.GetItems()))
-		items = append(items, existing.GetItems()...)
-		items = append(items, res.GetItems()...)
+		// slices.Concat rather than append: it always allocates, where
+		// appending in place could write into the spare capacity of a slice
+		// still owned by a function's request.
+		items := slices.Concat(existing.GetItems(), res.GetItems())
 
 		into[name] = &fnv1.Resources{Items: items}
 	}
