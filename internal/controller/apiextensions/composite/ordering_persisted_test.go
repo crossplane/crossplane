@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
@@ -131,5 +132,102 @@ func TestEdgesFromRefsSkipsUnnamedRefs(t *testing.T) {
 	got := EdgesFromRefs(refs)
 	if diff := cmp.Diff(want, got, byEdge()); diff != "" {
 		t.Errorf("\nA reference with no composition resource name is skipped.\nEdgesFromRefs(...): -want, +got:\n%s", diff)
+	}
+}
+
+// named builds a required resource identifiable by its metadata name, which is
+// all these tests need to tell merged items apart.
+func named(n string) *fnv1.Resource {
+	s, _ := structpb.NewStruct(map[string]any{"metadata": map[string]any{"name": n}})
+
+	return &fnv1.Resource{Resource: s}
+}
+
+func nameOf(r *fnv1.Resource) string {
+	return r.GetResource().GetFields()["metadata"].GetStructValue().GetFields()["name"].GetStringValue()
+}
+
+func TestMergeRequiredResources(t *testing.T) {
+	res := func(names ...string) *fnv1.Resources {
+		items := make([]*fnv1.Resource, 0, len(names))
+		for _, n := range names {
+			items = append(items, named(n))
+		}
+
+		return &fnv1.Resources{Items: items}
+	}
+
+	cases := map[string]struct {
+		reason string
+		into   map[string]*fnv1.Resources
+		from   map[string]*fnv1.Resources
+		want   map[string][]string
+	}{
+		"TakeRequirementOnlyOneStepDeclared": {
+			reason: "A requirement only the later step declared should be taken as-is.",
+			into:   map[string]*fnv1.Resources{"vpc": res("vpc-a")},
+			from:   map[string]*fnv1.Resources{"subnet": res("subnet-a")},
+			want:   map[string][]string{"vpc": {"vpc-a"}, "subnet": {"subnet-a"}},
+		},
+		"UnionRequirementBothStepsDeclared": {
+			reason: "Where two steps declare the same requirement, an edge over it should wait for everything either of them matched.",
+			into:   map[string]*fnv1.Resources{"vpc": res("vpc-a")},
+			from:   map[string]*fnv1.Resources{"vpc": res("vpc-b")},
+			want:   map[string][]string{"vpc": {"vpc-a", "vpc-b"}},
+		},
+		"UnionRequirementThatMatchedNothing": {
+			reason: "A requirement that matched nothing in either step should stay empty rather than error.",
+			into:   map[string]*fnv1.Resources{"vpc": res()},
+			from:   map[string]*fnv1.Resources{"vpc": res()},
+			want:   map[string][]string{"vpc": {}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			mergeRequiredResources(tc.into, tc.from)
+
+			got := map[string][]string{}
+			for k, v := range tc.into {
+				ns := make([]string, 0, len(v.GetItems()))
+				for _, i := range v.GetItems() {
+					ns = append(ns, nameOf(i))
+				}
+				got[k] = ns
+			}
+
+			if diff := cmp.Diff(tc.want, got, cmpopts.SortSlices(func(a, b string) bool { return a < b })); diff != "" {
+				t.Errorf("\n%s\nmergeRequiredResources(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+// TestMergeRequiredResourcesDoesNotAliasInputs covers why the merged slice is
+// always allocated: the slices being merged are still owned by a function's
+// request, so appending in place could write into their spare capacity and
+// change what an earlier pipeline step sees.
+func TestMergeRequiredResourcesDoesNotAliasInputs(t *testing.T) {
+	// Spare capacity is what makes aliasing possible, so build one that has it.
+	backing := make([]*fnv1.Resource, 1, 4)
+	backing[0] = named("vpc-a")
+
+	into := map[string]*fnv1.Resources{"vpc": {Items: backing}}
+	from := map[string]*fnv1.Resources{"vpc": {Items: []*fnv1.Resource{named("vpc-b")}}}
+
+	mergeRequiredResources(into, from)
+
+	// A write through the original backing array must not be visible in the
+	// merged result.
+	backing = append(backing, named("clobbered"))
+	_ = backing
+
+	got := make([]string, 0, len(into["vpc"].GetItems()))
+	for _, i := range into["vpc"].GetItems() {
+		got = append(got, nameOf(i))
+	}
+
+	if diff := cmp.Diff([]string{"vpc-a", "vpc-b"}, got); diff != "" {
+		t.Errorf("merged items alias the input's backing array: -want, +got:\n%s", diff)
 	}
 }
