@@ -496,13 +496,14 @@ Pulumi's [`deletedWith`](https://www.pulumi.com/docs/iac/concepts/resources/opti
 
 ## Performance at Scale
 
-Platforms routinely run compositions of a few hundred composed resources, and
-clusters of many thousands, so the cost of the graph matters. It is worth being
-precise about where that cost falls: this is CPU on data the reconciler already
-holds. Ordering issues no extra API calls, adds no watches, and stores nothing
+It is not unusual to come across a Crossplane environment where hundreds of
+resources are managed in a Composite Resource, so the cost of processing the
+graph matters.
+
+Ordering issues no extra API calls, adds no watches, and stores nothing
 beyond the two fields on `spec.resourceRefs`. The concern is one pass over the
 graph per reconcile, and the fact that reconciles are most frequent exactly
-when a large graph is converging — with realtime compositions every composed
+when a large graph is converging. With realtime compositions every composed
 resource that changes wakes its XR, so creating or tearing down `n` resources
 costs on the order of `n` passes.
 
@@ -533,10 +534,7 @@ resources with ten dependencies each, denser than compositions normally are —
 costs about a millisecond per pass, against a function pipeline that takes
 1–100 ms and the API round trips that dominate any reconcile of that size.
 
-Two things follow for reviewers. The first is that width costs more than depth,
-because the work is per edge rather than per resource; a composition's edge
-count is the number to reason about, not its resource count. The second is that
-these numbers are checked rather than asserted — the benchmarks live in
+The benchmarks live in
 `internal/xfn/ordering/decide_bench_test.go` and cover chains, dense fan-in and
 the layered shape a wide composition of independent branches actually takes, so
 a regression to quadratic behavior shows up as a benchmark result rather than
