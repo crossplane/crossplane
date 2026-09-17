@@ -1,0 +1,57 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xnetworks.demo.crossplane.io
+spec:
+  compositeTypeRef:
+    apiVersion: demo.crossplane.io/v1alpha1
+    kind: XNetwork
+  mode: Pipeline
+  pipeline:
+  - step: compose-in-order
+    functionRef:
+      name: function-ordering
+    input:
+      apiVersion: ordering.fn.crossplane.io/v1alpha1
+      kind: Input
+      # The same graph, but app refuses to delete. app is a leaf, so
+      # teardown tries it first and cannot proceed past it: instance
+      # waits for app, the subnets and sg wait for instance, the vpc
+      # waits for them. The branch that doesn't run through app -
+      # backup, then database - still tears down, as do standalone and
+      # gateway. So the demo shows partial progress, then a clean stall
+      # the XR explains, rather than a cascade.
+      #   standalone                        vpc
+      #                        ┌────────┬────┴───┬────────┐
+      #                    subnet-a  subnet-b  gateway    sg
+      #                     │    └──────┬────────────────┘
+      #                  database    instance
+      #                     │           │
+      #                   backup       app
+      readyAfter: 1s
+      deleteAfter: 2s
+      deleteError: "cannot delete: pretending something still holds this"
+      deleteErrorOn:
+      - app
+      resources:
+      - vpc
+      - subnet-a
+      - subnet-b
+      - gateway
+      - sg
+      - instance
+      - app
+      - database
+      - backup
+      - standalone
+      edges:
+      - {resource: subnet-a, dependsOn: vpc}
+      - {resource: subnet-b, dependsOn: vpc}
+      - {resource: gateway,  dependsOn: vpc}
+      - {resource: sg,       dependsOn: vpc}
+      - {resource: instance, dependsOn: subnet-a}
+      - {resource: instance, dependsOn: subnet-b}
+      - {resource: instance, dependsOn: sg}
+      - {resource: app,      dependsOn: instance}
+      - {resource: database, dependsOn: subnet-a}
+      - {resource: backup,   dependsOn: database}

@@ -3,8 +3,10 @@
 A guide to exercising the composed resource ordering prototype in a local kind
 cluster.
 
-This is a prototype on a branch. It isn't merged, isn't proposed for merge as
-it stands, and the protocol shape may still change.
+This is a prototype, open as [crossplane#7842][pr]. It isn't merged, isn't
+proposed for merge as it stands, and the protocol shape may still change.
+
+[pr]: https://github.com/crossplane/crossplane/pull/7842
 
 ## What it does
 
@@ -22,10 +24,18 @@ dependencies a function returns.
 ## What you need
 
 * Docker, `kind`, `kubectl`, `helm`, and Go 1.26.
-* A checkout of this branch.
+* A checkout of the prototype, which `gh` will fetch for you:
+
+  ```shell
+  gh pr checkout 7842 --repo crossplane/crossplane
+  ```
 
 Everything below runs against a throwaway cluster and leaves nothing behind on
 your machine except a kind cluster and two local images.
+
+If you want to *show* this to someone rather than explore it yourself, the
+`demo/` directory beside this file sets the same thing up with one script, and
+carries a run-of-show.
 
 ## Set up a cluster
 
@@ -48,13 +58,18 @@ feature on:
 CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o /tmp/crossplane ./cmd/crossplane
 # Use GOARCH=amd64 on an Intel or AMD machine.
 
-cat > /tmp/Dockerfile <<'DOCKERFILE'
+# A directory of its own, not /tmp. The build context is sent to the daemon
+# in full, so anything unreadable in a shared /tmp fails the build.
+ctx="$(mktemp -d)"
+cp /tmp/crossplane "${ctx}/crossplane"
+
+cat > "${ctx}/Dockerfile" <<'DOCKERFILE'
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY crossplane /usr/local/bin/crossplane
 USER 65532
 ENTRYPOINT ["crossplane"]
 DOCKERFILE
-docker build -t xp-ordering/crossplane:dev -f /tmp/Dockerfile /tmp
+docker build -t xp-ordering/crossplane:dev "${ctx}"
 kind load docker-image xp-ordering/crossplane:dev --name xp-ordering
 
 kubectl -n crossplane-system patch deploy crossplane --type=json -p '[
