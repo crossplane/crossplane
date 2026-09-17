@@ -21,7 +21,9 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -52,6 +54,7 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
+	"github.com/crossplane/crossplane/v2/internal/xfn/ordering"
 )
 
 const (
@@ -394,6 +397,18 @@ func WithComposer(c Composer) ReconcilerOption {
 	}
 }
 
+// WithOrderedTeardown specifies how the Reconciler should observe and delete
+// composed resources when an XR is deleted. Supplying both enables ordered
+// teardown: rather than dropping its finalizer and letting Kubernetes cascade
+// in no particular order, the Reconciler deletes the XR's composed resources
+// leaves first, using the dependency graph persisted in its references.
+func WithOrderedTeardown(o ComposedResourceObserver, gc ComposedResourceGarbageCollector) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.observer = o
+		r.gc = gc
+	}
+}
+
 // WithWatchStarter specifies how the Reconciler should start watches for the
 // resources each XR depends on, and the tracker it reads those dependencies
 // from.
@@ -533,6 +548,11 @@ type Reconciler struct {
 
 	resource Composer
 
+	// Used to tear down an XR's composed resources in dependency order when
+	// the XR is deleted. Both are nil unless composition ordering is enabled.
+	observer ComposedResourceObserver
+	gc       ComposedResourceGarbageCollector
+
 	// Used to dynamically start watches for the resources an XR depends on.
 	controllerName string
 	engine         WatchStarter
@@ -630,6 +650,42 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log = log.WithValues("deletion-timestamp", xr.GetDeletionTimestamp())
 
 		status.MarkConditions(xpv2.Deleting())
+
+		// Tear down composed resources in dependency order, if the pipeline
+		// declared one. We hold our finalizer until they're gone: it's what
+		// stops Kubernetes cascading to them in no particular order while we
+		// work. A pending wave returns here without removing it.
+		done, err := r.teardown(ctx, xr, status)
+		if err != nil {
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
+
+			r.record.Event(xr, event.Warning(reasonDelete, err))
+			status.MarkConditions(xpv2.ReconcileError(err))
+			_ = r.client.Status().Update(updateCtx, xr)
+
+			return reconcile.Result{}, err
+		}
+
+		if !done {
+			// Composed resources are still being deleted. A watch on them
+			// wakes us as each one goes, so this is only a backstop for when
+			// watches are degraded.
+			//
+			// It must not be zero. Realtime compositions disable polling, so
+			// effectivePollInterval returns zero, and a zero RequeueAfter
+			// means "immediately" - which spins the reconciler as fast as the
+			// API server will answer for the whole of a teardown.
+			wait := r.effectivePollInterval(xr)
+			if wait <= 0 {
+				wait = teardownBackstopInterval
+			}
+
+			_ = r.client.Status().Update(updateCtx, xr)
+
+			return reconcile.Result{RequeueAfter: wait}, nil
+		}
 
 		if err := r.composite.RemoveFinalizer(ctx, xr); err != nil {
 			if kerrors.IsConflict(err) {
@@ -876,8 +932,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		if !cd.Synced {
 			log.Debug("Composed resource is not yet valid", "id", id)
-			unsynced = append(unsynced, id)
-			r.record.Event(xr, event.Normal(reasonCompose, fmt.Sprintf("Composed resource %q is not yet valid", id)))
+			message := fmt.Sprintf("Composed resource %q is not yet valid", id)
+			if cd.Reason != "" {
+				message = fmt.Sprintf("%s: %s", message, cd.Reason)
+				unsynced = append(unsynced, fmt.Sprintf("%s: %s", id, cd.Reason))
+			} else {
+				unsynced = append(unsynced, id)
+			}
+			r.record.Event(xr, event.Normal(reasonCompose, message))
 		}
 
 		if !cd.Ready {
@@ -1011,4 +1073,171 @@ func getClaimFromXR(ctx context.Context, c client.Client, xr *composite.Unstruct
 // Jitter the supplied duration by up to +/- 10%.
 func jitter(d time.Duration) time.Duration {
 	return d + time.Duration((rand.Float64()-0.5)*2*(float64(d)*0.1)) //nolint:gosec // No need for secure randomness
+}
+
+// teardownBackstopInterval is how long to wait before looking at a teardown
+// again when nothing else would wake us. Watches on the composed resources
+// normally do, so this only has to be short enough that a degraded watch
+// doesn't stall teardown, and long enough not to spin.
+const teardownBackstopInterval = 5 * time.Second
+
+// teardown deletes the composed resources of an XR that is being deleted, in
+// dependency order, one wave per call. It reports whether teardown is done -
+// i.e. whether the caller may drop the XR's finalizer.
+//
+// The graph comes from the XR's own composed resource references, not from the
+// function pipeline, which does not run during deletion. References record what
+// the pipeline declared on the last reconcile that succeeded, which is a
+// description of what was actually built and so the right order to take it
+// apart in.
+//
+// Teardown blocks rather than giving up. A composed resource that will not
+// delete - a provider that cannot reach its API, an external resource with a
+// dependency Crossplane cannot see - holds the XR until someone intervenes.
+// Abandoning the order and cascading would delete the rest out of order, which
+// is the outcome this feature exists to prevent, so the XR reports what it is
+// waiting on and waits.
+func (r *Reconciler) teardown(ctx context.Context, xr *composite.Unstructured, status conditions.ConditionSet) (bool, error) {
+	log := r.log.WithValues("request", client.ObjectKeyFromObject(xr))
+
+	// Ordered teardown isn't configured, so there's nothing to do. Dropping
+	// the finalizer lets Kubernetes cascade, as it always has.
+	if r.observer == nil || r.gc == nil {
+		log.Debug("Ordered teardown is not configured; cascading")
+		return true, nil
+	}
+
+	refs := xr.GetComposedResourceReferences()
+
+	edges := EdgesFromRefs(refs)
+	log.Debug("Rebuilt the dependency graph from the XR's references", "references", len(refs), "edges", len(edges))
+
+	if len(edges) == 0 {
+		// This XR's pipeline declared no ordering, or its references predate
+		// the fields that record it. Either way there's no order to keep.
+		return true, nil
+	}
+
+	observed, err := r.observer.ObserveComposedResources(ctx, xr)
+	if err != nil {
+		return false, errors.Wrap(err, errGetExistingCDs)
+	}
+
+	log.Debug("Observed the composed resources that are left", "observed", len(observed))
+
+	if len(observed) == 0 {
+		return true, nil
+	}
+
+	s := ordering.State{Composed: make(map[string]ordering.ComposedState, len(observed))}
+	for name := range observed {
+		// Everything that still exists is observed, and nothing is desired:
+		// the whole composition is going away.
+		s.Composed[string(name)] = ordering.ComposedState{Observed: true}
+	}
+
+	// Edges naming a resource that has already gone cannot hold up what's
+	// left, so drop them before deciding.
+	g, _ := ordering.New(edges...).Prune(s)
+	d := g.Decide(s)
+
+	log.Debug("Decided this teardown wave", "delete", d.Delete, "blocked", len(d.Blocked))
+
+	if len(d.Delete) == 0 {
+		// Nothing is deletable but resources remain. Waiting cannot resolve
+		// this on its own, so say what is stuck and how it is stuck.
+		status.MarkConditions(xpv2.Deleting().WithMessage(teardownBlockedMessage(observed, d)))
+		return false, nil
+	}
+
+	// Hand the garbage collector only this wave. It deletes observed minus
+	// desired, so a leaf-only observed set and an empty desired set delete
+	// exactly the leaves - and it keeps the controller reference check that
+	// stops us being used to delete resources we don't own.
+	leaves := make(ComposedResourceStates, len(d.Delete))
+	for _, name := range d.Delete {
+		leaves[ResourceName(name)] = observed[ResourceName(name)]
+	}
+
+	if err := r.gc.GarbageCollectComposedResources(ctx, xr, leaves, ComposedResourceStates{}); err != nil {
+		return false, errors.Wrap(err, errGarbageCollectCDs)
+	}
+
+	status.MarkConditions(xpv2.Deleting().WithMessage(teardownWaitingMessage(observed, d.Delete)))
+
+	return false, nil
+}
+
+// teardownWaitingMessage describes a teardown that has work to do.
+//
+// It distinguishes resources we are asking to delete from resources we have
+// already asked and which have not gone. The difference matters: the graph
+// keeps nominating the same leaf every reconcile whether the delete is merely
+// slow or will never complete, so without this an XR stuck forever on a
+// resource that refuses to delete reports the same cheerful progress as one
+// that is a second from finishing. Crossplane cannot tell those apart - no one
+// can, in general - but it can say which it is waiting on and for how long, so
+// that someone looking at the XR can.
+func teardownWaitingMessage(observed ComposedResourceStates, deleting []string) string {
+	requested := make([]string, 0, len(deleting))
+	stuck := make([]string, 0, len(deleting))
+
+	for _, n := range deleting {
+		cd, ok := observed[ResourceName(n)]
+		if !ok {
+			continue
+		}
+
+		if ts := cd.Resource.GetDeletionTimestamp(); ts != nil {
+			stuck = append(stuck, fmt.Sprintf("%s (deleting for %s)", n, time.Since(ts.Time).Round(time.Second)))
+			continue
+		}
+
+		requested = append(requested, n)
+	}
+
+	slices.Sort(requested)
+	slices.Sort(stuck)
+
+	switch {
+	case len(stuck) == 0:
+		return fmt.Sprintf("Deleting %d composed resource(s) in dependency order: %s. %d remaining.",
+			len(requested), strings.Join(requested, ", "), len(observed))
+
+	case len(requested) == 0:
+		// Everything this wave can delete has already been asked and is still
+		// here. Nothing else can start until it goes, so teardown is not
+		// progressing and may need someone to look at it.
+		return fmt.Sprintf("Waiting for %d composed resource(s) already asked to delete: %s. %d remaining; teardown cannot continue until they are gone, and may require manual intervention.",
+			len(stuck), strings.Join(stuck, ", "), len(observed))
+
+	default:
+		return fmt.Sprintf("Deleting %d composed resource(s) in dependency order: %s. Still waiting on: %s. %d remaining.",
+			len(requested), strings.Join(requested, ", "), strings.Join(stuck, ", "), len(observed))
+	}
+}
+
+// teardownBlockedMessage describes a teardown that cannot proceed. It names the
+// deadlocked resources first, since those are what someone has to act on.
+func teardownBlockedMessage(observed ComposedResourceStates, d ordering.Decisions) string {
+	stuck := make([]string, 0, len(observed))
+
+	for name := range observed {
+		b, ok := d.Blocked[string(name)]
+		if !ok {
+			continue
+		}
+
+		reason := b.Reason
+		if b.Deadlocked {
+			reason = "deadlocked: " + reason
+		}
+
+		stuck = append(stuck, fmt.Sprintf("%s (%s)", name, reason))
+	}
+
+	slices.Sort(stuck)
+
+	return fmt.Sprintf("Cannot delete %d remaining composed resource(s) in dependency order; manual intervention is required: %s",
+		len(observed), strings.Join(stuck, "; "))
 }

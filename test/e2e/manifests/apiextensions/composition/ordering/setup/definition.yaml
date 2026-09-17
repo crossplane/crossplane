@@ -1,0 +1,27 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: xorderings.ordering.example.org
+spec:
+  scope: Namespaced
+  group: ordering.example.org
+  names:
+    kind: XOrdering
+    plural: xorderings
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              sequence:
+                type: array
+                items:
+                  type: string
+            required:
+            - sequence

@@ -469,6 +469,66 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: true},
 			},
 		},
+		"ComposedResourcesBlocked": {
+			reason: "A composed resource the ordering graph is holding back should reach the XR's Synced condition with its reason, not just its name. The reason is the only durable record of why nothing is happening; an event expires.",
+			args: args{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						cr.SetConditions(v1.WatchCircuitClosed(),
+							xpv2.ReconcileError(errors.New(errSyncResources)).WithMessage(
+								"Unsynced resources: orphan, subnet: waiting for [vpc] to be ready, "+
+									"and vpc: waiting for [subnet] to be deleted"),
+							xpv2.Creating().WithMessage("Unready resources: subnet"))
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
+						return NewCompositionRevision(), nil
+					})),
+					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
+						return nil
+					})),
+					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+						return CompositionResult{
+							Composed: []ComposedResource{{
+								// Held back from being created.
+								ResourceName: "subnet",
+								Ready:        false,
+								Synced:       false,
+								Reason:       "waiting for [vpc] to be ready",
+							}, {
+								// Held back from being deleted. It exists, so
+								// it's ready - but it still keeps the XR from
+								// converging.
+								ResourceName: "vpc",
+								Ready:        true,
+								Synced:       false,
+								Reason:       "waiting for [subnet] to be deleted",
+							}, {
+								// Unsynced for some other reason. Composers
+								// that set no reason must still be named.
+								ResourceName: "orphan",
+								Ready:        true,
+								Synced:       false,
+							}},
+						}, nil
+					})),
+					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
+						return false, nil
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+			},
+		},
 		"ComposedResourcesReady": {
 			reason: "We should requeue after our poll interval if all of our composed resources are ready.",
 			args: args{

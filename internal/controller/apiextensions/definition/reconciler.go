@@ -562,6 +562,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		composite.WithCompositeConnectionDetailsFetcher(fetcher),
 		composite.WithRequiredSchemasFetcher(xfn.NewOpenAPIRequiredSchemasFetcher(r.options.OpenAPIClient)),
 		composite.WithResourceTracker(tracker),
+		composite.WithComposedResourceOrdering(r.options.Features.Enabled(features.EnableAlphaComposedResourceOrdering)),
 	)
 
 	cb := circuit.NewTokenBucketBreaker(controllerName,
@@ -569,6 +570,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		circuit.WithBurst(r.options.CircuitBreakerBurst),
 		circuit.WithRefillRatePerSecond(r.options.CircuitBreakerRefillRate),
 		circuit.WithOpenDuration(r.options.CircuitBreakerCooldown),
+		circuit.WithHalfOpenInterval(r.options.CircuitBreakerHalfOpenInterval),
 	)
 
 	//nolint:staticcheck // TODO(adamwg) Stop using meta.ReferenceTo after the v2.2 release.
@@ -607,6 +609,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			composite.WithWatchStarter(controllerName, h, r.engine, tracker),
 			composite.WithPollInterval(0), // Disable polling.
 		)
+	}
+
+	// With ordering enabled the XR controller tears its composed resources
+	// down in dependency order, using the graph persisted in the XR's
+	// references, rather than dropping its finalizer and letting Kubernetes
+	// cascade in no particular order.
+	if r.options.Features.Enabled(features.EnableAlphaComposedResourceOrdering) {
+		ro = append(ro, composite.WithOrderedTeardown(
+			composite.NewExistingComposedResourceObserver(r.engine.GetCached(), r.engine.GetUncached(), fetcher),
+			composite.NewDeletingComposedResourceGarbageCollector(r.engine.GetCached()),
+		))
 	}
 
 	cr := composite.NewReconciler(r.engine.GetCached(), gvk, ro...)

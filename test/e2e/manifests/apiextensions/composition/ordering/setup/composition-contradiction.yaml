@@ -1,0 +1,25 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xorderings.ordering.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: ordering.example.org/v1alpha1
+    kind: XOrdering
+  mode: Pipeline
+  pipeline:
+  - step: compose-in-order
+    functionRef:
+      name: function-ordering
+    input:
+      apiVersion: ordering.fn.crossplane.io/v1alpha1
+      kind: Input
+      # The pipeline wants the vpc deleted but keeps a subnet that depends on
+      # it. The vpc can never be deleted, because the subnet isn't leaving.
+      # The subnet keeps reconciling - ordering gates creation, not updates -
+      # so the deadlock is reported on the vpc, and the XR is held un-ready
+      # because it can never converge.
+      resources: [vpc, subnet]
+      remove: [vpc]
+      edges:
+      - {resource: subnet, dependsOn: vpc}
