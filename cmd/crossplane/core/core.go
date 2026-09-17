@@ -68,6 +68,7 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
 	"github.com/crossplane/crossplane/v2/internal/initializer"
+	"github.com/crossplane/crossplane/v2/internal/leaderelection"
 	"github.com/crossplane/crossplane/v2/internal/metrics"
 	"github.com/crossplane/crossplane/v2/internal/protection/usage"
 	"github.com/crossplane/crossplane/v2/internal/transport"
@@ -177,6 +178,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	if c.Registry != "" {
 		return errors.New("the --registry flag is no longer supported since support for a default registry value has been removed. Please ensure that all packages have fully qualified names that explicitly state their registry. This also applies to all of a packages dependencies")
+	}
+
+	if c.LeaderElection {
+		if err := leaderelection.ValidateConfig(c.LeaderElection, c.LeaderElectionLeaseDuration, c.LeaderElectionRenewDeadline, c.LeaderElectionRetryPeriod); err != nil {
+			return errors.Wrap(err, "invalid leader election configuration")
+		}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
