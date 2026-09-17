@@ -111,7 +111,10 @@ func TestEdgesFromRefsRoundTrip(t *testing.T) {
 	xr := composite.New()
 	UpdateComposedResourceRefs(xr, desired, deps)
 
-	want := AsEdges(deps)
+	want, err := AsEdges(deps)
+	if err != nil {
+		t.Fatalf("AsEdges(...): %v", err)
+	}
 
 	got := EdgesFromRefs(xr.GetComposedResourceReferences())
 	if diff := cmp.Diff(want, got, byEdge()); diff != "" {
@@ -229,5 +232,57 @@ func TestMergeRequiredResourcesDoesNotAliasInputs(t *testing.T) {
 
 	if diff := cmp.Diff([]string{"vpc-a", "vpc-b"}, got); diff != "" {
 		t.Errorf("merged items alias the input's backing array: -want, +got:\n%s", diff)
+	}
+}
+
+func TestAsEdgesLifecycle(t *testing.T) {
+	cases := map[string]struct {
+		reason    string
+		lifecycle fnv1.DependencyLifecycle
+		want      ordering.Lifecycle
+		wantErr   bool
+	}{
+		"UnspecifiedIsSymmetric": {
+			reason:    "An unset lifecycle should order both directions, which is the protocol's documented default.",
+			lifecycle: fnv1.DependencyLifecycle_DEPENDENCY_LIFECYCLE_UNSPECIFIED,
+			want:      ordering.LifecycleSymmetric,
+		},
+		"CreateBeforeDestroyCarriesThrough": {
+			reason:    "The one non-default lifecycle should reach the graph.",
+			lifecycle: fnv1.DependencyLifecycle_DEPENDENCY_LIFECYCLE_CREATE_BEFORE_DESTROY,
+			want:      ordering.LifecycleCreateBeforeDestroy,
+		},
+		"UnknownIsRejected": {
+			reason:    "A lifecycle from a newer protocol should fail the reconcile rather than silently becoming the default, which could delete a resource the function meant to keep.",
+			lifecycle: fnv1.DependencyLifecycle(99),
+			wantErr:   true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			deps := []*fnv1.Dependency{{
+				Resource:  "subnet",
+				DependsOn: &fnv1.Dependency_ComposedResource{ComposedResource: "vpc"},
+				Lifecycle: tc.lifecycle,
+			}}
+
+			got, err := AsEdges(deps)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("\n%s\nAsEdges(...): want an error, got none", tc.reason)
+				}
+
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("\n%s\nAsEdges(...): unexpected error: %v", tc.reason, err)
+			}
+
+			if diff := cmp.Diff(tc.want, got[0].Lifecycle); diff != "" {
+				t.Errorf("\n%s\nAsEdges(...) lifecycle: -want, +got:\n%s", tc.reason, diff)
+			}
+		})
 	}
 }
