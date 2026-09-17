@@ -1,0 +1,23 @@
+# A deliberately empty XR API. The graph lives in the Composition, so the XR
+# itself has nothing interesting on it - which is part of the point: the
+# platform team declares the order, the person creating the XR doesn't.
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: xnetworks.demo.crossplane.io
+spec:
+  scope: Namespaced
+  group: demo.crossplane.io
+  names:
+    kind: XNetwork
+    plural: xnetworks
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
