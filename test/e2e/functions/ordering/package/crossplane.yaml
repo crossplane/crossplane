@@ -1,0 +1,23 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-ordering
+  annotations:
+    meta.crossplane.io/maintainer: Crossplane Maintainers <info@crossplane.io>
+    meta.crossplane.io/source: github.com/crossplane/crossplane/tree/main/test/e2e/functions/ordering
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      A test function that composes resources and declares ordering constraints
+      between them.
+    meta.crossplane.io/readme: |
+      Exists to exercise composed resource ordering in Crossplane's end-to-end
+      tests. It composes a ConfigMap or NopResource per named resource, and
+      declares dependencies over them, so a test can observe Crossplane
+      sequencing the resources it creates, updates and deletes.
+
+      Not intended for production use.
+spec:
+  # Composition functions must advertise this, or Crossplane refuses to run
+  # them in a Composition pipeline.
+  capabilities:
+  - composition

@@ -99,6 +99,10 @@ message RunFunctionRequest {
   // sets the map key to an empty Schema message to indicate that it attempted
   // to satisfy the request.
   map<string, Schema> required_schemas = 9;
+
+  // Optional ordering constraints over composed resources, accumulated by the
+  // functions that ran before this one.
+  Dependencies dependencies = 10;
 }
 
 // Credentials that a function may use to communicate with an external system.
@@ -118,6 +122,78 @@ message CredentialData {
 // Resources represents the state of several Crossplane resources.
 message Resources {
   repeated Resource items = 1;
+}
+
+// Dependencies is a set of ordering constraints over composed resources.
+//
+// This is a message wrapping a repeated field, rather than a bare repeated
+// field, so that an unset value can be told apart from an empty one. A bare
+// repeated field can't express that difference: proto3 has no presence for
+// repeated fields, and an empty list and an unset field are both zero bytes on
+// the wire. Crossplane relies on the difference, because an unset value means
+// "this function has no opinion, carry my constraints forward" while an empty
+// one means "this function wants no constraints at all." State wraps desired
+// and observed resources for the same reason.
+message Dependencies {
+  repeated Dependency items = 1;
+}
+
+// A Dependency declares that one composed resource must be created after, and
+// deleted before, another resource. It expresses ordering only. It doesn't move
+// any data between resources.
+message Dependency {
+  // Name of the composed resource that has the dependency. A key into the
+  // desired or observed State.resources map.
+  string resource = 1;
+
+  // What the resource depends on.
+  oneof depends_on {
+    // Name of another composed resource. A key into the desired or observed
+    // State.resources map.
+    string composed_resource = 2;
+
+    // A resource the pipeline required, rather than composed. Crossplane never
+    // deletes a resource it didn't compose, so these constrain only the order
+    // resources are created and updated.
+    RequiredResourceDependency required_resource = 4;
+  }
+
+  // How this dependency constrains the order its endpoints are created and
+  // deleted. Defaults to symmetric ordering.
+  DependencyLifecycle lifecycle = 3;
+}
+
+// A DependencyLifecycle is how a dependency constrains the order its endpoints
+// are created and deleted.
+enum DependencyLifecycle {
+  // Symmetric ordering: the resource is created only once what it depends on
+  // is ready, and what it depends on is deleted only once the resource is
+  // gone. This is the default, and the only valid value when depends_on is a
+  // required resource, because Crossplane never deletes a resource it didn't
+  // compose.
+  DEPENDENCY_LIFECYCLE_UNSPECIFIED = 0;
+
+  // The resource may be created without waiting for what it depends on to be
+  // deleted. It must still exist and be ready before what it depends on is
+  // deleted. Use for a replacement that must exist before its predecessor is
+  // torn down. Only valid when depends_on is a composed resource.
+  DEPENDENCY_LIFECYCLE_CREATE_BEFORE_DESTROY = 1;
+}
+
+// A RequiredResourceDependency identifies a resource the pipeline required,
+// for the purpose of ordering.
+message RequiredResourceDependency {
+  // The requirement name. A key into a RunFunctionRequest's required_resources
+  // map, and into a RunFunctionResponse's requirements.resources map.
+  string requirement_name = 1;
+
+  // Optional name of a single resource within the set the requirement matched.
+  // If unset, every resource the requirement matched must be ready.
+  optional string name = 2;
+
+  // Namespace of name for a namespaced resource. Leave unset for a
+  // cluster-scoped resource. name and namespace together identify one match.
+  optional string namespace = 3;
 }
 
 // A RunFunctionResponse contains the result of a function run.
@@ -158,6 +234,14 @@ message RunFunctionResponse {
   //
   // Only Operations use function output. XRs will discard any function output.
   optional google.protobuf.Struct output = 7;
+
+  // Optional ordering constraints over composed resources. A function that has
+  // an opinion about ordering must return the full set it wants going forward,
+  // including edges it received and still wants. Leaving this field unset means
+  // "no opinion" - Crossplane carries forward whatever it sent in the request.
+  //
+  // Dependencies are only used for composition. They're ignored by Operations.
+  Dependencies dependencies = 8;
 }
 
 // RequestMeta contains metadata pertaining to a RunFunctionRequest.
@@ -203,6 +287,11 @@ enum Capability {
   // OpenAPI schemas and Crossplane will return them in required_schemas. Added
   // in Crossplane v2.2.
   CAPABILITY_REQUIRED_SCHEMAS = 5;
+
+  // Crossplane supports the dependencies field. Functions can declare ordering
+  // constraints over composed resources, and Crossplane will sequence the
+  // resources it creates, updates and deletes accordingly.
+  CAPABILITY_DEPENDENCIES = 6;
 }
 
 // Requirements that must be satisfied for a function to run successfully.

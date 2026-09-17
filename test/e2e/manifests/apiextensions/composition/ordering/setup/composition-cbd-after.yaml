@@ -1,0 +1,26 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xorderings.ordering.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: ordering.example.org/v1alpha1
+    kind: XOrdering
+  mode: Pipeline
+  pipeline:
+  - step: compose-in-order
+    functionRef:
+      name: function-ordering
+    input:
+      apiVersion: ordering.fn.crossplane.io/v1alpha1
+      kind: Input
+      # Replacement: "new" takes over from "old". createBeforeDestroy lets new
+      # be created without waiting for old to go, but old may not be deleted
+      # until new exists and is ready.
+      resources:
+      - old
+      - new
+      remove:
+      - old
+      edges:
+      - {resource: new, dependsOn: old, createBeforeDestroy: true}

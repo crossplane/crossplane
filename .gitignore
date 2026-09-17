@@ -46,3 +46,6 @@ AGENTS.md
 
 # Ignore Earthly environment variables
 .env
+
+# Build output from test/e2e/functions/ordering/build.sh
+test/e2e/functions/ordering/_output/

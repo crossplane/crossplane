@@ -1,0 +1,6 @@
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: ordering-env
+data:
+  region: us-east-1

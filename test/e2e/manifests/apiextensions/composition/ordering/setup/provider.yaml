@@ -1,0 +1,17 @@
+# provider-nop with timed deletes. A NopResource's deletion takes
+# spec.forProvider.deleteAfter, which is what makes a teardown wave observable:
+# without it a wave completes faster than a test can look at it, and ordered
+# teardown is indistinguishable from an unordered cascade.
+#
+# The DeploymentRuntimeConfig this references lives in its own file on purpose.
+# A test that waits for this file's resources to report Healthy and Active
+# can't also be pointed at a DeploymentRuntimeConfig, which has no conditions
+# at all and so never satisfies the wait.
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-nop-ordering
+spec:
+  package: index.docker.io/steve/provider-nop:timed-deletes.2
+  runtimeConfigRef:
+    name: provider-nop-fast-poll

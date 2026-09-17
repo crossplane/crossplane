@@ -1,0 +1,10 @@
+apiVersion: ordering.example.org/v1alpha1
+kind: XOrdering
+metadata:
+  name: ordered
+  namespace: default
+spec:
+  sequence:
+  - first
+  - second
+  - third

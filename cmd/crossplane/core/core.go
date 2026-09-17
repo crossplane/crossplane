@@ -119,6 +119,8 @@ type startCommand struct {
 	CircuitBreakerRefillRate float64       `default:"1.0"   help:"XR circuit breaker token refill rate (tokens/second)."`
 	CircuitBreakerCooldown   time.Duration `default:"5m"    help:"How long XR circuit breakers stay open after triggering."`
 
+	CircuitBreakerHalfOpenInterval time.Duration `default:"30s" help:"How often an XR circuit breaker allows an event through while open."`
+
 	EnableWebhooks bool `aliases:"webhook-enabled" default:"true" env:"ENABLE_WEBHOOKS,WEBHOOK_ENABLED" help:"Enable webhook configuration."`
 
 	WebhookPort     int `default:"9443" env:"WEBHOOK_PORT"      help:"The port the webhook server listens on."`
@@ -136,6 +138,7 @@ type startCommand struct {
 	EnableFunctionResponseCache       bool `group:"Alpha Features:" help:"Enable support for caching composition function responses."`
 	EnableOperations                  bool `group:"Alpha Features:" help:"Enable support for Operations."`
 	EnablePipelineInspector           bool `group:"Alpha Features:" help:"Enable support for emitting function pipeline execution data to a sidecar."`
+	EnableComposedResourceOrdering    bool `group:"Alpha Features:" help:"Enable support for functions declaring ordering constraints over composed resources."`
 	EnableProviderDeletionProtection  bool `group:"Alpha Features:" help:"Enable automatic protection of Providers from deletion when they have active managed resources. Requires --enable-usages."`
 
 	XfnCacheDir             string        `default:"/cache/xfn"                         env:"XFN_CACHE_DIR"             group:"Alpha Features:" help:"Directory used for caching function responses. Requires --enable-function-response-cache."`
@@ -301,6 +304,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnablePipelineInspector {
 		o.Features.Enable(features.EnableAlphaPipelineInspector)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaPipelineInspector)
+	}
+
+	if c.EnableComposedResourceOrdering {
+		o.Features.Enable(features.EnableAlphaComposedResourceOrdering)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaComposedResourceOrdering)
 	}
 
 	if c.EnableFunctionResponseCache {
@@ -533,7 +541,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		CircuitBreakerBurst:      c.CircuitBreakerBurst,
 		CircuitBreakerRefillRate: c.CircuitBreakerRefillRate,
 		CircuitBreakerCooldown:   c.CircuitBreakerCooldown,
-		MinPollInterval:          c.MinPollInterval,
+
+		CircuitBreakerHalfOpenInterval: c.CircuitBreakerHalfOpenInterval,
+		MinPollInterval:                c.MinPollInterval,
 	}
 
 	if err := apiextensions.Setup(mgr, ao); err != nil {
