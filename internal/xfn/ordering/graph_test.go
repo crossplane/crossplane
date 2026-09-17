@@ -91,7 +91,7 @@ func TestValidate(t *testing.T) {
 		},
 		"RequirementCannotCreateBeforeDestroy": {
 			reason:  "Crossplane never deletes a required resource, so there is no delete direction to opt out of.",
-			graph:   New(Edge{Resource: "a", DependsOn: Target{RequiredResource: &RequiredRef{RequirementName: "shared"}}, CreateBeforeDestroy: true}),
+			graph:   New(Edge{Resource: "a", DependsOn: Target{RequiredResource: &RequiredRef{RequirementName: "shared"}}, Lifecycle: LifecycleCreateBeforeDestroy}),
 			state:   both,
 			wantErr: true,
 		},

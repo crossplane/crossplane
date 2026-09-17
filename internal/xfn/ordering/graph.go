@@ -22,6 +22,7 @@ limitations under the License.
 package ordering
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -43,6 +44,42 @@ type Target struct {
 	RequiredResource *RequiredRef
 }
 
+// A Lifecycle says how an edge constrains the two resources it connects
+// relative to each other.
+//
+// This mirrors the protocol's DependencyLifecycle without depending on it, so
+// that adding a lifecycle later is one more value here rather than one more
+// flag on Edge - which is the reason the protocol carries an enum rather than
+// a boolean in the first place.
+type Lifecycle int
+
+const (
+	// LifecycleSymmetric orders both directions: Resource is created only once
+	// DependsOn is ready, and DependsOn is deleted only once Resource is gone.
+	//
+	// It is the zero value, so an Edge built without an opinion - by teardown,
+	// rebuilding the graph from the XR's references - gets it.
+	LifecycleSymmetric Lifecycle = iota
+
+	// LifecycleCreateBeforeDestroy lets Resource be created without waiting
+	// for DependsOn to be deleted. Resource must still exist and be ready
+	// before DependsOn is deleted. Use it for a replacement that must exist
+	// before its predecessor is torn down. Only valid for a composed target.
+	LifecycleCreateBeforeDestroy
+)
+
+// String satisfies fmt.Stringer, so a lifecycle reads as itself in an error.
+func (l Lifecycle) String() string {
+	switch l {
+	case LifecycleSymmetric:
+		return "symmetric"
+	case LifecycleCreateBeforeDestroy:
+		return "create-before-destroy"
+	default:
+		return fmt.Sprintf("unknown(%d)", int(l))
+	}
+}
+
 // An Edge declares that Resource depends on Target.
 type Edge struct {
 	// Resource is the composed resource that has the dependency.
@@ -51,9 +88,9 @@ type Edge struct {
 	// DependsOn is what it depends on.
 	DependsOn Target
 
-	// CreateBeforeDestroy allows Resource to be created without waiting for
-	// DependsOn to be deleted. Only meaningful for composed targets.
-	CreateBeforeDestroy bool
+	// Lifecycle says how this edge constrains creation and deletion. Only
+	// LifecycleSymmetric is valid when DependsOn is a required resource.
+	Lifecycle Lifecycle
 }
 
 // A ComposedState is what the reconciler knows about one composed resource at
@@ -168,8 +205,8 @@ func (g *Graph) Validate(s State, requirements map[string]bool) error {
 			}
 			// Crossplane never deletes a resource it doesn't compose, so
 			// there is no delete direction to opt out of.
-			if e.CreateBeforeDestroy {
-				return errors.Errorf("edge from %q to requirement %q cannot set CreateBeforeDestroy", e.Resource, t.RequiredResource.RequirementName)
+			if e.Lifecycle != LifecycleSymmetric {
+				return errors.Errorf("edge from %q to requirement %q cannot set lifecycle %s", e.Resource, t.RequiredResource.RequirementName, e.Lifecycle)
 			}
 
 		case t.ComposedResource != "":

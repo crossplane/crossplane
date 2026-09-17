@@ -65,13 +65,24 @@ func EdgesFromRefs(refs []reference.Composed) []ordering.Edge {
 }
 
 // AsEdges converts protobuf dependencies to ordering edges.
-func AsEdges(deps []*fnv1.Dependency) []ordering.Edge {
+//
+// A lifecycle this Crossplane doesn't know is an error, not a default. A
+// function built against a newer protocol can send one, and what it asks for
+// cannot be guessed: treating it as ordinary ordering could delete something
+// the function meant to keep alive, which is the outcome ordering exists to
+// prevent. Better to refuse the graph and say so.
+func AsEdges(deps []*fnv1.Dependency) ([]ordering.Edge, error) {
 	out := make([]ordering.Edge, 0, len(deps))
 
 	for _, d := range deps {
+		l, err := asLifecycle(d.GetLifecycle())
+		if err != nil {
+			return nil, errors.Wrapf(err, "dependency from composed resource %q", d.GetResource())
+		}
+
 		e := ordering.Edge{
-			Resource:            d.GetResource(),
-			CreateBeforeDestroy: d.GetLifecycle() == fnv1.DependencyLifecycle_DEPENDENCY_LIFECYCLE_CREATE_BEFORE_DESTROY,
+			Resource:  d.GetResource(),
+			Lifecycle: l,
 		}
 
 		if r := d.GetRequiredResource(); r != nil {
@@ -87,7 +98,20 @@ func AsEdges(deps []*fnv1.Dependency) []ordering.Edge {
 		out = append(out, e)
 	}
 
-	return out
+	return out, nil
+}
+
+// asLifecycle maps a protocol lifecycle onto the graph's own, which exists so
+// the ordering package need not know about protobuf.
+func asLifecycle(l fnv1.DependencyLifecycle) (ordering.Lifecycle, error) {
+	switch l {
+	case fnv1.DependencyLifecycle_DEPENDENCY_LIFECYCLE_UNSPECIFIED:
+		return ordering.LifecycleSymmetric, nil
+	case fnv1.DependencyLifecycle_DEPENDENCY_LIFECYCLE_CREATE_BEFORE_DESTROY:
+		return ordering.LifecycleCreateBeforeDestroy, nil
+	default:
+		return ordering.LifecycleSymmetric, errors.Errorf("unsupported dependency lifecycle %q (%d)", l, int32(l))
+	}
 }
 
 // AsOrderingState builds the state an ordering decision consumes.

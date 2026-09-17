@@ -240,7 +240,7 @@ func TestDecideDelete(t *testing.T) {
 }
 
 func TestDecideCreateBeforeDestroy(t *testing.T) {
-	cbd := Edge{Resource: "new", DependsOn: Target{ComposedResource: "old"}, CreateBeforeDestroy: true}
+	cbd := Edge{Resource: "new", DependsOn: Target{ComposedResource: "old"}, Lifecycle: LifecycleCreateBeforeDestroy}
 
 	cases := map[string]struct {
 		reason string
@@ -499,7 +499,7 @@ func TestDecideDeleteMixedWaits(t *testing.T) {
 	// the reverse of what has to happen.
 	g := New(
 		on("subnet", "vpc"),
-		Edge{Resource: "vpc-v2", DependsOn: Target{ComposedResource: "vpc"}, CreateBeforeDestroy: true},
+		Edge{Resource: "vpc-v2", DependsOn: Target{ComposedResource: "vpc"}, Lifecycle: LifecycleCreateBeforeDestroy},
 	)
 
 	s := State{Composed: map[string]ComposedState{
