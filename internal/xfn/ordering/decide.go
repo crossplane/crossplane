@@ -194,9 +194,9 @@ func (g *Graph) blockedFromApply(n string, s State) *Decision {
 		case t.ComposedResource != "":
 			dep := s.Composed[t.ComposedResource]
 
-			// CreateBeforeDestroy exists precisely so a replacement need not
-			// wait for its predecessor to go away.
-			if !dep.Desired && e.CreateBeforeDestroy {
+			// Create-before-destroy exists precisely so a replacement need
+			// not wait for its predecessor to go away.
+			if !dep.Desired && e.Lifecycle == LifecycleCreateBeforeDestroy {
 				continue
 			}
 
@@ -275,7 +275,7 @@ func (g *Graph) blockedFromDelete(n string, s State) *Decision {
 	for _, dep := range g.dependentsOf(n) {
 		ds := s.Composed[dep]
 
-		// With CreateBeforeDestroy the replacement must exist and be ready
+		// With create-before-destroy the replacement must exist and be ready
 		// before its predecessor is torn down. Note this is checked before
 		// the not-observed case below: a replacement that hasn't been created
 		// yet is the reason to wait, not a reason to proceed.
@@ -343,11 +343,11 @@ func (g *Graph) blockedFromDelete(n string, s State) *Decision {
 }
 
 // createBeforeDestroy reports whether the edge from resource to dependsOn sets
-// the create-before-destroy flag.
+// the create-before-destroy lifecycle.
 func (g *Graph) createBeforeDestroy(resource, dependsOn string) bool {
 	for _, e := range g.edges {
 		if e.Resource == resource && e.DependsOn.ComposedResource == dependsOn {
-			return e.CreateBeforeDestroy
+			return e.Lifecycle == LifecycleCreateBeforeDestroy
 		}
 	}
 

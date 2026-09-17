@@ -276,7 +276,12 @@ func TestOrderingRequiredResourceNamespace(t *testing.T) {
 	state := AsOrderingState(ComposedResourceStates{
 		"app": {Ready: true},
 	}, nil, required)
-	got := ordering.New(AsEdges([]*fnv1.Dependency{dependency})...).Decide(state)
+	edges, err := AsEdges([]*fnv1.Dependency{dependency})
+	if err != nil {
+		t.Fatalf("AsEdges(...): %v", err)
+	}
+
+	got := ordering.New(edges...).Decide(state)
 
 	if len(got.Apply) != 1 || got.Apply[0] != "app" {
 		t.Errorf("The ready platform-a/shared resource should unblock app independently of platform-b/shared, got %#v", got)

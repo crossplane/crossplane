@@ -716,10 +716,15 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	if c.ordering && len(deps) > 0 {
 		state := AsOrderingState(desired, observed, reqres)
 
+		edges, err := AsEdges(deps)
+		if err != nil {
+			return CompositionResult{}, errors.Wrap(err, errInvalidDependencies)
+		}
+
 		// Drop edges naming resources that no longer exist before validating.
 		// A function returning a fixed set of rules keeps declaring edges for
 		// resources it has finished deleting; that's expected, not an error.
-		g, stale := ordering.New(AsEdges(deps)...).Prune(state)
+		g, stale := ordering.New(edges...).Prune(state)
 
 		// A pruned edge is usually a resource that finished deleting, but it's
 		// also what a typo looks like: ordering silently stops applying while

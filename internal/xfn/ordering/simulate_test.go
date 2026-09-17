@@ -129,9 +129,9 @@ func TestSimulateReplacement(t *testing.T) {
 	// A create-before-destroy replacement: new must exist and be ready
 	// before old is torn down.
 	g := New(Edge{
-		Resource:            "new",
-		DependsOn:           Target{ComposedResource: "old"},
-		CreateBeforeDestroy: true,
+		Resource:  "new",
+		DependsOn: Target{ComposedResource: "old"},
+		Lifecycle: LifecycleCreateBeforeDestroy,
 	})
 
 	s := State{Composed: map[string]ComposedState{
