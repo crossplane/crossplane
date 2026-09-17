@@ -24,6 +24,7 @@
     * [Resources pending Deletion](#resources-pending-deletion)
   * [Persisting Dependencies in `spec.resourceRefs`](#persisting-dependencies-in-specresourcerefs)
   * [Dependency Lifecycle: create-before-destroy](#dependency-lifecycle-create-before-destroy)
+* [Performance at Scale](#performance-at-scale)
 * [Enabling Adoption with `function-ordering`](#enabling-adoption-with-function-ordering)
   * [How it works](#how-it-works)
 * [API Impact and Capabilities](#api-impact-and-capabilities)
@@ -492,6 +493,54 @@ proceed early, not the topology.
 Using an enum enables the API to include other lifecycle policies in the future,
 like
 Pulumi's [`deletedWith`](https://www.pulumi.com/docs/iac/concepts/resources/options/deletedwith/).
+
+## Performance at Scale
+
+Platforms routinely run compositions of a few hundred composed resources, and
+clusters of many thousands, so the cost of the graph matters. It is worth being
+precise about where that cost falls: this is CPU on data the reconciler already
+holds. Ordering issues no extra API calls, adds no watches, and stores nothing
+beyond the two fields on `spec.resourceRefs`. The concern is one pass over the
+graph per reconcile, and the fact that reconciles are most frequent exactly
+when a large graph is converging — with realtime compositions every composed
+resource that changes wakes its XR, so creating or tearing down `n` resources
+costs on the order of `n` passes.
+
+A pass is `O(n+m)` in `n` composed resources and `m` edges. The prototype
+indexes the graph's adjacency once when it is built — outgoing edges by
+resource, dependents by target, the lifecycle by the pair it belongs to — so
+every question the decision logic asks is a map lookup.
+
+That was not the first implementation. The graph was originally a flat edge
+list scanned on every question, which made a pass quadratic in the size of the
+composition, and worse with width than with depth: finding a resource's
+dependents walked every edge, and then each dependent's lifecycle walked them
+again. Measured per pass on an M-series laptop:
+
+| Graph | Scanning | Indexed |
+| --- | --- | --- |
+| 500-resource chain | 1.06 ms | 0.18 ms |
+| 1000-resource chain | 4.08 ms | 0.37 ms |
+| 2000-resource chain | 14.19 ms | 0.74 ms |
+| 500 resources, 980 edges, ten levels | 2.31 ms | 0.65 ms |
+| 1000 resources, 1980 edges, ten levels | 8.92 ms | 1.48 ms |
+| 500 resources, ten edges each | 22.98 ms | 0.50 ms |
+| 1000 resources, ten edges each | 103.10 ms | 1.13 ms |
+
+Growth is now linear in both dimensions: doubling the resource count doubles
+the cost, where it previously quadrupled. The worst shape measured — a thousand
+resources with ten dependencies each, denser than compositions normally are —
+costs about a millisecond per pass, against a function pipeline that takes
+1–100 ms and the API round trips that dominate any reconcile of that size.
+
+Two things follow for reviewers. The first is that width costs more than depth,
+because the work is per edge rather than per resource; a composition's edge
+count is the number to reason about, not its resource count. The second is that
+these numbers are checked rather than asserted — the benchmarks live in
+`internal/xfn/ordering/decide_bench_test.go` and cover chains, dense fan-in and
+the layered shape a wide composition of independent branches actually takes, so
+a regression to quadratic behavior shows up as a benchmark result rather than
+as a production incident.
 
 ## Enabling Adoption with `function-ordering`
 
