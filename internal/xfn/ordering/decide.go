@@ -66,38 +66,32 @@ type Decisions struct {
 //
 // # Cost
 //
-// This is deliberately a scan rather than an index, and the scan is over the
-// whole edge set for every resource - including resources that have no edges
-// at all. With n composed resources and m edges:
+// One pass costs O(n+m) in n composed resources and m edges. New indexes the
+// adjacency once - outgoing edges by resource, dependents by target, and the
+// create-before-destroy flag by the pair it belongs to - so every question
+// this file asks of the graph is a map lookup rather than a walk.
 //
-//   - creating costs O(n*m): blockedFromApply walks every edge once per
-//     resource, looking for the ones that name it.
-//   - deleting costs O(n*m*d), where d is the average number of dependents a
-//     resource has. blockedFromDelete walks every edge to find the dependents
-//     of one resource, then asks createBeforeDestroy about each dependent -
-//     and that question is itself another walk of every edge.
+// It was a scan until a scale review asked what happens at a thousand
+// resources, which is a fair question for platforms running hundreds of
+// composed resources per XR. The answer was that it was quadratic in the size
+// of the composition: blockedFromApply walked every edge once per resource,
+// and blockedFromDelete walked every edge per resource and then again per
+// dependent, to answer createBeforeDestroy.
 //
-// Both are quadratic in the size of a composition, because m grows with n.
-// Measured on an M-series laptop (see decide_bench_test.go), one Decide call
-// costs roughly 5ns per edge visited: 98us for a 100-resource chain, 1.4ms for
-// 100 resources with ten edges each, 116ms for 1000 resources with ten edges
-// each. Compare that against a function pipeline, which takes 1-100ms.
+// Measured on an M-series laptop (see decide_bench_test.go), per Decide:
 //
-// So this is free at the scale compositions actually reach, becomes visible
-// somewhere around 500 resources with a dense graph, and dominates the
-// reconcile near 1000. Width costs far more than depth: ten edges per resource
-// is 20x the cost of a chain at the same n. It is also per reconcile, so it
-// multiplies with reconcile frequency - which is highest exactly when a large
-// graph is converging.
+//	                                  scanning   indexed
+//	1000-resource chain                 4.1ms     0.37ms
+//	2000-resource chain                14.2ms     0.74ms
+//	1000 resources, ten edges each    103.1ms     1.13ms
 //
-// The fix, if a real composition ever gets there: build two maps once at the
-// top of Decide - edges by e.Resource, and edges by the composed resource
-// they depend on - and have blockedFromApply, blockedFromDelete, dependentsOf
-// and createBeforeDestroy read those instead of ranging over g.edges. That
-// turns every O(m) walk into an O(1) lookup and the whole pass into O(n+m).
-// It is perhaps thirty lines. It is not worth the indirection until someone
-// has a composition that needs it, and it should come with a benchmark
-// showing the before and after rather than being taken on faith.
+// The shape that hurt was width, not depth, because the per-dependent walk
+// squares with it. Growth is now linear in both: doubling n doubles the cost.
+//
+// This matters per reconcile, and reconciles are most frequent exactly when a
+// large graph is converging - with realtime compositions every composed
+// resource that changes wakes the XR, so a teardown of n resources is on the
+// order of n passes. At 103ms a pass that was minutes of CPU for one XR.
 func (g *Graph) Decide(s State) Decisions {
 	d := Decisions{Blocked: map[string]Decision{}}
 
@@ -162,11 +156,7 @@ func (g *Graph) blockedFromApply(n string, s State) *Decision {
 	contradicting := []string{}
 	why := []string{}
 
-	for _, e := range g.edges {
-		if e.Resource != n {
-			continue
-		}
-
+	for _, e := range g.out[n] {
 		switch t := e.DependsOn; {
 		case t.RequiredResource != nil:
 			switch requirementStatus(s, *t.RequiredResource) {
@@ -345,13 +335,7 @@ func (g *Graph) blockedFromDelete(n string, s State) *Decision {
 // createBeforeDestroy reports whether the edge from resource to dependsOn sets
 // the create-before-destroy lifecycle.
 func (g *Graph) createBeforeDestroy(resource, dependsOn string) bool {
-	for _, e := range g.edges {
-		if e.Resource == resource && e.DependsOn.ComposedResource == dependsOn {
-			return e.Lifecycle == LifecycleCreateBeforeDestroy
-		}
-	}
-
-	return false
+	return g.cbd[[2]string{resource, dependsOn}]
 }
 
 // A requirement is how far along a required-resource dependency is. Several

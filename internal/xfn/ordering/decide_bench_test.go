@@ -21,15 +21,23 @@ import (
 	"testing"
 )
 
-// Decide scans every edge for every resource, so its cost grows with the
-// product of the two: n composed resources and m edges, not one or the other.
-// A composition with many resources and few edges is cheap, and so is one with
-// few resources and many edges. These benchmarks say where the product starts
-// to matter. See the "Cost" section on Decide for what to do about it.
+// These benchmarks exist to keep a pass over the graph linear in the size of
+// the composition. They caught it when it wasn't: Decide used to scan the edge
+// set for every resource, and again per dependent, which made a thousand
+// resources with ten edges each cost 103ms a pass. See the "Cost" section on
+// Decide.
 //
-// The teardown case is the expensive one: blockedFromDelete walks the
-// dependents of each resource and asks createBeforeDestroy about each, and
-// that question is itself a scan of every edge.
+// Four shapes, because the cost depends on the shape and not only the size:
+//
+//   - chain: n resources in a line, m = n. Depth without width.
+//   - fanIn: each resource depends on the previous k, m = n*k. Width, which is
+//     what used to square.
+//   - layered: levels of ten, two dependencies each. What a large composition
+//     of independent branches actually looks like.
+//
+// Teardown is benchmarked separately from creation because it is the more
+// expensive side: blockedFromDelete considers every dependent of a resource,
+// where blockedFromApply considers only its own edges.
 //
 // Note that fanIn varies both n and m together, because m = n*k. That is the
 // realistic shape - edges arrive with the resources that declare them - but it
@@ -100,6 +108,64 @@ func BenchmarkDecideFanInTeardown(b *testing.B) {
 
 		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
 			for b.Loop() {
+				g.Decide(s)
+			}
+		})
+	}
+}
+
+// layered builds a DAG of n resources in levels of 10, each depending on two
+// resources in the level above - roughly what a large composition looks like.
+func layered(n int) ([]Edge, State) {
+	edges := []Edge{}
+	s := State{Composed: make(map[string]ComposedState, n)}
+
+	for i := range n {
+		name := fmt.Sprintf("r%04d", i)
+		s.Composed[name] = ComposedState{Desired: true, Observed: true, Ready: true}
+
+		if i >= 10 {
+			edges = append(edges,
+				Edge{Resource: name, DependsOn: Target{ComposedResource: fmt.Sprintf("r%04d", i-10)}},
+				Edge{Resource: name, DependsOn: Target{ComposedResource: fmt.Sprintf("r%04d", i-9)}},
+			)
+		}
+	}
+
+	return edges, s
+}
+
+func BenchmarkReconcileGraph(b *testing.B) {
+	for _, n := range []int{50, 100, 250, 500, 1000} {
+		edges, s := layered(n)
+		reqs := map[string]bool{}
+
+		b.Run(fmt.Sprintf("N=%d/E=%d", n, len(edges)), func(b *testing.B) {
+			for b.Loop() {
+				g, _ := New(edges...).Prune(s)
+				if err := g.Validate(s, reqs); err != nil {
+					b.Fatal(err)
+				}
+
+				g.Decide(s)
+			}
+		})
+	}
+}
+
+// Teardown is the other hot path: nothing desired, everything observed, so
+// every node goes through blockedFromDelete - which is the more expensive side.
+func BenchmarkTeardownGraph(b *testing.B) {
+	for _, n := range []int{50, 100, 250, 500, 1000} {
+		edges, s := layered(n)
+		for k, v := range s.Composed {
+			v.Desired = false
+			s.Composed[k] = v
+		}
+
+		b.Run(fmt.Sprintf("N=%d/E=%d", n, len(edges)), func(b *testing.B) {
+			for b.Loop() {
+				g, _ := New(edges...).Prune(s)
 				g.Decide(s)
 			}
 		})

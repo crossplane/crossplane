@@ -134,12 +134,62 @@ type State struct {
 // A Graph is a validated set of ordering edges.
 type Graph struct {
 	edges []Edge
+
+	// Adjacency, indexed once at construction.
+	//
+	// Every decision asks what a resource depends on, or what depends on it.
+	// Answering that by scanning the edge list makes a single Decide cost
+	// O(N*E), and the create-before-destroy lookup inside it another O(E) per
+	// dependent - so a dense graph costs O(E^2) and a reconcile becomes
+	// quadratic in the size of the composition. Indexing here trades one pass
+	// over the edges for constant-time lookups afterwards.
+	out   map[string][]Edge
+	deps  map[string][]string
+	rdeps map[string][]string
+	cbd   map[[2]string]bool
 }
 
 // New returns a Graph over the supplied edges. It does not validate them;
 // call Validate for that.
 func New(edges ...Edge) *Graph {
-	return &Graph{edges: edges}
+	g := &Graph{
+		edges: edges,
+		out:   make(map[string][]Edge),
+		deps:  make(map[string][]string),
+		rdeps: make(map[string][]string),
+		cbd:   make(map[[2]string]bool),
+	}
+
+	for _, e := range edges {
+		// Kept in the order they were declared, so that a resource's edges are
+		// considered in the same order a scan would have considered them.
+		g.out[e.Resource] = append(g.out[e.Resource], e)
+
+		t := e.DependsOn.ComposedResource
+		if t == "" {
+			// A required resource is always a leaf: nothing can depend on it,
+			// so it takes no part in the adjacency used to order composed
+			// resources against each other.
+			continue
+		}
+
+		g.deps[e.Resource] = append(g.deps[e.Resource], t)
+		g.rdeps[t] = append(g.rdeps[t], e.Resource)
+
+		if e.Lifecycle == LifecycleCreateBeforeDestroy {
+			g.cbd[[2]string{e.Resource, t}] = true
+		}
+	}
+
+	// Sorted once here rather than on every lookup, so that events, errors and
+	// decisions stay deterministic.
+	for _, m := range []map[string][]string{g.deps, g.rdeps} {
+		for k := range m {
+			sort.Strings(m[k])
+		}
+	}
+
+	return g
 }
 
 // Edges returns the graph's edges.
@@ -177,7 +227,8 @@ func (g *Graph) Prune(s State) (*Graph, []Edge) {
 		kept = append(kept, e)
 	}
 
-	return &Graph{edges: kept}, dropped
+	// New again: pruning changes the adjacency, so the index is rebuilt.
+	return New(kept...), dropped
 }
 
 // Validate checks that every edge refers to something that could exist, and
@@ -287,28 +338,10 @@ func (g *Graph) nodes() []string {
 
 // dependenciesOf returns the composed resources n depends on.
 func (g *Graph) dependenciesOf(n string) []string {
-	out := []string{}
-	for _, e := range g.edges {
-		if e.Resource == n && e.DependsOn.ComposedResource != "" {
-			out = append(out, e.DependsOn.ComposedResource)
-		}
-	}
-
-	sort.Strings(out)
-
-	return out
+	return g.deps[n]
 }
 
 // dependentsOf returns the composed resources that depend on n.
 func (g *Graph) dependentsOf(n string) []string {
-	out := []string{}
-	for _, e := range g.edges {
-		if e.DependsOn.ComposedResource == n {
-			out = append(out, e.Resource)
-		}
-	}
-
-	sort.Strings(out)
-
-	return out
+	return g.rdeps[n]
 }
