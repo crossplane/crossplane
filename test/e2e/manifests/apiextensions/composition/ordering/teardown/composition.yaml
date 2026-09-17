@@ -1,0 +1,36 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xorderings.ordering.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: ordering.example.org/v1alpha1
+    kind: XOrdering
+  mode: Pipeline
+  pipeline:
+  - step: compose-in-order
+    functionRef:
+      name: function-ordering
+    input:
+      # first <- second <- third, composed as NopResources whose deletion takes
+      # 5s each. Ordered teardown is therefore three waves, and each wave lasts
+      # long enough to observe: only the leaf carries a deletion timestamp
+      # while what it depends on is untouched. An unordered cascade would stamp
+      # all three at once, and would fail the first assertion however short the
+      # delay is.
+      #
+      # 5s is chosen to be comfortably longer than the test's one-second poll,
+      # not to be realistic. The provider is configured to poll every second,
+      # so these durations are what the test waits on rather than a rounding
+      # error on top of the provider's poll interval.
+      #
+      # readyAfter is deliberately short. This composition is about teardown,
+      # and a slow create would only make the test longer.
+      apiVersion: ordering.fn.crossplane.io/v1alpha1
+      kind: Input
+      sequence:
+      - first
+      - second
+      - third
+      readyAfter: 1s
+      deleteAfter: 5s

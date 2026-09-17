@@ -53,6 +53,13 @@ const (
 	// automatically protecting Providers from deletion when they still have
 	// active managed resources. Requires EnableBetaUsages to also be enabled.
 	EnableAlphaProviderDeletionProtection feature.Flag = "EnableAlphaProviderDeletionProtection"
+
+	// EnableAlphaComposedResourceOrdering enables alpha support for functions
+	// declaring ordering constraints over composed resources, which Crossplane
+	// honors when it creates, updates and deletes them. See the below design
+	// for more details.
+	// https://github.com/crossplane/crossplane/blob/main/design/design-doc-composed-resource-ordering.md
+	EnableAlphaComposedResourceOrdering feature.Flag = "EnableAlphaComposedResourceOrdering"
 )
 
 // Beta Feature Flags.

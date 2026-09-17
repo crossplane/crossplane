@@ -1,0 +1,33 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xorderings.ordering.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: ordering.example.org/v1alpha1
+    kind: XOrdering
+  mode: Pipeline
+  pipeline:
+  - step: compose-in-order
+    functionRef:
+      name: function-ordering
+    input:
+      # "new" replaces "old". createBeforeDestroy sends
+      # DEPENDENCY_LIFECYCLE_CREATE_BEFORE_DESTROY on the edge, which lets new
+      # be created without waiting for old to be deleted - but old may not be
+      # deleted until new exists and is ready.
+      #
+      # Without it the edge is symmetric, so new would have to wait for old to
+      # go and the two would never exist at the same time. That overlap is what
+      # the test asserts, and it is only observable because readyAfter holds
+      # new un-ready for long enough to see it.
+      apiVersion: ordering.fn.crossplane.io/v1alpha1
+      kind: Input
+      resources:
+      - old
+      - new
+      remove:
+      - old
+      edges:
+      - {resource: new, dependsOn: old, createBeforeDestroy: true}
+      readyAfter: 8s

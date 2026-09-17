@@ -1,0 +1,27 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xorderings.ordering.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: ordering.example.org/v1alpha1
+    kind: XOrdering
+  mode: Pipeline
+  pipeline:
+  - step: compose-in-order
+    functionRef:
+      name: function-ordering
+    input:
+      # Same sequence, but every resource is removed from desired state. The
+      # edges stay, so Crossplane tears them down in reverse: third, then
+      # second, then first.
+      apiVersion: ordering.fn.crossplane.io/v1alpha1
+      kind: Input
+      sequence:
+      - first
+      - second
+      - third
+      remove:
+      - first
+      - second
+      - third

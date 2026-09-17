@@ -1,0 +1,36 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xorderings.ordering.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: ordering.example.org/v1alpha1
+    kind: XOrdering
+  mode: Pipeline
+  pipeline:
+  - step: compose-in-order
+    functionRef:
+      name: function-ordering
+    input:
+      # first <- second <- third, where third - the only leaf, and so the first
+      # thing teardown tries to delete - refuses to delete at all.
+      #
+      # Crossplane's policy is to block rather than give up: abandoning the
+      # order and cascading would delete first and second out of order, which
+      # is the outcome ordering exists to prevent. So the XR is expected to
+      # hold its finalizer indefinitely and report what it is waiting on, until
+      # someone clears spec.forProvider.deleteError on the stuck resource.
+      #
+      # deleteAfter is short because it is not what this fixture is about: the
+      # other two resources should tear down normally once the leaf is freed.
+      apiVersion: ordering.fn.crossplane.io/v1alpha1
+      kind: Input
+      sequence:
+      - first
+      - second
+      - third
+      readyAfter: 1s
+      deleteAfter: 2s
+      deleteError: "cannot delete: pretending something still holds this"
+      deleteErrorOn:
+      - third

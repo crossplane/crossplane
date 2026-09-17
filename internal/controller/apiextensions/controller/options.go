@@ -53,6 +53,11 @@ type Options struct {
 	// CircuitBreakerCooldown is how long XR circuit breakers stay open after triggering.
 	CircuitBreakerCooldown time.Duration
 
+	// CircuitBreakerHalfOpenInterval is how often an open XR circuit breaker
+	// lets an event through. It sets the pace of anything that needs several
+	// reconciles to converge while the breaker is open.
+	CircuitBreakerHalfOpenInterval time.Duration
+
 	// MinPollInterval is the shortest per-resource poll interval allowed
 	// via the crossplane.io/poll-interval annotation.
 	MinPollInterval time.Duration

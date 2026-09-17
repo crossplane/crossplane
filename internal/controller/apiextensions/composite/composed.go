@@ -41,6 +41,10 @@ type ComposedResource struct {
 	// composed resource with its desired state. Setting it to false will cause
 	// the XR to be marked as not synced.
 	Synced bool
+
+	// Reason explains why the resource could not be synced. It is empty when
+	// Synced is true. The reconciler includes it in the XR's Synced condition.
+	Reason string
 }
 
 // ComposedResourceState represents a composed resource (either desired or
