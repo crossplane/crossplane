@@ -317,6 +317,52 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
+		"ErrorUnexpectedImpliedNodeType": {
+			reason: "We should not panic, and should fail resolution gracefully, if an implied node is not a *dag.DependencyNode.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							// Populate package list so we attempt
+							// reconciliation. This is overridden by the mock
+							// DAG.
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
+								Name:    "cool-package",
+								Type:    ptr.To(v1beta1.ProviderPackageType),
+								Source:  "cool-repo/cool-image",
+								Version: "v0.0.1",
+							})
+							return nil
+						}),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								// A *dag.PackageNode should never actually be
+								// returned as an implied node in practice --
+								// dag.PackageNode.Neighbors always constructs
+								// *dag.DependencyNode values -- but we mock
+								// it here to exercise the type-assertion
+								// guard without panicking.
+								return []dag.Node{&dag.PackageNode{}}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
 		"ErrorInvalidDependency": {
 			reason: "We should not requeue if dependency is invalid.",
 			args: args{
