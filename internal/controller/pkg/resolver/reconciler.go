@@ -69,6 +69,7 @@ const (
 	errBuildDAG               = "cannot build DAG"
 	errSortDAG                = "cannot sort DAG"
 	errFmtMissingDependency   = "missing package (%s) is not a dependency"
+	errFmtUnexpectedNodeType  = "implied dependency node has unexpected type %T"
 	errInvalidConstraint      = "version constraint on dependency is invalid"
 	errInvalidDependency      = "dependency package is not valid"
 	errFindDependency         = "cannot find dependency version to install"
@@ -294,14 +295,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// be requeued when it adds itself to the Lock, at which point we will
 	// check for missing nodes again.
 	dep, ok := implied[0].(*internaldag.DependencyNode)
-
-	depID := dep.Identifier()
 	if !ok {
-		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, depID))
-		status.MarkConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtMissingDependency, depID)))
+		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtUnexpectedNodeType, implied[0]))
+		status.MarkConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtUnexpectedNodeType, implied[0])))
 
 		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
+
+	depID := dep.Identifier()
 
 	// NOTE(phisco): dependencies identifiers are without registry and tag, so we can't enforce strict validation.
 	ref, err := name.ParseReference(depID)
