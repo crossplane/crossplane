@@ -110,6 +110,10 @@
               imagePlatforms
               ;
           };
+          # The Helm chart, packaged at the tree's version. Useful on its own
+          # for publishing a build to a registry of your own; `nix run
+          # .#push-chart` pushes this.
+          chart = build.chart { inherit version; };
           # Vendor-dependency derivations, used by `nix run .#tidy` to refresh
           # the hashes in nix/vendor-hashes.nix.
           crossplane-vendor = build.vendor.root;
@@ -169,6 +173,10 @@
             inherit version;
             inherit images;
             platforms = imagePlatforms;
+          };
+          push-chart = apps.pushChart {
+            inherit version;
+            chart = build.chart { inherit version; };
           };
           push-artifacts = apps.pushArtifacts {
             inherit version;

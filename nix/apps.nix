@@ -396,6 +396,35 @@
       );
     };
 
+  # Push the Helm chart to an OCI registry. The chart's default image tag is
+  # "v" + appVersion, which is how push-images tags what it pushes, so a chart
+  # and an image published from the same tree line up on --set
+  # image.repository alone.
+  pushChart =
+    { chart, version }:
+    let
+      chartVersion = builtins.substring 1 (-1) version;
+    in
+    {
+      type = "app";
+      meta.description = "Push the Helm chart to an OCI registry";
+      program = pkgs.lib.getExe (
+        pkgs.writeShellApplication {
+          name = "crossplane-push-chart";
+          runtimeInputs = [ pkgs.kubernetes-helm ];
+          inheritPath = false;
+          text = ''
+            REPO="''${1:?Usage: nix run .#push-chart -- <oci://registry/namespace>}"
+
+            echo "Pushing crossplane-${chartVersion}.tgz to ''${REPO}..."
+            helm push ${chart}/crossplane-${chartVersion}.tgz "''${REPO}"
+
+            echo "Pushed ''${REPO}/crossplane:${chartVersion}"
+          '';
+        }
+      );
+    };
+
   # Push build artifacts to S3.
   pushArtifacts =
     { release, version }:
