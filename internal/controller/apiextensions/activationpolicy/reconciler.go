@@ -88,6 +88,10 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 
 	if meta.WasDeleted(mrap) {
 		status.MarkConditions(v1alpha1.TerminatingActivationPolicy())
+		if cmp.Equal(statusBefore, &mrap.Status) {
+			return reconcile.Result{}, nil
+		}
+
 		if err := r.Status().Update(ogctx, mrap); err != nil {
 			log.Debug("cannot update status of ManagedResourceActivationPolicy", "error", err)
 			if kerrors.IsConflict(err) {
@@ -111,7 +115,10 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		log.Debug("cannot list ManagedResourceDefinition", "error", err)
 
 		status.MarkConditions(v1alpha1.BlockedActivationPolicy().WithMessage("cannot list ManagedResourceDefinition"))
-		_ = r.Status().Update(ogctx, mrap)
+
+		if !cmp.Equal(statusBefore, &mrap.Status) {
+			_ = r.Status().Update(ogctx, mrap)
+		}
 
 		return reconcile.Result{}, errors.Wrap(err, "cannot list ManagedResourceDefinition")
 	}
