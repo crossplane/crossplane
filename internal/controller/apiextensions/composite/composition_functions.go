@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"sort"
 	"time"
 
@@ -39,6 +40,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
@@ -48,6 +50,7 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/names"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
+	"github.com/crossplane/crossplane/v2/internal/xfn/ordering"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
@@ -57,6 +60,7 @@ const (
 	errGetExistingCDs           = "cannot get existing composed resources"
 	errBuildObserved            = "cannot build observed state for RunFunctionRequest"
 	errGarbageCollectCDs        = "cannot garbage collect composed resources that are no longer desired"
+	errInvalidDependencies      = "invalid composed resource dependencies"
 	errApplyXRRefs              = "cannot update composed resource references"
 	errApplyXRStatus            = "cannot apply composite resource status"
 	errAnonymousCD              = "encountered composed resource without required \"" + xcrd.AnnotationKeyCompositionResourceName + "\" annotation"
@@ -134,6 +138,11 @@ type FunctionComposer struct {
 	resources xfn.RequiredResourcesFetcher
 	schemas   xfn.RequiredSchemasFetcher
 	tracker   dependency.Tracker
+
+	// ordering enables the alpha composed resource ordering feature. When it's
+	// false Crossplane neither advertises the capability nor honors any
+	// dependencies a function returns.
+	ordering bool
 }
 
 type xr struct {
@@ -221,6 +230,15 @@ func WithCompositeConnectionDetailsFetcher(f ConnectionDetailsFetcher) FunctionC
 func WithComposedResourceObserver(g ComposedResourceObserver) FunctionComposerOption {
 	return func(p *FunctionComposer) {
 		p.composite.ComposedResourceObserver = g
+	}
+}
+
+// WithComposedResourceOrdering enables the alpha composed resource ordering
+// feature, in which Crossplane sequences the composed resources it creates,
+// updates and deletes according to dependencies functions declare.
+func WithComposedResourceOrdering(enabled bool) FunctionComposerOption {
+	return func(p *FunctionComposer) {
+		p.ordering = enabled
 	}
 }
 
@@ -337,12 +355,28 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	events := []TargetedEvent{}
 	conditions := []TargetedCondition{}
 
+	// Composed resources the ordering graph held back this reconcile, reported
+	// together at the end.
+	blocked := []string{}
+
 	// The resources this XR's functions require, accumulated across pipeline
 	// steps. We record them - along with the resources the XR composes - so the
 	// XR controller can watch them, and so we can seed them into the function's
 	// request next reconcile.
 	xrKey := client.ObjectKeyFromObject(xr)
 	required := []dependency.Requirement{}
+
+	// Ordering constraints declared by functions, accumulated across pipeline
+	// steps, and the required resources they may refer to. Both are only
+	// populated when the alpha ordering feature is enabled.
+	deps := []*fnv1.Dependency{}
+	reqres := map[string]*fnv1.Resources{}
+
+	// Requirement names an edge may refer to. A function declares what it
+	// requires in the same response that declares edges over it, so this has
+	// to include names the pipeline asked for but Crossplane hasn't fetched
+	// yet - not just what was in the request.
+	reqnames := map[string]bool{}
 
 	// The Function context always starts empty.
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
@@ -356,6 +390,15 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// Generate a trace ID for this pipeline execution. All steps in this
 	// reconciliation will share this trace ID for correlation.
 	traceID := uuid.NewString()
+
+	// How long the pipeline itself takes. Reported alongside blocked resources
+	// so the gap between one ordering wave and the next can be attributed:
+	// compare it against the interval between two of these events. If the
+	// pipeline is fast but the waves are minutes apart, the reconcile isn't
+	// being triggered, not that the work is slow.
+	pipelineStarted := time.Now()
+
+	var pipelineElapsed time.Duration
 
 	// Run any Composition Functions in the pipeline. Each Function may mutate
 	// the desired state returned by the last, and each Function may produce
@@ -447,7 +490,17 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// invalidate a cached response until its TTL expires. Bootstrap
 		// schemas (fetched above) are in the tag. Schemas change rarely
 		// and aren't watched, so we accept this.
-		fnreq.Meta = &fnv1.RequestMeta{Tag: Tag(fnreq), Capabilities: xfn.SupportedCapabilities()}
+		caps := xfn.SupportedCapabilities()
+
+		if c.ordering {
+			// Send the constraints accumulated so far. A function that has no
+			// opinion about ordering leaves the field unset in its response,
+			// and we carry these forward on its behalf below.
+			fnreq.Dependencies = &fnv1.Dependencies{Items: deps}
+			caps = append(caps, fnv1.Capability_CAPABILITY_DEPENDENCIES)
+		}
+
+		fnreq.Meta = &fnv1.RequestMeta{Tag: Tag(fnreq), Capabilities: caps}
 
 		// Add step metadata to context for use by downstream components like InspectedRunner.
 		stepCtx := step.ContextWithStepMetaForCompositions(ctx, traceID, fn.Step, int32(stepIndex), compositionName)
@@ -457,12 +510,23 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
 		}
 
+		if c.ordering {
+			// FetchingFunctionRunner resolves dynamic requirements by mutating
+			// this request and calling the function again, so the resources a
+			// function ended up with are only on the request once it returns.
+			// Reading them before the call misses anything the function asked
+			// for during it, which leaves an edge declared beside a new
+			// requirement blocked on resources Crossplane has in hand.
+			mergeRequiredResources(reqres, fnreq.GetRequiredResources())
+		}
+
 		// Record what this step required so we can watch it, and seed it next
 		// reconcile. The response carries the step's requirements whether it ran
 		// or was served from cache. We track both the current and deprecated
 		// fields, since the fetching runner resolves both.
 		for name, sel := range rsp.GetRequirements().GetResources() {
 			required = append(required, dependency.Requirement{Step: fn.Step, Name: name, Reference: ReferenceFromSelector(sel)})
+			reqnames[name] = true
 		}
 		for name, sel := range rsp.GetRequirements().GetExtraResources() { //nolint:staticcheck // We still resolve the deprecated field, so we must track it too.
 			required = append(required, dependency.Requirement{Step: fn.Step, Name: name, Reference: ReferenceFromSelector(sel)})
@@ -477,6 +541,24 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 		// Pass the desired state returned by this Function to the next one.
 		d = rsp.GetDesired()
+
+		if c.ordering {
+			// A response that leaves dependencies unset has no opinion about
+			// ordering, so we keep what we already had. This is the runtime's
+			// job rather than the function's: a function compiled before this
+			// field existed can't know to echo it, and treating unset as empty
+			// would let one such function erase every constraint declared
+			// before it.
+			if next := rsp.GetDependencies(); next != nil {
+				items := next.GetItems()
+				// A function that does have an opinion returns the whole set,
+				// and will naturally drop edges for resources it's removing -
+				// which is exactly when the garbage collector needs them. Keep
+				// any edge whose target is on its way out.
+				state := AsOrderingState(desiredStates(d), observed, reqres)
+				deps = retainDependencies(deps, items, state)
+			}
+		}
 
 		// Pass the Function context returned by this Function to the next one.
 		// We intentionally discard/ignore this after the last Function runs.
@@ -538,6 +620,8 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			events = append(events, e)
 		}
 	}
+
+	pipelineElapsed = time.Since(pipelineStarted)
 
 	// Load our desired composed resources from the Function pipeline.
 	desired := ComposedResourceStates{}
@@ -623,11 +707,68 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		}
 	}
 
+	// Work out what the ordering constraints let us do this reconcile. A
+	// resource may be held back from being applied because something it
+	// depends on isn't ready, or held back from being deleted because
+	// something that depends on it is still around.
+	decisions := ordering.Decisions{Blocked: map[string]ordering.Decision{}}
+
+	if c.ordering && len(deps) > 0 {
+		state := AsOrderingState(desired, observed, reqres)
+
+		edges, err := AsEdges(deps)
+		if err != nil {
+			return CompositionResult{}, errors.Wrap(err, errInvalidDependencies)
+		}
+
+		// Drop edges naming resources that no longer exist before validating.
+		// A function returning a fixed set of rules keeps declaring edges for
+		// resources it has finished deleting; that's expected, not an error.
+		g, stale := ordering.New(edges...).Prune(state)
+
+		// A pruned edge is usually a resource that finished deleting, but it's
+		// also what a typo looks like: ordering silently stops applying while
+		// the XR reports healthy. Say something, so a misspelled name doesn't
+		// disable a safety feature in silence.
+		if len(stale) > 0 {
+			events = append(events, TargetedEvent{
+				Event:  event.Normal(reasonCompose, fmt.Sprintf("Ignored %d dependency edge(s) naming resources that are neither desired nor observed: %s", len(stale), staleEdgeNames(stale))),
+				Target: CompositionTargetComposite,
+			})
+		}
+
+		for name := range reqres {
+			reqnames[name] = true
+		}
+
+		if err := g.Validate(state, reqnames); err != nil {
+			return CompositionResult{}, errors.Wrap(err, errInvalidDependencies)
+		}
+
+		decisions = g.Decide(state)
+	}
+
 	// Garbage collect any observed resources that aren't part of our final
 	// desired state. We must do this before we update the XR's resource
 	// references to ensure that we don't forget and leak them if a delete
 	// fails.
-	if err := c.composite.GarbageCollectComposedResources(ctx, xr, observed, desired); err != nil {
+	//
+	// A resource whose deletion the graph defers is hidden from the collector
+	// this pass, so it stays put until whatever depends on it is gone.
+	gc := observed
+	if len(decisions.Blocked) > 0 {
+		gc = make(ComposedResourceStates, len(observed))
+
+		for name, cd := range observed {
+			if decisions.Blocked[string(name)].Blocked {
+				continue
+			}
+
+			gc[name] = cd
+		}
+	}
+
+	if err := c.composite.GarbageCollectComposedResources(ctx, xr, gc, desired); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errGarbageCollectCDs)
 	}
 
@@ -640,7 +781,61 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	refs := composite.New(composite.WithSchema(xr.Schema), composite.WithGroupVersionKind(xr.GroupVersionKind()))
 	refs.SetNamespace(xr.GetNamespace())
 	refs.SetName(xr.GetName())
-	UpdateResourceRefs(refs, desired)
+
+	// References are built from desired state, but ordering needs us to keep
+	// referencing composed resources that have left it and haven't gone yet.
+	// That's not only the ones the graph is holding back: a resource we've
+	// already issued a delete for can sit in Terminating for minutes behind a
+	// finalizer, which is the normal case for a managed resource. Dropping its
+	// reference makes it invisible next reconcile, so the graph prunes its
+	// edges as stale and unblocks whatever was waiting for it to go - deleting
+	// a dependency while its dependent still exists, which is the failure this
+	// whole feature exists to prevent.
+	//
+	// Anything still observed stays referenced. It drops out on its own once
+	// it's actually gone from the API server.
+	tracked := desired
+	if c.ordering {
+		tracked = make(ComposedResourceStates, len(desired)+len(observed))
+
+		for name, cd := range desired {
+			// Don't reference a resource we've deliberately not applied. The
+			// reference is written before the apply so a created resource
+			// can't be leaked, but nothing was created here - the graph is
+			// holding it back. Referencing it anyway points anything reading
+			// spec.resourceRefs, `crossplane trace` included, at an object
+			// that doesn't exist, which reads as an error rather than as
+			// waiting. A resource already in observed keeps its reference.
+			if _, exists := observed[name]; !exists && decisions.Blocked[string(name)].Blocked {
+				continue
+			}
+
+			tracked[name] = cd
+		}
+
+		for name, cd := range observed {
+			if _, ok := tracked[name]; ok {
+				continue
+			}
+
+			// Reference an observed resource the way we'd reference a desired
+			// one. Observed resources carry a UID, and an ObjectReference
+			// derived from one would include it - but the XR's resourceRefs
+			// schema has no uid field, so the patch would be rejected.
+			ref := composed.New()
+			ref.SetGroupVersionKind(cd.Resource.GetObjectKind().GroupVersionKind())
+			ref.SetName(cd.Resource.GetName())
+			ref.SetNamespace(cd.Resource.GetNamespace())
+
+			tracked[name] = ComposedResourceState{
+				Resource:          ref,
+				ConnectionDetails: cd.ConnectionDetails,
+				Ready:             cd.Ready,
+			}
+		}
+	}
+
+	UpdateComposedResourceRefs(refs, tracked, deps)
 
 	// Persist our updated composed resource references. We want this to be an
 	// atomic replace of the entire array. Note that we're relying on the status
@@ -676,6 +871,29 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// below. This ensures that issues observing and processing one composed
 	// resource won't block the application of another.
 	for name, cd := range desired {
+		// The graph is holding this resource back until whatever it depends on
+		// is ready. Report it as out of sync, with the reason, so the XR
+		// doesn't claim to be Synced while composition is deliberately
+		// incomplete - and so someone reading the XR can tell what it's
+		// waiting for.
+		if b := decisions.Blocked[string(name)]; b.Blocked {
+			summary, ready, warning := blockedReport(string(name), b, cd.Ready)
+			if warning != nil {
+				events = append(events, TargetedEvent{
+					Event:  event.Warning(reasonCompose, warning),
+					Target: CompositionTargetComposite,
+				})
+			}
+
+			if summary != "" {
+				blocked = append(blocked, summary)
+			}
+
+			resources = append(resources, ComposedResource{ResourceName: name, Ready: ready, Synced: false, Reason: b.Reason})
+
+			continue
+		}
+
 		// We don't need any crossplane-runtime resource.Applicator style apply
 		// options here because server-side apply takes care of everything.
 		// Specifically it will merge rather than replace owner references (e.g.
@@ -715,6 +933,50 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			}
 		}
 		resources = append(resources, ComposedResource{ResourceName: name, Ready: cd.Ready, Synced: true})
+	}
+
+	// Report resources the graph is holding back from deletion. They aren't in
+	// desired state, so the loop above never sees them - but a resource that
+	// can't be deleted yet is exactly as invisible as one that can't be created
+	// yet, and just as worth explaining.
+	for name, b := range decisions.Blocked {
+		if _, ok := desired[ResourceName(name)]; ok {
+			// Already accounted for by the apply loop above.
+			continue
+		}
+
+		// A resource waiting to be deleted exists and works, so it counts as
+		// ready; a deadlocked one does not, and gets a warning of its own.
+		// This is the same rule the apply-side gate follows - a contradiction
+		// is reported on whichever side of the graph cannot move, and moving
+		// between the two must not change how it reaches the XR.
+		summary, ready, warning := blockedReport(name, b, true)
+		if warning != nil {
+			events = append(events, TargetedEvent{
+				Event:  event.Warning(reasonCompose, warning),
+				Target: CompositionTargetComposite,
+			})
+		}
+
+		if summary != "" {
+			blocked = append(blocked, summary)
+		}
+
+		// A deferred deletion is not in desired state, but it is still a
+		// composed resource that prevents the XR from converging. Include it in
+		// the result so its durable blocking reason reaches the XR's Synced
+		// condition just like an apply-side gate does.
+		resources = append(resources, ComposedResource{ResourceName: ResourceName(name), Ready: ready, Synced: false, Reason: b.Reason})
+	}
+
+	// One event per reconcile, not one per blocked resource. A wide graph can
+	// hold back a dozen resources at once, and a dozen near-identical events
+	// every reconcile buries everything else in the XR's event stream.
+	if len(blocked) > 0 {
+		events = append(events, TargetedEvent{
+			Event:  event.Normal(reasonCompose, blockedMessage(blocked, pipelineElapsed)),
+			Target: CompositionTargetComposite,
+		})
 	}
 
 	// Our goal here is to patch our XR's status using server-side apply. We
@@ -1013,12 +1275,45 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 // UpdateResourceRefs updates the supplied state to ensure the XR references all
 // composed resources that exist or are pending creation.
 func UpdateResourceRefs(xr resource.Composite, desired ComposedResourceStates) {
+	UpdateComposedResourceRefs(xr, desired, nil)
+}
+
+// UpdateComposedResourceRefs is UpdateResourceRefs, additionally recording each
+// resource's composition resource name and the ordering constraints declared
+// over it. Persisting the graph is what lets core rebuild it on teardown, when
+// no function has run and there is no RunFunctionResponse to read.
+//
+// Only composed-to-composed edges are recorded. An edge to a required resource
+// gates creation only - Crossplane never deletes a resource it doesn't compose
+// - so it has no bearing on teardown and no reference to live in.
+func UpdateComposedResourceRefs(xr resource.Composite, desired ComposedResourceStates, deps []*fnv1.Dependency) {
 	namespaced := xr.GetNamespace() != ""
 
-	refs := make([]corev1.ObjectReference, 0, len(desired))
-	for _, dr := range desired {
-		//nolint:staticcheck // TODO(adamwg) Stop using meta.ReferenceTo after the v2.2 release.
-		ref := meta.ReferenceTo(dr.Resource, dr.Resource.GetObjectKind().GroupVersionKind())
+	dependsOn := make(map[string][]string, len(deps))
+
+	for _, d := range deps {
+		t := d.GetComposedResource()
+		if t == "" {
+			continue
+		}
+
+		if !slices.Contains(dependsOn[d.GetResource()], t) {
+			dependsOn[d.GetResource()] = append(dependsOn[d.GetResource()], t)
+		}
+	}
+
+	refs := make([]reference.Composed, 0, len(desired))
+
+	for name, dr := range desired {
+		gvk := dr.Resource.GetObjectKind().GroupVersionKind()
+
+		ref := reference.Composed{
+			APIVersion:   gvk.GroupVersion().String(),
+			Kind:         gvk.Kind,
+			Name:         dr.Resource.GetName(),
+			Namespace:    dr.Resource.GetNamespace(),
+			ResourceName: string(name),
+		}
 
 		// If the XR is namespaced it can only compose resources in its own
 		// namespace. Its OpenAPI schema won't allow including a namespace in
@@ -1027,7 +1322,12 @@ func UpdateResourceRefs(xr resource.Composite, desired ComposedResourceStates) {
 			ref.Namespace = ""
 		}
 
-		refs = append(refs, *ref)
+		if d := dependsOn[string(name)]; len(d) > 0 {
+			slices.Sort(d)
+			ref.DependsOn = d
+		}
+
+		refs = append(refs, ref)
 	}
 
 	// We want to ensure our refs are stable.
@@ -1036,7 +1336,7 @@ func UpdateResourceRefs(xr resource.Composite, desired ComposedResourceStates) {
 		return ri.APIVersion+ri.Kind+ri.Name+ri.Namespace < rj.APIVersion+rj.Kind+rj.Name+rj.Namespace
 	})
 
-	xr.SetResourceReferences(refs)
+	xr.SetComposedResourceReferences(refs)
 }
 
 func convertTarget(t fnv1.Target) CompositionTarget {

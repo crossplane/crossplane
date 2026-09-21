@@ -132,6 +132,14 @@ linters:
     gomoddirectives:
       # Allow replace for the local ./apis module.
       replace-local: true
+      # TEMPORARY, for the composed resource ordering prototype only. The
+      # prototype needs reference.Composed, which isn't in a released
+      # crossplane-runtime yet, so go.mod points at a fork carrying it. Both
+      # this exception and that replace directive must be removed together
+      # once the change lands upstream - this branch cannot merge with either
+      # in place.
+      replace-allow-list:
+        - github.com/crossplane/crossplane-runtime/v2
     govet:
       disable:
         - shadow

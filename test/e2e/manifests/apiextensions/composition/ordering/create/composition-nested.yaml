@@ -1,0 +1,55 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xorderings.ordering.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: ordering.example.org/v1alpha1
+    kind: XOrdering
+  mode: Pipeline
+  pipeline:
+  - step: compose-in-order
+    functionRef:
+      name: function-ordering
+    input:
+      apiVersion: ordering.fn.crossplane.io/v1alpha1
+      kind: Input
+      # The same graph as setup/composition-nested.yaml, with a shorter
+      # readiness delay so the whole thing runs in well under a minute. Each
+      # NopResource reports Ready 4s after creation, which holds every level
+      # open long enough for a test polling once a second to see it.
+      #
+      # A graph four levels deep, with a diamond (instance depends on two
+      # subnets and the security group), fan-out from the vpc, two independent
+      # branches, and a resource with no dependencies at all.
+      #
+      #   standalone                        vpc
+      #                        ┌────────┬────┴───┬────────┐
+      #                    subnet-a  subnet-b  gateway    sg
+      #                     │    └──────┬────────────────┘
+      #                  database    instance
+      #                     │           │
+      #                   backup       app
+      readyAfter: 4s
+      resources:
+      - vpc
+      - subnet-a
+      - subnet-b
+      - gateway
+      - sg
+      - instance
+      - app
+      - database
+      - backup
+      - standalone
+      edges:
+      - {resource: subnet-a, dependsOn: vpc}
+      - {resource: subnet-b, dependsOn: vpc}
+      - {resource: gateway,  dependsOn: vpc}
+      - {resource: sg,       dependsOn: vpc}
+      - {resource: instance, dependsOn: subnet-a}
+      - {resource: instance, dependsOn: subnet-b}
+      - {resource: instance, dependsOn: sg}
+      - {resource: app,      dependsOn: instance}
+      - {resource: database, dependsOn: subnet-a}
+      - {resource: backup,   dependsOn: database}

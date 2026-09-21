@@ -1,0 +1,6 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-ordering
+spec:
+  package: index.docker.io/steve/function-ordering:dependency-test.4

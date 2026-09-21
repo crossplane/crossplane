@@ -1,0 +1,42 @@
+# Both images are published, so nothing here needs building.
+#
+# function-ordering declares the dependency graph. No released function can:
+# the protocol field it sets is new in this branch.
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-ordering
+spec:
+  package: index.docker.io/steve/function-ordering:dependency-test.4
+---
+# provider-nop composes resources whose readiness AND deletion can be delayed.
+# The delay is what makes ordering visible: without it every wave completes
+# faster than anyone can watch, and ordered teardown looks identical to an
+# unordered cascade.
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-nop
+spec:
+  package: index.docker.io/steve/provider-nop:timed-deletes.2
+  runtimeConfigRef:
+    name: provider-nop-fast-poll
+---
+# provider-nop acts on a resource when it next POLLS it, not when the configured
+# duration elapses. At the default 10s poll, a 4s readyAfter still costs up to
+# 10s per wave and the demo drags. Poll every second so the configured delays
+# are what you actually wait on.
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: provider-nop-fast-poll
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          containers:
+          - name: package-runtime
+            args:
+            - --poll=1s

@@ -1,0 +1,19 @@
+# provider-nop flips a NopResource's conditions, and finishes its deletion,
+# when it next polls the resource - not when the configured duration elapses.
+# At the default 10s poll a readyAfter of 1s still costs up to 10s per wave,
+# which dominated this test's runtime. Poll every second so the configured
+# durations are what the test actually waits on.
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: provider-nop-fast-poll
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          containers:
+          - name: package-runtime
+            args:
+            - --poll=1s

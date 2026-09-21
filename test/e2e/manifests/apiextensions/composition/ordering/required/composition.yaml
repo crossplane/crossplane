@@ -1,0 +1,31 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xorderings.ordering.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: ordering.example.org/v1alpha1
+    kind: XOrdering
+  mode: Pipeline
+  pipeline:
+  - step: compose-in-order
+    functionRef:
+      name: function-ordering
+    input:
+      apiVersion: ordering.fn.crossplane.io/v1alpha1
+      kind: Input
+      # app waits on an EnvironmentConfig the XR requires but doesn't compose,
+      # and sidecar waits on app. Nothing should be created until the
+      # EnvironmentConfig exists.
+      resources:
+      - app
+      - sidecar
+      requires:
+      - name: env
+        apiVersion: apiextensions.crossplane.io/v1beta1
+        kind: EnvironmentConfig
+        matchName: ordering-env
+      requiredEdges:
+      - {resource: app, requirement: env}
+      edges:
+      - {resource: sidecar, dependsOn: app}

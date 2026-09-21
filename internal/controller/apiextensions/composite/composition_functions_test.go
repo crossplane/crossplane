@@ -45,6 +45,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
@@ -2186,6 +2187,12 @@ func TestUpdateResourceRefs(t *testing.T) {
 							{Namespace: "b", Name: "never-created-b-42"},
 							{Namespace: "c", Name: "never-created-c-42"},
 						},
+						ComposedRefs: []reference.Composed{
+							{Name: "never-created-a-42", ResourceName: "never-created-a"},
+							{Name: "never-created-b-42", Namespace: "a", ResourceName: "never-created-b-ns-a"},
+							{Name: "never-created-b-42", Namespace: "b", ResourceName: "never-created-b"},
+							{Name: "never-created-c-42", Namespace: "c", ResourceName: "never-created-c"},
+						},
 					},
 				},
 			},
@@ -2240,6 +2247,14 @@ func TestUpdateResourceRefs(t *testing.T) {
 							{Name: "never-created-a-42"},
 							{Name: "never-created-b-42"},
 							{Name: "never-created-c-42"},
+						},
+						// Each ref also records the composition resource name
+						// it corresponds to, so the graph persisted alongside
+						// it can be resolved.
+						ComposedRefs: []reference.Composed{
+							{Name: "never-created-a-42", ResourceName: "never-created-a"},
+							{Name: "never-created-b-42", ResourceName: "never-created-b"},
+							{Name: "never-created-c-42", ResourceName: "never-created-c"},
 						},
 					},
 				},
