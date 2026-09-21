@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,8 +42,54 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
 )
+
+func TestStatusChanged(t *testing.T) {
+	before := &v1alpha1.ManagedResourceDefinitionStatus{
+		ConditionedStatus: xpv2.ConditionedStatus{Conditions: []xpv2.Condition{
+			{
+				Type:               v1alpha1.TypeEstablished,
+				Status:             corev1.ConditionTrue,
+				Reason:             v1alpha1.EstablishedManagedResource,
+				LastTransitionTime: metav1.NewTime(time.Unix(1, 0)),
+			},
+			{
+				Type:               v1alpha1.TypeHealthy,
+				Status:             corev1.ConditionTrue,
+				Reason:             v1alpha1.ReasonHealthy,
+				LastTransitionTime: metav1.NewTime(time.Unix(2, 0)),
+			},
+		}},
+	}
+
+	t.Run("IgnoreTransitionTimeAndOrder", func(t *testing.T) {
+		after := before.DeepCopy()
+		after.Conditions[0], after.Conditions[1] = after.Conditions[1], after.Conditions[0]
+		after.Conditions[0].LastTransitionTime = metav1.NewTime(time.Unix(3, 0))
+		after.Conditions[1].LastTransitionTime = metav1.NewTime(time.Unix(4, 0))
+		if statusChanged(before, after) {
+			t.Error("statusChanged(...) treated semantically equal conditions as changed")
+		}
+	})
+
+	t.Run("DetectMessageChange", func(t *testing.T) {
+		after := before.DeepCopy()
+		after.Conditions[0].Message = "changed"
+		if !statusChanged(before, after) {
+			t.Error("statusChanged(...) did not detect a condition message change")
+		}
+	})
+
+	t.Run("EquateEmpty", func(t *testing.T) {
+		if statusChanged(&v1alpha1.ManagedResourceDefinitionStatus{}, &v1alpha1.ManagedResourceDefinitionStatus{
+			ConditionedStatus: xpv2.ConditionedStatus{Conditions: []xpv2.Condition{}},
+		}) {
+			t.Error("statusChanged(...) treated nil and empty condition slices as changed")
+		}
+	})
+}
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
@@ -142,6 +189,24 @@ func TestReconcile(t *testing.T) {
 						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
 						mrd.SetConditions(v1alpha1.InactiveManaged())
 					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"MRDInactiveStatusUnchanged": {
+			reason: "We should not update status when the MRD is already marked inactive",
+			args: args{
+				c: &test.MockClient{
+					MockGet: withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+						mrd.SetConditions(v1alpha1.InactiveManaged())
+					})),
+					MockStatusUpdate: func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
+						t.Error("Status().Update() called for unchanged status")
+						return nil
+					},
 				},
 			},
 			want: want{
