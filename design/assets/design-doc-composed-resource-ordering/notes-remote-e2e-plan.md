@@ -237,6 +237,29 @@ across all five ordering tests, phase 2 serving live traffic and tearing
 down in dependency order. The Crossplane image that run used was
 `crossplane/crossplane:v0.0.0-1790012250-e284c1b`.
 
+### Reading the graph
+
+`xpgraph` prints the ordering graph off a live composite, with each
+resource's state beside the edges. It answers "did the edges reach the XR"
+and "what is this waiting for" in one command, which is most of what the
+checks below do by hand:
+
+```bash
+cd ~/code/crossplane && nix develop -c go build -o /tmp/xpgraph ./cmd/xpgraph
+
+/tmp/xpgraph inferencegateway/default                     # cluster scoped
+/tmp/xpgraph servingstack/<name> -n modelplane-system     # namespaced
+/tmp/xpgraph xordering/ordered -n default --dot           # Graphviz
+```
+
+`kubectl` points at the workload cluster until `crossplane project run`
+finishes, so pass `--context kind-modelplane-e2e-local` before then.
+
+Its readiness is a best-effort read of each composed resource: Crossplane's
+own view comes from the function's response, which isn't persisted. A CRD
+reporting Established, or a GatewayClass reporting Accepted, counts as
+ready, because that is almost certainly what the function told Crossplane.
+
 ### What to check beyond a green run
 
 `--verify` proves the stack converged. It does not prove it converged *in

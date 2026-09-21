@@ -1,18 +1,27 @@
 # Remote e2e results: composed resource ordering
 
-What happened when composed resource ordering was run end to end on a Linux
-VM, 2026-09-21. The runbook that describes how to repeat it is
+This document covers the results of running the prototype graph engine
+against [Modelplane's](https://modelplane.ai) e2e test to validate ordered
+creation and deletion of resources in PR [#7841](https://github.com/crossplane/crossplane/pull/7841).
+
+The runbook that describes how to repeat it is
 [notes-remote-e2e-plan.md](notes-remote-e2e-plan.md).
 
-Both phases passed. The feature behaved correctly throughout: every failure
+Both phases passed. The graph behaved correctly throughout: every failure
 along the way was in test scaffolding or in a published artifact, and each is
 recorded below with its fix.
 
 ## What was under test
 
-Composed resource ordering lets a composition function return ordering
-constraints, and Crossplane sequences creation and deletion from them. Two
-questions mattered:
+Modelplane currently uses function code and Usages to control ordering. This
+test was run on a fork that replaces both the logic and the compose-usages
+function with functions that declare edges through the Python SDK's
+`add_dependency`, which Crossplane records as `dependsOn` on the composite's
+composed resource references.
+
+Crossplane reads the accumulated edges, creates a graph, and then sequences
+creation and deletion from the graph. This e2e test is validating that the
+graph works on a larger project. Two questions mattered:
 
 1. Does it work in isolation, against purpose-built fixtures?
 2. Does it hold up as a replacement for a mechanism a real platform already
@@ -26,9 +35,10 @@ questions mattered:
 | Host | GCE `borrelli-modelplane`, `e2-standard-8` (8 vCPU, 31 GB), Debian 13 |
 | Disk | 99 GB (grown from 10 GB; the original disk could not hold the run) |
 | Nix | 2.35.2, multi-user, flakes enabled, run natively rather than via `./nix.sh` |
-| Crossplane | built from `e284c1b`, image `crossplane/crossplane:v0.0.0-1790012250-e284c1b` |
+| Crossplane | built from the branch; the final runs used `f322547` |
 | Args | `["core","start","--enable-dependency-version-upgrades","--enable-composed-resource-ordering"]` |
 | SDK | `function-sdk-python` @ `8e5a0b2`, resolved into the function images from `uv.lock` |
+| Modelplane | `composed-resource-ordering`, final runs at `38b3543` |
 
 Ordering is alpha and off by default. Phase 1's suite sets the flag itself;
 phase 2 needed it passed explicitly, because `crossplane project run`
@@ -134,9 +144,26 @@ to it - it refused the first delete, correctly. None is owned by the
 ServingStack. `Usage`s are gone exactly where they were replaced and intact
 everywhere else.
 
-## Defects found
+## Confirmation runs
 
-None in the ordering feature. All four were in scaffolding or artifacts.
+The results above come from the first clean pass of each phase. Both were
+then re-run on the fixed code, and phase 1 a third time, so nothing here
+rests on a single run:
+
+- Phase 1, three times green, the last two after the teardown fixes and the
+  `setup/` cleanup, with the tolerant delete removed again.
+- Phase 2, twice green. The second run also carried the
+  `compose-inference-gateway` conversion, which moved that composition off
+  `Usage`s the same way. Its graph reads as 16 composed resources across 4
+  waves - the ProviderConfig and the Gateway API CRDs, then Traefik and
+  MetalLB, then the GatewayClass and MetalLB's pool, then the Gateway - with
+  no `Usage`s of its own, and the stack still served live traffic.
+
+## Findings, and what fixed them
+
+Four, none in the ordering graph itself: three in test scaffolding or a
+published artifact, one in this document's own instructions. All are fixed,
+and the confirmation runs above cover them.
 
 **1. `provider-nop:timed-deletes.2` was published arm64-only.** Built on a
 laptop, so on an amd64 cluster the provider pod crashlooped with an exec
@@ -208,5 +235,14 @@ assertion, and teardown cannot start by deleting the ServingStack because
 
 See [notes-remote-e2e-plan.md](notes-remote-e2e-plan.md) for the VM setup,
 both phases, and the verification steps, all corrected against this run.
-Branches, at the time of the run: crossplane `e284c1b`, function-sdk-python
-`8e5a0b2`, modelplane `fb66ee6`, all on `github.com/stevendborrelli` forks.
+Branches, at the final run: crossplane `f322547`, function-sdk-python
+`8e5a0b2`, modelplane `38b3543`, all on `github.com/stevendborrelli` forks.
+
+`xpgraph` prints the graph off a live composite, which is the quickest way to
+see whether the edges reached the XR and where a reconcile has got to:
+
+```bash
+go build -o /tmp/xpgraph ./cmd/xpgraph
+/tmp/xpgraph inferencegateway/default
+/tmp/xpgraph servingstack/<name> -n modelplane-system --dot >graph.dot
+```
