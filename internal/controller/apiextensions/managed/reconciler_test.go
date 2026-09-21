@@ -64,31 +64,63 @@ func TestStatusChanged(t *testing.T) {
 		}},
 	}
 
-	t.Run("IgnoreTransitionTimeAndOrder", func(t *testing.T) {
-		after := before.DeepCopy()
-		after.Conditions[0], after.Conditions[1] = after.Conditions[1], after.Conditions[0]
-		after.Conditions[0].LastTransitionTime = metav1.NewTime(time.Unix(3, 0))
-		after.Conditions[1].LastTransitionTime = metav1.NewTime(time.Unix(4, 0))
-		if statusChanged(before, after) {
-			t.Error("statusChanged(...) treated semantically equal conditions as changed")
-		}
-	})
+	reordered := before.DeepCopy()
+	reordered.Conditions[0], reordered.Conditions[1] = reordered.Conditions[1], reordered.Conditions[0]
+	reordered.Conditions[0].LastTransitionTime = metav1.NewTime(time.Unix(3, 0))
+	reordered.Conditions[1].LastTransitionTime = metav1.NewTime(time.Unix(4, 0))
 
-	t.Run("DetectMessageChange", func(t *testing.T) {
-		after := before.DeepCopy()
-		after.Conditions[0].Message = "changed"
-		if !statusChanged(before, after) {
-			t.Error("statusChanged(...) did not detect a condition message change")
-		}
-	})
+	remessaged := before.DeepCopy()
+	remessaged.Conditions[0].Message = "changed"
 
-	t.Run("EquateEmpty", func(t *testing.T) {
-		if statusChanged(&v1alpha1.ManagedResourceDefinitionStatus{}, &v1alpha1.ManagedResourceDefinitionStatus{
-			ConditionedStatus: xpv2.ConditionedStatus{Conditions: []xpv2.Condition{}},
-		}) {
-			t.Error("statusChanged(...) treated nil and empty condition slices as changed")
-		}
-	})
+	type args struct {
+		before *v1alpha1.ManagedResourceDefinitionStatus
+		after  *v1alpha1.ManagedResourceDefinitionStatus
+	}
+	type want struct {
+		changed bool
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"IgnoreTransitionTimeAndOrder": {
+			reason: "Conditions differing only in order and LastTransitionTime are equal",
+			args: args{
+				before: before,
+				after:  reordered,
+			},
+			want: want{changed: false},
+		},
+		"DetectMessageChange": {
+			reason: "Changed condition message indicates status change",
+			args: args{
+				before: before,
+				after:  remessaged,
+			},
+			want: want{changed: true},
+		},
+		"EquateEmpty": {
+			reason: "Nil and empty condition slices are equal",
+			args: args{
+				before: &v1alpha1.ManagedResourceDefinitionStatus{},
+				after: &v1alpha1.ManagedResourceDefinitionStatus{
+					ConditionedStatus: xpv2.ConditionedStatus{Conditions: []xpv2.Condition{}},
+				},
+			},
+			want: want{changed: false},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := statusChanged(tc.args.before, tc.args.after)
+			if diff := cmp.Diff(tc.want.changed, got); diff != "" {
+				t.Errorf("\n%s\nstatusChanged(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
 }
 
 func TestReconcile(t *testing.T) {

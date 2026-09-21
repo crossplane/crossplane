@@ -241,6 +241,24 @@ func TestReconcile(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
+		"MRAPBeingDeletedStatusUnchanged": {
+			reason: "Status unchanged when deleted MRAP already Terminating",
+			args: args{
+				c: &test.MockClient{
+					MockGet: WithMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
+						mrap.SetDeletionTimestamp(&now)
+						mrap.SetConditions(v1alpha1.TerminatingActivationPolicy())
+					})),
+					MockStatusUpdate: func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
+						t.Error("status was written although it did not change")
+						return nil
+					},
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
 		"ReconciliationPaused": {
 			reason: "We should return no error and no requeue when reconciliation is paused.",
 			args: args{
@@ -274,6 +292,24 @@ func TestReconcile(t *testing.T) {
 					MockGet:          WithMRAP(t, NewMRAP()),
 					MockList:         test.NewMockListFn(errBoom),
 					MockStatusUpdate: test.NewMockSubResourceUpdateFn(kerrors.NewConflict(schema.GroupResource{}, "", errBoom)),
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"ListMRDErrorStatusUnchanged": {
+			reason: "Status unchanged when list error and MRAP already Blocked",
+			args: args{
+				c: &test.MockClient{
+					MockGet: WithMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
+						mrap.SetConditions(v1alpha1.BlockedActivationPolicy().WithMessage("cannot list ManagedResourceDefinition"))
+					})),
+					MockList: test.NewMockListFn(errBoom),
+					MockStatusUpdate: func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
+						t.Error("status was written although it did not change")
+						return nil
+					},
 				},
 			},
 			want: want{
