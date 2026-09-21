@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
@@ -470,18 +471,26 @@ func unblockComposedDeletion(name string) features.Func {
 				continue
 			}
 
-			cd := &unstructured.Unstructured{}
-			cd.SetAPIVersion(ref["apiVersion"].(string))
-			cd.SetKind(ref["kind"].(string))
-
 			objName, _, _ := unstructured.NestedString(ref, "name")
-			if err := c.Client().Resources(orderedXRNamespace).Get(ctx, objName, orderedXRNamespace, cd); err != nil {
-				t.Fatalf("cannot get composed resource %q: %v", name, err)
-			}
 
-			unstructured.RemoveNestedField(cd.Object, "spec", "forProvider", "deleteError")
+			// The provider is writing to this resource the whole time it's
+			// refusing to delete, so a read-modify-write races it and loses
+			// often enough to fail the test on a busy cluster. Re-read and
+			// retry on conflict, rather than reporting a lost race as the
+			// feature being broken.
+			if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				cd := &unstructured.Unstructured{}
+				cd.SetAPIVersion(ref["apiVersion"].(string))
+				cd.SetKind(ref["kind"].(string))
 
-			if err := c.Client().Resources(orderedXRNamespace).Update(ctx, cd); err != nil {
+				if err := c.Client().Resources(orderedXRNamespace).Get(ctx, objName, orderedXRNamespace, cd); err != nil {
+					return err
+				}
+
+				unstructured.RemoveNestedField(cd.Object, "spec", "forProvider", "deleteError")
+
+				return c.Client().Resources(orderedXRNamespace).Update(ctx, cd)
+			}); err != nil {
 				t.Fatalf("cannot clear deleteError on %q: %v", name, err)
 			}
 
