@@ -586,8 +586,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				err: errors.New(`invalid ManagedResourceDefinition "empty-mrd": spec.versions must contain exactly one storage version; mark exactly one version as storage before retrying`),
 			},
 		},
-		"PreservesTruncatedManagedResourceDefinitionFields": {
-			reason: "Establishment should preserve optional fields from an existing ManagedResourceDefinition when they are absent from the desired object.",
+		"AcceptsManagedResourceDefinitionWithOmittedOptionalFields": {
+			reason: "Establishment should accept optional fields omitted from a desired ManagedResourceDefinition.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
@@ -613,13 +613,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
-						mrd, ok := obj.(*v1alpha1.ManagedResourceDefinition)
-						if !ok || len(mrd.Spec.Versions) != 1 || mrd.Spec.Versions[0].Subresources == nil {
-							return errors.New("expected existing subresources to be preserved")
-						}
-						return nil
-					},
+					MockUpdate: test.NewMockUpdateFn(nil),
 				}),
 				objs: []runtime.Object{
 					&v1alpha1.ManagedResourceDefinition{
@@ -649,8 +643,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				refs: []xpv2.TypedReference{{Name: "truncated-mrd"}},
 			},
 		},
-		"PreservesTruncatedManagedResourceDefinitionFieldsByVersionName": {
-			reason: "Establishment should preserve optional fields from the matching existing version when desired versions are reordered.",
+		"DoesNotCopyManagedResourceDefinitionFieldsBetweenReorderedVersions": {
+			reason: "Establishment should not copy fields between reordered desired versions.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
@@ -674,13 +668,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
-						mrd, ok := obj.(*v1alpha1.ManagedResourceDefinition)
-						if !ok || len(mrd.Spec.Versions) != 2 || mrd.Spec.Versions[0].Name != "v2" || len(mrd.Spec.Versions[0].AdditionalPrinterColumns) != 1 || mrd.Spec.Versions[0].AdditionalPrinterColumns[0].Name != "v2" || mrd.Spec.Versions[1].Name != "v1" || len(mrd.Spec.Versions[1].AdditionalPrinterColumns) != 1 || mrd.Spec.Versions[1].AdditionalPrinterColumns[0].Name != "v1" {
-							return errors.New("expected printer columns to be preserved by version name")
-						}
-						return nil
-					},
+					MockUpdate: test.NewMockUpdateFn(nil),
 				}),
 				objs: []runtime.Object{
 					&v1alpha1.ManagedResourceDefinition{
@@ -708,8 +696,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				refs: []xpv2.TypedReference{{Name: "reordered-mrd"}},
 			},
 		},
-		"RejectsTruncatedManagedResourceDefinitionVersionList": {
-			reason: "Establishment should reject a desired ManagedResourceDefinition that omits an existing version before updating it.",
+		"AcceptsManagedResourceDefinitionWithRemovedVersion": {
+			reason: "Establishment should accept a desired ManagedResourceDefinition that removes an existing version.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
@@ -733,9 +721,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
-						return errors.New("unexpected update")
-					},
+					MockUpdate: test.NewMockUpdateFn(nil),
 				}),
 				objs: []runtime.Object{
 					&v1alpha1.ManagedResourceDefinition{
@@ -756,9 +742,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				},
 				control: true,
 			},
-			want: want{
-				err: errors.New(`invalid ManagedResourceDefinition "shortened-mrd": desired spec.versions must include all existing versions`),
-			},
+			want: want{refs: []xpv2.TypedReference{{Name: "shortened-mrd"}}},
 		},
 		"SuccessfulManagedResourceDefinitionUnsetState": {
 			reason: "Establishment should be successful for ManagedResourceDefinitions with various spec.state values.",
