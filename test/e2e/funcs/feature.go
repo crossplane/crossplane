@@ -33,7 +33,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -812,42 +811,6 @@ func DeleteResourcesWithPropagationPolicy(dir, pattern string, deletePropagation
 		dfs := os.DirFS(dir)
 
 		if err := decoder.DecodeEachFile(ctx, dfs, pattern, decoder.DeleteHandler(c.Client().Resources(), resources.WithDeletePropagation(string(deletePropagation))), options...); err != nil {
-			t.Fatal(err)
-			return ctx
-		}
-
-		files, _ := fs.Glob(dfs, pattern)
-		t.Logf("Deleted resources from %s (matched %d manifests)", filepath.Join(dir, pattern), len(files))
-
-		return ctx
-	}
-}
-
-// DeleteResourcesIgnoreNotFound is DeleteResourcesWithPropagationPolicy, but
-// tolerates a resource that is already gone.
-//
-// Use it where several manifests in one directory declare the same object - a
-// set of alternative Compositions a test picks between, say. Deleting the
-// directory then deletes that object once and skips the rest, rather than
-// failing on the second manifest. Without it the teardown is a race: it only
-// passes while the first delete leaves the object behind a finalizer long
-// enough for the others to still find it.
-func DeleteResourcesIgnoreNotFound(dir, pattern string, deletePropagation metav1.DeletionPropagation, options ...decoder.DecodeOption) features.Func {
-	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-		t.Helper()
-
-		dfs := os.DirFS(dir)
-
-		del := func(ctx context.Context, obj k8s.Object) error {
-			err := c.Client().Resources().Delete(ctx, obj, resources.WithDeletePropagation(string(deletePropagation)))
-			if apierrors.IsNotFound(err) {
-				return nil
-			}
-
-			return err
-		}
-
-		if err := decoder.DecodeEachFile(ctx, dfs, pattern, del, options...); err != nil {
 			t.Fatal(err)
 			return ctx
 		}

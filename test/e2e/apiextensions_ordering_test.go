@@ -239,7 +239,7 @@ func TestComposedResourceOrderingTeardownIsOrdered(t *testing.T) {
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
 			).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResourcesIgnoreNotFound(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Feature(),
@@ -549,7 +549,7 @@ func TestComposedResourceOrderingTeardownBlocks(t *testing.T) {
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
 			).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResourcesIgnoreNotFound(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Feature(),
@@ -601,7 +601,7 @@ func TestComposedResourceOrderingCreateBeforeDestroy(t *testing.T) {
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResourcesIgnoreNotFound(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Feature(),
@@ -679,7 +679,7 @@ func TestComposedResourceOrderingCreatesInWaves(t *testing.T) {
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResourcesIgnoreNotFound(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Feature(),
@@ -801,7 +801,7 @@ func TestComposedResourceOrderingTeardownSurvivesRestart(t *testing.T) {
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
 			).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResourcesIgnoreNotFound(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Feature(),
