@@ -29,9 +29,9 @@ Specifically, whether:
 
 | Repo | Branch | Where |
 |---|---|---|
-| crossplane | `composed-resource-ordering-prototype` | pushed, `sb` remote (`github.com/stevendborrelli/crossplane`), at `f34945a` |
+| crossplane | `composed-resource-ordering-prototype` | pushed, `sb` remote (`github.com/stevendborrelli/crossplane`), at `4d7f1b2` |
 | function-sdk-python | `composed-resource-dependencies` | pushed, `origin` = fork (`github.com/stevendborrelli/function-sdk-python`), at `8e5a0b2` |
-| modelplane | `composed-resource-ordering` | pushed, `sb` remote (`github.com/stevendborrelli/modelplane`), three commits on `main` |
+| modelplane | `composed-resource-ordering` | pushed, `sb` remote (`github.com/stevendborrelli/modelplane`), three commits off `main` |
 
 Everything needed is pushed; the VM clones all three.
 
@@ -39,7 +39,46 @@ Note the remotes differ per repo: in the crossplane and modelplane checkouts
 `origin` is upstream and `sb` is the fork; in function-sdk-python `origin`
 *is* the fork. Check `git remote -v` rather than assuming.
 
-## VM requirements
+## The VM
+
+A VM is already provisioned and set up:
+
+```bash
+gcloud compute ssh borrelli-modelplane \
+  --project=crossplane-playground --zone=us-central1-f
+```
+
+`e2-highmem-4` (4 vCPU, 31 GB RAM), Debian 13, 100 GB disk, Docker 29.8,
+passwordless sudo, and both repos cloned under `~/code`. Nix 2.35.2 is
+installed multi-user with flakes enabled.
+
+**Use `nix run` directly on this VM, not `./nix.sh`.** The wrapper exists so
+a Mac needn't install Nix, and it runs Docker-in-Docker: a fresh container
+per invocation with its own `dockerd`, and the host socket deliberately not
+mounted. On this VM that would break the run in two ways — the wrapper
+forwards a fixed list of `-e` flags that doesn't include `CROSSPLANE_IMAGE`
+or `CROSSPLANE_ARGS`, so phase 2 would silently install released Crossplane
+and hit the function's fatal; and the kind clusters would live inside that
+container, out of reach of the host `kubectl` the verification steps use.
+Native Nix means the commands below work as written. Substitute `nix run`
+wherever this document says `./nix.sh run`.
+
+One quirk when driving the VM over `ssh --command`: the ssh environment
+carries `__ETC_PROFILE_NIX_SOURCED=1`, which makes `/etc/profile.d/nix.sh`
+return early without extending `PATH`, so `nix` looks missing even under
+`bash -lc`. Prefix commands with:
+
+```bash
+export PATH=/nix/var/nix/profiles/default/bin:$PATH
+```
+
+An interactive login shell is unaffected.
+
+Phase 2 wants ~60-90 minutes on 4 vCPU rather than the 30-45 a bigger box
+would take. If that becomes the bottleneck, stop the instance and resize to
+`e2-standard-8`.
+
+## VM requirements (if building a different box)
 
 - x86_64 Linux, Docker installed, user in the `docker` group.
 - **≥ 16 GB RAM** and ~100 GB disk. Phase 2 runs two kind clusters, 13
@@ -66,7 +105,7 @@ the e2e tests written for the feature.
 git clone -b composed-resource-ordering-prototype \
   https://github.com/stevendborrelli/crossplane.git
 cd crossplane
-git rev-parse --short HEAD    # expect f34945a
+git rev-parse --short HEAD    # expect 4d7f1b2
 
 ./nix.sh run .#e2e -- --test-suite=composed-resource-ordering
 ```
@@ -190,7 +229,13 @@ The functions need no flag: they resolve the branch SDK from `uv.lock`, which
 points at the `function-sdk-python` rev above.
 
 `--verify` waits for readiness and asserts a live 200 from the mock engine.
-Budget 30-45 minutes for a first run on a cold VM.
+Budget 30-45 minutes for a first run on a cold VM; on the warm 8 vCPU box it
+took about 15.
+
+Both phases have been run and passed (2026-09-21, `e284c1b`): phase 1 green
+across all five ordering tests, phase 2 serving live traffic and tearing
+down in dependency order. The Crossplane image that run used was
+`crossplane/crossplane:v0.0.0-1790012250-e284c1b`.
 
 ### What to check beyond a green run
 
@@ -199,31 +244,56 @@ order* — a stack that races and retries can still end up healthy. Check the
 ordering directly, on the control-plane cluster
 (`kubectl --context kind-modelplane-e2e-local`):
 
-1. **No `Usage`s.** `kubectl get usages.protection.crossplane.io -A` should be
-   empty. Anything here means an old build.
+   The ServingStack lives in `modelplane-system`, not `ml-team` - `ml-team`
+   holds the ModelDeployment and ModelService.
+
+1. **No `Usage`s owned by the ServingStack.** Not "no Usages at all": the
+   InferenceGateway composes its own, and a ClusterUsage protects the
+   InferenceCluster from deletion while ModelReplicas are scheduled to it.
+   Both are untouched by this change and should still be there. Check
+   ownership rather than counting:
+   `kubectl get usages.protection.crossplane.io -A -o jsonpath='{range
+   .items[*]}{.metadata.ownerReferences[0].kind}{"\n"}{end}'` - every owner
+   should be an InferenceGateway.
 2. **Edges reached the XR.** The composed resource references should carry
    `dependsOn`:
-   `kubectl get servingstack -n ml-team -o yaml | grep -A3 resourceRefs`.
-   If nothing carries it, Crossplane ignored the dependencies — check the flag
-   landed: `kubectl -n crossplane-system get deploy crossplane -o
+   `kubectl get servingstack -n modelplane-system -o json | jq
+   '.items[0].spec.crossplane.resourceRefs[] | select(.dependsOn)'`. Expect
+   every resource but the two ProviderConfigs to have one. If nothing does,
+   Crossplane ignored the dependencies - check the flag landed:
+   `kubectl -n crossplane-system get deploy crossplane -o
    jsonpath='{.spec.template.spec.containers[0].args}'`.
 3. **Creation ran in waves.** Sort composed resources by creation timestamp
    and confirm the ProviderConfigs precede everything, cert-manager precedes
    the Envoy Gateway release, and the GatewayClass follows it. Timestamps have
    one-second granularity, so treat ties as inconclusive rather than as
    failures.
-4. **Teardown runs in reverse.** This is the part `Usage`s used to do, so it's
-   the real regression risk. Delete the ServingStack and watch which resources
-   get a deletion timestamp first:
+4. **Teardown runs in reverse.** This is the part `Usage`s used to do, so
+   it's the real regression risk. Don't delete the ServingStack directly - it
+   is composed by `InferenceCluster/local` and would just be recomposed.
+   Delete from the top, and delete the model layer first or the ClusterUsage
+   refuses:
 
    ```bash
-   kubectl -n ml-team delete servingstack <name> --wait=false
-   kubectl get managed -A -w   # or watch the XR's resourceRefs
+   kubectl delete modelservice,modeldeployment --all -A --wait=false
+   kubectl delete inferencecluster local --wait=false
    ```
 
-   Expect the leaves to go first and the ProviderConfigs last. A
-   `ProviderConfig` deleted while a Release still exists is the specific
-   failure the `Usage`s used to prevent.
+   Then watch which composed resources get a deletion timestamp, and when.
+   Expect the leaves first, each dependency starting only once its dependents
+   are gone, and the ProviderConfigs last. A `ProviderConfig` deleted while a
+   Release still exists is the specific failure the `Usage`s used to prevent.
+
+   Observed on the first run, and worth keeping as the reference shape:
+
+   ```
+   +0s    leaves: ai-gateway, kube-prometheus-stack, gateway, gateway-proxy...
+   +16s   gateway-proxy gone   -> gateway-namespace starts deleting
+   +64s   gateway gone         -> gateway-class starts deleting
+   +96s   gateway-class gone   -> envoy-gateway starts deleting
+          cert-manager still alive, holding for envoy-gateway
+          both ProviderConfigs still alive, holding for everything
+   ```
 
 ## If it fails
 
