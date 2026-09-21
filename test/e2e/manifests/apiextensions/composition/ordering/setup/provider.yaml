@@ -12,6 +12,6 @@ kind: Provider
 metadata:
   name: provider-nop-ordering
 spec:
-  package: index.docker.io/steve/provider-nop:timed-deletes.2
+  package: index.docker.io/steve/provider-nop:timed-deletes.3
   runtimeConfigRef:
     name: provider-nop-fast-poll
