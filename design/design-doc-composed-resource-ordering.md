@@ -28,6 +28,7 @@
 * [Enabling Adoption with `function-ordering`](#enabling-adoption-with-function-ordering)
   * [How it works](#how-it-works)
 * [API Impact and Capabilities](#api-impact-and-capabilities)
+* [Comparison to Function Ordered Deletion](#comparison-to-function-ordered-deletion)
 * [Alternatives Considered](#alternatives-considered)
 
 ## Background
@@ -647,6 +648,27 @@ where they land:
 Functions should treat the capability's absence as "this core will not enforce
 ordering," not as an error, the same graceful-degradation posture the protocol
 already expects for every other optional capability.
+
+## Comparison to Function Ordered Deletion
+
+* [function-ordered-deletion](https://github.com/crossplane/crossplane/pull/7242) is a design where deletion ordering is handled by the functions using a new gRPC message.
+
+There are many issues with offloading responsibility to functions:
+
+* Gating is still handled by the functions, which increases complexity and the probability of bugs. This Modelplane branch demonstrates running the code reductions using a DAG in Crossplane. Multiple gating `if` statements and the `compose-usages` functions are removed <https://github.com/modelplaneai/modelplane/compare/main...stevendborrelli:modelplane:composed-resource-ordering?expand=1>.
+* Dependency information is hidden from Crossplane any any consumers. In this proposal Crossplane knows which resources have yet to exist, so we don't have to hack the XR's Synced status as function-sequencer does. The composition engine emits events 
+
+    ```text
+    Normal   ComposeResources        28m                defined/compositeresourcedefinition.apiextensions.crossplane.io  Ordering is holding back 4 composed resource(s): gateway waiting for [gateway-class] to be ready; gateway-class waiting for [traefik] to be ready; metallb-l2 waiting for [metallb] to be ready; metallb-pool waiting for [metallb] to be ready. Function pipeline took 549ms.`
+    ```
+
+* The graph architecture has clear Separation of Concern. Functions emit edges, the Graph is managed by Crossplane. In the function-ordered-deletion proposal functions must manage graph state.
+* All functions in a function-ordered-deletion Pipeline need to be updated, slowing adoption of the feature. In this proposal a single function (like function-sequencer) can emit edges, and existing functions that don't support ordering have no impact on the graph.
+* This proposal enables a path to deprecation of Managed Resource References by embedding implicit references support in the SDKs. For example a Subnet uses a field like `vpcId: ref(vpc.externalName())`, the SDK can create the edge automatically.
+* Since this proposal supports required resources, Managed Resource References where `matchControllerRef: false` can be replaced with a required resource dependency. The Modelplane fork above demonstrates this pattern as a real-world example <https://github.com/stevendborrelli/modelplane/blob/ea0b8f62092403169d4f4c908a4c3010f9c02678/functions/compose-inference-cluster/function/fn.py#L710>.
+* Testability: it is difficult to surmise the state of dependencies from desired state gating and Usages. With graph edges represented in the XR, testing can be extended to the graph edges emitted from the pipeline.
+* Integration with tooling: with graph edges represented in the XR, external tools can visualize dependencies and state.
+* Reduction of API errors. Managed Resource Refs emit resources that generate Kubernetes API errors until the dependency is resolved. Usages block deletion, triggering errors and exponential backoff.
 
 ## Alternatives Considered
 
