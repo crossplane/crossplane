@@ -849,6 +849,44 @@ func (b *MockManifestBuilder) TLSServerSecret() *corev1.Secret {
 	return b.TLSServerSecretFn()
 }
 
+func TestDemotedControllers(t *testing.T) {
+	owner := &metav1.ObjectMeta{UID: incoming.UID}
+
+	cases := map[string]struct {
+		reason string
+		refs   []metav1.OwnerReference
+		want   []metav1.OwnerReference
+	}{
+		"NewController": {
+			reason: "Should return empty when the only controller is the new owner.",
+			refs:   []metav1.OwnerReference{incoming},
+		},
+		"NewDemotesOld": {
+			reason: "Should demote the old controller when a new revision takes ownership.",
+			refs:   []metav1.OwnerReference{outgoing},
+			want:   []metav1.OwnerReference{demoted},
+		},
+		"MixedReferences": {
+			reason: "Should demote only old controllers; skip incoming and non-controlling refs.",
+			refs:   []metav1.OwnerReference{incoming, outgoing, demoted},
+			want:   []metav1.OwnerReference{demoted},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			obj := &corev1.Service{ObjectMeta: metav1.ObjectMeta{OwnerReferences: tc.refs}}
+			got := demotedControllers(obj, owner)
+			if len(got) == 0 {
+				got = nil
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("%s\ndemotedControllers(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestBuilderWithMRDs(t *testing.T) {
 	inactiveMRD := extv1alpha1.ManagedResourceDefinition{
 		Spec: extv1alpha1.ManagedResourceDefinitionSpec{

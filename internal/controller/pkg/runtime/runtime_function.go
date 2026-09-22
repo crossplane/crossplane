@@ -133,7 +133,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 	// `deploymentTemplate.spec.template.spec.serviceAccountName` in the
 	// DeploymentRuntimeConfig.
 	if sa.Name == d.Spec.Template.Spec.ServiceAccountName {
-		if err := applySA(ctx, h.client, sa); err != nil {
+		if err := applySA(ctx, h.client, pr, sa); err != nil {
 			return errors.Wrap(err, errApplyFunctionSA)
 		}
 	}
