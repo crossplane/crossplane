@@ -1,0 +1,14 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-nop-pkg-handoff
+spec:
+  # This should not be updated by renovate as we need this to be not on the
+  # latest version, ignored explicitly in renovate's configuration
+  package: xpkg.upbound.io/crossplane-contrib/provider-nop:v0.2.0
+  ignoreCrossplaneConstraints: true
+  # The test pauses the outgoing revision, which also stops it removing itself
+  # from the Lock. Two revisions of the same package in the Lock fail dependency
+  # resolution with "node ... already exists", which would mask the hand-off this
+  # test is about. provider-nop has no dependencies, so skip resolution.
+  skipDependencyResolution: true

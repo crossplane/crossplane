@@ -4,11 +4,20 @@
 # This makes dependencies explicit and keeps flake.nix as a clean manifest.
 #
 # Key primitives used here:
-#   pkgs.buildGoApplication - gomod2nix's Go builder (https://github.com/nix-community/gomod2nix)
+#   pkgs.buildGoModule      - nixpkgs' Go builder, vendors deps (https://nixos.org/manual/nixpkgs/stable/#ssec-go-modules)
 #   pkgs.dockerTools        - Build OCI images without Docker (https://nixos.org/manual/nixpkgs/stable/#sec-pkgs-dockerTools)
 #   pkgs.runCommand         - Run a shell script, capture output directory as $out
 { pkgs, self }:
 let
+  # Go builders backed by a single shared per-module vendor cache.
+  # See nix/go-builders.nix.
+  inherit (import ./go-builders.nix { inherit pkgs self; })
+    buildRoot
+    buildRootFor
+    rootVendor
+    apisVendor
+    ;
+
   # Build a Go binary for a specific platform.
   goBinary =
     {
@@ -20,32 +29,29 @@ let
     let
       ext = if platform.os == "windows" then ".exe" else "";
     in
-    pkgs.buildGoApplication {
+    (buildRootFor platform) {
       pname = "${pname}-${platform.os}-${platform.arch}";
       inherit version;
       src = self;
-      pwd = self;
-      modules = "${self}/gomod2nix.toml";
       subPackages = [ subPackage ];
 
-      # Cross-compile by merging GOOS/GOARCH into Go's attrset (// merges attrsets).
-      go = pkgs.go // {
-        GOOS = platform.os;
-        GOARCH = platform.arch;
-      };
-
-      CGO_ENABLED = "0";
+      env.CGO_ENABLED = "0";
       doCheck = false;
 
-      preBuild = ''
-        ldflags="-s -w -X=github.com/crossplane/crossplane/v2/internal/version.version=${version}"
-      '';
+      ldflags = [
+        "-s"
+        "-w"
+        "-X=github.com/crossplane/crossplane-runtime/v2/pkg/version.version=${version}"
+      ];
 
       postInstall = ''
         if [ -d $out/bin/${platform.os}_${platform.arch} ]; then
           mv $out/bin/${platform.os}_${platform.arch}/* $out/bin/
           rmdir $out/bin/${platform.os}_${platform.arch}
         fi
+      '';
+
+      postFixup = ''
         cd $out/bin
         sha256sum ${pname}${ext} | head -c 64 > ${pname}${ext}.sha256
       '';
@@ -122,34 +128,16 @@ let
       };
     };
 
-  # Build crank tarball with checksums.
-  crankBundle =
-    {
-      version,
-      crankDrv,
-      platform,
-    }:
-    let
-      ext = if platform.os == "windows" then ".exe" else "";
-    in
-    pkgs.runCommand "crank-bundle-${platform.os}-${platform.arch}-${version}"
-      {
-        nativeBuildInputs = [
-          pkgs.gnutar
-          pkgs.gzip
-        ];
-      }
-      ''
-        mkdir -p $out
-        cp ${crankDrv}/bin/crank${ext} .
-        cp ${crankDrv}/bin/crank${ext}.sha256 .
-        tar -czvf $out/crank.tar.gz crank${ext} crank${ext}.sha256
-        cd $out
-        sha256sum crank.tar.gz | head -c 64 > crank.tar.gz.sha256
-      '';
-
 in
 {
+  # Vendored-dependency derivations, one per Go module. Exposed so
+  # `nix run .#tidy` can rebuild them to capture fresh vendor hashes. Building
+  # these realises only the vendor dir, not the binaries.
+  vendor = {
+    root = rootVendor;
+    apis = apisVendor;
+  };
+
   # OCI images for all Linux platforms.
   images =
     { version, platforms }:
@@ -197,14 +185,12 @@ in
   # E2E test binary.
   e2e =
     { version }:
-    pkgs.buildGoApplication {
+    buildRoot {
       pname = "crossplane-e2e";
       inherit version;
       src = self;
-      pwd = self;
-      modules = "${self}/gomod2nix.toml";
 
-      CGO_ENABLED = "0";
+      env.CGO_ENABLED = "0";
 
       buildPhase = ''
         runHook preBuild
@@ -258,18 +244,6 @@ in
         }) goPlatforms
       );
 
-      crankBins = builtins.listToAttrs (
-        map (p: {
-          name = "${p.os}-${p.arch}";
-          value = goBinary {
-            inherit version;
-            pname = "crank";
-            subPackage = "cmd/crank";
-            platform = p;
-          };
-        }) goPlatforms
-      );
-
       crossplaneImages = builtins.listToAttrs (
         map (p: {
           name = "${p.os}-${p.arch}";
@@ -282,17 +256,6 @@ in
             });
           };
         }) imagePlatforms
-      );
-
-      crankBundles = builtins.listToAttrs (
-        map (p: {
-          name = "${p.os}-${p.arch}";
-          value = crankBundle {
-            inherit version;
-            crankDrv = crankBins."${p.os}-${p.arch}";
-            platform = p;
-          };
-        }) goPlatforms
       );
 
       chart =
@@ -313,12 +276,15 @@ in
       ${pkgs.lib.concatMapStrings (p: ''
         mkdir -p $out/bin/${p.os}_${p.arch}
         cp ${crossplaneBins."${p.os}-${p.arch}"}/bin/* $out/bin/${p.os}_${p.arch}/
-        cp ${crankBins."${p.os}-${p.arch}"}/bin/* $out/bin/${p.os}_${p.arch}/
-      '') goPlatforms}
-
-      ${pkgs.lib.concatMapStrings (p: ''
-        mkdir -p $out/bundle/${p.os}_${p.arch}
-        cp ${crankBundles."${p.os}-${p.arch}"}/* $out/bundle/${p.os}_${p.arch}/
+        ${
+          let
+            ext = if p.os == "windows" then ".exe" else "";
+          in
+          ''
+            chmod 755 $out/bin/${p.os}_${p.arch}/crossplane${ext}
+            chmod 644 $out/bin/${p.os}_${p.arch}/crossplane${ext}.sha256
+          ''
+        }
       '') goPlatforms}
 
       cp ${chart}/* $out/charts/

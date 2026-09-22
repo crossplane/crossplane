@@ -481,6 +481,197 @@ func TestReconcile(t *testing.T) {
 	}
 }
 
+// TestReconcileCRDControllerHandoff covers the hand-off of a CRD between the
+// package revisions that control the ManagedResourceDefinition it's derived
+// from. The outgoing revision's controlling owner reference may have been
+// written by a field manager that isn't ours, in which case server-side apply
+// can't prune it and we have to declare it, demoted, to take it over.
+func TestReconcileCRDControllerHandoff(t *testing.T) {
+	// The revision that controls the MRD, and so should control its CRD.
+	incoming := metav1.OwnerReference{
+		APIVersion: "pkg.crossplane.io/v1",
+		Kind:       "ProviderRevision",
+		Name:       "cool-provider-b",
+		UID:        types.UID("uid-b"),
+		Controller: new(true),
+	}
+
+	// The revision it replaced, still controlling the live CRD.
+	outgoing := metav1.OwnerReference{
+		APIVersion: "pkg.crossplane.io/v1",
+		Kind:       "ProviderRevision",
+		Name:       "cool-provider-a",
+		UID:        types.UID("uid-a"),
+		Controller: new(true),
+	}
+
+	demoted := outgoing
+	demoted.Controller = new(false)
+
+	// The same outgoing revision, referenced through another served version.
+	outgoingV1beta1 := outgoing
+	outgoingV1beta1.APIVersion = "pkg.crossplane.io/v1beta1"
+
+	demotedV1beta1 := outgoingV1beta1
+	demotedV1beta1.Controller = new(false)
+
+	// Something that isn't a package revision at all.
+	xrd := metav1.OwnerReference{
+		APIVersion: "apiextensions.crossplane.io/v2",
+		Kind:       "CompositeResourceDefinition",
+		Name:       "databases.example.com",
+		UID:        types.UID("uid-xrd"),
+		Controller: new(true),
+	}
+
+	// The MRD's own reference, which CRDAsUnstructured always adds.
+	mrdOwner := metav1.OwnerReference{
+		APIVersion: v1alpha1.SchemeGroupVersion.String(),
+		Kind:       v1alpha1.ManagedResourceDefinitionKind,
+		Name:       "test-mrd",
+		UID:        types.UID("test-uid"),
+	}
+
+	mrd := func(refs ...metav1.OwnerReference) *v1alpha1.ManagedResourceDefinition {
+		return newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+			mrd.SetOwnerReferences(refs)
+			mrd.Spec.CustomResourceDefinitionSpec = v1alpha1.CustomResourceDefinitionSpec{
+				Group: "example.com",
+				Names: extv1.CustomResourceDefinitionNames{Plural: "databases", Kind: "Database"},
+				Scope: extv1.ClusterScoped,
+				Versions: []v1alpha1.CustomResourceDefinitionVersion{{
+					Name:    "v1",
+					Served:  true,
+					Storage: true,
+					Schema: &v1alpha1.CustomResourceValidation{
+						OpenAPIV3Schema: runtime.RawExtension{
+							Raw: []byte(`{"type": "object", "properties": {"spec": {"type": "object"}}}`),
+						},
+					},
+				}},
+			}
+		})
+	}
+
+	crd := func(refs ...metav1.OwnerReference) *extv1.CustomResourceDefinition {
+		return &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{OwnerReferences: refs}}
+	}
+
+	type args struct {
+		mrd *v1alpha1.ManagedResourceDefinition
+
+		// The live CRD, or nil if it doesn't exist yet.
+		crd *extv1.CustomResourceDefinition
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   []metav1.OwnerReference
+	}{
+		"DemoteReplacedRevision": {
+			reason: "We should declare the outgoing revision's reference demoted alongside our own, so one apply completes the hand-off.",
+			args: args{
+				mrd: mrd(incoming),
+				crd: crd(outgoing),
+			},
+			want: []metav1.OwnerReference{mrdOwner, incoming, demoted},
+		},
+		"DemoteAnotherAPIVersionOfSameKind": {
+			reason: "We should take the CRD from a revision of the same group and kind whose reference was written through another API version, since the API server may serve the type at more than one.",
+			args: args{
+				mrd: mrd(incoming),
+				crd: crd(outgoingV1beta1),
+			},
+			want: []metav1.OwnerReference{mrdOwner, incoming, demotedV1beta1},
+		},
+		"RefuseAnotherKind": {
+			reason: "We should not take the CRD from a controller that isn't a package revision of the kind that controls the MRD, so the apply fails loudly instead.",
+			args: args{
+				mrd: mrd(incoming),
+				crd: crd(xrd),
+			},
+			want: []metav1.OwnerReference{mrdOwner, incoming},
+		},
+		"AlreadyOurs": {
+			reason: "A CRD we already control needs no hand-off, so we should declare only our own references and let SSA prune anything else.",
+			args: args{
+				mrd: mrd(incoming),
+				crd: crd(incoming),
+			},
+			want: []metav1.OwnerReference{mrdOwner, incoming},
+		},
+		"AlreadyDemoted": {
+			reason: "Once the outgoing reference is a plain owner it's ours to prune, so the second apply should stop declaring it.",
+			args: args{
+				mrd: mrd(incoming),
+				crd: crd(incoming, demoted),
+			},
+			want: []metav1.OwnerReference{mrdOwner, incoming},
+		},
+		"CRDDoesNotExist": {
+			reason: "There's no incumbent to demote when we're creating the CRD.",
+			args: args{
+				mrd: mrd(incoming),
+			},
+			want: []metav1.OwnerReference{mrdOwner, incoming},
+		},
+		"MRDHasNoController": {
+			reason: "We should leave the CRD's controller alone when we're not claiming control of it ourselves.",
+			args: args{
+				mrd: mrd(),
+				crd: crd(outgoing),
+			},
+			want: []metav1.OwnerReference{mrdOwner},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var got []metav1.OwnerReference
+
+			c := &test.MockClient{
+				MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+					switch o := obj.(type) {
+					case *v1alpha1.ManagedResourceDefinition:
+						*o = *tc.args.mrd
+					case *extv1.CustomResourceDefinition:
+						if tc.args.crd == nil {
+							return kerrors.NewNotFound(schema.GroupResource{}, "test-mrd")
+						}
+
+						*o = *tc.args.crd
+					}
+
+					return nil
+				},
+				MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+					got = obj.GetOwnerReferences()
+
+					return nil
+				},
+				MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+			}
+
+			r := &Reconciler{
+				client:        c,
+				managedFields: &ssa.NopManagedFieldsUpgrader{},
+				log:           logging.NewNopLogger(),
+				record:        event.NewNopRecorder(),
+				conditions:    conditions.ObservedGenerationPropagationManager{},
+			}
+
+			if _, err := r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: "test-mrd"}}); err != nil {
+				t.Fatalf("\n%s\nr.Reconcile(...): unexpected error: %v", tc.reason, err)
+			}
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\napplied CustomResourceDefinition owner references: -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 // Helper functions and types for testing
 
 type mrdModifier func(mrd *v1alpha1.ManagedResourceDefinition)

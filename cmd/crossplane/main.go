@@ -35,11 +35,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/version"
 
 	"github.com/crossplane/crossplane/apis/v2"
 	"github.com/crossplane/crossplane/v2/cmd/crossplane/core"
 	"github.com/crossplane/crossplane/v2/cmd/crossplane/rbac"
-	"github.com/crossplane/crossplane/v2/internal/version"
 )
 
 type (
@@ -52,8 +52,9 @@ type cli struct {
 
 	Version versionFlag `help:"Print version and quit." short:"v"`
 
-	Core core.Command `cmd:"" default:"withargs"                                help:"Start core Crossplane controllers."`
-	Rbac rbac.Command `cmd:"" help:"Start Crossplane RBAC Manager controllers."`
+	Core     core.Command `cmd:"" default:"withargs"                                     help:"Start core Crossplane controllers."`
+	Rbac     rbac.Command `cmd:"" help:"Start Crossplane RBAC Manager controllers."`
+	Internal internalCmd  `cmd:"" help:"Internal commands. Not intended for direct use." hidden:""`
 }
 
 // BeforeApply binds the dev mode logger to the kong context

@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,9 +49,9 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
-	"github.com/crossplane/crossplane/v2/internal/xerrors"
 )
 
 const (
@@ -83,15 +84,16 @@ const (
 
 // Event reasons.
 const (
-	reasonResolve             event.Reason = "SelectComposition"
-	reasonCompose             event.Reason = "ComposeResources"
-	reasonRBAC                event.Reason = "RoleBasedAccessControl"
-	reasonPublish             event.Reason = "PublishConnectionSecret"
-	reasonWatch               event.Reason = "WatchComposedResources"
-	reasonInit                event.Reason = "InitializeCompositeResource"
-	reasonDelete              event.Reason = "DeleteCompositeResource"
-	reasonPaused              event.Reason = "ReconciliationPaused"
-	reasonNamespaceOverridden event.Reason = "NamespaceOverridden"
+	reasonResolve                 event.Reason = "SelectComposition"
+	reasonCompose                 event.Reason = "ComposeResources"
+	reasonRBAC                    event.Reason = "RoleBasedAccessControl"
+	reasonPublish                 event.Reason = "PublishConnectionSecret"
+	reasonWatch                   event.Reason = "WatchComposedResources"
+	reasonInit                    event.Reason = "InitializeCompositeResource"
+	reasonDelete                  event.Reason = "DeleteCompositeResource"
+	reasonPaused                  event.Reason = "ReconciliationPaused"
+	reasonNamespaceOverridden     event.Reason = "NamespaceOverridden"
+	reasonReconcileRequestHandled event.Reason = "ReconcileRequestHandled"
 )
 
 // Condition reasons.
@@ -327,6 +329,14 @@ func WithPollInterval(interval time.Duration) ReconcilerOption {
 	}
 }
 
+// WithMinPollInterval specifies the shortest poll interval a resource may
+// request via annotation. Annotation values below this floor are ignored.
+func WithMinPollInterval(d time.Duration) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.minPollInterval = d
+	}
+}
+
 // WithCompositionRevisionFetcher specifies how the composition to be used should be
 // fetched.
 func WithCompositionRevisionFetcher(f CompositionRevisionFetcher) ReconcilerOption {
@@ -384,13 +394,15 @@ func WithComposer(c Composer) ReconcilerOption {
 	}
 }
 
-// WithWatchStarter specifies how the Reconciler should start watches for any
-// resources it composes.
-func WithWatchStarter(controllerName string, h handler.EventHandler, w WatchStarter) ReconcilerOption {
+// WithWatchStarter specifies how the Reconciler should start watches for the
+// resources each XR depends on, and the tracker it reads those dependencies
+// from.
+func WithWatchStarter(controllerName string, h handler.EventHandler, w WatchStarter, t dependency.Tracker) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.controllerName = controllerName
 		r.watchHandler = h
 		r.engine = w
+		r.tracker = t
 	}
 }
 
@@ -490,7 +502,8 @@ func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...Rec
 		}),
 
 		// Dynamic watches are disabled by default.
-		engine: &NopWatchStarter{},
+		engine:  &NopWatchStarter{},
+		tracker: dependency.NopTracker{},
 
 		circuit: &circuit.NopBreaker{},
 
@@ -520,10 +533,11 @@ type Reconciler struct {
 
 	resource Composer
 
-	// Used to dynamically start composed resource watches.
+	// Used to dynamically start watches for the resources an XR depends on.
 	controllerName string
 	engine         WatchStarter
 	watchHandler   handler.EventHandler
+	tracker        dependency.Tracker
 
 	// Used to validate errors based on API issues.
 	authorizer Authorizer
@@ -534,7 +548,21 @@ type Reconciler struct {
 	record     event.Recorder
 	conditions conditions.Manager
 
-	pollInterval time.Duration
+	pollInterval    time.Duration
+	minPollInterval time.Duration
+}
+
+// effectivePollInterval returns the poll interval for the given resource,
+// taking into account any per-resource override via annotation. Overrides
+// below the configured minimum are clamped to the minimum.
+func (r *Reconciler) effectivePollInterval(o metav1.Object) time.Duration {
+	if d, ok := meta.GetPollInterval(o); ok {
+		if d >= r.minPollInterval {
+			return d
+		}
+		return r.minPollInterval
+	}
+	return r.pollInterval
 }
 
 // Reconcile a composite resource.
@@ -550,9 +578,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	xr := composite.New(composite.WithGroupVersionKind(r.gvk), composite.WithSchema(r.schema))
 	if err := r.client.Get(ctx, req.NamespacedName, xr); err != nil {
+		// The XR is gone - e.g. it was deleted and its finalizer removed before
+		// we saw the deletion. Stop tracking its dependencies so we don't leak
+		// watches for kinds only it depended on.
+		if kerrors.IsNotFound(err) {
+			r.tracker.Forget(req.NamespacedName)
+		}
 		log.Debug(errGet, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
 	}
+
+	statusBefore, _, _ := kunstructured.NestedFieldCopy(xr.Object, "status")
 
 	log = log.WithValues(
 		"uid", xr.GetUID(),
@@ -580,6 +616,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
 
+	// Record the reconcile-requested-at annotation token in status so
+	// users can confirm the request was processed.
+	if token, ok := meta.GetReconcileRequest(xr); ok {
+		if xr.GetLastHandledReconcileAt() != token {
+			log.Debug("Processing reconcile request", "token", token)
+			r.record.Event(xr, event.Normal(reasonReconcileRequestHandled, "Handling reconcile request", "token", token))
+			xr.SetLastHandledReconcileAt(token)
+		}
+	}
+
 	if meta.WasDeleted(xr) {
 		log = log.WithValues("deletion-timestamp", xr.GetDeletionTimestamp())
 
@@ -597,6 +643,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 			return reconcile.Result{}, err
 		}
+
+		// Stop tracking the XR's dependencies. Any watch only it needed will be
+		// garbage collected.
+		r.tracker.Forget(client.ObjectKeyFromObject(xr))
 
 		log.Debug("Successfully deleted composite resource")
 		status.MarkConditions(xpv2.ReconcileSuccess())
@@ -727,7 +777,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			err = errors.Wrap(errors.New(errInvalidResources), errCompose)
 		}
 		if r.authorizer != nil {
-			if composeErr := new(xerrors.ComposedResourceError); errors.As(err, composeErr) {
+			if composeErr := new(ComposedResourceError); errors.As(err, composeErr) {
 				if ok, authErr := r.authorizer.IsAuthorizedFor(updateCtx,
 					composeErr.Composed.GetObjectKind().GroupVersionKind(),
 					composeErr.Composed.GetNamespace()); !ok {
@@ -756,11 +806,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	ws := make([]engine.Watch, len(xr.GetResourceReferences()))
-	for i, ref := range xr.GetResourceReferences() {
+	// Watch every kind this controller's XRs depend on - the resources they
+	// compose and the resources their functions require. The tracker was
+	// updated with this XR's dependencies as it was composed above.
+	gvks := r.tracker.GVKs()
+	log.Debug("Watching kinds this controller's composite resources depend on", "count", len(gvks), "gvks", gvks)
+	ws := make([]engine.Watch, len(gvks))
+	for i, gvk := range gvks {
 		cr := &kunstructured.Unstructured{}
-		cr.SetGroupVersionKind(ref.GroupVersionKind())
-		ws[i] = engine.WatchFor(cr, engine.WatchTypeComposedResource, r.watchHandler)
+		cr.SetGroupVersionKind(gvk)
+		ws[i] = engine.WatchFor(cr, engine.WatchTypeDependency, r.watchHandler)
 	}
 
 	// The ControllerEngine that starts this controller also starts a
@@ -855,7 +910,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Requeue after the configured poll interval by default. If realtime
 	// compositions is enabled this'll be RequeueAfter: 0, i.e. no requeue.
-	result := reconcile.Result{RequeueAfter: jitter(r.pollInterval)}
+	// A per-resource poll interval annotation takes precedence.
+	result := reconcile.Result{RequeueAfter: jitter(r.effectivePollInterval(xr))}
 
 	switch {
 	case !r.features.Enabled(features.EnableBetaRealtimeCompositions) && len(unsynced)+len(unready) > 0:
@@ -870,7 +926,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		result = reconcile.Result{RequeueAfter: jitter(res.TTL)}
 	}
 
-	return result, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+	if !cmp.Equal(statusBefore, xr.Object["status"]) {
+		return result, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+	}
+	return result, nil
 }
 
 type compositionResultMeta struct {

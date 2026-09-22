@@ -30,6 +30,7 @@
 /CHARTER.md                          @crossplane/steering-committee
 /CODE_OF_CONDUCT.md                  @crossplane/steering-committee
 /GOVERNANCE.md                       @crossplane/steering-committee
+/AI_POLICY.md                        @crossplane/steering-committee
 /ROADMAP.md                          @crossplane/steering-committee
 /LICENSE                             @crossplane/steering-committee
 
@@ -58,9 +59,6 @@
 # RBAC Manager
 /cmd/crossplane/rbac/                @crossplane/crossplane-maintainers @negz
 /internal/controller/rbac/           @crossplane/crossplane-maintainers @negz
-
-# Crossplane CLI
-/cmd/crank/                          @crossplane/crossplane-maintainers @phisco
 
 # Misc
 /internal/features/                  @crossplane/crossplane-maintainers @negz

@@ -95,6 +95,9 @@ linters:
     # against idiomatic Go programming, which encourages this approach - e.g.
     # to scope errors.
     - noinlineerr
+
+    # Deprecated in favour of gomodguard_v2, which is enabled by default: all
+    - gomodguard
   settings:
     depguard:
       rules:
@@ -117,6 +120,7 @@ linters:
     goconst:
       min-len: 3
       min-occurrences: 5
+      ignore-tests: true
     gocritic:
       enabled-tags:
         - performance
@@ -247,12 +251,6 @@ linters:
       - linters:
           - staticcheck
         text: 'SA1019: .+ is deprecated: this uses the old events API and will be removed in a future release. Please use GetEventRecorder instead.'
-
-      # We include a 'common' package under crank, which revive doesn't like.
-      - linters:
-          - revive
-        path: 'cmd/crank/common/*'
-        text: 'var-naming: avoid meaningless package names'
 
     paths:
       - zz_generated\..+\.go$

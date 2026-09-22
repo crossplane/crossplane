@@ -1,0 +1,15 @@
+apiVersion: nop.crossplane.io/v1alpha1
+kind: NopResource
+metadata:
+  name: pkg-provider-handoff
+spec:
+ forProvider:
+   conditionAfter:
+   - conditionType: Ready
+     conditionStatus: "False"
+     conditionReason: "Creating"
+     time: 0s
+   - conditionType: Ready
+     conditionStatus: "True"
+     conditionReason: "Available"
+     time: 1s

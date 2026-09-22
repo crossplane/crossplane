@@ -28,8 +28,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
-
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 )
 
 const (

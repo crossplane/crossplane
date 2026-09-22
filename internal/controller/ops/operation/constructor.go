@@ -21,7 +21,7 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
@@ -39,7 +39,7 @@ import (
 func Setup(mgr ctrl.Manager, o opscontroller.Options) error {
 	name := "ops/" + strings.ToLower(v1alpha1.OperationGroupKind)
 
-	r := NewReconciler(mgr,
+	r := NewReconciler(mgr.GetClient(),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithFunctionRunner(o.FunctionRunner),
@@ -97,15 +97,15 @@ func WithRequiredSchemasFetcher(f xfn.RequiredSchemasFetcher) ReconcilerOption {
 	}
 }
 
-// NewReconciler returns a Reconciler of Usages.
-func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
+// NewReconciler returns a Reconciler of Operations.
+func NewReconciler(c client.Client, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		client:     mgr.GetClient(),
+		client:     c,
 		log:        logging.NewNopLogger(),
 		record:     event.NewNopRecorder(),
 		conditions: conditions.ObservedGenerationPropagationManager{},
-		functions:  xfn.NewRevisionCapabilityChecker(mgr.GetClient()),
-		resources:  xfn.NewExistingRequiredResourcesFetcher(mgr.GetClient()),
+		functions:  xfn.NewRevisionCapabilityChecker(c),
+		resources:  xfn.NewExistingRequiredResourcesFetcher(c),
 		schemas:    xfn.NopRequiredSchemasFetcher{},
 	}
 

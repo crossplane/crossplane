@@ -1,0 +1,494 @@
+/*
+Copyright 2026 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// Package composite renders a composite resource (XR) by running one real
+// reconcile loop against a fake in-memory client. It is intended as an
+// internal engine for tools like 'crossplane render' and 'up test run'.
+package composite
+
+import (
+	"context"
+	"slices"
+
+	"github.com/google/uuid"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	managed "github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
+	xpresource "github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+
+	apis "github.com/crossplane/crossplane/apis/v2"
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	apiextensionsv2 "github.com/crossplane/crossplane/apis/v2/apiextensions/v2"
+	"github.com/crossplane/crossplane/v2/internal/circuit"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composition"
+	"github.com/crossplane/crossplane/v2/internal/render"
+	"github.com/crossplane/crossplane/v2/internal/ssa"
+	"github.com/crossplane/crossplane/v2/internal/xfn"
+	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
+)
+
+// Render runs one real XR reconcile loop using the real reconciler engine
+// backed by a fake in-memory client.
+func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.CompositeInput) (*renderv1alpha1.CompositeOutput, error) {
+	s := runtime.NewScheme()
+	if err := corev1.AddToScheme(s); err != nil {
+		return nil, errors.Wrap(err, "cannot add core/v1 to scheme")
+	}
+	if err := apis.AddToScheme(s); err != nil {
+		return nil, errors.Wrap(err, "cannot add Crossplane APIs to scheme")
+	}
+
+	// Peek at the input XR's GVK so we can pick the right composite.Schema
+	// before constructing the wrapper. The wrapper's Schema is used by
+	// schema-aware accessors like SetResourceReferences, so it must be set
+	// before InjectResourceRefs runs below.
+	peek := &kunstructured.Unstructured{}
+	if err := xfn.FromStruct(peek, in.GetCompositeResource()); err != nil {
+		return nil, errors.Wrap(err, "cannot convert composite resource from protobuf")
+	}
+	gvk := peek.GroupVersionKind()
+
+	cschema, err := selectSchema(gvk, in.GetCompositeResourceDefinition())
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot select composite resource schema")
+	}
+
+	// Convert the input XR from protobuf Struct to unstructured, with the
+	// schema already pinned. The GVK is taken from the proto payload itself
+	// via FromStruct (which overwrites the underlying Object map); the
+	// Schema field on the wrapper is preserved across that overwrite.
+	xr := ucomposite.New(ucomposite.WithSchema(cschema))
+	if err := xfn.FromStruct(xr, in.GetCompositeResource()); err != nil {
+		return nil, errors.Wrap(err, "cannot convert composite resource from protobuf")
+	}
+
+	// Set a deterministic fake UID for the input XR if it doesn't have
+	// one. Generating a deterministic UID keeps output stable across runs, but
+	// we don't want to overwrite an existing UID because the user might have
+	// observed resources with ownerRefs that match it.
+	if xr.GetUID() == "" {
+		xr.SetUID(types.UID(uuid.NewSHA1(uuid.Nil, []byte(gvk.String()+"\x00"+xr.GetNamespace()+"\x00"+xr.GetName())).String()))
+	}
+
+	// Set a resourceVersion to avoid "object has no resource version" errors.
+	xr.SetResourceVersion("999")
+
+	// Convert observed resources from protobuf.
+	observed := make([]kunstructured.Unstructured, 0, len(in.GetObservedResources()))
+	for _, s := range in.GetObservedResources() {
+		u := &kunstructured.Unstructured{}
+		if err := xfn.FromStruct(u, s); err != nil {
+			return nil, errors.Wrap(err, "cannot convert observed resource from protobuf")
+		}
+		observed = append(observed, *u)
+	}
+
+	if err := CheckObservedResources(xr, observed); err != nil {
+		return nil, errors.Wrap(err, "invalid observed resources")
+	}
+
+	// Inject spec.resourceRefs for observed resources so the real
+	// ExistingComposedResourceObserver can find them via client.Get.
+	InjectResourceRefs(xr, observed)
+
+	// Convert the Composition from protobuf.
+	comp := &apiextensionsv1.Composition{}
+	if err := xfn.FromStruct(comp, in.GetComposition()); err != nil {
+		return nil, errors.Wrap(err, "cannot convert composition from protobuf")
+	}
+
+	// Synthesize a CompositionRevision from the Composition.
+	rev := composition.NewCompositionRevision(comp, 1)
+	rev.Status.SetConditions(apiextensionsv1.ValidPipeline())
+
+	// Build the in-memory store with all input resources.
+	store := []kunstructured.Unstructured{xr.Unstructured}
+
+	revData, err := runtime.DefaultUnstructuredConverter.ToUnstructured(rev)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot convert CompositionRevision to unstructured")
+	}
+	ru := kunstructured.Unstructured{Object: revData}
+	ru.SetGroupVersionKind(apiextensionsv1.CompositionRevisionGroupVersionKind)
+	store = append(store, ru)
+
+	store = append(store, observed...)
+
+	for _, s := range in.GetRequiredResources() {
+		u := &kunstructured.Unstructured{}
+		if err := xfn.FromStruct(u, s); err != nil {
+			return nil, errors.Wrap(err, "cannot convert required resource from protobuf")
+		}
+		store = append(store, *u)
+	}
+
+	for _, s := range in.GetCredentials() {
+		u := &kunstructured.Unstructured{}
+		if err := xfn.FromStruct(u, s); err != nil {
+			return nil, errors.Wrap(err, "cannot convert credential from protobuf")
+		}
+		if u.GetKind() == "" {
+			u.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "Secret"})
+		}
+		store = append(store, *u)
+	}
+
+	c := render.NewInMemoryClient(s, store...)
+
+	runner, err := render.NewFunctionRunner(in.GetFunctions())
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot connect to functions")
+	}
+	defer runner.Close() //nolint:errcheck // Best-effort cleanup.
+
+	oc, err := render.NewInMemoryOpenAPIClient(in.GetRequiredSchemas())
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot build OpenAPI client from input schemas")
+	}
+	sf := xfn.NewOpenAPIRequiredSchemasFetcher(oc)
+	rsf := render.NewRecordingRequiredSchemasFetcher(sf)
+	rrf := render.NewRecordingRequiredResourcesFetcher(xfn.NewExistingRequiredResourcesFetcher(c))
+
+	fc := composite.NewFunctionComposer(c, c,
+		xfn.NewFetchingFunctionRunner(runner, rrf, rsf),
+		composite.WithComposedResourceObserver(
+			composite.NewExistingComposedResourceObserver(c, c,
+				composite.NewSecretConnectionDetailsFetcher(c))),
+		composite.WithComposedResourceGarbageCollector(
+			composite.NewDeletingComposedResourceGarbageCollector(c)),
+		composite.WithCompositeConnectionDetailsFetcher(
+			composite.NewSecretConnectionDetailsFetcher(c)),
+		composite.WithManagedFieldsUpgrader(&ssa.NopManagedFieldsUpgrader{}),
+		composite.WithRequiredSchemasFetcher(rsf),
+		composite.WithRequiredResourcesFetcher(rrf),
+	)
+
+	rec := &render.EventRecorder{}
+
+	r := composite.NewReconciler(c, gvk,
+		composite.WithCompositeSchema(cschema),
+		composite.WithComposer(fc),
+		composite.WithCompositeFinalizer(xpresource.NewNopFinalizer()),
+		composite.WithCompositionSelector(CompositionSelector(comp)),
+		composite.WithCompositionRevisionSelector(composite.CompositionRevisionSelectorFn(
+			func(_ context.Context, _ xpresource.Composite) error { return nil },
+		)),
+		composite.WithCompositionRevisionFetcher(composite.CompositionRevisionFetcherFn(
+			func(_ context.Context, _ xpresource.Composite) (*apiextensionsv1.CompositionRevision, error) {
+				return rev, nil
+			},
+		)),
+		composite.WithConfigurator(composite.NewConfiguratorChain(
+			composite.NewAPINamingConfigurator(c),
+			composite.NewAPIConfigurator(c),
+		)),
+		composite.WithConnectionPublishers(composite.ConnectionPublisherFn(
+			func(_ context.Context, _ composite.ConnectionSecretOwner, _ managed.ConnectionDetails) (bool, error) {
+				return false, nil
+			},
+		)),
+		composite.WithWatchStarter("render", nil, &composite.NopWatchStarter{}, dependency.NopTracker{}),
+		composite.WithCircuitBreaker(&circuit.NopBreaker{}),
+		composite.WithRecorder(rec),
+		composite.WithLogger(log),
+	)
+
+	req := reconcile.Request{NamespacedName: types.NamespacedName{
+		Namespace: xr.GetNamespace(),
+		Name:      xr.GetName(),
+	}}
+
+	_, rerr := r.Reconcile(ctx, req)
+
+	// Always build the output, even on reconcile error: the recording
+	// fetchers (rrf, rsf) and the EventRecorder (rec) may have captured
+	// useful state — in particular the resource selectors a function
+	// requested before returning a fatal result — that callers iterating on
+	// requirements need to make progress. See issue #7446.
+	out, berr := BuildOutput(c, func(u kunstructured.Unstructured) bool {
+		return u.GroupVersionKind() == gvk &&
+			u.GetNamespace() == xr.GetNamespace() &&
+			u.GetName() == xr.GetName()
+	}, rec, rrf, rsf)
+	switch {
+	case berr != nil:
+		// Surface BuildOutput's failure. If reconcile also failed, join
+		// both so callers can recover *PipelineFatalError via errors.As.
+		// When rerr is nil, errors.Join wraps berr in a MultiError whose
+		// Error() string and errors.As/Is behavior match berr exactly —
+		// callers using those traversals see no difference.
+		return nil, errors.Join(rerr, berr)
+	case rerr != nil:
+		// On a function-pipeline FATAL we still return the partial output
+		// so callers can recover RequiredResources/RequiredSchemas. We
+		// return the full wrapped error chain (rather than the extracted
+		// *PipelineFatalError) so callers preserve the reconciler's
+		// "cannot compose resources" diagnostic context; *PipelineFatalError
+		// remains reachable via errors.As. Other reconcile errors keep the
+		// previous "reconcile failed" wrapping.
+		var pfe *composite.PipelineFatalError
+		if errors.As(rerr, &pfe) {
+			return out, rerr
+		}
+		return nil, errors.Wrap(rerr, "reconcile failed")
+	}
+
+	return out, nil
+}
+
+// selectSchema picks the composite.Schema for an input XR. With no XRD
+// supplied it returns SchemaModern. Otherwise the XRD's composite
+// Group+Kind must match the input XR, and Spec.Scope == "LegacyCluster"
+// selects SchemaLegacy.
+//
+// Counterintuitively, "LegacyCluster" can appear on v2-form XRDs even
+// though it isn't in the v2 CRD's scope enum. That enum is enforced at
+// admission only; v1 is the storage version, the XRD CRD declares no
+// conversion (strategy None), and the v2 Go type's Spec.Scope is an
+// unvalidated string alias — so a v1-posted XRD fetched as v2-form is
+// the same stored object with the apiVersion relabeled, and Spec.Scope
+// arrives verbatim. Branching on apiVersion would force callers to
+// fetch v1-form specifically; checking the scope string on both forms
+// works regardless of how the caller got the XRD.
+func selectSchema(gvk schema.GroupVersionKind, def *structpb.Struct) (ucomposite.Schema, error) {
+	if def == nil {
+		return ucomposite.SchemaModern, nil
+	}
+
+	const legacyClusterScope = string(apiextensionsv1.CompositeResourceScopeLegacyCluster)
+
+	u := &kunstructured.Unstructured{}
+	if err := xfn.FromStruct(u, def); err != nil {
+		return ucomposite.SchemaModern, errors.Wrap(err, "cannot decode CompositeResourceDefinition")
+	}
+
+	var (
+		xrdGVK  schema.GroupVersionKind
+		xrdName = u.GetName()
+		cschema = ucomposite.SchemaModern
+	)
+
+	switch u.GetAPIVersion() {
+	case apiextensionsv1.SchemeGroupVersion.String():
+		xrd := &apiextensionsv1.CompositeResourceDefinition{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, xrd); err != nil {
+			return ucomposite.SchemaModern, errors.Wrapf(err, "cannot decode v1 CompositeResourceDefinition %q", xrdName)
+		}
+		xrdGVK = xrd.GetCompositeGroupVersionKind()
+		if ptr.Deref(xrd.Spec.Scope, apiextensionsv1.CompositeResourceScopeLegacyCluster) == apiextensionsv1.CompositeResourceScopeLegacyCluster {
+			cschema = ucomposite.SchemaLegacy
+		}
+	case apiextensionsv2.SchemeGroupVersion.String():
+		xrd := &apiextensionsv2.CompositeResourceDefinition{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, xrd); err != nil {
+			return ucomposite.SchemaModern, errors.Wrapf(err, "cannot decode v2 CompositeResourceDefinition %q", xrdName)
+		}
+		xrdGVK = xrd.GetCompositeGroupVersionKind()
+		// Counterintuitively, we can see LegacyCluster on v2 objects. See
+		// function comment.
+		if string(xrd.Spec.Scope) == legacyClusterScope {
+			cschema = ucomposite.SchemaLegacy
+		}
+	default:
+		return ucomposite.SchemaModern, errors.Errorf("CompositeResourceDefinition %q has unrecognized apiVersion %q (expected one of %v)",
+			xrdName, u.GetAPIVersion(),
+			[]string{
+				apiextensionsv1.SchemeGroupVersion.String(),
+				apiextensionsv2.SchemeGroupVersion.String(),
+			})
+	}
+
+	// Match only on Group+Kind: GetCompositeGroupVersionKind returns the
+	// XRD's referenceable version, but the input XR may legitimately be
+	// submitted under a served-but-not-referenceable version of the same
+	// XRD. Schema selection depends on XRD identity (Group+Kind), not on
+	// which served version the XR happens to use.
+	if xrdGVK.Group != gvk.Group || xrdGVK.Kind != gvk.Kind {
+		return ucomposite.SchemaModern, errors.Errorf("CompositeResourceDefinition %q (composite Group=%s Kind=%s) does not match the input XR's Group=%s Kind=%s",
+			xrdName, xrdGVK.Group, xrdGVK.Kind, gvk.Group, gvk.Kind)
+	}
+
+	return cschema, nil
+}
+
+// CheckObservedResources validates that all observed resources will be
+// correctly read by the controller. This requires that they:
+//
+//  1. Either have no controller ref or have a controller ref that matches the
+//     XR.
+//  2. Are in the same namespace as the XR if the XR is namespaced.
+func CheckObservedResources(xr *ucomposite.Unstructured, observed []kunstructured.Unstructured) error {
+	var errs []error
+
+	xrUID := xr.GetUID()
+	for _, o := range observed {
+		if c := metav1.GetControllerOf(&o); c != nil && c.UID != xrUID {
+			errs = append(errs,
+				errors.Errorf("observed resource %s has a controller ref but is not controlled by the XR", o.GetName()),
+			)
+		}
+		if xr.GetNamespace() != "" && o.GetNamespace() != xr.GetNamespace() {
+			errs = append(errs,
+				errors.Errorf("observed resource %s is not in the same namespace as the XR", o.GetName()),
+			)
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+// InjectResourceRefs sets spec.resourceRefs on the XR for each observed
+// resource. The real ExistingComposedResourceObserver reads these refs to
+// discover existing composed resources. Any preexisting refs are replaced.
+func InjectResourceRefs(xr *ucomposite.Unstructured, observed []kunstructured.Unstructured) {
+	if len(observed) == 0 {
+		return
+	}
+
+	refs := make([]corev1.ObjectReference, len(observed))
+	for i, o := range observed {
+		refs[i] = corev1.ObjectReference{
+			APIVersion: o.GetAPIVersion(),
+			Kind:       o.GetKind(),
+			Name:       o.GetName(),
+		}
+		// Only cluster-scoped XRs have namespaced resource refs.
+		if xr.GetNamespace() == "" {
+			refs[i].Namespace = o.GetNamespace()
+		}
+	}
+
+	xr.SetResourceReferences(refs)
+}
+
+// CompositionSelector returns a CompositionSelectorFn that sets the
+// composition reference on the XR to point to the supplied Composition.
+func CompositionSelector(comp *apiextensionsv1.Composition) composite.CompositionSelectorFn {
+	return func(_ context.Context, cr xpresource.Composite) error {
+		cr.SetCompositionReference(&corev1.ObjectReference{
+			Name: comp.GetName(),
+		})
+		return nil
+	}
+}
+
+// BuildOutput assembles a CompositeOutput from the fake client's captured
+// state and the event recorder. The isPrimary predicate identifies the
+// primary resource (the XR) so it can be separated from composed resources.
+func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstructured) bool, rec *render.EventRecorder, rrf *render.RecordingRequiredResourcesFetcher, rsf *render.RecordingRequiredSchemasFetcher) (*renderv1alpha1.CompositeOutput, error) {
+	out := &renderv1alpha1.CompositeOutput{}
+
+	// Find the final XR state. It's the last Status().Update or
+	// Status().Patch call for the XR.
+	for _, u := range slices.Backward(c.Updated()) {
+		if isPrimary(u) {
+			s, err := xfn.AsStruct(&u)
+			if err != nil {
+				return nil, errors.Wrap(err, "cannot convert composite resource to protobuf")
+			}
+			out.CompositeResource = s
+			break
+		}
+	}
+
+	// If the XR wasn't in the updated list, check applied (from
+	// Status().Patch, which records to applied).
+	if out.GetCompositeResource() == nil {
+		for _, u := range slices.Backward(c.Applied()) {
+			if isPrimary(u) {
+				s, err := xfn.AsStruct(&u)
+				if err != nil {
+					return nil, errors.Wrap(err, "cannot convert composite resource to protobuf")
+				}
+				out.CompositeResource = s
+				break
+			}
+		}
+	}
+
+	// Collect composed resources from applied (SSA Patch). Exclude the XR
+	// itself and the XR resourceRefs patch.
+	for _, u := range c.Applied() {
+		if isPrimary(u) {
+			continue
+		}
+		s, err := xfn.AsStruct(&u)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot convert composed resource to protobuf")
+		}
+		out.ComposedResources = append(out.ComposedResources, s)
+	}
+
+	// Collect deleted resources.
+	for _, u := range c.Deleted() {
+		s, err := xfn.AsStruct(&u)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot convert deleted resource to protobuf")
+		}
+		out.DeletedResources = append(out.DeletedResources, s)
+	}
+
+	// Collect events.
+	out.Events = append(out.Events, rec.Events()...)
+
+	// Collect required resource selectors.
+	for _, rs := range rrf.GetResourceSelectors() {
+		s, err := messageToStruct(rs)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot convert required resource selector to struct")
+		}
+		out.RequiredResources = append(out.RequiredResources, s)
+	}
+
+	// Collect required schema selectors.
+	for _, ss := range rsf.GetSchemaSelectors() {
+		s, err := messageToStruct(ss)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot convert required schema selector to struct")
+		}
+		out.RequiredSchemas = append(out.RequiredSchemas, s)
+	}
+
+	return out, nil
+}
+
+func messageToStruct(m proto.Message) (*structpb.Struct, error) {
+	bs, err := protojson.Marshal(m)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot marshal message to json")
+	}
+	s := &structpb.Struct{}
+	if err := s.UnmarshalJSON(bs); err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal message from json")
+	}
+
+	return s, nil
+}

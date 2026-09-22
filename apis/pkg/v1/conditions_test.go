@@ -75,6 +75,41 @@ func TestPackageHealth(t *testing.T) {
 				condition: Healthy(),
 			},
 		},
+		"HealthyRuntimeAwaitingActivation": {
+			reason: "Should return a healthy awaiting activation condition when the runtime is intentionally scaled to zero",
+			args: args{
+				pr: &ProviderRevision{
+					Status: ProviderRevisionStatus{
+						PackageRevisionStatus: PackageRevisionStatus{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
+									{
+										Type:    TypeRevisionHealthy,
+										Status:  corev1.ConditionTrue,
+										Reason:  ReasonHealthy,
+										Message: "Package revision is healthy",
+									},
+									{
+										Type:   TypeRuntimeHealthy,
+										Status: corev1.ConditionTrue,
+										Reason: ReasonHealthy,
+									},
+									{
+										Type:    TypeRuntimeActive,
+										Status:  corev1.ConditionFalse,
+										Reason:  ReasonAwaitingActivation,
+										Message: "Package runtime is scaled to zero; awaiting the first ManagedResourceDefinition to be activated",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				condition: HealthyAwaitingActivation().WithMessage("Package runtime is scaled to zero; awaiting the first ManagedResourceDefinition to be activated"),
+			},
+		},
 		"UnhealthyRevision": {
 			reason: "Should return unhealthy condition when revision is unhealthy",
 			args: args{
@@ -125,6 +160,11 @@ func TestPackageHealth(t *testing.T) {
 										Reason:  ReasonUnhealthy,
 										Message: "Runtime deployment is not ready",
 									},
+									{
+										Type:   TypeRuntimeActive,
+										Status: corev1.ConditionTrue,
+										Reason: ReasonActiveRuntime,
+									},
 								},
 							},
 						},
@@ -133,6 +173,42 @@ func TestPackageHealth(t *testing.T) {
 			},
 			want: want{
 				condition: Unhealthy().WithMessage("Package runtime health is \"False\" with message: Runtime deployment is not ready"),
+			},
+		},
+		"UnhealthyRuntimeAwaitingActivation": {
+			reason: "Should include awaiting activation context when runtime is unhealthy and scaled to zero",
+			args: args{
+				pr: &ProviderRevision{
+					Status: ProviderRevisionStatus{
+						PackageRevisionStatus: PackageRevisionStatus{
+							ConditionedStatus: xpv2.ConditionedStatus{
+								Conditions: []xpv2.Condition{
+									{
+										Type:    TypeRevisionHealthy,
+										Status:  corev1.ConditionTrue,
+										Reason:  ReasonHealthy,
+										Message: "Package revision is healthy",
+									},
+									{
+										Type:    TypeRuntimeHealthy,
+										Status:  corev1.ConditionFalse,
+										Reason:  ReasonUnhealthy,
+										Message: "Runtime deployment is not ready",
+									},
+									{
+										Type:    TypeRuntimeActive,
+										Status:  corev1.ConditionFalse,
+										Reason:  ReasonAwaitingActivation,
+										Message: "Package runtime is scaled to zero; awaiting the first ManagedResourceDefinition to be activated",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				condition: Unhealthy().WithMessage("Package runtime health is \"False\" with message: Runtime deployment is not ready; runtime is scaled to zero awaiting activation"),
 			},
 		},
 		"BothUnhealthy": {

@@ -40,8 +40,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/version"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/parser"
 
 	extv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	extv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
@@ -55,8 +57,6 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/converter"
 	"github.com/crossplane/crossplane/v2/internal/dag"
 	"github.com/crossplane/crossplane/v2/internal/features"
-	"github.com/crossplane/crossplane/v2/internal/version"
-	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 const (
@@ -234,7 +234,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackageRevisionsForImageConfig(mgr.GetClient(), &v1.ProviderRevisionList{}, log))
 
 	est := NewFilteringEstablisher(
-		NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers),
+		NewAPIEstablisher(mgr.GetClient(), o.Namespace, nr, o.MaxConcurrentPackageEstablishers),
 		extv1alpha1.ManagedResourceDefinitionGroupVersionKind.GroupKind(),
 		schema.GroupKind{Group: k8sextv1.SchemeGroupVersion.Group, Kind: "CustomResourceDefinition"},
 		schema.GroupKind{Group: admv1.SchemeGroupVersion.Group, Kind: "ValidatingWebhookConfiguration"},
@@ -267,7 +267,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	log := o.Logger.WithValues("controller", name)
 
 	est := NewFilteringEstablisher(
-		NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers),
+		NewAPIEstablisher(mgr.GetClient(), o.Namespace, nr, o.MaxConcurrentPackageEstablishers),
 		extv2.CompositeResourceDefinitionGroupVersionKind.GroupKind(),
 		extv1.CompositionGroupVersionKind.GroupKind(),
 		extv1alpha1.ManagedResourceActivationPolicyGroupVersionKind.GroupKind(),
@@ -317,7 +317,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 	// any objects from function packages. Create an empty filtering establisher
 	// to filter them all out.
 	est := NewFilteringEstablisher(
-		NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers),
+		NewAPIEstablisher(mgr.GetClient(), o.Namespace, nr, o.MaxConcurrentPackageEstablishers),
 	)
 
 	r := NewReconciler(mgr,

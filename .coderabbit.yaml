@@ -26,28 +26,28 @@ reviews:
   # https://github.com/crossplane/crossplane/pull/6777. Some of the nitpicks do
   # look valuable to me, but the signal to noise ratio isn't good enough.
   profile: "chill"
-  
+
   # Don't generate summary in PR description - let authors write their own
   high_level_summary: false
-  
+
   # Include the high-level summary in the walkthrough comment instead
   high_level_summary_in_walkthrough: true
-  
+
   # Collapse walkthrough comment to reduce visual clutter in PRs
   collapse_walkthrough: true
-  
-  # Enable automatic label application
-  auto_apply_labels: true
-  
+
+  # Automatically apply labels (disabled - let maintainers control)
+  auto_apply_labels: false
+
   # Automatically assign suggested reviewers (disabled - let maintainers control)
   auto_assign_reviewers: false
-  
+
   # Disable poem generation in walkthrough comments
   poem: false
-  
+
   # Disable review status messages to reduce comment noise
   review_status: false
-  
+
   # Focus reviews on source code, exclude generated and vendor files
   path_filters:
     # Include source code
@@ -59,7 +59,7 @@ reviews:
     - "**/Dockerfile*"
     - "**/flake.nix"
     - "**/*.sh"
-    
+
     # Exclude generated and vendor files
     - "!**/zz_generated*.go"
     - "!**/vendor/**"
@@ -71,7 +71,7 @@ reviews:
     - "!**/testdata/**"
     - "!**/dist/**"
     - "!**/build/**"
-  
+
   # Path-specific instructions for different areas of the codebase
   path_instructions:
     - path: "**/*.go"
@@ -84,7 +84,7 @@ reviews:
         messages are meaningful to end users, not just developers - avoid
         technical jargon, include context about what the user was trying to do,
         and suggest next steps when possible.
-    
+
     - path: "**/*_test.go"
       instructions: |
         Enforce table-driven test structure: PascalCase test names (no
@@ -92,14 +92,14 @@ reviews:
         cmpopts.EquateErrors() for error testing. Check for proper test case
         naming and reason fields. Ensure no third-party test frameworks (no
         Ginkgo, Gomega, Testify).
-    
+
     - path: "**/*.md"
       instructions: |
         Ensure Markdown files are wrapped at 100 columns for consistency and
         readability. Lines can be longer if it makes links more readable, but
         otherwise should wrap at 100 characters. Check for proper heading
         structure, clear language, and that documentation is helpful for users.
-    
+
     - path: "**/apis/**"
       instructions: |
         Focus on API design following Kubernetes API conventions from
@@ -110,7 +110,7 @@ reviews:
         gates or alpha/beta graduation. Ensure error messages in validation are
         user-friendly. Pay attention to API consistency, proper use of optional
         vs required fields, and following established Kubernetes patterns.
-    
+
     - path: "**/internal/controller/**"
       instructions: |
         Review controller logic for proper reconciliation patterns, error
@@ -121,7 +121,7 @@ reviews:
         changed. No transient errors in conditions/events. All error messages
         must be meaningful to end users - include context about what
         resource/operation failed and why.
-    
+
     - path: "**/cmd/**"
       instructions: |
         Review CLI commands for proper flag handling, help text, and error
@@ -129,7 +129,7 @@ reviews:
         backward compatibility and user experience. CLI error messages must be
         especially user-friendly - avoid internal error details, provide
         actionable guidance.
-    
+
     - path: "**/test/**"
       instructions: |
         Focus on test coverage, test clarity, and proper use of testing
@@ -137,7 +137,7 @@ reviews:
         maintainable and cover the happy path and error conditions. Verify
         error testing uses proper patterns (cmpopts.EquateErrors, sentinel
         errors for complex cases).
-    
+
     - path: "**/test/e2e/**"
       instructions: |
         Review E2E tests for proper structure following Crossplane patterns:
@@ -149,48 +149,48 @@ reviews:
         funcs package for reusable logic. Check that tests don't assume
         ordering and can run independently. Verify proper cleanup in teardown
         phases.
-    
+
     - path: "**/cluster/**"
       instructions: |
         Review Kubernetes manifests for security, resource limits, and proper
         RBAC. Ensure Helm chart follows best practices. Consider upgrade and
         rollback scenarios.
-    
+
     - path: "**/design/**"
       instructions: |
         Focus on architectural decisions, user experience, and long-term
         maintainability. Ask clarifying questions about design choices and
         consider alternative approaches. Ensure the design aligns with
         Crossplane's principles and provides good user experience.
-  
+
   # Automatic review settings
   auto_review:
     # Skip reviewing draft PRs until they're ready for review (default: false, keeping explicit)
     drafts: false
-    
+
     # Skip reviews if PR title contains these keywords (case-insensitive)
     ignore_title_keywords:
       - "wip"
       - "draft"
       - "do not merge"
       - "dnm"
-    
+
     # Skip reviews from these automated bot accounts
     ignore_usernames:
       - "dependabot[bot]"
       - "renovate[bot]"
       - "github-actions[bot]"
-  
+
   # Quality gates that run during CodeRabbit's review to check PR readiness
   pre_merge_checks:
     # Check PR title for length and descriptiveness
     title:
       requirements: "Keep under 72 characters and be descriptive about what the change does."
-    
+
     # Disable docstring coverage check (too noisy for Go projects)
     docstrings:
       mode: "off"
-    
+
     # Custom checks specific to Crossplane development practices
     custom_checks:
       - name: "Breaking Changes"
@@ -199,21 +199,21 @@ reviews:
           "Fails if files under 'apis/**' or 'cmd/**' remove or rename public
           fields/flags, add new required public fields/flags, or remove behavior
           without label 'breaking-change'.
-      
+
       - name: "Feature Gate Requirement"
         mode: "error"
         instructions: |
           Fails if new experimental features that affect apis/**, or
           significantly affect behavior, are added without a feature flag
           implementation.
-  
+
   # Disable automatic code generation features
   finishing_touches:
     # Disable automatic docstring generation
     docstrings:
       enabled: false
 
-    # Disable automatic unit test generation  
+    # Disable automatic unit test generation
     unit_tests:
       enabled: false
 
@@ -224,36 +224,36 @@ reviews:
     # Go linting - disabled (we run golangci-lint with comprehensive config)
     golangci-lint:
       enabled: false
-    
+
     # Security and vulnerability scanning - disabled (prefer direct CI integration)
     gitleaks:
       enabled: false
-    
+
     semgrep:
       enabled: false
-    
+
     osvScanner:
       enabled: false
-    
+
     # File format linting - disabled (prefer direct CI integration)
     yamllint:
       enabled: false
-    
+
     markdownlint:
       enabled: false
-    
+
     shellcheck:
       enabled: false
-    
+
     hadolint:
       enabled: false
-    
+
     actionlint:
       enabled: false
-    
+
     buf:
       enabled: false
-    
+
     # GitHub integration - disabled for now
     github-checks:
       enabled: false
@@ -289,7 +289,7 @@ knowledge_base:
   code_guidelines:
     filePatterns:
       - "**/contributing/README.md"
-  
+
   # Enable MCP integration to provide context about external libraries and APIs
   mcp:
     usage: "enabled"

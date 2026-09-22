@@ -19,8 +19,11 @@ package manager
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"math"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,12 +40,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
-	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 const (
@@ -93,6 +96,12 @@ func WithNewPackageFn(f func() v1.Package) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.newPackage = f
 	}
+}
+
+// packageRevisionID returns the revision identifier used to derive a PackageRevision name.
+func packageRevisionID(digest string, generation int64) string {
+	h := sha256.Sum256([]byte(digest + "|" + strconv.FormatInt(generation, 10)))
+	return hex.EncodeToString(h[:])
 }
 
 // WithNewPackageRevisionFn determines the type of package being reconciled.
@@ -311,6 +320,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	// Don't create or update package revisions while the package is being deleted.
+	// Kubernetes garbage collection owns deletion of controlled package revisions.
+	if meta.WasDeleted(p) {
+		return reconcile.Result{}, nil
+	}
+
 	// Fetch the package to get its digest and any applied ImageConfigs.
 	pkg, err := r.pkg.Get(ctx, p.GetSource(),
 		xpkg.WithPullSecrets(v1.RefNames(p.GetPackagePullSecrets())...),
@@ -342,7 +357,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	p.SetResolvedSource(pkg.ResolvedRef())
 
-	revisionName := xpkg.FriendlyID(p.GetName(), pkg.DigestHex())
+	// Calculate the revision ID from the package digest and package generation.
+	revisionID := packageRevisionID(pkg.DigestHex(), p.GetGeneration())
+
+	revisionName := xpkg.FriendlyID(p.GetName(), revisionID)
 
 	// Set the current revision and identifier.
 	p.SetCurrentRevision(revisionName)
@@ -455,7 +473,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	controlRef := meta.AsController(meta.TypedReferenceTo(p, p.GetObjectKind().GroupVersionKind()))
-	controlRef.BlockOwnerDeletion = ptr.To(true)
+	controlRef.BlockOwnerDeletion = new(true)
 	meta.AddOwnerReference(pr, controlRef)
 
 	if err := r.kube.Applicator.Apply(ctx, pr, resource.MustBeControllableBy(p.GetUID())); err != nil {

@@ -123,6 +123,13 @@ func DeploymentWithOptionalReplicas(replicas int32) DeploymentOverride {
 	}
 }
 
+// DeploymentWithReplicas sets the replicas, overriding any existing value.
+func DeploymentWithReplicas(replicas int32) DeploymentOverride {
+	return func(d *appsv1.Deployment) {
+		d.Spec.Replicas = &replicas
+	}
+}
+
 // DeploymentWithSelectors overrides the selectors of a Deployment. It also
 // ensures that the pod template labels always contains the deployment selector.
 func DeploymentWithSelectors(selectors map[string]string) DeploymentOverride {

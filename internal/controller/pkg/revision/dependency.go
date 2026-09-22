@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-containerregistry/pkg/name"
 	conregv1 "github.com/google/go-containerregistry/pkg/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -33,12 +33,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/dag"
-	"github.com/crossplane/crossplane/v2/internal/xpkg"
 )
 
 const (
@@ -143,8 +143,8 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 	// NOTE(hasheddan): consider adding health of package to lock so that it can
 	// be rolled up to any dependent packages.
 	self := v1beta1.LockPackage{
-		APIVersion:   ptr.To(m.packageType.GroupVersion().String()),
-		Kind:         ptr.To(m.packageType.Kind),
+		APIVersion:   new(m.packageType.GroupVersion().String()),
+		Kind:         new(m.packageType.Kind),
 		Name:         pr.GetName(),
 		Source:       lockRef,
 		Version:      prRef.Identifier(),

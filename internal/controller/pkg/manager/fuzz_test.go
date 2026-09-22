@@ -21,7 +21,7 @@ import (
 
 	fuzz "github.com/AdaLogics/go-fuzz-headers"
 
-	"github.com/crossplane/crossplane/v2/internal/xpkg"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
 )
 
 func FuzzFriendlyID(f *testing.F) {

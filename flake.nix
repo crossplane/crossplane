@@ -5,20 +5,15 @@
   description = "Crossplane - The cloud native control plane framework";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
-
-    # TODO(negz): Unpin once https://github.com/nix-community/gomod2nix/pull/231 is released.
-    gomod2nix = {
-      url = "github:nix-community/gomod2nix/75c2866d585a75a1b30c634dbd7c2dcce5a6c3a7";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   };
 
   outputs =
     {
       self,
       nixpkgs,
-      gomod2nix,
+      nixpkgs-unstable,
     }:
     let
       # Set by CI to override the auto-generated dev version.
@@ -87,7 +82,15 @@
           inherit system;
           pkgs = import nixpkgs {
             inherit system;
-            overlays = [ gomod2nix.overlays.default ];
+            overlays = [
+              (_final: prev: {
+                # Allow use of pkgs.unstable.<package-name> to pull individual
+                # packages from nixpkgs-unstable.
+                unstable = import nixpkgs-unstable {
+                  inherit (prev.stdenv.hostPlatform) system;
+                };
+              })
+            ];
           };
         };
 
@@ -107,6 +110,11 @@
               imagePlatforms
               ;
           };
+          # Vendor-dependency derivations, used by `nix run .#tidy` to refresh
+          # the hashes in nix/vendor-hashes.nix.
+          crossplane-vendor = build.vendor.root;
+          crossplane-apis-vendor = build.vendor.apis;
+          inherit (pkgs) earthly;
         }
       );
 
@@ -188,7 +196,7 @@
               pkgs.coreutils
               pkgs.gnused
               pkgs.ncurses
-              pkgs.go
+              pkgs.unstable.go_1_26
               pkgs.golangci-lint
               pkgs.kubectl
               pkgs.kubernetes-helm
@@ -196,7 +204,6 @@
               pkgs.docker-client
               pkgs.gotestsum
               pkgs.awscli2
-              pkgs.gomod2nix
 
               # Code generation
               pkgs.buf
@@ -207,7 +214,7 @@
               pkgs.kubernetes-controller-tools
 
               # Nix
-              pkgs.nixfmt-rfc-style
+              pkgs.nixfmt
             ];
 
             shellHook = ''

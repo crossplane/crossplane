@@ -2,13 +2,7 @@
 
 set -e
 
-# Install Earthly (for release branches)
-echo "Installing Earthly..."
-curl -fsSLo /usr/local/bin/earthly https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64
-chmod +x /usr/local/bin/earthly
-/usr/local/bin/earthly bootstrap
-
-# Install Nix (for main branch)
+# Install Nix.
 echo "Installing Nix..."
 apt-get update && apt-get install -y nix-bin
 
@@ -30,6 +24,25 @@ extra-substituters = https://crossplane.cachix.org
 extra-trusted-public-keys = crossplane.cachix.org-1:NJluVUN9TX0rY/zAxHYaT19Y5ik4ELH4uFuxje+62d4=
 EOF
 
-echo "Nix $(nix --version) installed successfully"
+# Renovate installs its own Nix when it updates flake.lock. It goes earlier on
+# PATH than ours and ignores the config above, so all nix commands we run (e.g.
+# postUpgradeTasks) will go through this launcher, which pins both the binary
+# and the config it reads.
+cat >/usr/local/bin/crossplane-nix <<'EOF'
+#!/bin/bash
+exec env NIX_CONF_DIR=/etc/nix /usr/bin/nix "$@"
+EOF
+chmod +x /usr/local/bin/crossplane-nix
+
+echo "Nix $(crossplane-nix --version) installed successfully"
+
+# Install Earthly (for release branches) from the repository flake on main,
+# pinned by main's flake.lock. The flake is referenced by URL because this
+# entrypoint runs in the Renovate container before the target repo is checked
+# out, so the working directory does not yet contain a flake.nix.
+echo "Installing Earthly..."
+crossplane-nix profile install github:crossplane/crossplane#earthly
+export PATH="$HOME/.nix-profile/bin:$PATH"
+earthly bootstrap
 
 renovate

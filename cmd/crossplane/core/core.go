@@ -51,8 +51,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/parser"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/signature"
 
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
@@ -73,8 +75,6 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	xfncached "github.com/crossplane/crossplane/v2/internal/xfn/cached"
 	"github.com/crossplane/crossplane/v2/internal/xfn/inspected"
-	"github.com/crossplane/crossplane/v2/internal/xpkg"
-	"github.com/crossplane/crossplane/v2/internal/xpkg/signature"
 )
 
 // Command runs the core crossplane controllers.
@@ -111,6 +111,7 @@ type startCommand struct {
 
 	SyncInterval                     time.Duration `default:"1h"                 help:"How often all resources will be double-checked for drift from the desired state."                  short:"s"`
 	PollInterval                     time.Duration `default:"1m"                 help:"How often individual resources will be checked for drift from the desired state."`
+	MinPollInterval                  time.Duration `default:"1s"                 help:"Minimum per-resource poll interval allowed via the crossplane.io/poll-interval annotation."`
 	MaxConcurrentReconciles          int           `aliases:"max-reconcile-rate" default:"100"                                                                                            help:"The maximum number of concurrent reconcile operations (worker pool size)."`
 	MaxConcurrentPackageEstablishers int           `default:"10"                 help:"The maximum number of goroutines to use for establishing Providers, Configurations and Functions."`
 
@@ -135,6 +136,7 @@ type startCommand struct {
 	EnableFunctionResponseCache       bool `group:"Alpha Features:" help:"Enable support for caching composition function responses."`
 	EnableOperations                  bool `group:"Alpha Features:" help:"Enable support for Operations."`
 	EnablePipelineInspector           bool `group:"Alpha Features:" help:"Enable support for emitting function pipeline execution data to a sidecar."`
+	EnableProviderDeletionProtection  bool `group:"Alpha Features:" help:"Enable automatic protection of Providers from deletion when they have active managed resources. Requires --enable-usages."`
 
 	XfnCacheDir             string        `default:"/cache/xfn"                         env:"XFN_CACHE_DIR"             group:"Alpha Features:" help:"Directory used for caching function responses. Requires --enable-function-response-cache."`
 	XfnCacheMaxTTL          time.Duration `default:"24h"                                env:"XFN_CACHE_MAX_TTL"         group:"Alpha Features:" help:"Maximum TTL for cached function responses. Set to 0 to disable. Requires --enable-function-response-cache."`
@@ -351,6 +353,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaOperations)
 	}
 
+	if c.EnableProviderDeletionProtection {
+		o.Features.Enable(features.EnableAlphaProviderDeletionProtection)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaProviderDeletionProtection)
+	}
+
 	cacheOptionsAPIExt := cache.Options{
 		HTTPClient: mgr.GetHTTPClient(),
 		Scheme:     mgr.GetScheme(),
@@ -526,6 +533,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		CircuitBreakerBurst:      c.CircuitBreakerBurst,
 		CircuitBreakerRefillRate: c.CircuitBreakerRefillRate,
 		CircuitBreakerCooldown:   c.CircuitBreakerCooldown,
+		MinPollInterval:          c.MinPollInterval,
 	}
 
 	if err := apiextensions.Setup(mgr, ao); err != nil {

@@ -1,0 +1,11 @@
+apiVersion: nop.crossplane.io/v1alpha1
+kind: NopResource
+metadata:
+  name: protection-test-nop
+spec:
+  forProvider:
+    conditionAfter:
+    - conditionType: Ready
+      conditionStatus: "True"
+      conditionReason: "Available"
+      time: 0s

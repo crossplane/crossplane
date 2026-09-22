@@ -42,6 +42,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/claim"
@@ -50,7 +51,6 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/features"
 	"github.com/crossplane/crossplane/v2/internal/names"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
 )
 
 const (

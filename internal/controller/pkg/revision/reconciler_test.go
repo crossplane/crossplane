@@ -27,7 +27,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -36,18 +35,18 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
+	verfake "github.com/crossplane/crossplane-runtime/v2/pkg/version/fake"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
+	xpkgfake "github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/fake"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/parser"
+	xpkgyaml "github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/parser/yaml"
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
-	verfake "github.com/crossplane/crossplane/v2/internal/version/fake"
-	"github.com/crossplane/crossplane/v2/internal/xpkg"
-	xpkgfake "github.com/crossplane/crossplane/v2/internal/xpkg/fake"
-	xpkgyaml "github.com/crossplane/crossplane/v2/internal/xpkg/parser/yaml"
 )
 
 var _ Establisher = &MockEstablisher{}
@@ -556,14 +555,14 @@ func TestReconcile(t *testing.T) {
 								pr := o.(*v1.ProviderRevision)
 								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								pr.SetDesiredState(v1.PackageRevisionActive)
-								pr.SetSkipDependencyResolution(ptr.To(false))
+								pr.SetSkipDependencyResolution(new(false))
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetSkipDependencyResolution(ptr.To(false))
+								want.SetSkipDependencyResolution(new(false))
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
 								want.SetConditions(v1.RevisionUnhealthy().WithMessage("cannot resolve package dependencies: boom"))
@@ -579,7 +578,7 @@ func TestReconcile(t *testing.T) {
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
-								want.SetSkipDependencyResolution(ptr.To(false))
+								want.SetSkipDependencyResolution(new(false))
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}

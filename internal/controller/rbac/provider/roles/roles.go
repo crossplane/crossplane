@@ -72,7 +72,7 @@ var (
 //nolint:gochecknoglobals // We treat this as a constant.
 var rulesSystemExtra = []rbacv1.PolicyRule{
 	{
-		APIGroups: []string{"", coordinationv1.GroupName},
+		APIGroups: []string{"", coordinationv1.GroupName, "events.k8s.io"},
 		Resources: []string{pluralSecrets, pluralConfigmaps, pluralEvents, pluralLeases},
 		Verbs:     verbsEdit,
 	},
@@ -166,7 +166,7 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 	}
 
 	// The 'system' RBAC role does not aggregate; it is intended to be bound
-	// directly to the service account tha provider runs as.
+	// directly to the service account the provider runs as.
 	system := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: SystemClusterRoleName(pr.GetName()),

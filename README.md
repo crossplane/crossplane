@@ -22,25 +22,27 @@ Currently maintained releases, as well as the next few upcoming releases are
 listed below. For more information take a look at the Crossplane [release cycle
 documentation].
 
-| Release | Release Date  |   EOL    |
-|:-------:|:-------------:|:--------:|
-|  v1.20  | May 21, 2025  | TBD      |
-|  v2.0   |  Aug 8, 2025  | May 2026 |
-|  v2.1   |  Nov 5, 2025  | Aug 2026 |
-|  v2.2   | Early Feb '26 | Nov 2026 |
-|  v2.3   | Early May '26 | Feb 2027 |
-|  v2.4   | Early Aug '26 | May 2027 |
+| Release | Release Date |   EOL    |
+|:-------:|:------------:|:--------:|
+|  v1.20  | May 21, 2025 | Nov 2026 |
+|  v2.2   | Feb 18, 2026 | Nov 2026 |
+|  v2.3   | May 21, 2026 | Feb 2027 |
+|  v2.4   | Aug 20, 2026 | May 2027 |
+|  v2.5   |   Nov 2026   | Aug 2027 |
+|  v2.6   |   Feb 2027   | Nov 2027 |
+|  v2.7   |   May 2027   | Feb 2028 |
 
 You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
 
 The release process is fully documented in the [`crossplane/release`] repo.
 
-### Extended v1.20 Support
+### v1.20 end-of-life (EOL)
 
-Crossplane v1.20 is receiving extended support as the final minor release of the
-v1 major version. Its EOL date is yet to be determined. Until that time, it will
-continue to receive critical fixes only.
+When v2.5 is released in Nov 2026, v1.20 will reach its EOL and no longer receive any support or
+maintenance by the Crossplane project.
+
+More details can be found in the [v2.4.0 release notes].
 
 ## Roadmap
 
@@ -120,6 +122,7 @@ that you can find in the [Community Calendar][community calendar].
 - [#sig-provider-families][sig-provider-families-slack]
 - [#sig-secret-stores][sig-secret-stores-slack]
 - [#sig-upjet][sig-upjet-slack]
+- [#sig-v2-migration][sig-v2-migration]
 
 ## Adopters
 
@@ -171,3 +174,5 @@ Crossplane is under the Apache 2.0 license.
 [sig-provider-families-slack]: https://crossplane.slack.com/archives/C056YAQRV16
 [sig-secret-stores-slack]: https://crossplane.slack.com/archives/C05BY7DKFV2
 [sig-upjet-slack]: https://crossplane.slack.com/archives/C05T19TB729
+[sig-v2-migration]: https://crossplane.slack.com/archives/C0B951LLPTJ
+[v2.4.0 release notes]: https://github.com/crossplane/crossplane/releases/tag/v2.4.0

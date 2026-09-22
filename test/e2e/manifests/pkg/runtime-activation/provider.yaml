@@ -1,0 +1,7 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-nop-runtime-activation
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.5.0
+  ignoreCrossplaneConstraints: true

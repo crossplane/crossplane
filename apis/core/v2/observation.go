@@ -23,6 +23,13 @@ type ObservedStatus struct {
 	// it can not recover from without human intervention.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// LastHandledReconcileAt holds the value of the most recent
+	// reconcile-requested-at annotation token that the controller has
+	// processed. Users can compare this to the annotation to determine
+	// whether a reconcile request has been handled.
+	// +optional
+	LastHandledReconcileAt string `json:"lastHandledReconcileAt,omitempty"`
 }
 
 // SetObservedGeneration sets the generation of the main resource
@@ -34,4 +41,16 @@ func (s *ObservedStatus) SetObservedGeneration(generation int64) {
 // GetObservedGeneration returns the last observed generation of the main resource.
 func (s *ObservedStatus) GetObservedGeneration() int64 {
 	return s.ObservedGeneration
+}
+
+// SetLastHandledReconcileAt sets the most recently handled reconcile request
+// token.
+func (s *ObservedStatus) SetLastHandledReconcileAt(token string) {
+	s.LastHandledReconcileAt = token
+}
+
+// GetLastHandledReconcileAt returns the most recently handled reconcile
+// request token.
+func (s *ObservedStatus) GetLastHandledReconcileAt() string {
+	return s.LastHandledReconcileAt
 }

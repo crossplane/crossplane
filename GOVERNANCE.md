@@ -245,14 +245,7 @@ will then add them to the following locations:
 * `OWNERS.md` file at the root of the repo
 * The appropriate GitHub team that allows maintainer permissions to the repo,
   including merging pull requests into protected branches.
-* CNCF maintainer lists
-  * CNCF [project
-    maintainers](https://github.com/cncf/foundation/blob/main/project-maintainers.csv)
-    list
-  * `cncf-crossplane-maintainers@lists.cncf.io` mailing list
-  * See CNCF [new maintainer
-    guidance](https://github.com/cncf/foundation/blob/main/.github/pull_request_template.md)
-    for further details
+* Crossplane [`.project` maintainer list](https://github.com/crossplane/.project/blob/main/maintainers.yaml)
 
 #### Maintainers for New Repositories
 
@@ -373,10 +366,7 @@ policies throughout their lifecycle:
 * **Maintainer list:** The current list of maintainers must be kept up to date
   in the following places:
   * `OWNERS.md` file at the root of the repo
-  * CNCF [project
-    maintainers](https://github.com/cncf/foundation/blob/main/project-maintainers.csv)
-    list
-  * `cncf-crossplane-maintainers@lists.cncf.io` mailing list
+  * Crossplane [`.project` maintainer list](https://github.com/crossplane/.project/blob/main/maintainers.yaml)
 * **Project list:** Each extension should keep their entry in the [Community
   Extension Project
   list](https://docs.crossplane.io/latest/learn/community-extension-projects/)

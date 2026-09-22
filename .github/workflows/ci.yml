@@ -24,38 +24,48 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install Nix
-        uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
 
       - name: Setup Cachix
-        uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
+        uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
         with:
           name: crossplane
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Verify Generated Code
-        run: nix build .#checks.x86_64-linux.generate --print-build-logs
+        run: nix build .#checks.x86_64-linux.generate .#checks.x86_64-linux.generate-apis --print-build-logs
+
+      - name: Check Diff
+        run: |
+          nix run .#tidy
+          echo "Checking that branch is clean..."
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --short
+            echo "ERROR: go.mod/go.sum or vendor hashes are out of date. Run 'nix run .#tidy' and commit."
+            exit 1
+          fi
 
   lint:
     runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install Nix
-        uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
 
       - name: Setup Cachix
-        uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
+        uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
         with:
           name: crossplane
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Lint
-        run: nix build .#checks.x86_64-linux.go-lint .#checks.x86_64-linux.helm-lint --print-build-logs
+        run: nix build .#checks.x86_64-linux.go-lint .#checks.x86_64-linux.go-lint-apis .#checks.x86_64-linux.helm-lint --print-build-logs
 
   codeql:
     runs-on: ubuntu-24.04
@@ -65,13 +75,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install Nix
-        uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
 
       - name: Setup Cachix
-        uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
+        uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
         with:
           name: crossplane
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -80,34 +90,34 @@ jobs:
         uses: nicknovitski/nix-develop@9be7cfb4b10451d3390a75dc18ad0465bed4932a # v1
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
         with:
           languages: go
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
 
   unit-tests:
     runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install Nix
-        uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
 
       - name: Setup Cachix
-        uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
+        uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
         with:
           name: crossplane
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Run Unit Tests
-        run: nix build .#checks.x86_64-linux.test --print-build-logs
+        run: nix build .#checks.x86_64-linux.test .#checks.x86_64-linux.test-apis --print-build-logs
 
       - name: Publish Unit Test Coverage
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
           flags: unittests
           file: result/coverage.txt
@@ -116,6 +126,11 @@ jobs:
   # E2E tests run outside the Nix sandbox (needs Docker)
   e2e-tests:
     runs-on: ubuntu-24.04
+    env:
+      # Resolved here because the secrets context isn't available in a
+      # step-level if. Empty on pull requests from forks, which don't receive
+      # secrets, and on forks of this repository.
+      BUILDPULSE_CONFIGURED: ${{ secrets.BUILDPULSE_ACCESS_KEY_ID != '' && secrets.BUILDPULSE_SECRET_ACCESS_KEY != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -145,13 +160,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install Nix
-        uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
 
       - name: Setup Cachix
-        uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
+        uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
         with:
           name: crossplane
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -175,7 +190,7 @@ jobs:
           echo "CROSSPLANE_PRIOR_VERSION=$MAJOR.$MINOR" >> "$GITHUB_ENV"
 
       - name: Run E2E Tests
-        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4
         with:
           timeout_minutes: 45
           max_attempts: 3
@@ -188,21 +203,21 @@ jobs:
               -labels area=${{ matrix.test-area }}
 
       - name: Publish E2E Test Flakes
-        if: '!cancelled()'
-        uses: buildpulse/buildpulse-action@d4d8e00c645a2e3db0419a43664bbcf868080234 # v0.12.0
+        if: "!cancelled() && env.BUILDPULSE_CONFIGURED == 'true'"
+        uses: buildpulse/buildpulse-action@76dbedc6585e8731b40a19da1ebc3f6609dbbb83 # v3
         with:
           account: 45158470
           repository: 147886080
           key: ${{ secrets.BUILDPULSE_ACCESS_KEY_ID }}
           secret: ${{ secrets.BUILDPULSE_SECRET_ACCESS_KEY }}
-          path: /tmp/e2e-tests.xml
+          path: ${{ runner.temp }}/e2e-tests.xml
 
       - name: Upload E2E Test Artifacts
         if: '!cancelled()'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: e2e-tests-${{ matrix.test-area }}-${{ matrix.test-suite }}
-          path: /tmp/e2e-tests.xml
+          path: ${{ runner.temp }}/e2e-tests.xml
 
   # Build all artifacts (binaries, images, Helm chart)
   build-artifacts:
@@ -224,15 +239,15 @@ jobs:
           docker-images: false
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Install Nix
-        uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
 
       - name: Setup Cachix
-        uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
+        uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
         with:
           name: crossplane
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -242,28 +257,39 @@ jobs:
       # tracked files, so we set it in flake.nix before building.
       - name: Set Version
         run: |
-          VERSION=$(git describe --dirty --always --tags | sed 's/-/./2g')
+          VERSION=$(git describe --dirty --always --tags --match 'v[0-9]*' | sed 's/-/./2g')
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           sed -i "s|buildVersion = null;|buildVersion = \"$VERSION\";|" flake.nix
 
       - name: Build Artifacts
         run: nix build --option warn-dirty false --print-build-logs
 
+      - name: Validate Artifacts
+        run: |
+          for f in $(find result/bin/ -type f -not -name '*.sha256'); do
+            want=$(sha256sum "${f}" | head -c 64)
+            got=$(cat "${f}.sha256")
+            if [[ "${want}" != "${got}" ]]; then
+              echo "File ${f} has incorrect checksum; want ${want}, got ${got}"
+              exit 1
+            fi
+          done
+
       - name: Upload Artifacts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: output
           path: result/**
 
       - name: Login to DockerHub
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         if: env.DOCKER_USR != ''
         with:
           username: ${{ secrets.DOCKER_USR }}
           password: ${{ secrets.DOCKER_PSW }}
 
       - name: Login to Upbound
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         if: env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''
         with:
           registry: xpkg.upbound.io
@@ -271,7 +297,7 @@ jobs:
           password: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_PSW }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -325,7 +351,7 @@ jobs:
           language: go
 
       - name: Upload Crash
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: failure() && steps.build.outcome == 'success'
         with:
           name: artifacts
@@ -337,10 +363,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Lint and Push Protocol Buffers
-        uses: bufbuild/buf-action@8f4a1456a0ab6a1eb80ba68e53832e6fcfacc16c # v1
+        uses: bufbuild/buf-action@8c6a16e16f12ba20b6470afa9c2ba9b5ba8c97c3 # v1
         with:
           token: ${{ secrets.BUF_TOKEN }}
           pr_comment: false

@@ -23,7 +23,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
@@ -31,8 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
-
-	"github.com/crossplane/crossplane/v2/internal/xcrd"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 )
 
 func TestRenderFromJSON(t *testing.T) {
@@ -175,7 +173,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 	controlled := &fake.Composed{
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{{
-				Controller: ptr.To(true),
+				Controller: new(true),
 				UID:        "very-random",
 			}},
 		},
@@ -214,7 +212,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 				cd: &fake.Composed{
 					ObjectMeta: metav1.ObjectMeta{
 						OwnerReferences: []metav1.OwnerReference{{
-							Controller: ptr.To(true),
+							Controller: new(true),
 							UID:        "very-random",
 						}},
 					},
@@ -225,7 +223,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "prefix-",
 						OwnerReferences: []metav1.OwnerReference{{
-							Controller: ptr.To(true),
+							Controller: new(true),
 							UID:        "very-random",
 						}},
 						Labels: map[string]string{
@@ -254,7 +252,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 				cd: &fake.Composed{
 					ObjectMeta: metav1.ObjectMeta{
 						OwnerReferences: []metav1.OwnerReference{{
-							Controller: ptr.To(true),
+							Controller: new(true),
 							UID:        "somewhat-random",
 						}},
 					},
@@ -265,8 +263,8 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "prefix-",
 						OwnerReferences: []metav1.OwnerReference{{
-							Controller:         ptr.To(true),
-							BlockOwnerDeletion: ptr.To(true),
+							Controller:         new(true),
+							BlockOwnerDeletion: new(true),
 							UID:                "somewhat-random",
 						}},
 						Labels: map[string]string{
@@ -301,8 +299,8 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 						Namespace:    "ns",
 						GenerateName: "prefix-",
 						OwnerReferences: []metav1.OwnerReference{{
-							Controller:         ptr.To(true),
-							BlockOwnerDeletion: ptr.To(true),
+							Controller:         new(true),
+							BlockOwnerDeletion: new(true),
 							UID:                "somewhat-random",
 							Name:               "cool-xr",
 						}},
@@ -336,8 +334,8 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 						Namespace:    "ns",
 						GenerateName: "prefix-",
 						OwnerReferences: []metav1.OwnerReference{{
-							Controller:         ptr.To(true),
-							BlockOwnerDeletion: ptr.To(true),
+							Controller:         new(true),
+							BlockOwnerDeletion: new(true),
 							UID:                "somewhat-random",
 							Name:               "cool-xr",
 						}},
