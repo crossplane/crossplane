@@ -391,6 +391,31 @@ func TestReconcile(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
+		"ListXRDError": {
+			reason: "We should fail the reconcile if we cannot list XRDs to determine whether composition is enforced",
+			args: args{
+				client: &test.MockClient{
+					MockGet:  test.NewMockGetFn(nil),
+					MockList: test.NewMockListFn(errBoom),
+					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
+						cm.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errListXRD)))
+					})),
+				},
+				opts: []ReconcilerOption{
+					WithClaimFinalizer(resource.FinalizerFns{
+						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
+					}),
+					WithCompositeSyncer(CompositeSyncerFn(func(_ context.Context, _ *claim.Unstructured, _ *composite.Unstructured, _ bool) error {
+						t.Error("Sync must not run when listing XRDs fails")
+						return nil
+					})),
+				},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
+			},
+		},
 		"SyncCompositeError": {
 			reason: "We should fail the reconcile if we can't bind and sync the claim with a composite resource",
 			args: args{
