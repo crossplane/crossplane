@@ -475,7 +475,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Used resource should have in-use label.
-	if used.GetLabels()[inUseLabelKey] != "true" || !used.OwnedBy(uu.GetUID()) {
+	if used.GetLabels()[inUseLabelKey] != "true" {
 		// Note(turkenh): Composite controller will not remove this label with
 		// new reconciles since it uses a patching applicator to update the
 		// resource.

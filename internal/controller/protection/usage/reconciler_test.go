@@ -483,6 +483,53 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{},
 			},
 		},
+		"SuccessDoesNotUpdateUsedResourceAlreadyLabeled": {
+			reason: "We should not update the used resource when it already has the in-use label, even if it has no owner reference to the Usage.",
+			args: args{
+				mgr: &fake.Manager{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*v1beta1.Usage); ok {
+									o.SetAnnotations(map[string]string{detailsAnnotationKey: reason})
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
+									o.Spec.Reason = &reason
+									return nil
+								}
+								if o, ok := obj.(*composed.Unstructured); ok {
+									o.SetLabels(map[string]string{inUseLabelKey: "true"})
+									return nil
+								}
+								return errors.New("unexpected object type")
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(_ client.Object) error {
+								return errors.New("unexpected update")
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
+								o := obj.(*v1beta1.Usage)
+								if o.Status.GetCondition(xpv2.TypeReady).Status != corev1.ConditionTrue {
+									t.Fatalf("expected ready condition to be true")
+								}
+								return nil
+							}),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
 		"SuccessNoUsingResource": {
 			reason: "We should return no error once we have successfully reconciled the usage resource.",
 			args: args{
