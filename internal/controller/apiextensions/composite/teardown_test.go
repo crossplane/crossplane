@@ -18,6 +18,7 @@ package composite
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -61,6 +62,26 @@ func observing(names ...string) ComposedResourceObserver {
 		out := ComposedResourceStates{}
 		for _, n := range names {
 			out[ResourceName(n)] = state("Thing", n)
+		}
+
+		return out, nil
+	})
+}
+
+// observingDeleting is observing, with the named resources reported as having
+// already been asked to delete.
+func observingDeleting(asked []string, names ...string) ComposedResourceObserver {
+	return ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+		out := ComposedResourceStates{}
+
+		for _, n := range names {
+			s := state("Thing", n)
+			if slices.Contains(asked, n) {
+				ts := metav1.NewTime(time.Now().Add(-time.Minute))
+				s.Resource.SetDeletionTimestamp(&ts)
+			}
+
+			out[ResourceName(n)] = s
 		}
 
 		return out, nil
@@ -140,6 +161,20 @@ func TestTeardown(t *testing.T) {
 			gc:       true,
 			xr:       teardownXR(ref("vpc", "subnet"), ref("subnet", "vpc")),
 			want:     want{done: false, message: "manual intervention is required"},
+		},
+		"SkipsResourcesAlreadyAsked": {
+			reason:   "A resource we have already asked to delete is not asked again: writing to it conflicts with the provider's own write to remove its finalizer, and neither side wins.",
+			observer: observingDeleting([]string{"instance"}, "vpc", "subnet", "instance"),
+			gc:       true,
+			xr:       teardownXR(graph...),
+			want:     want{done: false, deleted: []string{}, message: "already asked to delete"},
+		},
+		"AsksTheRestOfTheWave": {
+			reason:   "Skipping what is already deleting must not skip the rest of the same wave.",
+			observer: observingDeleting([]string{"instance"}, "vpc", "subnet", "instance", "other"),
+			gc:       true,
+			xr:       teardownXR(ref("vpc"), ref("subnet", "vpc"), ref("instance", "subnet"), ref("other", "subnet")),
+			want:     want{done: false, deleted: []string{"other"}},
 		},
 		"ObserveError": {
 			reason: "We can't tear down in order if we can't see what's left, and must not drop the finalizer.",

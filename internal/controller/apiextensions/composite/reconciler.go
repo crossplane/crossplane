@@ -1150,17 +1150,35 @@ func (r *Reconciler) teardown(ctx context.Context, xr *composite.Unstructured, s
 		return false, nil
 	}
 
-	// Hand the garbage collector only this wave. It deletes observed minus
-	// desired, so a leaf-only observed set and an empty desired set delete
-	// exactly the leaves - and it keeps the controller reference check that
-	// stops us being used to delete resources we don't own.
+	// Hand the garbage collector only this wave, and only the part of it we
+	// have not asked for yet. It deletes observed minus desired, so a
+	// leaf-only observed set and an empty desired set delete exactly the
+	// leaves - and it keeps the controller reference check that stops us
+	// being used to delete resources we don't own.
+	//
+	// The graph nominates the same wave every reconcile until it is gone, so
+	// without the deletion timestamp check we would write to a resource that
+	// is already deleting, over and over. The garbage collector strips the
+	// composition labels before deleting, and that write conflicts with the
+	// provider's own read-modify-write to remove its finalizer. Both sides
+	// retry, both sides keep losing, and the resource never goes: a teardown
+	// that hammers a deleting resource is a teardown that prevents it from
+	// completing.
 	leaves := make(ComposedResourceStates, len(d.Delete))
+
 	for _, name := range d.Delete {
-		leaves[ResourceName(name)] = observed[ResourceName(name)]
+		cd := observed[ResourceName(name)]
+		if cd.Resource != nil && cd.Resource.GetDeletionTimestamp() != nil {
+			continue
+		}
+
+		leaves[ResourceName(name)] = cd
 	}
 
-	if err := r.gc.GarbageCollectComposedResources(ctx, xr, leaves, ComposedResourceStates{}); err != nil {
-		return false, errors.Wrap(err, errGarbageCollectCDs)
+	if len(leaves) > 0 {
+		if err := r.gc.GarbageCollectComposedResources(ctx, xr, leaves, ComposedResourceStates{}); err != nil {
+			return false, errors.Wrap(err, errGarbageCollectCDs)
+		}
 	}
 
 	status.MarkConditions(xpv2.Deleting().WithMessage(teardownWaitingMessage(observed, d.Delete)))
