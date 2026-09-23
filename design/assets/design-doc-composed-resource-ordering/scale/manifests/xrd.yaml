@@ -1,0 +1,23 @@
+# An empty XR API. Every run's graph lives in a generated Composition, and the
+# XR carries nothing: what is being measured is Crossplane's sequencing, not
+# anything the XR says.
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: xscales.scale.crossplane.io
+spec:
+  scope: Namespaced
+  group: scale.crossplane.io
+  names:
+    kind: XScale
+    plural: xscales
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object

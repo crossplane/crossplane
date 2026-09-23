@@ -1,0 +1,53 @@
+# function-ordering declares the dependency graph. No released function can:
+# the protocol field it sets is new in this branch.
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-ordering
+spec:
+  package: index.docker.io/steve/function-ordering:dependency-test.4
+---
+# function-sequencer is the mechanism this proposal replaces: it withholds
+# resources from desired state until the ones before them are ready. It is
+# installed so that runs can be compared against it directly rather than
+# against a description of it.
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-sequencer
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-sequencer:v0.2.0
+---
+# provider-nop composes resources whose readiness and deletion can be delayed,
+# which is what makes a wave measurable rather than instantaneous.
+#
+# timed-deletes.3, not .2: .2 is a single arm64 manifest and crashloops with an
+# exec format error on an amd64 test machine, which surfaces only as a Provider
+# that never goes Healthy.
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-nop
+spec:
+  package: index.docker.io/steve/provider-nop:timed-deletes.3
+  runtimeConfigRef:
+    name: provider-nop-fast-poll
+---
+# provider-nop acts on a resource when it next polls it, not when the
+# configured duration elapses. At the default 10s poll a 2s readyAfter still
+# costs up to 10s per wave, and the poll interval, not the graph, is what gets
+# measured.
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: provider-nop-fast-poll
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          containers:
+          - name: package-runtime
+            args:
+            - --poll=1s
