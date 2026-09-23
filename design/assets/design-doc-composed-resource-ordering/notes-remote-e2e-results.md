@@ -217,9 +217,16 @@ assertion, and teardown cannot start by deleting the ServingStack because
 
 ## What this does not establish
 
-- **Scale.** The largest graph exercised here is 18 composed resources. The
-  suite's own comments note that deeper graphs trip the realtime compositions
-  watch circuit breaker, after which each wave takes about a minute.
+- **Scale.** The largest graph exercised here is 18 composed resources.
+  Measured separately since - see
+  [notes-scale-findings.md](notes-scale-findings.md) - graphs of up to 1000
+  composed resources and 9,600 edges converge fine, but two things found
+  there apply to any run of this kind. Teardown used to wedge, because it
+  kept writing to resources it had already asked to delete; that is fixed.
+  And ordering does not converge at all against the circuit breaker's shipped
+  defaults once a graph is deep enough: a 50-link chain that takes 10s with
+  the burst raised had not finished after 601s at `burst=100`. Every run in
+  this document had the breaker raised.
 - **Out-of-band deletion.** A `Usage` refuses a direct `kubectl delete` of a
   ProviderConfig; dependencies only order the deletes Crossplane performs.
   That trade was accepted deliberately and was not tested.
@@ -228,8 +235,12 @@ assertion, and teardown cannot start by deleting the ServingStack because
   for every run here, so that path ran only in unit tests.
 - **Real workloads.** Mock engine, fake DRA devices, no GPUs, no cloud
   provisioning, single-node clusters.
-- **Modelplane beyond the serving stack.** Other compositions still use
-  `Usage`s and were not part of this change.
+- **Modelplane beyond these three compositions.** All three composing
+  functions have since been converted and `compose-usages` deleted outright -
+  see [notes-modelplane-conversion.md](notes-modelplane-conversion.md) - but
+  only the serving stack and the gateway were exercised end to end here. The
+  inference cluster's conversion, including its required-resource edges, is
+  covered by unit tests only.
 
 ## Reproducing
 
@@ -244,5 +255,5 @@ see whether the edges reached the XR and where a reconcile has got to:
 ```bash
 go build -o /tmp/xpgraph ./cmd/xpgraph
 /tmp/xpgraph inferencegateway/default
-/tmp/xpgraph servingstack/<name> -n modelplane-system --dot >graph.dot
+/tmp/xpgraph servingstack/<name> -n modelplane-system --dot | dot -Tpng -o graph.png
 ```
