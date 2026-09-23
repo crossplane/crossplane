@@ -25,6 +25,9 @@
   * [Persisting Dependencies in `spec.resourceRefs`](#persisting-dependencies-in-specresourcerefs)
   * [Dependency Lifecycle: create-before-destroy](#dependency-lifecycle-create-before-destroy)
 * [Performance at Scale](#performance-at-scale)
+  * [In a cluster](#in-a-cluster)
+  * [Interaction with the realtime compositions circuit breaker](#interaction-with-the-realtime-compositions-circuit-breaker)
+  * [Compared with `function-sequencer`](#compared-with-function-sequencer)
 * [Enabling Adoption with `function-ordering`](#enabling-adoption-with-function-ordering)
   * [How it works](#how-it-works)
 * [API Impact and Capabilities](#api-impact-and-capabilities)
@@ -463,6 +466,14 @@ graph appears on the next reconcile that runs the pipeline, and teardown is
 ordered from then on. Enabling the feature therefore changes nothing about an
 existing XR until its pipeline has run once more, and never leaves one stuck.
 
+The XR grows with the number of edges rather than the number of resources, so
+the cost is set by how interconnected a composition is and not by how large it
+is. Compositions are mostly shallow: a thousand resources hanging off one
+`VPC` is 999 edges, and the resources in a realistic graph depend on a handful
+of things each. A deliberately dense test graph - 400 resources with 7,600
+edges between them - put `dependsOn` at 69KB of a 132KB XR, which is well
+inside etcd's 1.5MiB object limit at a density no real composition approaches.
+
 The graph becomes readable by any tool with a `GET` on the XR, so `crossplane
 resource trace` and dashboards can render it without replaying a pipeline. And
 unlike references, `dependsOn` comes from function output, so an XR deleted
@@ -540,6 +551,119 @@ The benchmarks live in
 the layered shape a wide composition of independent branches actually takes, so
 a regression to quadratic behavior shows up as a benchmark result rather than
 as a production incident.
+
+### In a cluster
+
+A pass over the graph being cheap does not establish that a large composition
+converges quickly, so the same shapes were run end to end on an 8-vCPU VM
+running kind. Composed resources are ConfigMaps, which core composes directly
+with no provider in the loop, and which are ready the moment they exist — so
+what is measured is Crossplane rather than a provider's reconcile rate. The
+control for each run is the same resources composed with no edges at all.
+
+| Run | Creation | Reconciles | Core CPU | Mean reconcile |
+| --- | --- | --- | --- | --- |
+| fanout-500 ordered | 6s | 2 | 3.7s | 1842ms |
+| fanout-500 unordered | 5s | 1 | 3.4s | 3389ms |
+| fanout-100 ordered | 3s | 6 | 2.9s | 478ms |
+| fanout-100 unordered | 3s | 5 | 2.7s | 550ms |
+| chain-100 ordered | 32s | 104 | 31.5s | 303ms |
+| chain-100 unordered | 3s | 5 | 2.7s | 547ms |
+| chain-50 ordered | 10s | 54 | 9.8s | 182ms |
+| chain-50 unordered | 3s | 10 | 3.0s | 295ms |
+| fanout-1000 ordered | 9s | 2 | 7.2s | 3585ms |
+| fanout-1000 unordered | 9s | 4 | 11.5s | 2887ms |
+| layered-200, 6400 edges, 5 waves | 5s | 12 | 4.6s | 382ms |
+| layered-200 unordered | 3s | 4 | 3.2s | 801ms |
+| layered-500, 9600 edges, 25 waves | 43s | 31 | 41.8s | 1348ms |
+| layered-500 unordered | 6s | 5 | 7.5s | 1500ms |
+
+Width is free. Ordering a 1000-wide fanout costs no extra reconciles over
+composing the same 1000 resources at once, and in these runs cost less core
+CPU than the unordered control.
+
+Density is close to free. `layered-200` is 6,400 edges over 200 resources —
+32 dependencies each, far denser than a real composition — and converges in 5s
+against a 3s unordered control.
+
+Depth is what costs, at one pass per wave, which is not an implementation
+choice: a hundred waves cannot be released in fewer than a hundred passes. A
+pass runs from 180ms to 1.3s here and scales with how many resources the wave
+applies, not with how many edges the graph holds. `layered-500` is the clearest
+case — 43s for 25 waves of 20 resources, against `chain-100`'s 32s for 100
+waves of one. Its 9,600 edges cost nothing; its 25 levels cost everything.
+
+Notably the mean reconcile is *lower* ordered than unordered in every pair,
+because an ordered pass applies a slice of the resources rather than all of
+them. The graph work does not register as a per-pass cost at this scale, which
+is what the microbenchmarks above predict. What ordering costs is passes, not
+the cost of a pass.
+
+One caution for anyone reproducing this, because it is large enough to
+invert conclusions. The same shapes run against a provider measure the
+provider: a 50-link chain of `NopResource`s takes 158s where the same chain of
+ConfigMaps takes 10s, and the 6,400-edge `layered-200` takes 82s rather than
+5s, because every wave waits for the provider to notice it. An earlier sweep
+appeared to show ordering performing catastrophically, and a later one
+appeared to show dense graphs being expensive; both were this effect. A
+saturated provider and a slow graph are indistinguishable from the XR.
+
+The harness is in `design/assets/design-doc-composed-resource-ordering/scale/`.
+
+### Interaction with the realtime compositions circuit breaker
+
+The measurements above raise `--circuit-breaker-burst` far above any run's
+event count, so that what is measured is the ordering. At the shipped defaults
+— `burst=100`, `refill-rate=1/s`, a 5m cooldown and a 30s half-open probe — a
+deep graph does not converge:
+
+| chain of ConfigMaps | Breaker raised | Breaker at defaults |
+| --- | --- | --- |
+| 50 | 10s | 49/50, still going at 601s |
+| 100 | 32s | 73/100, still going at 901s |
+
+`chain-50` opened the breaker twice and dropped 133 of 339 events; `chain-100`
+opened it five times and dropped 325.
+
+Ordering converges over many reconciles by design, one per wave, and each pass
+applies resources whose updates are themselves watch events — so a chain
+generates events superlinearly in its depth while spending exactly the budget
+the breaker meters. The breaker is doing its job: an XR reconciling a hundred
+times in thirty seconds is the runaway it exists to stop, and it cannot
+currently tell that apart from a graph converging normally.
+
+Width is unaffected, since a fanout is two waves whatever its size. This is a
+depth problem, like every other cost here, and it is unresolved. It needs a
+decision about how the two features interact: whether reconciles the graph
+asks for should be metered at all, whether the breaker should count waves
+rather than events, or whether enabling ordering should raise the burst. Until
+then, a composition deep enough to matter needs the burst raised, and that
+should be documented alongside the feature flag rather than discovered.
+
+### Compared with `function-sequencer`
+
+The mechanism this proposal replaces can be measured directly: compose the
+same resources, then order them with `function-sequencer` instead of with
+edges. Creation only — `function-sequencer` orders deletion with Usages, which
+this proposal does not propose to replace.
+
+| 20 resources, readiness taking 2s | Creation | Reconciles |
+| --- | --- | --- |
+| chain, graph | 192s | 100 |
+| chain, `function-sequencer` | 192s | 105 |
+| fanout, graph | 3s | 6 |
+| fanout, `function-sequencer` | 192s | 101 |
+
+For a chain the two are the same, and a chain of ConfigMaps is likewise 3s
+either way. That is worth stating plainly: **the graph does not create faster
+than `function-sequencer`, and the case for it is not creation throughput.**
+
+The difference is what each can express. `function-sequencer` takes an ordered
+list, and a list can say "after" but cannot say "these are unrelated", so
+flattening a graph into one adds every constraint the graph deliberately left
+out — nineteen independent leaves become nineteen serial steps, and the
+sequencer takes exactly as long on a fanout as on a chain. The chain rows are
+the control: where the graph really is a list, the two agree.
 
 ## Enabling Adoption with `function-ordering`
 
@@ -653,7 +777,25 @@ already expects for every other optional capability.
 
 * [function-ordered-deletion](https://github.com/crossplane/crossplane/pull/7242) is a design where deletion ordering is handled by the functions using a new gRPC message.
 
-There are many issues with offloading responsibility to functions:
+The difference that decides it is that ordered teardown here needs no pipeline
+run at all. The graph is persisted on the XR in
+`spec.crossplane.resourceRefs[].dependsOn`, so the reconciler rebuilds it from
+the XR's own references, observes what is left, and deletes a wave at a time.
+Functions are never called. The `TeardownSurvivesRestart` end-to-end test
+passes for this reason: Crossplane is killed mid-teardown and the replacement
+process finishes in order, having never run the pipeline for that XR.
+
+Under function-ordered-deletion, teardown ordering is a property of the
+pipeline running, and deleting an XR is often part of decommissioning the very
+configuration that defined it. The Function package may be uninstalled, its
+image unpullable, its endpoint down. lsviben's POC raises exactly this case: a
+Composition deleted before its XRs, which is easy to do by deleting a
+Configuration, and which leaves those XRs unable to be torn down in order at
+all. The discussion there settles on falling back to unordered deletion. A
+persisted graph holds through all of it, because core needs nothing but the XR
+— which is the state every XR reaches eventually.
+
+There are further issues with offloading responsibility to functions:
 
 * Gating is still handled by the functions, which increases complexity and the probability of bugs. This Modelplane branch demonstrates running the code reductions using a DAG in Crossplane. Multiple gating `if` statements and the `compose-usages` functions are removed <https://github.com/modelplaneai/modelplane/compare/main...stevendborrelli:modelplane:composed-resource-ordering?expand=1>.
 * Dependency information is hidden from Crossplane any any consumers. In this proposal Crossplane knows which resources have yet to exist, so we don't have to hack the XR's Synced status as function-sequencer does. The composition engine emits events 
