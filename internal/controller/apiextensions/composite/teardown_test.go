@@ -269,8 +269,10 @@ func TestTeardownWaitingMessage(t *testing.T) {
 				"second": deleting("Thing", "xr-second", 90*time.Second),
 			},
 			deleting: []string{"second"},
-			contains: []string{"already asked to delete", "second (deleting for ", "manual intervention"},
-			omits:    []string{"in dependency order"},
+			contains: []string{"already asked to delete", "second", "manual intervention"},
+			// No elapsed time: it would make this a different message every
+			// second, and a different message is a status write.
+			omits: []string{"in dependency order", "deleting for"},
 		},
 		"Mixed": {
 			reason: "A wave that is partly moving should report both halves rather than hiding the stuck one behind the progress.",
@@ -280,7 +282,8 @@ func TestTeardownWaitingMessage(t *testing.T) {
 				"third":  state("Thing", "xr-third"),
 			},
 			deleting: []string{"second", "third"},
-			contains: []string{"Deleting 1 composed resource(s) in dependency order: third", "Still waiting on: second (deleting for "},
+			contains: []string{"Deleting 1 composed resource(s) in dependency order: third", "Still waiting on: second"},
+			omits:    []string{"deleting for"},
 		},
 		"UnobservedNamesAreIgnored": {
 			reason: "A name the graph nominated but that has already gone shouldn't appear at all.",
@@ -309,5 +312,35 @@ func TestTeardownWaitingMessage(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestTeardownWaitingMessageIsStable pins the property that makes teardown
+// cheap: the same situation produces the same message however long it has
+// lasted.
+//
+// The message becomes a condition, and the reconciler skips the status write
+// when the status hasn't changed. Anything in here that moves on its own - an
+// elapsed time, a timestamp - turns every pass into a write, and every write
+// into a watch event on the XR. A teardown wakes often and backstops every
+// few seconds besides, so that is a lot of writes to report a counter.
+func TestTeardownWaitingMessageIsStable(t *testing.T) {
+	observed := func(since time.Duration) ComposedResourceStates {
+		s := state("Thing", "xr-second")
+		ts := metav1.NewTime(time.Now().Add(-since))
+		s.Resource.SetDeletionTimestamp(&ts)
+
+		return ComposedResourceStates{
+			"first":  state("Thing", "xr-first"),
+			"second": s,
+		}
+	}
+
+	first := teardownWaitingMessage(observed(time.Second), []string{"second"})
+	later := teardownWaitingMessage(observed(3*time.Hour), []string{"second"})
+
+	if diff := cmp.Diff(first, later); diff != "" {
+		t.Errorf("teardownWaitingMessage(...) changed as the wait grew, which "+
+			"makes every reconcile a status write: -after 1s, +after 3h:\n%s", diff)
 	}
 }
