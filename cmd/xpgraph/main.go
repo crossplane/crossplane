@@ -27,7 +27,7 @@ limitations under the License.
 // created once what it depends on reports Ready, so xpgraph fetches each
 // composed resource and prints its state beside the edges.
 //
-// It also reads status.crossplane.pendingResources, where Crossplane records
+// It also reads status.pendingResources, where Crossplane records
 // what the graph is holding back and why. That matters most for a resource
 // held back from being created: it has no composed resource reference at all,
 // so without the status it is missing from the graph entirely - which is the
@@ -419,16 +419,13 @@ func readDependsOn(ref map[string]any) (composed, requires []string) {
 // to see. A resource held back from deletion does have a reference, and this
 // says what is holding it.
 func readPending(xr *unstructured.Unstructured, nodes []*node) []*node {
-	pending, found, err := unstructured.NestedSlice(xr.Object, "status", "crossplane", "pendingResources")
-	if err != nil {
+	// The same path for every schema, unlike resourceRefs. Modern XRs nest
+	// spec machinery under spec.crossplane to keep it away from the fields a
+	// user writes; status has no user fields to keep it away from, and
+	// conditions sits at the top of status for every scope too.
+	pending, found, err := unstructured.NestedSlice(xr.Object, "status", "pendingResources")
+	if err != nil || !found {
 		return nodes
-	}
-
-	if !found {
-		// Legacy (v1) XRs keep their machinery at the top of status.
-		if pending, found, err = unstructured.NestedSlice(xr.Object, "status", "pendingResources"); err != nil || !found {
-			return nodes
-		}
 	}
 
 	byName := make(map[string]*node, len(nodes))
