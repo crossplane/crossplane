@@ -68,8 +68,8 @@ type cli struct {
 
 	Dot     bool          `help:"Print Graphviz DOT instead of a tree."`
 	Edges   bool          `help:"Print each resource's dependencies beneath it, rather than only the waves." short:"e"`
-	Color   string        `default:"auto"                               enum:"auto,always,never"                            help:"Colorize the tree."`
-	Timeout time.Duration `default:"30s"                                help:"How long to spend talking to the API server."`
+	Color   string        `default:"auto"                                                                    enum:"auto,always,never"                            help:"Colorize the tree."`
+	Timeout time.Duration `default:"30s"                                                                     help:"How long to spend talking to the API server."`
 }
 
 // A node is one composed resource and the edges leading into it.
