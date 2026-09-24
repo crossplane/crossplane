@@ -447,7 +447,7 @@ func TestReconcile(t *testing.T) {
 			var recordedEvents []string
 			rec := &mockEventRecorder{events: &recordedEvents}
 
-			opts := append(tc.args.opts, WithLogger(testLog), WithRecorder(rec))
+			opts := append(append(tc.args.opts, WithLogger(testLog)), WithRecorder(rec))
 			r := NewReconciler(tc.args.mgr, opts...)
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
@@ -475,10 +475,11 @@ type mockEventRecorder struct {
 	events *[]string
 }
 
-func (m *mockEventRecorder) Event(obj runtime.Object, e event.Event) {
+func (m *mockEventRecorder) Event(_ runtime.Object, e event.Event) {
 	*m.events = append(*m.events, e.Message)
 }
 
 func (m *mockEventRecorder) WithAnnotations(...string) event.Recorder {
+	// This mock recorder ignores annotations.
 	return m
 }
