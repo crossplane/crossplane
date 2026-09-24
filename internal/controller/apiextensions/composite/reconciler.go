@@ -47,6 +47,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
@@ -239,6 +240,13 @@ type CompositionResult struct {
 
 	// TTL for this composition result.
 	TTL time.Duration
+
+	// Pending is what the ordering graph is holding back: composed resources
+	// it won't create or delete yet, and why. It goes on the XR's status,
+	// which is the only place a resource held back from creation appears at
+	// all - it has no composed resource reference, because a reference to an
+	// object that doesn't exist reads as an error rather than as waiting.
+	Pending []reference.Pending
 }
 
 // A CompositionTarget is the target of a composition event or condition.
@@ -957,6 +965,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			r.record.Event(xr, event.Normal(reasonCompose, fmt.Sprintf("Composed resource %q is not yet ready", id)))
 		}
 	}
+
+	// What ordering is holding back, so it can be read off the XR rather than
+	// parsed out of a message. This rides on the status write below, which
+	// only happens when status has actually changed - so an unchanged set
+	// costs nothing.
+	xr.SetPendingResources(res.Pending)
 
 	synced := xpv2.ReconcileSuccess()
 	if len(unsynced) > 0 {
