@@ -1051,7 +1051,96 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		Events:            events,
 		Conditions:        conditions,
 		TTL:               ttl,
+		Pending:           pendingResources(decisions, desired, observed, deps),
 	}, nil
+}
+
+// pendingResources describes what the graph is holding back, for the XR's
+// status.
+//
+// Both directions, because they are the same thing seen from either side: a
+// resource that can't be created yet and one that can't be deleted yet are
+// both Crossplane declining to act, and someone reading the XR wants to know
+// which resources those are without reading a sentence to find out.
+//
+// A resource held back from creation is the case that needs this most. It has
+// no composed resource reference - Crossplane doesn't write one for something
+// it deliberately hasn't applied - so this is the only place it appears.
+func pendingResources(decisions ordering.Decisions, desired, observed ComposedResourceStates, deps []*fnv1.Dependency) []reference.Pending {
+	if len(decisions.Blocked) == 0 {
+		return nil
+	}
+
+	edges := make(map[string][]reference.Dependency, len(deps))
+
+	for _, d := range deps {
+		e := reference.Dependency{}
+
+		switch {
+		case d.GetComposedResource() != "":
+			e.Name = d.GetComposedResource()
+		case d.GetRequiredResource() != nil:
+			r := d.GetRequiredResource()
+			e.Type = reference.DependencyTypeRequiredResource
+			e.Requirement = &reference.RequirementDependency{
+				Name:         r.GetRequirementName(),
+				ResourceName: r.GetName(),
+				Namespace:    r.GetNamespace(),
+			}
+		default:
+			continue
+		}
+
+		edges[d.GetResource()] = append(edges[d.GetResource()], e)
+	}
+
+	pending := make([]reference.Pending, 0, len(decisions.Blocked))
+
+	for name, b := range decisions.Blocked {
+		if !b.Blocked {
+			continue
+		}
+
+		p := reference.Pending{
+			ResourceName: name,
+			Operation:    reference.OperationCreate,
+			Reason:       b.Reason,
+			Deadlocked:   b.Deadlocked,
+			DependsOn:    edges[name],
+		}
+
+		// In desired means the pipeline still wants it, so what's held back
+		// is creating it. Otherwise the pipeline has dropped it and what's
+		// held back is deleting it - in which case the object exists, and is
+		// worth naming.
+		cd, ok := desired[ResourceName(name)]
+		if !ok {
+			cd, ok = observed[ResourceName(name)]
+			if !ok {
+				continue
+			}
+
+			p.Operation = reference.OperationDelete
+			p.Name = cd.Resource.GetName()
+
+			// Its edges are already on its reference, and Reason says what
+			// still depends on it.
+			p.DependsOn = nil
+		}
+
+		gvk := cd.Resource.GetObjectKind().GroupVersionKind()
+		p.APIVersion = gvk.GroupVersion().String()
+		p.Kind = gvk.Kind
+		p.Namespace = cd.Resource.GetNamespace()
+
+		pending = append(pending, p)
+	}
+
+	// Stable, so an unchanged situation produces an unchanged status and the
+	// reconciler's "has anything changed?" check can skip the write.
+	sort.Slice(pending, func(i, j int) bool { return pending[i].ResourceName < pending[j].ResourceName })
+
+	return pending
 }
 
 // Tag uniquely identifies a request. Two identical requests created by the

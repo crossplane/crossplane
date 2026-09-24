@@ -286,3 +286,114 @@ func TestAsEdgesLifecycle(t *testing.T) {
 		})
 	}
 }
+
+// TestPendingResources covers what the XR reports about resources ordering is
+// holding back - including the one case that appears nowhere else, a resource
+// held back from being created, which has no composed resource reference
+// because Crossplane deliberately never applied it.
+func TestPendingResources(t *testing.T) {
+	cd := func(name string) ComposedResourceState {
+		r := composed.New()
+		r.SetAPIVersion("example.org/v1")
+		r.SetKind("Thing")
+		r.SetName("cool-xr-" + name)
+
+		return ComposedResourceState{Resource: r}
+	}
+
+	deps := []*fnv1.Dependency{
+		{
+			Resource:  "subnet",
+			DependsOn: &fnv1.Dependency_ComposedResource{ComposedResource: "vpc"},
+		},
+		{
+			Resource: "subnet",
+			DependsOn: &fnv1.Dependency_RequiredResource{
+				RequiredResource: &fnv1.RequiredResourceDependency{RequirementName: "kubeconfig"},
+			},
+		},
+	}
+
+	cases := map[string]struct {
+		reason    string
+		decisions ordering.Decisions
+		desired   ComposedResourceStates
+		observed  ComposedResourceStates
+		want      []reference.Pending
+	}{
+		"NothingBlocked": {
+			reason:    "An XR with nothing held back carries no pending resources at all, rather than an empty list saying so.",
+			decisions: ordering.Decisions{Blocked: map[string]ordering.Decision{}},
+			desired:   ComposedResourceStates{"subnet": cd("subnet")},
+		},
+		"HeldFromCreation": {
+			reason: "Still desired, so what's held back is creating it - and it carries the edges it's waiting on, since it has no reference to carry them.",
+			decisions: ordering.Decisions{Blocked: map[string]ordering.Decision{
+				"subnet": {Blocked: true, Reason: "waiting for vpc to be ready"},
+			}},
+			desired: ComposedResourceStates{"subnet": cd("subnet")},
+			want: []reference.Pending{{
+				APIVersion:   "example.org/v1",
+				Kind:         "Thing",
+				ResourceName: "subnet",
+				Operation:    reference.OperationCreate,
+				Reason:       "waiting for vpc to be ready",
+				DependsOn: []reference.Dependency{
+					{Name: "vpc"},
+					{
+						Type:        reference.DependencyTypeRequiredResource,
+						Requirement: &reference.RequirementDependency{Name: "kubeconfig"},
+					},
+				},
+			}},
+		},
+		"HeldFromDeletion": {
+			reason: "No longer desired but still observed, so what's held back is deleting it - and unlike a pending creation, the object exists and is worth naming.",
+			decisions: ordering.Decisions{Blocked: map[string]ordering.Decision{
+				"vpc": {Blocked: true, Reason: "subnet still depends on it"},
+			}},
+			desired:  ComposedResourceStates{},
+			observed: ComposedResourceStates{"vpc": cd("vpc")},
+			want: []reference.Pending{{
+				APIVersion:   "example.org/v1",
+				Kind:         "Thing",
+				Name:         "cool-xr-vpc",
+				ResourceName: "vpc",
+				Operation:    reference.OperationDelete,
+				Reason:       "subnet still depends on it",
+			}},
+		},
+		"Deadlocked": {
+			reason: "A deadlock is carried as a field, not a prefix on a sentence, so something can alert on it.",
+			decisions: ordering.Decisions{Blocked: map[string]ordering.Decision{
+				"subnet": {Blocked: true, Deadlocked: true, Reason: "depends on vpc, which is not desired"},
+			}},
+			desired: ComposedResourceStates{"subnet": cd("subnet")},
+			want: []reference.Pending{{
+				APIVersion:   "example.org/v1",
+				Kind:         "Thing",
+				ResourceName: "subnet",
+				Operation:    reference.OperationCreate,
+				Reason:       "depends on vpc, which is not desired",
+				Deadlocked:   true,
+				DependsOn: []reference.Dependency{
+					{Name: "vpc"},
+					{
+						Type:        reference.DependencyTypeRequiredResource,
+						Requirement: &reference.RequirementDependency{Name: "kubeconfig"},
+					},
+				},
+			}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := pendingResources(tc.decisions, tc.desired, tc.observed, deps)
+
+			if diff := cmp.Diff(tc.want, got, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("\n%s\npendingResources(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}

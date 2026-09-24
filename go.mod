@@ -12,7 +12,7 @@ require (
 	github.com/crossplane/crossplane-runtime/v2 v2.5.0-rc.0
 	github.com/crossplane/crossplane/apis/v2 v2.4.0
 	github.com/google/go-cmp v0.7.0
-	github.com/google/go-containerregistry v0.21.8
+	github.com/google/go-containerregistry v0.21.9
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/afero v1.15.0
 	golang.org/x/sync v0.22.0
@@ -231,4 +231,4 @@ require (
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 )
 
-replace github.com/crossplane/crossplane-runtime/v2 => github.com/stevendborrelli/crossplane-runtime/v2 v2.0.0-20260916231249-f2b51989e391
+replace github.com/crossplane/crossplane-runtime/v2 => github.com/stevendborrelli/crossplane-runtime/v2 v2.0.0-20260924120103-907e449516bf
