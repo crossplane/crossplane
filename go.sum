@@ -502,8 +502,8 @@ github.com/spf13/cobra v1.10.2/go.mod h1:7C1pvHqHw5A4vrJfjNwvOdzYu0Gml16OCs2GRiT
 github.com/spf13/pflag v1.0.9/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
 github.com/spf13/pflag v1.0.10 h1:4EBh2KAYBwaONj6b2Ye1GiHfwjqyROoF4RwYO+vPwFk=
 github.com/spf13/pflag v1.0.10/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
-github.com/stevendborrelli/crossplane-runtime/v2 v2.0.0-20260924120103-907e449516bf h1:hIj+KW9buR4R7Yr6nPFFC4VNl/97tXuG0sEvgQ0ZncE=
-github.com/stevendborrelli/crossplane-runtime/v2 v2.0.0-20260924120103-907e449516bf/go.mod h1:U9Wf0etSG2hKFSJKiIQK59IcXJcc3GF9JG/ELju6NEc=
+github.com/stevendborrelli/crossplane-runtime/v2 v2.0.0-20260924172442-ea7442312042 h1:ZCQtK4+MT3HscNpbLuuPwYZ4Vvd/RDLFje1CpXmhKjo=
+github.com/stevendborrelli/crossplane-runtime/v2 v2.0.0-20260924172442-ea7442312042/go.mod h1:U9Wf0etSG2hKFSJKiIQK59IcXJcc3GF9JG/ELju6NEc=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.4.0/go.mod h1:YvHI0jy2hoMjB+UWwv71VJQ9isScKT/TqJzVSSt89Yw=
 github.com/stretchr/objx v0.5.0/go.mod h1:Yh+to48EsGEfYuaHDzXPcE3xhTkx73EhmCGUpEOglKo=

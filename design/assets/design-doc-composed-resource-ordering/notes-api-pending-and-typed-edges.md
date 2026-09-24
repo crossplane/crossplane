@@ -280,8 +280,8 @@ type CompositeStatusCrossplane struct {
 }
 ```
 
-Legacy XRs put machinery directly under `spec` and `status`, so for them it is
-`status.pendingResources`. Both are generated in
+Legacy v1 XRs don't get it: ordering is a v2 feature, so there is no reason to
+carry a second path for a schema that will never report one. Generated in
 `crossplane-runtime/pkg/xcrd/schemas.go`, alongside the existing
 `resourceRefs` props, with `XListType: atomic` to match — the controller
 replaces the whole array every pass.

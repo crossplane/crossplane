@@ -425,7 +425,7 @@ func TestReadPending(t *testing.T) {
 			"reason":       "no longer desired; subnet still depends on it",
 			"deadlocked":   true,
 		},
-	}, "status", "pendingResources")
+	}, "status", "crossplane", "pendingResources")
 
 	nodes, err := readGraph(x)
 	if err != nil {
