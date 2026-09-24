@@ -19,6 +19,8 @@ package resolver
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"slices"
 	"sort"
@@ -703,7 +705,18 @@ func matchesAnyConstraint(version string, constraints []string) bool {
 // NewPackage creates a new package from the given dependency and version.
 func NewPackage(dep *v1beta1.Dependency, version string, ref name.Reference) (*unstructured.Unstructured, error) {
 	pack := &unstructured.Unstructured{}
-	pack.SetName(xpkg.ToDNSLabel(ref.Context().RepositoryStr()))
+
+	// Two dependencies with different repositories can share a long common
+	// prefix. ToDNSLabel truncates its input to fit the Kubernetes 63
+	// character name limit, so two different repositories can truncate to
+	// the same name. Mixing in a hash of the full repository string (the
+	// same truncate-then-append-hash shape FriendlyID already uses for
+	// package revisions) keeps them distinct. The hash covers the registry
+	// too, not just the repository path, so the same path on two different
+	// registries doesn't collide.
+	repo := ref.Context().RepositoryStr()
+	h := sha256.Sum256([]byte(ref.Context().Name()))
+	pack.SetName(xpkg.FriendlyID(repo, hex.EncodeToString(h[:])))
 
 	format := packageTagFmt
 	if strings.HasPrefix(version, "sha256:") {
