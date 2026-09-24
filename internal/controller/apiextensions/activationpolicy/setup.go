@@ -37,6 +37,9 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
+		// NewAPIRecorder wraps the events.k8s.io/v1 API recorder. The crossplane-runtime
+		// fork consolidated NewEventsRecorder into NewAPIRecorder since both now use
+		// events.k8s.io directly.
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorder(name), o.EventFilterFunctions...)),
 	)
 

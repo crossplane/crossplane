@@ -194,6 +194,8 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 	r := NewReconciler(mgr,
 		WithNewPackageRevisionWithRuntimeFn(nr),
 		WithLogger(log),
+		// NewAPIRecorder wraps events.k8s.io/v1. The fork consolidated NewEventsRecorder
+		// into NewAPIRecorder since both use events.k8s.io directly.
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorder(name), o.EventFilterFunctions...)),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
