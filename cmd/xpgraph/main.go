@@ -36,6 +36,7 @@ limitations under the License.
 // their own block, because they are the only state waiting will not fix.
 //
 //	xpgraph xordering/ordered -n default
+//	xpgraph xordering/ordered --edges          # and what each one waits on
 //	xpgraph servingstack/my-stack -n modelplane-system --dot | dot -Tpng -o graph.png
 package main
 
@@ -66,6 +67,7 @@ type cli struct {
 	Context    string `help:"Kubeconfig context to use. Defaults to the current context."`
 
 	Dot     bool          `help:"Print Graphviz DOT instead of a tree."`
+	Edges   bool          `help:"Print each resource's dependencies beneath it, rather than only the waves." short:"e"`
 	Color   string        `default:"auto"                               enum:"auto,always,never"                            help:"Colorize the tree."`
 	Timeout time.Duration `default:"30s"                                help:"How long to spend talking to the API server."`
 }
@@ -114,9 +116,15 @@ const (
 	stateDeadlocked = "deadlocked"
 )
 
-// A style paints terminal output, or doesn't. Colour is off when stdout
-// isn't a terminal, so piping to a file or a pager stays readable.
-type style struct{ color bool }
+// A style is how the tree is presented: whether it is painted, and whether
+// each resource's dependencies get their own lines beneath it.
+//
+// Colour is off when stdout isn't a terminal, so piping to a file or a pager
+// stays readable.
+type style struct {
+	color bool
+	edges bool
+}
 
 const (
 	dim    = "2"
@@ -218,7 +226,7 @@ func (c *cli) Run() error {
 	// back, including resources that have no reference to observe.
 	nodes = readPending(xr, nodes)
 
-	out := renderTree(xr, nodes, style{color: c.colorize()})
+	out := renderTree(xr, nodes, style{color: c.colorize(), edges: c.Edges})
 	if c.Dot {
 		out = renderDot(xr, nodes)
 	}
@@ -813,6 +821,17 @@ func renderNode(w *strings.Builder, n *node, nameCol, kindCol int, st style) {
 	}
 
 	fmt.Fprintln(w, strings.TrimRight(row, " "))
+
+	// Dependency lines are opt-in, because they are most of a graph's height
+	// and rarely what you came for. Printing them roughly doubles it, and a
+	// graph taller than the terminal is one whose bottom you never see -
+	// where, since ordering releases resources in wave order, everything
+	// still waiting always is. The waves say what depends on what in
+	// outline, and a resource that is actually held back names what it is
+	// waiting for in its reason. Ask for --edges when you want the detail.
+	if !st.edges {
+		return
+	}
 
 	// Dependencies go on their own indented lines, wrapped. A resource
 	// waiting on a whole CRD bundle has a dozen of them, and one long line
