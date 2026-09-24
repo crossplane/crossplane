@@ -1,12 +1,15 @@
 # Ordering at scale: what paced each run
 
-Measurements on a 8-vCPU GCE VM running kind, with Crossplane built from this
+This note covers running scale tests against the DAG engine.
+
+The test were run on a 8-vCPU GCE VM running kind, with Crossplane built from this
 branch and composed resources served by provider-nop. The harness is in
 `scale/`: `up.sh` builds the cluster, `run.py` composes a graph of a given
 shape and times creation and teardown, `limits.sh` changes what the cluster is
 allowed to use.
 
-Three things paced runs, and only one of them was the ordering.
+There were several notable findings. As composition size scales provider
+reconciliation times begin to dominate overall performance.
 
 ## 1. The provider's reconcile rate, not the graph
 

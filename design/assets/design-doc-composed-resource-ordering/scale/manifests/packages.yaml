@@ -19,17 +19,14 @@ spec:
   package: xpkg.upbound.io/crossplane-contrib/function-sequencer:v0.2.0
 ---
 # provider-nop composes resources whose readiness and deletion can be delayed,
-# which is what makes a wave measurable rather than instantaneous.
-#
-# timed-deletes.3, not .2: .2 is a single arm64 manifest and crashloops with an
-# exec format error on an amd64 test machine, which surfaces only as a Provider
-# that never goes Healthy.
+# which is what makes a wave measurable rather than instantaneous. deleteAfter
+# and deleteError shipped in v0.6.0, so this is the upstream image.
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: provider-nop
 spec:
-  package: index.docker.io/steve/provider-nop:timed-deletes.3
+  package: xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.6.0
   runtimeConfigRef:
     name: provider-nop-fast-poll
 ---
