@@ -49,3 +49,6 @@ AGENTS.md
 
 # Build output from test/e2e/functions/ordering/build.sh
 test/e2e/functions/ordering/_output/
+
+# Python bytecode from the scale harness in design/assets/.
+__pycache__/
