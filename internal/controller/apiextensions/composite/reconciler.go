@@ -1127,6 +1127,8 @@ func (r *Reconciler) teardown(ctx context.Context, xr *composite.Unstructured, s
 	// the finalizer lets Kubernetes cascade, as it always has.
 	if r.observer == nil || r.gc == nil {
 		log.Debug("Ordered teardown is not configured; cascading")
+		xr.SetPendingResources(nil)
+
 		return true, nil
 	}
 
@@ -1138,6 +1140,8 @@ func (r *Reconciler) teardown(ctx context.Context, xr *composite.Unstructured, s
 	if len(edges) == 0 {
 		// This XR's pipeline declared no ordering, or its references predate
 		// the fields that record it. Either way there's no order to keep.
+		xr.SetPendingResources(nil)
+
 		return true, nil
 	}
 
@@ -1149,6 +1153,7 @@ func (r *Reconciler) teardown(ctx context.Context, xr *composite.Unstructured, s
 	log.Debug("Observed the composed resources that are left", "observed", len(observed))
 
 	if len(observed) == 0 {
+		xr.SetPendingResources(nil)
 		return true, nil
 	}
 
@@ -1165,6 +1170,13 @@ func (r *Reconciler) teardown(ctx context.Context, xr *composite.Unstructured, s
 	d := g.Decide(s)
 
 	log.Debug("Decided this teardown wave", "delete", d.Delete, "blocked", len(d.Blocked))
+
+	// Say what teardown is holding back, the same way the apply path does.
+	// The graph is rebuilt from the XR's own references here, so this needs
+	// no function to have run - and without it the field would keep whatever
+	// the last pipeline run left, which on a deleting XR means reporting
+	// resources as waiting to be created while they are being deleted.
+	xr.SetPendingResources(teardownPending(observed, d))
 
 	if len(d.Delete) == 0 {
 		// Nothing is deletable but resources remain. Waiting cannot resolve
@@ -1207,6 +1219,48 @@ func (r *Reconciler) teardown(ctx context.Context, xr *composite.Unstructured, s
 	status.MarkConditions(xpv2.Deleting().WithMessage(teardownWaitingMessage(observed, d.Delete)))
 
 	return false, nil
+}
+
+// teardownPending describes what teardown is holding back, for the XR's
+// status.
+//
+// Every entry is a deletion: teardown desires nothing, so a resource the graph
+// blocks is one that cannot go yet. Edges are left off - the resource still
+// has a composed resource reference, which is where its edges live, and Reason
+// names what is holding it.
+func teardownPending(observed ComposedResourceStates, d ordering.Decisions) []reference.Pending {
+	pending := make([]reference.Pending, 0, len(d.Blocked))
+
+	for name, b := range d.Blocked {
+		if !b.Blocked {
+			continue
+		}
+
+		cd, ok := observed[ResourceName(name)]
+		if !ok {
+			continue
+		}
+
+		gvk := cd.Resource.GetObjectKind().GroupVersionKind()
+		pending = append(pending, reference.Pending{
+			APIVersion:   gvk.GroupVersion().String(),
+			Kind:         gvk.Kind,
+			Name:         cd.Resource.GetName(),
+			Namespace:    cd.Resource.GetNamespace(),
+			ResourceName: name,
+			Operation:    reference.OperationDelete,
+			Reason:       b.Reason,
+			Deadlocked:   b.Deadlocked,
+		})
+	}
+
+	// Stable, so an unchanged teardown produces unchanged status and the
+	// reconciler skips the write.
+	slices.SortFunc(pending, func(a, b reference.Pending) int {
+		return strings.Compare(a.ResourceName, b.ResourceName)
+	})
+
+	return pending
 }
 
 // teardownWaitingMessage describes a teardown that has work to do.
