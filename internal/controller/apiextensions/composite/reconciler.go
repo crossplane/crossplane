@@ -682,7 +682,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				wait = teardownBackstopInterval
 			}
 
-			_ = r.client.Status().Update(updateCtx, xr)
+			// Only write if we have something new to say. A teardown wakes
+			// on every composed resource that goes, and backstops every few
+			// seconds besides, so most passes through here report the wave
+			// they reported last time. Writing that again costs an API call
+			// and - because a write to the XR is a watch event on the XR -
+			// a token from the watch circuit breaker, to tell anyone
+			// watching exactly what they already knew.
+			if !cmp.Equal(statusBefore, xr.Object["status"]) {
+				_ = r.client.Status().Update(updateCtx, xr)
+			}
 
 			return reconcile.Result{RequeueAfter: wait}, nil
 		}
@@ -1194,8 +1203,17 @@ func (r *Reconciler) teardown(ctx context.Context, xr *composite.Unstructured, s
 // slow or will never complete, so without this an XR stuck forever on a
 // resource that refuses to delete reports the same cheerful progress as one
 // that is a second from finishing. Crossplane cannot tell those apart - no one
-// can, in general - but it can say which it is waiting on and for how long, so
-// that someone looking at the XR can.
+// can, in general - but it can say which it is waiting on, so that someone
+// looking at the XR can.
+//
+// Deliberately no elapsed time. This message becomes a condition, and a
+// condition that says "deleting for 3m41s" is a different condition every
+// second: it defeats the check that skips a status write when nothing has
+// changed, so the XR is written - and every watcher woken - to report a
+// counter nobody is watching tick. The Deleting condition's
+// lastTransitionTime already records when this wave began, which is the same
+// information and costs nothing, and it stays put precisely because the
+// message no longer moves.
 func teardownWaitingMessage(observed ComposedResourceStates, deleting []string) string {
 	requested := make([]string, 0, len(deleting))
 	stuck := make([]string, 0, len(deleting))
@@ -1206,8 +1224,8 @@ func teardownWaitingMessage(observed ComposedResourceStates, deleting []string) 
 			continue
 		}
 
-		if ts := cd.Resource.GetDeletionTimestamp(); ts != nil {
-			stuck = append(stuck, fmt.Sprintf("%s (deleting for %s)", n, time.Since(ts.Time).Round(time.Second)))
+		if cd.Resource.GetDeletionTimestamp() != nil {
+			stuck = append(stuck, n)
 			continue
 		}
 
