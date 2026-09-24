@@ -344,3 +344,119 @@ func TestTeardownWaitingMessageIsStable(t *testing.T) {
 			"makes every reconcile a status write: -after 1s, +after 3h:\n%s", diff)
 	}
 }
+
+// TestTeardownPending covers what a deleting XR reports about the resources
+// it can't remove yet.
+//
+// The field is written from the compose path, which doesn't run during
+// teardown, so without this it keeps whatever the last pipeline run left -
+// an XR mid-teardown reporting resources as waiting to be created while they
+// are being deleted. Teardown rebuilds the graph from the XR's own
+// references, so it has everything it needs to say this itself.
+func TestTeardownPending(t *testing.T) {
+	// vpc <- subnet <- instance, tearing down with the leaf already gone.
+	graph := []reference.Composed{
+		ref("vpc"),
+		ref("subnet", "vpc"),
+	}
+
+	xr := teardownXR(graph...)
+
+	r := &Reconciler{
+		log:        logging.NewNopLogger(),
+		conditions: conditions.ObservedGenerationPropagationManager{},
+		observer:   observing("vpc", "subnet"),
+		gc:         recordingGC(&[]string{}),
+	}
+
+	// Something the last compose left behind, which teardown has to correct
+	// rather than leave standing.
+	xr.SetPendingResources([]reference.Pending{{
+		APIVersion:   "example.org/v1",
+		Kind:         "Thing",
+		ResourceName: "instance",
+		Operation:    reference.OperationCreate,
+		Reason:       "waiting for subnet to be ready",
+	}})
+
+	if _, err := r.teardown(context.Background(), xr, r.conditions.For(xr)); err != nil {
+		t.Fatalf("teardown(...): %v", err)
+	}
+
+	// observing() names the object after the composition resource name, so
+	// both read "vpc" here. They are different fields with different
+	// meanings - the object's name, and the key a function uses for it.
+	want := []reference.Pending{{
+		APIVersion:   "example.org/v1",
+		Kind:         "Thing",
+		Name:         "vpc",
+		ResourceName: "vpc",
+		Operation:    reference.OperationDelete,
+	}}
+
+	got := xr.GetPendingResources()
+
+	// The reason comes from the ordering package; pin the parts this code
+	// owns rather than its wording.
+	if len(got) != 1 {
+		t.Fatalf("teardown(...): want 1 pending resource, got %d: %v", len(got), got)
+	}
+
+	if got[0].Operation != reference.OperationDelete {
+		t.Errorf("teardown(...): a deleting XR reports deletions, got %q", got[0].Operation)
+	}
+
+	if got[0].ResourceName != want[0].ResourceName || got[0].Name != want[0].Name {
+		t.Errorf("teardown(...): want %s/%s, got %s/%s",
+			want[0].ResourceName, want[0].Name, got[0].ResourceName, got[0].Name)
+	}
+
+	if got[0].Reason == "" {
+		t.Error("teardown(...): a held resource should say why")
+	}
+}
+
+// TestTeardownPendingIsClearedWhenDone pins that the field doesn't outlive
+// the teardown it describes.
+func TestTeardownPendingIsClearedWhenDone(t *testing.T) {
+	cases := map[string]struct {
+		reason   string
+		observer ComposedResourceObserver
+		xr       *composite.Unstructured
+	}{
+		"NothingLeft": {
+			reason:   "Every composed resource has gone, so nothing is held back.",
+			observer: observing(),
+			xr:       teardownXR(ref("vpc"), ref("subnet", "vpc")),
+		},
+		"NoGraph": {
+			reason:   "No edges means no ordering, so nothing is held back by it.",
+			observer: observing("vpc"),
+			xr:       teardownXR(ref("vpc")),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tc.xr.SetPendingResources([]reference.Pending{{
+				ResourceName: "stale",
+				Operation:    reference.OperationCreate,
+			}})
+
+			r := &Reconciler{
+				log:        logging.NewNopLogger(),
+				conditions: conditions.ObservedGenerationPropagationManager{},
+				observer:   tc.observer,
+				gc:         recordingGC(&[]string{}),
+			}
+
+			if _, err := r.teardown(context.Background(), tc.xr, r.conditions.For(tc.xr)); err != nil {
+				t.Fatalf("teardown(...): %v", err)
+			}
+
+			if got := tc.xr.GetPendingResources(); len(got) != 0 {
+				t.Errorf("\n%s\nteardown(...): want no pending resources, got %v", tc.reason, got)
+			}
+		})
+	}
+}
