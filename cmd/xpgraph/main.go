@@ -27,6 +27,14 @@ limitations under the License.
 // created once what it depends on reports Ready, so xpgraph fetches each
 // composed resource and prints its state beside the edges.
 //
+// It also reads status.crossplane.pendingResources, where Crossplane records
+// what the graph is holding back and why. That matters most for a resource
+// held back from being created: it has no composed resource reference at all,
+// so without the status it is missing from the graph entirely - which is the
+// opposite of what someone asking "why hasn't this been created?" needs to
+// see. Resources held back from deletion appear there too, and deadlocks get
+// their own block, because they are the only state waiting will not fix.
+//
 //	xpgraph xordering/ordered -n default
 //	xpgraph servingstack/my-stack -n modelplane-system --dot | dot -Tpng -o graph.png
 package main
@@ -71,14 +79,40 @@ type node struct {
 	Namespace  string // Set only when a cluster scoped composite composes a namespaced resource.
 	DependsOn  []string
 
+	// Requires is the requirement names this resource waits on - resources
+	// the pipeline required rather than composed. They gate creation only,
+	// and they are not composed resources, so they are not nodes.
+	Requires []string
+
 	// Live state, read from the composed resource itself.
 	Exists   bool
 	Ready    bool
 	Deleting bool
 	Reason   string // Why it isn't ready, when it says.
 
+	// Held state, read from the XR's status rather than from the resource.
+	// A resource the graph is holding back has no object to look at, and in
+	// the create direction no reference either: the XR is the only place it
+	// appears at all.
+	Held       bool   // The graph won't allow this resource's next change yet.
+	Operation  string // What is held: "Create" or "Delete".
+	Deadlocked bool   // Waiting cannot resolve it. Someone has to act.
+
 	wave int
 }
+
+// The states a node can be in. A resource reaches ready, creating, pending
+// and deleting on its own; blocked, held and deadlocked are the graph's
+// doing, and are the states this tool exists to explain.
+const (
+	stateReady      = "ready"
+	stateCreating   = "creating"
+	statePending    = "pending"
+	stateDeleting   = "deleting"
+	stateBlocked    = "blocked"
+	stateHeld       = "held"
+	stateDeadlocked = "deadlocked"
+)
 
 // A style paints terminal output, or doesn't. Colour is off when stdout
 // isn't a terminal, so piping to a file or a pager stays readable.
@@ -105,28 +139,45 @@ func (s style) paint(code, text string) string {
 // meaning where colour isn't available, so both say the same thing.
 func (n node) glyph() (string, string) {
 	switch n.state() {
-	case "ready":
+	case stateReady:
 		return "✔", green
-	case "creating":
+	case stateCreating:
 		return "◐", yellow
-	case "deleting":
+	case stateDeleting:
 		return "✖", red
+	case stateDeadlocked:
+		return "⨯", red
+	case stateBlocked, stateHeld:
+		return "⊘", yellow
 	default:
 		return "○", gray
 	}
 }
 
 // state is what the resource is doing, in one word.
+// state is what the resource is doing, in one word.
+//
+// Deadlock outranks everything: it is the only state that will not resolve
+// on its own, so it must not be hidden behind a resource that also happens
+// to be deleting. Below that, being held by the graph outranks the
+// resource's own state, because "Crossplane won't do this yet" is the answer
+// to the question someone is asking, and "pending" or "ready" is not.
 func (n node) state() string {
 	switch {
+	case n.Deadlocked:
+		return stateDeadlocked
+	case n.Held && n.Operation == "Delete":
+		return stateHeld
+	case n.Held:
+		return stateBlocked
 	case n.Deleting:
-		return "deleting"
+		return stateDeleting
 	case !n.Exists:
-		return "pending"
+		return statePending
 	case n.Ready:
-		return "ready"
+		return stateReady
 	default:
-		return "creating"
+		return stateCreating
 	}
 }
 
@@ -162,6 +213,10 @@ func (c *cli) Run() error {
 	// The edges say what waits for what; the composed resources say where
 	// each one has got to. Both are needed to read a graph mid-reconcile.
 	observe(ctx, dyn, mapper, xr.GetNamespace(), nodes)
+
+	// Last, because it overrides both: what the XR says the graph is holding
+	// back, including resources that have no reference to observe.
+	nodes = readPending(xr, nodes)
 
 	out := renderTree(xr, nodes, style{color: c.colorize()})
 	if c.Dot {
@@ -307,14 +362,113 @@ func readGraph(xr *unstructured.Unstructured) ([]*node, error) {
 			n.Name = n.Object
 		}
 
-		// dependsOn is a list of composition resource names.
-		deps, _, _ := unstructured.NestedStringSlice(ref, "dependsOn")
-		n.DependsOn = deps
+		n.DependsOn, n.Requires = readDependsOn(ref)
 
 		nodes = append(nodes, n)
 	}
 
 	return nodes, nil
+}
+
+// readDependsOn reads an entry's edges, in either form they take.
+//
+// dependsOn started as a list of composition resource names and is becoming a
+// list of objects, so that an edge can say what kind of thing it points at -
+// another composed resource, or a resource the pipeline required rather than
+// composed. Reading both means one xpgraph works against a cluster on either
+// side of that change, which matters because the whole point of this tool is
+// looking at a cluster you did not build.
+func readDependsOn(ref map[string]any) (composed, requires []string) {
+	raw, found, err := unstructured.NestedSlice(ref, "dependsOn")
+	if err != nil || !found {
+		return nil, nil
+	}
+
+	for _, d := range raw {
+		switch v := d.(type) {
+		case string:
+			composed = append(composed, v)
+		case map[string]any:
+			t, _, _ := unstructured.NestedString(v, "type")
+			if t == "RequiredResource" {
+				name, _, _ := unstructured.NestedString(v, "requirement", "name")
+				if name != "" {
+					requires = append(requires, name)
+				}
+
+				continue
+			}
+
+			if name, _, _ := unstructured.NestedString(v, "name"); name != "" {
+				composed = append(composed, name)
+			}
+		}
+	}
+
+	return composed, requires
+}
+
+// readPending folds the XR's status.crossplane.pendingResources into the
+// graph.
+//
+// A resource the graph is holding back from being created has no composed
+// resource reference - Crossplane deliberately doesn't write one, because a
+// reference to an object that doesn't exist reads as an error rather than as
+// waiting - so without this it is missing from the graph entirely, which is
+// the opposite of what someone asking "why hasn't this been created?" needs
+// to see. A resource held back from deletion does have a reference, and this
+// says what is holding it.
+func readPending(xr *unstructured.Unstructured, nodes []*node) []*node {
+	pending, found, err := unstructured.NestedSlice(xr.Object, "status", "crossplane", "pendingResources")
+	if err != nil {
+		return nodes
+	}
+
+	if !found {
+		// Legacy (v1) XRs keep their machinery at the top of status.
+		if pending, found, err = unstructured.NestedSlice(xr.Object, "status", "pendingResources"); err != nil || !found {
+			return nodes
+		}
+	}
+
+	byName := make(map[string]*node, len(nodes))
+	for _, n := range nodes {
+		byName[n.Name] = n
+	}
+
+	for _, p := range pending {
+		e, ok := p.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		name, _, _ := unstructured.NestedString(e, "resourceName")
+		if name == "" {
+			continue
+		}
+
+		n, ok := byName[name]
+		if !ok {
+			// Held back from creation: nothing references it, so this entry
+			// is all there is.
+			n = &node{Name: name}
+			n.APIVersion, _, _ = unstructured.NestedString(e, "apiVersion")
+			n.Kind, _, _ = unstructured.NestedString(e, "kind")
+			n.DependsOn, n.Requires = readDependsOn(e)
+			nodes = append(nodes, n)
+			byName[name] = n
+		}
+
+		n.Held = true
+		n.Operation, _, _ = unstructured.NestedString(e, "operation")
+		n.Deadlocked, _, _ = unstructured.NestedBool(e, "deadlocked")
+
+		if r, _, _ := unstructured.NestedString(e, "reason"); r != "" {
+			n.Reason = r
+		}
+	}
+
+	return nodes
 }
 
 // observe fills in each node's live state. A resource that can't be fetched
@@ -529,7 +683,43 @@ func renderTree(xr *unstructured.Unstructured, nodes []*node, st style) string {
 			strings.Join(cyclic, ", "))
 	}
 
+	renderDeadlocked(w, nodes, st)
+
 	return w.String()
+}
+
+// renderDeadlocked calls out the resources waiting cannot help.
+//
+// Everything else in a graph resolves itself if you leave it alone, so a
+// long list of waiting resources is not a problem and should not read like
+// one. A deadlock is the opposite: it is rare, it is permanent, and someone
+// has to do something. It gets its own block at the bottom, with the reason,
+// rather than a row in the middle of a wave that looks like all the others.
+func renderDeadlocked(w *strings.Builder, nodes []*node, st style) {
+	stuck := make([]*node, 0)
+
+	for _, n := range nodes {
+		if n.Deadlocked {
+			stuck = append(stuck, n)
+		}
+	}
+
+	if len(stuck) == 0 {
+		return
+	}
+
+	sort.Slice(stuck, func(a, b int) bool { return stuck[a].Name < stuck[b].Name })
+
+	fmt.Fprintf(w, "\n%s\n", st.paint(red, "deadlocked, so waiting will not resolve these:"))
+
+	for _, n := range stuck {
+		reason := n.Reason
+		if reason == "" {
+			reason = "no reason given"
+		}
+
+		fmt.Fprintf(w, "  %s  %s\n", n.Name, st.paint(dim, reason))
+	}
 }
 
 // group buckets nodes by wave, and counts what each is doing.
@@ -617,7 +807,8 @@ func renderNode(w *strings.Builder, n *node, nameCol, kindCol int, st style) {
 	g, c := n.glyph()
 
 	// Glyph, state word, name, kind - then why, if it isn't ready.
-	row := fmt.Sprintf(" %s %s  %s  %s", st.paint(c, g), st.paint(c, padRight(n.state(), 8)),
+	// 10, the width of "deadlocked", so the longest state still lines up.
+	row := fmt.Sprintf(" %s %s  %s  %s", st.paint(c, g), st.paint(c, padRight(n.state(), 10)),
 		padRight(n.Name, nameCol), st.paint(dim, padRight(n.Kind, kindCol)))
 
 	if n.Reason != "" {
@@ -626,23 +817,34 @@ func renderNode(w *strings.Builder, n *node, nameCol, kindCol int, st style) {
 
 	fmt.Fprintln(w, strings.TrimRight(row, " "))
 
-	if len(n.DependsOn) == 0 {
-		return
-	}
-
 	// Dependencies go on their own indented lines, wrapped. A resource
 	// waiting on a whole CRD bundle has a dozen of them, and one long line
 	// buries the rest of the graph.
-	deps := append([]string{}, n.DependsOn...)
-	sort.Strings(deps)
+	if len(n.DependsOn) > 0 {
+		deps := append([]string{}, n.DependsOn...)
+		sort.Strings(deps)
+		renderEdges(w, "←", deps, st)
+	}
 
-	for i, line := range wrap(deps, 62) {
-		lead := "←"
+	// Required resources get their own arrow. They are not composed by this
+	// XR and so are not nodes in the graph - they gate creation and nothing
+	// else - and showing them as ordinary edges would suggest Crossplane
+	// will delete them in order too, which it never does.
+	if len(n.Requires) > 0 {
+		req := append([]string{}, n.Requires...)
+		sort.Strings(req)
+		renderEdges(w, "⇠", req, st)
+	}
+}
+
+func renderEdges(w *strings.Builder, lead string, names []string, st style) {
+	for i, line := range wrap(names, 62) {
+		l := lead
 		if i > 0 {
-			lead = " "
+			l = " "
 		}
 
-		fmt.Fprintf(w, "     %s\n", st.paint(dim, lead+" "+line))
+		fmt.Fprintf(w, "     %s\n", st.paint(dim, l+" "+line))
 	}
 }
 
@@ -654,7 +856,15 @@ func renderTally(w *strings.Builder, counts map[string]int, st style) {
 	for _, s := range []struct {
 		state string
 		code  string
-	}{{"ready", green}, {"creating", yellow}, {"pending", gray}, {"deleting", red}} {
+	}{
+		{stateReady, green},
+		{stateCreating, yellow},
+		{stateBlocked, yellow},
+		{statePending, gray},
+		{stateHeld, yellow},
+		{stateDeleting, red},
+		{stateDeadlocked, red},
+	} {
 		if counts[s.state] > 0 {
 			parts = append(parts, st.paint(s.code, fmt.Sprintf("%d %s", counts[s.state], s.state)))
 		}
@@ -738,7 +948,8 @@ func renderDot(xr *unstructured.Unstructured, nodes []*node) string {
 	for _, n := range sorted {
 		// The label is written directly rather than through %q, which would
 		// escape the backslash and print a literal \n in the node.
-		fmt.Fprintf(w, "  %q [label=\"%s\\n%s\" color=%q];\n", n.Name, n.Name, n.Kind, dotColor(n))
+		fmt.Fprintf(w, "  %q [label=\"%s\\n%s\" color=%q%s];\n",
+			n.Name, n.Name, n.Kind, dotColor(n), dotStyle(n))
 	}
 
 	// Edges point from a resource to what it waits for, which is also the
@@ -752,18 +963,47 @@ func renderDot(xr *unstructured.Unstructured, nodes []*node) string {
 		}
 	}
 
+	// Required resources are drawn, but as a different kind of thing: they
+	// are not composed by this XR, they only gate it. A dashed edge to a
+	// note-shaped node says "this is outside the graph" without leaving it
+	// off the picture, which would hide why a resource is waiting.
+	for _, n := range sorted {
+		req := append([]string{}, n.Requires...)
+		sort.Strings(req)
+
+		for _, r := range req {
+			fmt.Fprintf(w, "  %q [shape=note color=gray60];\n", r)
+			fmt.Fprintf(w, "  %q -> %q [style=dashed color=gray60];\n", n.Name, r)
+		}
+	}
+
 	fmt.Fprintln(w, "}")
 
 	return w.String()
 }
 
+// dotStyle ghosts what doesn't exist and thickens what needs attention, so a
+// rendered graph reads without a legend.
+func dotStyle(n *node) string {
+	switch n.state() {
+	case stateDeadlocked:
+		return " style=\"rounded,filled\" fillcolor=mistyrose penwidth=2"
+	case stateBlocked, stateHeld:
+		return " style=\"rounded,bold\""
+	case statePending:
+		return " style=\"rounded,dashed\""
+	default:
+		return ""
+	}
+}
+
 func dotColor(n *node) string {
 	switch n.state() {
-	case "ready":
+	case stateReady:
 		return "green4"
-	case "deleting":
+	case stateDeleting, stateDeadlocked:
 		return "red3"
-	case "creating":
+	case stateCreating, stateBlocked, stateHeld:
 		return "goldenrod3"
 	default:
 		return "gray60"

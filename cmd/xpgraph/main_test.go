@@ -264,12 +264,12 @@ func TestRenderTree(t *testing.T) {
 		"XOrdering default/ordered",
 		"3 composed resources · 2 edges · 3 waves",
 		"wave 0 ",
-		"✔ ready     database",
+		"✔ ready       database",
 		"wave 1 ",
-		"◐ creating  app",
+		"◐ creating    app",
 		"← database",
 		"wave 2 ",
-		"○ pending   ingress",
+		"○ pending     ingress",
 		"1 ready · 1 creating · 1 pending",
 	} {
 		if !strings.Contains(got, want) {
@@ -338,6 +338,155 @@ func TestRenderDot(t *testing.T) {
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderDot(...): missing %q in:\n%s", want, got)
+		}
+	}
+}
+
+// TestReadDependsOnBothForms covers an edge written as a bare name and as an
+// object. xpgraph is pointed at clusters it didn't build, which will be on
+// either side of that change for as long as both exist.
+func TestReadDependsOnBothForms(t *testing.T) {
+	cases := map[string]struct {
+		reason       string
+		ref          map[string]any
+		wantComposed []string
+		wantRequires []string
+	}{
+		"Strings": {
+			reason:       "The original form is a list of composition resource names.",
+			ref:          map[string]any{"dependsOn": []any{"vpc", "subnet"}},
+			wantComposed: []string{"vpc", "subnet"},
+		},
+		"Objects": {
+			reason: "The object form names the same thing under a key.",
+			ref: map[string]any{"dependsOn": []any{
+				map[string]any{"name": "vpc"},
+				map[string]any{"name": "subnet", "type": "ComposedResource"},
+			}},
+			wantComposed: []string{"vpc", "subnet"},
+		},
+		"RequiredResource": {
+			reason: "A required resource isn't a node, so it's kept apart from the edges between composed resources.",
+			ref: map[string]any{"dependsOn": []any{
+				map[string]any{"name": "vpc"},
+				map[string]any{
+					"type":        "RequiredResource",
+					"requirement": map[string]any{"name": "cluster-kubeconfig"},
+				},
+			}},
+			wantComposed: []string{"vpc"},
+			wantRequires: []string{"cluster-kubeconfig"},
+		},
+		"Mixed": {
+			reason:       "Nothing stops a cluster carrying both during a migration.",
+			ref:          map[string]any{"dependsOn": []any{"vpc", map[string]any{"name": "subnet"}}},
+			wantComposed: []string{"vpc", "subnet"},
+		},
+		"Absent": {
+			reason: "A resource with no edges reads as no edges, not an error.",
+			ref:    map[string]any{},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			composed, requires := readDependsOn(tc.ref)
+
+			if diff := cmp.Diff(tc.wantComposed, composed, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("\n%s\nreadDependsOn(...) composed: -want, +got:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.wantRequires, requires, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("\n%s\nreadDependsOn(...) requires: -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+// TestReadPending covers the case xpgraph could not show at all before: a
+// resource the graph is holding back from being created has no composed
+// resource reference, so the XR's status is the only place it appears.
+func TestReadPending(t *testing.T) {
+	x := xr(ref("vpc", "NopResource"))
+	_ = unstructured.SetNestedSlice(x.Object, []any{
+		map[string]any{
+			"apiVersion":   "nop.crossplane.io/v1alpha1",
+			"kind":         "NopResource",
+			"resourceName": "subnet",
+			"operation":    "Create",
+			"dependsOn":    []any{map[string]any{"name": "vpc"}},
+			"reason":       "waiting for vpc to be ready",
+		},
+		map[string]any{
+			"apiVersion":   "nop.crossplane.io/v1alpha1",
+			"kind":         "NopResource",
+			"resourceName": "vpc",
+			"operation":    "Delete",
+			"reason":       "no longer desired; subnet still depends on it",
+			"deadlocked":   true,
+		},
+	}, "status", "crossplane", "pendingResources")
+
+	nodes, err := readGraph(x)
+	if err != nil {
+		t.Fatalf("readGraph(...): %v", err)
+	}
+
+	nodes = readPending(x, nodes)
+
+	got := map[string]string{}
+	for _, n := range nodes {
+		got[n.Name] = n.state()
+	}
+
+	want := map[string]string{
+		// Held back from creation, and referenced nowhere else.
+		"subnet": "blocked",
+		// Held back from deletion, and deadlocked, which outranks it.
+		"vpc": "deadlocked",
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("readPending(...): -want states, +got states:\n%s", diff)
+	}
+
+	for _, n := range nodes {
+		if n.Name == "subnet" && !cmp.Equal(n.DependsOn, []string{"vpc"}) {
+			t.Errorf("a pending resource should carry its edges, got %v", n.DependsOn)
+		}
+	}
+}
+
+// TestRenderTreeShowsHeldAndDeadlocked is a readability check as much as a
+// correctness one: the states the graph adds have to be distinguishable from
+// the states a resource reaches on its own.
+func TestRenderTreeShowsHeldAndDeadlocked(t *testing.T) {
+	nodes := []*node{
+		{Name: "vpc", Kind: "NopResource", Exists: true, Ready: true},
+		{
+			Name: "subnet", Kind: "NopResource", DependsOn: []string{"vpc"},
+			Requires: []string{"cluster-kubeconfig"},
+			Held:     true, Operation: "Create", Reason: "waiting for cluster-kubeconfig",
+		},
+		{
+			Name: "gateway", Kind: "NopResource", DependsOn: []string{"subnet"},
+			Exists: true, Ready: true, Held: true, Operation: "Delete",
+			Deadlocked: true, Reason: "subnet depends on it and cannot be deleted",
+		},
+	}
+
+	got := renderTree(xr(), nodes, style{})
+	t.Logf("\n%s", got)
+
+	for _, want := range []string{
+		"blocked",                         // held back from creation
+		"deadlocked",                      // and the state that outranks all
+		"⇠ cluster-kubeconfig",            // a required resource, not a node
+		"deadlocked, so waiting will not", // its own block at the bottom
+		"subnet depends on it",            // with the reason
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("renderTree(...) = %q\nwant it to contain %q", got, want)
 		}
 	}
 }
