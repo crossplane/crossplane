@@ -1042,6 +1042,46 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errUpdateStatus),
 			},
 		},
+		"ErrDeactivateAndUpdateStatusInactiveRevision": {
+			reason: "We should return both the deactivation and status update errors when both operations fail on an inactive revision.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								obj.SetDesiredState(v1.PackageRevisionInactive)
+								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(errors.New("status update failed")),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{
+						MockDeactivate: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
+							return errBoom
+						},
+					}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.New("status update failed"), errors.Wrap(errBoom, errDeactivateHook).Error()),
+			},
+		},
 		"RuntimeActivationAwaiting": {
 			reason: "A safe-start revision with only inactive MRDs should be scaled to zero and marked as awaiting activation.",
 			args: args{
