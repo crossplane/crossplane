@@ -6,12 +6,12 @@ spec:
   replayDeletion: true
   of:
     apiVersion: nop.crossplane.io/v1alpha1
-    kind: NopResource
+    kind: ClusterNopResource
     resourceSelector:
         matchLabels:
             foo: bar
   by:
     apiVersion: nop.crossplane.io/v1alpha1
-    kind: NopResource
+    kind: ClusterNopResource
     resourceRef:
       name: using-resource

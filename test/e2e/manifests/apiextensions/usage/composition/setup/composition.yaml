@@ -22,7 +22,7 @@ spec:
               used-resource:
                 resource:
                   apiVersion: nop.crossplane.io/v1alpha1
-                  kind: NopResource
+                  kind: ClusterNopResource
                   metadata:
                     labels:
                       usage: used
@@ -38,7 +38,7 @@ spec:
               using-resource:
                 resource:
                   apiVersion: nop.crossplane.io/v1alpha1
-                  kind: NopResource
+                  kind: ClusterNopResource
                   metadata:
                     # We are delaying deletion of using resource with this finalizer. This is to ensure that the used resource is
                     # not deleted before the using resource. Imagine a scenario where a Release resource using a Cluster resource
@@ -67,14 +67,14 @@ spec:
                   spec:
                     of:
                       apiVersion: nop.crossplane.io/v1alpha1
-                      kind: NopResource
+                      kind: ClusterNopResource
                       resourceSelector:
                         matchControllerRef: true
                         matchLabels:
                           usage: used
                     by:
                       apiVersion: nop.crossplane.io/v1alpha1
-                      kind: NopResource
+                      kind: ClusterNopResource
                       resourceSelector:
                         matchControllerRef: true
                         matchLabels:

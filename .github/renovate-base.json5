@@ -28,6 +28,12 @@
     'design/**',
     // We test upgrades, so leave it on an older version on purpose.
     "test/e2e/manifests/pkg/provider/provider-initial.yaml",
+    // provider-nop v0.5.0 made NopResource namespaced, and a CRD's scope can't
+    // change on upgrade.
+    "test/e2e/manifests/pkg/provider/provider-upgrade.yaml",
+    // We test activating a new revision on upgrade, so each package's two
+    // versions must differ.
+    "test/e2e/manifests/pkg/activation/**",
     // We test the revision control hand-off on upgrade, so both versions must
     // remain as they are.
     "test/e2e/manifests/pkg/provider-handoff/**",
