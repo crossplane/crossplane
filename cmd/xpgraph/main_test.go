@@ -258,7 +258,7 @@ func TestRenderTree(t *testing.T) {
 		{Name: "ingress", Kind: "NopResource", DependsOn: []string{"app"}},
 	}
 
-	got := renderTree(xr(), nodes, style{color: false})
+	got := renderTree(xr(), nodes, style{color: false, edges: true})
 
 	for _, want := range []string{
 		"XOrdering default/ordered",
@@ -475,7 +475,7 @@ func TestRenderTreeShowsHeldAndDeadlocked(t *testing.T) {
 		},
 	}
 
-	got := renderTree(xr(), nodes, style{})
+	got := renderTree(xr(), nodes, style{edges: true})
 	t.Logf("\n%s", got)
 
 	for _, want := range []string{
@@ -488,5 +488,46 @@ func TestRenderTreeShowsHeldAndDeadlocked(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("renderTree(...) = %q\nwant it to contain %q", got, want)
 		}
+	}
+}
+
+// TestRenderTreeEdgesAreOptIn pins the height of the default output.
+//
+// Dependency lines roughly double a graph, and ordering releases resources in
+// wave order - so everything still waiting is at the bottom, which is exactly
+// what a graph taller than the terminal cuts off. An 18-resource composition
+// came to 48 lines with them and 30 without, either side of a standard
+// terminal.
+func TestRenderTreeEdgesAreOptIn(t *testing.T) {
+	nodes := []*node{
+		{Name: "database", Kind: "NopResource", Exists: true, Ready: true},
+		{Name: "app", Kind: "NopResource", DependsOn: []string{"database"}, Exists: true},
+		{Name: "ingress", Kind: "NopResource", DependsOn: []string{"app"}, Requires: []string{"secret"}},
+	}
+
+	off := renderTree(xr(), nodes, style{})
+	on := renderTree(xr(), nodes, style{edges: true})
+
+	for _, unwanted := range []string{"← database", "← app", "⇠ secret"} {
+		if strings.Contains(off, unwanted) {
+			t.Errorf("renderTree(...) without --edges printed %q:\n%s", unwanted, off)
+		}
+	}
+
+	for _, want := range []string{"← database", "⇠ secret"} {
+		if !strings.Contains(on, want) {
+			t.Errorf("renderTree(...) with --edges is missing %q:\n%s", want, on)
+		}
+	}
+
+	// Every resource must still appear, and the waves that order them.
+	for _, want := range []string{"database", "app", "ingress", "wave 0 ", "wave 2 "} {
+		if !strings.Contains(off, want) {
+			t.Errorf("renderTree(...) without --edges lost %q:\n%s", want, off)
+		}
+	}
+
+	if offN, onN := strings.Count(off, "\n"), strings.Count(on, "\n"); offN >= onN {
+		t.Errorf("renderTree(...) without --edges should be shorter: %d lines vs %d", offN, onN)
 	}
 }
