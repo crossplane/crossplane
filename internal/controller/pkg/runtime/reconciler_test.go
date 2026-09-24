@@ -396,7 +396,7 @@ func TestReconcile(t *testing.T) {
 							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 							want.SetDesiredState(v1.PackageRevisionInactive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
-							want.SetConditions(v1.RuntimeUnhealthy().WithMessage("deactivation runtime hook failed for package: boom"))
+							want.SetConditions(v1.RuntimeUnhealthy().WithMessage("cannot deactivate package revision; inspect the revision's runtime resources for details: boom"))
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -961,7 +961,7 @@ func TestReconcile(t *testing.T) {
 								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
 								// set a previous RuntimeUnhealthy condition on the object, so we
 								// know the later status update clears it back to healthy
-								obj.SetConditions(v1.RuntimeUnhealthy().WithMessage("deactivation runtime hook failed for package: boom"))
+								obj.SetConditions(v1.RuntimeUnhealthy().WithMessage("cannot deactivate package revision; inspect the revision's runtime resources for details: boom"))
 								return nil
 							case *corev1.ServiceAccount:
 								obj.Name = crossplaneName

@@ -64,7 +64,7 @@ const (
 	errManifestBuilderOptions = "cannot prepare runtime manifest builder options"
 	errPreHook                = "pre establish runtime hook failed for package"
 	errPostHook               = "post establish runtime hook failed for package"
-	errDeactivateHook         = "deactivation runtime hook failed for package"
+	errDeactivateHook         = "cannot deactivate package revision; inspect the revision's runtime resources for details"
 
 	errNoRuntimeConfig          = "no deployment runtime config set"
 	errGetRuntimeConfig         = "cannot get referenced deployment runtime config"
@@ -363,7 +363,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// was still the active revision.
 			status.MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
 
-			_ = r.client.Status().Update(ctx, pr)
+			if updateErr := r.client.Status().Update(ctx, pr); updateErr != nil {
+				err = errors.Wrap(updateErr, err.Error())
+			}
 			r.record.Event(pr, event.Warning(reasonDeactivate, err))
 
 			return reconcile.Result{}, err
