@@ -174,6 +174,13 @@ The sibling `function-ordering` repo was unaffected because it has a
 `build.sh` that builds both architectures; provider-nop had none, and now
 does.
 
+Moot since: `deleteAfter` and `deleteError` shipped in provider-nop v0.6.0,
+so everything here now pins
+`xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.6.0` and there is no
+fork image to publish. The lesson stands for any hand-built package - a
+single-architecture image fails as a Provider that never goes Healthy, with
+nothing naming the architecture.
+
 **2. The blocked-teardown test lost a race with its own provider.** It cleared
 `deleteError` with an unretried read-modify-write against a NopResource the
 provider writes to continuously while refusing to delete, and got `the object
