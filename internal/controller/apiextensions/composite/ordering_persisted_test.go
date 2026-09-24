@@ -17,12 +17,18 @@ limitations under the License.
 package composite
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/types/known/structpb"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
@@ -395,5 +401,104 @@ func TestPendingResources(t *testing.T) {
 				t.Errorf("\n%s\npendingResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
+	}
+}
+
+// TestOrderingOnLegacyXRs covers the schema branch that differs.
+//
+// Ordering is supported on legacy v1 XRs, and works there because the graph
+// rides on composed resource references, which both schemas carry. But legacy
+// XRs keep those references at spec.resourceRefs where modern ones nest them
+// under spec.crossplane, and that path is chosen by the same accessor
+// teardown rebuilds the graph from. Nothing else in ordering branches on
+// schema, so this is the whole of what "v1 is supported" means - and it was
+// working by accident, with no test, until this one.
+func TestOrderingOnLegacyXRs(t *testing.T) {
+	xr := composite.New(composite.WithSchema(composite.SchemaLegacy))
+
+	desired := ComposedResourceStates{
+		"vpc":    state("VPC", "xr-vpc-8xk2p"),
+		"subnet": state("Subnet", "xr-subnet-p4m9x"),
+	}
+
+	UpdateComposedResourceRefs(xr, desired, []*fnv1.Dependency{dep("subnet", "vpc")})
+
+	// Legacy XRs keep machinery at the top of spec, so the graph has to be
+	// there rather than under spec.crossplane - otherwise teardown rebuilds
+	// an empty graph and cascades, which looks exactly like having finished.
+	refs, found, err := unstructured.NestedSlice(xr.Object, "spec", "resourceRefs")
+	if err != nil || !found {
+		t.Fatalf("a legacy XR keeps its references at spec.resourceRefs: found=%v err=%v", found, err)
+	}
+
+	if nested, found, _ := unstructured.NestedSlice(xr.Object, "spec", "crossplane", "resourceRefs"); found {
+		t.Errorf("a legacy XR must not nest its references: %v", nested)
+	}
+
+	if len(refs) != 2 {
+		t.Fatalf("want 2 references, got %d: %v", len(refs), refs)
+	}
+
+	// And the edges have to survive the round trip through that path, since
+	// teardown reads them back rather than recomputing them.
+	want := []reference.Composed{
+		{APIVersion: "example.org/v1", Kind: "Subnet", Name: "xr-subnet-p4m9x", ResourceName: "subnet", DependsOn: []string{"vpc"}},
+		{APIVersion: "example.org/v1", Kind: "VPC", Name: "xr-vpc-8xk2p", ResourceName: "vpc"},
+	}
+
+	if diff := cmp.Diff(want, xr.GetComposedResourceReferences()); diff != "" {
+		t.Errorf("a legacy XR's references carry the graph: -want, +got:\n%s", diff)
+	}
+
+	// What ordering does with them is the same on both schemas: EdgesFromRefs
+	// is what teardown rebuilds from, and it reads the accessor rather than a
+	// path.
+	if edges := EdgesFromRefs(xr.GetComposedResourceReferences()); len(edges) != 1 {
+		t.Errorf("teardown rebuilds one edge from a legacy XR's references, got %d: %v", len(edges), edges)
+	}
+}
+
+// TestTeardownOrdersALegacyXR is the other half: that the reconciler's
+// teardown path, given a legacy XR, rebuilds the graph and holds back what
+// still has dependents.
+func TestTeardownOrdersALegacyXR(t *testing.T) {
+	xr := composite.New(composite.WithSchema(composite.SchemaLegacy))
+	xr.SetName("cool-xr")
+	xr.SetComposedResourceReferences([]reference.Composed{
+		{APIVersion: "example.org/v1", Kind: "Thing", Name: "cool-xr-vpc", ResourceName: "vpc"},
+		{APIVersion: "example.org/v1", Kind: "Thing", Name: "cool-xr-subnet", ResourceName: "subnet", DependsOn: []string{"vpc"}},
+	})
+
+	deleted := []string{}
+
+	r := &Reconciler{
+		log:        logging.NewNopLogger(),
+		conditions: conditions.ObservedGenerationPropagationManager{},
+		observer: ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+			return ComposedResourceStates{
+				"vpc":    state("Thing", "cool-xr-vpc"),
+				"subnet": state("Thing", "cool-xr-subnet"),
+			}, nil
+		}),
+		gc: ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, observed, _ ComposedResourceStates) error {
+			for n := range observed {
+				deleted = append(deleted, string(n))
+			}
+
+			return nil
+		}),
+	}
+
+	done, err := r.teardown(context.Background(), xr, r.conditions.For(xr))
+	if err != nil {
+		t.Fatalf("teardown(...): %v", err)
+	}
+
+	if done {
+		t.Error("teardown(...): reported done while a composed resource still has a dependent")
+	}
+
+	if diff := cmp.Diff([]string{"subnet"}, deleted); diff != "" {
+		t.Errorf("teardown(...) deletes the leaf first on a legacy XR too: -want, +got:\n%s", diff)
 	}
 }
