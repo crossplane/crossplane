@@ -58,11 +58,22 @@ kubectl create namespace crossplane-system
 	--wait
 
 echo "==> building Crossplane from this branch"
-image="$(cd "${repo}" && nix run .#stream-image 2>/dev/null | docker load | sed -n 's/^Loaded image: //p')"
+# The image streams on stdout, so the build's own output has to go somewhere
+# other than the pipe - but not to /dev/null. A failed Nix build then streams
+# nothing, docker load says only "unrecognized image format", and the actual
+# error is gone. The commonest cause is a stale Go vendor hash after a
+# dependency change, which `nix run .#tidy` fixes and which says so plainly if
+# you can see it.
+build_log="$(mktemp)"
+image="$(cd "${repo}" && nix run .#stream-image 2>"${build_log}" | docker load | sed -n 's/^Loaded image: //p')"
 [ -n "${image}" ] || {
-	echo "could not build the Crossplane image" >&2
+	echo "could not build the Crossplane image:" >&2
+	tail -20 "${build_log}" >&2
+	echo >&2
+	echo "if that mentions a hash mismatch, run: nix run .#tidy" >&2
 	exit 1
 }
+rm -f "${build_log}"
 echo "    ${image}"
 "${KIND[@]}" load docker-image "${image}" --name "${cluster}"
 
