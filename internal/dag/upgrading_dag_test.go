@@ -208,3 +208,46 @@ func TestUpgradingDag(_ *testing.T) {
 	d := NewUpgradingMapDag()
 	d.AddNode(&simpleNode{identifier: "hi"})
 }
+
+func TestUpgradingAddEdgeMissingFrom(t *testing.T) {
+	type args struct {
+		from string
+		to   *simpleNode
+	}
+
+	type want struct {
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"MissingFromReportsFromIdentifier": {
+			reason: "AddEdge should report the missing from node identifier, not the destination node.",
+			args: args{
+				from: "missing-from",
+				to:   &simpleNode{identifier: "cool-to", neighbors: map[string]simpleNode{}},
+			},
+			want: want{
+				err: errors.Errorf("node %s does not exist", "missing-from"),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			d := NewUpgradingMapDag()
+			_, err := d.AddEdge(tc.args.from, tc.args.to)
+			if diff := cmp.Diff(tc.want.err, err, cmp.Comparer(func(a, b error) bool {
+				if a == nil || b == nil {
+					return a == nil && b == nil
+				}
+				return a.Error() == b.Error()
+			})); diff != "" {
+				t.Errorf("\n%s\nAddEdge(...): -want err, +got err:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
