@@ -89,25 +89,18 @@ func NewProviderHooks(c client.Client, namespace, coreServiceAccount string, m D
 	}
 }
 
-// builder returns the manifest builder for a provider revision's runtime
-// objects. A nil runtime config means the objects are built from scratch.
-func (h *ProviderHooks) builder(pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig, opts ...BuilderOption) *DeploymentRuntimeBuilder {
-	return NewDeploymentRuntimeBuilder(pr, h.namespace, append([]BuilderOption{BuilderWithRuntimeConfig(rc)}, opts...)...)
-}
-
 // Pre performs operations meant to happen before establishing objects.
 func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig) error {
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
 		return nil
 	}
 
-	build := h.builder(pr, rc)
-
 	// Migrate the deployment selector if needed. This has to happen before we
 	// apply anything, so that a deployment with an outdated selector is deleted
 	// and recreated by the post-establish step. Only the deployment's name and
 	// namespace matter here.
-	if err := h.migrator.MigrateDeploymentSelector(ctx, pr, build.Deployment(build.ServiceAccount().Name)); err != nil {
+	sa := h.serviceAccount(pr, rc, nil)
+	if err := h.migrator.MigrateDeploymentSelector(ctx, pr, h.deployment(pr, rc, sa.Name, "", nil, false)); err != nil {
 		return errors.Wrap(err, errMigrateProviderDeployment)
 	}
 
@@ -121,13 +114,13 @@ func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 	// generating certificates requires the service to be defined. This is why
 	// we're creating the service here but service account and deployment in the
 	// post-establish.
-	svc := build.Service(providerServiceOverrides()...)
+	svc := h.service(pr, rc)
 	if err := applySharedRuntimeObject(ctx, h.client.Client, pr, svc); err != nil {
 		return errors.Wrap(err, errApplyProviderService)
 	}
 
-	secClient := build.TLSClientSecret()
-	secServer := build.TLSServerSecret()
+	secClient := h.tlsClientSecret(pr)
+	secServer := h.tlsServerSecret(pr)
 
 	if secClient == nil || secServer == nil {
 		// We should wait for the provider revision reconciler to set the secret
@@ -175,13 +168,9 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 		return err
 	}
 
-	build := h.builder(pr, rc,
-		BuilderWithServiceAccountPullSecrets(saPullSecrets),
-		BuilderWithPullSecrets(pullSecrets...),
-		BuilderWithMRDs(mrds),
-	)
+	awaiting := awaitingActivation(pr, mrds)
 
-	sa := build.ServiceAccount()
+	sa := h.serviceAccount(pr, rc, saPullSecrets)
 
 	// Determine the provider's image.
 	image, err := name.ParseReference(pr.GetResolvedSource(), name.StrictValidation)
@@ -189,7 +178,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 		return errors.Wrap(err, errParseProviderImage)
 	}
 
-	d := build.Deployment(sa.Name, providerDeploymentOverrides(pr, image.Name())...)
+	d := h.deployment(pr, rc, sa.Name, image.Name(), pullSecrets, awaiting)
 	// Create/Apply the SA only if the deployment references it.
 	// This is to avoid creating a SA that is not used by the deployment when
 	// the SA is managed externally by the user and configured by setting
@@ -211,7 +200,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 				return errors.Errorf(errFmtUnavailableProviderDeployment, c.Message)
 			}
 
-			if build.AwaitingActivation() {
+			if awaiting {
 				h.conditions.For(pr).MarkConditions(v1.RuntimeHealthy(), v1.RuntimeAwaitingActivation().WithMessage(msgAwaitingActivation))
 			} else {
 				h.conditions.For(pr).MarkConditions(v1.RuntimeHealthy(), v1.RuntimeActive())
@@ -226,20 +215,20 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 
 // Deactivate performs operations meant to happen before deactivating a revision.
 func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig) error {
-	build := h.builder(pr, rc)
-
-	sa := build.ServiceAccount()
-	// Delete the deployment if it exists.
-	// Different from the Post runtimeHook, we don't need to pass the
-	// "providerDeploymentOverrides()" here, because we're only interested
-	// in the name and namespace of the deployment to delete it.
-	if err := deleteRuntimeObjectControlledBy(ctx, h.client.Client, pr, build.Deployment(sa.Name)); err != nil {
+	// We're only interested in the name and namespace of the deployment in
+	// order to delete it, so we don't bother resolving the image, the pull
+	// secrets or the replica count here.
+	sa := h.serviceAccount(pr, rc, nil)
+	if err := deleteRuntimeObjectControlledBy(ctx, h.client.Client, pr, h.deployment(pr, rc, sa.Name, "", nil, false)); err != nil {
 		return errors.Wrap(err, errDeleteProviderDeployment)
 	}
 
 	// TODO(phisco): only added to cleanup the service we were previously
 	// 	deploying for each provider revision, remove in a future release.
-	svc := build.Service(ServiceWithName(pr.GetName()))
+	// 	Only the name and namespace matter in order to delete it.
+	svc := h.service(pr, rc)
+	svc.SetName(pr.GetName())
+
 	if err := h.client.Delete(ctx, svc); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderService)
 	}
@@ -260,44 +249,108 @@ func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 	return nil
 }
 
-// ownedMRDs returns the ManagedResourceDefinitions controlled by pr. It returns
-// nil without listing if pr does not have the safe-start capability.
-func (h *ProviderHooks) ownedMRDs(ctx context.Context, pr v1.PackageRevisionWithRuntime) ([]extv1alpha1.ManagedResourceDefinition, error) {
-	if !pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
-		return nil, nil
+// serviceAccount builds the ServiceAccount of a provider revision's runtime.
+// The supplied pull secrets are appended to the revision's own.
+func (h *ProviderHooks) serviceAccount(pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig, pullSecrets []corev1.LocalObjectReference) *corev1.ServiceAccount {
+	sa := &corev1.ServiceAccount{}
+	if rc != nil {
+		sa = serviceAccountFromRuntimeConfig(rc.Spec.ServiceAccountTemplate)
 	}
 
-	mrds := &extv1alpha1.ManagedResourceDefinitionList{}
-	if err := h.client.List(ctx, mrds); err != nil {
-		return nil, errors.Wrap(err, errListMRDs)
+	sa.TypeMeta = metav1.TypeMeta{
+		APIVersion: corev1.SchemeGroupVersion.String(),
+		Kind:       "ServiceAccount",
 	}
 
-	var owned []extv1alpha1.ManagedResourceDefinition
+	for _, o := range []ServiceAccountOverride{
+		// Optional defaults, will be used only if the runtime config does not
+		// specify them.
+		ServiceAccountWithOptionalName(pr.GetName()),
 
-	for i := range mrds.Items {
-		if metav1.IsControlledBy(&mrds.Items[i], pr) {
-			owned = append(owned, mrds.Items[i])
-		}
+		// Overrides that we are opinionated about.
+		ServiceAccountWithNamespace(h.namespace),
+		ServiceAccountWithOwnerReferences([]metav1.OwnerReference{h.owner(pr)}),
+		ServiceAccountWithAdditionalPullSecrets(append(pr.GetPackagePullSecrets(), pullSecrets...)),
+	} {
+		o(sa)
 	}
 
-	return owned, nil
+	return sa
 }
 
-func providerServiceOverrides() []ServiceOverride {
-	return []ServiceOverride{
-		ServiceWithAdditionalPorts([]corev1.ServicePort{
+// deployment builds the Deployment of a provider revision's runtime.
+func (h *ProviderHooks) deployment(pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig, serviceAccount, image string, pullSecrets []string, awaitingActivation bool) *appsv1.Deployment {
+	d := &appsv1.Deployment{}
+	if rc != nil {
+		d = deploymentFromRuntimeConfig(rc.Spec.DeploymentTemplate)
+	}
+
+	overrides := []DeploymentOverride{
+		// This will ensure that the runtime container exists and always the
+		// first one.
+		DeploymentWithRuntimeContainer(),
+
+		// Optional defaults, will be used only if the runtime config does not
+		// specify them.
+		DeploymentWithOptionalName(pr.GetName()),
+		DeploymentWithOptionalReplicas(1),
+		DeploymentWithOptionalPodSecurityContext(&corev1.PodSecurityContext{
+			RunAsNonRoot: &RunAsNonRoot,
+			RunAsUser:    &RunAsUser,
+			RunAsGroup:   &RunAsGroup,
+		}),
+		DeploymentRuntimeWithOptionalImagePullPolicy(corev1.PullIfNotPresent),
+		DeploymentRuntimeWithOptionalSecurityContext(&corev1.SecurityContext{
+			RunAsUser:                &RunAsUser,
+			RunAsGroup:               &RunAsGroup,
+			AllowPrivilegeEscalation: &AllowPrivilegeEscalation,
+			Privileged:               &Privileged,
+			RunAsNonRoot:             &RunAsNonRoot,
+		}),
+		DeploymentWithOptionalServiceAccount(serviceAccount),
+
+		// Overrides that we are opinionated about.
+		DeploymentWithNamespace(h.namespace),
+		DeploymentWithOwnerReferences([]metav1.OwnerReference{h.owner(pr)}),
+		DeploymentWithSelectors(h.podSelectors(pr)),
+		DeploymentWithImagePullSecrets(pr.GetPackagePullSecrets()),
+		DeploymentRuntimeWithAdditionalPorts([]corev1.ContainerPort{
 			{
-				Name:       WebhookPortName,
-				Protocol:   corev1.ProtocolTCP,
-				Port:       revision.ServicePort,
-				TargetPort: intstr.FromString(WebhookPortName),
+				Name:          MetricsPortName,
+				ContainerPort: MetricsPortNumber,
 			},
 		}),
 	}
-}
 
-func providerDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string) []DeploymentOverride {
-	do := []DeploymentOverride{
+	if awaitingActivation {
+		// Scale the runtime to zero while awaiting activation, overriding any
+		// replica count from the deployment runtime config. A provider only
+		// asks for multiple replicas for leader-election standby or webhook
+		// redundancy, neither of which matters while none of its managed
+		// resources are being reconciled.
+		overrides = append(overrides, DeploymentWithReplicas(0))
+	}
+
+	for _, s := range pullSecrets {
+		overrides = append(overrides, DeploymentWithAdditionalPullSecret(corev1.LocalObjectReference{Name: s}))
+	}
+
+	if pr.GetPackagePullPolicy() != nil {
+		// If the package pull policy is set, it will override the default
+		// or whatever is set in the runtime config.
+		overrides = append(overrides, DeploymentRuntimeWithImagePullPolicy(*pr.GetPackagePullPolicy()))
+	}
+
+	if pr.GetObservedTLSClientSecretName() != nil {
+		overrides = append(overrides, DeploymentRuntimeWithTLSClientSecret(*pr.GetObservedTLSClientSecretName()))
+	}
+
+	if pr.GetObservedTLSServerSecretName() != nil {
+		overrides = append(overrides, DeploymentRuntimeWithTLSServerSecret(*pr.GetObservedTLSServerSecretName()))
+	}
+
+	// Provider specific overrides. They go last so that they win.
+	overrides = append(overrides,
 		DeploymentRuntimeWithAdditionalEnvironments([]corev1.EnvVar{
 			{
 				// NOTE(turkenh): POD_NAMESPACE is needed to
@@ -337,12 +390,12 @@ func providerDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string)
 		// disable the scraping by setting the annotation "prometheus.io/scrape"
 		// as "false" in the DeploymentRuntimeConfig.
 		DeploymentWithOptionalPodScrapeAnnotations(),
-	}
 
-	do = append(do, DeploymentRuntimeWithOptionalImage(image))
+		DeploymentRuntimeWithOptionalImage(image),
+	)
 
 	if pr.GetObservedTLSServerSecretName() != nil {
-		do = append(do, DeploymentRuntimeWithAdditionalPorts([]corev1.ContainerPort{
+		overrides = append(overrides, DeploymentRuntimeWithAdditionalPorts([]corev1.ContainerPort{
 			{
 				Name:          WebhookPortName,
 				ContainerPort: revision.ServicePort,
@@ -358,5 +411,160 @@ func providerDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string)
 		}))
 	}
 
-	return do
+	for _, o := range overrides {
+		o(d)
+	}
+
+	d.TypeMeta = metav1.TypeMeta{
+		APIVersion: appsv1.SchemeGroupVersion.String(),
+		Kind:       "Deployment",
+	}
+
+	return d
+}
+
+// service builds the Service of a provider revision's runtime. It is shared by
+// all revisions of a provider.
+func (h *ProviderHooks) service(pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig) *corev1.Service {
+	svc := &corev1.Service{}
+	if rc != nil {
+		svc = serviceFromRuntimeConfig(rc.Spec.ServiceTemplate)
+	}
+
+	svc.TypeMeta = metav1.TypeMeta{
+		APIVersion: corev1.SchemeGroupVersion.String(),
+		Kind:       "Service",
+	}
+
+	for _, o := range []ServiceOverride{
+		// Optional defaults, will be used only if the runtime config does not
+		// specify them.
+		ServiceWithOptionalName(h.packageName(pr)),
+
+		// Overrides that we are opinionated about.
+		ServiceWithNamespace(h.namespace),
+		ServiceWithOwnerReferences([]metav1.OwnerReference{h.owner(pr)}),
+		ServiceWithSelectors(h.podSelectors(pr)),
+
+		// Provider specific overrides. They go last so that they win.
+		ServiceWithAdditionalPorts([]corev1.ServicePort{
+			{
+				Name:       WebhookPortName,
+				Protocol:   corev1.ProtocolTCP,
+				Port:       revision.ServicePort,
+				TargetPort: intstr.FromString(WebhookPortName),
+			},
+		}),
+	} {
+		o(svc)
+	}
+
+	return svc
+}
+
+// tlsClientSecret builds the Secret holding a provider revision's TLS client
+// certificate. It returns nil until the package manager has named the secret.
+func (h *ProviderHooks) tlsClientSecret(pr v1.PackageRevisionWithRuntime) *corev1.Secret {
+	if pr.GetObservedTLSClientSecretName() == nil {
+		return nil
+	}
+
+	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: corev1.SchemeGroupVersion.String(),
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            *pr.GetObservedTLSClientSecretName(),
+			Namespace:       h.namespace,
+			OwnerReferences: []metav1.OwnerReference{h.owner(pr)},
+		},
+	}
+}
+
+// tlsServerSecret builds the Secret holding a provider revision's TLS server
+// certificate. It returns nil until the package manager has named the secret.
+func (h *ProviderHooks) tlsServerSecret(pr v1.PackageRevisionWithRuntime) *corev1.Secret {
+	if pr.GetObservedTLSServerSecretName() == nil {
+		return nil
+	}
+
+	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: corev1.SchemeGroupVersion.String(),
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            *pr.GetObservedTLSServerSecretName(),
+			Namespace:       h.namespace,
+			OwnerReferences: []metav1.OwnerReference{h.owner(pr)},
+		},
+	}
+}
+
+func (h *ProviderHooks) owner(pr v1.PackageRevisionWithRuntime) metav1.OwnerReference {
+	return meta.AsController(meta.TypedReferenceTo(pr, pr.GetObjectKind().GroupVersionKind()))
+}
+
+func (h *ProviderHooks) podSelectors(pr v1.PackageRevisionWithRuntime) map[string]string {
+	return map[string]string{
+		v1.LabelRevision: pr.GetName(),
+		v1.LabelProvider: h.packageName(pr),
+	}
+}
+
+func (h *ProviderHooks) packageName(pr v1.PackageRevisionWithRuntime) string {
+	return pr.GetLabels()[v1.LabelParentPackage]
+}
+
+// ownedMRDs returns the ManagedResourceDefinitions controlled by pr. It returns
+// nil without listing if pr does not have the safe-start capability.
+func (h *ProviderHooks) ownedMRDs(ctx context.Context, pr v1.PackageRevisionWithRuntime) ([]extv1alpha1.ManagedResourceDefinition, error) {
+	if !pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
+		return nil, nil
+	}
+
+	mrds := &extv1alpha1.ManagedResourceDefinitionList{}
+	if err := h.client.List(ctx, mrds); err != nil {
+		return nil, errors.Wrap(err, errListMRDs)
+	}
+
+	var owned []extv1alpha1.ManagedResourceDefinition
+
+	for i := range mrds.Items {
+		if metav1.IsControlledBy(&mrds.Items[i], pr) {
+			owned = append(owned, mrds.Items[i])
+		}
+	}
+
+	return owned, nil
+}
+
+// awaitingActivation returns true if the revision has the safe-start
+// capability, has never been activated, and owns at least one
+// ManagedResourceDefinition, none of which is active. Its runtime is scaled to
+// zero until the first one is activated.
+func awaitingActivation(pr v1.PackageRevisionWithRuntime, mrds []extv1alpha1.ManagedResourceDefinition) bool {
+	if !pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
+		return false
+	}
+
+	// One-way latch: once the runtime has been activated, never scale it
+	// back to zero even if MRDs later appear inactive (deactivation is not
+	// yet supported, but guard against manual edits or future changes).
+	if pr.GetCondition(v1.TypeRuntimeActive).Reason == v1.ReasonActiveRuntime {
+		return false
+	}
+
+	if len(mrds) == 0 {
+		return false
+	}
+
+	for _, mrd := range mrds {
+		if mrd.Spec.State.IsActive() {
+			return false
+		}
+	}
+
+	return true
 }

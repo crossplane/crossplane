@@ -116,11 +116,12 @@ var (
 	demoted = metav1.OwnerReference{Name: "outgoing", UID: "outgoing-uid", Controller: new(false), BlockOwnerDeletion: new(true)}
 )
 
-func TestRuntimeManifestBuilderDeployment(t *testing.T) {
+func TestProviderDeployment(t *testing.T) {
 	type args struct {
-		builder            *DeploymentRuntimeBuilder
-		overrides          []DeploymentOverride
+		revision           v1.PackageRevisionWithRuntime
+		runtimeConfig      *v1beta1.DeploymentRuntimeConfig
 		serviceAccountName string
+		awaitingActivation bool
 	}
 
 	type want struct {
@@ -132,33 +133,45 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ProviderDeploymentWithoutRuntimeConfig": {
-			reason: "No overrides should result in a deployment with default values",
+		"ProviderDeploymentNoScrapeAnnotation": {
+			reason: "It should be possible to disable default scrape annotations",
 			args: args{
-				builder: &DeploymentRuntimeBuilder{
-					revision:  providerRevision,
-					namespace: namespace,
+				revision: providerRevision,
+				runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
+					Spec: v1beta1.DeploymentRuntimeConfigSpec{
+						DeploymentTemplate: &v1beta1.DeploymentTemplate{
+							Spec: &appsv1.DeploymentSpec{
+								Template: corev1.PodTemplateSpec{
+									ObjectMeta: metav1.ObjectMeta{
+										Annotations: map[string]string{
+											"prometheus.io/scrape": "false",
+										},
+									},
+									Spec: corev1.PodSpec{},
+								},
+							},
+						},
+					},
 				},
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
 					v1.LabelProvider: providerName,
 					v1.LabelRevision: providerRevisionName,
-				})),
+				}), func(deployment *appsv1.Deployment) {
+					deployment.Spec.Template.Annotations = map[string]string{
+						"prometheus.io/scrape": "false",
+					}
+				}),
 			},
 		},
 		"ProviderDeploymentScaleToZero": {
 			reason: "Awaiting activation should scale the deployment to zero replicas",
 			args: args{
-				builder: &DeploymentRuntimeBuilder{
-					revision:           providerRevision,
-					namespace:          namespace,
-					awaitingActivation: true,
-				},
+				revision:           providerRevision,
+				awaitingActivation: true,
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
@@ -172,22 +185,18 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 		"ProviderDeploymentScaleToZeroWithRuntimeConfigReplicas": {
 			reason: "Awaiting activation should scale to zero even when the runtime config sets an explicit replica count",
 			args: args{
-				builder: &DeploymentRuntimeBuilder{
-					revision:           providerRevision,
-					namespace:          namespace,
-					awaitingActivation: true,
-					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
-						Spec: v1beta1.DeploymentRuntimeConfigSpec{
-							DeploymentTemplate: &v1beta1.DeploymentTemplate{
-								Spec: &appsv1.DeploymentSpec{
-									Replicas: ptr.To[int32](3),
-								},
+				revision:           providerRevision,
+				awaitingActivation: true,
+				runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
+					Spec: v1beta1.DeploymentRuntimeConfigSpec{
+						DeploymentTemplate: &v1beta1.DeploymentTemplate{
+							Spec: &appsv1.DeploymentSpec{
+								Replicas: ptr.To[int32](3),
 							},
 						},
 					},
 				},
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
@@ -198,155 +207,55 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 				}),
 			},
 		},
-		"ProviderDeploymentWithRuntimeConfig": {
-			reason: "Baseline provided by the runtime config should be applied to the deployment",
-			args: args{
-				builder: &DeploymentRuntimeBuilder{
-					revision:  providerRevision,
-					namespace: namespace,
-					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
-						Spec: v1beta1.DeploymentRuntimeConfigSpec{
-							DeploymentTemplate: &v1beta1.DeploymentTemplate{
-								Spec: &appsv1.DeploymentSpec{
-									Replicas: ptr.To[int32](3),
-									Template: corev1.PodTemplateSpec{
-										ObjectMeta: metav1.ObjectMeta{
-											Labels: map[string]string{
-												"k": "v",
-											},
-										},
-										Spec: corev1.PodSpec{
-											Volumes: []corev1.Volume{
-												{Name: "vol-a"},
-												{Name: "vol-b"},
-											},
-											Containers: []corev1.Container{
-												{
-													Name:  ContainerName,
-													Image: "crossplane/provider-foo:v1.2.4",
-													VolumeMounts: []corev1.VolumeMount{
-														{Name: "vm-a"},
-														{Name: "vm-b"},
-													},
-													Ports: []corev1.ContainerPort{
-														{ContainerPort: 7070, Name: MetricsPortName},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
-			},
-			want: want{
-				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
-					v1.LabelProvider: providerName,
-					v1.LabelRevision: providerRevisionName,
-				}), func(deployment *appsv1.Deployment) {
-					deployment.Spec.Replicas = ptr.To[int32](3)
-					deployment.Spec.Template.Labels["k"] = "v"
-					deployment.Spec.Template.Spec.Containers[0].Image = "crossplane/provider-foo:v1.2.4"
-					deployment.Spec.Template.Spec.Volumes = append([]corev1.Volume{{Name: "vol-a"}, {Name: "vol-b"}}, deployment.Spec.Template.Spec.Volumes...)
-					deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append([]corev1.VolumeMount{{Name: "vm-a"}, {Name: "vm-b"}}, deployment.Spec.Template.Spec.Containers[0].VolumeMounts...)
-					deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = 7070
-					deployment.Spec.Template.Annotations["prometheus.io/port"] = "7070"
-				}),
-			},
-		},
-		"ProviderDeploymentNoScrapeAnnotation": {
-			reason: "It should be possible to disable default scrape annotations",
-			args: args{
-				builder: &DeploymentRuntimeBuilder{
-					revision:  providerRevision,
-					namespace: namespace,
-					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
-						Spec: v1beta1.DeploymentRuntimeConfigSpec{
-							DeploymentTemplate: &v1beta1.DeploymentTemplate{
-								Spec: &appsv1.DeploymentSpec{
-									Template: corev1.PodTemplateSpec{
-										ObjectMeta: metav1.ObjectMeta{
-											Annotations: map[string]string{
-												"prometheus.io/scrape": "false",
-											},
-										},
-										Spec: corev1.PodSpec{},
-									},
-								},
-							},
-						},
-					},
-				},
-				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
-			},
-			want: want{
-				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
-					v1.LabelProvider: providerName,
-					v1.LabelRevision: providerRevisionName,
-				}), func(deployment *appsv1.Deployment) {
-					deployment.Spec.Template.Annotations = map[string]string{
-						"prometheus.io/scrape": "false",
-					}
-				}),
-			},
-		},
 		"ProviderDeploymentWithAdvancedRuntimeConfig": {
 			reason: "Baseline provided by the runtime config should be applied to the deployment for advanced use cases",
 			args: args{
-				builder: &DeploymentRuntimeBuilder{
-					revision:  providerRevision,
-					namespace: namespace,
-					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
-						Spec: v1beta1.DeploymentRuntimeConfigSpec{
-							DeploymentTemplate: &v1beta1.DeploymentTemplate{
-								Metadata: &v1beta1.ObjectMeta{
-									Name: new("my-provider-foo"),
-									Labels: map[string]string{
-										"x": "y",
-									},
-									Annotations: map[string]string{
-										"foo": "bar",
-									},
+				revision: providerRevision,
+				runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
+					Spec: v1beta1.DeploymentRuntimeConfigSpec{
+						DeploymentTemplate: &v1beta1.DeploymentTemplate{
+							Metadata: &v1beta1.ObjectMeta{
+								Name: new("my-provider-foo"),
+								Labels: map[string]string{
+									"x": "y",
 								},
-								Spec: &appsv1.DeploymentSpec{
-									Replicas: ptr.To[int32](3),
-									Template: corev1.PodTemplateSpec{
-										ObjectMeta: metav1.ObjectMeta{
-											Labels: map[string]string{
-												"k": "v",
-											},
+								Annotations: map[string]string{
+									"foo": "bar",
+								},
+							},
+							Spec: &appsv1.DeploymentSpec{
+								Replicas: ptr.To[int32](3),
+								Template: corev1.PodTemplateSpec{
+									ObjectMeta: metav1.ObjectMeta{
+										Labels: map[string]string{
+											"k": "v",
 										},
-										Spec: corev1.PodSpec{
-											Volumes: []corev1.Volume{
-												{Name: "vol-a"},
-												{Name: "vol-b"},
+									},
+									Spec: corev1.PodSpec{
+										Volumes: []corev1.Volume{
+											{Name: "vol-a"},
+											{Name: "vol-b"},
+										},
+										Containers: []corev1.Container{
+											{
+												Name:  "sidecar",
+												Image: "sidecar/sidecar:v1.0.0",
 											},
-											Containers: []corev1.Container{
-												{
-													Name:  "sidecar",
-													Image: "sidecar/sidecar:v1.0.0",
+											{
+												Name:  ContainerName,
+												Image: "crossplane/provider-foo:v1.2.4",
+												VolumeMounts: []corev1.VolumeMount{
+													{Name: "vm-a"},
+													{Name: "vm-b"},
 												},
-												{
-													Name:  ContainerName,
-													Image: "crossplane/provider-foo:v1.2.4",
-													VolumeMounts: []corev1.VolumeMount{
-														{Name: "vm-a"},
-														{Name: "vm-b"},
+												Resources: corev1.ResourceRequirements{
+													Requests: corev1.ResourceList{
+														"cpu":    resource.MustParse("1"),
+														"memory": resource.MustParse("1Gi"),
 													},
-													Resources: corev1.ResourceRequirements{
-														Requests: corev1.ResourceList{
-															"cpu":    resource.MustParse("1"),
-															"memory": resource.MustParse("1Gi"),
-														},
-														Limits: corev1.ResourceList{
-															"cpu":    resource.MustParse("2"),
-															"memory": resource.MustParse("2Gi"),
-														},
+													Limits: corev1.ResourceList{
+														"cpu":    resource.MustParse("2"),
+														"memory": resource.MustParse("2Gi"),
 													},
 												},
 											},
@@ -358,7 +267,6 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					},
 				},
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
@@ -394,6 +302,103 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 				}),
 			},
 		},
+		"ProviderDeploymentWithRuntimeConfig": {
+			reason: "Baseline provided by the runtime config should be applied to the deployment",
+			args: args{
+				revision: providerRevision,
+				runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
+					Spec: v1beta1.DeploymentRuntimeConfigSpec{
+						DeploymentTemplate: &v1beta1.DeploymentTemplate{
+							Spec: &appsv1.DeploymentSpec{
+								Replicas: ptr.To[int32](3),
+								Template: corev1.PodTemplateSpec{
+									ObjectMeta: metav1.ObjectMeta{
+										Labels: map[string]string{
+											"k": "v",
+										},
+									},
+									Spec: corev1.PodSpec{
+										Volumes: []corev1.Volume{
+											{Name: "vol-a"},
+											{Name: "vol-b"},
+										},
+										Containers: []corev1.Container{
+											{
+												Name:  ContainerName,
+												Image: "crossplane/provider-foo:v1.2.4",
+												VolumeMounts: []corev1.VolumeMount{
+													{Name: "vm-a"},
+													{Name: "vm-b"},
+												},
+												Ports: []corev1.ContainerPort{
+													{ContainerPort: 7070, Name: MetricsPortName},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				serviceAccountName: providerRevisionName,
+			},
+			want: want{
+				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
+					v1.LabelProvider: providerName,
+					v1.LabelRevision: providerRevisionName,
+				}), func(deployment *appsv1.Deployment) {
+					deployment.Spec.Replicas = ptr.To[int32](3)
+					deployment.Spec.Template.Labels["k"] = "v"
+					deployment.Spec.Template.Spec.Containers[0].Image = "crossplane/provider-foo:v1.2.4"
+					deployment.Spec.Template.Spec.Volumes = append([]corev1.Volume{{Name: "vol-a"}, {Name: "vol-b"}}, deployment.Spec.Template.Spec.Volumes...)
+					deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append([]corev1.VolumeMount{{Name: "vm-a"}, {Name: "vm-b"}}, deployment.Spec.Template.Spec.Containers[0].VolumeMounts...)
+					deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = 7070
+					deployment.Spec.Template.Annotations["prometheus.io/port"] = "7070"
+				}),
+			},
+		},
+		"ProviderDeploymentWithoutRuntimeConfig": {
+			reason: "No overrides should result in a deployment with default values",
+			args: args{
+				revision:           providerRevision,
+				serviceAccountName: providerRevisionName,
+			},
+			want: want{
+				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
+					v1.LabelProvider: providerName,
+					v1.LabelRevision: providerRevisionName,
+				})),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := NewProviderHooks(nil, namespace, crossplaneName, nil).deployment(tc.args.revision, tc.args.runtimeConfig, tc.args.serviceAccountName, providerImage, nil, tc.args.awaitingActivation)
+			if diff := cmp.Diff(tc.want.want, got); diff != "" {
+				t.Errorf("\n%s\ndeployment(...): -want, +got:\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestFunctionDeployment(t *testing.T) {
+	type args struct {
+		builder            *DeploymentRuntimeBuilder
+		serviceAccountName string
+		overrides          []DeploymentOverride
+	}
+
+	type want struct {
+		want *appsv1.Deployment
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
 		"FunctionDeploymentWithoutRuntimeConfig": {
 			reason: "No overrides should result in a deployment with default values",
 			args: args{
@@ -409,6 +414,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			},
 		},
 	}
+
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := tc.args.builder.Deployment(tc.args.serviceAccountName, tc.args.overrides...)
@@ -419,11 +425,10 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 	}
 }
 
-func TestRuntimeManifestBuilderService(t *testing.T) {
+func TestProviderService(t *testing.T) {
 	type args struct {
-		builder            *DeploymentRuntimeBuilder
-		overrides          []ServiceOverride
-		serviceAccountName string
+		revision      v1.PackageRevisionWithRuntime
+		runtimeConfig *v1beta1.DeploymentRuntimeConfig
 	}
 
 	type want struct {
@@ -436,23 +441,9 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 		want   want
 	}{
 		"ProviderServiceNoRuntimeConfig": {
-			reason: "No runtime config on the builder should result in a service with default values",
+			reason: "No runtime config should result in a service with default values",
 			args: args{
-				builder: &DeploymentRuntimeBuilder{
-					revision:  providerRevision,
-					namespace: namespace,
-				},
-				serviceAccountName: providerRevisionName,
-				overrides: []ServiceOverride{
-					ServiceWithAdditionalPorts([]corev1.ServicePort{
-						{
-							Name:       WebhookPortName,
-							Protocol:   corev1.ProtocolTCP,
-							Port:       revision.ServicePort,
-							TargetPort: intstr.FromString(WebhookPortName),
-						},
-					}),
-				},
+				revision: providerRevision,
 			},
 			want: want{
 				want: &corev1.Service{
@@ -494,9 +485,9 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := tc.args.builder.Service(tc.args.overrides...)
+			got := NewProviderHooks(nil, namespace, crossplaneName, nil).service(tc.args.revision, tc.args.runtimeConfig)
 			if diff := cmp.Diff(tc.want.want, got); diff != "" {
-				t.Errorf("\n%s\nService(...): -want, +got:\n%s\n", tc.reason, diff)
+				t.Errorf("\n%s\nservice(...): -want, +got:\n%s\n", tc.reason, diff)
 			}
 		})
 	}
@@ -858,7 +849,7 @@ func TestDemotedControllers(t *testing.T) {
 	}
 }
 
-func TestBuilderWithMRDs(t *testing.T) {
+func TestAwaitingActivation(t *testing.T) {
 	inactiveMRD := extv1alpha1.ManagedResourceDefinition{
 		Spec: extv1alpha1.ManagedResourceDefinitionSpec{
 			State: extv1alpha1.ManagedResourceDefinitionInactive,
@@ -934,14 +925,16 @@ func TestBuilderWithMRDs(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			opts := []BuilderOption{BuilderWithMRDs(tc.mrds)}
-			if tc.runtimeConfig != nil {
-				opts = append(opts, BuilderWithRuntimeConfig(tc.runtimeConfig))
-			}
-			b := NewDeploymentRuntimeBuilder(tc.revision, namespace, opts...)
-			got := b.AwaitingActivation()
+			got := awaitingActivation(tc.revision, tc.mrds)
 			if diff := cmp.Diff(tc.wantScaleToZero, got); diff != "" {
-				t.Errorf("BuilderWithMRDs(...): AwaitingActivation() -want, +got:\n%s", diff)
+				t.Errorf("awaitingActivation(...): -want, +got:\n%s", diff)
+			}
+
+			// The replica count in a runtime config must not stop the
+			// runtime being scaled to zero while awaiting activation.
+			d := NewProviderHooks(nil, namespace, crossplaneName, nil).deployment(tc.revision, tc.runtimeConfig, "", "", nil, got)
+			if got && ptr.Deref(d.Spec.Replicas, -1) != 0 {
+				t.Errorf("deployment(...): want 0 replicas while awaiting activation, got %v", d.Spec.Replicas)
 			}
 		})
 	}
@@ -1038,19 +1031,6 @@ func TestImageConfigPullSecrets(t *testing.T) {
 			})},
 			revision: withRefs(v1.ImageConfigRef{Name: "some-config", Reason: v1.ImageConfigReasonSetPullSecret}),
 			want:     want{secrets: []string{"pull-secret"}},
-		},
-		"EmptyPullSecretName": {
-			reason: "We should return nothing if the applied image config names an empty pull secret.",
-			client: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-				o.(*v1beta1.ImageConfig).Spec.Registry = &v1beta1.RegistryConfig{
-					Authentication: &v1beta1.RegistryAuthentication{
-						PullSecretRef: corev1.LocalObjectReference{Name: ""},
-					},
-				}
-				return nil
-			})},
-			revision: withRefs(v1.ImageConfigRef{Name: "some-config", Reason: v1.ImageConfigReasonSetPullSecret}),
-			want:     want{},
 		},
 	}
 
