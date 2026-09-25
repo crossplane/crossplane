@@ -201,6 +201,10 @@ func setCondition(conditions []xpv2.Condition, c xpv2.Condition) []xpv2.Conditio
 
 // discoverExternal calls the provider's ExternalLister to discover external resources.
 // This method handles the provider integration and pagination.
+//
+// KNOWN LIMITATION (Alpha stage):
+// This is a stub implementation. The actual discovery is not yet implemented.
+// See "Known Limitations" section in the PR description for details.
 func (r *Reconciler) discoverExternal(ctx context.Context, log logging.Logger, mrd *v1alpha1.ManagedResourceDefinition, pcName string) ([]v1alpha1.ExternalResource, error) {
 	// PROVIDER INTEGRATION POINT:
 	// This is where we would call the provider's ExternalLister interface.
@@ -211,6 +215,7 @@ func (r *Reconciler) discoverExternal(ctx context.Context, log logging.Logger, m
 	// 1. Providers run as separate Deployments with their own controllers
 	// 2. The ExternalClient is instantiated per ProviderConfig in the provider pod
 	// 3. Crossplane discovery controller cannot directly import or instantiate providers
+	// 4. The ExternalLister interface has not yet landed in crossplane-runtime
 	//
 	// Solutions for future implementation:
 	// A. Provider webhook/gRPC endpoint: Provider exposes an endpoint for discovery
@@ -267,7 +272,7 @@ func (r *Reconciler) getExistingManagedResources(ctx context.Context, mrd *v1alp
 
 	gvr := schema.GroupVersionResource{
 		Group:    mrd.Spec.Group,
-		Version:  mrd.Spec.Names.Categories[0], // Use first category as fallback, typically "v1"
+		Version:  "v1",
 		Resource: plural,
 	}
 
