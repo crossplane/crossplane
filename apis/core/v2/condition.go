@@ -65,9 +65,10 @@ const (
 
 // Reasons a resource is or is not synced.
 const (
-	ReasonReconcileSuccess ConditionReason = "ReconcileSuccess"
-	ReasonReconcileError   ConditionReason = "ReconcileError"
-	ReasonReconcilePaused  ConditionReason = "ReconcilePaused"
+	ReasonReconcileSuccess   ConditionReason = "ReconcileSuccess"
+	ReasonReconcileError     ConditionReason = "ReconcileError"
+	ReasonReconcilePaused    ConditionReason = "ReconcilePaused"
+	ReasonReconcileForbidden ConditionReason = "ReconcileForbidden"
 )
 
 // Reasons a resource is or is not up to date.
@@ -323,6 +324,19 @@ func ReconcilePaused() Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonReconcilePaused,
+	}
+}
+
+// ReconcileForbidden returns a condition that indicates reconciliation on
+// the managed resource is forbidden because managementPolicy 'Update' is missing
+// and a diff between spec and the external resource exists.
+func ReconcileForbidden() Condition {
+	return Condition{
+		Type:               TypeSynced,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonReconcileForbidden,
+		Message:            "Crossplane cannot reconcile this resource because updates are not allowed while drift exists; add Update to managementPolicies or align spec with external state.",
 	}
 }
 
