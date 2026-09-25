@@ -25,12 +25,12 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -38,7 +38,6 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	xpv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
 )
@@ -94,30 +93,18 @@ func (c *discoverCmd) Run(log logging.Logger) error {
 		return errors.Wrap(err, "cannot create dynamic client")
 	}
 
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(cfg)
-	if err != nil {
-		return errors.Wrap(err, "cannot create discovery client")
-	}
-
 	// Step 3: Look up MRD for the given kind/group
 	log.Debug("Looking up ManagedResourceDefinition", "kind", c.Kind, "group", c.Group)
-	mrd, err := c.getMRD(ctx, dClient, discoveryClient)
+	mrd, err := c.getMRD(ctx, dClient)
 	if err != nil {
 		return errors.Wrap(err, "cannot get ManagedResourceDefinition")
 	}
 
 	log.Debug("Found MRD", "name", mrd.Name)
 
-	// Step 4: Fetch ProviderConfig
-	log.Debug("Fetching ProviderConfig", "name", c.ProviderConfig, "group", mrd.Spec.Group)
-	pc, err := c.getProviderConfig(ctx, dClient, mrd, c.ProviderConfig)
-	if err != nil {
-		return errors.Wrap(err, "cannot get ProviderConfig")
-	}
-
-	// Step 5: List external resources (would call provider's ExternalLister)
-	log.Debug("Discovering external resources")
-	externalNames, err := c.listExternalResources(ctx, log, mrd, pc)
+	// Step 5: List external resources from DiscoveryReport
+	log.Debug("Querying DiscoveryReport for external resources")
+	externalNames, err := c.listExternalResources(ctx, log, dClient, mrd)
 	if err != nil {
 		return errors.Wrap(err, "cannot list external resources")
 	}
@@ -141,7 +128,7 @@ func (c *discoverCmd) Run(log logging.Logger) error {
 
 	// Step 8: Generate YAML manifests
 	log.Debug("Generating adoption manifests")
-	yaml, err := c.generateManifests(mrd, pc, unmanaged)
+	yaml, err := c.generateManifests(mrd, unmanaged)
 	if err != nil {
 		return errors.Wrap(err, "cannot generate manifests")
 	}
@@ -164,7 +151,7 @@ func (c *discoverCmd) Run(log logging.Logger) error {
 }
 
 // getMRD looks up the ManagedResourceDefinition by kind/group.
-func (c *discoverCmd) getMRD(ctx context.Context, dClient dynamic.Interface, discoveryClient discovery.DiscoveryInterface) (*xpv1alpha1.ManagedResourceDefinition, error) {
+func (c *discoverCmd) getMRD(ctx context.Context, dClient dynamic.Interface) (*xpv1alpha1.ManagedResourceDefinition, error) {
 	gvr := schema.GroupVersionResource{
 		Group:    "apiextensions.crossplane.io",
 		Version:  "v1alpha1",
@@ -196,70 +183,56 @@ func (c *discoverCmd) getMRD(ctx context.Context, dClient dynamic.Interface, dis
 	return foundMRD, nil
 }
 
-// getProviderConfig fetches the named ProviderConfig from the cluster.
-// Returns a reference to the ProviderConfig for use with the provider's ExternalClient.
-// Each provider has its own ProviderConfig type, but they all follow Crossplane conventions.
-func (c *discoverCmd) getProviderConfig(ctx context.Context, dClient dynamic.Interface, mrd *xpv1alpha1.ManagedResourceDefinition, pcName string) (resource.ProviderConfig, error) {
-	// The ProviderConfig group is typically the same as the MRD group.
-	// The kind is usually "ProviderConfig" and resource is pluralized lowercase.
+// listExternalResources queries the DiscoveryReport CRD to get discovered external resources.
+// The discovery controller populates the DiscoveryReport, so this reads its findings.
+func (c *discoverCmd) listExternalResources(ctx context.Context, log logging.Logger, dClient dynamic.Interface, mrd *xpv1alpha1.ManagedResourceDefinition) ([]string, error) {
+
+	// Query DiscoveryReport CRD by MRD name (cluster-scoped)
 	gvr := schema.GroupVersionResource{
-		Group:    mrd.Spec.Group,
-		Version:  "v1",
-		Resource: "providerconfigs", // Standard Crossplane naming convention
+		Group:    "apiextensions.crossplane.io",
+		Version:  "v1alpha1",
+		Resource: "discoveryreports",
 	}
 
-	// Try to fetch the ProviderConfig object
-	obj, err := dClient.Resource(gvr).Namespace("crossplane-system").Get(ctx, pcName, metav1.GetOptions{})
+	// Try to get the DiscoveryReport with the same name as the MRD
+	dr, err := dClient.Resource(gvr).Get(ctx, mrd.Name, metav1.GetOptions{})
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot get ProviderConfig %q in group %q", pcName, mrd.Spec.Group)
+		return nil, errors.Wrapf(err, "cannot get DiscoveryReport for MRD %q; " +
+			"ensure the discovery controller is running and has scanned this resource type", mrd.Name)
 	}
 
-	// NOTE: We return the unstructured object reference here.
-	// In practice, when instantiating the provider's ExternalClient, the provider
-	// will need to convert this to its specific ProviderConfig type.
-	// This is a placeholder - the real implementation would need to handle provider-specific types.
-	// For now, we store a reference to the object that can be passed to the provider.
-	_ = obj // Placeholder - use in provider instantiation step
+	// Extract the list of external names from the DiscoveryReport status
+	unmanagedResources, ok, err := unstructured.NestedSlice(dr.Object, "status", "unmanagedResources")
+	if err != nil || !ok {
+		// No unmanaged resources found (all are already managed)
+		return []string{}, nil
+	}
 
-	// Return nil for now - this requires provider integration design
-	return nil, errors.New(
-		"ProviderConfig instantiation requires provider-specific handling\n" +
-			"This is a design placeholder pending provider instantiation approach decision",
-	)
-}
+	// Convert each unmanagedResource to a string (externalName)
+	var externalNames []string
+	for _, res := range unmanagedResources {
+		resMap, ok := res.(map[string]interface{})
+		if !ok {
+			log.Debug("skipping invalid unmanagedResource entry")
+			continue
+		}
 
-// listExternalResources calls the provider's ExternalLister (if implemented).
-// This is the key integration point with the ExternalLister interface.
-// TODO: This requires provider instantiation - see DESIGN.md for approach options.
-func (c *discoverCmd) listExternalResources(ctx context.Context, log logging.Logger, mrd *xpv1alpha1.ManagedResourceDefinition, pc resource.ProviderConfig) ([]string, error) {
-	_ = ctx
-	_ = log
-	_ = mrd
-	_ = pc
+		externalName, ok := resMap["externalName"].(string)
+		if ok && externalName != "" {
+			externalNames = append(externalNames, externalName)
+		}
+	}
 
-	// DESIGN NOTE: Provider instantiation can be done in several ways:
-	// Option A: Direct import + factory function (recommended for initial implementation)
-	//   - Requires importing each provider package
-	//   - Provider exports a factory: NewExternalClient(config) (resource.ExternalClient, error)
-	//   - Use type assertion: if lister, ok := client.(resource.ExternalLister); ok
-	//
-	// Option B: Dynamic provider lookup (requires MCP/plugin system)
-	//   - Discover provider from cluster
-	//   - Call provider via webhook/gRPC
-	//   - More decoupled but higher complexity
-	//
-	// Option C: Use existing provider client plumbing
-	//   - Leverage existing ProviderConfig auth mechanisms
-	//   - Each provider already handles credential injection
-	//
-	// Current implementation defers this decision pending design review.
-	// For now, return placeholder error with clear guidance.
+	// Warn if the DiscoveryReport is stale (> 10 minutes old)
+	lastScanTime, ok, err := unstructured.NestedString(dr.Object, "status", "lastDiscoveryTime")
+	if ok && lastScanTime != "" {
+		lastScan, parseErr := time.Parse(time.RFC3339, lastScanTime)
+		if parseErr == nil && time.Since(lastScan) > 10*time.Minute {
+			log.Debug("DiscoveryReport is stale; results may be outdated", "lastScan", lastScan)
+		}
+	}
 
-	return []string{}, errors.New(
-		"provider ExternalLister integration not yet implemented\n" +
-			"This requires a design decision on provider instantiation.\n" +
-			"See design-doc-resource-discovery-and-import.md for details.",
-	)
+	return externalNames, nil
 }
 
 // getExistingManagedResources queries the cluster for all MRs of the given kind
@@ -288,8 +261,7 @@ func (c *discoverCmd) getExistingManagedResources(ctx context.Context, dClient d
 }
 
 // generateManifests creates Kubernetes manifests for adopting unmanaged resources.
-func (c *discoverCmd) generateManifests(mrd *xpv1alpha1.ManagedResourceDefinition, pc resource.ProviderConfig, unmanagedNames []string) (string, error) {
-	_ = pc // Would be used to get ProviderConfig name
+func (c *discoverCmd) generateManifests(mrd *xpv1alpha1.ManagedResourceDefinition, unmanagedNames []string) (string, error) {
 
 	var buf bytes.Buffer
 

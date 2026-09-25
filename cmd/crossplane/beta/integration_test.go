@@ -58,7 +58,7 @@ func TestManagedResourceDefinitionLookup(t *testing.T) {
 
 	// Test MRD lookup
 	ctx := context.Background()
-	found, err := cmd.getMRD(ctx, fakeClient, nil)
+	found, err := cmd.getMRD(ctx, fakeClient)
 
 	if err != nil {
 		// It's okay if this fails due to discovery client limitations
