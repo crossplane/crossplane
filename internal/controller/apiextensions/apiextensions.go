@@ -24,9 +24,11 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composition"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/definition"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/discovery"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/managed"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/offered"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/revision"
+	"github.com/crossplane/crossplane/v2/internal/features"
 )
 
 // Setup API extensions controllers.
@@ -51,5 +53,15 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		return err
 	}
 
-	return offered.Setup(mgr, o)
+	if err := offered.Setup(mgr, o); err != nil {
+		return err
+	}
+
+	if o.Features.Enabled(features.EnableAlphaResourceDiscovery) {
+		if err := discovery.Setup(mgr, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
