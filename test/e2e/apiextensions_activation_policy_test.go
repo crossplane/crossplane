@@ -87,6 +87,12 @@ func TestMRAPActivatesSingleMRD(t *testing.T) {
 					v1alpha1.EstablishedManaged()),
 			)).
 
+			// Verify MRAP becomes established after its activated MRD
+			Assess("MRAPBecomesEstablished",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mrap.yaml",
+					v1alpha1.EstablishedManaged()),
+			).
+
 			// Verify CRD is created
 			Assess("CRDIsCreated", funcs.AllOf(
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "expected-crd.yaml"),
