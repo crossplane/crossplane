@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -76,6 +77,7 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get ManagedResourceActivationPolicy")
 	}
 
+	statusBefore := mrap.Status.DeepCopy()
 	status := r.conditions.For(mrap)
 
 	log = log.WithValues(
@@ -86,6 +88,10 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 
 	if meta.WasDeleted(mrap) {
 		status.MarkConditions(v1alpha1.TerminatingActivationPolicy())
+		if cmp.Equal(statusBefore, &mrap.Status) {
+			return reconcile.Result{}, nil
+		}
+
 		if err := r.Status().Update(ogctx, mrap); err != nil {
 			log.Debug("cannot update status of ManagedResourceActivationPolicy", "error", err)
 			if kerrors.IsConflict(err) {
@@ -109,7 +115,10 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		log.Debug("cannot list ManagedResourceDefinition", "error", err)
 
 		status.MarkConditions(v1alpha1.BlockedActivationPolicy().WithMessage("cannot list ManagedResourceDefinition"))
-		_ = r.Status().Update(ogctx, mrap)
+
+		if !cmp.Equal(statusBefore, &mrap.Status) {
+			_ = r.Status().Update(ogctx, mrap)
+		}
 
 		return reconcile.Result{}, errors.Wrap(err, "cannot list ManagedResourceDefinition")
 	}
@@ -143,6 +152,8 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		status.MarkConditions(v1alpha1.Healthy())
 	}
 
-	// TODO: we should really do a diff of the status to see if we should update or not.
-	return reconcile.Result{}, errors.Wrap(r.Status().Update(ogctx, mrap), "cannot update status of ManagedResourceActivationPolicy")
+	if !cmp.Equal(statusBefore, &mrap.Status) {
+		return reconcile.Result{}, errors.Wrap(r.Status().Update(ogctx, mrap), "cannot update status of ManagedResourceActivationPolicy")
+	}
+	return reconcile.Result{}, nil
 }

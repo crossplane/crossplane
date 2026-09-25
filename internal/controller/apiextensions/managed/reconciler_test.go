@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,8 +42,86 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
 )
+
+func TestStatusChanged(t *testing.T) {
+	before := &v1alpha1.ManagedResourceDefinitionStatus{
+		ConditionedStatus: xpv2.ConditionedStatus{Conditions: []xpv2.Condition{
+			{
+				Type:               v1alpha1.TypeEstablished,
+				Status:             corev1.ConditionTrue,
+				Reason:             v1alpha1.EstablishedManagedResource,
+				LastTransitionTime: metav1.NewTime(time.Unix(1, 0)),
+			},
+			{
+				Type:               v1alpha1.TypeHealthy,
+				Status:             corev1.ConditionTrue,
+				Reason:             v1alpha1.ReasonHealthy,
+				LastTransitionTime: metav1.NewTime(time.Unix(2, 0)),
+			},
+		}},
+	}
+
+	reordered := before.DeepCopy()
+	reordered.Conditions[0], reordered.Conditions[1] = reordered.Conditions[1], reordered.Conditions[0]
+	reordered.Conditions[0].LastTransitionTime = metav1.NewTime(time.Unix(3, 0))
+	reordered.Conditions[1].LastTransitionTime = metav1.NewTime(time.Unix(4, 0))
+
+	remessaged := before.DeepCopy()
+	remessaged.Conditions[0].Message = "changed"
+
+	type args struct {
+		before *v1alpha1.ManagedResourceDefinitionStatus
+		after  *v1alpha1.ManagedResourceDefinitionStatus
+	}
+	type want struct {
+		changed bool
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"IgnoreTransitionTimeAndOrder": {
+			reason: "Conditions differing only in order and LastTransitionTime are equal",
+			args: args{
+				before: before,
+				after:  reordered,
+			},
+			want: want{changed: false},
+		},
+		"DetectMessageChange": {
+			reason: "Changed condition message indicates status change",
+			args: args{
+				before: before,
+				after:  remessaged,
+			},
+			want: want{changed: true},
+		},
+		"EquateEmpty": {
+			reason: "Nil and empty condition slices are equal",
+			args: args{
+				before: &v1alpha1.ManagedResourceDefinitionStatus{},
+				after: &v1alpha1.ManagedResourceDefinitionStatus{
+					ConditionedStatus: xpv2.ConditionedStatus{Conditions: []xpv2.Condition{}},
+				},
+			},
+			want: want{changed: false},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := statusChanged(tc.args.before, tc.args.after)
+			if diff := cmp.Diff(tc.want.changed, got); diff != "" {
+				t.Errorf("\n%s\nstatusChanged(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
@@ -142,6 +221,24 @@ func TestReconcile(t *testing.T) {
 						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
 						mrd.SetConditions(v1alpha1.InactiveManaged())
 					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"MRDInactiveStatusUnchanged": {
+			reason: "We should not update status when the MRD is already marked inactive",
+			args: args{
+				c: &test.MockClient{
+					MockGet: withMRD(t, newMRD(func(mrd *v1alpha1.ManagedResourceDefinition) {
+						mrd.Spec.State = v1alpha1.ManagedResourceDefinitionInactive
+						mrd.SetConditions(v1alpha1.InactiveManaged())
+					})),
+					MockStatusUpdate: func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
+						t.Error("Status().Update() called for unchanged status")
+						return nil
+					},
 				},
 			},
 			want: want{
