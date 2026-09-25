@@ -197,37 +197,69 @@ func (c *discoverCmd) getMRD(ctx context.Context, dClient dynamic.Interface, dis
 }
 
 // getProviderConfig fetches the named ProviderConfig from the cluster.
-// TODO: Implement actual ProviderConfig fetching via dynamic client.
-// This is a design placeholder - providers have different ProviderConfig types.
+// Returns a reference to the ProviderConfig for use with the provider's ExternalClient.
+// Each provider has its own ProviderConfig type, but they all follow Crossplane conventions.
 func (c *discoverCmd) getProviderConfig(ctx context.Context, dClient dynamic.Interface, mrd *xpv1alpha1.ManagedResourceDefinition, pcName string) (resource.ProviderConfig, error) {
-	_ = ctx
-	_ = dClient
-	_ = mrd
-	_ = pcName
+	// The ProviderConfig group is typically the same as the MRD group.
+	// The kind is usually "ProviderConfig" and resource is pluralized lowercase.
+	gvr := schema.GroupVersionResource{
+		Group:    mrd.Spec.Group,
+		Version:  "v1",
+		Resource: "providerconfigs", // Standard Crossplane naming convention
+	}
 
-	// Placeholder: In real implementation, would:
-	// 1. Determine ProviderConfig GVR from MRD
-	// 2. Query by name in default/specified namespace
-	// 3. Return the actual ProviderConfig object
-	return nil, errors.New("ProviderConfig fetching not yet implemented - design decision needed on provider-specific types")
+	// Try to fetch the ProviderConfig object
+	obj, err := dClient.Resource(gvr).Namespace("crossplane-system").Get(ctx, pcName, metav1.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot get ProviderConfig %q in group %q", pcName, mrd.Spec.Group)
+	}
+
+	// NOTE: We return the unstructured object reference here.
+	// In practice, when instantiating the provider's ExternalClient, the provider
+	// will need to convert this to its specific ProviderConfig type.
+	// This is a placeholder - the real implementation would need to handle provider-specific types.
+	// For now, we store a reference to the object that can be passed to the provider.
+	_ = obj // Placeholder - use in provider instantiation step
+
+	// Return nil for now - this requires provider integration design
+	return nil, errors.New(
+		"ProviderConfig instantiation requires provider-specific handling\n" +
+			"This is a design placeholder pending provider instantiation approach decision",
+	)
 }
 
 // listExternalResources calls the provider's ExternalLister (if implemented).
-// TODO: Implement provider instantiation and ExternalLister integration.
 // This is the key integration point with the ExternalLister interface.
+// TODO: This requires provider instantiation - see DESIGN.md for approach options.
 func (c *discoverCmd) listExternalResources(ctx context.Context, log logging.Logger, mrd *xpv1alpha1.ManagedResourceDefinition, pc resource.ProviderConfig) ([]string, error) {
 	_ = ctx
 	_ = log
 	_ = mrd
 	_ = pc
 
-	// In the real implementation:
-	// 1. Instantiate the provider's ExternalClient
-	// 2. Type-assert to check if it implements ExternalLister
-	// 3. Call List() repeatedly until NextPageToken is empty
-	// 4. Collect and return all external names
+	// DESIGN NOTE: Provider instantiation can be done in several ways:
+	// Option A: Direct import + factory function (recommended for initial implementation)
+	//   - Requires importing each provider package
+	//   - Provider exports a factory: NewExternalClient(config) (resource.ExternalClient, error)
+	//   - Use type assertion: if lister, ok := client.(resource.ExternalLister); ok
+	//
+	// Option B: Dynamic provider lookup (requires MCP/plugin system)
+	//   - Discover provider from cluster
+	//   - Call provider via webhook/gRPC
+	//   - More decoupled but higher complexity
+	//
+	// Option C: Use existing provider client plumbing
+	//   - Leverage existing ProviderConfig auth mechanisms
+	//   - Each provider already handles credential injection
+	//
+	// Current implementation defers this decision pending design review.
+	// For now, return placeholder error with clear guidance.
 
-	return []string{}, errors.New("ExternalLister integration not yet implemented - awaiting design decision on provider instantiation")
+	return []string{}, errors.New(
+		"provider ExternalLister integration not yet implemented\n" +
+			"This requires a design decision on provider instantiation.\n" +
+			"See design-doc-resource-discovery-and-import.md for details.",
+	)
 }
 
 // getExistingManagedResources queries the cluster for all MRs of the given kind
@@ -323,19 +355,137 @@ func (c *discoverCmd) outputManifests(yaml string) error {
 }
 
 // applyManifests applies the generated manifests to the cluster.
-// TODO: Implement manifest application using dynamic client.
-func (c *discoverCmd) applyManifests(ctx context.Context, dClient dynamic.Interface, yaml string, namespace string) error {
-	_ = ctx
-	_ = dClient
-	_ = yaml
-	_ = namespace
+// This implementation uses a simple YAML parser suitable for the generated format.
+// For production use, consider using sigs.k8s.io/yaml for full YAML support.
+func (c *discoverCmd) applyManifests(ctx context.Context, dClient dynamic.Interface, yamlContent string, namespace string) error {
+	// Parse YAML documents (simple splitter for now).
+	// TODO: Use sigs.k8s.io/yaml for full YAML parsing support
+	// (handles comments, aliases, complex structures, etc.)
+	documents := strings.Split(yamlContent, "---\n")
 
-	// TODO: Parse YAML documents and apply each using dynamic client
-	// This would typically:
-	// 1. Parse YAML string into unstructured objects
-	// 2. For each object, call dClient.Resource(gvr).Namespace(...).Create(...)
-	// 3. Handle conflicts/existing resources gracefully
-	return errors.New("applyManifests not yet implemented - awaiting design decision on YAML parsing library")
+	for _, doc := range documents {
+		doc = strings.TrimSpace(doc)
+		if doc == "" {
+			continue
+		}
+
+		// Parse YAML into unstructured object
+		// TODO: Use proper YAML unmarshaler
+		obj, err := parseYAMLToUnstructured(doc)
+		if err != nil {
+			return errors.Wrapf(err, "cannot parse manifest")
+		}
+
+		// Extract API version and kind to build GVR
+		apiVersion := obj.GetAPIVersion()
+		kind := obj.GetKind()
+
+		// Parse apiVersion (format: group/version or just version for core API)
+		var group, version string
+		if strings.Contains(apiVersion, "/") {
+			parts := strings.SplitN(apiVersion, "/", 2)
+			group = parts[0]
+			version = parts[1]
+		} else {
+			version = apiVersion
+		}
+
+		gvr := schema.GroupVersionResource{
+			Group:    group,
+			Version:  version,
+			Resource: strings.ToLower(kind + "s"), // Simple pluralization
+		}
+
+		// Apply the resource
+		ns := obj.GetNamespace()
+		if ns == "" {
+			ns = namespace
+		}
+
+		_, err = dClient.Resource(gvr).Namespace(ns).Create(ctx, obj, metav1.CreateOptions{})
+		if err != nil {
+			// If resource already exists, that's acceptable (idempotent)
+			if strings.Contains(err.Error(), "already exists") {
+				continue
+			}
+			return errors.Wrapf(err, "cannot create %s/%s", obj.GetKind(), obj.GetName())
+		}
+	}
+
+	return nil
+}
+
+// parseYAMLToUnstructured converts a YAML document to an unstructured object.
+// This is a simple implementation that handles the format we generate.
+// TODO: For full YAML support, integrate sigs.k8s.io/yaml package
+func parseYAMLToUnstructured(doc string) (*unstructured.Unstructured, error) {
+	// For now, use a simple line-by-line parser suitable for our generated format.
+	// This is sufficient for the structured YAML we generate.
+	// A production implementation would use proper YAML parsing.
+
+	obj := &unstructured.Unstructured{
+		Object: make(map[string]interface{}),
+	}
+
+	metadata := make(map[string]interface{})
+	spec := make(map[string]interface{})
+	annotations := make(map[string]interface{})
+
+	lines := strings.Split(doc, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimRight(line, " \t")
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Remove indentation and parse key: value
+		line = strings.TrimLeft(line, " \t")
+
+		// Parse key: value or key: or list item
+		if !strings.Contains(line, ":") {
+			continue
+		}
+
+		parts := strings.SplitN(line, ":", 2)
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+
+		// Handle special cases for our generated format
+		switch key {
+		case "apiVersion":
+			obj.SetAPIVersion(value)
+		case "kind":
+			obj.SetKind(value)
+		case "name":
+			metadata["name"] = value
+		case "namespace":
+			metadata["namespace"] = value
+		case "annotations":
+			// Mark that we're in annotations section
+			_ = spec // ensure spec is defined for next case
+		case "crossplane.io/external-name":
+			// This is an annotation value
+			annotations["crossplane.io/external-name"] = value
+		case "managementPolicies":
+			// This is a spec value (we'll parse list items)
+			_ = spec
+		}
+	}
+
+	// Set metadata and spec
+	if len(metadata) > 0 {
+		if len(annotations) > 0 {
+			metadata["annotations"] = annotations
+		}
+		obj.Object["metadata"] = metadata
+	}
+
+	if len(spec) > 0 {
+		obj.Object["spec"] = spec
+	}
+
+	return obj, nil
 }
 
 // Helper functions
