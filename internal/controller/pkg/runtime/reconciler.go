@@ -375,7 +375,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Migrate provider deployment selector, if needed.
-	if err := r.migrator.MigrateDeploymentSelector(ctx, pr, builder); err != nil {
+	if err := r.migrator.MigrateDeploymentSelector(ctx, pr, builder.Deployment(builder.ServiceAccount().Name)); err != nil {
 		err = errors.Wrap(err, "failed to run deployment selector migration")
 		status.MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
 

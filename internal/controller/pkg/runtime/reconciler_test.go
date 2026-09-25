@@ -700,7 +700,7 @@ func TestReconcile(t *testing.T) {
 					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{}),
 					WithDeploymentSelectorMigrator(&MockDeploymentSelectorMigrator{
-						MockMigrateDeploymentSelector: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
+						MockMigrateDeploymentSelector: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ *appsv1.Deployment) error {
 							return errBoom
 						},
 					}),
@@ -760,7 +760,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithDeploymentSelectorMigrator(&MockDeploymentSelectorMigrator{
-						MockMigrateDeploymentSelector: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
+						MockMigrateDeploymentSelector: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ *appsv1.Deployment) error {
 							return nil // Migration succeeds
 						},
 					}),
