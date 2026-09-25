@@ -24,15 +24,18 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
+	extv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
 	"github.com/crossplane/crossplane/v2/internal/initializer"
 )
@@ -47,27 +50,65 @@ const (
 	errFmtUnavailableProviderDeployment       = "provider package deployment is unavailable with message: %s"
 	errNoAvailableConditionProviderDeployment = "provider package deployment has no condition of type \"Available\" yet"
 	errParseProviderImage                     = "cannot parse provider package image"
+	errMigrateProviderDeployment              = "cannot migrate provider package deployment selector"
+	errListMRDs                               = "cannot list ManagedResourceDefinitions to determine whether the provider runtime can start"
+
+	msgAwaitingActivation = "Package runtime is scaled to zero; awaiting the first ManagedResourceDefinition to be activated"
 )
 
 // ProviderHooks performs runtime operations for provider packages.
 type ProviderHooks struct {
 	client resource.ClientApplicator
+
+	// namespace is the namespace in which runtime objects are created.
+	namespace string
+	// coreServiceAccount is the name of the core Crossplane ServiceAccount. We
+	// propagate its image pull secrets to the runtime ServiceAccount.
+	coreServiceAccount string
+
+	migrator DeploymentSelectorMigrator
+
+	conditions conditions.Manager
 }
 
 // NewProviderHooks returns a new ProviderHooks.
-func NewProviderHooks(client client.Client) *ProviderHooks {
+func NewProviderHooks(c client.Client, namespace, coreServiceAccount string, m DeploymentSelectorMigrator) *ProviderHooks {
+	if m == nil {
+		m = NewNopDeploymentSelectorMigrator()
+	}
+
 	return &ProviderHooks{
 		client: resource.ClientApplicator{
-			Client:     client,
-			Applicator: resource.NewAPIPatchingApplicator(client),
+			Client:     c,
+			Applicator: resource.NewAPIPatchingApplicator(c),
 		},
+		namespace:          namespace,
+		coreServiceAccount: coreServiceAccount,
+		migrator:           m,
+		conditions:         conditions.ObservedGenerationPropagationManager{},
 	}
 }
 
+// builder returns the manifest builder for a provider revision's runtime
+// objects. A nil runtime config means the objects are built from scratch.
+func (h *ProviderHooks) builder(pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig, opts ...BuilderOption) *DeploymentRuntimeBuilder {
+	return NewDeploymentRuntimeBuilder(pr, h.namespace, append([]BuilderOption{BuilderWithRuntimeConfig(rc)}, opts...)...)
+}
+
 // Pre performs operations meant to happen before establishing objects.
-func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
+func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig) error {
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
 		return nil
+	}
+
+	build := h.builder(pr, rc)
+
+	// Migrate the deployment selector if needed. This has to happen before we
+	// apply anything, so that a deployment with an outdated selector is deleted
+	// and recreated by the post-establish step. Only the deployment's name and
+	// namespace matter here.
+	if err := h.migrator.MigrateDeploymentSelector(ctx, pr, build.Deployment(build.ServiceAccount().Name)); err != nil {
+		return errors.Wrap(err, errMigrateProviderDeployment)
 	}
 
 	pr.SetObservedTLSServerSecretName(pr.GetTLSServerSecretName())
@@ -97,6 +138,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 	if err := applySharedRuntimeObject(ctx, h.client.Client, pr, secClient); err != nil {
 		return errors.Wrap(err, errApplyProviderSecret)
 	}
+
 	if err := applySharedRuntimeObject(ctx, h.client.Client, pr, secServer); err != nil {
 		return errors.Wrap(err, errApplyProviderSecret)
 	}
@@ -113,14 +155,35 @@ func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 }
 
 // Post performs operations meant to happen after establishing objects.
-func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
+func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig) error {
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
 		return nil
 	}
 
+	saPullSecrets, err := corePullSecrets(ctx, h.client.Client, h.namespace, h.coreServiceAccount)
+	if err != nil {
+		return err
+	}
+
+	pullSecrets, err := imageConfigPullSecrets(ctx, h.client.Client, pr)
+	if err != nil {
+		return err
+	}
+
+	mrds, err := h.ownedMRDs(ctx, pr)
+	if err != nil {
+		return err
+	}
+
+	build := h.builder(pr, rc,
+		BuilderWithServiceAccountPullSecrets(saPullSecrets),
+		BuilderWithPullSecrets(pullSecrets...),
+		BuilderWithMRDs(mrds),
+	)
+
 	sa := build.ServiceAccount()
 
-	// Determine the function's image.
+	// Determine the provider's image.
 	image, err := name.ParseReference(pr.GetResolvedSource(), name.StrictValidation)
 	if err != nil {
 		return errors.Wrap(err, errParseProviderImage)
@@ -144,11 +207,17 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 
 	for _, c := range d.Status.Conditions {
 		if c.Type == appsv1.DeploymentAvailable {
-			if c.Status == corev1.ConditionTrue {
-				return nil
+			if c.Status != corev1.ConditionTrue {
+				return errors.Errorf(errFmtUnavailableProviderDeployment, c.Message)
 			}
 
-			return errors.Errorf(errFmtUnavailableProviderDeployment, c.Message)
+			if build.AwaitingActivation() {
+				h.conditions.For(pr).MarkConditions(v1.RuntimeHealthy(), v1.RuntimeAwaitingActivation().WithMessage(msgAwaitingActivation))
+			} else {
+				h.conditions.For(pr).MarkConditions(v1.RuntimeHealthy(), v1.RuntimeActive())
+			}
+
+			return nil
 		}
 	}
 
@@ -156,7 +225,9 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 }
 
 // Deactivate performs operations meant to happen before deactivating a revision.
-func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
+func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig) error {
+	build := h.builder(pr, rc)
+
 	sa := build.ServiceAccount()
 	// Delete the deployment if it exists.
 	// Different from the Post runtimeHook, we don't need to pass the
@@ -187,6 +258,29 @@ func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 	// included. The revision taking over demotes us as part of claiming them, which keeps the
 	// handover to a single writer.
 	return nil
+}
+
+// ownedMRDs returns the ManagedResourceDefinitions controlled by pr. It returns
+// nil without listing if pr does not have the safe-start capability.
+func (h *ProviderHooks) ownedMRDs(ctx context.Context, pr v1.PackageRevisionWithRuntime) ([]extv1alpha1.ManagedResourceDefinition, error) {
+	if !pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
+		return nil, nil
+	}
+
+	mrds := &extv1alpha1.ManagedResourceDefinitionList{}
+	if err := h.client.List(ctx, mrds); err != nil {
+		return nil, errors.Wrap(err, errListMRDs)
+	}
+
+	var owned []extv1alpha1.ManagedResourceDefinition
+
+	for i := range mrds.Items {
+		if metav1.IsControlledBy(&mrds.Items[i], pr) {
+			owned = append(owned, mrds.Items[i])
+		}
+	}
+
+	return owned, nil
 }
 
 func providerServiceOverrides() []ServiceOverride {
@@ -265,25 +359,4 @@ func providerDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string)
 	}
 
 	return do
-}
-
-// applySA creates/updates a ServiceAccount as a shared runtime object and includes
-// any image pull secrets that have been added by external controllers.
-func applySA(ctx context.Context, cl resource.ClientApplicator, owner metav1.Object, sa *corev1.ServiceAccount) error {
-	oldSa := &corev1.ServiceAccount{}
-	if err := cl.Get(ctx, types.NamespacedName{Name: sa.Name, Namespace: sa.Namespace}, oldSa); err == nil {
-		// Add pull secrets created by other controllers
-		existingSecrets := make(map[string]bool)
-		for _, secret := range sa.ImagePullSecrets {
-			existingSecrets[secret.Name] = true
-		}
-
-		for _, secret := range oldSa.ImagePullSecrets {
-			if !existingSecrets[secret.Name] {
-				sa.ImagePullSecrets = append(sa.ImagePullSecrets, secret)
-			}
-		}
-	}
-
-	return applySharedRuntimeObject(ctx, cl.Client, owner, sa)
 }

@@ -17,6 +17,7 @@ limitations under the License.
 package runtime
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -28,6 +29,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	extv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
@@ -113,7 +118,7 @@ var (
 
 func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 	type args struct {
-		builder            ManifestBuilder
+		builder            *DeploymentRuntimeBuilder
 		overrides          []DeploymentOverride
 		serviceAccountName string
 	}
@@ -416,7 +421,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 
 func TestRuntimeManifestBuilderService(t *testing.T) {
 	type args struct {
-		builder            ManifestBuilder
+		builder            *DeploymentRuntimeBuilder
 		overrides          []ServiceOverride
 		serviceAccountName string
 	}
@@ -815,40 +820,6 @@ func deploymentFunction(function string, rev string, image string, overrides ...
 	return d
 }
 
-// MockManifestBuilder is a mock implementation of ManifestBuilder.
-type MockManifestBuilder struct {
-	ServiceAccountFn  func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount
-	DeploymentFn      func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment
-	ServiceFn         func(overrides ...ServiceOverride) *corev1.Service
-	TLSClientSecretFn func() *corev1.Secret
-	TLSServerSecretFn func() *corev1.Secret
-}
-
-// ServiceAccount returns the result of calling ServiceAccountFn.
-func (b *MockManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
-	return b.ServiceAccountFn(overrides...)
-}
-
-// Deployment returns the result of calling DeploymentFn.
-func (b *MockManifestBuilder) Deployment(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
-	return b.DeploymentFn(serviceAccount, overrides...)
-}
-
-// Service returns the result of calling ServiceFn.
-func (b *MockManifestBuilder) Service(overrides ...ServiceOverride) *corev1.Service {
-	return b.ServiceFn(overrides...)
-}
-
-// TLSClientSecret returns the result of calling TLSClientSecretFn.
-func (b *MockManifestBuilder) TLSClientSecret() *corev1.Secret {
-	return b.TLSClientSecretFn()
-}
-
-// TLSServerSecret returns the result of calling TLSServerSecretFn.
-func (b *MockManifestBuilder) TLSServerSecret() *corev1.Secret {
-	return b.TLSServerSecretFn()
-}
-
 func TestDemotedControllers(t *testing.T) {
 	owner := &metav1.ObjectMeta{UID: incoming.UID}
 
@@ -971,6 +942,127 @@ func TestBuilderWithMRDs(t *testing.T) {
 			got := b.AwaitingActivation()
 			if diff := cmp.Diff(tc.wantScaleToZero, got); diff != "" {
 				t.Errorf("BuilderWithMRDs(...): AwaitingActivation() -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestCorePullSecrets(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	type want struct {
+		secrets []corev1.LocalObjectReference
+		err     error
+	}
+
+	cases := map[string]struct {
+		reason string
+		client client.Client
+		want   want
+	}{
+		"ErrGetServiceAccount": {
+			reason: "We should return an error if we can't get the core Crossplane service account.",
+			client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+			want:   want{err: errors.Wrap(errBoom, errGetServiceAccount)},
+		},
+		"NoPullSecrets": {
+			reason: "We should return nothing if the core Crossplane service account has no pull secrets.",
+			client: &test.MockClient{MockGet: test.NewMockGetFn(nil)},
+			want:   want{},
+		},
+		"PullSecrets": {
+			reason: "We should return the core Crossplane service account's pull secrets.",
+			client: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+				o.(*corev1.ServiceAccount).ImagePullSecrets = []corev1.LocalObjectReference{{Name: "core-secret"}}
+				return nil
+			})},
+			want: want{secrets: []corev1.LocalObjectReference{{Name: "core-secret"}}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := corePullSecrets(context.Background(), tc.client, namespace, "crossplane")
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ncorePullSecrets(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.secrets, got); diff != "" {
+				t.Errorf("\n%s\ncorePullSecrets(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestImageConfigPullSecrets(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	withRefs := func(refs ...v1.ImageConfigRef) *v1.ProviderRevision {
+		pr := &v1.ProviderRevision{}
+		pr.SetAppliedImageConfigRefs(refs...)
+		return pr
+	}
+
+	type want struct {
+		secrets []string
+		err     error
+	}
+
+	cases := map[string]struct {
+		reason   string
+		client   client.Client
+		revision v1.PackageRevisionWithRuntime
+		want     want
+	}{
+		"NoAppliedConfigs": {
+			reason:   "We should return nothing if no image config set a pull secret.",
+			client:   &test.MockClient{},
+			revision: withRefs(v1.ImageConfigRef{Name: "some-config", Reason: v1.ImageConfigReasonRuntime}),
+			want:     want{},
+		},
+		"ErrGetImageConfig": {
+			reason:   "We should return an error if we can't get the applied image config.",
+			client:   &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+			revision: withRefs(v1.ImageConfigRef{Name: "some-config", Reason: v1.ImageConfigReasonSetPullSecret}),
+			want:     want{err: errors.Wrap(errBoom, errGetPullConfig)},
+		},
+		"PullSecret": {
+			reason: "We should return the pull secret named by the applied image config.",
+			client: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+				o.(*v1beta1.ImageConfig).Spec.Registry = &v1beta1.RegistryConfig{
+					Authentication: &v1beta1.RegistryAuthentication{
+						PullSecretRef: corev1.LocalObjectReference{Name: "pull-secret"},
+					},
+				}
+				return nil
+			})},
+			revision: withRefs(v1.ImageConfigRef{Name: "some-config", Reason: v1.ImageConfigReasonSetPullSecret}),
+			want:     want{secrets: []string{"pull-secret"}},
+		},
+		"EmptyPullSecretName": {
+			reason: "We should return nothing if the applied image config names an empty pull secret.",
+			client: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+				o.(*v1beta1.ImageConfig).Spec.Registry = &v1beta1.RegistryConfig{
+					Authentication: &v1beta1.RegistryAuthentication{
+						PullSecretRef: corev1.LocalObjectReference{Name: ""},
+					},
+				}
+				return nil
+			})},
+			revision: withRefs(v1.ImageConfigRef{Name: "some-config", Reason: v1.ImageConfigReasonSetPullSecret}),
+			want:     want{},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := imageConfigPullSecrets(context.Background(), tc.client, tc.revision)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nimageConfigPullSecrets(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.secrets, got); diff != "" {
+				t.Errorf("\n%s\nimageConfigPullSecrets(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

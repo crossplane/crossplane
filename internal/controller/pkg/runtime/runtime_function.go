@@ -27,11 +27,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/initializer"
 )
 
@@ -49,23 +51,42 @@ const (
 // FunctionHooks performs runtime operations for function packages.
 type FunctionHooks struct {
 	client resource.ClientApplicator
+
+	// namespace is the namespace in which runtime objects are created.
+	namespace string
+	// coreServiceAccount is the name of the core Crossplane ServiceAccount. We
+	// propagate its image pull secrets to the runtime ServiceAccount.
+	coreServiceAccount string
+
+	conditions conditions.Manager
 }
 
 // NewFunctionHooks returns a new FunctionHooks.
-func NewFunctionHooks(client client.Client) *FunctionHooks {
+func NewFunctionHooks(c client.Client, namespace, coreServiceAccount string) *FunctionHooks {
 	return &FunctionHooks{
 		client: resource.ClientApplicator{
-			Client:     client,
-			Applicator: resource.NewAPIPatchingApplicator(client),
+			Client:     c,
+			Applicator: resource.NewAPIPatchingApplicator(c),
 		},
+		namespace:          namespace,
+		coreServiceAccount: coreServiceAccount,
+		conditions:         conditions.ObservedGenerationPropagationManager{},
 	}
 }
 
+// builder returns the manifest builder for a function revision's runtime
+// objects. A nil runtime config means the objects are built from scratch.
+func (h *FunctionHooks) builder(pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig, opts ...BuilderOption) *DeploymentRuntimeBuilder {
+	return NewDeploymentRuntimeBuilder(pr, h.namespace, append([]BuilderOption{BuilderWithRuntimeConfig(rc)}, opts...)...)
+}
+
 // Pre performs operations meant to happen before establishing objects.
-func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
+func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig) error {
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
 		return nil
 	}
+
+	build := h.builder(pr, rc)
 
 	pr.SetObservedTLSServerSecretName(pr.GetTLSServerSecretName())
 	pr.SetObservedTLSClientSecretName(pr.GetTLSClientSecretName())
@@ -113,10 +134,25 @@ func (h *FunctionHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntim
 }
 
 // Post performs operations meant to happen after establishing objects.
-func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
+func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig) error {
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
 		return nil
 	}
+
+	saPullSecrets, err := corePullSecrets(ctx, h.client.Client, h.namespace, h.coreServiceAccount)
+	if err != nil {
+		return err
+	}
+
+	pullSecrets, err := imageConfigPullSecrets(ctx, h.client.Client, pr)
+	if err != nil {
+		return err
+	}
+
+	build := h.builder(pr, rc,
+		BuilderWithServiceAccountPullSecrets(saPullSecrets),
+		BuilderWithPullSecrets(pullSecrets...),
+	)
 
 	sa := build.ServiceAccount()
 
@@ -144,11 +180,13 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 
 	for _, c := range d.Status.Conditions {
 		if c.Type == appsv1.DeploymentAvailable {
-			if c.Status == corev1.ConditionTrue {
-				return nil
+			if c.Status != corev1.ConditionTrue {
+				return errors.Errorf(errFmtUnavailableFunctionDeployment, c.Message)
 			}
 
-			return errors.Errorf(errFmtUnavailableFunctionDeployment, c.Message)
+			h.conditions.For(pr).MarkConditions(v1.RuntimeHealthy(), v1.RuntimeActive())
+
+			return nil
 		}
 	}
 
@@ -156,7 +194,9 @@ func (h *FunctionHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 }
 
 // Deactivate performs operations meant to happen before deactivating a revision.
-func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
+func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig) error {
+	build := h.builder(pr, rc)
+
 	sa := build.ServiceAccount()
 	// Delete the deployment if it exists.
 	// Different from the Post runtimeHook, we don't need to pass the

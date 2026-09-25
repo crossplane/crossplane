@@ -33,17 +33,16 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
-	"github.com/crossplane/crossplane/v2/internal/controller/pkg/revision"
 )
 
 func TestFunctionPreHook(t *testing.T) {
 	type args struct {
-		client    client.Client
-		pkg       runtime.Object
-		rev       v1.PackageRevisionWithRuntime
-		manifests ManifestBuilder
+		client client.Client
+		pkg    runtime.Object
+		rev    v1.PackageRevisionWithRuntime
 	}
 
 	type want struct {
@@ -63,6 +62,7 @@ func TestFunctionPreHook(t *testing.T) {
 					Spec: pkgmetav1.FunctionSpec{},
 				},
 				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1.LabelParentPackage: "some-service"}},
 					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							DesiredState: v1.PackageRevisionActive,
@@ -70,19 +70,6 @@ func TestFunctionPreHook(t *testing.T) {
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
 							TLSServerSecretName: new("some-server-secret"),
 						},
-					},
-				},
-				manifests: &MockManifestBuilder{
-					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
-						return &corev1.Service{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "some-service",
-								Namespace: "some-namespace",
-							},
-						}
-					},
-					TLSServerSecretFn: func() *corev1.Secret {
-						return &corev1.Secret{}
 					},
 				},
 				client: &test.MockClient{
@@ -99,6 +86,7 @@ func TestFunctionPreHook(t *testing.T) {
 			},
 			want: want{
 				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1.LabelParentPackage: "some-service"}},
 					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							DesiredState: v1.PackageRevisionActive,
@@ -108,7 +96,7 @@ func TestFunctionPreHook(t *testing.T) {
 						},
 					},
 					Status: v1.FunctionRevisionStatus{
-						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "some-service", "some-namespace", revision.ServicePort),
+						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "some-service", namespace, GRPCPort),
 						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
 							TLSServerSecretName: new("some-server-secret"),
 						},
@@ -121,22 +109,9 @@ func TestFunctionPreHook(t *testing.T) {
 			args: args{
 				pkg: &pkgmetav1.Function{},
 				rev: &v1.FunctionRevision{
-					ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID},
+					ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID, Labels: map[string]string{v1.LabelParentPackage: "shared-service"}},
 					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
-					},
-				},
-				manifests: &MockManifestBuilder{
-					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
-						return &corev1.Service{ObjectMeta: metav1.ObjectMeta{
-							Name:      "shared-service",
-							Namespace: "some-namespace",
-						}}
-					},
-					// The builder returns nil for the secret until the revision knows
-					// what its secret is called.
-					TLSServerSecretFn: func() *corev1.Secret {
-						return nil
 					},
 				},
 				client: &test.MockClient{
@@ -151,12 +126,12 @@ func TestFunctionPreHook(t *testing.T) {
 			},
 			want: want{
 				rev: &v1.FunctionRevision{
-					ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID},
+					ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID, Labels: map[string]string{v1.LabelParentPackage: "shared-service"}},
 					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
 					},
 					Status: v1.FunctionRevisionStatus{
-						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "shared-service", "some-namespace", revision.ServicePort),
+						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "shared-service", namespace, GRPCPort),
 					},
 				},
 			},
@@ -166,27 +141,12 @@ func TestFunctionPreHook(t *testing.T) {
 			args: args{
 				pkg: &pkgmetav1.Function{},
 				rev: &v1.FunctionRevision{
-					ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID},
+					ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID, Labels: map[string]string{v1.LabelParentPackage: "shared-service"}},
 					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
 							TLSServerSecretName: new("server-tls"),
 						},
-					},
-				},
-				manifests: &MockManifestBuilder{
-					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
-						return &corev1.Service{ObjectMeta: metav1.ObjectMeta{
-							Name:            "shared-service",
-							Namespace:       "some-namespace",
-							OwnerReferences: []metav1.OwnerReference{incoming},
-						}}
-					},
-					TLSServerSecretFn: func() *corev1.Secret {
-						return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
-							Name:            "server-tls",
-							OwnerReferences: []metav1.OwnerReference{incoming},
-						}}
 					},
 				},
 				client: &test.MockClient{
@@ -209,7 +169,7 @@ func TestFunctionPreHook(t *testing.T) {
 			},
 			want: want{
 				rev: &v1.FunctionRevision{
-					ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID},
+					ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID, Labels: map[string]string{v1.LabelParentPackage: "shared-service"}},
 					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
@@ -217,7 +177,7 @@ func TestFunctionPreHook(t *testing.T) {
 						},
 					},
 					Status: v1.FunctionRevisionStatus{
-						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "shared-service", "some-namespace", revision.ServicePort),
+						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "shared-service", namespace, GRPCPort),
 						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
 							TLSServerSecretName: new("server-tls"),
 						},
@@ -229,9 +189,9 @@ func TestFunctionPreHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewFunctionHooks(tc.args.client)
+			h := NewFunctionHooks(tc.args.client, namespace, crossplaneName)
 
-			err := h.Pre(context.TODO(), tc.args.rev, tc.args.manifests)
+			err := h.Pre(context.TODO(), tc.args.rev, nil)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -245,10 +205,9 @@ func TestFunctionPreHook(t *testing.T) {
 
 func TestFunctionPostHook(t *testing.T) {
 	type args struct {
-		client    client.Client
-		pkg       runtime.Object
-		rev       v1.PackageRevisionWithRuntime
-		manifests ManifestBuilder
+		client client.Client
+		pkg    runtime.Object
+		rev    v1.PackageRevisionWithRuntime
 	}
 
 	type want struct {
@@ -300,14 +259,6 @@ func TestFunctionPostHook(t *testing.T) {
 						},
 					},
 				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
-					},
-				},
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
@@ -349,14 +300,6 @@ func TestFunctionPostHook(t *testing.T) {
 						PackageRevisionStatus: v1.PackageRevisionStatus{
 							ResolvedPackage: functionImage,
 						},
-					},
-				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
 					},
 				},
 				client: &test.MockClient{
@@ -415,14 +358,6 @@ func TestFunctionPostHook(t *testing.T) {
 						},
 					},
 				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
-					},
-				},
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
@@ -464,14 +399,6 @@ func TestFunctionPostHook(t *testing.T) {
 						PackageRevisionStatus: v1.PackageRevisionStatus{
 							ResolvedPackage: functionImage,
 						},
-					},
-				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
 					},
 				},
 				client: &test.MockClient{
@@ -525,14 +452,6 @@ func TestFunctionPostHook(t *testing.T) {
 						},
 					},
 				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
-					},
-				},
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
@@ -559,7 +478,8 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
+							ConditionedStatus: xpv2.ConditionedStatus{Conditions: []xpv2.Condition{v1.RuntimeHealthy(), v1.RuntimeActive()}},
+							ResolvedPackage:   functionImage,
 						},
 					},
 				},
@@ -580,14 +500,6 @@ func TestFunctionPostHook(t *testing.T) {
 						PackageRevisionStatus: v1.PackageRevisionStatus{
 							ResolvedPackage: functionImage,
 						},
-					},
-				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
 					},
 				},
 				client: &test.MockClient{
@@ -619,7 +531,8 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
+							ConditionedStatus: xpv2.ConditionedStatus{Conditions: []xpv2.Condition{v1.RuntimeHealthy(), v1.RuntimeActive()}},
+							ResolvedPackage:   functionImage,
 						},
 					},
 				},
@@ -640,14 +553,6 @@ func TestFunctionPostHook(t *testing.T) {
 						PackageRevisionStatus: v1.PackageRevisionStatus{
 							ResolvedPackage: functionImage,
 						},
-					},
-				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
 					},
 				},
 				client: &test.MockClient{
@@ -694,7 +599,8 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
+							ConditionedStatus: xpv2.ConditionedStatus{Conditions: []xpv2.Condition{v1.RuntimeHealthy(), v1.RuntimeActive()}},
+							ResolvedPackage:   functionImage,
 						},
 					},
 				},
@@ -704,9 +610,9 @@ func TestFunctionPostHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewFunctionHooks(tc.args.client)
+			h := NewFunctionHooks(tc.args.client, namespace, crossplaneName)
 
-			err := h.Post(context.TODO(), tc.args.rev, tc.args.manifests)
+			err := h.Post(context.TODO(), tc.args.rev, nil)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -720,9 +626,8 @@ func TestFunctionPostHook(t *testing.T) {
 
 func TestFunctionDeactivateHook(t *testing.T) {
 	type args struct {
-		client    client.Client
-		rev       v1.PackageRevisionWithRuntime
-		manifests ManifestBuilder
+		client client.Client
+		rev    v1.PackageRevisionWithRuntime
 	}
 
 	type want struct {
@@ -739,14 +644,6 @@ func TestFunctionDeactivateHook(t *testing.T) {
 			reason: "Should return error if we fail to get deployment before deleting it.",
 			args: args{
 				rev: &v1.FunctionRevision{},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
-					},
-				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(errBoom),
 					MockDelete: func(_ context.Context, _ client.Object, _ ...client.DeleteOption) error {
@@ -763,14 +660,6 @@ func TestFunctionDeactivateHook(t *testing.T) {
 			reason: "Should return error if we fail to delete deployment.",
 			args: args{
 				rev: &v1.FunctionRevision{},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
-					},
-				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
@@ -793,40 +682,6 @@ func TestFunctionDeactivateHook(t *testing.T) {
 			reason: "Should not return error if successfully deleted service account and deployment.",
 			args: args{
 				rev: &v1.FunctionRevision{},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "some-sa",
-							},
-						}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "some-deployment",
-							},
-						}
-					},
-					ServiceFn: func(overrides ...ServiceOverride) *corev1.Service {
-						s := &corev1.Service{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "some-service",
-							},
-						}
-						for _, o := range overrides {
-							o(s)
-						}
-						return s
-					},
-					TLSServerSecretFn: func() *corev1.Secret {
-						return &corev1.Secret{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "server-tls",
-							},
-						}
-					},
-				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
@@ -860,32 +715,6 @@ func TestFunctionDeactivateHook(t *testing.T) {
 						UID: "inactive-uid",
 					},
 				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "some-sa"}}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "some-deployment"}}
-					},
-					ServiceFn: func(overrides ...ServiceOverride) *corev1.Service {
-						s := &corev1.Service{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "some-service",
-							},
-						}
-						for _, o := range overrides {
-							o(s)
-						}
-						return s
-					},
-					TLSServerSecretFn: func() *corev1.Secret {
-						return &corev1.Secret{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "server-tls",
-							},
-						}
-					},
-				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						obj.SetOwnerReferences([]metav1.OwnerReference{{UID: "active-uid", Controller: new(true)}})
@@ -917,9 +746,9 @@ func TestFunctionDeactivateHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewFunctionHooks(tc.args.client)
+			h := NewFunctionHooks(tc.args.client, namespace, crossplaneName)
 
-			err := h.Deactivate(context.TODO(), tc.args.rev, tc.args.manifests)
+			err := h.Deactivate(context.TODO(), tc.args.rev, nil)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Deactivate(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

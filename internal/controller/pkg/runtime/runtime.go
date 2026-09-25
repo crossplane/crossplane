@@ -23,6 +23,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -96,37 +97,33 @@ var (
 	AppProtocolTLS = "tls"
 )
 
-// ManifestBuilder builds the runtime manifests for a package revision.
-type ManifestBuilder interface {
-	// ServiceAccount builds and returns the service account manifest.
-	ServiceAccount(overrides ...ServiceAccountOverride) *corev1.ServiceAccount
-	// Deployment builds and returns the deployment manifest.
-	Deployment(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment
-	// Service builds and returns the service manifest.
-	Service(overrides ...ServiceOverride) *corev1.Service
-	// TLSClientSecret builds and returns the TLS client secret manifest.
-	TLSClientSecret() *corev1.Secret
-	// TLSServerSecret builds and returns the TLS server secret manifest.
-	TLSServerSecret() *corev1.Secret
-}
-
-// A Hooks performs runtime operations before and after a revision
-// establishes objects.
+// A Hooks manages the runtime objects of a package's revisions. There is
+// one implementation per package type, constructed once when the runtime
+// controller is set up.
 type Hooks interface {
-	// Pre performs operations meant to happen before establishing objects.
-	Pre(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error
+	// Pre performs operations meant to happen before a revision establishes
+	// its objects.
+	Pre(ctx context.Context, pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig) error
 
-	// Post performs operations meant to happen after establishing objects.
-	Post(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error
+	// Post performs operations meant to happen after a revision establishes
+	// its objects. Once the runtime is available it marks the revision's
+	// RuntimeHealthy and RuntimeActive conditions, reporting whether the
+	// runtime is scaled up or scaled to zero awaiting activation of its first
+	// ManagedResourceDefinition.
+	Post(ctx context.Context, pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig) error
 
-	// Deactivate performs operations meant to happen before deactivating a revision.
-	Deactivate(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error
+	// Deactivate performs operations meant to happen before deactivating a
+	// revision.
+	Deactivate(ctx context.Context, pr v1.PackageRevisionWithRuntime, rc *v1beta1.DeploymentRuntimeConfig) error
 }
 
 const (
 	errCopyRuntimeObject      = "cannot copy package runtime object for deletion"
 	errGetRuntimeDeployment   = "cannot get package runtime deployment for deletion"
 	errGetSharedRuntimeObject = "cannot get existing package runtime object"
+
+	errGetServiceAccount = "cannot get Crossplane service account"
+	errGetPullConfig     = "cannot get image pull secret from config"
 )
 
 func deleteRuntimeObjectControlledBy(ctx context.Context, c client.Client, owner metav1.Object, obj client.Object) error {
@@ -237,6 +234,63 @@ func demotedControllers(obj metav1.Object, owner metav1.Object) []metav1.OwnerRe
 	}
 
 	return ors
+}
+
+// applySA creates/updates a ServiceAccount as a shared runtime object and includes
+// any image pull secrets that have been added by external controllers.
+func applySA(ctx context.Context, cl resource.ClientApplicator, owner metav1.Object, sa *corev1.ServiceAccount) error {
+	oldSa := &corev1.ServiceAccount{}
+	if err := cl.Get(ctx, types.NamespacedName{Name: sa.Name, Namespace: sa.Namespace}, oldSa); err == nil {
+		// Add pull secrets created by other controllers
+		existingSecrets := make(map[string]bool)
+		for _, secret := range sa.ImagePullSecrets {
+			existingSecrets[secret.Name] = true
+		}
+
+		for _, secret := range oldSa.ImagePullSecrets {
+			if !existingSecrets[secret.Name] {
+				sa.ImagePullSecrets = append(sa.ImagePullSecrets, secret)
+			}
+		}
+	}
+
+	return applySharedRuntimeObject(ctx, cl.Client, owner, sa)
+}
+
+// corePullSecrets returns the image pull secrets of the core Crossplane
+// ServiceAccount. They're appended to the pull secrets of the ServiceAccount we
+// build for a package runtime.
+func corePullSecrets(ctx context.Context, c client.Client, namespace, name string) ([]corev1.LocalObjectReference, error) {
+	sa := &corev1.ServiceAccount{}
+	if err := c.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, sa); err != nil {
+		return nil, errors.Wrap(err, errGetServiceAccount)
+	}
+
+	return sa.ImagePullSecrets, nil
+}
+
+// imageConfigPullSecrets returns the pull secrets of the ImageConfig that was
+// applied to the supplied revision, if any. It reads the applied config from
+// the revision's status, so the secret doesn't have to be resolved again.
+func imageConfigPullSecrets(ctx context.Context, c client.Client, pr v1.PackageRevisionWithRuntime) ([]string, error) {
+	for _, icr := range pr.GetAppliedImageConfigRefs() {
+		if icr.Reason != v1.ImageConfigReasonSetPullSecret {
+			continue
+		}
+
+		ic := &v1beta1.ImageConfig{}
+		if err := c.Get(ctx, types.NamespacedName{Name: icr.Name}, ic); err != nil {
+			return nil, errors.Wrap(err, errGetPullConfig)
+		}
+
+		if ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
+			return nil, nil
+		}
+
+		return []string{ic.Spec.Registry.Authentication.PullSecretRef.Name}, nil
+	}
+
+	return nil, nil
 }
 
 // BuilderWithServiceAccountPullSecrets sets the service account
