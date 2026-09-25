@@ -48,6 +48,7 @@ import (
 const (
 	errAssertResourceObj            = "cannot assert object to resource.Object"
 	errAssertClientObj              = "cannot assert object to client.Object"
+	errInvalidManagedResourceDef    = "invalid ManagedResourceDefinition"
 	errConversionWithNoWebhookCA    = "cannot deploy a CRD with webhook conversion strategy without having a TLS bundle"
 	errGetWebhookTLSSecret          = "cannot get webhook tls secret"
 	errWebhookSecretNotPresent      = "waiting for package runtime controller to set revision's webhook TLS secret"
@@ -270,6 +271,19 @@ func (e *APIEstablisher) addAnnotations(objs []runtime.Object, parent v1.Package
 }
 
 func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) (allObjs []currentDesired, err error) { //nolint:gocognit // TODO(negz): Refactor this to break up complexity.
+	for _, res := range objs {
+		desired, ok := res.(resource.Object)
+		if !ok {
+			return nil, errors.New(errAssertResourceObj)
+		}
+
+		if mrd, ok := desired.(*v1alpha1.ManagedResourceDefinition); ok {
+			if err := validateManagedResourceDefinition(mrd); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	var webhookTLSCert []byte
 	if parentWithRuntime, ok := parent.(v1.PackageRevisionWithRuntime); ok && control {
 		webhookTLSCert, err = e.getWebhookTLSCert(ctx, parentWithRuntime)
@@ -354,6 +368,21 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 	}
 
 	return allObjs, nil
+}
+
+func validateManagedResourceDefinition(mrd *v1alpha1.ManagedResourceDefinition) error {
+	storageVersions := 0
+	for _, version := range mrd.Spec.Versions {
+		if version.Storage {
+			storageVersions++
+		}
+	}
+
+	if storageVersions != 1 {
+		return errors.Errorf("%s %q: spec.versions must contain exactly one storage version; mark exactly one version as storage before retrying", errInvalidManagedResourceDef, mrd.GetName())
+	}
+
+	return nil
 }
 
 func (e *APIEstablisher) enrichControlledResource(res runtime.Object, webhookTLSCert []byte, parent v1.PackageRevision) error { //nolint:gocognit // just a switch
@@ -698,6 +727,7 @@ func (e *APIEstablisher) merge(_ context.Context, c, d resource.Object) error {
 		if !ok {
 			return errors.Errorf("expected desired object to be *v1alpha1.ManagedResourceDefinition, got %T", d)
 		}
+
 		// Managed Resource Definitions' spec.state is controlled outside the APIEstablisher.
 		if !desired.Spec.State.IsActive() {
 			desired.Spec.State = current.Spec.State
