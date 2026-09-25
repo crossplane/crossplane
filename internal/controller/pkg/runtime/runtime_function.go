@@ -37,6 +37,8 @@ import (
 
 const (
 	errDeleteFunctionDeployment               = "cannot delete function package deployment"
+	errDeleteFunctionService                  = "cannot delete function package service"
+	errDeleteFunctionSecret                   = "cannot delete function package secret"
 	errApplyFunctionDeployment                = "cannot apply function package deployment"
 	errApplyFunctionSecret                    = "cannot apply function package secret"
 	errApplyFunctionSA                        = "cannot apply function package service account"
@@ -166,6 +168,18 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 		return errors.Wrap(err, errDeleteFunctionDeployment)
 	}
 
+	// Delete the service if it exists. Function services are named after the
+	// revision rather than the package, so we must clean them up here.
+	if err := h.client.Delete(ctx, build.Service(functionServiceOverrides()...)); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteFunctionService)
+	}
+
+	// Delete the TLS cert secret if it exists. It too is named after the
+	// revision.
+	if err := h.client.Delete(ctx, build.TLSServerSecret()); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteFunctionSecret)
+	}
+
 	// NOTE(turkenh): We don't delete the service account here because it might
 	// be used by other package revisions, e.g. user might have specified a
 	// service account name in the runtime config. This should not be a problem
@@ -173,12 +187,6 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 	// them, and they will be garbage collected when the package revision is
 	// deleted if they are not used by any other package revisions.
 
-	// NOTE(ezgidemirel): Service and secret are created per package. Therefore,
-	// we're not deleting them here.
-
-	// NOTE(jbw976): We leave our owner references on those shared objects alone, controlling flag
-	// included. The revision taking over demotes us as part of claiming them, which keeps the
-	// handover to a single writer.
 	return nil
 }
 

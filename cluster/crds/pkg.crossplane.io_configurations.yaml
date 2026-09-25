@@ -88,15 +88,18 @@ spec:
                 type: boolean
               package:
                 description: |-
-                  Package is the name of the package that is being requested.
-                  must be a fully qualified image name, including the registry,
-                  repository, and tag. for example, "registry.example.com/repo/package:tag".
+                  Package is the name of the package that is being requested. Must be a
+                  fully qualified OCI reference, including the registry, repository, and
+                  tag. For example, "registry.example.com/repo/package:tag". May be empty
+                  when revisions are managed externally, in which case the package manager
+                  will not manage revisions for the package, but will propagate the status
+                  of any externally-managed revisions.
                 type: string
                 x-kubernetes-validations:
                 - message: must be a fully qualified image name, including the registry,
                     repository, and tag or digest. For example, 'registry.example.com/repo/package:tag'
                     or 'registry.example.com/repo/package[:tag]@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'.
-                  rule: self.matches('^[^\\.\\/]+(\\.[^\\.\\/]+)+(\\/[^\\/:@]+)+(:[^:@]+(@sha256.+)?|@sha256.+)$')
+                  rule: self == '' || self.matches('^[^\\.\\/]+(\\.[^\\.\\/]+)+(\\/[^\\/:@]+)+(:[^:@]+(@sha256.+)?|@sha256.+)$')
               packagePullPolicy:
                 default: IfNotPresent
                 description: |-
@@ -147,8 +150,6 @@ spec:
                   unintended consequences.
                   Default is false.
                 type: boolean
-            required:
-            - package
             type: object
           status:
             description: ConfigurationStatus represents the observed state of a Configuration.

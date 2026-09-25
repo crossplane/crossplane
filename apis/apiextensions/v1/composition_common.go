@@ -56,13 +56,23 @@ func TypeReferenceTo(gvk schema.GroupVersionKind) TypeReference {
 }
 
 // A PipelineStep in a function pipeline.
+//
+// +kubebuilder:validation:XValidation:rule="(has(self.functionRef) && !has(self.function)) || (has(self.function) && !has(self.functionRef))",message="exactly one of functionRef or function must be provided"
 type PipelineStep struct {
 	// Step name. Must be unique within its Pipeline.
 	Step string `json:"step"`
 
 	// FunctionRef is a reference to the function this step should
 	// execute.
-	FunctionRef FunctionReference `json:"functionRef"`
+	// +optional
+	FunctionRef *FunctionReference `json:"functionRef,omitempty"`
+
+	// Function is a fully-qualified OCI reference to the function package this
+	// step should execute. The package must be specified by digest.
+	// +optional
+	// +kubebuilder:validation:MaxLength=512
+	// +kubebuilder:validation:XValidation:rule="self.matches('^[a-z0-9]+((\\\\.|_|__|-+)[a-z0-9]+)*(\\\\/[a-z0-9]+((\\\\.|_|__|-+)[a-z0-9]+)*)*(:[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127})?@[a-z0-9]+:[a-f0-9]+$')",message="must be a fully qualified OCI reference specified by digest, including the registry and repository. For example, 'registry.example.com/repo/package@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'."
+	Function string `json:"function,omitempty"`
 
 	// Input is an optional, arbitrary Kubernetes resource (i.e. a resource
 	// with an apiVersion and kind) that will be passed to the function as

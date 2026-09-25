@@ -1,0 +1,26 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: upgradefn-composition
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: UpgradeFn
+  mode: Pipeline
+  pipeline:
+  # v1 references the function by name.
+  - step: be-a-dummy
+    functionRef:
+      name: crossplane-contrib-function-dummy
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      response:
+        desired:
+          composite:
+            resource:
+              status:
+                coolerField: "served-by-v1-composition"
+        results:
+        - severity: SEVERITY_NORMAL
+          message: "I am doing a compose!"

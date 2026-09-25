@@ -43,6 +43,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/step"
 	"github.com/crossplane/crossplane/v2/internal/names"
@@ -146,16 +147,16 @@ type xr struct {
 
 // A FunctionRunner runs a single Composition Function.
 type FunctionRunner interface {
-	// RunFunction runs the named Composition Function.
-	RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+	// RunFunction runs the Composition Function with the given package reference.
+	RunFunction(ctx context.Context, pkg string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
 }
 
 // A FunctionRunnerFn is a function that can run a Composition Function.
-type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+type FunctionRunnerFn func(ctx context.Context, pkg string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
 
-// RunFunction runs the named Composition Function with the supplied request.
-func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	return fn(ctx, name, req)
+// RunFunction runs the Composition Function with the supplied package reference and request.
+func (fn FunctionRunnerFn) RunFunction(ctx context.Context, pkg string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	return fn(ctx, pkg, req)
 }
 
 // A ConnectionSecretOwner is a resource with a connection secret.
@@ -452,7 +453,20 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// Add step metadata to context for use by downstream components like InspectedRunner.
 		stepCtx := step.ContextWithStepMetaForCompositions(ctx, traceID, fn.Step, int32(stepIndex), compositionName)
 
-		rsp, err := c.pipeline.RunFunction(stepCtx, fn.FunctionRef.Name, fnreq)
+		// Resolve the package reference for this step. A step may reference a
+		// function either by the name of an installed Function, or directly by
+		// package OCI reference. The runner routes to a FunctionRevision by
+		// package, so resolve a name-based reference to its package here.
+		pkg := fn.Function
+		if pkg == "" {
+			f := &pkgv1.Function{}
+			if err := c.client.Get(ctx, client.ObjectKey{Name: fn.FunctionRef.Name}, f); err != nil {
+				return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
+			}
+			pkg = f.Spec.Package
+		}
+
+		rsp, err := c.pipeline.RunFunction(stepCtx, pkg, fnreq)
 		if err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
 		}

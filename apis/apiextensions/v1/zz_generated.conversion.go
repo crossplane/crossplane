@@ -50,6 +50,15 @@ func (c *GeneratedRevisionSpecConverter) pRuntimeRawExtensionToPRuntimeRawExtens
 	}
 	return pRuntimeRawExtension
 }
+func (c *GeneratedRevisionSpecConverter) pV1FunctionReferenceToPV1FunctionReference(source *FunctionReference) *FunctionReference {
+	var pV1FunctionReference *FunctionReference
+	if source != nil {
+		var v1FunctionReference FunctionReference
+		v1FunctionReference.Name = (*source).Name
+		pV1FunctionReference = &v1FunctionReference
+	}
+	return pV1FunctionReference
+}
 func (c *GeneratedRevisionSpecConverter) pV1FunctionRequirementsToPV1FunctionRequirements(source *FunctionRequirements) *FunctionRequirements {
 	var pV1FunctionRequirements *FunctionRequirements
 	if source != nil {
@@ -107,15 +116,11 @@ func (c *GeneratedRevisionSpecConverter) v1FunctionCredentialsToV1FunctionCreden
 	v1FunctionCredentials.SecretRef = c.pV2SecretReferenceToPV2SecretReference(source.SecretRef)
 	return v1FunctionCredentials
 }
-func (c *GeneratedRevisionSpecConverter) v1FunctionReferenceToV1FunctionReference(source FunctionReference) FunctionReference {
-	var v1FunctionReference FunctionReference
-	v1FunctionReference.Name = source.Name
-	return v1FunctionReference
-}
 func (c *GeneratedRevisionSpecConverter) v1PipelineStepToV1PipelineStep(source PipelineStep) PipelineStep {
 	var v1PipelineStep PipelineStep
 	v1PipelineStep.Step = source.Step
-	v1PipelineStep.FunctionRef = c.v1FunctionReferenceToV1FunctionReference(source.FunctionRef)
+	v1PipelineStep.FunctionRef = c.pV1FunctionReferenceToPV1FunctionReference(source.FunctionRef)
+	v1PipelineStep.Function = source.Function
 	v1PipelineStep.Input = c.pRuntimeRawExtensionToPRuntimeRawExtension(source.Input)
 	if source.Credentials != nil {
 		v1PipelineStep.Credentials = make([]FunctionCredentials, len(source.Credentials))
