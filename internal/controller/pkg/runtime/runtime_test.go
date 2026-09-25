@@ -385,9 +385,9 @@ func TestProviderDeployment(t *testing.T) {
 
 func TestFunctionDeployment(t *testing.T) {
 	type args struct {
-		builder            *DeploymentRuntimeBuilder
+		revision           v1.PackageRevisionWithRuntime
+		runtimeConfig      *v1beta1.DeploymentRuntimeConfig
 		serviceAccountName string
-		overrides          []DeploymentOverride
 	}
 
 	type want struct {
@@ -402,12 +402,8 @@ func TestFunctionDeployment(t *testing.T) {
 		"FunctionDeploymentWithoutRuntimeConfig": {
 			reason: "No overrides should result in a deployment with default values",
 			args: args{
-				builder: &DeploymentRuntimeBuilder{
-					revision:  functionRevision,
-					namespace: namespace,
-				},
+				revision:           functionRevision,
 				serviceAccountName: functionRevisionName,
-				overrides:          functionDeploymentOverrides(functionRevision, functionImage),
 			},
 			want: want{
 				want: deploymentFunction(functionName, functionRevisionName, functionImage),
@@ -417,9 +413,9 @@ func TestFunctionDeployment(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := tc.args.builder.Deployment(tc.args.serviceAccountName, tc.args.overrides...)
+			got := NewFunctionHooks(nil, namespace, crossplaneName).deployment(tc.args.revision, tc.args.runtimeConfig, tc.args.serviceAccountName, functionImage, nil)
 			if diff := cmp.Diff(tc.want.want, got); diff != "" {
-				t.Errorf("\n%s\nDeployment(...): -want, +got:\n%s\n", tc.reason, diff)
+				t.Errorf("\n%s\ndeployment(...): -want, +got:\n%s\n", tc.reason, diff)
 			}
 		})
 	}
@@ -940,6 +936,77 @@ func TestAwaitingActivation(t *testing.T) {
 	}
 }
 
+func TestFunctionService(t *testing.T) {
+	type args struct {
+		revision      v1.PackageRevisionWithRuntime
+		runtimeConfig *v1beta1.DeploymentRuntimeConfig
+	}
+
+	type want struct {
+		want *corev1.Service
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"FunctionServiceNoRuntimeConfig": {
+			reason: "A function service should be headless and serve gRPC.",
+			args: args{
+				revision: functionRevision,
+			},
+			want: want{
+				want: &corev1.Service{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: corev1.SchemeGroupVersion.String(),
+						Kind:       "Service",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      functionName,
+						Namespace: namespace,
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								APIVersion:         "pkg.crossplane.io/v1beta1",
+								Kind:               "FunctionRevision",
+								Name:               functionRevisionName,
+								UID:                types.UID(functionRevisionUID),
+								Controller:         new(true),
+								BlockOwnerDeletion: new(true),
+							},
+						},
+					},
+					Spec: corev1.ServiceSpec{
+						ClusterIP: corev1.ClusterIPNone,
+						Selector: map[string]string{
+							v1.LabelFunction: functionName,
+							v1.LabelRevision: functionRevisionName,
+						},
+						Ports: []corev1.ServicePort{
+							{
+								Name:        GRPCPortName,
+								Protocol:    corev1.ProtocolTCP,
+								Port:        GRPCPort,
+								TargetPort:  intstr.FromString(GRPCPortName),
+								AppProtocol: &AppProtocolTLS,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := NewFunctionHooks(nil, namespace, crossplaneName).service(tc.args.revision, tc.args.runtimeConfig)
+			if diff := cmp.Diff(tc.want.want, got); diff != "" {
+				t.Errorf("\n%s\nservice(...): -want, +got:\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestCorePullSecrets(t *testing.T) {
 	errBoom := errors.New("boom")
 
@@ -1031,6 +1098,19 @@ func TestImageConfigPullSecrets(t *testing.T) {
 			})},
 			revision: withRefs(v1.ImageConfigRef{Name: "some-config", Reason: v1.ImageConfigReasonSetPullSecret}),
 			want:     want{secrets: []string{"pull-secret"}},
+		},
+		"EmptyPullSecretName": {
+			reason: "We should return nothing if the applied image config names an empty pull secret.",
+			client: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+				o.(*v1beta1.ImageConfig).Spec.Registry = &v1beta1.RegistryConfig{
+					Authentication: &v1beta1.RegistryAuthentication{
+						PullSecretRef: corev1.LocalObjectReference{Name: ""},
+					},
+				}
+				return nil
+			})},
+			revision: withRefs(v1.ImageConfigRef{Name: "some-config", Reason: v1.ImageConfigReasonSetPullSecret}),
+			want:     want{},
 		},
 	}
 
