@@ -93,6 +93,13 @@ spec:
                   description: Name corresponds to the name of the package revision
                     for this package.
                   type: string
+                resolvedVersion:
+                  description: |-
+                    ResolvedVersion is the semantic version tag that was resolved to the
+                    digest in Version. This is set when a package is installed using a
+                    tag@digest reference (e.g. v1.0.0@sha256:...), so that dependency
+                    resolution can evaluate semver constraints against the original tag.
+                  type: string
                 source:
                   description: Source is the OCI image name without a tag or digest.
                   type: string
