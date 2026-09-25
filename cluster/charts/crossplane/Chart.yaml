@@ -5,6 +5,11 @@ name: crossplane
 version: 0.0.1
 icon: https://docs.crossplane.io/android-chrome-192x192.png
 home: https://crossplane.io
+# -- The Kubernetes server versions this chart is compatible with. Helm 3.2+
+# -- is also required. The hook jobs ship kubectl v1.31.1, which is compatible
+# -- with Kubernetes server v1.30 and later. Override `rootCA.bootstrap.image.tag`
+# -- for older clusters if needed.
+kubeVersion: ">= 1.30.0-0"
 maintainers:
   - name: Crossplane Maintainers
     email: crossplane-info@lists.cncf.io
