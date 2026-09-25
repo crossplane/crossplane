@@ -133,7 +133,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 	// `deploymentTemplate.spec.template.spec.serviceAccountName` in the
 	// DeploymentRuntimeConfig.
 	if sa.Name == d.Spec.Template.Spec.ServiceAccountName {
-		if err := applySA(ctx, h.client, sa); err != nil {
+		if err := applySA(ctx, h.client, pr, sa); err != nil {
 			return errors.Wrap(err, errApplyProviderSA)
 		}
 	}
@@ -267,9 +267,9 @@ func providerDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string)
 	return do
 }
 
-// applySA creates/updates a ServiceAccount and includes any image pull secrets
-// that have been added by external controllers.
-func applySA(ctx context.Context, cl resource.ClientApplicator, sa *corev1.ServiceAccount) error {
+// applySA creates/updates a ServiceAccount as a shared runtime object and includes
+// any image pull secrets that have been added by external controllers.
+func applySA(ctx context.Context, cl resource.ClientApplicator, owner metav1.Object, sa *corev1.ServiceAccount) error {
 	oldSa := &corev1.ServiceAccount{}
 	if err := cl.Get(ctx, types.NamespacedName{Name: sa.Name, Namespace: sa.Namespace}, oldSa); err == nil {
 		// Add pull secrets created by other controllers
@@ -285,5 +285,5 @@ func applySA(ctx context.Context, cl resource.ClientApplicator, sa *corev1.Servi
 		}
 	}
 
-	return applyRuntimeObject(ctx, cl.Client, sa)
+	return applySharedRuntimeObject(ctx, cl.Client, owner, sa)
 }

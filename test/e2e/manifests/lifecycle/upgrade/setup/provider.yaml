@@ -3,5 +3,5 @@ kind: Provider
 metadata:
   name: provider-nop-lifecycle-upgrade
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/provider-nop:v0.3.0
+  package: xpkg.upbound.io/crossplane-contrib/provider-nop:v0.5.0
   ignoreCrossplaneConstraints: true

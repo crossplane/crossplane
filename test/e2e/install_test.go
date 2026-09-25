@@ -78,7 +78,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				// deletion. How is that possible?
 				funcs.ListedResourcesDeletedWithin(1*time.Minute, composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
 					APIVersion: "nop.crossplane.io/v1alpha1",
-					Kind:       "NopResource",
+					Kind:       "ClusterNopResource",
 				}))),
 			)).
 			Assess("DeletePrerequisites", funcs.AllOf(
@@ -185,7 +185,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				// deletion. How is that possible?
 				funcs.ListedResourcesDeletedWithin(1*time.Minute, composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
 					APIVersion: "nop.crossplane.io/v1alpha1",
-					Kind:       "NopResource",
+					Kind:       "ClusterNopResource",
 				}))),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
@@ -267,7 +267,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				// deletion. How is that possible?
 				funcs.ListedResourcesDeletedWithin(1*time.Minute, composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
 					APIVersion: "nop.crossplane.io/v1alpha1",
-					Kind:       "NopResource",
+					Kind:       "ClusterNopResource",
 				}))),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(

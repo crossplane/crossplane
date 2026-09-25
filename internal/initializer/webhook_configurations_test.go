@@ -56,6 +56,12 @@ func TestWebhookConfigurations(t *testing.T) {
 	f, _ = fsWithMixedTypes.Create("/webhooks/manifests.yaml")
 	_, _ = f.WriteString(webhookCRD)
 
+	fsWithUsage := afero.NewMemMapFs()
+	f, _ = fsWithUsage.Create("/webhooks/manifests.yaml")
+	_, _ = f.WriteString(webhookConfigs)
+	f, _ = fsWithUsage.Create("/webhooks/usage.yaml")
+	_, _ = f.WriteString(usageWebhookConfig)
+
 	secret := &corev1.Secret{
 		Data: map[string][]byte{"tls.crt": []byte("CABUNDLE")},
 	}
@@ -162,6 +168,69 @@ func TestWebhookConfigurations(t *testing.T) {
 				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errApplyWebhookConfiguration),
 			},
 		},
+		"SuccessFailurePolicyOverride": {
+			reason: "The failurePolicy of the webhooks of only the targeted configuration should be overridden",
+			args: args{
+				opts: []WebhookConfigurationsOption{
+					WithWebhookConfigurationsFs(fsWithUsage),
+					WithFailurePolicyOverride("crossplane-no-usages", admv1.Ignore),
+				},
+				svc: svc,
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							secret.DeepCopyInto(s)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
+					MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
+						c, ok := obj.(*admv1.ValidatingWebhookConfiguration)
+						if !ok {
+							return nil
+						}
+						want := admv1.Fail
+						if c.GetName() == "crossplane-no-usages" {
+							want = admv1.Ignore
+						}
+						for _, w := range c.Webhooks {
+							if w.FailurePolicy == nil || *w.FailurePolicy != want {
+								t.Errorf("unexpected failurePolicy for %q: want %q", c.GetName(), want)
+							}
+							if !bytes.Equal(w.ClientConfig.CABundle, []byte("CABUNDLE")) {
+								t.Errorf("unexpected certificate bundle content: %s", string(w.ClientConfig.CABundle))
+							}
+						}
+						return nil
+					},
+				},
+			},
+		},
+		"SuccessSkippedConfiguration": {
+			reason: "A skipped configuration should not be applied while others still are",
+			args: args{
+				opts: []WebhookConfigurationsOption{
+					WithWebhookConfigurationsFs(fsWithUsage),
+					WithSkippedConfigurations("crossplane-no-usages"),
+				},
+				svc: svc,
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							secret.DeepCopyInto(s)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
+					MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
+						if obj.GetName() == "crossplane-no-usages" {
+							t.Error("crossplane-no-usages should have been skipped")
+						}
+						return nil
+					},
+				},
+			},
+		},
 		"NonWebhookType": {
 			reason: "Only webhook configuration types can be processed",
 			args: args{
@@ -256,6 +325,36 @@ webhooks:
     resources:
     - compositeresourcedefinitions
   sideEffects: None
+`
+
+	usageWebhookConfig = `
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: crossplane-no-usages
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: webhook-service
+        namespace: system
+        path: /validate-no-usages
+    failurePolicy: Fail
+    name: nousages.protection.crossplane.io
+    objectSelector:
+      matchLabels:
+        crossplane.io/in-use: "true"
+    rules:
+      - apiGroups:
+          - '*'
+        apiVersions:
+          - '*'
+        operations:
+          - DELETE
+        resources:
+          - '*'
+    sideEffects: None
 `
 )
 
@@ -352,6 +451,26 @@ func TestRemoveValidatingWebhooks(t *testing.T) {
 			},
 			want: want{
 				err: cmpopts.AnyError,
+			},
+		},
+		"SuccessDeleteWholeConfig": {
+			reason: "We should delete the whole config when removing its last webhook.",
+			params: params{
+				configName:   "some-config",
+				webhookNames: []string{"delete-me"},
+			},
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						obj.(*admv1.ValidatingWebhookConfiguration).Webhooks = []admv1.ValidatingWebhook{
+							{Name: "delete-me"},
+						}
+						return nil
+					},
+					MockDelete: func(_ context.Context, _ client.Object, _ ...client.DeleteOption) error {
+						return nil
+					},
+				},
 			},
 		},
 		"Success": {
