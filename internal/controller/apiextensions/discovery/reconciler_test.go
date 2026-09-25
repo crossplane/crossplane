@@ -140,4 +140,3 @@ func TestSetCondition(t *testing.T) {
 		})
 	}
 }
-
