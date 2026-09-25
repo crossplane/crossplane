@@ -53,6 +53,12 @@ const (
 	// automatically protecting Providers from deletion when they still have
 	// active managed resources. Requires EnableBetaUsages to also be enabled.
 	EnableAlphaProviderDeletionProtection feature.Flag = "EnableAlphaProviderDeletionProtection"
+
+	// EnableAlphaResourceDiscovery enables alpha support for discovering
+	// external resources not yet managed by Crossplane. When enabled, the
+	// discovery controller will scan for unmanaged resources and populate
+	// DiscoveryReport CRDs for use by the import workflow.
+	EnableAlphaResourceDiscovery feature.Flag = "EnableAlphaResourceDiscovery"
 )
 
 // Beta Feature Flags.

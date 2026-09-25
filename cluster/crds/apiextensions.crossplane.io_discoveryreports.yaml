@@ -1,0 +1,220 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.22.0
+  name: discoveryreports.apiextensions.crossplane.io
+spec:
+  group: apiextensions.crossplane.io
+  names:
+    categories:
+    - crossplane
+    kind: DiscoveryReport
+    listKind: DiscoveryReportList
+    plural: discoveryreports
+    shortNames:
+    - dreport
+    - dreports
+    singular: discoveryreport
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.mrdRef.name
+      name: MRD
+      type: string
+    - jsonPath: .status.discoveredResourceCount
+      name: DISCOVERED
+      type: integer
+    - jsonPath: .status.unmanagedResourceCount
+      name: UNMANAGED
+      type: integer
+    - jsonPath: .status.lastDiscoveryTime
+      name: LAST-SCAN
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: DiscoveryReport documents the results of enumerating external
+          resources of a given kind.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: DiscoveryReportSpec specifies the desired state of resource
+              discovery.
+            properties:
+              interval:
+                default: 1h
+                description: Interval specifies how often to discover resources of
+                  this kind.
+                type: string
+              mrdRef:
+                description: MRDRef references the ManagedResourceDefinition being
+                  discovered.
+                properties:
+                  apiVersion:
+                    description: APIVersion of the referenced object.
+                    type: string
+                  kind:
+                    description: Kind of the referenced object.
+                    type: string
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                  uid:
+                    description: UID of the referenced object.
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
+              providerConfig:
+                description: |-
+                  ProviderConfig specifies which ProviderConfig to use for discovery.
+                  If empty, discovery runs for all ProviderConfigs of the MRD's provider.
+                properties:
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                  policy:
+                    description: Policies for referencing.
+                    properties:
+                      resolution:
+                        default: Required
+                        description: |-
+                          Resolution specifies whether resolution of this reference is required.
+                          The default is 'Required', which means the reconcile will fail if the
+                          reference cannot be resolved. 'Optional' means this reference will be
+                          a no-op if it cannot be resolved.
+                        enum:
+                        - Required
+                        - Optional
+                        type: string
+                      resolve:
+                        description: |-
+                          Resolve specifies when this reference should be resolved. The default
+                          is 'IfNotPresent', which will attempt to resolve the reference only when
+                          the corresponding field is not present. Use 'Always' to resolve the
+                          reference on every reconcile.
+                        enum:
+                        - Always
+                        - IfNotPresent
+                        type: string
+                    type: object
+                required:
+                - name
+                type: object
+            required:
+            - mrdRef
+            type: object
+          status:
+            description: DiscoveryReportStatus shows the observed state of resource
+              discovery.
+            properties:
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        LastTransitionTime is the last time this condition transitioned from one
+                        status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        A Message containing details about this condition's last transition from
+                        one status to another, if any.
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: |-
+                        Type of this condition. At most one of each condition type may apply to
+                        a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              discoveredResourceCount:
+                description: DiscoveredResourceCount is the total number of resources
+                  found in the external system.
+                format: int64
+                type: integer
+              lastDiscoveryTime:
+                description: LastDiscoveryTime is when the last discovery scan completed.
+                format: date-time
+                type: string
+              nextDiscoveryTime:
+                description: NextDiscoveryTime is when the next discovery scan is
+                  scheduled.
+                format: date-time
+                type: string
+              unmanagedResourceCount:
+                description: UnmanagedResourceCount is the number of discovered resources
+                  with no corresponding CR.
+                format: int64
+                type: integer
+              unmanagedResources:
+                description: UnmanagedResources lists the external names of resources
+                  not managed by Crossplane.
+                items:
+                  description: ExternalResource represents a discovered external resource.
+                  properties:
+                    externalName:
+                      description: |-
+                        ExternalName is the identifier of the resource in the external system.
+                        This is the value used in the crossplane.io/external-name annotation.
+                      type: string
+                    lastSeen:
+                      description: LastSeen is when this resource was last discovered.
+                      format: date-time
+                      type: string
+                  required:
+                  - externalName
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
