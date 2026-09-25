@@ -203,8 +203,26 @@ func setCondition(conditions []xpv2.Condition, c xpv2.Condition) []xpv2.Conditio
 // This method handles the provider integration and pagination.
 //
 // KNOWN LIMITATION (Alpha stage):
-// This is a stub implementation. The actual discovery is not yet implemented.
-// See "Known Limitations" section in the PR description for details.
+// This is a stub implementation. The actual provider integration is not yet implemented.
+//
+// Blocking items:
+// 1. The ExternalLister interface and ExternalListResult struct do not yet exist in
+//    crossplane-runtime; they are being added in a companion PR (crossplane-runtime #1183).
+// 2. Providers run as separate Deployments with their own controllers. To call a
+//    provider's ExternalLister, we need to either:
+//    a) Fetch the provider's ExternalClient from the ProviderConfig, or
+//    b) Expose discovery via a webhook/gRPC endpoint on the provider.
+//    Neither approach is implemented yet.
+//
+// Long-term, this method will:
+// - Load the provider for the MRD's group
+// - Retrieve the ExternalClient for the given ProviderConfig
+// - Type-assert it to resource.ExternalLister (the provider may not support discovery)
+// - Call List() with pagination handling
+// - Return all discovered external resources
+//
+// Until provider integration is complete, this method returns an error and the
+// controller marks the DiscoveryReport as Unavailable.
 func (r *Reconciler) discoverExternal(ctx context.Context, log logging.Logger, mrd *v1alpha1.ManagedResourceDefinition, pcName string) ([]v1alpha1.ExternalResource, error) {
 	// PROVIDER INTEGRATION POINT:
 	// This is where we would call the provider's ExternalLister interface.
