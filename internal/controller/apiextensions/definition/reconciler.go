@@ -317,6 +317,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
+	ogctx := ctx
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -500,6 +501,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		err = errors.Wrap(err, errApplyCRD)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
+		status.MarkConditions(v1.CannotEstablishComposite().WithMessage(err.Error()))
+
+		if updateErr := r.client.Status().Update(ogctx, d); updateErr != nil {
+			log.Debug(errUpdateStatus, "error", updateErr)
+		}
 
 		return reconcile.Result{}, err
 	}
