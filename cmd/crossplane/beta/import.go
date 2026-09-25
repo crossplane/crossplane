@@ -390,6 +390,13 @@ func (c *discoverCmd) applyManifests(ctx context.Context, dClient dynamic.Interf
 // parseYAMLToUnstructured converts a YAML document to an unstructured object.
 // This is a simple implementation that handles the format we generate.
 // TODO: For full YAML support, integrate sigs.k8s.io/yaml package
+// parseYAMLToUnstructured converts a YAML string to an unstructured Kubernetes object.
+//
+// KNOWN LIMITATION (Alpha):
+// This function only parses basic metadata fields (kind, name, namespace, external-name annotation).
+// Complex spec fields like managementPolicies are not yet preserved during parsing.
+// Operators should review generated manifests before applying, as some fields may be missing.
+// TODO: Implement full YAML parsing for complete adoption manifests.
 func parseYAMLToUnstructured(doc string) (*unstructured.Unstructured, error) {
 	// For now, use a simple line-by-line parser suitable for our generated format.
 	// This is sufficient for the structured YAML we generate.
@@ -434,14 +441,14 @@ func parseYAMLToUnstructured(doc string) (*unstructured.Unstructured, error) {
 		case "namespace":
 			metadata["namespace"] = value
 		case "annotations":
-			// Mark that we're in annotations section
-			_ = spec // ensure spec is defined for next case
+			// Annotation fields are parsed individually below (not yet fully implemented)
 		case "crossplane.io/external-name":
 			// This is an annotation value
 			annotations["crossplane.io/external-name"] = value
 		case "managementPolicies":
-			// This is a spec value (we'll parse list items)
-			_ = spec
+			// KNOWN LIMITATION: managementPolicies and other complex spec fields are not yet parsed.
+			// For now, only basic metadata (name, namespace) and annotations are preserved.
+			// TODO: Implement full spec field parsing for adoption manifests.
 		}
 	}
 
