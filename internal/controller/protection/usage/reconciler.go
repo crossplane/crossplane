@@ -474,11 +474,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// Used resource should have in-use label.
-	if used.GetLabels()[inUseLabelKey] != "true" || !used.OwnedBy(uu.GetUID()) {
-		// Note(turkenh): Composite controller will not remove this label with
-		// new reconciles since it uses a patching applicator to update the
-		// resource.
+	if used.GetLabels()[inUseLabelKey] != "true" {
+		// Note(turkenh): the composite controller's patching applicator won't remove this label on later reconciles.
 		meta.AddLabels(used, map[string]string{inUseLabelKey: "true"})
 
 		if err := r.client.Update(ctx, used); err != nil {
