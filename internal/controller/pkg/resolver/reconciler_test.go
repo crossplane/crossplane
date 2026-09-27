@@ -335,8 +335,19 @@ func TestReconcile(t *testing.T) {
 							})
 							return nil
 						}),
-						MockUpdate:       test.NewMockUpdateFn(nil),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+						MockUpdate: test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							l := o.(*v1beta1.Lock)
+							c := l.GetCondition(v1beta1.TypeResolved)
+							if c.Reason != v1beta1.ReasonFailed {
+								t.Errorf("GetCondition(TypeResolved).Reason: -want %q, +got %q", v1beta1.ReasonFailed, c.Reason)
+							}
+							want := fmt.Sprintf("Error occurred during dependency resolution %s", errUnexpectedNodeType)
+							if c.Message != want {
+								t.Errorf("GetCondition(TypeResolved).Message: -want %q, +got %q", want, c.Message)
+							}
+							return nil
+						}),
 					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
