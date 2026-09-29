@@ -56,6 +56,64 @@ const (
 	orderedXRNamespace = "default"
 )
 
+// A subject is the composite a helper should look at.
+//
+// Ordering is supported on both schemas, and they differ in where the graph
+// lives: a legacy XR keeps its composed resource references at
+// spec.resourceRefs, a modern one nests them under spec.crossplane. Helpers
+// that read the graph therefore have to be told which they are looking at,
+// rather than assuming.
+type subject struct {
+	APIVersion string
+	Kind       string
+	Name       string
+
+	// Namespace is empty for a cluster scoped composite, which is what a
+	// legacy XR always is, and what its composed resources are too.
+	Namespace string
+
+	// Legacy says where the references are. Not derivable from Namespace: a
+	// modern XR can be cluster scoped and still nest them.
+	Legacy bool
+}
+
+// modernSubject is the XR the rest of this file's tests use.
+var modernSubject = subject{
+	APIVersion: "ordering.example.org/v1alpha1",
+	Kind:       "XOrdering",
+	Name:       orderedXRName,
+	Namespace:  orderedXRNamespace,
+}
+
+// legacySubject is the v1 XR, cluster scoped, composing cluster scoped
+// resources.
+var legacySubject = subject{
+	APIVersion: "ordering.example.org/v1alpha1",
+	Kind:       "XLegacyOrdering",
+	Name:       "ordered-legacy",
+	Legacy:     true,
+}
+
+// refsPath is where this composite keeps its composed resource references.
+func (s subject) refsPath() []string {
+	if s.Legacy {
+		return []string{"spec", "resourceRefs"}
+	}
+
+	return []string{"spec", "crossplane", "resourceRefs"}
+}
+
+// get reads this composite. Both the composite and its composed resources are
+// fetched from its own namespace, which is empty when it is cluster scoped -
+// and an empty namespace is how the e2e client addresses a cluster scoped
+// object.
+func (s subject) get(ctx context.Context, c *envconf.Config, into *unstructured.Unstructured) error {
+	into.SetAPIVersion(s.APIVersion)
+	into.SetKind(s.Kind)
+
+	return c.Client().Resources(s.Namespace).Get(ctx, s.Name, s.Namespace, into)
+}
+
 func init() {
 	environment.AddTestSuite(SuiteComposedResourceOrdering,
 		config.WithHelmInstallOpts(
@@ -76,14 +134,12 @@ func init() {
 // are what Crossplane itself uses to observe them, they carry the composition
 // resource name directly, and they don't depend on the test guessing the right
 // kind or label selector.
-func deletingByResourceName(ctx context.Context, t *testing.T, c *envconf.Config) map[string]bool {
+func deletingByResourceNameOf(ctx context.Context, t *testing.T, c *envconf.Config, s subject) map[string]bool {
 	t.Helper()
 
 	xr := &unstructured.Unstructured{}
-	xr.SetAPIVersion("ordering.example.org/v1alpha1")
-	xr.SetKind("XOrdering")
 
-	if err := c.Client().Resources(orderedXRNamespace).Get(ctx, orderedXRName, orderedXRNamespace, xr); err != nil {
+	if err := s.get(ctx, c, xr); err != nil {
 		if kerrors.IsNotFound(err) {
 			// The XR is gone. During teardown that should be impossible until
 			// every composed resource has gone first, because the XR holds its
@@ -97,9 +153,9 @@ func deletingByResourceName(ctx context.Context, t *testing.T, c *envconf.Config
 		t.Fatalf("cannot get XR: %v", err)
 	}
 
-	refs, _, err := unstructured.NestedSlice(xr.Object, "spec", "crossplane", "resourceRefs")
+	refs, _, err := unstructured.NestedSlice(xr.Object, s.refsPath()...)
 	if err != nil {
-		t.Fatalf("cannot read spec.crossplane.resourceRefs: %v", err)
+		t.Fatalf("cannot read %s: %v", strings.Join(s.refsPath(), "."), err)
 	}
 
 	out := map[string]bool{}
@@ -121,7 +177,7 @@ func deletingByResourceName(ctx context.Context, t *testing.T, c *envconf.Config
 
 		objName, _, _ := unstructured.NestedString(ref, "name")
 
-		err := c.Client().Resources(orderedXRNamespace).Get(ctx, objName, orderedXRNamespace, cd)
+		err := c.Client().Resources(s.Namespace).Get(ctx, objName, s.Namespace, cd)
 		switch {
 		case kerrors.IsNotFound(err):
 			// Finished deleting, so absent from the map.
@@ -158,11 +214,19 @@ func composedStateIs(want map[string]bool) features.Func {
 // deeper graphs need a deadline well above the sum of their readyAfter values.
 // See notes-circuit-breaker-scale-findings.md.
 func composedStateIsWithin(d time.Duration, want map[string]bool) features.Func {
+	return composedStateOfIsWithin(modernSubject, d, want)
+}
+
+func composedStateOfIs(s subject, want map[string]bool) features.Func {
+	return composedStateOfIsWithin(s, 45*time.Second, want)
+}
+
+func composedStateOfIsWithin(s subject, d time.Duration, want map[string]bool) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
 		err := wait.For(func(context.Context) (bool, error) {
-			got := deletingByResourceName(ctx, t, c)
+			got := deletingByResourceNameOf(ctx, t, c, s)
 			if len(got) != len(want) {
 				return false, nil
 			}
@@ -177,7 +241,7 @@ func composedStateIsWithin(d time.Duration, want map[string]bool) features.Func 
 		}, wait.WithTimeout(d), wait.WithInterval(time.Second))
 		if err != nil {
 			t.Logf("want: %v", want)
-			t.Logf("got:  %v (absent names have finished deleting)", deletingByResourceName(ctx, t, c))
+			t.Logf("got:  %v (absent names have finished deleting)", deletingByResourceNameOf(ctx, t, c, s))
 			logXRReferences(ctx, t, c)
 			t.Fatalf("composed resources did not reach the expected teardown state: %v", err)
 		}
@@ -281,20 +345,21 @@ func logXRReferences(ctx context.Context, t *testing.T, c *envconf.Config) {
 // This is the precondition for ordered teardown. Core rebuilds the graph from
 // these references when the XR is deleted, because no function runs then.
 func xrReferencesCarryGraph() features.Func {
+	return xrReferencesOfCarryGraph(modernSubject)
+}
+
+func xrReferencesOfCarryGraph(s subject) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
 		xr := &unstructured.Unstructured{}
-		xr.SetAPIVersion("ordering.example.org/v1alpha1")
-		xr.SetKind("XOrdering")
-
-		if err := c.Client().Resources(orderedXRNamespace).Get(ctx, orderedXRName, orderedXRNamespace, xr); err != nil {
+		if err := s.get(ctx, c, xr); err != nil {
 			t.Fatalf("cannot get XR: %v", err)
 		}
 
-		refs, _, err := unstructured.NestedSlice(xr.Object, "spec", "crossplane", "resourceRefs")
+		refs, _, err := unstructured.NestedSlice(xr.Object, s.refsPath()...)
 		if err != nil {
-			t.Fatalf("cannot read spec.crossplane.resourceRefs: %v", err)
+			t.Fatalf("cannot read %s: %v", strings.Join(s.refsPath(), "."), err)
 		}
 
 		if len(refs) == 0 {
@@ -802,6 +867,83 @@ func TestComposedResourceOrderingTeardownSurvivesRestart(t *testing.T) {
 			).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+// TestComposedResourceOrderingTeardownIsOrderedOnLegacyXR is
+// TestComposedResourceOrderingTeardownIsOrdered against a legacy v1 XR.
+//
+// Ordering is supported on both schemas, and exactly one thing differs: a
+// legacy XR keeps its composed resource references at spec.resourceRefs where
+// a modern one nests them under spec.crossplane. Teardown rebuilds the graph
+// from whichever the XR has, so if that ever went modern-only a legacy XR
+// would rebuild an empty graph and cascade - and a cascade is
+// indistinguishable from teardown having finished, which is why this asserts
+// the waves rather than just that the XR goes away.
+//
+// Legacy XRs are cluster scoped, so this composes ClusterNopResources.
+// provider-nop has carried them, with the same forProvider fields as the
+// namespaced kind, since v0.6.0.
+func TestComposedResourceOrderingTeardownIsOrderedOnLegacyXR(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/ordering"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that a legacy v1 XR tears down one dependency level at a time, reading the graph from spec.resourceRefs rather than spec.crossplane.resourceRefs.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteComposedResourceOrdering).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			WithSetup("LegacyXRDIsCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup-legacy/definition.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup-legacy/definition.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup-legacy/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateComposition", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "legacy/composition.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "legacy/composition.yaml"),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "legacy/xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "legacy/xr.yaml"),
+			)).
+			Assess("XRIsReady",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "legacy/xr.yaml", xpv2.Available()),
+			).
+			// The assertion this test exists for: the graph has to be at the
+			// unnested path, because that is where teardown will look.
+			Assess("GraphIsPersistedAtTheLegacyPath", xrReferencesOfCarryGraph(legacySubject)).
+			Assess("DeleteXR",
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "legacy/xr.yaml", metav1.DeletePropagationBackground),
+			).
+			Assess("OnlyTheLeafIsDeleting",
+				composedStateOfIs(legacySubject, map[string]bool{"first": false, "second": false, "third": true}),
+			).
+			Assess("ThenSecondIsDeleting",
+				composedStateOfIs(legacySubject, map[string]bool{"first": false, "second": true}),
+			).
+			Assess("ThenFirstIsDeleting",
+				composedStateOfIs(legacySubject, map[string]bool{"first": true}),
+			).
+			Assess("XRIsGone",
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "legacy/xr.yaml"),
+			).
+			WithTeardown("DeleteComposition", funcs.AllOf(
+				funcs.DeleteResources(manifests, "legacy/composition.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "legacy/composition.yaml"),
+			)).
+			WithTeardown("DeleteLegacyXRD", funcs.AllOf(
+				funcs.DeleteResources(manifests, "setup-legacy/definition.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "setup-legacy/definition.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Feature(),
