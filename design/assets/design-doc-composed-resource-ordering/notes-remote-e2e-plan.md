@@ -45,12 +45,34 @@ A VM is already provisioned and set up:
 
 ```bash
 gcloud compute ssh borrelli-modelplane \
-  --project=crossplane-playground --zone=us-central1-f
+  --project=crossplane-playground --zone=us-central1-c
 ```
 
-`e2-highmem-4` (4 vCPU, 31 GB RAM), Debian 13, 100 GB disk, Docker 29.8,
-passwordless sudo, and both repos cloned under `~/code`. Nix 2.35.2 is
-installed multi-user with flakes enabled.
+`c4-standard-8` (8 vCPU, 30 GB RAM), Debian 13, 200 GB disk, passwordless
+sudo, and both repos cloned under `~/code`. Rebuilt on 2026-09-28 with:
+
+- Docker CE 29.8.1 from Docker's apt repository, with `docker-ce`,
+  `docker-ce-cli` and `containerd.io` held.
+- Nix 2.35.2, multi-user, with flakes enabled and the login user trusted.
+- kind v0.32 and helm v4.3 on the default Nix profile
+  (`/nix/var/nix/profiles/default/bin`), and kubectl from `pkgs.k8s.io`.
+- `crossplane-graph` installed into `~/bin`, which survives a stop where `/tmp`
+  does not.
+  `~/.profile` puts `~/bin` and the Nix profile on `PATH` for login shells.
+- inotify limits raised in `/etc/sysctl.d/99-kind.conf`
+  (`max_user_instances=8192`, `max_user_watches=1048576`), so the scale
+  cluster and both Modelplane clusters can run at once.
+
+The VM has its own VPC network, also named `borrelli-modelplane`, whose only
+ingress rules allow SSH: `borrelli-modelplane-allow-ssh-home` from
+the owner's IP address, and `borrelli-modelplane-allow-iap-ssh` from Google's IAP
+range for `--tunnel-through-iap`. From anywhere else, add a rule or use IAP.
+
+**Don't `apt-get install kind`.** kind is already on the Nix profile, and
+Debian's package depends on `docker.io`, which conflicts with Docker CE: apt
+stops Docker, which takes every kind cluster down with it, and swaps the
+engine. Purging `docker.io` afterwards deletes `/var/lib/docker`, and with it
+every container. The holds above stop apt from replacing the engine again.
 
 **Use `nix run` directly on this VM, not `./nix.sh`.** The wrapper exists so
 a Mac needn't install Nix, and it runs Docker-in-Docker: a fresh container
@@ -74,9 +96,8 @@ export PATH=/nix/var/nix/profiles/default/bin:$PATH
 
 An interactive login shell is unaffected.
 
-Phase 2 wants ~60-90 minutes on 4 vCPU rather than the 30-45 a bigger box
-would take. If that becomes the bottleneck, stop the instance and resize to
-`e2-standard-8`.
+Phase 2 takes about 15 minutes on this box once images are cached, and
+longer on a first run while they pull. A 4 vCPU box takes 60-90.
 
 ## VM requirements (if building a different box)
 
@@ -208,7 +229,7 @@ git clone -b composed-resource-ordering \
 cd modelplane
 
 CROSSPLANE_IMAGE=crossplane/crossplane:<tag> \
-  CROSSPLANE_ARGS=--enable-composed-resource-ordering \
+  CROSSPLANE_ARGS='--enable-composed-resource-ordering --circuit-breaker-burst=100000' \
   ./nix.sh run .#e2e -- --verify
 ```
 
@@ -225,6 +246,13 @@ Both variables are required, for different reasons:
   the pipeline rather than composing a stack whose ordering nothing will
   enforce.
 
+  `--circuit-breaker-burst=100000` is not required, but leave it in. The
+  ServingStack converges over five waves, and at the default burst of 100 the
+  realtime compositions circuit breaker opens partway through: the XR reports
+  `Responsive=False/WatchCircuitOpen`, and each later wave waits for a
+  periodic probe. `run.sh` splits `CROSSPLANE_ARGS` on whitespace and appends
+  each flag separately, so both go in the one variable.
+
 The functions need no flag: they resolve the branch SDK from `uv.lock`, which
 points at the `function-sdk-python` rev above.
 
@@ -239,17 +267,18 @@ down in dependency order. The Crossplane image that run used was
 
 ### Reading the graph
 
-`xpgraph` prints the ordering graph off a live composite, with each
+[crossplane-graph](https://github.com/stevendborrelli/crossplane-graph) prints
+the ordering graph off a live composite, with each
 resource's state beside the edges. It answers "did the edges reach the XR"
 and "what is this waiting for" in one command, which is most of what the
 checks below do by hand:
 
 ```bash
-cd ~/code/crossplane && nix develop -c go build -o /tmp/xpgraph ./cmd/xpgraph
+cd ~/code/crossplane && GOBIN=~/bin nix develop -c go install github.com/stevendborrelli/crossplane-graph@latest
 
-/tmp/xpgraph inferencegateway/default                     # cluster scoped
-/tmp/xpgraph servingstack/<name> -n modelplane-system     # namespaced
-/tmp/xpgraph xordering/ordered -n default --dot           # Graphviz
+~/bin/crossplane-graph inferencegateway/default                     # cluster scoped
+~/bin/crossplane-graph servingstack/<name> -n modelplane-system     # namespaced
+~/bin/crossplane-graph xordering/ordered -n default --dot           # Graphviz
 ```
 
 `kubectl` points at the workload cluster until `crossplane project run`
