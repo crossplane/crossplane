@@ -375,11 +375,15 @@ it.
 | `TeardownBlocks` | A resource that refuses to delete holds the XR indefinitely and says so; clearing the cause lets teardown resume where it stopped. |
 | `CreateBeforeDestroy` | A replacement and its predecessor exist at the same time, which a symmetric edge would never allow. |
 | `TeardownSurvivesRestart` | Teardown continues in order after Crossplane is restarted mid-way. The replacement process never ran the pipeline for that XR, so the order can only have come from `spec.crossplane.resourceRefs`. |
+| `TeardownIsOrderedOnLegacyXR` | A legacy v1 XR tears down a level at a time too, reading the graph from `spec.resourceRefs`. If teardown ever read only the modern path, it would find no graph and cascade, which looks exactly like finishing. |
 
 Required resources and graph contradictions have fixtures but no end-to-end
-test; both are covered by unit tests. An end-to-end test for legacy v1 XRs is
-in progress. It needs a republished function that composes cluster-scoped
-resources for a cluster-scoped XR.
+test; both are covered by unit tests.
+
+The whole suite takes about seven minutes on an 8 vCPU machine, including
+building Crossplane. `CreatesInWaves` is most of it: the suite leaves the
+circuit breaker at its default burst, so it opens partway through the
+four-level graph and later waves wait for its periodic probe.
 
 ## Rebuilding the function
 
