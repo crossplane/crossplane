@@ -1,0 +1,29 @@
+# first <- second <- third on a legacy XR, composed as ClusterNopResources
+# whose deletion takes 5s each, so teardown is three observable waves.
+#
+# Same shape as teardown/composition.yaml, which orders a modern XR. The
+# function composes the cluster scoped kind because a legacy XR has no
+# namespace to give a namespaced one; provider-nop has carried
+# ClusterNopResource, with the same forProvider fields, since v0.6.0.
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xlegacyorderings.ordering.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: ordering.example.org/v1alpha1
+    kind: XLegacyOrdering
+  mode: Pipeline
+  pipeline:
+  - step: compose-in-order
+    functionRef:
+      name: function-ordering
+    input:
+      apiVersion: ordering.fn.crossplane.io/v1alpha1
+      kind: Input
+      sequence:
+      - first
+      - second
+      - third
+      readyAfter: 1s
+      deleteAfter: 5s

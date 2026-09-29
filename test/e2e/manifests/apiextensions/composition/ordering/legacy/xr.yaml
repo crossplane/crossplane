@@ -1,0 +1,10 @@
+# Cluster scoped, because legacy XRs are.
+apiVersion: ordering.example.org/v1alpha1
+kind: XLegacyOrdering
+metadata:
+  name: ordered-legacy
+spec:
+  sequence:
+  - first
+  - second
+  - third

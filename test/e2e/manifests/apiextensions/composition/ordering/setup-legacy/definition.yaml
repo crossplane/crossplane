@@ -1,0 +1,38 @@
+# A legacy (v1) XR, to prove ordering works on one.
+#
+# Ordering is supported on both schemas and only one thing differs: a legacy
+# XR keeps its composed resource references at spec.resourceRefs, where a
+# modern one nests them under spec.crossplane. Teardown rebuilds the graph
+# from whichever it has, so if that ever went modern-only a legacy XR would
+# rebuild an empty graph and cascade - which looks exactly like teardown
+# having finished.
+#
+# An apiextensions.crossplane.io/v1 XRD with no scope is legacy, and legacy
+# XRs are cluster scoped. That is why the composition below composes
+# ClusterNopResources: there is no namespace to put namespaced ones in.
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xlegacyorderings.ordering.example.org
+spec:
+  group: ordering.example.org
+  names:
+    kind: XLegacyOrdering
+    plural: xlegacyorderings
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              sequence:
+                type: array
+                items:
+                  type: string
+            required:
+            - sequence
