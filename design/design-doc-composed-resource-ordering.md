@@ -886,9 +886,11 @@ If we required every function author to adopt a new SDK version and emit
 Thanks to the accumulation of state in Crossplane functions, we can place a
 function at the end of the pipeline that defines dependency pairs.
 
-[**`function-ordering`**](https://github.com/stevendborrelli/function-ordering)
+[**`function-ordering`**](https://github.com/stevendborrelli/function-ordering/tree/sequencer)
 is a fork of **`function-sequencer`** that keeps its input schema and its
-user-facing behavior but emits `dependencies` edges.
+user-facing behavior but emits `dependencies` edges. It is a prototype, on the
+`sequencer` branch of that repository, and builds against a `function-sdk-go`
+branch that carries the new protocol messages.
 
 ### How It Works
 
@@ -900,7 +902,7 @@ translates it into edges over composed resource names:
     functionRef:
       name: function-ordering
     input:
-      apiVersion: ordering.fn.crossplane.io/v1beta1
+      apiVersion: sequencer.fn.crossplane.io/v1beta1
       kind: Input
       rules:
         - sequence: [vpc, subnet, security-group]
@@ -910,6 +912,18 @@ becomes the edge set `subnet -> vpc`, `security-group -> vpc`,
 `security-group -> subnet`. Note that this is every predecessor pair, not just
 adjacent ones, matching `function-sequencer`'s existing semantics: a resource at
 position *i* waits on all of `sequence[:i]`, not only on `sequence[i-1]`.
+
+The input keeps `function-sequencer`'s API group, so the rules an author
+already wrote work unchanged. Nothing is removed from desired state, so
+Crossplane can report what it is holding back, and no `Usage`s are composed:
+Crossplane orders deletion from the same edges, including when the XR itself is
+deleted, without a foreground cascade.
+
+One case keeps `function-sequencer`'s behavior even against a Crossplane that
+orders resources. When a sequence entry matches no resource at all,
+`function-sequencer` holds its successors back until one exists. An edge
+naming a resource Crossplane doesn't know about is pruned, which would let
+them through, so the fork holds those successors back by omission instead.
 
 Three properties make this the right shape for adoption:
 
@@ -930,9 +944,10 @@ Three properties make this the right shape for adoption:
   and set `resetCompositeReadiness` if configured. One function works against
   old and new cores, and the same Composition keeps working through an upgrade.
 
-In graph mode `resetCompositeReadiness` becomes unnecessary: core knows a
-resource is blocked and reports it, which is the whole point of moving the
-signal into the protocol.
+In graph mode `resetCompositeReadiness` becomes unnecessary for anything
+expressed as an edge: core knows a resource is blocked and reports it, which is
+the whole point of moving the signal into the protocol. It still applies to
+resources held back by omission.
 
 Two of `function-sequencer`'s inputs have no equivalent in a symmetric edge. Its
 per-rule `deleteOnly` and `createOnly` modifiers decouple the create and delete
