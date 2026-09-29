@@ -305,6 +305,11 @@ func deleteErrorFor(in *input, name string) string {
 // nopResource returns a NopResource that reports Ready after readyAfter, and
 // whose deletion takes deleteAfter. Either may be empty. Together they let a
 // test observe creation and teardown over seconds rather than milliseconds.
+//
+// A cluster scoped composite gets ClusterNopResources instead. It has no
+// namespace to give them, and provider-nop has carried a cluster scoped
+// variant with the same forProvider fields since v0.6.0. This is what lets a
+// legacy v1 XR - which is always cluster scoped - be ordered in a test.
 func nopResource(name, namespace, readyAfter, deleteAfter, deleteError string) (*structpb.Struct, error) {
 	fp := map[string]any{}
 
@@ -323,23 +328,36 @@ func nopResource(name, namespace, readyAfter, deleteAfter, deleteError string) (
 		fp["deleteError"] = deleteError
 	}
 
+	kind, metadata := "NopResource", map[string]any{"namespace": namespace}
+	if namespace == "" {
+		kind, metadata = "ClusterNopResource", map[string]any{}
+	}
+
 	m := map[string]any{
 		"apiVersion": "nop.crossplane.io/v1alpha1",
-		"kind":       "NopResource",
-		"metadata":   map[string]any{"namespace": namespace},
+		"kind":       kind,
+		"metadata":   metadata,
 		"spec":       map[string]any{"forProvider": fp},
 	}
 
 	s, err := structpb.NewStruct(m)
 	if err != nil {
-		return nil, fmt.Errorf("cannot build NopResource %q: %w", name, err)
+		return nil, fmt.Errorf("cannot build %s %q: %w", kind, name, err)
 	}
 
 	return s, nil
 }
 
 // configMap returns a ConfigMap named after the composed resource.
+//
+// There is no cluster scoped equivalent, so a cluster scoped composite has
+// nowhere to put one. Say so rather than composing a ConfigMap with an empty
+// namespace, which fails later and further away.
 func configMap(name, namespace string) (*structpb.Struct, error) {
+	if namespace == "" {
+		return nil, fmt.Errorf("cannot compose ConfigMap %q: a cluster scoped composite has no namespace to put it in; use readyAfter to compose ClusterNopResources instead", name)
+	}
+
 	m := map[string]any{
 		"apiVersion": "v1",
 		"kind":       "ConfigMap",

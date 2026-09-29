@@ -7,7 +7,7 @@ kind: Function
 metadata:
   name: function-ordering
 spec:
-  package: index.docker.io/steve/function-ordering:dependency-test.4
+  package: ghcr.io/stevendborrelli/function-ordering-test:dependency-test.5
 ---
 # provider-nop composes resources whose readiness AND deletion can be delayed.
 # The delay is what makes ordering visible: without it every wave completes
