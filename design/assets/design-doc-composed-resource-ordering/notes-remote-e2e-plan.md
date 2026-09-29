@@ -141,13 +141,14 @@ It covers creation ordering, teardown ordering, a dependency on a required
 (rather than composed) resource, nested XRs, and a blocked teardown.
 
 **Dependency to check first.** The suite installs a Function package from
-`index.docker.io/steve/function-ordering:dependency-test.4`
+`ghcr.io/stevendborrelli/function-ordering-test:dependency-test.5`
 (`test/e2e/manifests/apiextensions/composition/ordering/setup/functions.yaml`).
-If that tag is gone or private, rebuild and push it from the local
-`function-ordering` checkout, then update the manifest to the new reference.
-That repo is the demo function written for this feature; no published
-function declares dependencies, which is the compatibility problem the
-feature is about.
+If that tag is gone or private, rebuild and push it with
+`test/e2e/functions/ordering/build.sh <registry>/function-ordering-test:<tag>`,
+then update the manifest to the new reference. It's the test function written
+for this feature, and it lives in this repository. The `function-ordering`
+repository is now a fork of `function-sequencer`, and isn't what the suite
+installs.
 
 **Note:** the project `CLAUDE.md` says `./nix.sh run .#streamImage`. The real
 attribute is `stream-image`; the documented spelling errors out.
