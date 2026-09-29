@@ -1,0 +1,51 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xnetworks.demo.crossplane.io
+spec:
+  compositeTypeRef:
+    apiVersion: demo.crossplane.io/v1alpha1
+    kind: XNetwork
+  mode: Pipeline
+  pipeline:
+  - step: compose-in-order
+    functionRef:
+      name: function-ordering
+    input:
+      apiVersion: ordering.fn.crossplane.io/v1alpha1
+      kind: Input
+      # 02-teardown.yaml with database and backup dropped from desired state,
+      # while the XR stays up. Their edges are still declared, which is what
+      # orders the deletion: backup goes first, and database waits for it.
+      #
+      #   standalone                        vpc
+      #                        ┌────────┬────┴───┬────────┐
+      #                    subnet-a  subnet-b  gateway    sg
+      #                     │    └──────┬────────────────┘
+      #                 (database)   instance
+      #                     │           │
+      #                  (backup)      app
+      #
+      # Apply 02-teardown.yaml again to bring them back, database first.
+      readyAfter: 1s
+      deleteAfter: 4s
+      resources:
+      - vpc
+      - subnet-a
+      - subnet-b
+      - gateway
+      - sg
+      - instance
+      - app
+      - standalone
+      edges:
+      - {resource: subnet-a, dependsOn: vpc}
+      - {resource: subnet-b, dependsOn: vpc}
+      - {resource: gateway,  dependsOn: vpc}
+      - {resource: sg,       dependsOn: vpc}
+      - {resource: instance, dependsOn: subnet-a}
+      - {resource: instance, dependsOn: subnet-b}
+      - {resource: instance, dependsOn: sg}
+      - {resource: app,      dependsOn: instance}
+      - {resource: database, dependsOn: subnet-a}
+      - {resource: backup,   dependsOn: database}
