@@ -1014,6 +1014,17 @@ generates for every XR:
 Neither appears on a Claim: a claim composes nothing, so it has no graph and
 nothing to hold back.
 
+One addition lands in tooling. `crossplane render` runs Crossplane's own
+composer, so it orders composed resources only when it runs with the feature
+on, the way Crossplane does. Without that, a Composition that relies on
+ordering renders differently from how it runs: a function that checks for
+`CAPABILITY_DEPENDENCIES` takes its fallback, and dependencies declared
+anyway are ignored, so everything renders at once. `crossplane internal
+render` takes `--enable-composed-resource-ordering`, which `crossplane
+composition render` passes through when asked. Rendering then shows one
+reconcile's worth - the first wave composed, the rest in
+`status.crossplane.pendingResources`.
+
 ## Comparison to Function Ordered Deletion
 
 [function-ordered-deletion](https://github.com/crossplane/crossplane/pull/7242)
