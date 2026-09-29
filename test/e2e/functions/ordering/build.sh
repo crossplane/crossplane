@@ -7,7 +7,7 @@
 #
 # Usage:
 #   ./build.sh                          # build only
-#   ./build.sh index.docker.io/you/function-ordering:tag   # build and push
+#   ./build.sh ghcr.io/you/function-ordering-test:tag   # build and push
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -27,22 +27,22 @@ for arch in amd64 arm64; do
 	cp "${here}/Dockerfile" "${out}/Dockerfile"
 	docker build --quiet --platform "linux/${arch}" \
 		--build-arg "TARGETARCH=${arch}" \
-		-t "function-ordering-runtime:${arch}" \
+		-t "function-ordering-test-runtime:${arch}" \
 		-f "${out}/Dockerfile" "${out}" >/dev/null
 
 	echo "==> building xpkg for linux/${arch}"
 	crossplane xpkg build \
 		--package-root="${here}/package" \
-		--embed-runtime-image="function-ordering-runtime:${arch}" \
-		--package-file="${out}/function-ordering-${arch}.xpkg"
+		--embed-runtime-image="function-ordering-test-runtime:${arch}" \
+		--package-file="${out}/function-ordering-test-${arch}.xpkg"
 done
 
 if [ -z "${image}" ]; then
-	echo "built: ${out}/function-ordering-{amd64,arm64}.xpkg (not pushed)"
+	echo "built: ${out}/function-ordering-test-{amd64,arm64}.xpkg (not pushed)"
 	exit 0
 fi
 
 echo "==> pushing ${image}"
 crossplane xpkg push \
-	--package-files="${out}/function-ordering-amd64.xpkg,${out}/function-ordering-arm64.xpkg" \
+	--package-files="${out}/function-ordering-test-amd64.xpkg,${out}/function-ordering-test-arm64.xpkg" \
 	"${image}"

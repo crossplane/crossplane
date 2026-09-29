@@ -1,10 +1,10 @@
 apiVersion: meta.pkg.crossplane.io/v1
 kind: Function
 metadata:
-  name: function-ordering
+  name: function-ordering-test
   annotations:
     meta.crossplane.io/maintainer: Crossplane Maintainers <info@crossplane.io>
-    meta.crossplane.io/source: github.com/crossplane/crossplane/tree/main/test/e2e/functions/ordering
+    meta.crossplane.io/source: github.com/stevendborrelli/crossplane/tree/composed-resource-ordering-prototype/test/e2e/functions/ordering
     meta.crossplane.io/license: Apache-2.0
     meta.crossplane.io/description: |
       A test function that composes resources and declares ordering constraints
