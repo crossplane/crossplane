@@ -49,6 +49,8 @@ const ExitCodePipelineFatal = 3
 type Command struct {
 	Timeout time.Duration `default:"2m" help:"Timeout for the render operation."`
 
+	EnableComposedResourceOrdering bool `group:"Alpha Features:" help:"Render as a Crossplane with composed resource ordering enabled does: functions are told dependencies are supported, and the ones they declare hold resources back."`
+
 	// stdin and stdout default to os.Stdin/os.Stdout. They are unexported
 	// so they don't expand the production API surface; in-package tests can
 	// set them to substitute buffers without process-level redirection.
@@ -96,7 +98,7 @@ func (c *Command) Run(log logging.Logger) error {
 
 	switch in := req.GetInput().(type) {
 	case *renderv1alpha1.RenderRequest_Composite:
-		out, err := composite.Render(ctx, log, in.Composite)
+		out, err := composite.Render(ctx, log, in.Composite, composite.WithComposedResourceOrdering(c.EnableComposedResourceOrdering))
 		if out != nil {
 			rsp.Output = &renderv1alpha1.RenderResponse_Composite{Composite: out}
 		}
