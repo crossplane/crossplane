@@ -10,6 +10,12 @@ Two proposed API changes, sketched far enough to argue with.
 They are separable. (1) is additive and can ship alone. (2) is a breaking
 change to an alpha field, so its deadline is beta, not its usefulness.
 
+**(1) shipped; (2) was reconsidered and dropped** for the persisted form. The
+typed edges live in `pendingResources`, which is the one place a
+required-resource edge has to be visible, and `resourceRefs[].dependsOn`
+stays a list of names. See "Typed edges stay in pendingResources" under
+Settled.
+
 Decided so far: no `field` on an edge in v1 - the object form earns its place
 on `type` alone, and adding `field` later costs nothing once edges are
 objects. The status field is named `pendingResources`. Per-resource blocked
@@ -354,6 +360,29 @@ is the whole reason they cannot live in `resourceRefs`.
 **Structured reasons replace the per-resource strings.** See "What this
 deletes" above.
 
+**Typed edges stay in pendingResources.** `pendingResources[].dependsOn` is a
+list of typed objects, and `resourceRefs[].dependsOn` stays a list of
+composed resource names. Core writes only composed edges into the references
+- it skips a dependency without a composed target - and that's all the
+persisted form needs:
+
+- Teardown is the only thing that reads it, and teardown orders only composed
+  resources. Crossplane never deletes a required resource, so a persisted
+  required edge would have nothing to do.
+- A required-resource edge gates only creation. Once the resource exists it
+  stops mattering, and while it matters, `pendingResources` shows it, typed.
+- The lifecycle isn't persisted either, because create-before-destroy can't
+  arise during teardown. So no second attribute forces edges to become
+  objects.
+
+The argument for typing the persisted form was that changing `[]string` to
+`[]object` isn't schema compatible, so it had to happen before beta or never.
+That holds only if something teardown reads needs a type. The one plausible
+case is a lifecycle policy teardown itself must honor, like Pulumi's
+`deletedWith`, and that could be an additive field beside `dependsOn` rather
+than a change to it. The cost is visibility: a tool reading only the XR can't
+see that an existing resource once waited on a required resource.
+
 ## Still open
 
 **Status churn** turned out to be solved already, as long as the field obeys
@@ -381,8 +410,10 @@ seconds for its whole duration. Both are fixed, and
 
 **Lifecycle.** `dependsOn` deliberately does not persist
 `create-before-destroy`, because the question cannot arise during teardown.
-The object form makes it addable later without a second migration, which is an
-argument for the shape independent of anything else.
+The object form would have made it addable later without a second migration.
+With the persisted form staying a list of names, a lifecycle teardown must
+honor would go in a field of its own; see "Typed edges stay in
+pendingResources".
 
 **Cost.** Measured on a live XR, an edge is about 9 bytes with five-character
 resource names and 30-50 with realistic ones. Without `field`, an object edge
