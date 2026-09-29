@@ -23,7 +23,7 @@ set -euo pipefail
 
 INSTANCE="${INSTANCE:-borrelli-modelplane}"
 PROJECT="${PROJECT:-crossplane-playground}"
-ZONE="${ZONE:-us-central1-f}"
+ZONE="${ZONE:-us-central1-c}"
 
 # Native Nix on the VM, not ./nix.sh: the wrapper runs Docker-in-Docker, so it
 # would put the kind clusters somewhere kubectl can't reach and drop the
@@ -111,9 +111,13 @@ cd ~/code/crossplane && nix run .#stream-image 2>/dev/null | docker load 2>&1 | 
 		exit 1
 	}
 
+	# The burst is raised for the same reason scale/up.sh raises it: the
+	# ServingStack converges over five waves, and at the default burst of 100
+	# the realtime compositions circuit breaker opens partway through, after
+	# which each wave waits for a periodic probe.
 	log "phase 2: Modelplane e2e against ${image}"
 	run "${NIX_PATH_PREFIX}
-cd ~/code/modelplane && CROSSPLANE_IMAGE='${image}' CROSSPLANE_ARGS=--enable-composed-resource-ordering \
+cd ~/code/modelplane && CROSSPLANE_IMAGE='${image}' CROSSPLANE_ARGS='--enable-composed-resource-ordering --circuit-breaker-burst=100000' \
   setsid nohup nix run .#e2e -- --verify > ~/phase2.log 2>&1 < /dev/null & disown
 echo launched"
 
@@ -121,14 +125,14 @@ echo launched"
 tail -4 ~/phase2.log"
 
 	# A green verify says the stack converged, not that it converged in
-	# order. xpgraph reads the edges and each resource's state off the XR,
+	# order. crossplane-graph reads the edges and each resource's state off the XR,
 	# which is the difference.
 	log "the graph, as Crossplane ordered it"
 	# ~/bin, not /tmp: a stopped VM clears /tmp, and rebuilding takes longer
 	# than the rest of this step.
 	run "${NIX_PATH_PREFIX}
-mkdir -p ~/bin && cd ~/code/crossplane && nix develop -c go build -o ~/bin/xpgraph ./cmd/xpgraph 2>/dev/null
-~/bin/xpgraph inferencegateway/default --context kind-modelplane-e2e-local --color never 2>&1 | head -20" || true
+mkdir -p ~/bin && cd ~/code/crossplane && GOBIN=~/bin nix develop -c go install github.com/stevendborrelli/crossplane-graph@latest 2>/dev/null
+~/bin/crossplane-graph inferencegateway/default --context kind-modelplane-e2e-local --color never 2>&1 | head -20" || true
 fi
 
 # --- Tidy up ---------------------------------------------------------------
