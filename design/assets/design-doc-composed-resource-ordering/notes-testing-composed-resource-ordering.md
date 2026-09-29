@@ -56,7 +56,7 @@ ordering turned on, so nothing needs building:
 ```shell
 kind create cluster --name xp-ordering
 helm install crossplane oci://ghcr.io/stevendborrelli/charts/crossplane \
-  --version 2.5.0-ordering.1 \
+  --version 2.5.0-ordering.2 \
   -n crossplane-system --create-namespace --wait
 ```
 
@@ -315,7 +315,8 @@ them. An older Crossplane accepts the field without enforcing it.
 * **Without changing your functions.** A single function at the end of the
   pipeline can declare the graph for everything before it.
   [function-ordering][fn-ordering] reads `function-sequencer`'s rules and
-  emits them as dependencies.
+  emits them as dependencies. It's published as
+  `ghcr.io/stevendborrelli/function-ordering:v0.7.0-ordering.1`.
 
 [sdk-python]: https://github.com/crossplane/function-sdk-python/pull/241
 [fn-ordering]: https://github.com/stevendborrelli/function-ordering
@@ -325,6 +326,36 @@ To see the feature under a real platform, `notes-remote-e2e-plan.md` runs
 stack is ordered by dependencies rather than `Usage`s.
 
 [modelplane]: https://github.com/stevendborrelli/modelplane/tree/composed-resource-ordering
+
+## Rendering a Composition locally
+
+`crossplane composition render` runs Crossplane's own composer, so it can
+order composed resources too. It needs two things this prototype adds: a
+Crossplane image that knows `--enable-composed-resource-ordering`, which the
+release does from `v2.5.0-ordering.2`, and a CLI that passes the flag, which
+is on the `composed-resource-ordering` branch of [stevendborrelli/cli][cli]:
+
+```shell
+git clone -b composed-resource-ordering https://github.com/stevendborrelli/cli.git
+(cd cli && go build -o /tmp/crossplane ./cmd/crossplane)
+
+/tmp/crossplane composition render $M/xr.yaml $M/create/composition-nested.yaml $M/setup/functions.yaml \
+  --xrd $M/setup/definition.yaml \
+  --crossplane-image ghcr.io/stevendborrelli/crossplane:v2.5.0-ordering.2 \
+  --enable-composed-resource-ordering
+```
+
+Render runs one reconcile, so it shows the first wave: `vpc` and
+`standalone` are rendered, and the XR's `status.crossplane.pendingResources`
+lists the other eight with what each waits for. Without the flag all ten
+render at once, because render then neither advertises dependencies nor
+honors them - which is how a Composition that relies on ordering used to
+render, whatever it did on a cluster.
+
+`v2.5.0-ordering.1` predates the flag, and the render fails with
+`unknown flag`.
+
+[cli]: https://github.com/stevendborrelli/cli/tree/composed-resource-ordering
 
 ## Limitations
 
