@@ -886,11 +886,11 @@ If we required every function author to adopt a new SDK version and emit
 Thanks to the accumulation of state in Crossplane functions, we can place a
 function at the end of the pipeline that defines dependency pairs.
 
-[**`function-ordering`**](https://github.com/stevendborrelli/function-ordering/tree/sequencer)
+[**`function-ordering`**](https://github.com/stevendborrelli/function-ordering)
 is a fork of **`function-sequencer`** that keeps its input schema and its
-user-facing behavior but emits `dependencies` edges. It is a prototype, on the
-`sequencer` branch of that repository, and builds against a `function-sdk-go`
-branch that carries the new protocol messages.
+user-facing behavior but emits `dependencies` edges. It is a prototype,
+published as `ghcr.io/stevendborrelli/function-ordering`, and builds against a
+`function-sdk-go` branch that carries the new protocol messages.
 
 ### How It Works
 
