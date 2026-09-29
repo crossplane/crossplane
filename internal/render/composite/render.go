@@ -55,9 +55,35 @@ import (
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
 )
 
+// An Option configures Render.
+type Option func(o *options)
+
+type options struct {
+	ordering bool
+}
+
+// WithComposedResourceOrdering renders the way a Crossplane running with the
+// alpha composed resource ordering feature does: functions are told it's
+// supported, and the dependencies they declare hold resources back.
+//
+// Without it a Composition that relies on ordering renders differently from
+// how it runs. A function that checks for the capability takes whatever path
+// it has for a Crossplane without it, and one that declares dependencies
+// anyway has them ignored, so everything renders at once.
+func WithComposedResourceOrdering(enabled bool) Option {
+	return func(o *options) {
+		o.ordering = enabled
+	}
+}
+
 // Render runs one real XR reconcile loop using the real reconciler engine
 // backed by a fake in-memory client.
-func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.CompositeInput) (*renderv1alpha1.CompositeOutput, error) {
+func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.CompositeInput, opts ...Option) (*renderv1alpha1.CompositeOutput, error) {
+	o := &options{}
+	for _, fn := range opts {
+		fn(o)
+	}
+
 	s := runtime.NewScheme()
 	if err := corev1.AddToScheme(s); err != nil {
 		return nil, errors.Wrap(err, "cannot add core/v1 to scheme")
@@ -189,6 +215,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		composite.WithManagedFieldsUpgrader(&ssa.NopManagedFieldsUpgrader{}),
 		composite.WithRequiredSchemasFetcher(rsf),
 		composite.WithRequiredResourcesFetcher(rrf),
+		composite.WithComposedResourceOrdering(o.ordering),
 	)
 
 	rec := &render.EventRecorder{}
