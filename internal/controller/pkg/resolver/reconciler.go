@@ -69,8 +69,6 @@ const (
 	errBuildDAG               = "cannot build DAG"
 	errSortDAG                = "cannot sort DAG"
 	errFmtMissingDependency   = "missing package (%s) is not a dependency"
-	errFmtUnexpectedNodeType  = "implied dependency node has unexpected type %T"
-	errUnexpectedNodeType     = "cannot resolve implied dependency: unexpected node type"
 	errInvalidConstraint      = "version constraint on dependency is invalid"
 	errInvalidDependency      = "dependency package is not valid"
 	errFindDependency         = "cannot find dependency version to install"
@@ -295,13 +293,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// modifies the Lock. We only create the first implied node as we will
 	// be requeued when it adds itself to the Lock, at which point we will
 	// check for missing nodes again.
-	dep, ok := implied[0].(*internaldag.DependencyNode)
-	if !ok {
-		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtUnexpectedNodeType, implied[0]))
-		status.MarkConditions(v1beta1.ResolutionFailed(errors.New(errUnexpectedNodeType)))
-
-		return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, lock), errCannotUpdateStatus)
-	}
+	//
+	// implied[0] is only ever anything but a *internaldag.DependencyNode if
+	// there's a bug in the DAG implementation - PackageNode.Neighbors always
+	// constructs DependencyNode values for implied dependencies. If that
+	// invariant is ever violated, it's a programming error and we want to
+	// panic loudly rather than fail resolution silently.
+	dep := implied[0].(*internaldag.DependencyNode) //nolint:forcetypeassert // See above.
 
 	depID := dep.Identifier()
 

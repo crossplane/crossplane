@@ -317,63 +317,6 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
-		"ErrorUnexpectedImpliedNodeType": {
-			reason: "We should not panic, and should fail resolution gracefully, if an implied node is not a *dag.DependencyNode.",
-			args: args{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
-						MockUpdate: test.NewMockUpdateFn(nil),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-							l := o.(*v1beta1.Lock)
-							c := l.GetCondition(v1beta1.TypeResolved)
-							if c.Reason != v1beta1.ReasonFailed {
-								t.Errorf("GetCondition(TypeResolved).Reason: -want %q, +got %q", v1beta1.ReasonFailed, c.Reason)
-							}
-							want := fmt.Sprintf("Error occurred during dependency resolution %s", errUnexpectedNodeType)
-							if c.Message != want {
-								t.Errorf("GetCondition(TypeResolved).Message: -want %q, +got %q", want, c.Message)
-							}
-							return nil
-						}),
-					},
-				},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: []ReconcilerOption{
-					WithNewDagFn(func() dag.DAG {
-						return &fakedag.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								// A *dag.PackageNode should never actually be
-								// returned as an implied node in practice --
-								// dag.PackageNode.Neighbors always constructs
-								// *dag.DependencyNode values -- but we mock
-								// it here to exercise the type-assertion
-								// guard without panicking.
-								return []dag.Node{&dag.PackageNode{}}, nil
-							},
-							MockSort: func() ([]string, error) {
-								return nil, nil
-							},
-						}
-					}),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: false},
-			},
-		},
 		"ErrorInvalidDependency": {
 			reason: "We should not requeue if dependency is invalid.",
 			args: args{
