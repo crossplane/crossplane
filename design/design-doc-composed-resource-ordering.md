@@ -818,7 +818,7 @@ scale, which is what the microbenchmarks above predict. What ordering costs is
 passes, not the cost of a pass.
 
 At scale performance is more likely to be degraded outside the graph: the XR
-circuit breaker tripping (which needs future work), provider performance at
+circuit breaker tripping (see below), provider performance at
 scale, and processing time for function pipelines.
 
 The harness is in `design/assets/design-doc-composed-resource-ordering/scale/`.
@@ -842,16 +842,36 @@ Ordering converges over many reconciles by design, one per wave, and each pass
 applies resources whose updates are themselves watch events — so a chain
 generates events superlinearly in its depth while spending exactly the budget
 the breaker meters. The breaker is doing its job: an XR reconciling a hundred
-times in thirty seconds is the runaway it exists to stop, and it cannot
-currently tell that apart from a graph converging normally.
+times in thirty seconds is the runaway it exists to stop, and on its own it
+cannot tell that apart from a graph converging normally.
 
-Width is unaffected, since a fanout is two waves whatever its size. This is a
-depth problem, like every other cost here, and it is unresolved. It needs a
-decision about how the two features interact: whether reconciles the graph asks
-for should be metered at all, whether the breaker should count waves rather than
-events, or whether enabling ordering should raise the burst. Until then, a
-composition deep enough to matter needs the burst raised, and that should be
-documented alongside the feature flag rather than discovered.
+But ordering can tell it which events matter. A wave is released by one event,
+a dependency changing — usually becoming ready — and nothing else will wake the
+XR, so dropping that event is what stalls the graph until the next half-open
+probe. The XR already records what it is waiting for in
+`status.crossplane.pendingResources`. So the dependants watch exempts an event
+from the breaker when its source is a composed resource that a pending creation
+depends on. Each source may wake a given XR that way at most once every two
+seconds, the breaker's sustained rate for Update events, so a dependency that
+flaps without becoming ready is still metered. Every other event is metered as
+before, and once the dependent exists its dependency's events are metered too.
+Legacy XRs report no pending resources, so nothing about them changes.
+
+Measured against the prototype without it, with the same harness and the
+breaker at its defaults:
+
+| chain of ConfigMaps | Without the exemption | With the exemption |
+| --- | --- | --- |
+| 50 | 50/50 in 599s | 50/50 in 7s |
+| 100 | 96/100, timed out at 1201s | 100/100 in 15s |
+
+The breaker still opened on `chain-100` and dropped 505 events, but no wave
+waited more than a second after its dependencies were ready. Core spent the same
+time reconciling either way — 15.0s over 100 reconciles against 14.1s over 96 —
+so the difference is all waiting. Layered and fanout shapes have not been
+measured with the exemption. The measurements are in `notes-scale-findings.md`,
+and the change is in the prototype, in
+`internal/controller/apiextensions/definition/ordering_exemption.go`.
 
 ### Compared with `function-sequencer`
 
