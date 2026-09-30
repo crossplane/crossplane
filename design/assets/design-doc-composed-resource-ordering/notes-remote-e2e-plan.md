@@ -230,7 +230,7 @@ git clone -b composed-resource-ordering \
 cd modelplane
 
 CROSSPLANE_IMAGE=crossplane/crossplane:<tag> \
-  CROSSPLANE_ARGS='--enable-composed-resource-ordering --circuit-breaker-burst=100000' \
+  CROSSPLANE_ARGS='--enable-composed-resource-ordering' \
   ./nix.sh run .#e2e -- --verify
 ```
 
@@ -247,12 +247,13 @@ Both variables are required, for different reasons:
   the pipeline rather than composing a stack whose ordering nothing will
   enforce.
 
-  `--circuit-breaker-burst=100000` is not required, but leave it in. The
-  ServingStack converges over five waves, and at the default burst of 100 the
-  realtime compositions circuit breaker opens partway through: the XR reports
-  `Responsive=False/WatchCircuitOpen`, and each later wave waits for a
-  periodic probe. `run.sh` splits `CROSSPLANE_ARGS` on whitespace and appends
-  each flag separately, so both go in the one variable.
+  Leave the circuit breaker at its defaults. The ServingStack converges over
+  five waves, and before the prototype exempted the events that release a
+  wave, the breaker opened partway through and each later wave waited for a
+  periodic probe. Earlier runs raised `--circuit-breaker-burst=100000` to
+  avoid that; it's no longer needed. `run.sh` splits `CROSSPLANE_ARGS` on
+  whitespace and appends each flag separately, so extra flags go in the same
+  variable.
 
 The functions need no flag: they resolve the branch SDK from `uv.lock`, which
 points at the `function-sdk-python` rev above.

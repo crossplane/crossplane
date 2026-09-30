@@ -111,13 +111,12 @@ cd ~/code/crossplane && nix run .#stream-image 2>/dev/null | docker load 2>&1 | 
 		exit 1
 	}
 
-	# The burst is raised for the same reason scale/up.sh raises it: the
-	# ServingStack converges over five waves, and at the default burst of 100
-	# the realtime compositions circuit breaker opens partway through, after
-	# which each wave waits for a periodic probe.
+	# The circuit breaker is left at its defaults. The ServingStack converges
+	# over five waves, and the events that release each one get past the
+	# breaker, so this runs ordering as a stock install would.
 	log "phase 2: Modelplane e2e against ${image}"
 	run "${NIX_PATH_PREFIX}
-cd ~/code/modelplane && CROSSPLANE_IMAGE='${image}' CROSSPLANE_ARGS='--enable-composed-resource-ordering --circuit-breaker-burst=100000' \
+cd ~/code/modelplane && CROSSPLANE_IMAGE='${image}' CROSSPLANE_ARGS='--enable-composed-resource-ordering' \
   setsid nohup nix run .#e2e -- --verify > ~/phase2.log 2>&1 < /dev/null & disown
 echo launched"
 
