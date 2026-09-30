@@ -310,10 +310,22 @@ should check for `CAPABILITY_DEPENDENCIES` in the request before relying on
 them. An older Crossplane accepts the field without enforcing it.
 
 * **Python.** [function-sdk-python#241][sdk-python] adds
-  `response.add_dependency` and friends, and a `reference` module that records
-  a dependency when a field is filled in from another resource.
-* **Go.** Use the proto directly, as `test/e2e/functions/ordering/main.go`
-  does. There is no SDK helper yet.
+  `response.add_dependency` and friends, and a `dependency` module that records
+  a dependency when a field is filled in from another resource:
+
+  ```python
+  vpc = dependency.named("vpc", VPC)
+
+  with dependency.composing(req, rsp, "subnet") as c:
+      c.update(Subnet(spec={"forProvider": {"vpcId": c.external_name(vpc)}}))
+  # subnet -> vpc is recorded when the block exits
+  ```
+
+* **Go.** The `composed-resource-dependencies` branch of
+  [function-sdk-go][sdk-go] adds `response.AddDependency`,
+  `response.AddRequiredResourceDependency` and `response.WithCreateBeforeDestroy`.
+  It isn't proposed upstream yet. `test/e2e/functions/ordering/main.go` uses the
+  proto directly instead.
 * **Without changing your functions.** A single function at the end of the
   pipeline can declare the graph for everything before it.
   [function-ordering][fn-ordering] reads `function-sequencer`'s rules and
@@ -321,6 +333,7 @@ them. An older Crossplane accepts the field without enforcing it.
   `ghcr.io/stevendborrelli/function-ordering:v0.7.0-ordering.1`.
 
 [sdk-python]: https://github.com/crossplane/function-sdk-python/pull/241
+[sdk-go]: https://github.com/stevendborrelli/function-sdk-go/tree/composed-resource-dependencies
 [fn-ordering]: https://github.com/stevendborrelli/function-ordering
 
 To see the feature under a real platform, `notes-remote-e2e-plan.md` runs
