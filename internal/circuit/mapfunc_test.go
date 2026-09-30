@@ -18,6 +18,7 @@ package circuit
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -146,6 +147,71 @@ func TestNewSelfDeleteResetMapFunc(t *testing.T) {
 
 			if diff := cmp.Diff(tc.wantResetTargets, mb.resetTargetCalls); diff != "" {
 				t.Errorf("%s\nNewSelfDeleteResetMapFunc(...) ResetTarget calls: -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+// openBreaker is fully open: it drops every event, and counts what it's asked
+// to record.
+type openBreaker struct {
+	NopBreaker
+	recorded int
+}
+
+func (b *openBreaker) GetState(_ context.Context, _ types.NamespacedName) State {
+	return State{IsOpen: true, NextAllowedAt: time.Now().Add(time.Hour)}
+}
+
+func (b *openBreaker) RecordEvent(_ context.Context, _ types.NamespacedName, _ EventSource, _ EventType) {
+	b.recorded++
+}
+
+func TestNewMapFuncExemption(t *testing.T) {
+	target := types.NamespacedName{Namespace: "default", Name: "xr"}
+	wrapped := func(_ context.Context, _ client.Object) []reconcile.Request {
+		return []reconcile.Request{{NamespacedName: target}}
+	}
+
+	cases := map[string]struct {
+		reason       string
+		opts         []MapFuncOption
+		wantRequests int
+		wantRecorded int
+	}{
+		"NoExemption": {
+			reason:       "With the breaker open and no exemption, the event should be dropped, and recorded as dropped.",
+			wantRequests: 0,
+			wantRecorded: 1,
+		},
+		"Exempt": {
+			reason: "An exempt event should reach its target through an open breaker, and not be recorded, since recording charges it.",
+			opts: []MapFuncOption{WithExemption(func(_ context.Context, _ client.Object, _ types.NamespacedName) bool {
+				return true
+			})},
+			wantRequests: 1,
+			wantRecorded: 0,
+		},
+		"NotExempt": {
+			reason: "An event the exemption doesn't match should be treated as any other.",
+			opts: []MapFuncOption{WithExemption(func(_ context.Context, _ client.Object, _ types.NamespacedName) bool {
+				return false
+			})},
+			wantRequests: 0,
+			wantRecorded: 1,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			b := &openBreaker{}
+			got := NewMapFunc(wrapped, b, tc.opts...)(context.Background(), &unstructured.Unstructured{})
+
+			if diff := cmp.Diff(tc.wantRequests, len(got)); diff != "" {
+				t.Errorf("\n%s\nrequests: -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.wantRecorded, b.recorded); diff != "" {
+				t.Errorf("\n%s\nevents recorded: -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

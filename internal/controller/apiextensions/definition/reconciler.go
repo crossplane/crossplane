@@ -604,7 +604,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// dynamically for the resources each XR depends on. The tracker's Dependants
 	// maps a changed dependency back to the XRs to reconcile.
 	if realtime {
-		h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(DependantsMapFunc(tracker), cb))
+		// With ordering on, the events that release the next wave get past
+		// the breaker, so a deep graph doesn't wait for the half-open probe
+		// once the breaker opens.
+		var mo []circuit.MapFuncOption
+		if r.options.Features.Enabled(features.EnableAlphaComposedResourceOrdering) {
+			mo = append(mo, circuit.WithExemption(NewPendingDependencyExemption(r.engine.GetCached(), gvk)))
+		}
+		h := handler.EnqueueRequestsFromMapFunc(circuit.NewMapFunc(DependantsMapFunc(tracker), cb, mo...))
 		ro = append(ro,
 			composite.WithWatchStarter(controllerName, h, r.engine, tracker),
 			composite.WithPollInterval(0), // Disable polling.
