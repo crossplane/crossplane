@@ -249,7 +249,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 			prwr, prok := pr.(v1.PackageRevisionWithRuntime)
 			if pwok && prok {
 				prwr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
-				prwr.SetTLSServerSecretName(v1.GetSecretNameWithSuffix(p.GetName(), v1.TLSServerSecretNameSuffix))
+				prwr.SetTLSServerSecretName(v1.GetSecretNameWithSuffix(pr.GetName(), v1.TLSServerSecretNameSuffix))
 				// Functions don't have a client certificate, so the client
 				// certificate name is intentionally unset.
 			}
