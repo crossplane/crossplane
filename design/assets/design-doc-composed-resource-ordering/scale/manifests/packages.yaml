@@ -30,10 +30,10 @@ spec:
   runtimeConfigRef:
     name: provider-nop-fast-poll
 ---
-# provider-nop acts on a resource when it next polls it, not when the
-# configured duration elapses. At the default 10s poll a 2s readyAfter still
-# costs up to 10s per wave, and the poll interval, not the graph, is what gets
-# measured.
+# provider-nop flips a resource's conditions when it next polls it, not when
+# the configured duration elapses (deleteAfter is the exception: it's on
+# time). At the default 10s poll a 2s readyAfter still costs up to 10s per
+# wave, and the poll interval, not the graph, is what gets measured.
 apiVersion: pkg.crossplane.io/v1beta1
 kind: DeploymentRuntimeConfig
 metadata:

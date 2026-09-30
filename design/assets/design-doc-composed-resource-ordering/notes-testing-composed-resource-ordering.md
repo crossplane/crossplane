@@ -127,9 +127,11 @@ kubectl wait --for=condition=Healthy --timeout=3m \
 ```
 
 The runtime config sets `--poll=1s`, and it matters more than it looks.
-provider-nop flips a NopResource's conditions, and finishes its deletion, when
-it next *polls* the resource - not when the configured duration elapses. At the
-default 10s poll a `readyAfter` of 1s still costs up to 10s per wave.
+provider-nop flips a NopResource's conditions when it next *polls* the
+resource - not when the configured duration elapses. At the default 10s poll a
+`readyAfter` of 1s still costs up to 10s per wave. Deletion doesn't depend on
+the poll: since v0.6.0 provider-nop reconciles a deleting resource again as
+soon as its `deleteAfter` runs out.
 
 Then the XRD:
 
