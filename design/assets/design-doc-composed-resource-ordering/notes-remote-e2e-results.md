@@ -159,6 +159,43 @@ rests on a single run:
   MetalLB, then the GatewayClass and MetalLB's pool, then the Gateway - with
   no `Usage`s of its own, and the stack still served live traffic.
 
+## At the circuit breaker's defaults
+
+Every run above raised `--circuit-breaker-burst` for phase 2. Once the
+prototype exempted the events that release a wave from the realtime
+compositions circuit breaker (finding 7 in
+[notes-scale-findings.md](notes-scale-findings.md)), both phases were run
+again with phase 2 passing only `--enable-composed-resource-ordering`, so the
+breaker ran as Crossplane ships it.
+
+| | |
+|---|---|
+| Crossplane | `f5d9ddf5b`, image `crossplane/crossplane:v0.0.0-1790779852-f5d9ddf` |
+| Modelplane | `composed-resource-ordering` at `766915a`, all three functions converted, the inference cluster wired to its backend by reference |
+| SDK | `function-sdk-python` @ `20115c7` |
+
+Phase 1:
+
+```
+--- PASS: TestComposedResourceOrderingTeardownIsOrdered            (34.18s)
+--- PASS: TestComposedResourceOrderingTeardownBlocks               (42.18s)
+--- PASS: TestComposedResourceOrderingCreateBeforeDestroy          (38.67s)
+--- PASS: TestComposedResourceOrderingCreatesInWaves              (109.26s)
+--- PASS: TestComposedResourceOrderingTeardownSurvivesRestart      (38.18s)
+--- PASS: TestComposedResourceOrderingTeardownIsOrderedOnLegacyXR  (54.22s)
+
+DONE 118 tests, 57 skipped in 357.769s
+```
+
+`CreatesInWaves` took 109s against 159s in the first run, but the two are on
+different code and one run each, so that isn't a measurement of the
+exemption.
+
+Phase 2 passed: the stack came up and the mock engine answered 200 on both
+`/v1/chat/completions` and `/v1/messages`. The InferenceGateway reported
+`Ready=True` with 16 composed resources, 14 edges and 4 waves, the same shape
+as the confirmation run.
+
 ## Findings, and what fixed them
 
 Four, none in the ordering graph itself: three in test scaffolding or a
@@ -232,8 +269,9 @@ assertion, and teardown cannot start by deleting the ServingStack because
   kept writing to resources it had already asked to delete; that is fixed.
   And ordering does not converge at all against the circuit breaker's shipped
   defaults once a graph is deep enough: a 50-link chain that takes 10s with
-  the burst raised had not finished after 601s at `burst=100`. Every run in
-  this document had the breaker raised.
+  the burst raised had not finished after 601s at `burst=100`. That is now
+  addressed by exempting the events that release a wave, and the last run
+  here had the breaker at its defaults; the runs before it had it raised.
 - **Out-of-band deletion.** A `Usage` refuses a direct `kubectl delete` of a
   ProviderConfig; dependencies only order the deletes Crossplane performs.
   That trade was accepted deliberately and was not tested.
