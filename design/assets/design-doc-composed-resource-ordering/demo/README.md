@@ -16,8 +16,8 @@ the XR itself is deleted, which no function can influence today.
 first. Every command below is run from this directory:
 
 ```shell
-gh pr checkout 7842 --repo crossplane/crossplane
-cd design/assets/design-doc-composed-resource-ordering/demo
+git clone -b composed-resource-ordering-prototype https://github.com/stevendborrelli/crossplane.git
+cd crossplane/design/assets/design-doc-composed-resource-ordering/demo
 
 ./up.sh          # a few minutes, mostly pulling images
 ./watch.sh       # in a second pane, projected
