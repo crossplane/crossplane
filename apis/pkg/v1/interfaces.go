@@ -86,10 +86,6 @@ type PackageWithRuntime interface {
 
 	GetRuntimeConfigRef() *RuntimeConfigReference
 	SetRuntimeConfigRef(r *RuntimeConfigReference)
-
-	GetTLSServerSecretName() *string
-
-	GetTLSClientSecretName() *string
 }
 
 // SetAppliedImageConfigRefs sets applied image config refs, replacing any
@@ -310,16 +306,6 @@ func (p *Provider) GetCommonAnnotations() map[string]string {
 // SetCommonAnnotations of this Provider.
 func (p *Provider) SetCommonAnnotations(a map[string]string) {
 	p.Spec.CommonAnnotations = a
-}
-
-// GetTLSServerSecretName of this Provider.
-func (p *Provider) GetTLSServerSecretName() *string {
-	return GetSecretNameWithSuffix(p.GetName(), TLSServerSecretNameSuffix)
-}
-
-// GetTLSClientSecretName of this Provider.
-func (p *Provider) GetTLSClientSecretName() *string {
-	return GetSecretNameWithSuffix(p.GetName(), TLSClientSecretNameSuffix)
 }
 
 // GetAppliedImageConfigRefs of this Provider.
@@ -1183,16 +1169,6 @@ func (f *Function) GetCommonAnnotations() map[string]string {
 // SetCommonAnnotations of this Function.
 func (f *Function) SetCommonAnnotations(a map[string]string) {
 	f.Spec.CommonAnnotations = a
-}
-
-// GetTLSServerSecretName of this Function.
-func (f *Function) GetTLSServerSecretName() *string {
-	return GetSecretNameWithSuffix(f.GetName(), TLSServerSecretNameSuffix)
-}
-
-// GetTLSClientSecretName of this Function.
-func (f *Function) GetTLSClientSecretName() *string {
-	return nil
 }
 
 // GetAppliedImageConfigRefs of this Function.

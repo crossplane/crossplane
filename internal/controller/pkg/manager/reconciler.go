@@ -139,20 +139,11 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
-// WithManagingRevisionRuntimeSpec will allow this reconciler to propagate the
-// runtime spec fields to revisions.
-func WithManagingRevisionRuntimeSpec() ReconcilerOption {
+// WithSetRevisionRuntimeSpecFunc configures how the reconciler sets runtime
+// fields in package revisions.
+func WithSetRevisionRuntimeSpecFunc(fn func(p v1.Package, pr v1.PackageRevision)) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.setPackageRuntimeManagedFields = func(p v1.Package, pr v1.PackageRevision) {
-			pwr, pwok := p.(v1.PackageWithRuntime)
-
-			prwr, prok := pr.(v1.PackageRevisionWithRuntime)
-			if pwok && prok {
-				prwr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
-				prwr.SetTLSServerSecretName(pwr.GetTLSServerSecretName())
-				prwr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
-			}
-		}
+		r.setPackageRuntimeManagedFields = fn
 	}
 }
 
@@ -189,7 +180,15 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	if o.PackageRuntime.For(v1.ProviderKind) == controller.PackageRuntimeDeployment {
-		opts = append(opts, WithManagingRevisionRuntimeSpec())
+		opts = append(opts, WithSetRevisionRuntimeSpecFunc(func(p v1.Package, pr v1.PackageRevision) {
+			pwr, pwok := p.(v1.PackageWithRuntime)
+			prwr, prok := pr.(v1.PackageRevisionWithRuntime)
+			if pwok && prok {
+				prwr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
+				prwr.SetTLSServerSecretName(v1.GetSecretNameWithSuffix(p.GetName(), v1.TLSServerSecretNameSuffix))
+				prwr.SetTLSClientSecretName(v1.GetSecretNameWithSuffix(p.GetName(), v1.TLSClientSecretNameSuffix))
+			}
+		}))
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -245,7 +244,16 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	if o.PackageRuntime.For(v1.FunctionKind) == controller.PackageRuntimeDeployment {
-		opts = append(opts, WithManagingRevisionRuntimeSpec())
+		opts = append(opts, WithSetRevisionRuntimeSpecFunc(func(p v1.Package, pr v1.PackageRevision) {
+			pwr, pwok := p.(v1.PackageWithRuntime)
+			prwr, prok := pr.(v1.PackageRevisionWithRuntime)
+			if pwok && prok {
+				prwr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
+				prwr.SetTLSServerSecretName(v1.GetSecretNameWithSuffix(p.GetName(), v1.TLSServerSecretNameSuffix))
+				// Functions don't have a client certificate, so the client
+				// certificate name is intentionally unset.
+			}
+		}))
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
