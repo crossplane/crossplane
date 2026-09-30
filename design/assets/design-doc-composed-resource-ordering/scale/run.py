@@ -40,6 +40,11 @@ NAMESPACE = "default"
 GROUP = "scale.crossplane.io/v1alpha1"
 KIND = "XScale"
 
+# How long a wave may wait after its dependencies are ready before the run
+# reports it as stalled. Ordering releases a wave on the next reconcile, which
+# with the polling here shows up as a second or two.
+STALL_SECONDS = 5
+
 # What function-ordering composes, and how readiness is established for it.
 #
 # A NopResource goes through a provider, so a run measures Crossplane and the
@@ -481,11 +486,11 @@ def main():
     elapsed = time.time() - start
     print(f"\ncreation: {len(created)}/{len(names)} in {elapsed:.0f}s")
 
-    if created:
-        for row in attribute(created):
-            ready = f"ready +{row['ready_at']}s" if row["ready_at"] is not None else "not ready"
-            lag = f"   waited {row['lag']}s after its dependencies were ready" if "lag" in row else ""
-            print(f"  +{row['offset']:>4}s  {row['count']:>4} created, {ready}{lag}")
+    rows = attribute(created)
+    for row in rows:
+        ready = f"ready +{row['ready_at']}s" if row["ready_at"] is not None else "not ready"
+        lag = f"   waited {row['lag']}s after its dependencies were ready" if "lag" in row else ""
+        print(f"  +{row['offset']:>4}s  {row['count']:>4} created, {ready}{lag}")
 
     if len(created) < len(names):
         print(f"  !! timed out with {len(names) - len(created)} never created")
@@ -499,18 +504,33 @@ def main():
             f"of this XR's controller, {cost['mean_ms']:.0f}ms mean"
         )
 
-    opened = False
+    # The counters are the pod's totals since it started, so report what this
+    # run added. Events the ordering exemption lets through aren't counted, so
+    # Allowed and Dropped say how busy the breaker was, not whether it slowed
+    # the graph down.
+    opens = 0
     for k, v in after.items():
         if not k.startswith("circuit_breaker"):
             continue
 
-        print(f"  {k} {v}")
-        if k.startswith("circuit_breaker_opens_total") and float(v) > 0:
-            opened = True
+        d = float(v) - float(before.get(k, 0))
+        if not d:
+            continue
 
-    if opened:
-        print("  !! the circuit breaker opened: these timings describe the breaker,")
-        print("     not the ordering. Raise --circuit-breaker-burst and re-run.")
+        print(f"  {k} +{d:.0f}")
+        if k.startswith("circuit_breaker_opens_total"):
+            opens += d
+
+    # A wave that waits well past its dependencies becoming ready is the
+    # symptom the breaker causes: the event that would release it was dropped.
+    # An open breaker that stalled nothing hasn't changed the timings.
+    stalled = [row for row in rows if row.get("lag", 0) > STALL_SECONDS]
+    if opens and stalled:
+        worst = max(row["lag"] for row in stalled)
+        print(f"  !! the circuit breaker opened and {len(stalled)} waves waited more than {STALL_SECONDS}s")
+        print(f"     (at worst {worst}s): these timings describe the breaker, not the ordering.")
+    elif opens:
+        print(f"  the circuit breaker opened, but no wave waited more than {STALL_SECONDS}s for it")
 
     if args.no_teardown:
         if peak:

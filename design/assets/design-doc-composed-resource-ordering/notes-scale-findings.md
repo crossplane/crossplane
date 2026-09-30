@@ -232,7 +232,7 @@ what makes the fanout rows worth believing.
 This is the same expressiveness argument the design makes about templating
 functions and about edges being data, measured rather than asserted.
 
-## 7. Ordering does not converge against the default circuit breaker
+## 7. Ordering against the default circuit breaker
 
 Every measurement above raised `--circuit-breaker-burst` to 100000 to take the
 realtime compositions watch circuit breaker out of the way. That was the right
@@ -276,6 +276,55 @@ is depth, like everything else that costs here. What it needs is a decision
 about how the two features should interact: whether ordering-driven reconciles
 should be metered at all, whether the breaker should count waves rather than
 events, or whether enabling ordering should raise the burst.
+
+### Exempting the events that release a wave
+
+A wave is released by one event: a dependency changing, usually becoming
+ready. Nothing else will wake the XR, so when the breaker drops that event the
+next wave waits for a half-open probe. Commit `0b89bbfb9` lets exactly those
+events through. An
+event is exempt when its source is a composed resource that something in the
+XR's `status.crossplane.pendingResources` is waiting to be created after. Each
+source may wake a given XR that way at most once every two seconds, which is
+the breaker's sustained rate for Update events, so a dependency that flaps
+without becoming ready is still metered. Exempt events are not recorded, and
+everything else is metered as before
+(`internal/controller/apiextensions/definition/ordering_exemption.go`).
+
+Matched runs, ConfigMaps, breaker at its shipped defaults, 1200s timeout. The
+baseline is `c7f591e8e`, the exemption is `0b89bbfb9`, its only child, and the
+harness is identical:
+
+| chain | Without the exemption | With the exemption | Breaker raised (above) |
+| --- | --- | --- | --- |
+| 50 | 50/50 in 599s | 50/50 in 7s | 10s |
+| 100 | 96/100, timed out at 1201s | 100/100 in 15s | 32s |
+
+| chain-100 alone | Without | With |
+| --- | --- | --- |
+| Breaker opens | 4 | 1 |
+| Allowed / Dropped | 557 / 251 | 252 / 505 |
+| Half-open probes | 19 | 0 |
+| Core reconcile time | 14.1s over 96, 147ms mean | 15.0s over 100, 150ms mean |
+| Teardown | 9s | 9s |
+
+Without the exemption the chain moves in two modes. Once the breaker opens, two
+resources are created about every 60s, each "waited 56-65s after its
+dependencies were ready". Each time the breaker closes after its cooldown, a
+burst of about sixteen comes through. With the exemption every wave waited 1s,
+with no gaps, even though the breaker still opened and dropped more events than
+the baseline did. The dropped events are the ones nothing was waiting for.
+
+So the breaker keeps doing its job, the graph stops paying for it, and core
+spends the same time reconciling either way: the difference is all waiting.
+The exemption is faster than raising the burst, though those runs were on an
+older build and are not a matched comparison.
+
+Caveats: one run each, on kind. Before this, `run.py` printed the breaker
+counters as the pod's totals, so the chain-100 rows above subtract the chain-50
+run; it now prints each run's change. Allowed and Dropped cannot be compared
+across the two builds, because exempt events are not counted. Layered and
+fanout shapes have not been measured with the exemption.
 
 ## Results
 
