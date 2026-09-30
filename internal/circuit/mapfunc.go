@@ -20,15 +20,42 @@ import (
 	"context"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+// An Exemption reports whether an event from obj must reach target whatever
+// the breaker's state. An exempt event is neither charged nor dropped.
+type Exemption func(ctx context.Context, obj client.Object, target types.NamespacedName) bool
+
+// A MapFuncOption configures a map function built by NewMapFunc.
+type MapFuncOption func(o *mapFuncOptions)
+
+type mapFuncOptions struct {
+	exempt Exemption
+}
+
+// WithExemption lets events the exemption matches through without charging
+// them, the way deletion events already are. Use it for events that are the
+// only thing that will ever wake the target, so dropping one would leave it
+// waiting for the half-open probe.
+func WithExemption(e Exemption) MapFuncOption {
+	return func(o *mapFuncOptions) {
+		o.exempt = e
+	}
+}
+
 // NewMapFunc wraps a handler.MapFunc with circuit breaker functionality.
 // It records events for each target resource and filters out requests when the
 // circuit breaker is open, allowing occasional requests through in half-open state.
-func NewMapFunc(wrapped handler.MapFunc, b Breaker) handler.MapFunc {
+func NewMapFunc(wrapped handler.MapFunc, b Breaker, o ...MapFuncOption) handler.MapFunc {
+	opts := &mapFuncOptions{}
+	for _, fn := range o {
+		fn(opts)
+	}
+
 	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		// Get the original requests
 		requests := wrapped(ctx, obj)
@@ -54,6 +81,15 @@ func NewMapFunc(wrapped handler.MapFunc, b Breaker) handler.MapFunc {
 			// metrics since they bypass circuit breaker logic entirely for
 			// correctness, not as a circuit breaker decision.
 			if obj.GetDeletionTimestamp() != nil {
+				keep = append(keep, req)
+				continue
+			}
+
+			// An exempt event is let through for the same reason: it is the
+			// one that will wake the target, and dropping it leaves the target
+			// waiting for the half-open probe. It isn't recorded either,
+			// because recording an event charges it.
+			if opts.exempt != nil && opts.exempt(ctx, obj, req.NamespacedName) {
 				keep = append(keep, req)
 				continue
 			}
