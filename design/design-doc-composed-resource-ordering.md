@@ -7,6 +7,7 @@
 ## Table of Contents <!-- omit in toc -->
 
 * [Background](#background)
+* [Prototype](#prototype)
 * [Proposal](#proposal)
 * [Goals](#goals)
 * [Non-Goals](#non-goals)
@@ -42,6 +43,20 @@
 See
 [assets/design-doc-composed-resource-ordering/background.md](assets/design-doc-composed-resource-ordering/background.md)
 for the background that led to this proposal.
+
+## Prototype
+
+The proposal is implemented as an alpha prototype in
+[#7842](https://github.com/crossplane/crossplane/pull/7842), behind
+`--enable-composed-resource-ordering`. The prototype's branch carries the
+material this document draws on:
+
+* [A testing guide](https://github.com/stevendborrelli/crossplane/blob/composed-resource-ordering-prototype/design/assets/design-doc-composed-resource-ordering/notes-testing-composed-resource-ordering.md) for trying
+  the feature in a kind cluster, from a published Helm chart.
+* [Scale findings](https://github.com/stevendborrelli/crossplane/blob/composed-resource-ordering-prototype/design/assets/design-doc-composed-resource-ordering/notes-scale-findings.md), and the
+  [harness](https://github.com/stevendborrelli/crossplane/tree/composed-resource-ordering-prototype/design/assets/design-doc-composed-resource-ordering/scale) that produced them.
+* [Results](https://github.com/stevendborrelli/crossplane/blob/composed-resource-ordering-prototype/design/assets/design-doc-composed-resource-ordering/notes-remote-e2e-results.md) of running Modelplane's e2e suite
+  against the prototype.
 
 ## Proposal
 
@@ -821,7 +836,7 @@ At scale performance is more likely to be degraded outside the graph: the XR
 circuit breaker tripping (see below), provider performance at
 scale, and processing time for function pipelines.
 
-The harness is in `design/assets/design-doc-composed-resource-ordering/scale/`.
+The harness is in [`scale/`](https://github.com/stevendborrelli/crossplane/tree/composed-resource-ordering-prototype/design/assets/design-doc-composed-resource-ordering/scale) on the prototype branch.
 
 ### Interaction with the Realtime Compositions Circuit Breaker
 
@@ -869,9 +884,10 @@ The breaker still opened on `chain-100` and dropped 505 events, but no wave
 waited more than a second after its dependencies were ready. Core spent the same
 time reconciling either way — 15.0s over 100 reconciles against 14.1s over 96 —
 so the difference is all waiting. Layered and fanout shapes have not been
-measured with the exemption. The measurements are in `notes-scale-findings.md`,
-and the change is in the prototype, in
-`internal/controller/apiextensions/definition/ordering_exemption.go`.
+measured with the exemption. The measurements are in
+[`notes-scale-findings.md`](https://github.com/stevendborrelli/crossplane/blob/composed-resource-ordering-prototype/design/assets/design-doc-composed-resource-ordering/notes-scale-findings.md), and the change is in
+the prototype, in
+[`ordering_exemption.go`](https://github.com/stevendborrelli/crossplane/blob/composed-resource-ordering-prototype/internal/controller/apiextensions/definition/ordering_exemption.go).
 
 ### Compared with `function-sequencer`
 
@@ -910,7 +926,8 @@ function at the end of the pipeline that defines dependency pairs.
 is a fork of **`function-sequencer`** that keeps its input schema and its
 user-facing behavior but emits `dependencies` edges. It is a prototype,
 published as `ghcr.io/stevendborrelli/function-ordering`, and builds against a
-`function-sdk-go` branch that carries the new protocol messages.
+[`function-sdk-go` branch](https://github.com/stevendborrelli/function-sdk-go/tree/composed-resource-dependencies)
+that carries the new protocol messages.
 
 ### How It Works
 
@@ -1096,7 +1113,10 @@ There are further issues with offloading responsibility to functions:
 * This proposal enables a path to deprecation of Managed Resource References by
   embedding implicit reference support in the SDKs. For example, if a Subnet
   uses a field like `vpcId: ref(vpc.externalName())`, the SDK can create the
-  edge automatically.
+  edge automatically. The Python SDK does this in
+  [function-sdk-python#241](https://github.com/crossplane/function-sdk-python/pull/241),
+  and the Modelplane fork uses it to build an inference cluster's backend from
+  the Secrets the cluster publishes.
 * Since this proposal supports required resources, Managed Resource References
   where `matchControllerRef: false` can be replaced with a required resource
   dependency. The Modelplane fork above demonstrates this pattern as a
