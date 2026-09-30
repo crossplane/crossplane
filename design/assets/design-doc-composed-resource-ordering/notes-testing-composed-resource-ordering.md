@@ -33,11 +33,16 @@ dependencies a function returns.
 * Docker, `kind`, `kubectl` and `helm`.
 * [crossplane-graph][graph], which prints the graph off an XR. It needs Go
   1.26 to install.
-* A checkout of the prototype, for the test fixtures:
+* A checkout of the prototype, for the test fixtures. Every command below runs
+  from its root:
 
   ```shell
-  gh pr checkout 7842 --repo crossplane/crossplane
+  git clone -b composed-resource-ordering-prototype https://github.com/stevendborrelli/crossplane.git
+  cd crossplane
   ```
+
+  In an existing clone of crossplane/crossplane, `gh pr checkout 7842` does the
+  same.
 
 Everything below runs against a throwaway cluster and leaves nothing behind on
 your machine except a kind cluster.
