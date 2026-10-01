@@ -45,7 +45,7 @@ A VM is already provisioned and set up:
 
 ```bash
 gcloud compute ssh borrelli-modelplane \
-  --project=crossplane-playground --zone=us-central1-c
+  --project=crossplane-playground --zone=us-central1-c --tunnel-through-iap
 ```
 
 `c4-standard-8` (8 vCPU, 30 GB RAM), Debian 13, 200 GB disk, passwordless
@@ -64,9 +64,10 @@ sudo, and both repos cloned under `~/code`. Rebuilt on 2026-09-28 with:
   cluster and both Modelplane clusters can run at once.
 
 The VM has its own VPC network, also named `borrelli-modelplane`, whose only
-ingress rules allow SSH: `borrelli-modelplane-allow-ssh-home` from
-the owner's IP address, and `borrelli-modelplane-allow-iap-ssh` from Google's IAP
-range for `--tunnel-through-iap`. From anywhere else, add a rule or use IAP.
+ingress rules allow SSH. Connect through IAP, with `--tunnel-through-iap`, which
+`borrelli-modelplane-allow-iap-ssh` admits from Google's IAP range and which
+works from any network. `borrelli-modelplane-allow-ssh-home` allows direct SSH
+from one IP address only, so it stops working whenever that address changes.
 
 **Don't `apt-get install kind`.** kind is already on the Nix profile, and
 Debian's package depends on `docker.io`, which conflicts with Docker CE: apt
