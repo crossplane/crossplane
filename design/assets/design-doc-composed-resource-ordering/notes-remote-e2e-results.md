@@ -196,6 +196,68 @@ Phase 2 passed: the stack came up and the mock engine answered 200 on both
 `Ready=True` with 16 composed resources, 14 edges and 4 waves, the same shape
 as the confirmation run.
 
+## Background deletion and issue #477
+
+[modelplane#477](https://github.com/modelplaneai/modelplane/issues/477)
+reports that deleting an InferenceCluster with background propagation, the
+`kubectl delete` default, can hang its serving stack and orphan cloud
+resources. An XR drops its finalizer as soon as it's deleted, so its
+ServingStack disappears at once, the Usage holding the cluster for it
+releases, and the cluster can go while the stack's Helm releases are still
+uninstalling. ModelReplicas and InferenceGateways race the same way against
+the provider-kubernetes Objects they compose.
+
+`e2e/teardown-check.py` in the Modelplane fork tests for it. Run after
+`--verify`, it deletes every ModelService and ModelDeployment, then every
+InferenceGateway, then every InferenceCluster, each with a plain
+`kubectl delete`, and watches every object each one composed, nested XRs
+included. It fails if an XR is gone before something it composed, if a
+resource starts deleting while something that depends on it still exists, or
+if anything is left after ten minutes.
+
+| | Upstream Modelplane `main` (`0f348ac`), Crossplane v2.4.0 | Forks: Crossplane `4a9bd3c36`, Modelplane `c2fee1a` |
+| --- | --- | --- |
+| ModelDeployment | The ModelReplica was gone at +1s, before 10 of its Objects | The ModelReplica stayed until its Objects were gone |
+| InferenceGateway | Gone at +3s, before 15 of its Objects | Stayed until its releases, ProviderConfig and CRDs were gone, at +12s |
+| InferenceCluster | It and its ServingStack were gone at +7s, before 53 composed resources that took until +24s to go | Both stayed until the last Helm release, cert-manager, had uninstalled |
+| Result | 4 problems | OK |
+
+The InferenceCluster row is the case the issue describes: for 17 seconds
+upstream, nothing held the cluster while its Helm releases were uninstalling.
+With a provisioned cluster, its API server could go in that window. Here it
+can't, because the workload cluster is a kind cluster registered with
+`source: Existing` that outlives the InferenceCluster, so upstream's releases
+still finished and nothing was left behind. What the run shows is whether each
+XR outlived what it composed, and with ordering on, each one did.
+
+Three changes make that hold:
+
+- A deleting XR keeps its finalizer until the composed resources it controls
+  are gone, even when it declared no graph. That covers ModelReplicas, which
+  don't.
+- Crossplane deletes composed resources with background rather than
+  foreground propagation, so a nested XR like the ServingStack orders its own
+  teardown rather than being cascaded.
+- The InferenceCluster's ServingStack depends on the cluster, in place of the
+  Usage the issue cites.
+
+Getting there turned up two more problems, both fixed:
+
+- **A kind that's no longer served wedged teardown.** Teardown reads the
+  composed resources the XR's references name, and doesn't prune them as they
+  go. Once the InferenceGateway's MetalLB release was uninstalled, taking its
+  CRDs with it, the references still named an IPAddressPool and an
+  L2Advertisement. Reading them through the cache started informers that could
+  never sync, and each read blocked until the reconcile timed out: the
+  InferenceGateway reported `Timeout: failed waiting for
+  *unstructured.Unstructured Informer to sync` and never finished deleting.
+  Teardown now reads composed resources directly from the API server, and
+  treats a kind that's no longer served like NotFound.
+- **MetalLB's namespace was deleted alongside its release.** Nothing ordered
+  them, so the namespace that holds the release, and Helm's record of it,
+  started deleting in the same wave as the uninstall. The release, its
+  IPAddressPool and its L2Advertisement now depend on the namespace.
+
 ## Findings, and what fixed them
 
 Four, none in the ordering graph itself: three in test scaffolding or a
@@ -279,13 +341,16 @@ assertion, and teardown cannot start by deleting the ServingStack because
   Crossplane does not advertise `CAPABILITY_DEPENDENCIES`. The flag was set
   for every run here, so that path ran only in unit tests.
 - **Real workloads.** Mock engine, fake DRA devices, no GPUs, no cloud
-  provisioning, single-node clusters.
+  provisioning, single-node clusters. So #477's hang itself, which needs the
+  InferenceCluster's deletion to take a provisioned cluster's API server with
+  it, wasn't reproduced; only the ordering that prevents it was.
 - **Modelplane beyond these three compositions.** All three composing
   functions have since been converted and `compose-usages` deleted outright -
   see [notes-modelplane-conversion.md](notes-modelplane-conversion.md) - but
-  only the serving stack and the gateway were exercised end to end here. The
-  inference cluster's conversion, including its required-resource edges, is
-  covered by unit tests only.
+  only the serving stack and the gateway were exercised end to end at first.
+  The teardown check has since exercised the InferenceCluster with
+  `source: Existing`; its cloud cluster paths, including their required
+  resource edges, are covered by unit tests only.
 
 ## Reproducing
 
