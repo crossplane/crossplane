@@ -437,11 +437,9 @@ it.
 Required resources and graph contradictions have fixtures but no end-to-end
 test; both are covered by unit tests.
 
-The whole suite took about seven minutes on an 8 vCPU machine, including
-building Crossplane, before the circuit breaker exemption. `CreatesInWaves` was
-most of it: the suite leaves the breaker at its defaults, so it opened partway
-through the four-level graph and later waves waited for its periodic probe. The
-exemption should remove that wait; the suite hasn't been timed since.
+The seven tests take about six minutes on an 8 vCPU machine, not counting
+building Crossplane, with the circuit breaker at its defaults. `CreatesInWaves`
+is the longest, at just under two minutes.
 
 ## Rebuilding the function
 
