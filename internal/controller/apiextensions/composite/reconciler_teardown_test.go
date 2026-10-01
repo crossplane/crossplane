@@ -18,12 +18,15 @@ package composite
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -205,5 +208,106 @@ func TestTeardownWithRealObserver(t *testing.T) {
 
 	if diff := cmp.Diff([]string{"second"}, deleted); diff != "" {
 		t.Errorf("teardown(...): -want deleted, +got deleted:\n%s", diff)
+	}
+}
+
+// TestTeardownWithoutGraph covers an XR whose pipeline declared no ordering.
+// Composed resources are deleted with background propagation when ordering is
+// enabled, so a nested XR without a graph has only its own finalizer to keep
+// it around until what it composed is gone - which is what its parent's graph
+// waits on. It must therefore hold the finalizer rather than cascade.
+func TestTeardownWithoutGraph(t *testing.T) {
+	now := metav1.Now()
+	uid := types.UID("xr-uid")
+
+	controlled := func(name string) ComposedResourceState {
+		s := state("Thing", "xr-"+name)
+		s.Resource.SetOwnerReferences([]metav1.OwnerReference{{
+			APIVersion: "example.org/v1", Kind: "XR", Name: "xr", UID: uid,
+			Controller: new(true), BlockOwnerDeletion: new(true),
+		}})
+
+		return s
+	}
+
+	deleting := func(s ComposedResourceState) ComposedResourceState {
+		s.Resource.SetDeletionTimestamp(&now)
+		return s
+	}
+
+	cases := map[string]struct {
+		reason   string
+		observed ComposedResourceStates
+		wantDone bool
+		wantDel  []string
+	}{
+		"DeletesEverythingInOneWave": {
+			reason:   "Without a graph there's no order to keep, so every composed resource is deleted at once - by Crossplane, while the XR holds its finalizer.",
+			observed: ComposedResourceStates{"a": controlled("a"), "b": controlled("b")},
+			wantDone: false,
+			wantDel:  []string{"a", "b"},
+		},
+		"WaitsForResourcesAlreadyDeleting": {
+			reason:   "A resource that's already deleting isn't asked again, but the XR keeps waiting for it to go.",
+			observed: ComposedResourceStates{"a": deleting(controlled("a"))},
+			wantDone: false,
+		},
+		"IgnoresResourcesItDoesNotControl": {
+			reason:   "Kubernetes would never cascade to a resource the XR doesn't control, so waiting on one would hold the XR forever.",
+			observed: ComposedResourceStates{"a": state("Thing", "someone-elses")},
+			wantDone: true,
+		},
+		"DoneOnceEverythingIsGone": {
+			reason:   "Once nothing is left the XR can finish deleting.",
+			observed: ComposedResourceStates{},
+			wantDone: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			deleted := []string{}
+
+			r := NewReconciler(&test.MockClient{}, schema.GroupVersionKind{},
+				WithOrderedTeardown(
+					ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return tc.observed, nil
+					}),
+					ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, observed, _ ComposedResourceStates) error {
+						for n := range observed {
+							deleted = append(deleted, string(n))
+						}
+
+						return nil
+					}),
+				),
+			)
+
+			xr := composite.New()
+			xr.SetUID(uid)
+			xr.SetDeletionTimestamp(&now)
+
+			// References with no dependsOn: a graph with no edges.
+			refs := make([]reference.Composed, 0, len(tc.observed))
+			for n := range tc.observed {
+				refs = append(refs, reference.Composed{APIVersion: "example.org/v1", Kind: "Thing", Name: "xr-" + string(n), ResourceName: string(n)})
+			}
+
+			xr.SetComposedResourceReferences(refs)
+
+			done, err := r.teardown(context.Background(), xr, r.conditions.For(xr))
+			if err != nil {
+				t.Fatalf("\n%s\nteardown(...): unexpected error: %v", tc.reason, err)
+			}
+
+			if done != tc.wantDone {
+				t.Errorf("\n%s\nteardown(...): done = %v, want %v", tc.reason, done, tc.wantDone)
+			}
+
+			slices.Sort(deleted)
+			if diff := cmp.Diff(tc.wantDel, deleted, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("\n%s\nteardown(...): deleted -want, +got:\n%s", tc.reason, diff)
+			}
+		})
 	}
 }

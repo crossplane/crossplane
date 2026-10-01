@@ -1137,17 +1137,23 @@ func (r *Reconciler) teardown(ctx context.Context, xr *composite.Unstructured, s
 	edges := EdgesFromRefs(refs)
 	log.Debug("Rebuilt the dependency graph from the XR's references", "references", len(refs), "edges", len(edges))
 
-	if len(edges) == 0 {
-		// This XR's pipeline declared no ordering, or its references predate
-		// the fields that record it. Either way there's no order to keep.
-		xr.SetPendingResources(nil)
-
-		return true, nil
-	}
-
 	observed, err := r.observer.ObserveComposedResources(ctx, xr)
 	if err != nil {
 		return false, errors.Wrap(err, errGetExistingCDs)
+	}
+
+	if len(edges) == 0 {
+		// This XR's pipeline declared no ordering, or its references predate
+		// the fields that record it. Either way there's no order to keep, so
+		// everything goes in one wave - but we still hold our finalizer until
+		// it's gone. Composed resources are deleted with background
+		// propagation, so if this XR is itself composed, its finalizer is the
+		// only thing keeping it around until what it composed is gone, which
+		// is what its parent's graph is waiting on.
+		//
+		// Only what we control counts. Kubernetes would never cascade to a
+		// resource we don't own, so waiting on one would hold the XR forever.
+		observed = controlledBy(xr, observed)
 	}
 
 	log.Debug("Observed the composed resources that are left", "observed", len(observed))
@@ -1219,6 +1225,24 @@ func (r *Reconciler) teardown(ctx context.Context, xr *composite.Unstructured, s
 	status.MarkConditions(xpv2.Deleting().WithMessage(teardownWaitingMessage(observed, d.Delete)))
 
 	return false, nil
+}
+
+// controlledBy returns the composed resources whose controller reference is
+// the supplied XR.
+func controlledBy(xr metav1.Object, observed ComposedResourceStates) ComposedResourceStates {
+	out := make(ComposedResourceStates, len(observed))
+
+	for name, cd := range observed {
+		if cd.Resource == nil {
+			continue
+		}
+
+		if c := metav1.GetControllerOf(cd.Resource); c != nil && c.UID == xr.GetUID() {
+			out[name] = cd
+		}
+	}
+
+	return out
 }
 
 // teardownPending describes what teardown is holding back, for the XR's
