@@ -441,7 +441,7 @@ func (b *DeploymentRuntimeBuilder) Service(overrides ...ServiceOverride) *corev1
 	allOverrides := slices.Concat([]ServiceOverride{
 		// Optional defaults, will be used only if the runtime config does not
 		// specify them.
-		ServiceWithOptionalName(b.packageName()),
+		ServiceWithOptionalName(b.revision.GetName()),
 
 		// Overrides that we are opinionated about.
 		ServiceWithNamespace(b.namespace),

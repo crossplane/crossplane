@@ -1,0 +1,16 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: ocireffn-composition
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: OCIRefFn
+  mode: Pipeline
+  pipeline:
+  # Bump the referenced function to v2. This creates a new CompositionRevision
+  # and a second, distinct FunctionRevision under the same parent Function. The
+  # previous CompositionRevision (and thus the v1 FunctionRevision) is retained,
+  # so a composite pinned to the old revision keeps being served by v1.
+  - step: report-revision-id
+    function: xpkg.crossplane.io/crossplane/e2e-function-revision-id@sha256:cf17b385caaf87967f85fc1d50c1c67378746128007ec79154ac82ded67daaff

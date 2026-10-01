@@ -40,11 +40,18 @@ import (
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
 func TestReconcile(t *testing.T) {
+	const (
+		functionCool       = "function-cool"
+		functionCoolPkg    = "xpkg.crossplane.io/example/function-cool:v1.0.0"
+		functionCoolDigest = "xpkg.crossplane.io/example/function-cool@sha256:c0ffee1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+	)
+
 	type params struct {
 		client client.Client
 		opts   []ReconcilerOption
@@ -162,11 +169,105 @@ func TestReconcile(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
+		"InstallFunctionsError": {
+			reason: "We should return an error if we can't install a function the pipeline references by package.",
+			params: params{
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						switch o := obj.(type) {
+						case *v1alpha1.Operation:
+							op := &v1alpha1.Operation{
+								Spec: v1alpha1.OperationSpec{
+									Pipeline: []v1alpha1.PipelineStep{
+										{
+											Step:     "cool",
+											Function: functionCoolDigest,
+										},
+									},
+								},
+							}
+							op.DeepCopyInto(o)
+						case *pkgv1.FunctionRevision:
+							return errors.New("boom")
+						}
+
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: cmpopts.AnyError,
+			},
+		},
+		"RunFunctionByPackage": {
+			reason: "We should install and run a function the pipeline references by package.",
+			params: params{
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						switch o := obj.(type) {
+						case *v1alpha1.Operation:
+							op := &v1alpha1.Operation{
+								Spec: v1alpha1.OperationSpec{
+									Pipeline: []v1alpha1.PipelineStep{
+										{
+											Step:     "cool",
+											Function: functionCoolDigest,
+										},
+									},
+								},
+							}
+							op.DeepCopyInto(o)
+						case *pkgv1.FunctionRevision:
+							// The FunctionRevision we installed for our step is
+							// ready to run functions.
+							o.Status.SetConditions(pkgv1.RevisionHealthy())
+							o.Status.Endpoint = "https://function-cool.example.org"
+						case *pkgv1.Function:
+							// We only look up a Function by name for a step
+							// that references one by name. This is the parent
+							// Function we install alongside the revision.
+							if o.GetName() == functionCool {
+								return errors.New("we should not get a Function by name for a step that references a package")
+							}
+						}
+
+						return nil
+					}),
+					MockList:         test.NewMockListFn(nil),
+					MockUpdate:       test.NewMockUpdateFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				},
+				opts: []ReconcilerOption{
+					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, refs ...string) error {
+						if diff := cmp.Diff([]string{functionCoolDigest}, refs); diff != "" {
+							return errors.Errorf("unexpected packages to check: %s", diff)
+						}
+						return nil
+					})),
+					WithFunctionRunner(xfn.FunctionRunnerFn(func(_ context.Context, pkg string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+						if diff := cmp.Diff(functionCoolDigest, pkg); diff != "" {
+							return nil, errors.Errorf("unexpected function package: %s", diff)
+						}
+						return &fnv1.RunFunctionResponse{}, nil
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
 		"GetCredentialSecretError": {
 			reason: "We should return an error if we can't get function credentials from a Secret",
 			params: params{
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if f, ok := obj.(*pkgv1.Function); ok {
+							f.SetName(functionCool)
+							f.Spec.Package = functionCoolPkg
+							return nil
+						}
 						if _, ok := obj.(*corev1.Secret); ok {
 							return errors.New("boom")
 						}
@@ -176,8 +277,8 @@ func TestReconcile(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "get-creds",
-										FunctionRef: v1alpha1.FunctionReference{
-											Name: "function-cool",
+										FunctionRef: &v1alpha1.FunctionReference{
+											Name: functionCool,
 										},
 										Credentials: []v1alpha1.FunctionCredentials{
 											{
@@ -215,6 +316,11 @@ func TestReconcile(t *testing.T) {
 			params: params{
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if f, ok := obj.(*pkgv1.Function); ok {
+							f.SetName(functionCool)
+							f.Spec.Package = functionCoolPkg
+							return nil
+						}
 						if _, ok := obj.(*corev1.Secret); ok {
 							return errors.New("boom")
 						}
@@ -224,8 +330,8 @@ func TestReconcile(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "get-creds",
-										FunctionRef: v1alpha1.FunctionReference{
-											Name: "function-cool",
+										FunctionRef: &v1alpha1.FunctionReference{
+											Name: functionCool,
 										},
 									},
 								},
@@ -256,6 +362,11 @@ func TestReconcile(t *testing.T) {
 			params: params{
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if f, ok := obj.(*pkgv1.Function); ok {
+							f.SetName(functionCool)
+							f.Spec.Package = functionCoolPkg
+							return nil
+						}
 						if _, ok := obj.(*corev1.Secret); ok {
 							return errors.New("boom")
 						}
@@ -265,8 +376,8 @@ func TestReconcile(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "get-creds",
-										FunctionRef: v1alpha1.FunctionReference{
-											Name: "function-cool",
+										FunctionRef: &v1alpha1.FunctionReference{
+											Name: functionCool,
 										},
 									},
 								},
@@ -305,6 +416,11 @@ func TestReconcile(t *testing.T) {
 			params: params{
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if f, ok := obj.(*pkgv1.Function); ok {
+							f.SetName(functionCool)
+							f.Spec.Package = functionCoolPkg
+							return nil
+						}
 						if _, ok := obj.(*corev1.Secret); ok {
 							return errors.New("boom")
 						}
@@ -314,8 +430,8 @@ func TestReconcile(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "get-creds",
-										FunctionRef: v1alpha1.FunctionReference{
-											Name: "function-cool",
+										FunctionRef: &v1alpha1.FunctionReference{
+											Name: functionCool,
 										},
 									},
 								},
@@ -365,12 +481,18 @@ func TestReconcile(t *testing.T) {
 			params: params{
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if f, ok := obj.(*pkgv1.Function); ok {
+							f.SetName("function-missing-caps")
+							f.Spec.Package = "xpkg.crossplane.io/example/function-missing-caps:v1.0.0"
+							return nil
+						}
+
 						op := &v1alpha1.Operation{
 							Spec: v1alpha1.OperationSpec{
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "check-caps",
-										FunctionRef: v1alpha1.FunctionReference{
+										FunctionRef: &v1alpha1.FunctionReference{
 											Name: "function-missing-caps",
 										},
 									},
@@ -399,13 +521,19 @@ func TestReconcile(t *testing.T) {
 			params: params{
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if f, ok := obj.(*pkgv1.Function); ok {
+							f.SetName(functionCool)
+							f.Spec.Package = functionCoolPkg
+							return nil
+						}
+
 						op := &v1alpha1.Operation{
 							Spec: v1alpha1.OperationSpec{
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "requires-resources",
-										FunctionRef: v1alpha1.FunctionReference{
-											Name: "function-cool",
+										FunctionRef: &v1alpha1.FunctionReference{
+											Name: functionCool,
 										},
 										Requirements: &v1alpha1.FunctionRequirements{
 											RequiredResources: []v1alpha1.RequiredResourceSelector{
@@ -446,6 +574,11 @@ func TestReconcile(t *testing.T) {
 			params: params{
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if f, ok := obj.(*pkgv1.Function); ok {
+							f.SetName(functionCool)
+							f.Spec.Package = functionCoolPkg
+							return nil
+						}
 						if _, ok := obj.(*corev1.Secret); ok {
 							return errors.New("boom")
 						}
@@ -455,8 +588,8 @@ func TestReconcile(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "get-creds",
-										FunctionRef: v1alpha1.FunctionReference{
-											Name: "function-cool",
+										FunctionRef: &v1alpha1.FunctionReference{
+											Name: functionCool,
 										},
 									},
 								},

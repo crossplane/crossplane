@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
@@ -51,6 +52,16 @@ type FunctionSpec struct {
 	PackageSpec `json:",inline"`
 
 	PackageRuntimeSpec `json:",inline"`
+
+	// ExternalRevisionRefs are references to FunctionRevisions that are managed
+	// externally, rather than by the package manager. When spec.package is
+	// empty and external revisions exist, the package manager propagates the
+	// status of these external revisions to the Function.
+	//
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	ExternalRevisionRefs []corev1.LocalObjectReference `json:"externalRevisionRefs,omitempty"`
 }
 
 // FunctionStatus represents the observed state of a Function.

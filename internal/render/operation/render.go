@@ -38,6 +38,7 @@ import (
 
 	apis "github.com/crossplane/crossplane/apis/v2"
 	opsv1alpha1 "github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	xcomposite "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	cronrec "github.com/crossplane/crossplane/v2/internal/controller/ops/cronoperation"
 	oprec "github.com/crossplane/crossplane/v2/internal/controller/ops/operation"
@@ -84,6 +85,24 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 		}
 		store = append(store, *u)
 	}
+	// Seed synthetic Function resources so the reconciler can resolve pipeline
+	// steps that reference a function by name to a package reference. The
+	// render FunctionRunner is keyed by the FunctionInput name, so we use that
+	// name as the package reference.
+	for _, fn := range in.GetFunctions() {
+		f := &pkgv1.Function{}
+		f.SetName(fn.GetName())
+		f.Spec.Package = fn.GetName()
+
+		fd, err := runtime.DefaultUnstructuredConverter.ToUnstructured(f)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot convert Function to unstructured")
+		}
+		fu := kunstructured.Unstructured{Object: fd}
+		fu.SetGroupVersionKind(pkgv1.FunctionGroupVersionKind)
+		store = append(store, fu)
+	}
+
 	c := render.NewInMemoryClient(s, store...)
 
 	runner, err := render.NewFunctionRunner(in.GetFunctions())

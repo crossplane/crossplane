@@ -146,6 +146,17 @@ spec:
                               x-kubernetes-list-map-keys:
                               - name
                               x-kubernetes-list-type: map
+                            function:
+                              description: |-
+                                Function is a fully-qualified OCI reference to the function package this
+                                step should execute. The package must be specified by digest.
+                              maxLength: 512
+                              type: string
+                              x-kubernetes-validations:
+                              - message: must be a fully qualified OCI reference specified
+                                  by digest, including the registry and repository.
+                                  For example, 'registry.example.com/repo/package@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'.
+                                rule: self.matches('^[a-z0-9]+((\\.|_|__|-+)[a-z0-9]+)*(\\/[a-z0-9]+((\\.|_|__|-+)[a-z0-9]+)*)*(:[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127})?@[a-z0-9]+:[a-f0-9]+$')
                             functionRef:
                               description: |-
                                 FunctionRef is a reference to the function this step should
@@ -256,9 +267,13 @@ spec:
                               description: Step name. Must be unique within its Pipeline.
                               type: string
                           required:
-                          - functionRef
                           - step
                           type: object
+                          x-kubernetes-validations:
+                          - message: exactly one of functionRef or function must be
+                              provided
+                            rule: (has(self.functionRef) && !has(self.function)) ||
+                              (has(self.function) && !has(self.functionRef))
                         maxItems: 99
                         minItems: 1
                         type: array

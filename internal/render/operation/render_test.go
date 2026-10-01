@@ -268,6 +268,62 @@ func TestRenderErrors(t *testing.T) {
 	}
 }
 
+// TestRenderFunctionByPackage tests that a pipeline step may reference its
+// function by package OCI reference. Rendering doesn't install functions, so
+// the function must be supplied using its package as its name.
+func TestRenderFunctionByPackage(t *testing.T) {
+	// Steps reference function packages by digest.
+	const pkg = "xpkg.crossplane.io/crossplane-contrib/function-cool@sha256:c0ffee1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+
+	addr := rendertest.StartFunctionServer(t, &rendertest.FatalFunctionServer{
+		RequirementName: "cool",
+		Selector: &fnv1.ResourceSelector{
+			ApiVersion: "v1",
+			Kind:       "ConfigMap",
+			Match:      &fnv1.ResourceSelector_MatchName{MatchName: "cool-map"},
+		},
+		FatalMessage: "cool resource not found",
+	})
+
+	in := &renderv1alpha1.OperationInput{
+		Operation: mustStruct(map[string]any{
+			"apiVersion": "ops.crossplane.io/v1alpha1",
+			"kind":       "Operation",
+			"metadata": map[string]any{
+				"name":      "my-operation",
+				"namespace": "default",
+			},
+			"spec": map[string]any{
+				"mode": "Pipeline",
+				"pipeline": []any{
+					map[string]any{
+						"step":     "cool",
+						"function": pkg,
+					},
+				},
+			},
+		}),
+		Functions: []*renderv1alpha1.FunctionInput{
+			{Name: pkg, Address: addr},
+		},
+	}
+
+	// Our function returns a fatal result on its second call. Reaching it at
+	// all means we routed to it by package.
+	_, err := Render(t.Context(), logging.NewNopLogger(), in)
+	if err == nil {
+		t.Fatal("Render(...): expected the function's fatal result to surface as an error")
+	}
+
+	var pfe *xcomposite.PipelineFatalError
+	if !errors.As(err, &pfe) {
+		t.Fatalf("Render(...): want a *PipelineFatalError, got %v", err)
+	}
+	if diff := cmp.Diff("cool resource not found", pfe.Message); diff != "" {
+		t.Errorf("Render(...): PipelineFatalError message: -want, +got:\n%s", diff)
+	}
+}
+
 func mustStruct(m map[string]any) *structpb.Struct {
 	s, err := structpb.NewStruct(m)
 	if err != nil {

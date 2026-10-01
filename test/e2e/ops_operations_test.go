@@ -411,3 +411,39 @@ func TestWatchOperationResourceChanges(t *testing.T) {
 			Feature(),
 	)
 }
+
+func TestOperationFunctionByOCIRef(t *testing.T) {
+	cm := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "oci-ref-map"}}
+
+	// The parent Function's name is derived from the package repository
+	// (crossplane-contrib/function-dummy) via xpkg.ToDNSLabel.
+	parentFunction := &pkgv1.Function{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-contrib-function-dummy"}}
+
+	manifests := "test/e2e/manifests/ops/operations/function-oci-ref"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that an Operation pipeline step can reference a function by OCI ref, causing the function to be installed and run.").
+			WithLabel(LabelArea, LabelAreaOps).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteOps).
+			Assess("CreateOperation", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "operation.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "operation.yaml"),
+			)).
+			// The OCI-ref step installs the function; no functions.yaml is applied.
+			Assess("FunctionInstalledFromOCIRef",
+				funcs.ResourceHasConditionWithin(2*time.Minute, parentFunction, pkgv1.Healthy(), pkgv1.Active()),
+			).
+			Assess("OperationSucceeded", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "operation.yaml", v1alpha1.Complete()),
+				funcs.ResourceHasFieldValueWithin(30*time.Second, cm, "data[coolData]", "I'm cool!"),
+			)).
+			WithTeardown("DeleteOperation", funcs.AllOf(
+				funcs.DeleteResources(manifests, "operation.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "operation.yaml"),
+			)).
+			WithTeardown("DeleteFunction",
+				funcs.ResourceDeletedWithin(2*time.Minute, parentFunction),
+			).
+			Feature(),
+	)
+}

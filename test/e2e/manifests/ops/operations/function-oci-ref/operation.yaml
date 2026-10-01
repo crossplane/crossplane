@@ -1,0 +1,33 @@
+apiVersion: ops.crossplane.io/v1alpha1
+kind: Operation
+metadata:
+  name: oci-ref-fn
+spec:
+  mode: Pipeline
+  pipeline:
+  # This step references the function by OCI ref rather than by the name of a
+  # pre-installed Function. The operation controller installs it; no
+  # functions.yaml is applied by the test.
+  - step: create-a-configmap
+    # Steps must reference function packages by digest; this is v0.4.1.
+    function: xpkg.crossplane.io/crossplane-contrib/function-dummy@sha256:b8a8590f61fb002115313d8f5f756675aa6b55ef6c31568ebcbcf65d1f17a727
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      # This is a YAML-serialized RunFunctionResponse. function-dummy will
+      # overlay the desired state on any that was passed into it.
+      response:
+        desired:
+          resources:
+            configmap:
+              resource:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  namespace: default
+                  name: oci-ref-map
+                data:
+                  coolData: "I'm cool!"
+        results:
+         - severity: SEVERITY_NORMAL
+           message: "I am doing an operate!"

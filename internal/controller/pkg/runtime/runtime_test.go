@@ -456,7 +456,7 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 						Kind:       "Service",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      providerName,
+						Name:      providerRevisionName,
 						Namespace: namespace,
 						OwnerReferences: []metav1.OwnerReference{
 							{

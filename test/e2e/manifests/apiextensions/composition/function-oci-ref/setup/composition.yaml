@@ -1,0 +1,16 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: ocireffn-composition
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: OCIRefFn
+  mode: Pipeline
+  pipeline:
+  # This step references the function by OCI ref rather than by the name of a
+  # pre-installed Function. The composition-revision controller installs it: it
+  # creates a FunctionRevision and a parent Function named after the package
+  # repository (e2e-function-revision-id), with no functions.yaml applied.
+  - step: report-revision-id
+    function: xpkg.crossplane.io/crossplane/e2e-function-revision-id@sha256:a14107de6a2acde8554c6e7e753b6bd7ab9120daab0048f51b5540dd10c98b39

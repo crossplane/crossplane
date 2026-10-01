@@ -1,0 +1,7 @@
+apiVersion: example.org/v1alpha1
+kind: OCIRefFn
+metadata:
+  namespace: default
+  name: oci-ref-fn-2
+spec:
+  coolField: "another one"

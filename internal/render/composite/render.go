@@ -45,6 +45,7 @@ import (
 	apis "github.com/crossplane/crossplane/apis/v2"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	apiextensionsv2 "github.com/crossplane/crossplane/apis/v2/apiextensions/v2"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
@@ -159,6 +160,24 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 			u.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "Secret"})
 		}
 		store = append(store, *u)
+	}
+
+	// Seed synthetic Function resources so the FunctionComposer can resolve
+	// pipeline steps that reference a function by name to a package reference.
+	// The render FunctionRunner is keyed by the FunctionInput name, so we use
+	// that name as the package reference for name-based steps.
+	for _, fn := range in.GetFunctions() {
+		f := &pkgv1.Function{}
+		f.SetName(fn.GetName())
+		f.Spec.Package = fn.GetName()
+
+		fd, err := runtime.DefaultUnstructuredConverter.ToUnstructured(f)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot convert Function to unstructured")
+		}
+		fu := kunstructured.Unstructured{Object: fd}
+		fu.SetGroupVersionKind(pkgv1.FunctionGroupVersionKind)
+		store = append(store, fu)
 	}
 
 	c := render.NewInMemoryClient(s, store...)

@@ -32,9 +32,9 @@ import (
 
 func TestRevisionCapabilityChecker(t *testing.T) {
 	type args struct {
-		ctx   context.Context
-		caps  []string
-		names []string
+		ctx  context.Context
+		caps []string
+		refs []string
 	}
 
 	type want struct {
@@ -53,9 +53,9 @@ func TestRevisionCapabilityChecker(t *testing.T) {
 				MockList: test.NewMockListFn(errors.New("boom")),
 			},
 			args: args{
-				ctx:   context.Background(),
-				caps:  []string{"cap1"},
-				names: []string{"test-fn"},
+				ctx:  context.Background(),
+				caps: []string{"cap1"},
+				refs: []string{"example.org/test-fn:v1"},
 			},
 			want: want{
 				err: cmpopts.AnyError,
@@ -70,9 +70,9 @@ func TestRevisionCapabilityChecker(t *testing.T) {
 				}),
 			},
 			args: args{
-				ctx:   context.Background(),
-				caps:  []string{"cap1"},
-				names: []string{"test-fn"},
+				ctx:  context.Background(),
+				caps: []string{"cap1"},
+				refs: []string{"example.org/test-fn:v1"},
 			},
 			want: want{
 				err: nil,
@@ -86,12 +86,10 @@ func TestRevisionCapabilityChecker(t *testing.T) {
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "test-fn-abc123",
-								Labels: map[string]string{
-									pkgv1.LabelParentPackage: "test-fn",
-								},
 							},
 							Spec: pkgv1.FunctionRevisionSpec{
 								PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+									Package:      "example.org/test-fn:v1",
 									DesiredState: pkgv1.PackageRevisionInactive,
 								},
 							},
@@ -106,9 +104,9 @@ func TestRevisionCapabilityChecker(t *testing.T) {
 				}),
 			},
 			args: args{
-				ctx:   context.Background(),
-				caps:  []string{"cap1"},
-				names: []string{"test-fn"},
+				ctx:  context.Background(),
+				caps: []string{"cap1"},
+				refs: []string{"example.org/test-fn:v1"},
 			},
 			want: want{
 				err: nil,
@@ -122,12 +120,10 @@ func TestRevisionCapabilityChecker(t *testing.T) {
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "different-fn-abc123",
-								Labels: map[string]string{
-									pkgv1.LabelParentPackage: "different-fn",
-								},
 							},
 							Spec: pkgv1.FunctionRevisionSpec{
 								PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+									Package:      "example.org/different-fn:v1",
 									DesiredState: pkgv1.PackageRevisionActive,
 								},
 							},
@@ -142,9 +138,9 @@ func TestRevisionCapabilityChecker(t *testing.T) {
 				}),
 			},
 			args: args{
-				ctx:   context.Background(),
-				caps:  []string{"cap1"},
-				names: []string{"test-fn"},
+				ctx:  context.Background(),
+				caps: []string{"cap1"},
+				refs: []string{"example.org/test-fn:v1"},
 			},
 			want: want{
 				err: nil,
@@ -158,12 +154,10 @@ func TestRevisionCapabilityChecker(t *testing.T) {
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "test-fn-abc123",
-								Labels: map[string]string{
-									pkgv1.LabelParentPackage: "test-fn",
-								},
 							},
 							Spec: pkgv1.FunctionRevisionSpec{
 								PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+									Package:      "example.org/test-fn:v1",
 									DesiredState: pkgv1.PackageRevisionActive,
 								},
 							},
@@ -178,9 +172,9 @@ func TestRevisionCapabilityChecker(t *testing.T) {
 				}),
 			},
 			args: args{
-				ctx:   context.Background(),
-				caps:  []string{"cap1", "cap2"},
-				names: []string{"test-fn"},
+				ctx:  context.Background(),
+				caps: []string{"cap1", "cap2"},
+				refs: []string{"example.org/test-fn:v1"},
 			},
 			want: want{
 				err: nil,
@@ -194,12 +188,10 @@ func TestRevisionCapabilityChecker(t *testing.T) {
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "test-fn-abc123",
-								Labels: map[string]string{
-									pkgv1.LabelParentPackage: "test-fn",
-								},
 							},
 							Spec: pkgv1.FunctionRevisionSpec{
 								PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+									Package:      "example.org/test-fn:v1",
 									DesiredState: pkgv1.PackageRevisionActive,
 								},
 							},
@@ -214,26 +206,26 @@ func TestRevisionCapabilityChecker(t *testing.T) {
 				}),
 			},
 			args: args{
-				ctx:   context.Background(),
-				caps:  []string{"cap1", "cap2", "cap3"},
-				names: []string{"test-fn"},
+				ctx:  context.Background(),
+				caps: []string{"cap1", "cap2", "cap3"},
+				refs: []string{"example.org/test-fn:v1"},
 			},
 			want: want{
 				err: cmpopts.AnyError,
 			},
 		},
-		"MissingParentPackageLabel": {
-			reason: "We should skip revisions without parent package label",
+		"MissingPackage": {
+			reason: "We should skip revisions without a package reference",
 			c: &test.MockClient{
 				MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 					obj.(*pkgv1.FunctionRevisionList).Items = []pkgv1.FunctionRevision{
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "test-fn-abc123",
-								// No parent package label
 							},
 							Spec: pkgv1.FunctionRevisionSpec{
 								PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+									// No package reference.
 									DesiredState: pkgv1.PackageRevisionActive,
 								},
 							},
@@ -248,9 +240,9 @@ func TestRevisionCapabilityChecker(t *testing.T) {
 				}),
 			},
 			args: args{
-				ctx:   context.Background(),
-				caps:  []string{"cap1"},
-				names: []string{"test-fn"},
+				ctx:  context.Background(),
+				caps: []string{"cap1"},
+				refs: []string{"example.org/test-fn:v1"},
 			},
 			want: want{
 				err: nil,
@@ -264,12 +256,10 @@ func TestRevisionCapabilityChecker(t *testing.T) {
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "fn1-abc123",
-								Labels: map[string]string{
-									pkgv1.LabelParentPackage: "fn1",
-								},
 							},
 							Spec: pkgv1.FunctionRevisionSpec{
 								PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+									Package:      "example.org/fn1:v1",
 									DesiredState: pkgv1.PackageRevisionActive,
 								},
 							},
@@ -282,12 +272,10 @@ func TestRevisionCapabilityChecker(t *testing.T) {
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "fn2-def456",
-								Labels: map[string]string{
-									pkgv1.LabelParentPackage: "fn2",
-								},
 							},
 							Spec: pkgv1.FunctionRevisionSpec{
 								PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+									Package:      "example.org/fn2:v1",
 									DesiredState: pkgv1.PackageRevisionActive,
 								},
 							},
@@ -302,9 +290,9 @@ func TestRevisionCapabilityChecker(t *testing.T) {
 				}),
 			},
 			args: args{
-				ctx:   context.Background(),
-				caps:  []string{"cap1"},
-				names: []string{"fn1", "fn2"},
+				ctx:  context.Background(),
+				caps: []string{"cap1"},
+				refs: []string{"example.org/fn1:v1", "example.org/fn2:v1"},
 			},
 			want: want{
 				err: nil,
@@ -318,7 +306,7 @@ func TestRevisionCapabilityChecker(t *testing.T) {
 				client: tc.c,
 			}
 
-			err := c.CheckCapabilities(tc.args.ctx, tc.args.caps, tc.args.names...)
+			err := c.CheckCapabilities(tc.args.ctx, tc.args.caps, tc.args.refs...)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nCheckCapabilities(...): -want error, +got error:\n%s", tc.reason, diff)

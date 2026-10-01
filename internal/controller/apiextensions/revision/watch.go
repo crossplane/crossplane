@@ -56,7 +56,11 @@ func EnqueueCompositionRevisionsForFunctionRevision(kube client.Reader, log logg
 		var matches []reconcile.Request
 		for _, rev := range revs.Items {
 			for _, fn := range rev.Spec.Pipeline {
-				if fn.FunctionRef.Name != name {
+				if fn.Function != "" && fn.Function != fr.Spec.Package {
+					continue
+				}
+
+				if fn.FunctionRef != nil && fn.FunctionRef.Name != name {
 					continue
 				}
 

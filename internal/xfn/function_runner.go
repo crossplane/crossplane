@@ -42,7 +42,7 @@ import (
 const (
 	errListFunctionRevisions = "cannot list FunctionRevisions"
 	errNoActiveRevisions     = "cannot find an active FunctionRevision (a FunctionRevision with spec.desiredState: Active)"
-	errListFunctions         = "cannot List Functions to determine which gRPC client connections to garbage collect."
+	errListFunctions         = "cannot List FunctionRevisions to determine which gRPC client connections to garbage collect."
 
 	errFmtGetClientConn = "cannot get gRPC client connection for Function %q"
 	errFmtRunFunction   = "cannot run Function %q"
@@ -75,16 +75,17 @@ const svcConfig = `
 
 // A FunctionRunner runs a composition function.
 type FunctionRunner interface {
-	// RunFunction runs the named composition function.
-	RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+	// RunFunction runs the composition function with the given package reference.
+	RunFunction(ctx context.Context, pkg string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
 }
 
 // A FunctionRunnerFn is a function that can run a Composition Function.
-type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+type FunctionRunnerFn func(ctx context.Context, pkg string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
 
-// RunFunction runs the named Composition Function with the supplied request.
-func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	return fn(ctx, name, req)
+// RunFunction runs the Composition Function with the supplied package
+// reference, passing the given request.
+func (fn FunctionRunnerFn) RunFunction(ctx context.Context, pkg string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	return fn(ctx, pkg, req)
 }
 
 // A PackagedFunctionRunner runs a Function by making a gRPC call to a Function
@@ -153,52 +154,49 @@ func NewPackagedFunctionRunner(c client.Reader, o ...PackagedFunctionRunnerOptio
 	return r
 }
 
-// RunFunction sends the supplied RunFunctionRequest to the named Function. The
-// function is expected to be an installed Function.pkg.crossplane.io package.
-func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	conn, err := r.getClientConn(ctx, name)
+// RunFunction sends the supplied RunFunctionRequest to the Function with the
+// given OCI reference. The function is expected to be an installed
+// Function.pkg.crossplane.io package.
+func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, pkg string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	conn, err := r.getClientConn(ctx, pkg)
 	if err != nil {
-		return nil, errors.Wrapf(err, errFmtGetClientConn, name)
+		return nil, errors.Wrapf(err, errFmtGetClientConn, pkg)
 	}
 
 	rsp, err := NewBetaFallBackFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
 
-	return rsp, errors.Wrapf(err, errFmtRunFunction, name)
+	return rsp, errors.Wrapf(err, errFmtRunFunction, pkg)
 }
 
-// In most cases our gRPC target will be a Kubernetes Service. The package
-// manager creates this service for each active FunctionRevision, but the
-// Service is aligned with the Function. It's name is derived from the Function
-// (not the FunctionRevision). This means the target won't change just because a
-// new FunctionRevision was created.
-//
-// However, once the runtime config design is implemented it's possible that
-// something other than the package manager will reconcile FunctionRevisions.
-// There's no guarantee it will create a Service, or that the endpoint will
-// remain stable across FunctionRevisions.
-//
-// https://github.com/crossplane/crossplane/blob/226b81f/design/one-pager-package-runtime-config.md
+// In most cases our gRPC target will be a Kubernetes Service, created by the
+// package manager for an active FunctionRevision. However, since we support
+// external package runtime controllers, it's possible that something other than
+// the package manager reconciles FunctionRevisions and there's no guarantee
+// that the function endpoint is an in-cluster Service.
 //
 // With this in mind, we attempt to:
 //
-// * Create a connection the first time someone runs a Function.
-// * Cache it so we don't pay the setup cost every time the Function is called.
-// * Verify that it has the correct target every time the Function is called.
+//   - Create a connection the first time someone runs a given revision of a function.
+//   - Cache it so we don't pay the setup cost every time the Function is called.
+//   - Verify that it has the correct target every time the Function is called,
+//     in case the runtime controller has changed it.
 //
 // In the happy path, where a client already exists, this means we'll pay the
-// cost of listing and iterating over FunctionRevisions from cache. The default
-// RevisionHistoryLimit is 1, so for most Functions we'd expect there to be two
-// revisions in the cache (one active, and one previously active).
-func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string) (*grpc.ClientConn, error) {
-	log := r.log.WithValues("function", name)
+// cost of listing and iterating over FunctionRevisions from cache.
+func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, pkg string) (*grpc.ClientConn, error) {
+	log := r.log.WithValues("package", pkg)
 
 	l := &pkgv1.FunctionRevisionList{}
-	if err := r.client.List(ctx, l, client.MatchingLabels{pkgv1.LabelParentPackage: name}); err != nil {
+	if err := r.client.List(ctx, l); err != nil {
 		return nil, errors.Wrapf(err, errListFunctionRevisions)
 	}
 
 	var active *pkgv1.FunctionRevision
 	for i := range l.Items {
+		if l.Items[i].Spec.Package != pkg {
+			continue
+		}
+
 		if l.Items[i].GetDesiredState() == pkgv1.PackageRevisionActive {
 			active = &l.Items[i]
 			break
@@ -216,7 +214,7 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 	// If we have a connection for the up-to-date endpoint, return it.
 	r.connsMx.RLock()
 
-	conn, ok := r.conns[name]
+	conn, ok := r.conns[pkg]
 	if ok && conn.Target() == active.Status.Endpoint {
 		defer r.connsMx.RUnlock()
 		return conn, nil
@@ -230,7 +228,7 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 
 	// Another Goroutine might have updated the connections between when we
 	// released the read lock and took the write lock, so check again.
-	conn, ok = r.conns[name]
+	conn, ok = r.conns[pkg]
 	if ok {
 		// We now have a connection for the up-to-date endpoint.
 		if conn.Target() == active.Status.Endpoint {
@@ -243,12 +241,12 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 		log.Debug("Closing gRPC client connection with stale target", "old-target", conn.Target(), "new-target", active.Status.Endpoint)
 		_ = conn.Close()
 
-		delete(r.conns, name)
+		delete(r.conns, pkg)
 	}
 
 	is := make([]grpc.UnaryClientInterceptor, len(r.interceptors))
 	for i := range r.interceptors {
-		is[i] = r.interceptors[i].CreateInterceptor(name, active.Spec.Package)
+		is[i] = r.interceptors[i].CreateInterceptor(active.Name, active.Spec.Package)
 	}
 
 	conn, err := grpc.NewClient(active.Status.Endpoint,
@@ -259,7 +257,7 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 		return nil, errors.Wrapf(err, errFmtDialFunction, active.Status.Endpoint, active.GetName())
 	}
 
-	r.conns[name] = conn
+	r.conns[pkg] = conn
 
 	log.Debug("Created new gRPC client connection", "target", active.Status.Endpoint)
 
@@ -308,32 +306,35 @@ func (r *PackagedFunctionRunner) GarbageCollectConnectionsNow(ctx context.Contex
 	r.connsMx.Lock()
 	defer r.connsMx.Unlock()
 
-	l := &pkgv1.FunctionList{}
+	l := &pkgv1.FunctionRevisionList{}
 	if err := r.client.List(ctx, l); err != nil {
 		return 0, errors.Wrap(err, errListFunctions)
 	}
 
-	functionExists := map[string]bool{}
+	functionActive := map[string]bool{}
 	for _, f := range l.Items {
-		functionExists[f.GetName()] = true
+		if f.Spec.DesiredState != pkgv1.PackageRevisionActive {
+			continue
+		}
+		functionActive[f.Spec.Package] = true
 	}
 
 	// Garbage collect connections.
 	closed := 0
 
-	for name := range r.conns {
-		if functionExists[name] {
+	for pkg := range r.conns {
+		if functionActive[pkg] {
 			continue
 		}
 
 		// Close only returns an error is if the connection is already
 		// closed or in the process of closing.
-		_ = r.conns[name].Close()
-		delete(r.conns, name)
+		_ = r.conns[pkg].Close()
+		delete(r.conns, pkg)
 
 		closed++
 
-		r.log.Debug("Closed gRPC client connection to Function that is no longer installed", "function", name)
+		r.log.Debug("Closed gRPC client connection to FunctionRevision that is no longer active", "package", pkg)
 	}
 
 	return closed, nil

@@ -19,10 +19,16 @@ package revision
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-containerregistry/pkg/name"
+	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -34,6 +40,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
@@ -50,6 +57,7 @@ const (
 // Event reasons.
 const (
 	reasonCheckCapabilities event.Reason = "CheckCapabilities"
+	reasonInstallFunctions  event.Reason = "InstallFunctions"
 )
 
 // Setup adds a controller that reconciles CompositionRevisions by validating
@@ -150,14 +158,45 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"revision", rev.Spec.Revision,
 	)
 
-	// Extract function names from the pipeline
-	names := make([]string, 0, len(rev.Spec.Pipeline))
+	// Ensure FunctionRevisions (and their parent Functions) exist for any
+	// pipeline steps that reference a function by package. Steps that
+	// reference a function by name are assumed to have been installed by the
+	// user already.
+	if err := r.ensureFunctions(ctx, rev); err != nil {
+		log.Debug("Cannot ensure functions for pipeline", "error", err)
+		r.record.Event(rev, event.Warning(reasonInstallFunctions, err))
+		status.MarkConditions(xpv2.ReconcileError(err))
+		_ = r.client.Status().Update(ctx, rev)
+
+		return reconcile.Result{}, err
+	}
+
+	// Resolve each pipeline step to a function package OCI reference. A step may
+	// reference a function either by the name of an installed Function, or
+	// directly by package OCI reference. The capability checker looks functions
+	// up by package, so resolve name-based references to their package here,
+	// like the composite controller does.
+	refs := make([]string, 0, len(rev.Spec.Pipeline))
 	for _, fn := range rev.Spec.Pipeline {
-		names = append(names, fn.FunctionRef.Name)
+		pkg := fn.Function
+		if pkg == "" {
+			f := &pkgv1.Function{}
+			if err := r.client.Get(ctx, client.ObjectKey{Name: fn.FunctionRef.Name}, f); err != nil {
+				log.Debug("Cannot get Function for pipeline step", "error", err)
+				r.record.Event(rev, event.Warning(reasonCheckCapabilities, err))
+				status.MarkConditions(xpv2.ReconcileError(err))
+				_ = r.client.Status().Update(ctx, rev)
+
+				return reconcile.Result{}, err
+			}
+			pkg = f.Spec.Package
+		}
+
+		refs = append(refs, pkg)
 	}
 
 	// Check that all functions have the composition capability
-	if err := r.functions.CheckCapabilities(ctx, []string{pkgmetav1.FunctionCapabilityComposition}, names...); err != nil {
+	if err := r.functions.CheckCapabilities(ctx, []string{pkgmetav1.FunctionCapabilityComposition}, refs...); err != nil {
 		log.Debug("Function capability check failed", "error", err)
 		r.record.Event(rev, event.Warning(reasonCheckCapabilities, err))
 		status.MarkConditions(xpv2.ReconcileSuccess(), v1.MissingCapabilities(err.Error()))
@@ -177,4 +216,146 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, rev), "cannot update CompositionRevision status")
 	}
 	return reconcile.Result{}, nil
+}
+
+// ensureFunctions ensures that a FunctionRevision and its parent Function exist
+// for every pipeline step that references a function by package. Each object
+// gains an owner reference to the supplied CompositionRevision, so that the
+// objects are garbage collected once no CompositionRevision references them any
+// longer.
+func (r *Reconciler) ensureFunctions(ctx context.Context, rev *v1.CompositionRevision) error {
+	owner := meta.AsOwner(meta.TypedReferenceTo(rev, v1.CompositionRevisionGroupVersionKind))
+
+	// Collect the set of external revisions per parent Function. Multiple steps
+	// (or multiple composition revisions) may reference different versions of
+	// the same function package, in which case the parent Function ends up with
+	// more than one external revision.
+	revisionsByFunction := map[string]map[string]bool{}
+
+	for _, step := range rev.Spec.Pipeline {
+		if step.Function == "" {
+			continue
+		}
+
+		ref, err := name.NewDigest(step.Function, name.StrictValidation)
+		if err != nil {
+			return errors.Wrapf(err, "invalid package reference in pipeline step %q; steps must reference functions by digest", step.Step)
+		}
+
+		fnName := xpkg.ToDNSLabel(ref.Context().RepositoryStr())
+		revName := functionRevisionName(fnName, ref)
+
+		if err := r.ensureFunctionRevision(ctx, revName, fnName, step.Function, owner); err != nil {
+			return errors.Wrapf(err, "cannot ensure FunctionRevision for pipeline step %q", step.Step)
+		}
+
+		if revisionsByFunction[fnName] == nil {
+			revisionsByFunction[fnName] = map[string]bool{}
+		}
+		revisionsByFunction[fnName][revName] = true
+	}
+
+	for fnName, revs := range revisionsByFunction {
+		if err := r.ensureFunction(ctx, fnName, revs, owner); err != nil {
+			return errors.Wrapf(err, "cannot ensure Function %q", fnName)
+		}
+	}
+
+	return nil
+}
+
+// functionRevisionName derives a FunctionRevision name from a package
+// reference. Names are based on the package repository and digest, so that
+// multiple composition revisions referencing the same package will share a
+// function revision. Note, however, that we construct names differently from
+// the package manager, so we will not share revisions with it.
+func functionRevisionName(fnName string, ref name.Digest) string {
+	return xpkg.FriendlyID(fnName, strings.TrimPrefix(ref.DigestStr(), "sha256:"))
+}
+
+// ensureFunctionRevision creates the named FunctionRevision if it does not
+// exist, or adds the supplied owner reference to it if it does.
+func (r *Reconciler) ensureFunctionRevision(ctx context.Context, revName, fnName, pkg string, owner metav1.OwnerReference) error {
+	rev := &pkgv1.FunctionRevision{}
+	err := r.client.Get(ctx, client.ObjectKey{Name: revName}, rev)
+	if kerrors.IsNotFound(err) {
+		rev = &pkgv1.FunctionRevision{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: revName,
+				Labels: map[string]string{
+					pkgv1.LabelParentPackage: fnName,
+					pkgv1.LabelFunction:      fnName,
+					pkgv1.LabelRevision:      revName,
+				},
+				OwnerReferences: []metav1.OwnerReference{owner},
+			},
+			Spec: pkgv1.FunctionRevisionSpec{
+				PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+					DesiredState: pkgv1.PackageRevisionActive,
+					Package:      pkg,
+					Revision:     1,
+				},
+				PackageRevisionRuntimeSpec: pkgv1.PackageRevisionRuntimeSpec{
+					TLSServerSecretName: pkgv1.GetSecretNameWithSuffix(revName, pkgv1.TLSServerSecretNameSuffix),
+				},
+			},
+		}
+
+		return r.client.Create(ctx, rev)
+	}
+	if err != nil {
+		return err
+	}
+
+	meta.AddOwnerReference(rev, owner)
+
+	// TODO(adamwg): SSA?
+	return r.client.Update(ctx, rev)
+}
+
+// ensureFunction creates the named parent Function if it does not exist, or
+// updates it to include the supplied owner reference and external revisions if
+// it does. The Function has an empty spec.package, which signals the package
+// manager not to manage its revisions.
+func (r *Reconciler) ensureFunction(ctx context.Context, fnName string, revNames map[string]bool, owner metav1.OwnerReference) error {
+	revs := make([]corev1.LocalObjectReference, 0, len(revNames))
+	for _, n := range slices.Sorted(maps.Keys(revNames)) {
+		revs = append(revs, corev1.LocalObjectReference{Name: n})
+	}
+
+	fn := &pkgv1.Function{}
+	err := r.client.Get(ctx, client.ObjectKey{Name: fnName}, fn)
+	if kerrors.IsNotFound(err) {
+		fn = &pkgv1.Function{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            fnName,
+				OwnerReferences: []metav1.OwnerReference{owner},
+			},
+			Spec: pkgv1.FunctionSpec{
+				ExternalRevisionRefs: revs,
+			},
+		}
+
+		return r.client.Create(ctx, fn)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	// Function already exists, but we need to make sure it has all our external
+	// revisions.
+	for _, rev := range revs {
+		if slices.Contains(fn.Spec.ExternalRevisionRefs, rev) {
+			continue
+		}
+
+		fn.Spec.ExternalRevisionRefs = append(fn.Spec.ExternalRevisionRefs, rev)
+	}
+	// Ensure the composition revision is an owner of the function, for GC
+	// purposes.
+	meta.AddOwnerReference(fn, owner)
+
+	// TODO(adamwg): SSA?
+	return r.client.Update(ctx, fn)
 }
