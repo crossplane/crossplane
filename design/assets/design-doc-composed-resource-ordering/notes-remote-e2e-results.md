@@ -345,9 +345,9 @@ assertion, and teardown cannot start by deleting the ServingStack because
   InferenceCluster's deletion to take a provisioned cluster's API server with
   it, wasn't reproduced; only the ordering that prevents it was.
 - **Modelplane beyond these three compositions.** All three composing
-  functions have since been converted and `compose-usages` deleted outright -
-  see [notes-modelplane-conversion.md](notes-modelplane-conversion.md) - but
-  only the serving stack and the gateway were exercised end to end at first.
+  functions have since been converted and `compose-usages` deleted outright,
+  but only the serving stack and the gateway were exercised end to end at
+  first.
   The teardown check has since exercised the InferenceCluster with
   `source: Existing`; its cloud cluster paths, including their required
   resource edges, are covered by unit tests only.

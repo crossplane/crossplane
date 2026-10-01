@@ -260,11 +260,10 @@ was built to do: an XR reconciling a hundred times in thirty seconds is the
 runaway it exists to stop. It cannot currently tell that apart from a graph
 converging normally.
 
-This is a real and unresolved cost of the proposal, and it is worse than the
-earlier note in `notes-comparison-function-controlled-deletion.md` suggested.
-That note said deep graphs trip the breaker and each wave then takes about a
-minute. The measurement says a 50-deep chain does not converge at all on a
-stock Crossplane.
+This was a real cost of the proposal, and worse than earlier measurements
+suggested: they had deep graphs trip the breaker and each wave then take about
+a minute. This one says a 50-deep chain does not converge at all on a stock
+Crossplane. The exemption below addresses it.
 
 It bears on the earlier findings rather than invalidating them: those numbers
 are what the engine costs, and remain the right answer to "what does the graph
