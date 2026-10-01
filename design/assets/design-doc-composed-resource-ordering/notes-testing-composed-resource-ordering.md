@@ -61,7 +61,7 @@ ordering turned on, so nothing needs building:
 ```shell
 kind create cluster --name xp-ordering
 helm install crossplane oci://ghcr.io/stevendborrelli/charts/crossplane \
-  --version 2.5.0-ordering.3 \
+  --version 2.5.0-ordering.5 \
   -n crossplane-system --create-namespace --wait
 ```
 
@@ -363,7 +363,7 @@ git clone -b composed-resource-ordering https://github.com/stevendborrelli/cli.g
 
 /tmp/crossplane composition render $M/xr.yaml $M/create/composition-nested.yaml $M/setup/functions.yaml \
   --xrd $M/setup/definition.yaml \
-  --crossplane-image ghcr.io/stevendborrelli/crossplane:v2.5.0-ordering.3 \
+  --crossplane-image ghcr.io/stevendborrelli/crossplane:v2.5.0-ordering.5 \
   --enable-composed-resource-ordering
 ```
 
