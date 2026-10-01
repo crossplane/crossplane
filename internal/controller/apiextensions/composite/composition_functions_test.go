@@ -30,6 +30,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -1575,6 +1576,29 @@ func TestGetComposedResources(t *testing.T) {
 						},
 					},
 				},
+			},
+		},
+		"ComposedResourceKindNotServed": {
+			reason: "We should skip a resource whose kind is no longer served, for example because a composed Helm release that installed its CRD has been uninstalled. It can't exist.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(&kmeta.NoKindMatchError{GroupKind: schema.GroupKind{Group: "metallb.io", Kind: "IPAddressPool"}}),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+			},
+			args: args{
+				xr: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
+						Refs: []corev1.ObjectReference{
+							{Name: "cool-resource"},
+						},
+					},
+				},
+			},
+			want: want{
+				ors: ComposedResourceStates{},
 			},
 		},
 		"GetComposedResourceError": {
