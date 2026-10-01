@@ -20,6 +20,7 @@
   * [Backward Compatibility for Functions](#backward-compatibility-for-functions)
   * [Validation in the Core Engine for Valid and Acyclic Graphs](#validation-in-the-core-engine-for-valid-and-acyclic-graphs)
   * [Using the Graph to Order Creation and Deletion](#using-the-graph-to-order-creation-and-deletion)
+    * [Foreground Deletion](#foreground-deletion)
     * [Dealing With Contradictions in the Graph](#dealing-with-contradictions-in-the-graph)
     * [Determining Readiness](#determining-readiness)
   * [Representing Graph State in `spec` and `status`](#representing-graph-state-in-spec-and-status)
@@ -448,6 +449,51 @@ Either way, deletion proceeds in waves:
    deletion, and the resource leaves observed state.
 4. The next reconcile recomputes the graph, and resources that were waiting on
    it are released to the garbage collector.
+
+#### Foreground Deletion
+
+Ordered teardown relies on the XR's finalizer: while the XR holds it,
+Kubernetes doesn't cascade to the composed resources, and Crossplane deletes
+them a wave at a time. Foreground deletion works differently. Once an owner
+has a deletion timestamp and the `foregroundDeletion` finalizer, the
+Kubernetes garbage collector deletes all of its dependents at once, whatever
+finalizers the owner holds. The graph can't order deletes that Crossplane
+doesn't issue.
+
+That happens in three places:
+
+1. **A user deletes an XR with `kubectl delete --cascade=foreground`.** Every
+   composed resource is deleted at once, and ordered teardown finds nothing
+   left to order. Crossplane can't prevent this. Only an admission webhook
+   can refuse a delete, which is what a `Usage` does, so this is a limitation
+   the proposal inherits rather than one it can fix.
+2. **A legacy claim with `compositeDeletePolicy: Foreground`.** The claim
+   deletes its XR with foreground propagation, with the same effect as the
+   first case.
+3. **Nested XRs.** Crossplane deletes every composed resource with foreground
+   propagation, so that a nested XR is deleted bottom up, and ordered teardown
+   deletes each wave the same way. The parent's order holds, and a child XR
+   isn't gone until everything under it is, so the parent's next wave waits
+   for the whole subtree. But inside the child, the garbage collector deletes
+   everything at once and the child's own graph is ignored.
+
+The third case is Crossplane's own choice, so the prototype fixes it. With
+ordering enabled:
+
+* An XR being deleted keeps its finalizer until the composed resources it
+  controls are gone, even when it has no graph, and deletes them all in a
+  single wave. Without ordering, an XR with no graph drops its finalizer at
+  once and lets Kubernetes cascade.
+* Crossplane deletes composed resources with background propagation instead
+  of foreground, both during teardown and when a resource leaves desired
+  state. The child's finalizer then gives the bottom-up guarantee that
+  foreground propagation gave, and the child orders its own teardown.
+
+An end-to-end test, `TeardownIsOrderedInNestedXR`, covers it. Before the fix,
+the parent deleted its child XR first, as its graph said, but all three of the
+child's composed resources were marked for deletion at once. With the fix they
+go a level at a time, and the parent deletes what the child depended on only
+once the child is gone.
 
 #### Dealing With Contradictions in the Graph
 
