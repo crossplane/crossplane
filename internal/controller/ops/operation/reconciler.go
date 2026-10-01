@@ -382,8 +382,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// count, but it's pretty useful to know what resources an
 		// Operation applied...
 		op.Status.AppliedResourceRefs = AddResourceRef(op.Status.AppliedResourceRefs, u)
+		op.Status.AppliedResourceCount = int64(len(op.Status.AppliedResourceRefs))
 	}
 
+	op.Status.AppliedResourceCount = int64(len(op.Status.AppliedResourceRefs))
 	status.MarkConditions(xpv2.ReconcileSuccess(), v1alpha1.Complete())
 
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
