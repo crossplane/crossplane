@@ -433,11 +433,10 @@ it.
 | `TeardownSurvivesRestart` | Teardown continues in order after Crossplane is restarted mid-way. The replacement process never ran the pipeline for that XR, so the order can only have come from `spec.crossplane.resourceRefs`. |
 | `TeardownIsOrderedOnLegacyXR` | A legacy v1 XR tears down a level at a time too, reading the graph from `spec.resourceRefs`. If teardown ever read only the modern path, it would find no graph and cascade, which looks exactly like finishing. |
 | `TeardownIsOrderedInNestedXR` | An XR composed by another XR tears down in its own order when the parent deletes it. Crossplane deletes composed resources with background propagation when ordering is on; a foreground delete would have the garbage collector delete all of the child's resources at once. |
+| `WaitsForRequiredResource` | A composed resource that depends on a required resource isn't created until the requirement is satisfied, its dependents wait with it, and `pendingResources` names the requirement. |
+| `ReportsContradiction` | When the pipeline drops a resource another still-desired resource depends on, it isn't deleted: it's reported deadlocked, the XR is held un-ready, and both recover once the pipeline wants it again. |
 
-Required resources and graph contradictions have fixtures but no end-to-end
-test; both are covered by unit tests.
-
-The seven tests take about six minutes on an 8 vCPU machine, not counting
+The nine tests take about seven minutes on an 8 vCPU machine, not counting
 building Crossplane, with the circuit breaker at its defaults. `CreatesInWaves`
 is the longest, at just under two minutes.
 
