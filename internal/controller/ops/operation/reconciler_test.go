@@ -40,11 +40,52 @@ import (
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
 func TestReconcile(t *testing.T) {
+	const (
+		functionCool    = "function-cool"
+		functionCoolPkg = "xpkg.crossplane.io/example/function-cool:v1.0.0"
+
+		// functionUID is the UID of every Function our mocks return.
+		functionUID = "function-uid"
+	)
+
+	// listFunctionRevisions lists an active revision controlled by any
+	// Function our mocks return, so that every pipeline step resolves.
+	listFunctionRevisions := test.NewMockListFn(nil, func(obj client.ObjectList) error {
+		l, ok := obj.(*pkgv1.FunctionRevisionList)
+		if !ok {
+			return nil
+		}
+
+		l.Items = []pkgv1.FunctionRevision{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "function-abc123",
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: pkgv1.FunctionGroupVersionKind.GroupVersion().String(),
+						Kind:       pkgv1.FunctionKind,
+						Name:       "function",
+						UID:        functionUID,
+						Controller: new(true),
+					}},
+				},
+				Spec: pkgv1.FunctionRevisionSpec{
+					PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+						DesiredState: pkgv1.PackageRevisionActive,
+						Package:      functionCoolPkg,
+					},
+				},
+			},
+		}
+
+		return nil
+	})
+
 	type params struct {
 		client client.Client
 		opts   []ReconcilerOption
@@ -64,7 +105,8 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return early if the Operation was not found.",
 			params: params{
 				client: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockList: listFunctionRevisions,
+					MockGet:  test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 			},
 			want: want{
@@ -75,7 +117,8 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we can't get the Operation",
 			params: params{
 				client: &test.MockClient{
-					MockGet: test.NewMockGetFn(errors.New("boom")),
+					MockList: listFunctionRevisions,
+					MockGet:  test.NewMockGetFn(errors.New("boom")),
 				},
 			},
 			want: want{
@@ -87,6 +130,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return early if the Operation was deleted.",
 			params: params{
 				client: &test.MockClient{
+					MockList: listFunctionRevisions,
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						op := &v1alpha1.Operation{
 							ObjectMeta: metav1.ObjectMeta{
@@ -107,6 +151,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return early if the Operation is complete.",
 			params: params{
 				client: &test.MockClient{
+					MockList: listFunctionRevisions,
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						op := &v1alpha1.Operation{}
 						op.SetConditions(v1alpha1.Complete())
@@ -124,6 +169,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return early if the Operation retry limit was reached.",
 			params: params{
 				client: &test.MockClient{
+					MockList: listFunctionRevisions,
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						op := &v1alpha1.Operation{
 							Spec: v1alpha1.OperationSpec{
@@ -148,6 +194,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we can't update the Operation's status to indicate it's running.",
 			params: params{
 				client: &test.MockClient{
+					MockList: listFunctionRevisions,
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						op := &v1alpha1.Operation{}
 						op.DeepCopyInto(obj.(*v1alpha1.Operation))
@@ -166,7 +213,14 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we can't get function credentials from a Secret",
 			params: params{
 				client: &test.MockClient{
+					MockList: listFunctionRevisions,
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if f, ok := obj.(*pkgv1.Function); ok {
+							f.SetName(functionCool)
+							f.SetUID(functionUID)
+							f.Spec.Package = functionCoolPkg
+							return nil
+						}
 						if _, ok := obj.(*corev1.Secret); ok {
 							return errors.New("boom")
 						}
@@ -177,7 +231,7 @@ func TestReconcile(t *testing.T) {
 									{
 										Step: "get-creds",
 										FunctionRef: v1alpha1.FunctionReference{
-											Name: "function-cool",
+											Name: functionCool,
 										},
 										Credentials: []v1alpha1.FunctionCredentials{
 											{
@@ -214,7 +268,14 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we can't run a function",
 			params: params{
 				client: &test.MockClient{
+					MockList: listFunctionRevisions,
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if f, ok := obj.(*pkgv1.Function); ok {
+							f.SetName(functionCool)
+							f.SetUID(functionUID)
+							f.Spec.Package = functionCoolPkg
+							return nil
+						}
 						if _, ok := obj.(*corev1.Secret); ok {
 							return errors.New("boom")
 						}
@@ -225,7 +286,7 @@ func TestReconcile(t *testing.T) {
 									{
 										Step: "get-creds",
 										FunctionRef: v1alpha1.FunctionReference{
-											Name: "function-cool",
+											Name: functionCool,
 										},
 									},
 								},
@@ -255,7 +316,14 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if a function returns a fatal result.",
 			params: params{
 				client: &test.MockClient{
+					MockList: listFunctionRevisions,
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if f, ok := obj.(*pkgv1.Function); ok {
+							f.SetName(functionCool)
+							f.SetUID(functionUID)
+							f.Spec.Package = functionCoolPkg
+							return nil
+						}
 						if _, ok := obj.(*corev1.Secret); ok {
 							return errors.New("boom")
 						}
@@ -266,7 +334,7 @@ func TestReconcile(t *testing.T) {
 									{
 										Step: "get-creds",
 										FunctionRef: v1alpha1.FunctionReference{
-											Name: "function-cool",
+											Name: functionCool,
 										},
 									},
 								},
@@ -304,7 +372,14 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we can't patch a desired resource",
 			params: params{
 				client: &test.MockClient{
+					MockList: listFunctionRevisions,
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if f, ok := obj.(*pkgv1.Function); ok {
+							f.SetName(functionCool)
+							f.SetUID(functionUID)
+							f.Spec.Package = functionCoolPkg
+							return nil
+						}
 						if _, ok := obj.(*corev1.Secret); ok {
 							return errors.New("boom")
 						}
@@ -315,7 +390,7 @@ func TestReconcile(t *testing.T) {
 									{
 										Step: "get-creds",
 										FunctionRef: v1alpha1.FunctionReference{
-											Name: "function-cool",
+											Name: functionCool,
 										},
 									},
 								},
@@ -364,7 +439,15 @@ func TestReconcile(t *testing.T) {
 			reason: "We should increment failures and return an error if a function doesn't have the required operation capability",
 			params: params{
 				client: &test.MockClient{
+					MockList: listFunctionRevisions,
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if f, ok := obj.(*pkgv1.Function); ok {
+							f.SetName("function-missing-caps")
+							f.SetUID(functionUID)
+							f.Spec.Package = "xpkg.crossplane.io/example/function-missing-caps:v1.0.0"
+							return nil
+						}
+
 						op := &v1alpha1.Operation{
 							Spec: v1alpha1.OperationSpec{
 								Pipeline: []v1alpha1.PipelineStep{
@@ -398,14 +481,22 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we can't fetch bootstrap requirements",
 			params: params{
 				client: &test.MockClient{
+					MockList: listFunctionRevisions,
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if f, ok := obj.(*pkgv1.Function); ok {
+							f.SetName(functionCool)
+							f.SetUID(functionUID)
+							f.Spec.Package = functionCoolPkg
+							return nil
+						}
+
 						op := &v1alpha1.Operation{
 							Spec: v1alpha1.OperationSpec{
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "requires-resources",
 										FunctionRef: v1alpha1.FunctionReference{
-											Name: "function-cool",
+											Name: functionCool,
 										},
 										Requirements: &v1alpha1.FunctionRequirements{
 											RequiredResources: []v1alpha1.RequiredResourceSelector{
@@ -445,7 +536,14 @@ func TestReconcile(t *testing.T) {
 			reason: "We shouldn't return an error if we successfully run the Operation",
 			params: params{
 				client: &test.MockClient{
+					MockList: listFunctionRevisions,
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if f, ok := obj.(*pkgv1.Function); ok {
+							f.SetName(functionCool)
+							f.SetUID(functionUID)
+							f.Spec.Package = functionCoolPkg
+							return nil
+						}
 						if _, ok := obj.(*corev1.Secret); ok {
 							return errors.New("boom")
 						}
@@ -456,7 +554,7 @@ func TestReconcile(t *testing.T) {
 									{
 										Step: "get-creds",
 										FunctionRef: v1alpha1.FunctionReference{
-											Name: "function-cool",
+											Name: functionCool,
 										},
 									},
 								},

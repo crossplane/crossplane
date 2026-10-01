@@ -36,11 +36,36 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 )
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
+
+	// listControlledRevision lists an active FunctionRevision controlled by the
+	// test-function Function, so that name-based steps resolve.
+	listControlledRevision := test.NewMockListFn(nil, func(obj client.ObjectList) error {
+		obj.(*pkgv1.FunctionRevisionList).Items = []pkgv1.FunctionRevision{{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-function-abc123",
+				OwnerReferences: []metav1.OwnerReference{{
+					APIVersion: pkgv1.FunctionGroupVersionKind.GroupVersion().String(),
+					Kind:       pkgv1.FunctionKind,
+					Name:       "test-function",
+					UID:        "test-function-uid",
+					Controller: new(true),
+				}},
+			},
+			Spec: pkgv1.FunctionRevisionSpec{
+				PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+					DesiredState: pkgv1.PackageRevisionActive,
+					Package:      "example.org/test-function:v1",
+				},
+			},
+		}}
+		return nil
+	})
 
 	type params struct {
 		mgr  manager.Manager
@@ -88,31 +113,41 @@ func TestReconcile(t *testing.T) {
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							rev := obj.(*v1.CompositionRevision)
-							*rev = v1.CompositionRevision{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "test-revision",
-								},
-								Spec: v1.CompositionRevisionSpec{
-									Pipeline: []v1.PipelineStep{
-										{
-											Step: "test-step",
-											FunctionRef: v1.FunctionReference{
-												Name: "test-function",
+							switch o := obj.(type) {
+							case *v1.CompositionRevision:
+								*o = v1.CompositionRevision{
+									ObjectMeta: metav1.ObjectMeta{
+										Name: "test-revision",
+									},
+									Spec: v1.CompositionRevisionSpec{
+										Pipeline: []v1.PipelineStep{
+											{
+												Step: "test-step",
+												FunctionRef: v1.FunctionReference{
+													Name: "test-function",
+												},
 											},
 										},
 									},
-								},
+								}
+							case *pkgv1.Function:
+								o.SetName("test-function")
+								o.SetUID("test-function-uid")
+								o.Spec.Package = "example.org/test-function:v1"
 							}
 							return nil
 						}),
+						MockList:         listControlledRevision,
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},
 				opts: []ReconcilerOption{
 					WithLogger(logging.NewNopLogger()),
 					WithRecorder(event.NewNopRecorder()),
-					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error {
+					WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, revs ...string) error {
+						if diff := cmp.Diff([]string{"test-function-abc123"}, revs); diff != "" {
+							t.Errorf("CheckCapabilities(): -want, +got:\n%s", diff)
+						}
 						return nil
 					})),
 				},
@@ -131,24 +166,31 @@ func TestReconcile(t *testing.T) {
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							rev := obj.(*v1.CompositionRevision)
-							*rev = v1.CompositionRevision{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "test-revision",
-								},
-								Spec: v1.CompositionRevisionSpec{
-									Pipeline: []v1.PipelineStep{
-										{
-											Step: "test-step",
-											FunctionRef: v1.FunctionReference{
-												Name: "test-function",
+							switch o := obj.(type) {
+							case *v1.CompositionRevision:
+								*o = v1.CompositionRevision{
+									ObjectMeta: metav1.ObjectMeta{
+										Name: "test-revision",
+									},
+									Spec: v1.CompositionRevisionSpec{
+										Pipeline: []v1.PipelineStep{
+											{
+												Step: "test-step",
+												FunctionRef: v1.FunctionReference{
+													Name: "test-function",
+												},
 											},
 										},
 									},
-								},
+								}
+							case *pkgv1.Function:
+								o.SetName("test-function")
+								o.SetUID("test-function-uid")
+								o.Spec.Package = "example.org/test-function:v1"
 							}
 							return nil
 						}),
+						MockList:         listControlledRevision,
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},

@@ -39,6 +39,7 @@ import (
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 )
@@ -150,14 +151,27 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"revision", rev.Spec.Revision,
 	)
 
-	// Extract function names from the pipeline
-	names := make([]string, 0, len(rev.Spec.Pipeline))
+	// Resolve each pipeline step to the FunctionRevision that will run it, like
+	// the composite controller does. That's the referenced Function's active
+	// revision.
+	revs := make([]string, 0, len(rev.Spec.Pipeline))
 	for _, fn := range rev.Spec.Pipeline {
-		names = append(names, fn.FunctionRef.Name)
+		fr, err := composite.FunctionRevisionForStep(ctx, r.client, fn)
+		if err != nil {
+			err = errors.Wrapf(err, "cannot resolve FunctionRevision for pipeline step %q", fn.Step)
+			log.Debug("Cannot resolve FunctionRevision for pipeline step", "error", err)
+			r.record.Event(rev, event.Warning(reasonCheckCapabilities, err))
+			status.MarkConditions(xpv2.ReconcileError(err))
+			_ = r.client.Status().Update(ctx, rev)
+
+			return reconcile.Result{}, err
+		}
+
+		revs = append(revs, fr)
 	}
 
 	// Check that all functions have the composition capability
-	if err := r.functions.CheckCapabilities(ctx, []string{pkgmetav1.FunctionCapabilityComposition}, names...); err != nil {
+	if err := r.functions.CheckCapabilities(ctx, []string{pkgmetav1.FunctionCapabilityComposition}, revs...); err != nil {
 		log.Debug("Function capability check failed", "error", err)
 		r.record.Event(rev, event.Warning(reasonCheckCapabilities, err))
 		status.MarkConditions(xpv2.ReconcileSuccess(), v1.MissingCapabilities(err.Error()))

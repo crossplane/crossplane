@@ -84,6 +84,14 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 		}
 		store = append(store, *u)
 	}
+	// Seed synthetic Function and FunctionRevision resources so the reconciler
+	// can resolve each pipeline step to a FunctionRevision.
+	fns, err := render.SyntheticFunctions(in.GetFunctions())
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot build synthetic functions")
+	}
+	store = append(store, fns...)
+
 	c := render.NewInMemoryClient(s, store...)
 
 	runner, err := render.NewFunctionRunner(in.GetFunctions())
@@ -103,7 +111,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 	rec := &render.EventRecorder{}
 
 	r := oprec.NewReconciler(c,
-		oprec.WithFunctionRunner(xfn.NewFetchingFunctionRunner(runner, rrf, rsf)),
+		oprec.WithFunctionRunner(xfn.NewFetchingFunctionRunner(render.NewFunctionRevisionRunner(runner, c, in.GetFunctions()), rrf, rsf)),
 		oprec.WithCapabilityChecker(xfn.CapabilityCheckerFn(
 			func(_ context.Context, _ []string, _ ...string) error {
 				return nil

@@ -22,6 +22,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -306,6 +308,42 @@ func TestInMemoryClientList(t *testing.T) {
 				t.Errorf("\n%s\nList(...): -want items, +got:\n%s", tc.reason, diff)
 			}
 		})
+	}
+}
+
+func TestInMemoryClientListTyped(t *testing.T) {
+	s := runtime.NewScheme()
+	if err := corev1.AddToScheme(s); err != nil {
+		t.Fatalf("corev1.AddToScheme(...): %s", err)
+	}
+
+	cm := unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1",
+		"kind":       "ConfigMap",
+		"metadata":   map[string]any{"name": "cm-1", "namespace": "default", "labels": map[string]any{"app": "foo"}},
+		"data":       map[string]any{"cool": "very"},
+	}}
+	other := unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1",
+		"kind":       "ConfigMap",
+		"metadata":   map[string]any{"name": "cm-2", "namespace": "default"},
+	}}
+
+	c := NewInMemoryClient(s, cm, other)
+
+	// List should support typed lists, converting matching resources.
+	got := &corev1.ConfigMapList{}
+	if err := c.List(context.Background(), got, client.MatchingLabels{"app": "foo"}); err != nil {
+		t.Fatalf("List(...): %s", err)
+	}
+
+	want := []corev1.ConfigMap{{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "ConfigMap"},
+		ObjectMeta: metav1.ObjectMeta{Name: "cm-1", Namespace: "default", Labels: map[string]string{"app": "foo"}},
+		Data:       map[string]string{"cool": "very"},
+	}}
+	if diff := cmp.Diff(want, got.Items); diff != "" {
+		t.Errorf("List(...): -want items, +got:\n%s", diff)
 	}
 }
 

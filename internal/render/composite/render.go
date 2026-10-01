@@ -161,6 +161,14 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		store = append(store, *u)
 	}
 
+	// Seed synthetic Function and FunctionRevision resources so the
+	// FunctionComposer can resolve each pipeline step to a FunctionRevision.
+	fns, err := render.SyntheticFunctions(in.GetFunctions())
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot build synthetic functions")
+	}
+	store = append(store, fns...)
+
 	c := render.NewInMemoryClient(s, store...)
 
 	runner, err := render.NewFunctionRunner(in.GetFunctions())
@@ -178,7 +186,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 	rrf := render.NewRecordingRequiredResourcesFetcher(xfn.NewExistingRequiredResourcesFetcher(c))
 
 	fc := composite.NewFunctionComposer(c, c,
-		xfn.NewFetchingFunctionRunner(runner, rrf, rsf),
+		xfn.NewFetchingFunctionRunner(render.NewFunctionRevisionRunner(runner, c, in.GetFunctions()), rrf, rsf),
 		composite.WithComposedResourceObserver(
 			composite.NewExistingComposedResourceObserver(c, c,
 				composite.NewSecretConnectionDetailsFetcher(c))),

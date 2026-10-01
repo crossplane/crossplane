@@ -63,6 +63,7 @@ const (
 	reasonInvalidResource       = "InvalidResource"
 	reasonInvalidPipeline       = "InvalidPipeline"
 	reasonBootstrapRequirements = "BootstrapRequirements"
+	reasonCheckCapabilities     = "CheckCapabilities"
 )
 
 // FieldOwnerPrefix is used to form the server-side apply field owner
@@ -139,11 +140,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(err, "cannot update Operation status")
 	}
 
-	// Check that all functions in the pipeline have the operation capability
-	// before running any function.
-	names := make([]string, 0, len(op.Spec.Pipeline))
-	for _, fn := range op.Spec.Pipeline {
-		names = append(names, fn.FunctionRef.Name)
+	// Resolve each pipeline step to the FunctionRevision that will run it, so we
+	// can check their capabilities. That's the referenced Function's active
+	// revision. We'll re-use these revisions for calling the functions later,
+	// so it's important that their indices match the step indices.
+	revs := make([]string, len(op.Spec.Pipeline))
+	for i, step := range op.Spec.Pipeline {
+		rev, err := functionRevisionForStep(ctx, r.client, step)
+		if err != nil {
+			err = errors.Wrapf(err, "cannot resolve FunctionRevision for pipeline step %q", step.Step)
+			log.Debug("Cannot resolve FunctionRevision for pipeline step", "error", err)
+			r.record.Event(op, event.Warning(reasonCheckCapabilities, err))
+			status.MarkConditions(xpv2.ReconcileError(err))
+			_ = r.client.Status().Update(ctx, op)
+
+			return reconcile.Result{}, err
+		}
+		revs[i] = rev
 	}
 
 	// This could need human intervention to fix. It could also be a new
@@ -154,7 +167,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// instant reconciles whenever the FunctionRevisions change. We always
 	// want to retry Operations with a predictable exponential backoff, so
 	// we just return an error and let controller-runtime requeue us.
-	if err := r.functions.CheckCapabilities(ctx, []string{pkgmetav1.FunctionCapabilityOperation}, names...); err != nil {
+	if err := r.functions.CheckCapabilities(ctx, []string{pkgmetav1.FunctionCapabilityOperation}, revs...); err != nil {
 		op.Status.Failures++
 
 		log.Debug("Function capability check failed", "error", err, "failures", op.Status.Failures)
@@ -279,7 +292,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Add step metadata to context for use by downstream components like InspectedRunner.
 		stepCtx := step.ContextWithStepMetaForOperations(ctx, traceID, fn.Step, int32(stepIndex), op.GetName(), string(op.GetUID()))
 
-		rsp, err := r.pipeline.RunFunction(stepCtx, fn.FunctionRef.Name, req)
+		rsp, err := r.pipeline.RunFunction(stepCtx, revs[stepIndex], req)
 		if err != nil {
 			op.Status.Failures++
 
@@ -387,6 +400,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	status.MarkConditions(xpv2.ReconcileSuccess(), v1alpha1.Complete())
 
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
+}
+
+// functionRevisionForStep returns the name of the FunctionRevision that should
+// run the supplied Operation pipeline step.
+func functionRevisionForStep(ctx context.Context, c client.Reader, s v1alpha1.PipelineStep) (string, error) {
+	return xcomposite.ActiveFunctionRevision(ctx, c, s.FunctionRef.Name)
 }
 
 // AddResourceRef adds a reference to the supplied resource to supplied
