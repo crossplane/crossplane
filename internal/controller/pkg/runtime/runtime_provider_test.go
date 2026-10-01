@@ -28,12 +28,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
+	extv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 )
@@ -46,10 +47,10 @@ var errBoom = errors.New("boom")
 
 func TestProviderPreHook(t *testing.T) {
 	type args struct {
-		client    client.Client
-		pkg       runtime.Object
-		rev       v1.PackageRevisionWithRuntime
-		manifests ManifestBuilder
+		client   client.Client
+		pkg      runtime.Object
+		rev      v1.PackageRevisionWithRuntime
+		migrator DeploymentSelectorMigrator
 	}
 
 	type want struct {
@@ -57,10 +58,14 @@ func TestProviderPreHook(t *testing.T) {
 		rev v1.PackageRevisionWithRuntime
 	}
 
-	// A test provider revision, along with the manifests it builds for the three objects it shares
-	// with its package's other revisions.
+	// A test provider revision that shares three objects with its package's
+	// other revisions.
 	sharedRev := &v1.ProviderRevision{
-		ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   incoming.Name,
+			UID:    incoming.UID,
+			Labels: map[string]string{v1.LabelParentPackage: "shared-service"},
+		},
 		Spec: v1.ProviderRevisionSpec{
 			PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
 			PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
@@ -72,18 +77,6 @@ func TestProviderPreHook(t *testing.T) {
 	sharedRevSynced := sharedRev.DeepCopy()
 	sharedRevSynced.Status.TLSClientSecretName = new("client-tls")
 	sharedRevSynced.Status.TLSServerSecretName = new("server-tls")
-
-	sharedManifests := &MockManifestBuilder{
-		ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
-			return &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "shared-service", OwnerReferences: []metav1.OwnerReference{incoming}}}
-		},
-		TLSClientSecretFn: func() *corev1.Secret {
-			return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "client-tls", OwnerReferences: []metav1.OwnerReference{incoming}}}
-		},
-		TLSServerSecretFn: func() *corev1.Secret {
-			return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "server-tls", OwnerReferences: []metav1.OwnerReference{incoming}}}
-		},
-	}
 
 	cases := map[string]struct {
 		reason string
@@ -105,17 +98,6 @@ func TestProviderPreHook(t *testing.T) {
 							TLSClientSecretName: new("some-client-secret"),
 							TLSServerSecretName: new("some-server-secret"),
 						},
-					},
-				},
-				manifests: &MockManifestBuilder{
-					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
-						return &corev1.Service{}
-					},
-					TLSClientSecretFn: func() *corev1.Secret {
-						return &corev1.Secret{}
-					},
-					TLSServerSecretFn: func() *corev1.Secret {
-						return &corev1.Secret{}
 					},
 				},
 				client: &test.MockClient{
@@ -153,9 +135,8 @@ func TestProviderPreHook(t *testing.T) {
 		"TakesControlFromOutgoingRevision": {
 			reason: "Should demote the outgoing revision's owner reference in the same apply that claims the shared object.",
 			args: args{
-				pkg:       &pkgmetav1.Provider{},
-				rev:       sharedRev.DeepCopy(),
-				manifests: sharedManifests,
+				pkg: &pkgmetav1.Provider{},
+				rev: sharedRev.DeepCopy(),
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name == "shared-service" || key.Name == "client-tls" || key.Name == "server-tls" {
@@ -177,9 +158,8 @@ func TestProviderPreHook(t *testing.T) {
 		"DropsOwnerReferencesThatNoLongerControl": {
 			reason: "Should stop declaring an owner reference once it is non-controlling, so that server-side apply prunes it.",
 			args: args{
-				pkg:       &pkgmetav1.Provider{},
-				rev:       sharedRev.DeepCopy(),
-				manifests: sharedManifests,
+				pkg: &pkgmetav1.Provider{},
+				rev: sharedRev.DeepCopy(),
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name == "shared-service" || key.Name == "client-tls" || key.Name == "server-tls" {
@@ -201,9 +181,8 @@ func TestProviderPreHook(t *testing.T) {
 		"CreatesSharedObjectsThatDoNotExist": {
 			reason: "Should apply the shared objects with only our owner reference when there is no incumbent to displace.",
 			args: args{
-				pkg:       &pkgmetav1.Provider{},
-				rev:       sharedRev.DeepCopy(),
-				manifests: sharedManifests,
+				pkg: &pkgmetav1.Provider{},
+				rev: sharedRev.DeepCopy(),
 				client: &test.MockClient{
 					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 					MockCreate: test.NewMockCreateFn(nil),
@@ -220,9 +199,8 @@ func TestProviderPreHook(t *testing.T) {
 		"ErrGetSharedObject": {
 			reason: "Should return an error if we cannot read the shared object to see who controls it.",
 			args: args{
-				pkg:       &pkgmetav1.Provider{},
-				rev:       sharedRev.DeepCopy(),
-				manifests: sharedManifests,
+				pkg: &pkgmetav1.Provider{},
+				rev: sharedRev.DeepCopy(),
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(errBoom),
 					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
@@ -235,13 +213,57 @@ func TestProviderPreHook(t *testing.T) {
 				rev: sharedRevSynced.DeepCopy(),
 			},
 		},
+		"MigratorError": {
+			reason: "Pre should return an error, and leave the revision untouched, if the deployment selector migration fails.",
+			args: args{
+				pkg: &pkgmetav1.Provider{},
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							DesiredState: v1.PackageRevisionActive,
+						},
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSClientSecretName: new("some-client-secret"),
+							TLSServerSecretName: new("some-server-secret"),
+						},
+					},
+				},
+				client: &test.MockClient{
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						return errors.Errorf("%s should not be applied when the migration fails", obj.GetName())
+					},
+				},
+				migrator: &MockDeploymentSelectorMigrator{
+					MockMigrateDeploymentSelector: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ *appsv1.Deployment) error {
+						return errBoom
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errMigrateProviderDeployment),
+				// The migration runs before we record the observed TLS secret
+				// names, so a failure must not leave them set: the reconciler
+				// writes the revision's status on the error path.
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							DesiredState: v1.PackageRevisionActive,
+						},
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSClientSecretName: new("some-client-secret"),
+							TLSServerSecretName: new("some-server-secret"),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewProviderHooks(tc.args.client)
+			h := NewProviderHooks(tc.args.client, namespace, crossplaneName, tc.args.migrator)
 
-			err := h.Pre(context.TODO(), tc.args.rev, tc.args.manifests)
+			err := h.Pre(context.TODO(), tc.args.rev, nil)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -255,10 +277,9 @@ func TestProviderPreHook(t *testing.T) {
 
 func TestProviderPostHook(t *testing.T) {
 	type args struct {
-		client    client.Client
-		pkg       runtime.Object
-		rev       v1.PackageRevisionWithRuntime
-		manifests ManifestBuilder
+		client client.Client
+		pkg    runtime.Object
+		rev    v1.PackageRevisionWithRuntime
 	}
 
 	type want struct {
@@ -310,14 +331,6 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
-					},
-				},
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
@@ -359,14 +372,6 @@ func TestProviderPostHook(t *testing.T) {
 						PackageRevisionStatus: v1.PackageRevisionStatus{
 							ResolvedPackage: providerImage,
 						},
-					},
-				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
 					},
 				},
 				client: &test.MockClient{
@@ -425,14 +430,6 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
-					},
-				},
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
@@ -474,14 +471,6 @@ func TestProviderPostHook(t *testing.T) {
 						PackageRevisionStatus: v1.PackageRevisionStatus{
 							ResolvedPackage: providerImage,
 						},
-					},
-				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
 					},
 				},
 				client: &test.MockClient{
@@ -535,14 +524,6 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
-					},
-				},
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
@@ -569,7 +550,8 @@ func TestProviderPostHook(t *testing.T) {
 					},
 					Status: v1.ProviderRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: providerImage,
+							ConditionedStatus: xpv2.ConditionedStatus{Conditions: []xpv2.Condition{v1.RuntimeHealthy(), v1.RuntimeActive()}},
+							ResolvedPackage:   providerImage,
 						},
 					},
 				},
@@ -590,18 +572,6 @@ func TestProviderPostHook(t *testing.T) {
 						PackageRevisionStatus: v1.PackageRevisionStatus{
 							ResolvedPackage: providerImage,
 						},
-					},
-				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{
-							Spec: appsv1.DeploymentSpec{
-								Replicas: ptr.To[int32](0),
-							},
-						}
 					},
 				},
 				client: &test.MockClient{
@@ -633,7 +603,78 @@ func TestProviderPostHook(t *testing.T) {
 					},
 					Status: v1.ProviderRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ConditionedStatus: xpv2.ConditionedStatus{Conditions: []xpv2.Condition{v1.RuntimeHealthy(), v1.RuntimeActive()}},
+							ResolvedPackage:   providerImage,
+						},
+					},
+				},
+			},
+		},
+		"SuccessfulAwaitingActivation": {
+			reason: "Should mark the runtime awaiting activation when a safe-start revision owns only inactive MRDs.",
+			args: args{
+				pkg: &pkgmetav1.Provider{},
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{UID: "owner-uid"},
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
+							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
 							ResolvedPackage: providerImage,
+							Capabilities:    []string{pkgmetav1.ProviderCapabilitySafeStart},
+						},
+					},
+				},
+				client: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
+						return nil
+					},
+					MockList: test.NewMockListFn(nil, func(l client.ObjectList) error {
+						l.(*extv1alpha1.ManagedResourceDefinitionList).Items = []extv1alpha1.ManagedResourceDefinition{{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:            "ours",
+								OwnerReferences: []metav1.OwnerReference{{UID: "owner-uid", Controller: new(true)}},
+							},
+							Spec: extv1alpha1.ManagedResourceDefinitionSpec{State: extv1alpha1.ManagedResourceDefinitionInactive},
+						}}
+						return nil
+					}),
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						if d, ok := obj.(*appsv1.Deployment); ok {
+							if d.Spec.Replicas == nil || *d.Spec.Replicas != 0 {
+								t.Error("deployment awaiting activation should be scaled to zero")
+							}
+							// A deployment with zero replicas has a minimum
+							// availability of zero, so Kubernetes marks it
+							// available.
+							d.Status.Conditions = []appsv1.DeploymentCondition{{
+								Type:   appsv1.DeploymentAvailable,
+								Status: corev1.ConditionTrue,
+							}}
+							return nil
+						}
+						return nil
+					},
+				},
+			},
+			want: want{
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{UID: "owner-uid"},
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
+							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+					Status: v1.ProviderRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ConditionedStatus: xpv2.ConditionedStatus{Conditions: []xpv2.Condition{v1.RuntimeHealthy(), v1.RuntimeAwaitingActivation().WithMessage(msgAwaitingActivation)}},
+							ResolvedPackage:   providerImage,
+							Capabilities:      []string{pkgmetav1.ProviderCapabilitySafeStart},
 						},
 					},
 				},
@@ -654,14 +695,6 @@ func TestProviderPostHook(t *testing.T) {
 						PackageRevisionStatus: v1.PackageRevisionStatus{
 							ResolvedPackage: providerImage,
 						},
-					},
-				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
 					},
 				},
 				client: &test.MockClient{
@@ -693,7 +726,8 @@ func TestProviderPostHook(t *testing.T) {
 					},
 					Status: v1.ProviderRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: providerImage,
+							ConditionedStatus: xpv2.ConditionedStatus{Conditions: []xpv2.Condition{v1.RuntimeHealthy(), v1.RuntimeActive()}},
+							ResolvedPackage:   providerImage,
 						},
 					},
 				},
@@ -714,26 +748,6 @@ func TestProviderPostHook(t *testing.T) {
 						PackageRevisionStatus: v1.PackageRevisionStatus{
 							ResolvedPackage: providerImage,
 						},
-					},
-				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "xp-managed-sa",
-							},
-						}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{
-							Spec: appsv1.DeploymentSpec{
-								Template: corev1.PodTemplateSpec{
-									Spec: corev1.PodSpec{
-										ServiceAccountName: "external-sa",
-									},
-								},
-							},
-						}
 					},
 				},
 				client: &test.MockClient{
@@ -780,7 +794,8 @@ func TestProviderPostHook(t *testing.T) {
 					},
 					Status: v1.ProviderRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: providerImage,
+							ConditionedStatus: xpv2.ConditionedStatus{Conditions: []xpv2.Condition{v1.RuntimeHealthy(), v1.RuntimeActive()}},
+							ResolvedPackage:   providerImage,
 						},
 					},
 				},
@@ -790,9 +805,9 @@ func TestProviderPostHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewProviderHooks(tc.args.client)
+			h := NewProviderHooks(tc.args.client, namespace, crossplaneName, NewNopDeploymentSelectorMigrator())
 
-			err := h.Post(context.TODO(), tc.args.rev, tc.args.manifests)
+			err := h.Post(context.TODO(), tc.args.rev, nil)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -806,9 +821,8 @@ func TestProviderPostHook(t *testing.T) {
 
 func TestProviderDeactivateHook(t *testing.T) {
 	type args struct {
-		client    client.Client
-		rev       v1.PackageRevisionWithRuntime
-		manifests ManifestBuilder
+		client client.Client
+		rev    v1.PackageRevisionWithRuntime
 	}
 
 	type want struct {
@@ -825,14 +839,6 @@ func TestProviderDeactivateHook(t *testing.T) {
 			reason: "Should return error if we fail to delete deployment.",
 			args: args{
 				rev: &v1.ProviderRevision{},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
-					},
-				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
@@ -859,47 +865,6 @@ func TestProviderDeactivateHook(t *testing.T) {
 						Name: "some-name",
 					},
 				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "some-sa",
-							},
-						}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "some-deployment",
-							},
-						}
-					},
-					ServiceFn: func(overrides ...ServiceOverride) *corev1.Service {
-						s := &corev1.Service{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "some-service",
-							},
-						}
-						for _, o := range overrides {
-							o(s)
-						}
-						return s
-					},
-					TLSClientSecretFn: func() *corev1.Secret {
-						return &corev1.Secret{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "client-tls",
-							},
-						}
-					},
-					TLSServerSecretFn: func() *corev1.Secret {
-						return &corev1.Secret{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "server-tls",
-							},
-						}
-					},
-				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
@@ -910,7 +875,7 @@ func TestProviderDeactivateHook(t *testing.T) {
 						case *corev1.ServiceAccount:
 							return errors.New("service account should not be deleted during deactivation")
 						case *appsv1.Deployment:
-							if obj.GetName() != "some-deployment" {
+							if obj.GetName() != "some-name" {
 								return errors.New("unexpected deployment name")
 							}
 							return nil
@@ -947,27 +912,6 @@ func TestProviderDeactivateHook(t *testing.T) {
 						UID:  "inactive-uid",
 					},
 				},
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "some-sa"}}
-					},
-					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "some-deployment"}}
-					},
-					ServiceFn: func(overrides ...ServiceOverride) *corev1.Service {
-						s := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "some-service"}}
-						for _, o := range overrides {
-							o(s)
-						}
-						return s
-					},
-					TLSClientSecretFn: func() *corev1.Secret {
-						return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "client-tls"}}
-					},
-					TLSServerSecretFn: func() *corev1.Secret {
-						return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "server-tls"}}
-					},
-				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						obj.SetOwnerReferences([]metav1.OwnerReference{{UID: "active-uid", Controller: new(true)}})
@@ -999,15 +943,81 @@ func TestProviderDeactivateHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewProviderHooks(tc.args.client)
+			h := NewProviderHooks(tc.args.client, namespace, crossplaneName, NewNopDeploymentSelectorMigrator())
 
-			err := h.Deactivate(context.TODO(), tc.args.rev, tc.args.manifests)
+			err := h.Deactivate(context.TODO(), tc.args.rev, nil)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Deactivate(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
 			if diff := cmp.Diff(tc.want.rev, tc.args.rev, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Deactivate(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestOwnedMRDs(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	owner := &v1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{UID: "owner-uid"}}
+	owner.SetCapabilities([]string{pkgmetav1.ProviderCapabilitySafeStart})
+
+	mrd := func(name string, controller types.UID) extv1alpha1.ManagedResourceDefinition {
+		return extv1alpha1.ManagedResourceDefinition{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            name,
+				OwnerReferences: []metav1.OwnerReference{{UID: controller, Controller: new(true)}},
+			},
+		}
+	}
+
+	type want struct {
+		mrds []extv1alpha1.ManagedResourceDefinition
+		err  error
+	}
+
+	cases := map[string]struct {
+		reason   string
+		client   client.Client
+		revision v1.PackageRevisionWithRuntime
+		want     want
+	}{
+		"NoSafeStartCapability": {
+			reason:   "We should not list MRDs at all for a revision without the safe-start capability.",
+			client:   &test.MockClient{MockList: test.NewMockListFn(errBoom)},
+			revision: &v1.ProviderRevision{},
+			want:     want{},
+		},
+		"ErrListMRDs": {
+			reason:   "We should return an error if we can't list MRDs.",
+			client:   &test.MockClient{MockList: test.NewMockListFn(errBoom)},
+			revision: owner,
+			want:     want{err: errors.Wrap(errBoom, errListMRDs)},
+		},
+		"OnlyOwnedMRDs": {
+			reason: "We should return only the MRDs our revision controls.",
+			client: &test.MockClient{MockList: test.NewMockListFn(nil, func(l client.ObjectList) error {
+				l.(*extv1alpha1.ManagedResourceDefinitionList).Items = []extv1alpha1.ManagedResourceDefinition{
+					mrd("ours", "owner-uid"),
+					mrd("theirs", "other-uid"),
+				}
+				return nil
+			})},
+			revision: owner,
+			want:     want{mrds: []extv1alpha1.ManagedResourceDefinition{mrd("ours", "owner-uid")}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := NewProviderHooks(tc.client, namespace, crossplaneName, nil).ownedMRDs(context.Background(), tc.revision)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nownedMRDs(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.mrds, got); diff != "" {
+				t.Errorf("\n%s\nownedMRDs(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
