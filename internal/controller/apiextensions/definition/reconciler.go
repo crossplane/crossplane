@@ -625,7 +625,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if r.options.Features.Enabled(features.EnableAlphaComposedResourceOrdering) {
 		ro = append(ro, composite.WithOrderedTeardown(
 			composite.NewExistingComposedResourceObserver(r.engine.GetCached(), r.engine.GetUncached(), fetcher),
-			composite.NewDeletingComposedResourceGarbageCollector(r.engine.GetCached()),
+			// Background, so that a nested XR this one deletes tears down in
+			// its own dependency order rather than being cascaded.
+			composite.NewDeletingComposedResourceGarbageCollector(r.engine.GetCached(),
+				composite.WithDeletePropagation(metav1.DeletePropagationBackground)),
 		))
 	}
 

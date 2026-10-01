@@ -28,6 +28,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
@@ -1041,5 +1042,98 @@ func TestFunctionComposeOrderingRequirementNameSharedBetweenSteps(t *testing.T) 
 
 	if res.Composed[0].Synced {
 		t.Errorf("A requirement name two steps declared covers what either matched, so an edge naming it waits for both - including the first step's, which isn't ready. Overwriting would let the second step's ready resource answer for a name the first step also used. Got %#v", res.Composed[0])
+	}
+}
+
+func TestDeletingComposedResourceGarbageCollectorPropagation(t *testing.T) {
+	owner := composite.New()
+	owner.SetUID("xr-uid")
+
+	cases := map[string]struct {
+		reason string
+		gc     func(c client.Writer) *DeletingComposedResourceGarbageCollector
+		want   metav1.DeletionPropagation
+	}{
+		"ForegroundByDefault": {
+			reason: "Without ordering a nested XR is deleted bottom up by a foreground delete.",
+			gc: func(c client.Writer) *DeletingComposedResourceGarbageCollector {
+				return NewDeletingComposedResourceGarbageCollector(c)
+			},
+			want: metav1.DeletePropagationForeground,
+		},
+		"BackgroundWhenAsked": {
+			reason: "With ordering a foreground delete would cascade past a nested XR's own graph, so it's background.",
+			gc: func(c client.Writer) *DeletingComposedResourceGarbageCollector {
+				return NewDeletingComposedResourceGarbageCollector(c, WithDeletePropagation(metav1.DeletePropagationBackground))
+			},
+			want: metav1.DeletePropagationBackground,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var got metav1.DeletionPropagation
+
+			c := &test.MockClient{
+				MockUpdate: test.NewMockUpdateFn(nil),
+				MockDelete: func(_ context.Context, _ client.Object, opts ...client.DeleteOption) error {
+					do := &client.DeleteOptions{}
+					for _, o := range opts {
+						o.ApplyToDelete(do)
+					}
+
+					got = ptr.Deref(do.PropagationPolicy, "")
+
+					return nil
+				},
+			}
+
+			cd := composed.New()
+			cd.SetUID("cd-uid")
+			cd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner.GetUID(), Controller: new(true)}})
+
+			observed := ComposedResourceStates{"child": {Resource: cd}}
+			if err := tc.gc(c).GarbageCollectComposedResources(context.Background(), owner, observed, ComposedResourceStates{}); err != nil {
+				t.Fatalf("\n%s\nGarbageCollectComposedResources(...): unexpected error: %v", tc.reason, err)
+			}
+
+			if got != tc.want {
+				t.Errorf("\n%s\nGarbageCollectComposedResources(...): propagation = %q, want %q", tc.reason, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestNewFunctionComposerDeletePropagation(t *testing.T) {
+	cases := map[string]struct {
+		reason   string
+		ordering bool
+		want     metav1.DeletionPropagation
+	}{
+		"WithoutOrdering": {
+			reason:   "Without ordering the composer keeps deleting composed resources in the foreground.",
+			ordering: false,
+			want:     metav1.DeletePropagationForeground,
+		},
+		"WithOrdering": {
+			reason:   "With ordering a nested XR dropped from desired state must order its own teardown, so the composer deletes in the background.",
+			ordering: true,
+			want:     metav1.DeletePropagationBackground,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := NewFunctionComposer(&test.MockClient{}, &test.MockClient{}, nil, WithComposedResourceOrdering(tc.ordering))
+
+			gc, ok := c.composite.ComposedResourceGarbageCollector.(*DeletingComposedResourceGarbageCollector)
+			if !ok {
+				t.Fatalf("\n%s\nthe default garbage collector is a %T", tc.reason, c.composite.ComposedResourceGarbageCollector)
+			}
+
+			if gc.propagation != tc.want {
+				t.Errorf("\n%s\nNewFunctionComposer(...): propagation = %q, want %q", tc.reason, gc.propagation, tc.want)
+			}
+		})
 	}
 }

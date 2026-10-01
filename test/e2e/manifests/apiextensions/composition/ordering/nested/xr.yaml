@@ -1,0 +1,6 @@
+apiVersion: ordering.example.org/v1alpha1
+kind: XNestedOrdering
+metadata:
+  name: ordered-parent
+  namespace: default
+spec: {}

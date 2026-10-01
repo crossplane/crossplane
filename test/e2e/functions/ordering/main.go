@@ -105,6 +105,21 @@ type input struct {
 	// Remove names from desired state, to exercise the delete path while the
 	// XR is alive.
 	Remove []string `json:"remove"`
+
+	// Composites are composed as given, in the XR's namespace, rather than as
+	// NopResources or ConfigMaps. They exist so that an XR can compose another
+	// XR, whose own ordering is then under test. Each is ready once its Ready
+	// condition is True. Edges and Remove can name them like any other
+	// resource.
+	Composites []composite `json:"composites"`
+}
+
+// A composite is an arbitrary resource to compose, usually another XR.
+type composite struct {
+	Name       string         `json:"name"`
+	APIVersion string         `json:"apiVersion"`
+	Kind       string         `json:"kind"`
+	Spec       map[string]any `json:"spec"`
 }
 
 // A requirement is a resource the pipeline needs but doesn't compose.
@@ -180,17 +195,7 @@ func (f *function) RunFunction(_ context.Context, req *fnv1.RunFunctionRequest) 
 
 	for _, name := range in.names() {
 		if !remove[name] {
-			var (
-				res *structpb.Struct
-				err error
-			)
-
-			if in.ReadyAfter != "" || in.DeleteAfter != "" || in.DeleteError != "" {
-				res, err = nopResource(name, ns, in.ReadyAfter, in.DeleteAfter, deleteErrorFor(in, name))
-			} else {
-				res, err = configMap(name, ns)
-			}
-
+			res, err := resourceFor(in, name, ns)
 			if err != nil {
 				return nil, err
 			}
@@ -200,6 +205,10 @@ func (f *function) RunFunction(_ context.Context, req *fnv1.RunFunctionRequest) 
 				Ready:    readiness(req, name, in.ReadyAfter != ""),
 			}
 		}
+	}
+
+	if err := addComposites(req, rsp, in.Composites, ns, remove); err != nil {
+		return nil, err
 	}
 
 	// A sequence is shorthand for "each name depends on every name before it",
@@ -368,6 +377,61 @@ func configMap(name, namespace string) (*structpb.Struct, error) {
 	s, err := structpb.NewStruct(m)
 	if err != nil {
 		return nil, fmt.Errorf("cannot build ConfigMap %q: %w", name, err)
+	}
+
+	return s, nil
+}
+
+// resourceFor returns the resource to compose for a name: a NopResource when
+// the input asks for timed readiness or deletion, otherwise a ConfigMap.
+func resourceFor(in *input, name, namespace string) (*structpb.Struct, error) {
+	if in.ReadyAfter != "" || in.DeleteAfter != "" || in.DeleteError != "" {
+		return nopResource(name, namespace, in.ReadyAfter, in.DeleteAfter, deleteErrorFor(in, name))
+	}
+
+	return configMap(name, namespace)
+}
+
+// addComposites adds each composite input to desired state, unless it's
+// removed. Each is ready once its Ready condition is True.
+func addComposites(req *fnv1.RunFunctionRequest, rsp *fnv1.RunFunctionResponse, cps []composite, namespace string, remove map[string]bool) error {
+	for _, cp := range cps {
+		if remove[cp.Name] {
+			continue
+		}
+
+		res, err := composed(cp, namespace)
+		if err != nil {
+			return err
+		}
+
+		rsp.Desired.Resources[cp.Name] = &fnv1.Resource{
+			Resource: res,
+			Ready:    readiness(req, cp.Name, true),
+		}
+	}
+
+	return nil
+}
+
+// composed returns a composite input as a resource in the XR's namespace. A
+// cluster scoped XR has no namespace, so neither does what it composes.
+func composed(cp composite, namespace string) (*structpb.Struct, error) {
+	metadata := map[string]any{}
+	if namespace != "" {
+		metadata["namespace"] = namespace
+	}
+
+	m := map[string]any{
+		"apiVersion": cp.APIVersion,
+		"kind":       cp.Kind,
+		"metadata":   metadata,
+		"spec":       cp.Spec,
+	}
+
+	s, err := structpb.NewStruct(m)
+	if err != nil {
+		return nil, fmt.Errorf("cannot build %s %q: %w", cp.Kind, cp.Name, err)
 	}
 
 	return s, nil

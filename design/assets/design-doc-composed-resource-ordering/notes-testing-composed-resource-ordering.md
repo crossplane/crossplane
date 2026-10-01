@@ -387,7 +387,9 @@ render, whatever it did on a cluster.
   intervene. `teardown/composition-blocked.yaml` shows it.
 * **`kubectl delete --cascade=foreground` bypasses ordering**, because
   Kubernetes starts deleting dependents as soon as the owner has a deletion
-  timestamp.
+  timestamp. So does a legacy claim with `compositeDeletePolicy: Foreground`.
+  Crossplane's own deletes don't: with ordering on, it deletes composed
+  resources, nested XRs included, with background propagation.
 * **Nothing stops an out-of-band delete.** The graph constrains Crossplane's
   own calls, not anyone else's. `kubectl delete` on a composed resource
   succeeds even while something depends on it, and Crossplane recreates it. A
@@ -430,6 +432,7 @@ it.
 | `CreateBeforeDestroy` | A replacement and its predecessor exist at the same time, which a symmetric edge would never allow. |
 | `TeardownSurvivesRestart` | Teardown continues in order after Crossplane is restarted mid-way. The replacement process never ran the pipeline for that XR, so the order can only have come from `spec.crossplane.resourceRefs`. |
 | `TeardownIsOrderedOnLegacyXR` | A legacy v1 XR tears down a level at a time too, reading the graph from `spec.resourceRefs`. If teardown ever read only the modern path, it would find no graph and cascade, which looks exactly like finishing. |
+| `TeardownIsOrderedInNestedXR` | An XR composed by another XR tears down in its own order when the parent deletes it. Crossplane deletes composed resources with background propagation when ordering is on; a foreground delete would have the garbage collector delete all of the child's resources at once. |
 
 Required resources and graph contradictions have fixtures but no end-to-end
 test; both are covered by unit tests.
