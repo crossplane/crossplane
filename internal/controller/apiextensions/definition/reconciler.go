@@ -624,7 +624,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// cascade in no particular order.
 	if r.options.Features.Enabled(features.EnableAlphaComposedResourceOrdering) {
 		ro = append(ro, composite.WithOrderedTeardown(
-			composite.NewExistingComposedResourceObserver(r.engine.GetCached(), r.engine.GetUncached(), fetcher),
+			// Uncached, because teardown reads references the pipeline no
+			// longer prunes. A composed resource that's already gone can be
+			// of a kind that's gone too - its CRD uninstalled with a composed
+			// Helm release - and the cache would block the whole reconcile
+			// waiting for an informer that can never sync. Read directly, it's
+			// NotFound or no longer served, and teardown moves on.
+			composite.NewExistingComposedResourceObserver(r.engine.GetUncached(), r.engine.GetUncached(), fetcher),
 			// Background, so that a nested XR this one deletes tears down in
 			// its own dependency order rather than being cascaded.
 			composite.NewDeletingComposedResourceGarbageCollector(r.engine.GetCached(),

@@ -29,6 +29,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -1251,6 +1252,13 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 				// We believe we created this resource, but it no longer exists.
 				continue
 			}
+		}
+
+		// A resource can't exist if its kind is no longer served, which is
+		// what happens once a composed Helm release that installed the CRD
+		// has been uninstalled.
+		if kmeta.IsNoMatchError(err) {
+			continue
 		}
 
 		if err != nil {
