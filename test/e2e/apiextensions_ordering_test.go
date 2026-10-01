@@ -206,14 +206,8 @@ func composedStateIs(want map[string]bool) features.Func {
 	return composedStateIsWithin(45*time.Second, want)
 }
 
-// composedStateIsWithin is composedStateIs with an explicit deadline.
-//
-// A graph more than a few levels deep trips the realtime compositions watch
-// circuit breaker - the XR reports "Too many watch events" - after which
-// events are only allowed periodically and each remaining wave takes about a
-// minute instead of seconds. That is documented behavior, not a hang, so
-// deeper graphs need a deadline well above the sum of their readyAfter values.
-// See notes-circuit-breaker-scale-findings.md.
+// composedStateIsWithin is composedStateIs with an explicit deadline, for a
+// graph deep enough that its waves take longer than the default allows.
 func composedStateIsWithin(d time.Duration, want map[string]bool) features.Func {
 	return composedStateOfIsWithin(modernSubject, d, want)
 }
