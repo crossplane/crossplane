@@ -12,8 +12,7 @@
 # after which each wave waits for a half-open probe and the measurement
 # describes the breaker rather than the ordering. Raising the burst far above
 # any run's event count keeps it closed; it changes nothing about how ordering
-# works. Separate findings on the breaker itself are in
-# notes-circuit-breaker-scale-findings.md.
+# works. Finding 7 in notes-scale-findings.md covers the breaker.
 #
 # Usage:
 #   ./up.sh
