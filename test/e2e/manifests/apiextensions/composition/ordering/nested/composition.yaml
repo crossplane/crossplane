@@ -1,0 +1,40 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xnestedorderings.ordering.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: ordering.example.org/v1alpha1
+    kind: XNestedOrdering
+  mode: Pipeline
+  pipeline:
+  - step: compose-in-order
+    functionRef:
+      name: function-ordering
+    input:
+      # The parent composes a NopResource, anchor, and a child XOrdering that
+      # depends on it. So on teardown the parent deletes the child first, and
+      # the anchor only once the child is gone.
+      #
+      # The child is composed by teardown/composition.yaml: first <- second <-
+      # third, each taking 5s to delete. Its own teardown should therefore run
+      # in three waves, just as it does when the child is deleted directly.
+      # What's under test is whether it still does when the parent is what
+      # deletes it.
+      apiVersion: ordering.fn.crossplane.io/v1alpha1
+      kind: Input
+      resources:
+      - anchor
+      readyAfter: 1s
+      deleteAfter: 5s
+      composites:
+      - name: child
+        apiVersion: ordering.example.org/v1alpha1
+        kind: XOrdering
+        spec:
+          sequence:
+          - first
+          - second
+          - third
+      edges:
+      - {resource: child, dependsOn: anchor}

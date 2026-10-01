@@ -1,0 +1,23 @@
+# An XR that composes another XR. The parent is its own type so that its
+# Composition doesn't compete with the child's, which is the ordinary
+# XOrdering from setup/definition.yaml.
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: xnestedorderings.ordering.example.org
+spec:
+  scope: Namespaced
+  group: ordering.example.org
+  names:
+    kind: XNestedOrdering
+    plural: xnestedorderings
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object

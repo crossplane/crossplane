@@ -19,6 +19,7 @@ package e2e
 import (
 	"context"
 	"io"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -225,8 +226,19 @@ func composedStateOfIsWithin(s subject, d time.Duration, want map[string]bool) f
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
+		// Log each change in state, so that a failure shows how teardown
+		// actually went rather than only where it ended up. An XR that
+		// disappears stops the test from inside deletingByResourceNameOf,
+		// before any summary could be logged.
+		var last map[string]bool
+
 		err := wait.For(func(context.Context) (bool, error) {
 			got := deletingByResourceNameOf(ctx, t, c, s)
+			if !maps.Equal(got, last) {
+				t.Logf("%s %s composed resources, true if deleting: %v", s.Kind, s.Name, got)
+				last = got
+			}
+
 			if len(got) != len(want) {
 				return false, nil
 			}
@@ -944,6 +956,149 @@ func TestComposedResourceOrderingTeardownIsOrderedOnLegacyXR(t *testing.T) {
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+// parentSubject is the XR in nested/xr.yaml, which composes an XOrdering.
+var parentSubject = subject{
+	APIVersion: "ordering.example.org/v1alpha1",
+	Kind:       "XNestedOrdering",
+	Name:       "ordered-parent",
+	Namespace:  orderedXRNamespace,
+}
+
+// findComposedXR resolves the name of the XR a parent composed as the given
+// composition resource name, and records it in into. Crossplane generates a
+// composed resource's name, so a test can only learn it from the parent's
+// references once the parent has composed it.
+func findComposedXR(parent subject, resourceName string, into *subject) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		xr := &unstructured.Unstructured{}
+		if err := parent.get(ctx, c, xr); err != nil {
+			t.Fatalf("cannot get parent XR: %v", err)
+		}
+
+		refs, _, _ := unstructured.NestedSlice(xr.Object, parent.refsPath()...)
+		for _, r := range refs {
+			ref, ok := r.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			if n, _, _ := unstructured.NestedString(ref, "resourceName"); n != resourceName {
+				continue
+			}
+
+			into.Name, _, _ = unstructured.NestedString(ref, "name")
+			t.Logf("parent composed %q as %s %s", resourceName, into.Kind, into.Name)
+
+			return ctx
+		}
+
+		t.Fatalf("the parent XR has no reference to a composed resource named %q", resourceName)
+
+		return ctx
+	}
+}
+
+// ofSubject builds a check against a subject whose name is only known once an
+// earlier step has resolved it.
+func ofSubject(s *subject, check func(subject) features.Func) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		if s.Name == "" {
+			t.Fatalf("no %s to check; an earlier step should have resolved its name", s.Kind)
+		}
+
+		return check(*s)(ctx, t, c)
+	}
+}
+
+func TestComposedResourceOrderingTeardownIsOrderedInNestedXR(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/ordering"
+
+	child := &subject{
+		APIVersion: "ordering.example.org/v1alpha1",
+		Kind:       "XOrdering",
+		Namespace:  orderedXRNamespace,
+	}
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that an XR composed by another XR tears down in its own dependency order when the parent deletes it. The parent deletes its composed resources with foreground propagation, and the garbage collector deletes a foreground-deleted owner's dependents all at once, so the child's graph must still decide the order.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteComposedResourceOrdering).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			WithSetup("ParentXRDIsCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "nested/definition.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "nested/definition.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "nested/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateCompositions", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "teardown/composition.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "nested/composition.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "teardown/composition.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "nested/composition.yaml"),
+			)).
+			Assess("CreateParentXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "nested/xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "nested/xr.yaml"),
+			)).
+			Assess("ParentXRIsReady",
+				// The parent is only ready once the child is, and the child
+				// comes up in three waves after the anchor.
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "nested/xr.yaml", xpv2.Available()),
+			).
+			Assess("FindTheChildXR", findComposedXR(parentSubject, "child", child)).
+			Assess("GraphIsPersistedOnTheParent", xrReferencesOfCarryGraph(parentSubject)).
+			Assess("GraphIsPersistedOnTheChild", ofSubject(child, xrReferencesOfCarryGraph)).
+			Assess("DeleteParentXR",
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "nested/xr.yaml", metav1.DeletePropagationBackground),
+			).
+			Assess("ParentDeletesTheChildFirst",
+				composedStateOfIs(parentSubject, map[string]bool{"anchor": false, "child": true}),
+			).
+			// The assertions this test exists for. Deleted directly, the child
+			// tears down a level at a time; deleted by its parent, it must too.
+			Assess("OnlyTheChildsLeafIsDeleting", ofSubject(child, func(s subject) features.Func {
+				return composedStateOfIs(s, map[string]bool{"first": false, "second": false, "third": true})
+			})).
+			Assess("ThenTheChildsSecondIsDeleting", ofSubject(child, func(s subject) features.Func {
+				return composedStateOfIs(s, map[string]bool{"first": false, "second": true})
+			})).
+			Assess("ThenTheChildsFirstIsDeleting", ofSubject(child, func(s subject) features.Func {
+				return composedStateOfIs(s, map[string]bool{"first": true})
+			})).
+			Assess("ThenTheAnchorIsDeleting",
+				composedStateOfIs(parentSubject, map[string]bool{"anchor": true}),
+			).
+			Assess("ParentXRIsGone",
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "nested/xr.yaml"),
+			).
+			WithTeardown("DeleteCompositions", funcs.AllOf(
+				funcs.DeleteResources(manifests, "nested/composition.yaml"),
+				funcs.DeleteResources(manifests, "teardown/composition.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "nested/composition.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "teardown/composition.yaml"),
+			)).
+			WithTeardown("DeleteParentXRD", funcs.AllOf(
+				funcs.DeleteResources(manifests, "nested/definition.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "nested/definition.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Feature(),

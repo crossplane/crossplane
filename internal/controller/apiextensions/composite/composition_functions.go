@@ -294,11 +294,10 @@ func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...
 		client: cached,
 
 		composite: xr{
-			ConnectionDetailsFetcher:         f,
-			ComposedResourceObserver:         NewExistingComposedResourceObserver(cached, uncached, f),
-			ComposedResourceGarbageCollector: NewDeletingComposedResourceGarbageCollector(cached),
-			NameGenerator:                    names.NewNameGenerator(cached),
-			ManagedFieldsUpgrader:            ssa.NewPatchingManagedFieldsUpgrader(cached, ssa.PrefixMatch(FieldOwnerComposedPrefix)),
+			ConnectionDetailsFetcher: f,
+			ComposedResourceObserver: NewExistingComposedResourceObserver(cached, uncached, f),
+			NameGenerator:            names.NewNameGenerator(cached),
+			ManagedFieldsUpgrader:    ssa.NewPatchingManagedFieldsUpgrader(cached, ssa.PrefixMatch(FieldOwnerComposedPrefix)),
 		},
 
 		pipeline:  r,
@@ -309,6 +308,19 @@ func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...
 
 	for _, fn := range o {
 		fn(c)
+	}
+
+	// The default garbage collector depends on whether ordering is enabled,
+	// so it's chosen once the options have been applied. With ordering, a
+	// nested XR that leaves desired state orders its own teardown, which a
+	// foreground delete would bypass.
+	if c.composite.ComposedResourceGarbageCollector == nil {
+		var gco []DeletingComposedResourceGarbageCollectorOption
+		if c.ordering {
+			gco = append(gco, WithDeletePropagation(metav1.DeletePropagationBackground))
+		}
+
+		c.composite.ComposedResourceGarbageCollector = NewDeletingComposedResourceGarbageCollector(cached, gco...)
 	}
 
 	return c
@@ -1294,13 +1306,38 @@ func AsState(xr resource.Composite, xc managed.ConnectionDetails, rs ComposedRes
 // An DeletingComposedResourceGarbageCollector deletes undesired composed resources from
 // the API server.
 type DeletingComposedResourceGarbageCollector struct {
-	client client.Writer
+	client      client.Writer
+	propagation metav1.DeletionPropagation
+}
+
+// A DeletingComposedResourceGarbageCollectorOption configures a
+// DeletingComposedResourceGarbageCollector.
+type DeletingComposedResourceGarbageCollectorOption func(d *DeletingComposedResourceGarbageCollector)
+
+// WithDeletePropagation sets the propagation policy composed resources are
+// deleted with. The default is foreground, so a nested XR isn't gone until
+// everything it composed is.
+//
+// Composed resource ordering needs background instead. A foreground delete
+// makes the Kubernetes garbage collector delete all of a nested XR's composed
+// resources at once, so the nested XR's own graph never gets to order them.
+// With ordering enabled, a deleting XR holds its finalizer until its composed
+// resources are gone, which keeps the bottom up guarantee foreground gave.
+func WithDeletePropagation(p metav1.DeletionPropagation) DeletingComposedResourceGarbageCollectorOption {
+	return func(d *DeletingComposedResourceGarbageCollector) {
+		d.propagation = p
+	}
 }
 
 // NewDeletingComposedResourceGarbageCollector returns a ComposedResourceDeleter that
 // deletes undesired composed resources from the API server.
-func NewDeletingComposedResourceGarbageCollector(c client.Writer) *DeletingComposedResourceGarbageCollector {
-	return &DeletingComposedResourceGarbageCollector{client: c}
+func NewDeletingComposedResourceGarbageCollector(c client.Writer, o ...DeletingComposedResourceGarbageCollectorOption) *DeletingComposedResourceGarbageCollector {
+	d := &DeletingComposedResourceGarbageCollector{client: c, propagation: metav1.DeletePropagationForeground}
+	for _, fn := range o {
+		fn(d)
+	}
+
+	return d
 }
 
 // GarbageCollectComposedResources deletes any composed resource that didn't
@@ -1315,10 +1352,11 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 		}
 	}
 
-	// Always use foreground deletion.  There is no impact on Managed Resources,
-	// and nested XRs will be deleted "bottom up".
+	// Foreground by default. There is no impact on Managed Resources, and
+	// nested XRs will be deleted "bottom up". See WithDeletePropagation for
+	// when it's background instead.
 	do := &client.DeleteOptions{}
-	client.PropagationPolicy(metav1.DeletePropagationForeground).ApplyToDelete(do)
+	client.PropagationPolicy(d.propagation).ApplyToDelete(do)
 	for name, cd := range del {
 		// Only garbage collect composed resources that we actually control.
 		//
