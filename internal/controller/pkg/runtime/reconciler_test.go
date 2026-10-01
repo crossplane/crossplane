@@ -853,6 +853,129 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
+		"ImageConfigMissingRegistry": {
+			reason: "A SetImagePullSecret ImageConfig with a nil Registry must not panic.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								obj.SetDesiredState(v1.PackageRevisionActive)
+								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+								obj.SetConditions(v1.RevisionHealthy())
+								obj.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+									Name:   "test-image-config",
+									Reason: v1.ImageConfigReasonSetPullSecret,
+								})
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							case *v1beta1.ImageConfig:
+								obj.SetGroupVersionKind(v1beta1.ImageConfigGroupVersionKind)
+								obj.SetName("test-image-config")
+								return nil
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+							want.SetDesiredState(v1.PackageRevisionActive)
+							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+							want.SetConditions(v1.RevisionHealthy())
+							want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+								Name:   "test-image-config",
+								Reason: v1.ImageConfigReasonSetPullSecret,
+							})
+							want.SetConditions(v1.RuntimeUnhealthy().WithMessage(errMissingPullSecret))
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+				},
+			},
+			want: want{
+				err: errors.New(errMissingPullSecret),
+			},
+		},
+		"ImageConfigMissingAuthentication": {
+			reason: "A SetImagePullSecret ImageConfig with a nil Authentication must not panic.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								obj.SetDesiredState(v1.PackageRevisionActive)
+								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+								obj.SetConditions(v1.RevisionHealthy())
+								obj.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+									Name:   "test-image-config",
+									Reason: v1.ImageConfigReasonSetPullSecret,
+								})
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							case *v1beta1.ImageConfig:
+								obj.SetGroupVersionKind(v1beta1.ImageConfigGroupVersionKind)
+								obj.SetName("test-image-config")
+								obj.Spec.Registry = &v1beta1.RegistryConfig{}
+								return nil
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+							want.SetDesiredState(v1.PackageRevisionActive)
+							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+							want.SetConditions(v1.RevisionHealthy())
+							want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+								Name:   "test-image-config",
+								Reason: v1.ImageConfigReasonSetPullSecret,
+							})
+							want.SetConditions(v1.RuntimeUnhealthy().WithMessage(errMissingPullSecret))
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+				},
+			},
+			want: want{
+				err: errors.New(errMissingPullSecret),
+			},
+		},
 		"SuccessfulHealthyRevisionWithImageConfigRuntimeConfig": {
 			reason: "Builder should use DeploymentRuntimeConfig from ImageConfig when configured.",
 			args: args{
