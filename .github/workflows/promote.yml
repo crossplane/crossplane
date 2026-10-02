@@ -29,7 +29,7 @@ jobs:
     permissions:
       contents: read
       packages: write  # for pushing to ghcr.io
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout

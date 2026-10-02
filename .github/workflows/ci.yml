@@ -20,7 +20,7 @@ env:
 
 jobs:
   check-diff:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
@@ -49,7 +49,7 @@ jobs:
           fi
 
   lint:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
@@ -68,7 +68,7 @@ jobs:
         run: nix build .#checks.x86_64-linux.go-lint .#checks.x86_64-linux.go-lint-apis .#checks.x86_64-linux.helm-lint --print-build-logs
 
   codeql:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       security-events: write
@@ -98,7 +98,7 @@ jobs:
         uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
 
   unit-tests:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
@@ -125,7 +125,7 @@ jobs:
 
   # E2E tests run outside the Nix sandbox (needs Docker)
   e2e-tests:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     env:
       # Resolved here because the secrets context isn't available in a
       # step-level if. Empty on pull requests from forks, which don't receive
@@ -226,7 +226,7 @@ jobs:
     permissions:
       contents: read
       packages: write  # for pushing to ghcr.io
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Cleanup Disk
@@ -335,7 +335,7 @@ jobs:
 
   # Fuzz testing (unchanged from original)
   fuzz-test:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Build Fuzzers
@@ -361,7 +361,7 @@ jobs:
 
   # Protobuf schema linting (unchanged from original)
   protobuf-schemas:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout

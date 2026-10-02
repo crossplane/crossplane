@@ -12,7 +12,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/backport')
     steps:
     - name: Extract Command
@@ -41,7 +41,7 @@ jobs:
     permissions:
       issues: write
       pull-requests: write
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: startsWith(github.event.comment.body, '/fresh') && github.event.comment.author_association != 'NONE'
 
     steps:
