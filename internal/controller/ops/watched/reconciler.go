@@ -64,9 +64,9 @@ type Reconciler struct {
 	log    logging.Logger
 	record event.Recorder
 
-	watchOpName string
-	watchedGVK  schema.GroupVersionKind
-	program     *watchcondition.Program
+	watchOpName  string
+	watchedGVK   schema.GroupVersionKind
+	program      *watchcondition.Program
 	fingerprints sync.Map
 }
 

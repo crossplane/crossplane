@@ -17,6 +17,7 @@ limitations under the License.
 package watchcondition
 
 import (
+	"maps"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -154,7 +155,7 @@ func TestShouldReportWhenGate(t *testing.T) {
 		t.Fatalf("ShouldReport(): %v", err)
 	}
 	if !report {
-		t.Fatal("expected report when when gate passes")
+		t.Fatal("expected report when gate passes")
 	}
 	if fp != `"one"` {
 		t.Fatalf("expected fingerprint %q, got %q", `"one"`, fp)
@@ -224,7 +225,7 @@ func TestShouldReportWhenOnly(t *testing.T) {
 		t.Fatalf("ShouldReport(): %v", err)
 	}
 	if !report {
-		t.Fatal("expected report when when gate passes")
+		t.Fatal("expected report when gate passes")
 	}
 	if fingerprint != "" {
 		t.Fatalf("expected empty fingerprint without onChange, got %q", fingerprint)
@@ -234,10 +235,8 @@ func TestShouldReportWhenOnly(t *testing.T) {
 func configMap(t *testing.T, data map[string]string) *unstructured.Unstructured {
 	t.Helper()
 
-	d := make(map[string]any, len(data))
-	for k, v := range data {
-		d[k] = v
-	}
+	d := make(map[string]string, len(data))
+	maps.Copy(d, data)
 
 	return &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "v1",

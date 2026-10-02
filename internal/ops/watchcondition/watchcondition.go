@@ -39,8 +39,8 @@ const (
 // A Program is a compiled set of WatchOperation watch conditions.
 type Program struct {
 	hasOnChange bool
-	onChange  cel.Program
-	when      []cel.Program
+	onChange    cel.Program
+	when        []cel.Program
 }
 
 // Compile builds a Program from a WatchSpec.
@@ -173,7 +173,11 @@ func evalBool(prg cel.Program, vars map[string]any) (bool, error) {
 		return false, errors.Wrap(err, "CEL expression must evaluate to bool")
 	}
 
-	return b.(bool), nil
+	result, ok := b.(bool)
+	if !ok {
+		return false, errors.New("CEL expression must evaluate to bool")
+	}
+	return result, nil
 }
 
 func evalFingerprint(prg cel.Program, vars map[string]any) (string, error) {
