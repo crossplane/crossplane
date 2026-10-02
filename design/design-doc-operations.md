@@ -407,9 +407,6 @@ could be added in future.
 
 ### Track Specific Fields
 
-**Superseded:** this proposal was implemented using CEL watch conditions.
-See [Watch Conditions](#watch-conditions) below.
-
 Under the proposed design, a WatchOperation will create an Operation any time a
 watched resource's `metadata.resourceVersion` changes. The `resourceVersion`
 changes whenever the resource changes in any way - e.g. something updates its
@@ -449,83 +446,10 @@ In this example the WatchOperation would only produce an Operation if a App's
 
 To do this the WatchOperation would need to track the current value of fields.
 This isn't needed with resource versions, because Kubernetes watches are
-natively based on resource versions. You get a watch event each time the version
+natively based on resource versions. You get a watch even each time the version
 changes. To watch only certain fields Crossplane would need to filter those
 watch events - e.g. by checking the new field value against its last known
 value.
-
-### Watch Conditions
-
-Watch conditions supersede the [Track Specific Fields](#track-specific-fields)
-proposal above. They use CEL expressions instead of a dedicated `fields`
-list.
-
-Under the proposed design, a WatchOperation creates an Operation any time a
-watched resource's `metadata.resourceVersion` changes unless watch conditions
-are configured. The `resourceVersion` changes whenever the resource changes in
-any way - e.g. something updates its metadata, spec, or status.
-
-This may result in too many Operations. Watch conditions allow authors to
-create Operations only when specific fields or logical conditions on the
-watched object change.
-
-```yaml
-apiVersion: ops.crossplane.io/v1alpha1
-kind: WatchOperation
-metadata:
-  name: schedule-app-to-cluster
-spec:
-  watch:
-    apiVersion: example.org/v1
-    kind: App
-    matchLabels:
-      app: my-app
-    # Optional. When omitted, any resourceVersion change triggers an Operation.
-    onChange:
-      expression: "object.spec.size"
-    # Optional boolean gate; all entries must evaluate true.
-    when:
-    - name: ready
-      expression: "object.status.conditions.exists(c, c.type == 'Ready' && c.status == 'True')"
-  operationTemplate:
-    # Omitted for brevity.
-```
-
-When `spec.watch.onChange.expression` is set, Crossplane evaluates the CEL
-expression against the watched object and creates an Operation only when the
-canonical fingerprint of the result changes. Optional `spec.watch.when`
-conditions must all evaluate to true before an Operation is scheduled. CEL
-expressions have access to:
-
-- `object` - the watched resource (dynamically typed)
-- `deleted` - whether the reconcile was triggered by a delete event
-
-Simple field watches are expressed as CEL. For example,
-`object.spec.size` is equivalent to the `fieldPath: spec.size` sketch in
-[Track Specific Fields](#track-specific-fields).
-
-#### Client-side evaluation tradeoff
-
-Kubernetes watches are resourceVersion-based. The API server and client-go
-informer only support server-side filtering by GVK, `labelSelector`, and
-limited `fieldSelector` values (for example `metadata.name` and
-`metadata.namespace`). There is no API server or informer support for CEL or
-arbitrary field-path conditions.
-
-Crossplane therefore evaluates watch conditions client-side in the Watched
-controller reconciler. The informer still delivers every watch event for
-matched resources; CEL runs on each reconcile. Watch conditions reduce
-**Operation** churn, not informer or reconcile churn. Use
-`spec.watch.matchLabels` and `spec.watch.namespace` to narrow the watch
-surface before CEL evaluation runs.
-
-Crossplane tracks the last seen onChange fingerprint for each watched resource
-in memory inside the per-WatchOperation Watched controller. That cache is lost
-when the controller restarts, so an Operation may be created once after
-restart even if the watched value did not change.
-
-Invalid CEL expressions surface via the WatchOperation `Watching=False` status
-condition with reason `WatchFailed`.
 
 ## Alternatives Considered
 
