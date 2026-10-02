@@ -17,12 +17,14 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
@@ -410,4 +412,111 @@ func TestWatchOperationResourceChanges(t *testing.T) {
 			)).
 			Feature(),
 	)
+}
+
+func TestWatchOperationWatchConditions(t *testing.T) {
+	var firstScheduleTime time.Time
+
+	manifests := "test/e2e/manifests/ops/watchoperations/watch-conditions"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests WatchOperation CEL watch conditions, validating that Operations are created only when onChange expression values change.").
+			WithLabel(LabelArea, LabelAreaOps).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteOps).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/*.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateWatchOperation", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "watchoperation.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "watchoperation.yaml"),
+				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "watchoperation.yaml", xpv2.ReconcileSuccess(), v1alpha1.WatchActive()),
+			)).
+			Assess("CreateWatchedResource", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "test-configmap.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "test-configmap.yaml"),
+			)).
+			Assess("WatchOperationCreatesFirstOperation", funcs.AllOf(
+				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime",
+					funcs.FieldValueChecker(func(got any) bool {
+						if timeStr, ok := got.(string); ok {
+							if parsed, err := time.Parse(time.RFC3339, timeStr); err == nil {
+								firstScheduleTime = parsed
+								return true
+							}
+						}
+						return false
+					})),
+				funcs.ListedResourcesValidatedWithin(60*time.Second,
+					&v1alpha1.OperationList{},
+					1,
+					func(o k8s.Object) bool {
+						return o.GetLabels()[v1alpha1.LabelWatchOperationName] == "watch-conditions-watchop"
+					}),
+			)).
+			Assess("UnrelatedUpdateDoesNotScheduleOperation", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "test-configmap-unrelated-update.yaml"),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "test-configmap-unrelated-update.yaml", "data.otherData", "updated without touching testData"),
+				funcs.ResourcesHaveFieldValueWithin(45*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime",
+					funcs.FieldValueChecker(func(got any) bool {
+						if timeStr, ok := got.(string); ok {
+							if parsed, err := time.Parse(time.RFC3339, timeStr); err == nil {
+								return parsed.Equal(firstScheduleTime)
+							}
+						}
+						return false
+					})),
+				watchOperationOperationCount(1),
+			)).
+			Assess("TestDataUpdateSchedulesOperation", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "test-configmap-testdata-update.yaml"),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "test-configmap-testdata-update.yaml", "data.testData", "changed"),
+				funcs.ResourcesHaveFieldValueWithin(60*time.Second, manifests, "watchoperation.yaml", "status.lastScheduleTime",
+					funcs.FieldValueChecker(func(got any) bool {
+						if timeStr, ok := got.(string); ok {
+							if parsed, err := time.Parse(time.RFC3339, timeStr); err == nil {
+								return parsed.After(firstScheduleTime)
+							}
+						}
+						return false
+					})),
+				watchOperationOperationCount(2),
+			)).
+			WithTeardown("DeleteWatchOperation", funcs.AllOf(
+				funcs.DeleteResources(manifests, "test-configmap.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "test-configmap.yaml"),
+				funcs.DeleteResources(manifests, "watchoperation.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "watchoperation.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func watchOperationOperationCount(want int) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		ol := &v1alpha1.OperationList{}
+		if err := c.Client().Resources().List(ctx, ol); err != nil {
+			t.Fatalf("cannot list Operations: %v", err)
+		}
+
+		got := 0
+		for _, op := range ol.Items {
+			if op.GetLabels()[v1alpha1.LabelWatchOperationName] == "watch-conditions-watchop" {
+				got++
+			}
+		}
+
+		if got != want {
+			t.Fatalf("Operation count for watch-conditions-watchop: got %d, want %d", got, want)
+		}
+
+		return ctx
+	}
 }

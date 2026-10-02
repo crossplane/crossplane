@@ -11,6 +11,7 @@ require (
 	github.com/alecthomas/kong v1.16.1
 	github.com/crossplane/crossplane-runtime/v2 v2.5.0-rc.0
 	github.com/crossplane/crossplane/apis/v2 v2.4.0
+	github.com/google/cel-go v0.29.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-containerregistry v0.21.8
 	github.com/robfig/cron/v3 v3.0.1
@@ -33,6 +34,7 @@ require (
 )
 
 require (
+	cel.dev/expr v0.25.2 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.24 // indirect
 	github.com/go-openapi/runtime/server-middleware v0.30.0 // indirect

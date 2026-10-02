@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: watch-conditions-configmap
+  namespace: default
+  labels:
+    test: watch-conditions
+data:
+  testData: "initial"
+  otherData: "updated without touching testData"

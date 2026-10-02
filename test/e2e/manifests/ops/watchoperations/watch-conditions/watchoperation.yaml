@@ -1,0 +1,30 @@
+apiVersion: ops.crossplane.io/v1alpha1
+kind: WatchOperation
+metadata:
+  name: watch-conditions-watchop
+spec:
+  watch:
+    apiVersion: v1
+    kind: ConfigMap
+    namespace: default
+    matchLabels:
+      test: watch-conditions
+    onChange:
+      expression: "object.data['testData']"
+  concurrencyPolicy: Allow
+  successfulHistoryLimit: 10
+  failedHistoryLimit: 5
+  operationTemplate:
+    spec:
+      mode: Pipeline
+      pipeline:
+      - step: nop
+        functionRef:
+          name: function-dummy-watchops-conditions
+        input:
+          apiVersion: dummy.fn.crossplane.io/v1beta1
+          kind: Response
+          response:
+            results:
+             - severity: SEVERITY_NORMAL
+               message: "WatchOperation with watch conditions ran me!"

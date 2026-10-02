@@ -314,6 +314,51 @@ spec:
                       Namespace selects resources in a specific namespace. If empty, all
                       namespaces are watched. Only applicable for namespaced resources.
                     type: string
+                  onChange:
+                    description: |-
+                      OnChange selects which changes should trigger an Operation. When omitted,
+                      any resourceVersion change triggers an Operation.
+                    properties:
+                      expression:
+                        description: |-
+                          Expression is a CEL expression evaluated against the watched object.
+                          An Operation is created when the expression's value changes.
+                        maxLength: 8192
+                        minLength: 1
+                        type: string
+                    required:
+                    - expression
+                    type: object
+                  when:
+                    description: |-
+                      When is an optional list of CEL conditions that must all evaluate to
+                      true before an Operation is created.
+                    items:
+                      description: |-
+                        WatchCondition is a named CEL expression that must evaluate to true before
+                        an Operation is created.
+                      properties:
+                        expression:
+                          description: Expression is a CEL expression that must evaluate
+                            to true.
+                          maxLength: 8192
+                          minLength: 1
+                          type: string
+                        name:
+                          description: Name is a descriptive identifier for this condition.
+                          maxLength: 316
+                          minLength: 1
+                          pattern: ^([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$
+                          type: string
+                      required:
+                      - expression
+                      - name
+                      type: object
+                    maxItems: 8
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
                 required:
                 - apiVersion
                 - kind

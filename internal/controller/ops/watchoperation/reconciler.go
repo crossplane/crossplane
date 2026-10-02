@@ -187,9 +187,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	wo.Status.RunningOperationRefs = lifecycle.RunningOperationRefs(running)
 
 	// Start the Watched controller.
-	wr := watched.NewReconciler(r.engine.GetCached(), wo,
+	wr, err := watched.NewReconciler(r.engine.GetCached(), wo,
 		watched.WithLogger(r.log.WithValues("controller", WatchedControllerName(wo.GetName()))),
 		watched.WithRecorder(r.record.WithAnnotations("controller", WatchedControllerName(wo.GetName()))))
+	if err != nil {
+		log.Debug("Cannot compile watch conditions", "error", err)
+		err = errors.Wrap(err, "cannot compile watch conditions")
+		r.record.Event(wo, event.Warning(reasonEstablishWatched, err))
+		status.MarkConditions(v1alpha1.WatchFailed(err.Error()), xpv2.ReconcileError(err))
+		_ = r.client.Status().Update(ctx, wo)
+		return reconcile.Result{}, err
+	}
 
 	ko := r.options.ForControllerRuntime()
 	ko.Reconciler = errors.WithSilentRequeueOnConflict(wr)
