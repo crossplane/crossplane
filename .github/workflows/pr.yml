@@ -12,7 +12,7 @@ jobs:
     permissions:
       pull-requests: read  # for reading PR checklist
     if: github.actor != 'crossplane-renovate[bot]'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: mheap/require-checklist-action@9c8100a52aa9726d4648e61aa92415f6c843c990 # v2
         with:
