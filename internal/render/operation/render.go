@@ -42,6 +42,7 @@ import (
 	cronrec "github.com/crossplane/crossplane/v2/internal/controller/ops/cronoperation"
 	oprec "github.com/crossplane/crossplane/v2/internal/controller/ops/operation"
 	watchrec "github.com/crossplane/crossplane/v2/internal/controller/ops/watched"
+	"github.com/crossplane/crossplane/v2/internal/ops/watchcondition"
 	"github.com/crossplane/crossplane/v2/internal/render"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
@@ -188,7 +189,18 @@ func NewFromWatchOperation(in *renderv1alpha1.WatchOperationInput) (*renderv1alp
 		return nil, errors.Wrap(err, "cannot convert watched resource from protobuf")
 	}
 
-	op := watchrec.NewOperation(wo, watched, watchrec.OperationName(wo, watched))
+	program, err := watchcondition.Compile(wo.Spec.Watch)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot compile watch conditions")
+	}
+
+	deleted := watched.GetResourceVersion() == opsv1alpha1.SyntheticResourceVersionDeleted
+	_, changeFingerprint, err := program.ShouldReport(watched, deleted, "")
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot evaluate watch conditions")
+	}
+
+	op := watchrec.NewOperation(wo, watched, watchrec.OperationName(wo, watched, changeFingerprint))
 	opStruct, err := xfn.AsStruct(op)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot convert Operation to protobuf")
