@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"sync"
 	"time"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,6 +41,7 @@ import (
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	"github.com/crossplane/crossplane/v2/internal/ops/lifecycle"
+	"github.com/crossplane/crossplane/v2/internal/ops/watchcondition"
 )
 
 const (
@@ -51,6 +53,7 @@ const (
 	reasonListOperations          event.Reason = "ListOperations"
 	reasonReplaceRunningOperation event.Reason = "ReplaceRunningOperation"
 	reasonCreateOperation         event.Reason = "CreateOperation"
+	reasonEvaluateWatchConditions event.Reason = "EvaluateWatchConditions"
 	reasonWatchOperationGet       event.Reason = "GetWatchOperation"
 )
 
@@ -61,8 +64,10 @@ type Reconciler struct {
 	log    logging.Logger
 	record event.Recorder
 
-	watchOpName string
-	watchedGVK  schema.GroupVersionKind
+	watchOpName  string
+	watchedGVK   schema.GroupVersionKind
+	program      *watchcondition.Program
+	fingerprints sync.Map
 }
 
 // Reconcile is triggered when a watched resource changes, and creates an
@@ -136,6 +141,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
+	deleted := watched.GetResourceVersion() == v1alpha1.SyntheticResourceVersionDeleted
+
+	previousFingerprint := ""
+	if v, ok := r.fingerprints.Load(req.NamespacedName); ok {
+		previousFingerprint, _ = v.(string)
+	}
+
+	report, changeFingerprint, err := r.program.ShouldReport(watched, deleted, previousFingerprint)
+	if err != nil {
+		log.Debug("Cannot evaluate watch conditions", "error", err)
+		err = errors.Wrap(err, "cannot evaluate watch conditions")
+		r.record.Event(wo, event.Warning(reasonEvaluateWatchConditions, err))
+		return reconcile.Result{}, err
+	}
+	if !report {
+		log.Debug("Watch conditions not met, skipping Operation")
+		return reconcile.Result{Requeue: false}, nil
+	}
+
 	// List existing Operations for this WatchOperation.
 	ol := &v1alpha1.OperationList{}
 	if err := r.client.List(ctx, ol, client.MatchingLabels{v1alpha1.LabelWatchOperationName: wo.GetName()}); err != nil {
@@ -177,7 +201,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Generate a unique name for the Operation.
-	name := OperationName(wo, watched)
+	name := OperationName(wo, watched, changeFingerprint)
 
 	// Check if we've already created an Operation for this resource version.
 	for _, op := range ol.Items {
@@ -197,18 +221,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	log.Debug("Created Operation for watched resource", "operation", op.GetName(), "resource", watched.GetName())
+
+	if r.program.HasOnChange() {
+		r.fingerprints.Store(req.NamespacedName, changeFingerprint)
+	}
+
 	return reconcile.Result{}, nil
 }
 
 // OperationName generates a deterministic and unique name for an Operation
 // based on the WatchOperation name and a hash of the watched resource's GVK,
-// namespace, name, UID, resource version, and deletion timestamp.
-func OperationName(wo *v1alpha1.WatchOperation, watched *unstructured.Unstructured) string {
+// namespace, name, UID, change trigger, and deletion timestamp. When
+// changeFingerprint is non-empty it replaces resourceVersion in the hash.
+func OperationName(wo *v1alpha1.WatchOperation, watched *unstructured.Unstructured, changeFingerprint string) string {
+	changeKey := watched.GetResourceVersion()
+	if changeFingerprint != "" {
+		changeKey = changeFingerprint
+	}
+
 	in := watched.GroupVersionKind().String() + "/" +
 		watched.GetNamespace() + "/" +
 		watched.GetName() + "/" +
 		string(watched.GetUID()) + "/" +
-		watched.GetResourceVersion()
+		changeKey
 
 	// For synthetic deletion events, a unique deletion timestamp is set to
 	// ensure different resource instances (even with the same

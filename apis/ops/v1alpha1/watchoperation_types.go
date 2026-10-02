@@ -89,6 +89,44 @@ type WatchSpec struct {
 	// namespaces are watched. Only applicable for namespaced resources.
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
+
+	// OnChange selects which changes should trigger an Operation. When omitted,
+	// any resourceVersion change triggers an Operation.
+	// +optional
+	OnChange *WatchOnChange `json:"onChange,omitempty"`
+
+	// When is an optional list of CEL conditions that must all evaluate to
+	// true before an Operation is created.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	// +kubebuilder:validation:MaxItems=8
+	When []WatchCondition `json:"when,omitempty"`
+}
+
+// WatchOnChange selects watched resource changes that should trigger an
+// Operation using a CEL expression.
+type WatchOnChange struct {
+	// Expression is a CEL expression evaluated against the watched object.
+	// An Operation is created when the expression's value changes.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=8192
+	Expression string `json:"expression"`
+}
+
+// WatchCondition is a named CEL expression that must evaluate to true before
+// an Operation is created.
+type WatchCondition struct {
+	// Name is a descriptive identifier for this condition.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=316
+	// +kubebuilder:validation:Pattern=`^([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$`
+	Name string `json:"name"`
+
+	// Expression is a CEL expression that must evaluate to true.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=8192
+	Expression string `json:"expression"`
 }
 
 // WatchOperationStatus represents the observed state of a WatchOperation.
