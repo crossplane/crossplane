@@ -12,7 +12,7 @@
 # by hand.)
 {
   # Root module: github.com/crossplane/crossplane/v2
-  root = "sha256-lFGhFLqgDUK2P+SMQTsDOMAX4oafCznxwUzYAdvL0eM=";
+  root = "sha256-Zkho3YD0PHcBpOM6Dor7uX543WXgV0GxYxw2lqmPs84=";
 
   # apis module: github.com/crossplane/crossplane/apis/v2
   apis = "sha256-LBPg9GFga3rvI5D487ydw+AyE7ezHP07ukxX3PcWLUA=";
