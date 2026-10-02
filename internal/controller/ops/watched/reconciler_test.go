@@ -18,6 +18,7 @@ package watched
 
 import (
 	"context"
+	"maps"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -586,18 +587,16 @@ func TestReconcileWatchConditions(t *testing.T) {
 					}
 					d := map[string]any{}
 					if data != nil {
-						for k, v := range *data {
-							d[k] = v
-						}
+						maps.Copy(d, *data)
 					}
 					u.Object = map[string]any{
 						"apiVersion": "v1",
 						"kind":       "ConfigMap",
 						"metadata": map[string]any{
-							"name":              "test-cm",
-							"namespace":         "default",
-							"uid":               "test-uid",
-							"resourceVersion":   *rv,
+							"name":            "test-cm",
+							"namespace":       "default",
+							"uid":             "test-uid",
+							"resourceVersion": *rv,
 						},
 						"data": d,
 					}

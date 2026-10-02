@@ -39,8 +39,8 @@ const (
 // A Program is a compiled set of WatchOperation watch conditions.
 type Program struct {
 	hasOnChange bool
-	onChange  cel.Program
-	when      []cel.Program
+	onChange    cel.Program
+	when        []cel.Program
 }
 
 // Compile builds a Program from a WatchSpec.
