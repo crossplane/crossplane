@@ -25,7 +25,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -43,7 +42,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
 
 	extv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
-	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
@@ -59,19 +57,14 @@ const (
 	errGetPackageRevision = "cannot get package revision"
 	errUpdateStatus       = "cannot update package revision status"
 
-	errGetPullConfig = "cannot get image pull secret from config"
-
-	errManifestBuilderOptions = "cannot prepare runtime manifest builder options"
-	errPreHook                = "pre establish runtime hook failed for package"
-	errPostHook               = "post establish runtime hook failed for package"
-	errDeactivateHook         = "deactivation runtime hook failed for package"
+	errRuntimeConfig  = "cannot resolve deployment runtime config for package"
+	errPreHook        = "pre establish runtime hook failed for package"
+	errPostHook       = "post establish runtime hook failed for package"
+	errDeactivateHook = "deactivation runtime hook failed for package"
 
 	errNoRuntimeConfig          = "no deployment runtime config set"
 	errGetRuntimeConfig         = "cannot get referenced deployment runtime config"
 	errUnknownKindRuntimeConfig = "runtime config is set but is an unknown apiVersion and kind"
-	errGetServiceAccount        = "cannot get Crossplane service account"
-
-	errListMRDs = "cannot list ManagedResourceDefinitions to determine whether the provider runtime can start"
 )
 
 // Event reasons.
@@ -115,33 +108,10 @@ func WithRuntimeHooks(h Hooks) ReconcilerOption {
 	}
 }
 
-// WithNamespace specifies the namespace in which the Reconciler should create
-// runtime resources.
-func WithNamespace(n string) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.namespace = n
-	}
-}
-
-// WithServiceAccount specifies the core Crossplane ServiceAccount name.
-func WithServiceAccount(sa string) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.serviceAccount = sa
-	}
-}
-
 // WithFeatureFlags specifies the feature flags to inject into the Reconciler.
 func WithFeatureFlags(f *feature.Flags) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.features = f
-	}
-}
-
-// WithDeploymentSelectorMigrator specifies the deployment selector migrator
-// to use for handling provider deployment selector migrations.
-func WithDeploymentSelectorMigrator(m DeploymentSelectorMigrator) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.migrator = m
 	}
 }
 
@@ -154,16 +124,13 @@ func WithConfigStore(c xpkg.ConfigStore) ReconcilerOption {
 
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client         client.Client
-	log            logging.Logger
-	runtimeHook    Hooks
-	record         event.Recorder
-	conditions     conditions.Manager
-	features       *feature.Flags
-	migrator       DeploymentSelectorMigrator
-	namespace      string
-	serviceAccount string
-	pkgConfig      xpkg.ConfigStore
+	client      client.Client
+	log         logging.Logger
+	runtimeHook Hooks
+	record      event.Recorder
+	conditions  conditions.Manager
+	features    *feature.Flags
+	pkgConfig   xpkg.ConfigStore
 
 	newPackageRevisionWithRuntime func() v1.PackageRevisionWithRuntime
 }
@@ -195,11 +162,8 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionWithRuntimeFn(nr),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
-		WithNamespace(o.Namespace),
-		WithServiceAccount(o.ServiceAccount),
-		WithRuntimeHooks(NewProviderHooks(mgr.GetClient())),
+		WithRuntimeHooks(NewProviderHooks(mgr.GetClient(), o.Namespace, o.ServiceAccount, NewDeletingDeploymentSelectorMigrator(mgr.GetClient(), log))),
 		WithFeatureFlags(o.Features),
-		WithDeploymentSelectorMigrator(NewDeletingDeploymentSelectorMigrator(mgr.GetClient(), log)),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 	)
 
@@ -230,9 +194,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionWithRuntimeFn(nr),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
-		WithNamespace(o.Namespace),
-		WithServiceAccount(o.ServiceAccount),
-		WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())),
+		WithRuntimeHooks(NewFunctionHooks(mgr.GetClient(), o.Namespace, o.ServiceAccount)),
 		WithFeatureFlags(o.Features),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 	)
@@ -248,7 +210,6 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		log:        logging.NewNopLogger(),
 		record:     event.NewNopRecorder(),
 		conditions: conditions.ObservedGenerationPropagationManager{},
-		migrator:   NewNopDeploymentSelectorMigrator(),
 	}
 
 	for _, f := range opts {
@@ -295,35 +256,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
-	var pullSecretFromConfig string
-	// Read applied image config for SetImagePullSecret from the package
-	// revision status, so that we can use the same pull secret without having
-	// to resolve it again.
-	for _, icr := range pr.GetAppliedImageConfigRefs() {
-		if icr.Reason == v1.ImageConfigReasonSetPullSecret {
-			// Get applied image config to find the pull secret.
-			ic := &v1beta1.ImageConfig{}
-			if err := r.client.Get(ctx, types.NamespacedName{Name: icr.Name}, ic); err != nil {
-				err = errors.Wrap(err, errGetPullConfig)
-				status.MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
-
-				_ = r.client.Status().Update(ctx, pr)
-				r.record.Event(pr, event.Warning(reasonImageConfig, err))
-
-				return reconcile.Result{}, err
-			}
-
-			pullSecretFromConfig = ic.Spec.Registry.Authentication.PullSecretRef.Name
-
-			break
-		}
-	}
-
-	// Initialize the runtime manifest builder with the package revision
-	opts, err := r.builderOptions(ctx, pr)
+	// Resolve the deployment runtime config for the revision, if any. The
+	// runtime hooks use it as the base of the objects they build.
+	drc, err := r.runtimeConfig(ctx, pr)
 	if err != nil {
-		log.Debug(errManifestBuilderOptions, "error", err)
-		err = errors.Wrap(err, errManifestBuilderOptions)
+		log.Debug(errRuntimeConfig, "error", err)
+		err = errors.Wrap(err, errRuntimeConfig)
 		status.MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
 
 		_ = r.client.Status().Update(ctx, pr)
@@ -331,27 +269,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		return reconcile.Result{}, err
 	}
-
-	if pullSecretFromConfig != "" {
-		opts = append(opts, BuilderWithPullSecrets(pullSecretFromConfig))
-	}
-
-	ownedMRDs, err := r.ownedMRDs(ctx, pr)
-	if err != nil {
-		status.MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
-
-		_ = r.client.Status().Update(ctx, pr)
-		r.record.Event(pr, event.Warning(reasonSync, err))
-
-		return reconcile.Result{}, err
-	}
-
-	opts = append(opts, BuilderWithMRDs(ownedMRDs))
-	builder := NewDeploymentRuntimeBuilder(pr, r.namespace, opts...)
 
 	// Deactivate revision if it is inactive.
 	if pr.GetDesiredState() == v1.PackageRevisionInactive {
-		if err := r.runtimeHook.Deactivate(ctx, pr, builder); err != nil {
+		if err := r.runtimeHook.Deactivate(ctx, pr, drc); err != nil {
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
@@ -374,19 +295,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
-	// Migrate provider deployment selector, if needed.
-	if err := r.migrator.MigrateDeploymentSelector(ctx, pr, builder); err != nil {
-		err = errors.Wrap(err, "failed to run deployment selector migration")
-		status.MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
-
-		_ = r.client.Status().Update(ctx, pr)
-		r.record.Event(pr, event.Warning(reasonSync, err))
-
-		return reconcile.Result{}, err
-	}
-
 	// Run pre-establish hooks
-	if err := r.runtimeHook.Pre(ctx, pr, builder); err != nil {
+	if err := r.runtimeHook.Pre(ctx, pr, drc); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -409,8 +319,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
-	// Run post-establish hooks
-	if err := r.runtimeHook.Post(ctx, pr, builder); err != nil {
+	// Run post-establish hooks. Post will set the healthy condition if
+	// appropriate; record the previous value so that we can report an event
+	// when the condition transitions to true.
+	wasHealthy := pr.GetCondition(v1.TypeRuntimeHealthy).Status
+	if err := r.runtimeHook.Post(ctx, pr, drc); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -424,99 +337,61 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	if pr.GetCondition(v1.TypeRuntimeHealthy).Status != corev1.ConditionTrue {
+	if wasHealthy != corev1.ConditionTrue {
 		// We don't want to spam the user with events if the package revision is
 		// already healthy.
 		r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
 	}
 
-	if builder.AwaitingActivation() {
-		status.MarkConditions(v1.RuntimeHealthy(), v1.RuntimeAwaitingActivation().WithMessage("Package runtime is scaled to zero; awaiting the first ManagedResourceDefinition to be activated"))
-	} else {
-		status.MarkConditions(v1.RuntimeHealthy(), v1.RuntimeActive())
-	}
-
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 }
 
-// ownedMRDs returns the ManagedResourceDefinitions controlled by pr.
-// Returns nil without listing if pr does not have the safe-start capability.
-func (r *Reconciler) ownedMRDs(ctx context.Context, pr v1.PackageRevisionWithRuntime) ([]extv1alpha1.ManagedResourceDefinition, error) {
-	if !pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
+// runtimeConfig returns the DeploymentRuntimeConfig for the supplied revision.
+// It returns nil if deployment runtime configs are disabled.
+func (r *Reconciler) runtimeConfig(ctx context.Context, pwr v1.PackageRevisionWithRuntime) (*v1beta1.DeploymentRuntimeConfig, error) {
+	if !r.features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
 		return nil, nil
 	}
 
-	mrds := &extv1alpha1.ManagedResourceDefinitionList{}
-	if err := r.client.List(ctx, mrds); err != nil {
-		return nil, errors.Wrap(err, errListMRDs)
+	drcRef := pwr.GetRuntimeConfigRef()
+	if drcRef == nil {
+		return nil, errors.New(errNoRuntimeConfig)
 	}
 
-	var owned []extv1alpha1.ManagedResourceDefinition
-	for i := range mrds.Items {
-		if metav1.IsControlledBy(&mrds.Items[i], pr) {
-			owned = append(owned, mrds.Items[i])
-		}
-	}
-	return owned, nil
-}
+	// Find any ImageConfigs that override the runtime config.
+	configName, runtimeConfig, err := r.pkgConfig.RuntimeConfigFor(ctx, pwr.GetResolvedSource())
+	if err != nil {
+		err = errors.Wrapf(err, "failed to look up runtime ImageConfig for %s", pwr.GetResolvedSource())
+		r.conditions.For(pwr).MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
+		r.record.Event(pwr, event.Warning(reasonImageConfig, err))
 
-func (r *Reconciler) builderOptions(ctx context.Context, pwr v1.PackageRevisionWithRuntime) ([]BuilderOption, error) {
-	var opts []BuilderOption
-
-	if r.features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
-		rcRef := pwr.GetRuntimeConfigRef()
-		if rcRef == nil {
-			return nil, errors.New(errNoRuntimeConfig)
-		}
-
-		// Find any ImageConfigs that override the runtime config.
-		configName, runtimeConfig, err := r.pkgConfig.RuntimeConfigFor(ctx, pwr.GetResolvedSource())
-		if err != nil {
-			err = errors.Wrapf(err, "failed to look up runtime ImageConfig for %s", pwr.GetResolvedSource())
-			r.conditions.For(pwr).MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
-			r.record.Event(pwr, event.Warning(reasonImageConfig, err))
-
-			return nil, err
-		}
-		if runtimeConfig != nil && runtimeConfig.ConfigReference != nil {
-			rcRef = &v1.RuntimeConfigReference{
-				APIVersion: runtimeConfig.ConfigReference.APIVersion,
-				Kind:       runtimeConfig.ConfigReference.Kind,
-				Name:       runtimeConfig.ConfigReference.Name,
-			}
-
-			pwr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
-				Name:   configName,
-				Reason: v1.ImageConfigReasonRuntime,
-			})
-		} else {
-			pwr.ClearAppliedImageConfigRef(v1.ImageConfigReasonRuntime)
-		}
-
-		if rcRef.Kind != nil && rcRef.APIVersion != nil &&
-			(*rcRef.Kind != v1beta1.DeploymentRuntimeConfigKind && *rcRef.APIVersion != v1beta1.SchemeGroupVersion.String()) {
-			return nil, errors.New(errUnknownKindRuntimeConfig)
-		}
-
-		rc := &v1beta1.DeploymentRuntimeConfig{}
-		if err := r.client.Get(ctx, types.NamespacedName{Name: rcRef.Name}, rc); err != nil {
-			return nil, errors.Wrap(err, errGetRuntimeConfig)
-		}
-
-		opts = append(opts, BuilderWithRuntimeConfig(rc))
+		return nil, err
 	}
 
-	sa := &corev1.ServiceAccount{}
-	// Fetch XP ServiceAccount to get the ImagePullSecrets defined there.
-	// We will append them to the list of ImagePullSecrets for the runtime
-	// ServiceAccount.
-	if err := r.client.Get(ctx, types.NamespacedName{Namespace: r.namespace, Name: r.serviceAccount}, sa); err != nil {
-		return nil, errors.Wrap(err, errGetServiceAccount)
+	if runtimeConfig != nil && runtimeConfig.ConfigReference != nil {
+		drcRef = &v1.RuntimeConfigReference{
+			APIVersion: runtimeConfig.ConfigReference.APIVersion,
+			Kind:       runtimeConfig.ConfigReference.Kind,
+			Name:       runtimeConfig.ConfigReference.Name,
+		}
+
+		pwr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+			Name:   configName,
+			Reason: v1.ImageConfigReasonRuntime,
+		})
+	} else {
+		pwr.ClearAppliedImageConfigRef(v1.ImageConfigReasonRuntime)
 	}
 
-	if len(sa.ImagePullSecrets) > 0 {
-		opts = append(opts, BuilderWithServiceAccountPullSecrets(sa.ImagePullSecrets))
+	if drcRef.Kind != nil && drcRef.APIVersion != nil &&
+		(*drcRef.Kind != v1beta1.DeploymentRuntimeConfigKind && *drcRef.APIVersion != v1beta1.SchemeGroupVersion.String()) {
+		return nil, errors.New(errUnknownKindRuntimeConfig)
 	}
 
-	return opts, nil
+	drc := &v1beta1.DeploymentRuntimeConfig{}
+	if err := r.client.Get(ctx, types.NamespacedName{Name: drcRef.Name}, drc); err != nil {
+		return nil, errors.Wrap(err, errGetRuntimeConfig)
+	}
+
+	return drc, nil
 }

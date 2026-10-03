@@ -101,7 +101,7 @@ func TestLegacyUsageComposition(t *testing.T) {
 
 	nopList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
 		APIVersion: "nop.crossplane.io/v1alpha1",
-		Kind:       "NopResource",
+		Kind:       "ClusterNopResource",
 	}))
 
 	environment.Test(t,

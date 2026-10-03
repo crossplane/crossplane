@@ -130,7 +130,7 @@ func (r *apiSelectorResolver) resolveSelector(ctx context.Context, rs *protectio
 		// Persist the namespace only if we selected a namespaced object that's
 		// not in the Usage's namespace (if it has one).
 		if o.GetNamespace() != usage.GetNamespace() {
-			rs.ResourceRef.Namespace = ptr.To(o.GetNamespace())
+			rs.ResourceRef.Namespace = new(o.GetNamespace())
 		}
 
 		break

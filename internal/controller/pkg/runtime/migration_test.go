@@ -23,7 +23,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -44,13 +43,13 @@ const (
 
 // MockDeploymentSelectorMigrator is a mock implementation of DeploymentSelectorMigrator.
 type MockDeploymentSelectorMigrator struct {
-	MockMigrateDeploymentSelector func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error
+	MockMigrateDeploymentSelector func(ctx context.Context, pr v1.PackageRevisionWithRuntime, d *appsv1.Deployment) error
 }
 
 // MigrateDeploymentSelector calls MockMigrateDeploymentSelector if set, otherwise returns nil.
-func (m *MockDeploymentSelectorMigrator) MigrateDeploymentSelector(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+func (m *MockDeploymentSelectorMigrator) MigrateDeploymentSelector(ctx context.Context, pr v1.PackageRevisionWithRuntime, d *appsv1.Deployment) error {
 	if m.MockMigrateDeploymentSelector != nil {
-		return m.MockMigrateDeploymentSelector(ctx, pr, b)
+		return m.MockMigrateDeploymentSelector(ctx, pr, d)
 	}
 
 	return nil
@@ -61,31 +60,19 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
 
 	type args struct {
-		client  client.Client
-		pr      v1.PackageRevisionWithRuntime
-		builder ManifestBuilder
+		client   client.Client
+		pr       v1.PackageRevisionWithRuntime
+		expected *appsv1.Deployment
 	}
 
 	type want struct {
 		err error
 	}
 
-	mockBuilder := &MockManifestBuilder{
-		DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-			return &appsv1.Deployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      testDeploymentName,
-					Namespace: testNamespaceName,
-				},
-			}
-		},
-		ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-			return &corev1.ServiceAccount{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-sa",
-					Namespace: testNamespaceName,
-				},
-			}
+	expectedDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testDeploymentName,
+			Namespace: testNamespaceName,
 		},
 	}
 
@@ -97,9 +84,9 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 		"NotProviderRevision": {
 			reason: "Should return nil for non-provider revisions (like function revisions).",
 			args: args{
-				client:  &test.MockClient{},
-				pr:      &v1.FunctionRevision{},
-				builder: mockBuilder,
+				client:   &test.MockClient{},
+				pr:       &v1.FunctionRevision{},
+				expected: expectedDeployment,
 			},
 			want: want{
 				err: nil,
@@ -116,7 +103,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						},
 					},
 				},
-				builder: mockBuilder,
+				expected: expectedDeployment,
 			},
 			want: want{
 				err: nil,
@@ -140,7 +127,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						},
 					},
 				},
-				builder: mockBuilder,
+				expected: expectedDeployment,
 			},
 			want: want{
 				err: nil,
@@ -164,7 +151,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						},
 					},
 				},
-				builder: mockBuilder,
+				expected: expectedDeployment,
 			},
 			want: want{
 				err: errors.Wrap(errBoom, "cannot get existing deployment"),
@@ -194,7 +181,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						},
 					},
 				},
-				builder: mockBuilder,
+				expected: expectedDeployment,
 			},
 			want: want{
 				err: nil,
@@ -226,7 +213,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						},
 					},
 				},
-				builder: mockBuilder,
+				expected: expectedDeployment,
 			},
 			want: want{
 				err: nil,
@@ -260,7 +247,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						},
 					},
 				},
-				builder: mockBuilder,
+				expected: expectedDeployment,
 			},
 			want: want{
 				err: nil,
@@ -314,7 +301,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						},
 					},
 				},
-				builder: mockBuilder,
+				expected: expectedDeployment,
 			},
 			want: want{
 				err: nil,
@@ -349,7 +336,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 						},
 					},
 				},
-				builder: mockBuilder,
+				expected: expectedDeployment,
 			},
 			want: want{
 				err: errors.Wrap(errBoom, "cannot delete existing deployment for selector migration"),
@@ -361,7 +348,7 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 		t.Run(name, func(t *testing.T) {
 			migrator := NewDeletingDeploymentSelectorMigrator(tc.args.client, testLog)
 
-			err := migrator.MigrateDeploymentSelector(context.Background(), tc.args.pr, tc.args.builder)
+			err := migrator.MigrateDeploymentSelector(context.Background(), tc.args.pr, tc.args.expected)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nMigrateDeploymentSelector(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -370,22 +357,10 @@ func TestDeletingDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing
 }
 
 func TestNopDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing.T) {
-	mockBuilder := &MockManifestBuilder{
-		DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-			return &appsv1.Deployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      testDeploymentName,
-					Namespace: testNamespaceName,
-				},
-			}
-		},
-		ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-			return &corev1.ServiceAccount{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-sa",
-					Namespace: testNamespaceName,
-				},
-			}
+	expectedDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testDeploymentName,
+			Namespace: testNamespaceName,
 		},
 	}
 
@@ -429,7 +404,7 @@ func TestNopDeploymentSelectorMigrator_MigrateDeploymentSelector(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := migrator.MigrateDeploymentSelector(context.Background(), tc.pr, mockBuilder)
+			err := migrator.MigrateDeploymentSelector(context.Background(), tc.pr, expectedDeployment)
 			if err != nil {
 				t.Errorf("NopDeploymentSelectorMigrator should never return an error, got: %v", err)
 			}

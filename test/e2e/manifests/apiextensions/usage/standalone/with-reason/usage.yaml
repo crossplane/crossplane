@@ -5,7 +5,7 @@ metadata:
 spec:
   of:
     apiVersion: nop.crossplane.io/v1alpha1
-    kind: NopResource
+    kind: ClusterNopResource
     resourceSelector:
         matchLabels:
           tier: critical

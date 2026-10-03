@@ -143,8 +143,8 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 	// NOTE(hasheddan): consider adding health of package to lock so that it can
 	// be rolled up to any dependent packages.
 	self := v1beta1.LockPackage{
-		APIVersion:   ptr.To(m.packageType.GroupVersion().String()),
-		Kind:         ptr.To(m.packageType.Kind),
+		APIVersion:   new(m.packageType.GroupVersion().String()),
+		Kind:         new(m.packageType.Kind),
 		Name:         pr.GetName(),
 		Source:       lockRef,
 		Version:      prRef.Identifier(),

@@ -26,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
 )
@@ -138,7 +137,7 @@ func TestCRDAsUnstructured(t *testing.T) {
 									Served:             true,
 									Storage:            false,
 									Deprecated:         true,
-									DeprecationWarning: ptr.To("v1beta1 is deprecated, use v1 instead"),
+									DeprecationWarning: new("v1beta1 is deprecated, use v1 instead"),
 									Schema: &v1alpha1.CustomResourceValidation{
 										OpenAPIV3Schema: runtime.RawExtension{
 											Raw: []byte(`{"type":"object","properties":{"spec":{"type":"object"}}}`),
@@ -339,8 +338,8 @@ func TestCRDAsUnstructured(t *testing.T) {
 								Kind:               "ProviderRevision",
 								Name:               "provider-example-abc123",
 								UID:                types.UID(providerRevisionUID),
-								Controller:         ptr.To(true),
-								BlockOwnerDeletion: ptr.To(true),
+								Controller:         new(true),
+								BlockOwnerDeletion: new(true),
 							},
 						},
 					},

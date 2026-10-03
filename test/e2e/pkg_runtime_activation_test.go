@@ -39,7 +39,9 @@ import (
 // SuiteProviderRuntimeActivation is the test suite for provider runtime
 // activation, which is part of the CRD to MRD conversion feature. The chart's
 // default activation policy is disabled so that the safe-start provider's
-// MRDs stay inactive until the test activates them.
+// MRDs stay inactive until the test activates them. That would scale the
+// safe-start providers in the default tests to zero, so this suite only runs
+// its own tests.
 const SuiteProviderRuntimeActivation = "provider-runtime-activation"
 
 func init() {
@@ -51,7 +53,7 @@ func init() {
 			),
 		),
 		config.WithLabelsToSelect(features.Labels{
-			config.LabelTestSuite: []string{SuiteProviderRuntimeActivation, config.TestSuiteDefault},
+			config.LabelTestSuite: []string{SuiteProviderRuntimeActivation},
 		}),
 	)
 }

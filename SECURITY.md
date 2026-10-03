@@ -43,6 +43,11 @@ directly to confirm receipt of the issue.
 
 ### Report Content
 
+Crossplane's [security non-goals](./security/self-assessment.md#non-goals)
+describe what Crossplane does not intend to protect against. Behavior covered by
+them will not be treated as a vulnerability. Please review them before
+submitting a report.
+
 Make sure to include all the details that might help maintainers better
 understand and prioritize it, for example here is a list of details that might be
 worth adding:

@@ -23,7 +23,7 @@ jobs:
     permissions:
       contents: write  # for korthout/backport-action to create branch
       pull-requests: write  # for korthout/backport-action to create PR to backport
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: github.event.pull_request.merged
     steps:
       - name: Checkout
@@ -32,7 +32,7 @@ jobs:
           fetch-depth: 0
 
       - name: Open Backport PR
-        uses: korthout/backport-action@2e830a1d0b8269505846ddd407a70876913ad1f8 # v4.6.0
+        uses: korthout/backport-action@8560fb503c275d433c56f05a2f64850093baa9f7 # v4.7.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_workspace: ${{ github.workspace }}

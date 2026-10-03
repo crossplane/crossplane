@@ -58,6 +58,7 @@ const (
 	errDeleteCDs            = "cannot delete connection details"
 	errRemoveFinalizer      = "cannot remove finalizer from claim"
 	errAddFinalizer         = "cannot add finalizer to claim"
+	errListXRD              = "cannot list CompositeResourceDefinitions"
 	errUpgradeManagedFields = "cannot upgrade composite resource's managed fields from client-side to server-side apply"
 	errSync                 = "cannot bind and sync claim with composite resource"
 	errPropagateCDs         = "cannot propagate connection details from composite resource"
@@ -457,11 +458,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// We use an index to efficiently look up the XRD for this composite GVK.
 	hasEnforcedComposition := false
 	xrdList := &v1.CompositeResourceDefinitionList{}
-	if err := r.client.List(ctx, xrdList, client.MatchingFields{XRDByCompositeGVKIndex(): compositeGVKKeyFor(r.gvkXR)}); err == nil && len(xrdList.Items) > 0 {
-		// There should only be one XRD for a given composite GVK
-		if xrdList.Items[0].Spec.EnforcedCompositionRef != nil {
-			hasEnforcedComposition = true
-		}
+	if err := r.client.List(ctx, xrdList, client.MatchingFields{XRDByCompositeGVKIndex(): compositeGVKKeyFor(r.gvkXR)}); err != nil {
+		err = errors.Wrap(err, errListXRD)
+		record.Event(cm, event.Warning(reasonBind, err))
+		status.MarkConditions(xpv2.ReconcileError(err))
+		_ = r.client.Status().Update(ctx, cm)
+
+		return reconcile.Result{}, err
+	}
+	// There should only be one XRD for a given composite GVK
+	if len(xrdList.Items) > 0 && xrdList.Items[0].Spec.EnforcedCompositionRef != nil {
+		hasEnforcedComposition = true
 	}
 
 	// Create (if necessary), bind, and sync an XR with the claim.

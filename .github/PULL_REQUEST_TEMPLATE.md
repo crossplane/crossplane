@@ -19,6 +19,7 @@ Fixes #
 I have: <!--You MUST either [x] check or [ ] ~strike through~ every item.-->
 
 - [ ] Read and followed Crossplane's [contribution process].
+- [ ] Read and followed Crossplane's [AI policy] and confirmed a human stands behind this PR.
 - [ ] Run `./nix.sh flake check` to ensure this PR is ready for review.
 - [ ] Added or updated unit tests.
 - [ ] Added or updated e2e tests.
@@ -29,6 +30,7 @@ I have: <!--You MUST either [x] check or [ ] ~strike through~ every item.-->
 Need help with this checklist? See the [cheat sheet].
 
 [contribution process]: https://github.com/crossplane/crossplane/tree/main/contributing
+[AI policy]: https://github.com/crossplane/crossplane/blob/main/AI_POLICY.md
 [docs tracking issue]: https://github.com/crossplane/docs/issues/new
 [document this change]: https://docs.crossplane.io/contribute/contribute
 [cheat sheet]: https://github.com/crossplane/crossplane/tree/main/contributing#checklist-cheat-sheet

@@ -30,7 +30,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -763,9 +762,9 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 	switch d.GetComposite().GetReady() {
 	case fnv1.Ready_READY_TRUE:
-		ready = ptr.To(true)
+		ready = new(true)
 	case fnv1.Ready_READY_FALSE:
-		ready = ptr.To(false)
+		ready = new(false)
 	case fnv1.Ready_READY_UNSPECIFIED:
 		// Remains nil.
 	}

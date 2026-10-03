@@ -24,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -55,7 +54,7 @@ func TestEnqueueProviderRevisionsForMRDs(t *testing.T) {
 		Kind:       v1.ProviderRevisionKind,
 		Name:       revisionName,
 		UID:        types.UID("some-uid"),
-		Controller: ptr.To(true),
+		Controller: new(true),
 	}
 
 	cases := map[string]struct {
@@ -85,7 +84,7 @@ func TestEnqueueProviderRevisionsForMRDs(t *testing.T) {
 				Kind:       "Composite",
 				Name:       "some-owner",
 				UID:        types.UID("some-uid"),
-				Controller: ptr.To(true),
+				Controller: new(true),
 			}),
 			want: nil,
 		},
@@ -96,7 +95,7 @@ func TestEnqueueProviderRevisionsForMRDs(t *testing.T) {
 				Kind:       v1.ProviderRevisionKind,
 				Name:       "some-owner",
 				UID:        types.UID("some-uid"),
-				Controller: ptr.To(true),
+				Controller: new(true),
 			}),
 			want: nil,
 		},
