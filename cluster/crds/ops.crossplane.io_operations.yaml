@@ -25,6 +25,9 @@ spec:
     - jsonPath: .status.conditions[?(@.type=='Succeeded')].status
       name: SUCCEEDED
       type: string
+    - jsonPath: .status.appliedResourceCount
+      name: APPLIED
+      type: integer
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
@@ -244,6 +247,11 @@ spec:
           status:
             description: OperationStatus represents the observed state of an operation.
             properties:
+              appliedResourceCount:
+                description: AppliedResourceCount is the number of resources applied
+                  by this Operation.
+                format: int64
+                type: integer
               appliedResourceRefs:
                 description: AppliedResourceRefs references all resources the Operation
                   applied.
