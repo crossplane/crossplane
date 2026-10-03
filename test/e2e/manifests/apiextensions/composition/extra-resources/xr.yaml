@@ -1,0 +1,10 @@
+apiVersion: example.org/v1alpha1
+kind: ExtraTest
+metadata:
+  namespace: default
+  name: extra-resources-test
+spec:
+  testField: "test value"
+  crossplane:
+    compositionRef:
+      name: extra-resource-composition

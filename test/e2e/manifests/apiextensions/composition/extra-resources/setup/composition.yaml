@@ -1,0 +1,45 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: extra-resource-composition
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: ExtraTest
+  mode: Pipeline
+  pipeline:
+  - step: request-and-verify-extra-resources
+    functionRef:
+      name: function-dummy-extra-resources
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      response:
+        requirements:
+          resources:
+            test-configmap:
+              apiVersion: v1
+              kind: ConfigMap
+              namespaceSelector:
+                matchNames:
+                - default
+              resourceSelector:
+                matchLabels:
+                  app: extra-resource-test
+        desired:
+          composite:
+            resource:
+              status:
+                resourceReceived: true
+                resourceHasExpectedData: true
+          resources:
+            configmap:
+              resource:
+                apiVersion: v1
+                kind: ConfigMap
+                data:
+                  composedBy: "extra-resources-test"
+              ready: READY_TRUE
+        results:
+        - severity: SEVERITY_NORMAL
+          message: "Extra resources test composition complete"
