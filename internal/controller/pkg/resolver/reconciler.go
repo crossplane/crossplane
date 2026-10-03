@@ -360,6 +360,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 						installedVersion = rref.Identifier()
 					}
 				}
+				// If the original source reference includes both a tag and a
+				// digest (e.g. v1.0.0@sha256:...), go-containerregistry parses
+				// it as a Digest and Identifier() returns only the digest. We
+				// need the tag for semver constraint evaluation during
+				// upgrades.
+				if tag, digest, err := parseRef(source); err == nil && tag != "" && digest != "" {
+					if _, err := conregv1.NewHash(installedVersion); err == nil {
+						installedVersion = tag
+					}
+				}
 			}
 		}
 	}
@@ -442,7 +452,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Update the package with the new version.
 	format := packageTagFmt
-	if strings.HasPrefix(newVer, "sha256:") {
+	if _, err := conregv1.NewHash(newVer); err == nil {
 		format = packageDigestFmt
 	}
 
@@ -654,7 +664,7 @@ func pruneOutdatedDependencies(pkgs []v1beta1.LockPackage) []v1beta1.LockPackage
 		}
 
 		// Keep if it matches at least one dependency constraint.
-		if matchesAnyConstraint(pkg.Version, depConstraints[pkg.Source]) {
+		if matchesAnyConstraint(pkg.Version, pkg.ResolvedVersion, depConstraints[pkg.Source]) {
 			filtered = append(filtered, pkg)
 		}
 	}
@@ -663,12 +673,22 @@ func pruneOutdatedDependencies(pkgs []v1beta1.LockPackage) []v1beta1.LockPackage
 }
 
 // matchesAnyConstraint checks if a version matches a constraint.  Handles both
-// semantic version constraints and digest pins.
-func matchesAnyConstraint(version string, constraints []string) bool {
+// semantic version constraints and digest pins. If the lock package has a
+// ResolvedVersion (set when the package was installed with a tag@digest
+// reference), the resolved tag is used for semver constraint evaluation.
+func matchesAnyConstraint(version string, resolvedVersion string, constraints []string) bool {
 	// Check whether the version is a digest; if it is, it must exactly match
 	// some constraint.
 	if _, err := conregv1.NewHash(version); err == nil {
-		return slices.Contains(constraints, version)
+		if slices.Contains(constraints, version) {
+			return true
+		}
+		// If the digest didn't match directly but we have a resolved version
+		// tag, fall through to semver evaluation against the resolved tag.
+		if resolvedVersion == "" {
+			return false
+		}
+		version = resolvedVersion
 	}
 
 	// Otherwise, we should have a semantic version and need to check each
@@ -700,13 +720,41 @@ func matchesAnyConstraint(version string, constraints []string) bool {
 	return false
 }
 
+// parseRef splits an OCI reference into its tag and digest components.
+// A reference may carry both (e.g. v1.0.0@sha256:...), in which case
+// go-containerregistry parses it as a name.Digest and Identifier() returns
+// only the digest, so the tag is recovered from the original string.
+func parseRef(s string) (tag, digest string, err error) {
+	ref, err := name.ParseReference(s, name.StrictValidation)
+	if err != nil {
+		return "", "", errors.Wrap(err, "invalid reference")
+	}
+
+	switch r := ref.(type) {
+	case name.Digest:
+		// Check whether there was also a tag.
+		stripped := strings.TrimSuffix(s, "@"+r.DigestStr())
+		if tag, err := name.NewTag(stripped, name.StrictValidation); err == nil {
+			return tag.TagStr(), r.DigestStr(), nil
+		}
+
+		return "", r.DigestStr(), nil
+
+	case name.Tag:
+		return r.TagStr(), "", nil
+
+	default:
+		return "", "", errors.Errorf("unknown reference type %T", ref)
+	}
+}
+
 // NewPackage creates a new package from the given dependency and version.
 func NewPackage(dep *v1beta1.Dependency, version string, ref name.Reference) (*unstructured.Unstructured, error) {
 	pack := &unstructured.Unstructured{}
 	pack.SetName(xpkg.ToDNSLabel(ref.Context().RepositoryStr()))
 
 	format := packageTagFmt
-	if strings.HasPrefix(version, "sha256:") {
+	if _, err := conregv1.NewHash(version); err == nil {
 		format = packageDigestFmt
 	}
 
