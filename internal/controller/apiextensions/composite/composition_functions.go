@@ -37,6 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
@@ -718,44 +719,63 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	}
 
 	// Our goal here is to patch our XR's status using server-side apply. We
-	// want the resulting, patched object loaded into uxr. We need to pass in
-	// only our "fully specified intent" - i.e. only the fields that we actually
-	// care about. FromStruct will replace uxr's backing map[string]any with the
-	// content of GetResource (i.e. the desired status). We then need to set its
-	// GVK and name so that our client knows what resource to patch.
-	v := xr.GetAPIVersion()
-	k := xr.GetKind()
-	ns := xr.GetNamespace()
-	n := xr.GetName()
-	u := xr.GetUID()
+	// want to update only the spec and status fields from the composition
+	// function output, while preserving all existing metadata (managedFields,
+	// resourceVersion, etc.) for proper SSA field ownership tracking.
+
+	// Create a patch containing only spec and status from the composition function output
+	desired := d.GetComposite().GetResource()
+	patch := map[string]interface{}{
+		"apiVersion": xr.GetAPIVersion(),
+		"kind":       xr.GetKind(),
+		"metadata": map[string]interface{}{
+			"name":      xr.GetName(),
+			"namespace": xr.GetNamespace(),
+		},
+	}
+
+	// Copy spec and status from desired state
+	if spec, ok := desired.(map[string]interface{})["spec"]; ok {
+		patch["spec"] = spec
+	}
+	if status, ok := desired.(map[string]interface{})["status"]; ok {
+		patch["status"] = status
+	}
+
+	// Preserve conditions from before composition function ran
 	cs := xr.GetConditions()
-
-	if err := xfn.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
-		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
-	}
-
-	xr.SetAPIVersion(v)
-	xr.SetKind(k)
-	xr.SetNamespace(ns)
-	xr.SetName(n)
-	xr.SetUID(u)
-
-	// Include any pending conditions so we don't lose them. SetConditions
-	// will set conditions to nil if it's not passed any arguments. SSA
-	// interprets this as null and rejects it, so we only set them if
-	// there's actually some to set.
 	if len(cs) > 0 {
-		xr.SetConditions(cs...)
+		condList := make([]interface{}, len(cs))
+		for i, c := range cs {
+			condList[i] = map[string]interface{}{
+				"type":               c.Type,
+				"status":             c.Status,
+				"reason":             c.Reason,
+				"message":            c.Message,
+				"lastTransitionTime": c.LastTransitionTime,
+			}
+		}
+		if statusMap, ok := patch["status"].(map[string]interface{}); ok {
+			statusMap["conditions"] = condList
+		}
 	}
+
+	// Create unstructured from patch for server-side apply
+	patchObj := &unstructured.Unstructured{Object: patch}
 
 	// NOTE(phisco): Here we are fine using a hardcoded field owner as there is
 	// no risk of conflict between different XRs.
 	//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
-	if err := c.client.Status().Patch(ctx, xr, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerXR)); err != nil {
+	if err := c.client.Status().Patch(ctx, patchObj, client.Apply, client.FieldOwner(FieldOwnerXR)); err != nil {
 		// Note(phisco): here we are fine with this error being terminal, as
 		// there is no other resource to apply that might eventually resolve
 		// this issue.
 		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
+	}
+
+	// Load the result back into xr for downstream processing
+	if err := xfn.FromStruct(xr, patchObj.Object); err != nil {
+		return CompositionResult{}, errors.Wrap(err, "cannot reload patched XR")
 	}
 
 	var ready *bool

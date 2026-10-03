@@ -102,6 +102,8 @@ type startCommand struct {
 	Namespace      string `default:"crossplane-system"     env:"POD_NAMESPACE"                                                      help:"Namespace used to unpack and run packages."                      short:"n"`
 	ServiceAccount string `default:"crossplane"            env:"POD_SERVICE_ACCOUNT"                                                help:"Name of the Crossplane Service Account."`
 	LeaderElection bool   `default:"false"                 env:"LEADER_ELECTION"                                                    help:"Use leader election for the controller manager."                 short:"l"`
+	LeaderElectionLeaseDuration time.Duration `default:"60s" env:"LEADER_ELECTION_LEASE_DURATION" help:"Duration that non-leader candidates will wait after observing a leader before attempting to acquire leadership."`
+	LeaderElectionRenewDeadline time.Duration `default:"50s" env:"LEADER_ELECTION_RENEW_DEADLINE" help:"Duration that the acting controlplane will retry refreshing leadership before giving up."`
 	CABundlePath   string `env:"CA_BUNDLE_PATH"            help:"Additional CA bundle to use when fetching packages from registry."`
 	UserAgent      string `default:"${default_user_agent}" env:"USER_AGENT"                                                         help:"The User-Agent header that will be set on all package requests."`
 
@@ -241,8 +243,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		LeaderElectionID:              "crossplane-leader-election-core",
 		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
 		LeaderElectionReleaseOnCancel: true,
-		LeaseDuration:                 func() *time.Duration { d := 60 * time.Second; return &d }(),
-		RenewDeadline:                 func() *time.Duration { d := 50 * time.Second; return &d }(),
+		LeaseDuration:                 &c.LeaderElectionLeaseDuration,
+		RenewDeadline:                 &c.LeaderElectionRenewDeadline,
 
 		PprofBindAddress:       c.Profile,
 		HealthProbeBindAddress: fmt.Sprintf(":%d", c.HealthProbePort),
