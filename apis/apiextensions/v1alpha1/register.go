@@ -59,10 +59,17 @@ var (
 	ManagedResourceActivationPolicyGroupKind        = schema.GroupKind{Group: Group, Kind: ManagedResourceActivationPolicyKind}.String()
 	ManagedResourceActivationPolicyKindAPIVersion   = ManagedResourceActivationPolicyKind + "." + SchemeGroupVersion.String()
 	ManagedResourceActivationPolicyGroupVersionKind = SchemeGroupVersion.WithKind(ManagedResourceActivationPolicyKind)
+
+	// DiscoveryReport type metadata.
+	DiscoveryReportKind             = reflect.TypeFor[DiscoveryReport]().Name()
+	DiscoveryReportGroupKind        = schema.GroupKind{Group: Group, Kind: DiscoveryReportKind}.String()
+	DiscoveryReportKindAPIVersion   = DiscoveryReportKind + "." + SchemeGroupVersion.String()
+	DiscoveryReportGroupVersionKind = SchemeGroupVersion.WithKind(DiscoveryReportKind)
 )
 
 func init() {
 	SchemeBuilder.Register(&Usage{}, &UsageList{},
 		&ManagedResourceDefinition{}, &ManagedResourceDefinitionList{},
-		&ManagedResourceActivationPolicy{}, &ManagedResourceActivationPolicyList{})
+		&ManagedResourceActivationPolicy{}, &ManagedResourceActivationPolicyList{},
+		&DiscoveryReport{}, &DiscoveryReportList{})
 }
