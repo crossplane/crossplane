@@ -9,7 +9,7 @@ Crossplane uses a `Makefile` with several targets, like `make build`, to
 automate tasks that developers frequently need to run when developing
 Crossplane.
 
-Crossplane also uses GitHub Actions for continous integration (CI), to validate
+Crossplane also uses GitHub Actions for continuous integration (CI), to validate
 pull requests. Most of Crossplane's GitHub Actions workflows run the same Make
 targets. This creates some consistency between local development and CI. For
 example `make test` should have the same result whether run locally or in CI.
