@@ -104,6 +104,19 @@ func packageRevisionID(digest string, generation int64) string {
 	return hex.EncodeToString(h[:])
 }
 
+// parentLabel truncates the package name to fit within the 63-character
+// Kubernetes label value limit. This must be consistent with how the
+// revision name is truncated in FriendlyID to ensure the label selector
+// at list time matches the label set at create time.
+func parentLabel(name string) string {
+	const maxLen = 63
+	if len(name) > maxLen {
+		return name[:maxLen]
+	}
+	return name
+}
+
+
 // WithNewPackageRevisionFn determines the type of package being reconciled.
 func WithNewPackageRevisionFn(f func() v1.PackageRevision) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -313,7 +326,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Get existing package revisions.
 	prs := r.newPackageRevisionList()
-	if err := r.kube.List(ctx, prs, client.MatchingLabels(map[string]string{v1.LabelParentPackage: p.GetName()})); resource.IgnoreNotFound(err) != nil {
+	if err := r.kube.List(ctx, prs, client.MatchingLabels(map[string]string{v1.LabelParentPackage: parentLabel(p.GetName())})); resource.IgnoreNotFound(err) != nil {
 		err = errors.Wrap(err, errListRevisions)
 		r.record.Event(p, event.Warning(reasonList, err))
 
@@ -449,7 +462,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Create the non-existent package revision.
 	pr.SetName(revisionName)
-	pr.SetLabels(map[string]string{v1.LabelParentPackage: p.GetName()})
+	pr.SetLabels(map[string]string{v1.LabelParentPackage: parentLabel(p.GetName())})
 	// Use the original source; the revision reconciler will rewrite it if
 	// needed. The revision reconciler also inserts packages into the dependency
 	// manager's lock, which must use the original source to ensure dependency
