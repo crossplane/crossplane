@@ -201,7 +201,7 @@ func (d *MapDag) AddEdges(edges map[string][]Node) ([]Node, error) {
 // AddEdge adds an edge to the graph.
 func (d *MapDag) AddEdge(from string, to Node) (bool, error) {
 	if _, ok := d.nodes[from]; !ok {
-		return false, errors.Errorf("node %s does not exist", to)
+		return false, errors.Errorf("node %s does not exist", from)
 	}
 
 	implied := false

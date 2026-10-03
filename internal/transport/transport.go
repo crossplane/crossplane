@@ -46,6 +46,9 @@ func NewUserAgent(rt http.RoundTripper, userAgent string) *UserAgent {
 
 // RoundTrip injects a User-Agent header into every request.
 func (u *UserAgent) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Clone the request before modifying it to comply with the http.RoundTripper
+	// contract, which forbids mutating the original request.
+	req = req.Clone(req.Context())
 	req.Header.Set("User-Agent", u.userAgent)
 	return u.rt.RoundTrip(req)
 }
