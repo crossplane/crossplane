@@ -2297,3 +2297,118 @@ func TestPipelineFatalErrorAs(t *testing.T) {
 		t.Errorf("errors.As recovered PipelineFatalError: -want, +got:\n%s", diff)
 	}
 }
+
+func TestComposePreservesManagedFields(t *testing.T) {
+	type params struct {
+		c  client.Client
+		uc client.Client
+		r  FunctionRunner
+	}
+
+	type args struct {
+		ctx context.Context
+		xr  *composite.Unstructured
+		req CompositionRequest
+	}
+
+	type want struct {
+		xr  *composite.Unstructured
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		params params
+		args   args
+		want   want
+	}{
+		"ManagedFieldsArePreserved": {
+			reason: "Compose should preserve existing managedFields on the XR even when they are absent from the desired composite returned by the function runner.",
+			params: params{
+				c: &test.MockClient{
+					MockGet:         test.NewMockGetFn(nil),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				uc: &test.MockClient{
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+					MockGet:         test.NewMockGetFn(nil),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					return &fnv1.RunFunctionResponse{
+						Desired: &fnv1.State{
+							Composite: &fnv1.Resource{
+								Resource: structpb.NewStructValue(&structpb.Struct{
+									Fields: map[string]*structpb.Value{
+										"metadata": structpb.NewStructValue(&structpb.Struct{
+											Fields: map[string]*structpb.Value{
+												"name": structpb.NewStringValue("my-xr"),
+											},
+										}),
+									},
+								}).GetStructValue(),
+							},
+						},
+					}, nil
+				}),
+			},
+			args: args{
+				ctx: context.Background(),
+				xr: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"name": "my-xr",
+								"managedFields": []any{
+									map[string]any{
+										"manager": "test-manager",
+									},
+								},
+							},
+						},
+					},
+				},
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{},
+				},
+			},
+			want: want{
+				xr: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"apiVersion": "",
+							"kind":       "",
+							"metadata": map[string]any{
+								"name": "my-xr",
+								"managedFields": []any{
+									map[string]any{
+										"manager": "test-manager",
+									},
+								},
+							},
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := NewFunctionComposer(tc.params.c, tc.params.uc, tc.params.r)
+
+			_, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nCompose(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			// Verify that managedFields (and the rest of the XR) matches our expectations
+			if diff := cmp.Diff(tc.want.xr, tc.args.xr); diff != "" {
+				t.Errorf("\n%s\nCompose(...) XR state: -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
