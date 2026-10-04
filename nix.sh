@@ -107,6 +107,18 @@ if [ -t 1 ]; then
 	INTERACTIVE_FLAGS="-it"
 fi
 
+CERT_FLAGS=()
+if [ -n "${NIX_SSL_CERT_FILE:-}" ]; then
+	if [ ! -f "${NIX_SSL_CERT_FILE}" ]; then
+		echo "NIX_SSL_CERT_FILE does not exist: ${NIX_SSL_CERT_FILE}" >&2
+		exit 1
+	fi
+	CERT_FLAGS=(
+		-v "${NIX_SSL_CERT_FILE}:/etc/ssl/certs/host-ca-bundle.pem:ro"
+		-e "NIX_SSL_CERT_FILE=/etc/ssl/certs/host-ca-bundle.pem"
+	)
+fi
+
 # Run with --privileged for Docker-in-Docker (required for kind clusters).
 docker run --rm --privileged --cgroupns=host ${INTERACTIVE_FLAGS} \
 	-v "$(pwd):/crossplane" \
@@ -119,5 +131,6 @@ docker run --rm --privileged --cgroupns=host ${INTERACTIVE_FLAGS} \
 	-e "HOST_UID=$(id -u)" \
 	-e "HOST_GID=$(id -g)" \
 	-e "TERM=${TERM:-xterm}" \
+	"${CERT_FLAGS[@]}" \
 	nixos/nix \
 	/crossplane/nix.sh "${@}"
