@@ -116,11 +116,12 @@ if [ -n "${NIX_SSL_CERT_FILE:-}" ]; then
 	CERT_FLAGS=(
 		-v "${NIX_SSL_CERT_FILE}:/etc/ssl/certs/host-ca-bundle.pem:ro"
 		-e "NIX_SSL_CERT_FILE=/etc/ssl/certs/host-ca-bundle.pem"
+		-e "SSL_CERT_FILE=/etc/ssl/certs/host-ca-bundle.pem"
 	)
 fi
 
 # Run with --privileged for Docker-in-Docker (required for kind clusters).
-docker run --rm --privileged --cgroupns=host ${INTERACTIVE_FLAGS} \
+MSYS_NO_PATHCONV=1 docker run --rm --privileged --cgroupns=host ${INTERACTIVE_FLAGS} \
 	-v "$(pwd):/crossplane" \
 	-v "crossplane-nix:/nix" \
 	-w /crossplane \

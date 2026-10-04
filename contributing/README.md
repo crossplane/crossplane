@@ -136,6 +136,31 @@ Use your editor or IDE to write code, then validate with `nix.sh`:
 ./nix.sh flake show         # List all available commands
 ```
 
+### Custom CA Certificates
+
+If your network uses a private certificate authority or a TLS-inspecting proxy,
+set `NIX_SSL_CERT_FILE` to a complete PEM CA bundle before running `nix.sh`. The
+wrapper validates the file, mounts it read-only into the container, and makes it
+available to both Nix and Go.
+
+On Linux, macOS, or Git Bash:
+
+```sh
+export NIX_SSL_CERT_FILE=/path/to/ca-bundle.pem
+./nix.sh run .#test
+```
+
+On Windows PowerShell with Git for Windows installed:
+
+```powershell
+$env:NIX_SSL_CERT_FILE = 'C:\path\to\ca-bundle.pem'
+& "$env:LOCALAPPDATA\Programs\Git\bin\bash.exe" ./nix.sh run '.#test'
+```
+
+The file must include the public roots normally present in a system CA bundle
+in addition to any private roots. Supplying only a private CA can prevent tools
+in the container from trusting public services.
+
 Build output goes to `./result/`. For example, after `./nix.sh build` you'll
 find binaries in `./result/bin/` and container images as tarballs.
 
