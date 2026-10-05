@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,10 +40,10 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/ssa"
 )
 
-// TestCRDPrunesFieldsAfterCreate needs real managedFields and CRD merge semantics.
-// Set KUBEBUILDER_ASSETS to a directory containing kube-apiserver and etcd.
-// This is an opt-in local regression; CI does not currently provide the assets.
-func TestCRDPrunesFieldsAfterCreate(t *testing.T) {
+// newMRDEnvtestClient starts an isolated API server for opt-in local regressions.
+// CI does not currently provide KUBEBUILDER_ASSETS.
+func newMRDEnvtestClient(t *testing.T) client.Client {
+	t.Helper()
 	assets := os.Getenv("KUBEBUILDER_ASSETS")
 	if assets == "" {
 		t.Skip("set KUBEBUILDER_ASSETS to run the API-server regression")
@@ -61,7 +62,7 @@ func TestCRDPrunesFieldsAfterCreate(t *testing.T) {
 		}
 	})
 	scheme := runtime.NewScheme()
-	for _, add := range []func(*runtime.Scheme) error{extv1.AddToScheme, v1alpha1.AddToScheme} {
+	for _, add := range []func(*runtime.Scheme) error{corev1.AddToScheme, extv1.AddToScheme, v1alpha1.AddToScheme} {
 		if err := add(scheme); err != nil {
 			t.Fatal(err)
 		}
@@ -70,6 +71,12 @@ func TestCRDPrunesFieldsAfterCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	return c
+}
+
+// TestCRDPrunesFieldsAfterCreate needs real managedFields and CRD merge semantics.
+func TestCRDPrunesFieldsAfterCreate(t *testing.T) {
+	c := newMRDEnvtestClient(t)
 	ctx := context.Background()
 	oldSchema := &v1alpha1.CustomResourceValidation{OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(`{"type":"object","properties":{"spec":{"type":"object","properties":{"keep":{"type":"string"},"obsolete":{"type":"string"}}}}}`)}}
 	mrd := &v1alpha1.ManagedResourceDefinition{
