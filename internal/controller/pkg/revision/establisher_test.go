@@ -688,7 +688,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							}
 							return nil
 						}
-						return nil
+						return kerrors.NewNotFound(schema.GroupResource{}, obj.GetName())
 					},
 					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 						// Verify the merge logic for all combinations
