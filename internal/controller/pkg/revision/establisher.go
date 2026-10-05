@@ -416,6 +416,11 @@ func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired
 }
 
 func (e *APIEstablisher) create(ctx context.Context, obj resource.Object, parent resource.Object, opts ...client.CreateOption) error {
+	// Typed creates can clear TypeMeta. Preserve it for the status references
+	// used to release control when a revision is deactivated.
+	gvk := obj.GetObjectKind().GroupVersionKind()
+	defer obj.GetObjectKind().SetGroupVersionKind(gvk)
+
 	refs := []metav1.OwnerReference{
 		meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind())),
 	}
