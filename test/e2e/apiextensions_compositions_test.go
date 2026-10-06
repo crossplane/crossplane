@@ -20,6 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -28,6 +30,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
+	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
@@ -506,4 +510,112 @@ func TestRequiredResources(t *testing.T) {
 			)).
 			Feature(),
 	)
+}
+
+func TestCompositionRevisionGarbageCollection(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/revision-gc"
+
+	// Each update changes an annotation, which creates a new revision. We wait
+	// for each revision before the next update. The controller only sees the
+	// latest state, so updating faster could skip revisions.
+	update := func(n int) features.Func {
+		return funcs.ApplyResources(FieldManager, manifests, "composition.yaml",
+			funcs.SetAnnotationMutateOption("revision-gc.e2e.crossplane.io/update", strconv.Itoa(n)))
+	}
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that Crossplane deletes unused CompositionRevisions beyond the Composition's revision history limit.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateComposition", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "composition.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "composition.yaml"),
+				compositionRevisionsWithin(30*time.Second, "revision-gc", 1),
+			)).
+			// Create an XR with the manual update policy. It will be pinned to
+			// revision 1, so revision 1 is in use.
+			Assess("CreateXRPinnedToFirstRevision", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "xr.yaml", "spec.crossplane.compositionRevisionRef.name", funcs.Any),
+			)).
+			// No GC on the first update: all revisions are in use.
+			Assess("UpdateCompositionOnce", funcs.AllOf(
+				update(1),
+				compositionRevisionsWithin(30*time.Second, "revision-gc", 1, 2),
+			)).
+			// GC on the second update: revision 2 is unused and
+			// revisionHistoryLimit is 1.
+			Assess("UpdateCompositionTwice", funcs.AllOf(
+				update(2),
+				compositionRevisionsWithin(30*time.Second, "revision-gc", 1, 3),
+			)).
+			// GC on the third update: revision 3 is unused.
+			Assess("UpdateCompositionThreeTimes", funcs.AllOf(
+				update(3),
+				compositionRevisionsWithin(30*time.Second, "revision-gc", 1, 4),
+			)).
+			// Delete the XR to make revision 1 unused.
+			Assess("DeleteXR", funcs.AllOf(
+				funcs.DeleteResources(manifests, "xr.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
+			)).
+			// GC on the fourth update: revision 1 is now unused, so we should
+			// keep 4 and 5.
+			Assess("UpdateCompositionAfterXRIsDeleted", funcs.AllOf(
+				update(4),
+				compositionRevisionsWithin(30*time.Second, "revision-gc", 4, 5),
+			)).
+			// Deleting the XRD deletes the XR too, if an earlier step failed
+			// before deleting it.
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResources(manifests, "composition.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "composition.yaml"),
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+// compositionRevisionsWithin fails a test if the revision numbers of the named
+// Composition's CompositionRevisions aren't exactly the supplied revisions
+// within the supplied duration.
+func compositionRevisionsWithin(d time.Duration, comp string, want ...int64) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		var got []int64
+
+		err := wait.For(func(ctx context.Context) (bool, error) {
+			l := &apiextensionsv1.CompositionRevisionList{}
+			if err := c.Client().Resources().List(ctx, l, resources.WithLabelSelector(apiextensionsv1.LabelCompositionName+"="+comp)); err != nil {
+				t.Logf("cannot list CompositionRevisions: %v", err)
+				return false, nil
+			}
+
+			got = make([]int64, 0, len(l.Items))
+			for _, rev := range l.Items {
+				got = append(got, rev.Spec.Revision)
+			}
+
+			slices.Sort(got)
+
+			return slices.Equal(got, want), nil
+		}, wait.WithTimeout(d), wait.WithInterval(funcs.DefaultPollInterval))
+		if err != nil {
+			t.Errorf("Composition %q has revisions %v, want %v: %v", comp, got, want, err)
+			return ctx
+		}
+
+		t.Logf("Composition %q has revisions %v", comp, want)
+
+		return ctx
+	}
 }
