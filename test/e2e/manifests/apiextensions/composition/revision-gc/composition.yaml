@@ -1,0 +1,18 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: revision-gc
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: RevisionGC
+  # Keep one unused revision in addition to the latest revision and any
+  # revisions an XR uses.
+  revisionHistoryLimit: 1
+  mode: Pipeline
+  pipeline:
+  # This test only cares about which revisions exist, so the function doesn't
+  # need to be installed.
+  - step: unused
+    functionRef:
+      name: function-revision-gc-unused

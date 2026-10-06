@@ -149,6 +149,8 @@ jobs:
             test-suite: function-response-cache
           - test-area: apiextensions-legacy
             test-suite: function-response-cache
+          - test-area: apiextensions
+            test-suite: composition-revision-gc
           - test-area: pkg
             test-suite: package-dependency-updates
           - test-area: pkg
