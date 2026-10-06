@@ -106,6 +106,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// We could also force access to the deleted event by adding a
 		// finalizer to all watched resources, but that's way too
 		// invasive for my taste.
+		//
+		// The synthetic object only has metadata. when and onChange
+		// expressions that read other fields must guard that access
+		// with deleted.
 
 		log.Debug("Watched resource was deleted, using synthetic resource to process deletion event")
 
@@ -149,9 +153,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	report, changeFingerprint, err := r.program.ShouldReport(watched, deleted, previousFingerprint)
+	// The resource is gone. Drop any stored fingerprint, including when
+	// evaluation fails, so a later resource with the same name starts clean.
+	if deleted {
+		r.fingerprints.Delete(req.NamespacedName)
+	}
 	if err != nil {
-		log.Debug("Cannot evaluate watch conditions", "error", err)
 		err = errors.Wrap(err, "cannot evaluate watch conditions")
+		if deleted {
+			log.Debug(
+				"Skipping deleted watched resource after watch condition evaluation failed; no Operation will be created. Guard non-metadata field access with deleted in when and onChange expressions",
+				"error", err,
+				"watched-gvk", r.watchedGVK,
+				"watched-resource", req.NamespacedName,
+				"watch-operation", wo.GetName(),
+			)
+			r.record.Event(wo, event.Warning(reasonEvaluateWatchConditions, errors.Wrap(err,
+				"cannot evaluate watch conditions for deleted watched resource; no Operation will be created. Guard non-metadata field access with deleted in when and onChange expressions")))
+			return reconcile.Result{Requeue: false}, nil
+		}
+		log.Debug("Cannot evaluate watch conditions", "error", err)
 		r.record.Event(wo, event.Warning(reasonEvaluateWatchConditions, err))
 		return reconcile.Result{}, err
 	}
@@ -207,6 +228,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	for _, op := range ol.Items {
 		if op.GetName() == name {
 			log.Debug("Operation already exists for this resource version", "operation", name)
+			// The operation was created on an earlier attempt. Remember the
+			// fingerprint so a later resource version with the same change
+			// does not create another Operation.
+			if r.program.HasOnChange() && !deleted {
+				r.fingerprints.Store(req.NamespacedName, changeFingerprint)
+			}
 			return reconcile.Result{}, nil
 		}
 	}
@@ -222,7 +249,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	log.Debug("Created Operation for watched resource", "operation", op.GetName(), "resource", watched.GetName())
 
-	if r.program.HasOnChange() {
+	if r.program.HasOnChange() && !deleted {
 		r.fingerprints.Store(req.NamespacedName, changeFingerprint)
 	}
 
@@ -231,19 +258,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 // OperationName generates a deterministic and unique name for an Operation
 // based on the WatchOperation name and a hash of the watched resource's GVK,
-// namespace, name, UID, change trigger, and deletion timestamp. When
-// changeFingerprint is non-empty it replaces resourceVersion in the hash.
+// namespace, name, UID, resource version, change fingerprint, and deletion
+// timestamp. The resource version stays in the hash when a change fingerprint
+// is set so a retry of the same version keeps the same name.
 func OperationName(wo *v1alpha1.WatchOperation, watched *unstructured.Unstructured, changeFingerprint string) string {
-	changeKey := watched.GetResourceVersion()
-	if changeFingerprint != "" {
-		changeKey = changeFingerprint
-	}
-
 	in := watched.GroupVersionKind().String() + "/" +
 		watched.GetNamespace() + "/" +
 		watched.GetName() + "/" +
 		string(watched.GetUID()) + "/" +
-		changeKey
+		watched.GetResourceVersion()
+	if changeFingerprint != "" {
+		in += "/" + changeFingerprint
+	}
 
 	// For synthetic deletion events, a unique deletion timestamp is set to
 	// ensure different resource instances (even with the same

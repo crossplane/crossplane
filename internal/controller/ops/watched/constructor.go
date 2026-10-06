@@ -71,12 +71,36 @@ func NewReconciler(c client.Client, wo *v1alpha1.WatchOperation, opts ...Reconci
 	}
 
 	if r.program == nil {
-		p, err := watchcondition.Compile(wo.Spec.Watch)
+		p, err := compileWatchProgram(wo.Spec.Watch)
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot compile watch conditions")
+			return nil, err
 		}
 		r.program = p
 	}
 
 	return r, nil
+}
+
+func compileWatchProgram(watch v1alpha1.WatchSpec) (*watchcondition.Program, error) {
+	p, err := watchcondition.Compile(watch)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot compile watch conditions")
+	}
+
+	return p, nil
+}
+
+// UpdateProgram recompiles and replaces the watch condition program. Call this
+// when spec.watch.onChange or spec.watch.when changes after the watched
+// controller has already been started.
+func (r *Reconciler) UpdateProgram(watch v1alpha1.WatchSpec) error {
+	p, err := compileWatchProgram(watch)
+	if err != nil {
+		return err
+	}
+
+	r.program = p
+	r.fingerprints = sync.Map{}
+
+	return nil
 }

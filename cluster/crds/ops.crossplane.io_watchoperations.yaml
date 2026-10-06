@@ -323,6 +323,10 @@ spec:
                         description: |-
                           Expression is a CEL expression evaluated against the watched object.
                           An Operation is created when the expression's value changes.
+                          Variables are object (the watched resource) and deleted (true when the
+                          resource is being deleted). Deletion supplies a metadata-only object, so
+                          field access must be guarded with deleted, for example
+                          deleted ? "" : object.data['key'].
                         maxLength: 8192
                         minLength: 1
                         type: string
@@ -339,8 +343,12 @@ spec:
                         an Operation is created.
                       properties:
                         expression:
-                          description: Expression is a CEL expression that must evaluate
-                            to true.
+                          description: |-
+                            Expression is a CEL expression that must evaluate to true.
+                            Variables are object (the watched resource) and deleted (true when the
+                            resource is being deleted). Deletion supplies a metadata-only object, so
+                            field access must be guarded with deleted, for example
+                            deleted || object.data['enabled'] == 'true'.
                           maxLength: 8192
                           minLength: 1
                           type: string
