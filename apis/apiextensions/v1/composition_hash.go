@@ -40,7 +40,12 @@ func (c *Composition) Hash() string {
 		return "unknown"
 	}
 
-	s, err := yaml.Marshal(c.Spec)
+	// The revision history limit controls garbage collection of revisions. It
+	// isn't part of the revision, so changing it shouldn't create a new one.
+	spec := c.Spec
+	spec.RevisionHistoryLimit = nil
+
+	s, err := yaml.Marshal(spec)
 	if err != nil {
 		return "unknown"
 	}

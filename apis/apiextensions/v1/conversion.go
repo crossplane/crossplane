@@ -33,6 +33,7 @@ import (
 type RevisionSpecConverter interface {
 	// goverter:ignore Revision
 	ToRevisionSpec(in CompositionSpec) CompositionRevisionSpec
+	// goverter:ignore RevisionHistoryLimit
 	FromRevisionSpec(in CompositionRevisionSpec) CompositionSpec
 }
 
