@@ -48,20 +48,21 @@ const (
 
 // Error strings.
 const (
-	errGet             = "cannot get Composition"
-	errListRevs        = "cannot list CompositionRevisions"
-	errCreateRev       = "cannot create CompositionRevision"
-	errOwnRev          = "cannot own CompositionRevision"
-	errUpdateRevStatus = "cannot update CompositionRevision status"
-	errUpdateRevSpec   = "cannot update CompositionRevision spec"
-
+	errGet                   = "cannot get Composition"
+	errListRevs              = "cannot list CompositionRevisions"
+	errCreateRev             = "cannot create CompositionRevision"
+	errOwnRev                = "cannot own CompositionRevision"
+	errUpdateRevStatus       = "cannot update CompositionRevision status"
+	errUpdateRevSpec         = "cannot update CompositionRevision spec"
 	errFmtMissingFunctionRef = "pipeline step %q has no functionRef; referencing functions by OCI reference requires the --enable-pipeline-oci-references alpha feature flag"
+	errGarbageCollect        = "cannot garbage collect CompositionRevisions"
 )
 
 // Event reasons.
 const (
-	reasonCreateRev event.Reason = "CreateRevision"
-	reasonUpdateRev event.Reason = "UpdateRevision"
+	reasonCreateRev      event.Reason = "CreateRevision"
+	reasonUpdateRev      event.Reason = "UpdateRevision"
+	reasonGarbageCollect event.Reason = "GarbageCollectRevisions"
 )
 
 // Setup adds a controller that reconciles Compositions by creating new
@@ -69,10 +70,19 @@ const (
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "revisions/" + strings.ToLower(v1.CompositionGroupKind)
 
-	r := NewReconciler(mgr,
+	opts := []ReconcilerOption{
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
-		WithFeatures(o.Features))
+		WithFeatures(o.Features),
+	}
+
+	// List XRs using the controller engine's cache. The XR controllers already
+	// run informers for every established XRD.
+	if o.Features.Enabled(features.EnableAlphaCompositionRevisionGC) && o.ControllerEngine != nil {
+		opts = append(opts, WithRevisionGarbageCollector(NewAPIRevisionGarbageCollector(mgr.GetClient(), o.ControllerEngine.GetCached())))
+	}
+
+	r := NewReconciler(mgr, opts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -106,6 +116,14 @@ func WithFeatures(f *feature.Flags) ReconcilerOption {
 	}
 }
 
+// WithRevisionGarbageCollector specifies how the Reconciler should garbage
+// collect CompositionRevisions that are no longer needed.
+func WithRevisionGarbageCollector(gc RevisionGarbageCollector) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.gc = gc
+	}
+}
+
 // NewReconciler returns a Reconciler of Compositions.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
@@ -113,6 +131,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		log:      logging.NewNopLogger(),
 		record:   event.NewNopRecorder(),
 		features: &feature.Flags{},
+		gc:       NopRevisionGarbageCollector{},
 	}
 
 	for _, f := range opts {
@@ -126,6 +145,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 // each revision of the Composition's spec.
 type Reconciler struct {
 	client client.Client
+	gc     RevisionGarbageCollector
 
 	log      logging.Logger
 	record   event.Recorder
@@ -133,7 +153,7 @@ type Reconciler struct {
 }
 
 // Reconcile a Composition.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // No obvious candidates for refactoring.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
@@ -231,37 +251,51 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// We start from revision 1, so 0 indicates we didn't find one.
 	if existingRev > 0 {
 		log.Debug("No new revision needed.", "current-revision", existingRev)
-		return reconcile.Result{}, nil
-	}
+	} else {
+		// Steps may reference a function by OCI reference (the function field)
+		// instead of by name (the functionRef field) only when the alpha feature
+		// is enabled. When it isn't we ignore the function field, so every step
+		// must have a functionRef. We don't return an error because retrying won't
+		// help - the Composition must be updated, which will trigger a reconcile.
+		if !r.features.Enabled(features.EnableAlphaPipelineOCIReferences) {
+			for _, s := range comp.Spec.Pipeline {
+				if s.FunctionRef != nil {
+					continue
+				}
 
-	// Steps may reference a function by OCI reference (the function field)
-	// instead of by name (the functionRef field) only when the alpha feature
-	// is enabled. When it isn't we ignore the function field, so every step
-	// must have a functionRef. We don't return an error because retrying won't
-	// help - the Composition must be updated, which will trigger a reconcile.
-	if !r.features.Enabled(features.EnableAlphaPipelineOCIReferences) {
-		for _, s := range comp.Spec.Pipeline {
-			if s.FunctionRef != nil {
-				continue
+				err := errors.Errorf(errFmtMissingFunctionRef, s.Step)
+				log.Debug("Cannot create new revision", "error", err)
+				r.record.Event(comp, event.Warning(reasonCreateRev, err))
+
+				return reconcile.Result{}, nil
 			}
+		}
 
-			err := errors.Errorf(errFmtMissingFunctionRef, s.Step)
-			log.Debug("Cannot create new revision", "error", err)
+		if err := r.client.Create(ctx, NewCompositionRevision(comp, latestRev+1)); err != nil {
+			log.Debug(errCreateRev, "error", err)
 			r.record.Event(comp, event.Warning(reasonCreateRev, err))
 
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, errors.Wrap(err, errCreateRev)
 		}
+
+		log.Debug("Created new revision", "revision", latestRev+1)
+		r.record.Event(comp, event.Normal(reasonCreateRev, "Created new revision", "revision", strconv.FormatInt(latestRev+1, 10)))
 	}
 
-	if err := r.client.Create(ctx, NewCompositionRevision(comp, latestRev+1)); err != nil {
-		log.Debug(errCreateRev, "error", err)
-		r.record.Event(comp, event.Warning(reasonCreateRev, err))
-
-		return reconcile.Result{}, errors.Wrap(err, errCreateRev)
+	// Garbage collection errors don't fail the reconcile. We've already
+	// created any revision we needed, and the garbage collector deletes
+	// nothing if it can't tell which revisions are in use. We'll try again the
+	// next time the Composition or one of its revisions changes.
+	n, err := r.gc.GarbageCollect(ctx, comp, rl.Items)
+	if n > 0 {
+		log.Debug("Garbage collected revisions", "count", n)
+		r.record.Event(comp, event.Normal(reasonGarbageCollect, "Garbage collected unused revisions", "count", strconv.Itoa(n)))
 	}
 
-	log.Debug("Created new revision", "revision", latestRev+1)
-	r.record.Event(comp, event.Normal(reasonCreateRev, "Created new revision", "revision", strconv.FormatInt(latestRev+1, 10)))
+	if err != nil {
+		log.Debug(errGarbageCollect, "error", err)
+		r.record.Event(comp, event.Warning(reasonGarbageCollect, errors.Wrap(err, errGarbageCollect)))
+	}
 
 	return reconcile.Result{}, nil
 }

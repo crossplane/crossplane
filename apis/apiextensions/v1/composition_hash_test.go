@@ -35,7 +35,7 @@ func TestCompositionHash(t *testing.T) {
 				Mode:             CompositionModePipeline,
 				Pipeline: []PipelineStep{{
 					Step:        "compose",
-					FunctionRef: FunctionReference{Name: "function-example"},
+					FunctionRef: &FunctionReference{Name: "function-example"},
 				}},
 			},
 		}
@@ -90,7 +90,7 @@ func TestCompositionHash(t *testing.T) {
 			mutate: func(c *Composition) {
 				c.Spec.Pipeline = append(c.Spec.Pipeline, PipelineStep{
 					Step: "auto-ready",
-					FunctionRef: FunctionReference{
+					FunctionRef: &FunctionReference{
 						Name: "crossplane-contrib-function-auto-ready",
 					},
 				})
