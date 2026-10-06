@@ -9,8 +9,9 @@ spec:
     namespace: default
     matchLabels:
       test: watch-conditions
+    # Deletion events only include metadata, so field access is guarded with deleted.
     onChange:
-      expression: "object.data['testData']"
+      expression: "deleted ? '' : object.data['testData']"
   concurrencyPolicy: Allow
   successfulHistoryLimit: 10
   failedHistoryLimit: 5

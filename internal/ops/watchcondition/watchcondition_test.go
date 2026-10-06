@@ -20,6 +20,8 @@ import (
 	"maps"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
@@ -202,6 +204,101 @@ func TestShouldReportDeletedVariable(t *testing.T) {
 	}
 	if fp2 != "false" {
 		t.Fatalf("expected fingerprint %q, got %q", "false", fp2)
+	}
+}
+
+func TestShouldReportDeletionMetadataOnly(t *testing.T) {
+	obj := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1",
+		"kind":       "ConfigMap",
+		"metadata": map[string]any{
+			"name":      "test",
+			"namespace": "default",
+		},
+	}}
+
+	type args struct {
+		watch               v1alpha1.WatchSpec
+		previousFingerprint string
+	}
+	type want struct {
+		report      bool
+		fingerprint string
+		err         error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"GuardedFieldAccess": {
+			reason: "Should evaluate when and onChange for a metadata-only deletion object when field access is guarded with deleted",
+			args: args{
+				watch: v1alpha1.WatchSpec{
+					OnChange: &v1alpha1.WatchOnChange{Expression: "deleted ? '' : object.data['testData']"},
+					When: []v1alpha1.WatchCondition{{
+						Name:       "enabled-or-deleted",
+						Expression: "deleted || object.data['enabled'] == 'true'",
+					}},
+				},
+				previousFingerprint: `"one"`,
+			},
+			want: want{
+				report:      true,
+				fingerprint: `""`,
+			},
+		},
+		"UnguardedWhen": {
+			reason: "Should return an error when a when expression reads fields on a metadata-only deletion object",
+			args: args{
+				watch: v1alpha1.WatchSpec{
+					OnChange: &v1alpha1.WatchOnChange{Expression: "deleted"},
+					When: []v1alpha1.WatchCondition{{
+						Name:       "enabled",
+						Expression: "object.data['enabled'] == 'true'",
+					}},
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"UnguardedOnChange": {
+			reason: "Should return an error when an onChange expression reads fields on a metadata-only deletion object",
+			args: args{
+				watch: v1alpha1.WatchSpec{
+					OnChange: &v1alpha1.WatchOnChange{Expression: "object.data['testData']"},
+					When: []v1alpha1.WatchCondition{{
+						Name:       "is-deleted",
+						Expression: "deleted",
+					}},
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			p, err := Compile(tc.args.watch)
+			if err != nil {
+				t.Fatalf("\n%s\nCompile(...): %v", tc.reason, err)
+			}
+
+			report, fingerprint, err := p.ShouldReport(obj, true, tc.args.previousFingerprint)
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nShouldReport(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.report, report); diff != "" {
+				t.Errorf("\n%s\nShouldReport(...): -want report, +got report:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.fingerprint, fingerprint); diff != "" {
+				t.Errorf("\n%s\nShouldReport(...): -want fingerprint, +got fingerprint:\n%s", tc.reason, diff)
+			}
+		})
 	}
 }
 
