@@ -19,6 +19,7 @@ package watchoperation
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,6 +71,11 @@ type Reconciler struct {
 
 	engine  ControllerEngine
 	options opscontroller.Options
+
+	// watched maps WatchOperation name to the reconciler started for it.
+	// The engine keeps running the same reconciler instance, so watch
+	// condition updates must be applied in place via UpdateProgram.
+	watched sync.Map
 }
 
 // Reconcile a WatchOperation by starting a controller to watch the specified
@@ -107,6 +113,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		log.Debug("Stopped watched resource controller")
+		r.watched.Delete(wo.GetName())
 
 		if err := r.finalizer.RemoveFinalizer(ctx, wo); err != nil {
 			log.Debug("Cannot remove watched resource finalizer", "error", err)
@@ -187,9 +194,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	wo.Status.RunningOperationRefs = lifecycle.RunningOperationRefs(running)
 
 	// Start the Watched controller.
-	wr, err := watched.NewReconciler(r.engine.GetCached(), wo,
-		watched.WithLogger(r.log.WithValues("controller", WatchedControllerName(wo.GetName()))),
-		watched.WithRecorder(r.record.WithAnnotations("controller", WatchedControllerName(wo.GetName()))))
+	wr, err := r.watchedReconciler(wo)
 	if err != nil {
 		log.Debug("Cannot compile watch conditions", "error", err)
 		err = errors.Wrap(err, "cannot compile watch conditions")
@@ -237,4 +242,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 // resources on behalf of a WatchOperation.
 func WatchedControllerName(name string) string {
 	return "watched/" + name
+}
+
+func (r *Reconciler) watchedReconciler(wo *v1alpha1.WatchOperation) (*watched.Reconciler, error) {
+	name := wo.GetName()
+	if existing, ok := r.watched.Load(name); ok {
+		wr := existing.(*watched.Reconciler)
+		if err := wr.UpdateProgram(wo.Spec.Watch); err != nil {
+			return nil, err
+		}
+		return wr, nil
+	}
+
+	wr, err := watched.NewReconciler(r.engine.GetCached(), wo,
+		watched.WithLogger(r.log.WithValues("controller", WatchedControllerName(name))),
+		watched.WithRecorder(r.record.WithAnnotations("controller", WatchedControllerName(name))))
+	if err != nil {
+		return nil, err
+	}
+
+	r.watched.Store(name, wr)
+	return wr, nil
 }

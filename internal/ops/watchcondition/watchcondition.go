@@ -85,6 +85,11 @@ func (p *Program) HasOnChange() bool {
 // this resource, or empty if none exists. When no onChange expression is
 // configured, fingerprint is empty and any resourceVersion change may trigger
 // an Operation subject to when conditions.
+//
+// Deletion events pass deleted=true and a metadata-only object. when and
+// onChange are still evaluated. Expressions that read fields other than
+// metadata must guard that access with deleted, for example
+// deleted ? "" : object.data['key'] or deleted || object.data['enabled'] == 'true'.
 func (p *Program) ShouldReport(obj *unstructured.Unstructured, deleted bool, previousFingerprint string) (report bool, fingerprint string, err error) {
 	if p == nil {
 		return true, "", nil

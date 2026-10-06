@@ -109,6 +109,10 @@ type WatchSpec struct {
 type WatchOnChange struct {
 	// Expression is a CEL expression evaluated against the watched object.
 	// An Operation is created when the expression's value changes.
+	// Variables are object (the watched resource) and deleted (true when the
+	// resource is being deleted). Deletion supplies a metadata-only object, so
+	// field access must be guarded with deleted, for example
+	// deleted ? "" : object.data['key'].
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=8192
 	Expression string `json:"expression"`
@@ -124,6 +128,10 @@ type WatchCondition struct {
 	Name string `json:"name"`
 
 	// Expression is a CEL expression that must evaluate to true.
+	// Variables are object (the watched resource) and deleted (true when the
+	// resource is being deleted). Deletion supplies a metadata-only object, so
+	// field access must be guarded with deleted, for example
+	// deleted || object.data['enabled'] == 'true'.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=8192
 	Expression string `json:"expression"`
