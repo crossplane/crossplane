@@ -53,6 +53,11 @@ const (
 	// automatically protecting Providers from deletion when they still have
 	// active managed resources. Requires EnableBetaUsages to also be enabled.
 	EnableAlphaProviderDeletionProtection feature.Flag = "EnableAlphaProviderDeletionProtection"
+
+	// EnableAlphaCompositionRevisionGC enables alpha support for garbage
+	// collecting unused CompositionRevisions, according to each Composition's
+	// revisionHistoryLimit.
+	EnableAlphaCompositionRevisionGC feature.Flag = "EnableAlphaCompositionRevisionGC"
 )
 
 // Beta Feature Flags.
