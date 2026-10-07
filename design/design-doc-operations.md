@@ -210,10 +210,10 @@ An operation function can instruct Crossplane to create or update[^1] arbitary
 resources by including server-side apply [fully-specified intent][8] (FSI)
 patches in `rsp.desired.resources`, just like a composition function.
 
-Each unique Operation will be the server-side apply field manager of any applied
-fields, and the Operation controller will force conflicts. This means the
-Operation controller will assume management of a field that's already set, and
-overwrite its value.
+By default, each Operation uses `ops.crossplane.io/operation/<uid>` as its
+server-side apply field manager. Set `spec.fieldManager` to share field ownership
+across successive Operations. The Operation controller forces conflicts, taking
+ownership of fields that are already set and overwriting their values.
 
 This has a few implications:
 
@@ -221,10 +221,32 @@ This has a few implications:
    Operations. For example if an XR and an Operation both try to own an MR's
    `spec.forProvider.version` field, they'll enter an endless loop fighting over
    it.
-1. Unlike an XR, an Operation can't delete a field simply by omitting it from
-   its desired state (i.e. SSA FSI). XRs delete fields by first setting them in
-   FSI, then later omitting them from FSI. Operations will only run once.
-   They'll need to delete fields by explicitly setting them to `null`.
+1. With the default field manager, a new Operation can't remove a field owned
+   by an earlier Operation simply by omitting it from its desired state.
+   Operations that share a field manager can relinquish fields this way. Fields
+   or set entries, such as finalizers, are removed only if no other manager owns
+   them.
+
+WatchOperations and CronOperations can configure a shared manager in their
+Operation template:
+
+```yaml
+spec:
+  operationTemplate:
+    spec:
+      mode: Pipeline
+      fieldManager: ops.crossplane.io/watchoperation/my-watchop
+      pipeline:
+      - step: cleanup
+        functionRef:
+          name: function-cleanup
+```
+
+For example, an Operation can add a finalizer and a later Operation using the
+same manager can remove it by returning the resource without that finalizer.
+Choose a manager unique to the workflow. Each apply must include all fields
+that workflow intends to keep on the resource. Setting a shared manager doesn't
+transfer ownership from Operations that used the default UID-based manager.
 
 An Operation's pipeline will run to completion once, as soon as you create it.
 I propose we support three ways - in addition to manual creation - to create an

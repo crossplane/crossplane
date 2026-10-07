@@ -608,7 +608,8 @@ func TestNewOperation(t *testing.T) {
 								},
 							},
 							Spec: v1alpha1.OperationSpec{
-								Mode: v1alpha1.OperationModePipeline,
+								Mode:         v1alpha1.OperationModePipeline,
+								FieldManager: new("ops.crossplane.io/cronoperation/test-cron"),
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "test-step",
@@ -643,7 +644,8 @@ func TestNewOperation(t *testing.T) {
 						},
 					},
 					Spec: v1alpha1.OperationSpec{
-						Mode: v1alpha1.OperationModePipeline,
+						Mode:         v1alpha1.OperationModePipeline,
+						FieldManager: new("ops.crossplane.io/cronoperation/test-cron"),
 						Pipeline: []v1alpha1.PipelineStep{
 							{
 								Step: "test-step",
