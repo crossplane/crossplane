@@ -17,13 +17,18 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
@@ -459,5 +464,84 @@ func TestOperationFieldManager(t *testing.T) {
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Feature(),
+	)
+}
+
+func TestOperationFieldManagerValidation(t *testing.T) {
+	cases := map[string]struct {
+		manager *string
+		valid   bool
+	}{
+		"Default":          {valid: true},
+		"ASCII":            {manager: new("ops.crossplane.io/test"), valid: true},
+		"Chinese":          {manager: new("\u4f60\u597d"), valid: true},
+		"Emoji":            {manager: new("🍔"), valid: true},
+		"CombiningMark":    {manager: new("e\u0301"), valid: true},
+		"Space":            {manager: new("field manager"), valid: true},
+		"ASCIIAtLimit":     {manager: new(strings.Repeat("a", 128)), valid: true},
+		"UnicodeAtLimit":   {manager: new(strings.Repeat("é", 64)), valid: true},
+		"Empty":            {manager: new("")},
+		"ASCIIOverLimit":   {manager: new(strings.Repeat("a", 129))},
+		"UnicodeOverLimit": {manager: new(strings.Repeat("é", 65))},
+		"Newline":          {manager: new("field\nmanager")},
+		"Tab":              {manager: new("field\tmanager")},
+		"Null":             {manager: new("field\x00manager")},
+		"Delete":           {manager: new("field\x7fmanager")},
+		"NonBreakingSpace": {manager: new("field\u00a0manager")},
+		"ZeroWidthSpace":   {manager: new("field\u200bmanager")},
+	}
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests field manager admission for Operations and parent templates.").
+			WithLabel(LabelArea, LabelAreaOps).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteOps).
+			Assess("ValidateFieldManagers", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+				t.Helper()
+
+				for _, kind := range []string{"Operation", "CronOperation", "WatchOperation"} {
+					for name, tc := range cases {
+						t.Run(kind+"/"+name, func(t *testing.T) {
+							op := map[string]any{
+								"mode": "Pipeline",
+								"pipeline": []any{map[string]any{
+									"step": "test", "functionRef": map[string]any{"name": "function-test"},
+								}},
+							}
+							if tc.manager != nil {
+								op["fieldManager"] = *tc.manager
+							}
+							spec := op
+							switch kind {
+							case "CronOperation":
+								spec = map[string]any{"schedule": "* * * * *", "operationTemplate": map[string]any{"spec": op}}
+							case "WatchOperation":
+								spec = map[string]any{
+									"watch":             map[string]any{"apiVersion": "v1", "kind": "ConfigMap"},
+									"operationTemplate": map[string]any{"spec": op},
+								}
+							}
+							o := &unstructured.Unstructured{Object: map[string]any{
+								"apiVersion": "ops.crossplane.io/v1alpha1", "kind": kind,
+								"metadata": map[string]any{"name": "field-manager-validation"}, "spec": spec,
+							}}
+							// Dry-run admission without creating Operations that would execute.
+							err := c.Client().Resources().Create(ctx, o, func(opts *metav1.CreateOptions) {
+								opts.DryRun = []string{metav1.DryRunAll}
+							})
+							if tc.valid {
+								if err != nil {
+									t.Errorf("cannot admit valid field manager: %v", err)
+								}
+								return
+							}
+							if !apierrors.IsInvalid(err) || !strings.Contains(err.Error(), "fieldManager") {
+								t.Errorf("want fieldManager validation error, got: %v", err)
+							}
+						})
+					}
+				}
+				return ctx
+			}).Feature(),
 	)
 }

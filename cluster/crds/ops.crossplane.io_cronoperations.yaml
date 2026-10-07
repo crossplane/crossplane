@@ -95,9 +95,14 @@ spec:
                           resources. Defaults to ops.crossplane.io/operation/<operation UID>.
                           Use the same manager across Operations to update or remove fields that
                           an earlier Operation owned.
+                          Must contain only printable Unicode characters and be at most 128 bytes.
                         maxLength: 128
                         minLength: 1
+                        pattern: ^[\p{L}\p{M}\p{N}\p{P}\p{S} ]+$
                         type: string
+                        x-kubernetes-validations:
+                        - message: fieldManager must be at most 128 bytes
+                          rule: size(bytes(self)) <= 128
                       mode:
                         default: Pipeline
                         description: |-

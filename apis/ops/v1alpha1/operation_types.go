@@ -61,9 +61,12 @@ type OperationSpec struct {
 	// resources. Defaults to ops.crossplane.io/operation/<operation UID>.
 	// Use the same manager across Operations to update or remove fields that
 	// an earlier Operation owned.
+	// Must contain only printable Unicode characters and be at most 128 bytes.
 	// +optional
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=128
+	// +kubebuilder:validation:Pattern=`^[\p{L}\p{M}\p{N}\p{P}\p{S} ]+$`
+	// +kubebuilder:validation:XValidation:rule="size(bytes(self)) <= 128",message="fieldManager must be at most 128 bytes"
 	FieldManager *string `json:"fieldManager,omitempty"`
 }
 
