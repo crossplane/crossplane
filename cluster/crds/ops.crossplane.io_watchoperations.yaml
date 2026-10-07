@@ -92,6 +92,15 @@ spec:
                     description: Spec is the specification of the Operation to be
                       created.
                     properties:
+                      fieldManager:
+                        description: |-
+                          FieldManager is the server-side apply field manager used to apply desired
+                          resources. Defaults to ops.crossplane.io/operation/<operation UID>.
+                          Use the same manager across Operations to update or remove fields that
+                          an earlier Operation owned.
+                        maxLength: 128
+                        minLength: 1
+                        type: string
                       mode:
                         default: Pipeline
                         description: |-

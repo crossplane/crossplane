@@ -17,6 +17,7 @@ limitations under the License.
 package e2e
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -261,8 +262,9 @@ func TestCronOperationScheduling(t *testing.T) {
 					&v1alpha1.OperationList{},
 					2, // At least 2 Operations should exist
 					func(o k8s.Object) bool {
-						// Check if this Operation was created by our CronOperation
-						return o.GetLabels()[v1alpha1.LabelCronOperationName] == "basic-cronop"
+						op, ok := o.(*v1alpha1.Operation)
+						return ok && op.GetLabels()[v1alpha1.LabelCronOperationName] == "basic-cronop" &&
+							op.Spec.FieldManager != nil && *op.Spec.FieldManager == "ops.crossplane.io/cronoperation/basic-cronop"
 					}),
 			)).
 			WithTeardown("DeleteCronOperation", funcs.AllOf(
@@ -392,8 +394,9 @@ func TestWatchOperationResourceChanges(t *testing.T) {
 					&v1alpha1.OperationList{},
 					4, // At least 4 Operations should exist
 					func(o k8s.Object) bool {
-						// Check if this Operation was created by our WatchOperation
-						return o.GetLabels()[v1alpha1.LabelWatchOperationName] == "basic-watchop"
+						op, ok := o.(*v1alpha1.Operation)
+						return ok && op.GetLabels()[v1alpha1.LabelWatchOperationName] == "basic-watchop" &&
+							op.Spec.FieldManager != nil && *op.Spec.FieldManager == "ops.crossplane.io/watchoperation/basic-watchop"
 					}),
 			)).
 			WithTeardown("DeleteSecondWatchedResource", funcs.AllOf(
@@ -403,6 +406,53 @@ func TestWatchOperationResourceChanges(t *testing.T) {
 			WithTeardown("DeleteWatchOperation", funcs.AllOf(
 				funcs.DeleteResources(manifests, "watchoperation.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "watchoperation.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestOperationFieldManager(t *testing.T) {
+	cm := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "operation-field-manager"}}
+	manifests := "test/e2e/manifests/ops/operations/field-manager"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that successive Operations can remove their finalizer using a shared field manager.").
+			WithLabel(LabelArea, LabelAreaOps).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteOps).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ApplyResources(FieldManager, manifests, "configmap.yaml"),
+			)).
+			Assess("AddFinalizer", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "add.yaml"),
+				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "add.yaml", v1alpha1.Complete()),
+				funcs.ResourceHasFieldValueWithin(30*time.Second, cm, "metadata.finalizers", funcs.FieldValueChecker(func(got any) bool {
+					fs, ok := got.([]any)
+					return ok && len(fs) == 2 && slices.Contains(fs, "example.org/operation") && slices.Contains(fs, "example.org/other-controller")
+				})),
+			)).
+			Assess("DeleteConfigMap", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configmap.yaml"),
+				funcs.ResourceHasFieldValueWithin(30*time.Second, cm, "metadata.deletionTimestamp", funcs.Any),
+			)).
+			Assess("RemoveOperationFinalizer", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "remove.yaml"),
+				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "remove.yaml", v1alpha1.Complete()),
+				funcs.ResourceHasFieldValueWithin(30*time.Second, cm, "metadata.finalizers", []any{"example.org/other-controller"}),
+			)).
+			Assess("FinishDeletion", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "release.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "configmap.yaml"),
+			)).
+			WithTeardown("DeleteConfigMap", funcs.RemoveFinalizersAndDelete(cm)).
+			WithTeardown("DeleteOperations", funcs.AllOf(
+				funcs.DeleteResources(manifests, "add.yaml"),
+				funcs.DeleteResources(manifests, "remove.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),

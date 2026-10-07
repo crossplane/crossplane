@@ -1,0 +1,26 @@
+apiVersion: ops.crossplane.io/v1alpha1
+kind: Operation
+metadata:
+  name: field-manager-add
+spec:
+  mode: Pipeline
+  fieldManager: ops.crossplane.io/finalizer-test
+  pipeline:
+  - step: add-finalizer
+    functionRef:
+      name: function-dummy-ops-field-manager
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      response:
+        desired:
+          resources:
+            configmap:
+              resource:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  namespace: default
+                  name: operation-field-manager
+                  finalizers:
+                  - example.org/operation

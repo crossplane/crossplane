@@ -65,7 +65,7 @@ const (
 	reasonBootstrapRequirements = "BootstrapRequirements"
 )
 
-// FieldOwnerPrefix is used to form the server-side apply field owner
+// FieldOwnerPrefix is used to form the default server-side apply field owner
 // that owns the fields this controller mutates on desired resources.
 const FieldOwnerPrefix = "ops.crossplane.io/operation/"
 
@@ -345,6 +345,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Now that all functions have run, we want to apply any desired
 	// resources the pipeline produced.
+	fieldManager := ptr.Deref(op.Spec.FieldManager, string(FieldOwnerPrefix+op.GetUID()))
 	for name, dr := range d.GetResources() {
 		u := &kunstructured.Unstructured{}
 		if err := xfn.FromStruct(u, dr.GetResource()); err != nil {
@@ -365,7 +366,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// resources?
 		//
 		//nolint:staticcheck // TODO(adamwg): Stop using client.Apply after the v2.2 release.
-		if err := r.client.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerPrefix+op.GetUID())); err != nil {
+		if err := r.client.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(fieldManager)); err != nil {
 			op.Status.Failures++
 			log.Debug("Cannot apply desired resource", "error", err, "failures", op.Status.Failures, "resource-name", name)
 

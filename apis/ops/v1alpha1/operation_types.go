@@ -56,6 +56,15 @@ type OperationSpec struct {
 	// +optional
 	// +kubebuilder:default:5
 	RetryLimit *int64 `json:"retryLimit,omitempty"`
+
+	// FieldManager is the server-side apply field manager used to apply desired
+	// resources. Defaults to ops.crossplane.io/operation/<operation UID>.
+	// Use the same manager across Operations to update or remove fields that
+	// an earlier Operation owned.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=128
+	FieldManager *string `json:"fieldManager,omitempty"`
 }
 
 // A PipelineStep in an operation function pipeline.
