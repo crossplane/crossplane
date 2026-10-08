@@ -18,6 +18,8 @@ limitations under the License.
 package controller
 
 import (
+	"time"
+
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
 )
@@ -41,4 +43,11 @@ type Options struct {
 	// MaxConcurrentPackageEstablishers is the maximum number of goroutines to use
 	// for establishing Providers, Configurations and Functions.
 	MaxConcurrentPackageEstablishers int
+
+	// PackagePollInterval is how often the package manager reconciler requeues
+	// packages with PullPolicy Always to check for updated content. This is
+	// separate from PollInterval (drift detection) because registry re-pulls are
+	// a full fetch+parse+verify cycle and should not be coupled to the general
+	// poll knob. Defaults to 1m.
+	PackagePollInterval time.Duration
 }
