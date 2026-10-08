@@ -29,11 +29,15 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 const (
 	errBadReference            = "package tag is not a valid reference"
+	errResolveDigest           = "failed to resolve package reference to a digest"
+	errGetVerificationConfig   = "failed to get image verification config"
+	errVerifyPackage           = "package signature verification failed"
 	errFetchPackage            = "failed to fetch package from remote"
 	errGetManifest             = "failed to get package image manifest from remote"
 	errFetchLayer              = "failed to fetch annotated base layer from remote"
@@ -52,10 +56,17 @@ const (
 	maxLayers = 256
 )
 
+// A Validator validates the signature of a package image.
+type Validator interface {
+	Validate(ctx context.Context, ref name.Reference, config *v1beta1.ImageVerification, pullSecrets ...string) error
+}
+
 // ImageBackend is a backend for parser.
 type ImageBackend struct {
-	registry string
-	fetcher  xpkg.Fetcher
+	registry  string
+	fetcher   xpkg.Fetcher
+	config    xpkg.ConfigStore
+	validator Validator
 }
 
 // An ImageBackendOption sets configuration for an image backend.
@@ -68,6 +79,18 @@ func WithDefaultRegistry(registry string) ImageBackendOption {
 	}
 }
 
+// WithVerification makes the backend verify the signature of the image it is
+// about to install. The signature controller reports verification status on the
+// package revision, but it resolves the package reference independently of this
+// backend. Verifying here as well means the bytes we check are the bytes we
+// install, whatever the tag resolves to in between.
+func WithVerification(c xpkg.ConfigStore, v Validator) ImageBackendOption {
+	return func(i *ImageBackend) {
+		i.config = c
+		i.validator = v
+	}
+}
+
 // NewImageBackend creates a new image backend.
 func NewImageBackend(fetcher xpkg.Fetcher, opts ...ImageBackendOption) *ImageBackend {
 	i := &ImageBackend{
@@ -77,6 +100,49 @@ func NewImageBackend(fetcher xpkg.Fetcher, opts ...ImageBackendOption) *ImageBac
 		opt(i)
 	}
 	return i
+}
+
+// resolveAndVerify resolves ref to a digest and, if signature verification is
+// enabled, verifies the signature of the image that digest points to. Resolving
+// once and returning the digest is what makes the bytes we verify the bytes the
+// caller installs: verifying a tag and then pulling it again would let a
+// registry serve different content to each call.
+//
+// The signature controller reports verification status on the package revision,
+// but it resolves the reference independently of this backend, so it cannot
+// give us that guarantee on its own.
+func (i *ImageBackend) resolveAndVerify(ctx context.Context, source string, ref name.Reference, secrets ...string) (name.Digest, error) {
+	digest, ok := ref.(name.Digest)
+	if !ok {
+		desc, err := i.fetcher.Head(ctx, ref, secrets...)
+		if err != nil {
+			return name.Digest{}, errors.Wrap(err, errResolveDigest)
+		}
+
+		digest = ref.Context().Digest(desc.Digest.String())
+	}
+
+	if i.validator == nil {
+		return digest, nil
+	}
+
+	// Match the image config on the source rather than on the digest reference,
+	// so prefixes keep matching the image path the way they do everywhere else,
+	// including prefixes that carry a tag.
+	_, vc, err := i.config.ImageVerificationConfigFor(ctx, source)
+	if err != nil {
+		return name.Digest{}, errors.Wrap(err, errGetVerificationConfig)
+	}
+
+	if vc == nil || vc.Cosign == nil {
+		return digest, nil
+	}
+
+	if err := i.validator.Validate(ctx, digest, vc, secrets...); err != nil {
+		return name.Digest{}, errors.Wrap(err, errVerifyPackage)
+	}
+
+	return digest, nil
 }
 
 // Init initializes an ImageBackend.
@@ -95,7 +161,8 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	}
 	// Use the package recorded in the status rather than the one from the spec,
 	// since it may have been rewritten by an image config.
-	ref, err := name.ParseReference(n.pr.GetResolvedSource(), name.WithDefaultRegistry(i.registry))
+	source := n.pr.GetResolvedSource()
+	ref, err := name.ParseReference(source, name.WithDefaultRegistry(i.registry))
 	if err != nil {
 		return nil, errors.Wrap(err, errBadReference)
 	}
@@ -104,7 +171,16 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	if n.pullSecretFromConfig != "" {
 		ps = append(ps, n.pullSecretFromConfig)
 	}
-	img, err := i.fetcher.Fetch(ctx, ref, ps...)
+	// Pin all subsequent registry interactions to the digest we verified.
+	// Pulling by the original tag would let a registry that serves different
+	// content between verification and the pull slip an unverified image into
+	// the package.
+	digest, err := i.resolveAndVerify(ctx, source, ref, ps...)
+	if err != nil {
+		return nil, err
+	}
+
+	img, err := i.fetcher.Fetch(ctx, digest, ps...)
 	if err != nil {
 		return nil, errors.Wrap(err, errFetchPackage)
 	}
