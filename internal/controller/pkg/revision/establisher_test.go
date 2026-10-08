@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
@@ -44,6 +45,387 @@ import (
 )
 
 var _ Establisher = &APIEstablisher{}
+
+func TestAPIEstablisherPrepareApply(t *testing.T) {
+	parent := &v1.ProviderRevision{
+		TypeMeta: metav1.TypeMeta{APIVersion: v1.SchemeGroupVersion.String(), Kind: v1.ProviderRevisionKind},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "revision-name",
+			UID:  "revision-uid",
+			Labels: map[string]string{
+				v1.LabelParentPackage: "provider-name",
+			},
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: v1.SchemeGroupVersion.String(),
+				Kind:       v1.ProviderKind,
+				Name:       "provider-name",
+				UID:        "provider-uid",
+			}},
+		},
+	}
+	pkgRef, _ := GetPackageOwnerReference(parent)
+	pkgRef.Controller = new(false)
+	controllerRef := meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))
+
+	t.Run("SkipServerDefaultedControlledObject", func(t *testing.T) {
+		desired := &extv1.CustomResourceDefinition{
+			TypeMeta:   metav1.TypeMeta{APIVersion: extv1.SchemeGroupVersion.String(), Kind: "CustomResourceDefinition"},
+			ObjectMeta: metav1.ObjectMeta{Name: "widgets.example.org"},
+			Spec:       extv1.CustomResourceDefinitionSpec{Group: "example.org"},
+		}
+		current := desired.DeepCopy()
+		current.TypeMeta = metav1.TypeMeta{}
+		current.SetOwnerReferences([]metav1.OwnerReference{pkgRef, controllerRef})
+		current.Spec.Conversion = &extv1.CustomResourceConversion{Strategy: extv1.NoneConverter}
+
+		e := newAPIEstablisher(nil)
+		apply, _, err := e.prepareApply(context.Background(), current, desired, parent, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		current.SetAnnotations(map[string]string{
+			annotationKeyEstablisherHash: apply.GetAnnotations()[annotationKeyEstablisherHash],
+		})
+
+		_, needed, err := e.prepareApply(context.Background(), current, desired, parent, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if needed {
+			t.Error("prepareApply(...) reported a change caused only by a server-defaulted field")
+		}
+	})
+
+	t.Run("CreateWithControllerAndPackageOwners", func(t *testing.T) {
+		desired := &corev1.ConfigMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "ConfigMap"},
+			ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		}
+		apply, needed, err := newAPIEstablisher(nil).prepareApply(context.Background(), nil, desired, parent, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !needed {
+			t.Error("prepareApply(...) did not report a missing controlled object")
+		}
+		if diff := cmp.Diff([]metav1.OwnerReference{controllerRef, pkgRef}, apply.GetOwnerReferences()); diff != "" {
+			t.Errorf("prepareApply(...): -want owners, +got owners:\n%s", diff)
+		}
+	})
+
+	t.Run("DetectControlledIntentChange", func(t *testing.T) {
+		current := &corev1.ConfigMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "ConfigMap"},
+			ObjectMeta: metav1.ObjectMeta{Name: "test", OwnerReferences: []metav1.OwnerReference{pkgRef, controllerRef}},
+			Data:       map[string]string{"key": "old"},
+		}
+		desired := current.DeepCopy()
+		desired.SetOwnerReferences(nil)
+		desired.Data["key"] = "new"
+
+		_, needed, err := newAPIEstablisher(nil).prepareApply(context.Background(), current, desired, parent, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !needed {
+			t.Error("prepareApply(...) did not report changed package intent")
+		}
+	})
+
+	t.Run("IgnoreFinalizerOrder", func(t *testing.T) {
+		desired := &corev1.ConfigMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "ConfigMap"},
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Finalizers: []string{"a.example.org", "b.example.org"}},
+		}
+		current := desired.DeepCopy()
+		current.SetOwnerReferences([]metav1.OwnerReference{pkgRef, controllerRef})
+
+		e := newAPIEstablisher(nil)
+		apply, _, err := e.prepareApply(context.Background(), current, desired, parent, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		current.SetAnnotations(map[string]string{
+			annotationKeyEstablisherHash: apply.GetAnnotations()[annotationKeyEstablisherHash],
+		})
+		// Another actor removed and re-added its finalizer, changing its
+		// position without changing the resource's set of finalizers.
+		current.SetFinalizers([]string{"b.example.org", "a.example.org"})
+
+		_, needed, err := e.prepareApply(context.Background(), current, desired, parent, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if needed {
+			t.Error("prepareApply(...) reported a change caused only by finalizer order")
+		}
+	})
+
+	t.Run("PreserveExistingOwnersWithoutControl", func(t *testing.T) {
+		userRef := metav1.OwnerReference{APIVersion: "example.org/v1", Kind: "Owner", Name: "user", UID: "user-uid"}
+		current := &corev1.ConfigMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "ConfigMap"},
+			ObjectMeta: metav1.ObjectMeta{Name: "test", OwnerReferences: []metav1.OwnerReference{userRef}},
+			Data:       map[string]string{"user": "data"},
+		}
+		desired := &corev1.ConfigMap{
+			TypeMeta:   current.TypeMeta,
+			ObjectMeta: metav1.ObjectMeta{Name: "test"},
+			Data:       map[string]string{"package": "data"},
+		}
+
+		apply, needed, err := newAPIEstablisher(nil).prepareApply(context.Background(), current, desired, parent, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !needed {
+			t.Error("prepareApply(...) did not report missing owner references")
+		}
+		if _, found, _ := unstructured.NestedFieldNoCopy(apply.Object, "data"); found {
+			t.Error("non-controlling apply included package data")
+		}
+		want := []metav1.OwnerReference{userRef, pkgRef, meta.AsOwner(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))}
+		if diff := cmp.Diff(want, apply.GetOwnerReferences()); diff != "" {
+			t.Errorf("prepareApply(...): -want owners, +got owners:\n%s", diff)
+		}
+	})
+
+	t.Run("OmitExistingMRDState", func(t *testing.T) {
+		current := &v1alpha1.ManagedResourceDefinition{
+			TypeMeta:   metav1.TypeMeta{APIVersion: v1alpha1.SchemeGroupVersion.String(), Kind: v1alpha1.ManagedResourceDefinitionKind},
+			ObjectMeta: metav1.ObjectMeta{Name: "widgets.example.org", OwnerReferences: []metav1.OwnerReference{pkgRef, controllerRef}},
+			Spec:       v1alpha1.ManagedResourceDefinitionSpec{State: v1alpha1.ManagedResourceDefinitionInactive},
+		}
+		desired := current.DeepCopy()
+		desired.SetOwnerReferences(nil)
+		desired.Spec.State = v1alpha1.ManagedResourceDefinitionActive
+
+		apply, _, err := newAPIEstablisher(nil).prepareApply(context.Background(), current, desired, parent, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, found, _ := unstructured.NestedFieldNoCopy(apply.Object, "spec", "state"); found {
+			t.Error("controlled apply included spec.state for an existing MRD")
+		}
+	})
+
+	t.Run("RejectForeignController", func(t *testing.T) {
+		current := &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "ConfigMap"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				OwnerReferences: []metav1.OwnerReference{{
+					APIVersion: "example.org/v1",
+					Kind:       "Foreign",
+					Name:       "foreign",
+					UID:        "foreign-uid",
+					Controller: new(true),
+				}},
+			},
+		}
+		desired := current.DeepCopy()
+		desired.SetOwnerReferences(nil)
+
+		if _, _, err := newAPIEstablisher(nil).prepareApply(context.Background(), current, desired, parent, true); err == nil {
+			t.Error("prepareApply(...) accepted an object controlled by a foreign owner")
+		}
+	})
+
+	t.Run("TakeControlFromReplacedRevision", func(t *testing.T) {
+		oldRevisionRef := metav1.OwnerReference{
+			APIVersion: v1.SchemeGroupVersion.String(),
+			Kind:       v1.ProviderRevisionKind,
+			Name:       "old-revision-name",
+			UID:        "old-revision-uid",
+			Controller: new(true),
+		}
+		current := &corev1.ConfigMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "ConfigMap"},
+			ObjectMeta: metav1.ObjectMeta{Name: "test", OwnerReferences: []metav1.OwnerReference{pkgRef, oldRevisionRef}},
+		}
+		desired := current.DeepCopy()
+		desired.SetOwnerReferences(nil)
+
+		// The old revision is inactive - it's being replaced by parent, but
+		// hasn't relinquished control of this object yet (or never will,
+		// because it was paused, deleted, or replaced).
+		oldRevision := &v1.ProviderRevision{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "old-revision-name",
+				UID:  "old-revision-uid",
+				Labels: map[string]string{
+					v1.LabelParentPackage: "provider-name",
+				},
+			},
+		}
+		oldRevision.SetDesiredState(v1.PackageRevisionInactive)
+
+		e := newAPIEstablisher(&test.MockClient{
+			MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+				oldRevision.DeepCopyInto(obj.(*v1.ProviderRevision))
+				return nil
+			},
+		})
+
+		apply, needed, err := e.prepareApply(context.Background(), current, desired, parent, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !needed {
+			t.Error("prepareApply(...) did not report a change from taking control")
+		}
+
+		demoted := oldRevisionRef
+		demoted.Controller = new(false)
+		want := []metav1.OwnerReference{pkgRef, demoted, controllerRef}
+		if diff := cmp.Diff(want, apply.GetOwnerReferences()); diff != "" {
+			t.Errorf("prepareApply(...): -want owners, +got owners:\n%s", diff)
+		}
+	})
+}
+
+func TestAPIEstablisherPatchOptions(t *testing.T) {
+	called := false
+	e := newAPIEstablisher(&test.MockClient{
+		MockPatch: func(_ context.Context, _ client.Object, p client.Patch, opts ...client.PatchOption) error {
+			called = true
+			if got := p.Type(); got != types.ApplyPatchType {
+				t.Errorf("Patch type: want %s, got %s", types.ApplyPatchType, got)
+			}
+			po := (&client.PatchOptions{}).ApplyOptions(opts)
+			if po.FieldManager != FieldOwnerAPIEstablisher {
+				t.Errorf("Field manager: want %q, got %q", FieldOwnerAPIEstablisher, po.FieldManager)
+			}
+			if po.Force == nil || !*po.Force {
+				t.Error("Force ownership was not enabled")
+			}
+			if diff := cmp.Diff([]string{metav1.DryRunAll}, po.DryRun); diff != "" {
+				t.Errorf("Dry-run options: -want, +got:\n%s", diff)
+			}
+			return nil
+		},
+	})
+
+	if err := e.patch(context.Background(), &unstructured.Unstructured{}, FieldOwnerAPIEstablisher, client.DryRunAll); err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Error("Patch(...) was not called")
+	}
+}
+
+func TestAPIEstablisherEstablishSkipsDefaultedControlledObject(t *testing.T) {
+	parent := &v1.ConfigurationRevision{
+		TypeMeta: metav1.TypeMeta{APIVersion: v1.SchemeGroupVersion.String(), Kind: v1.ConfigurationRevisionKind},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "revision-name",
+			UID:  "revision-uid",
+			Labels: map[string]string{
+				v1.LabelParentPackage: "configuration-name",
+			},
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: v1.SchemeGroupVersion.String(),
+				Kind:       v1.ConfigurationKind,
+				Name:       "configuration-name",
+				UID:        "configuration-uid",
+			}},
+		},
+	}
+	desired := &extv1.CustomResourceDefinition{
+		TypeMeta:   metav1.TypeMeta{APIVersion: extv1.SchemeGroupVersion.String(), Kind: "CustomResourceDefinition"},
+		ObjectMeta: metav1.ObjectMeta{Name: "widgets.example.org"},
+		Spec:       extv1.CustomResourceDefinitionSpec{Group: "example.org"},
+	}
+	current := desired.DeepCopy()
+	pkgRef, _ := GetPackageOwnerReference(parent)
+	pkgRef.Controller = new(false)
+	current.SetOwnerReferences([]metav1.OwnerReference{
+		pkgRef,
+		meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind())),
+	})
+	current.Spec.Conversion = &extv1.CustomResourceConversion{Strategy: extv1.NoneConverter}
+	apply, _, err := newAPIEstablisher(nil).prepareApply(context.Background(), current, desired, parent, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current.SetAnnotations(map[string]string{
+		annotationKeyEstablisherHash: apply.GetAnnotations()[annotationKeyEstablisherHash],
+	})
+
+	e := newAPIEstablisher(&test.MockClient{
+		MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+			current.DeepCopyInto(obj.(*extv1.CustomResourceDefinition))
+			return nil
+		},
+		MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
+			t.Error("Patch(...) called for unchanged server-defaulted object")
+			return nil
+		},
+	})
+	if _, err := e.Establish(context.Background(), []runtime.Object{desired}, parent, true); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAPIEstablisherEstablishUpdatesOnlyChangedObjects(t *testing.T) {
+	parent := &v1.ProviderRevision{
+		TypeMeta: metav1.TypeMeta{APIVersion: v1.SchemeGroupVersion.String(), Kind: v1.ProviderRevisionKind},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "revision-name",
+			UID:  "revision-uid",
+		},
+	}
+
+	cases := map[string]struct {
+		reason       string
+		currentOwner bool
+		wantPatches  int
+	}{
+		"SkipUnchanged": {
+			reason:       "Dry-run validation and real establishment should both skip an unchanged object.",
+			currentOwner: true,
+			wantPatches:  0,
+		},
+		"UpdateChanged": {
+			reason:      "Dry-run validation must not hide an owner reference change from real establishment.",
+			wantPatches: 2,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			desired := &corev1.ConfigMap{
+				TypeMeta:   metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "ConfigMap"},
+				ObjectMeta: metav1.ObjectMeta{Name: "test"},
+			}
+			current := desired.DeepCopy()
+			current.SetResourceVersion("42")
+			if tc.currentOwner {
+				current.SetOwnerReferences([]metav1.OwnerReference{
+					meta.AsOwner(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind())),
+				})
+			}
+
+			patches := 0
+			e := newAPIEstablisher(&test.MockClient{
+				MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+					current.DeepCopyInto(obj.(*corev1.ConfigMap))
+					return nil
+				},
+				MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
+					patches++
+					return nil
+				},
+			})
+			if _, err := e.Establish(context.Background(), []runtime.Object{desired}, parent, false); err != nil {
+				t.Fatalf("\n%s\ne.Establish(...): unexpected error: %v", tc.reason, err)
+			}
+			if diff := cmp.Diff(tc.wantPatches, patches); diff != "" {
+				t.Errorf("\n%s\ne.Establish(...): -want patches, +got patches:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
 
 func TestAPIEstablisherEstablish(t *testing.T) {
 	errBoom := errors.New("boom")
@@ -82,7 +464,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: test.NewMockUpdateFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
 				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
@@ -130,7 +512,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						}
 						return kerrors.NewNotFound(schema.GroupResource{}, "")
 					},
-					MockCreate: test.NewMockCreateFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
 				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
@@ -178,7 +560,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						}
 						return kerrors.NewNotFound(schema.GroupResource{}, "")
 					},
-					MockCreate: test.NewMockCreateFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
 				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
@@ -249,8 +631,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			reason: "Establishment should be successful if we can establish ownership for a parent of existing objects.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(nil),
-					MockUpdate: test.NewMockUpdateFn(nil),
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
 				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
@@ -270,8 +652,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			reason: "Establishment should be successful if we skip creating a resource we do not want to control.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-					MockCreate: test.NewMockCreateFn(errBoom),
+					MockGet:   test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockPatch: test.NewMockPatchFn(errBoom),
 				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
@@ -291,8 +673,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			reason: "Establishment should fail if TLS server secret is not present when trying to establish control.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
-					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-					MockCreate: test.NewMockCreateFn(nil),
+					MockGet:   test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockPatch: test.NewMockPatchFn(nil),
 				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
@@ -332,7 +714,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						}
 						return kerrors.NewNotFound(schema.GroupResource{}, "")
 					},
-					MockCreate: test.NewMockCreateFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
 				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
@@ -454,8 +836,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				err: nil,
 			},
 		},
-		"FailedCreate": {
-			reason: "Cannot establish control of object if we cannot create it.",
+		"FailedCreateApply": {
+			reason: "Cannot establish control of object if we cannot apply it during creation.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
@@ -469,7 +851,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						}
 						return kerrors.NewNotFound(schema.GroupResource{}, "")
 					},
-					MockCreate: test.NewMockCreateFn(errBoom),
+					MockPatch: test.NewMockPatchFn(errBoom),
 				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
@@ -494,8 +876,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				err: errBoom,
 			},
 		},
-		"FailedUpdate": {
-			reason: "Cannot establish control of object if we cannot update it.",
+		"FailedUpdateApply": {
+			reason: "Cannot establish control of an existing object if we cannot apply it.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
@@ -509,7 +891,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: test.NewMockUpdateFn(errBoom),
+					MockPatch: test.NewMockPatchFn(errBoom),
 				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
@@ -549,7 +931,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						}
 						return kerrors.NewNotFound(schema.GroupResource{}, "")
 					},
-					MockCreate: test.NewMockCreateFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
 				}),
 				objs: []runtime.Object{
 					&v1alpha1.ManagedResourceDefinition{
@@ -606,7 +988,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			},
 		},
 		"SuccessfulManagedResourceDefinitionAllStateCombinations": {
-			reason: "Establishment should handle all combinations of existing vs desired ManagedResourceDefinition states correctly.",
+			reason: "Establishment should omit state for existing ManagedResourceDefinitions regardless of current and desired state.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
@@ -691,41 +1073,13 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
-						// Verify the merge logic for all combinations
-						if mrd, ok := obj.(*v1alpha1.ManagedResourceDefinition); ok {
-							switch mrd.GetName() {
-							case "active-to-unset":
-								// Existing: Active, Desired: Unset (not active) -> Expected: Active (preserve existing)
-								if mrd.Spec.State != v1alpha1.ManagedResourceDefinitionActive {
-									return errors.Errorf("expected state to be Active for active-to-unset, got %s", mrd.Spec.State)
-								}
-							case "active-to-active":
-								// Existing: Active, Desired: Active -> Expected: Active (use desired)
-								if mrd.Spec.State != v1alpha1.ManagedResourceDefinitionActive {
-									return errors.Errorf("expected state to be Active for active-to-active, got %s", mrd.Spec.State)
-								}
-							case "active-to-inactive":
-								// Existing: Active, Desired: Inactive (not active) -> Expected: Active (preserve existing)
-								if mrd.Spec.State != v1alpha1.ManagedResourceDefinitionActive {
-									return errors.Errorf("expected state to be Active for active-to-inactive, got %s", mrd.Spec.State)
-								}
-							case "inactive-to-unset":
-								// Existing: Inactive, Desired: Unset (not active) -> Expected: Inactive (preserve existing)
-								if mrd.Spec.State != v1alpha1.ManagedResourceDefinitionInactive {
-									return errors.Errorf("expected state to be Inactive for inactive-to-unset, got %s", mrd.Spec.State)
-								}
-							case "inactive-to-active":
-								// Existing: Inactive, Desired: Active -> Expected: Active (use desired)
-								if mrd.Spec.State != v1alpha1.ManagedResourceDefinitionActive {
-									return errors.Errorf("expected state to be Active for inactive-to-active, got %s", mrd.Spec.State)
-								}
-							case "inactive-to-inactive":
-								// Existing: Inactive, Desired: Inactive (not active) -> Expected: Inactive (preserve existing)
-								if mrd.Spec.State != v1alpha1.ManagedResourceDefinitionInactive {
-									return errors.Errorf("expected state to be Inactive for inactive-to-inactive, got %s", mrd.Spec.State)
-								}
-							}
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						u, ok := obj.(*unstructured.Unstructured)
+						if !ok {
+							return errors.Errorf("expected unstructured apply object, got %T", obj)
+						}
+						if state, found, _ := unstructured.NestedFieldNoCopy(u.Object, "spec", "state"); found {
+							return errors.Errorf("expected spec.state to be omitted for %s, got %v", u.GetName(), state)
 						}
 						return nil
 					},
