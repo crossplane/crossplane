@@ -262,7 +262,19 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.RestrictNamespacedEvents {
 		eventFilterFns = append(eventFilterFns, func(obj runtime.Object, _ event.Event) bool {
 			m, err := kmeta.Accessor(obj)
-			return (err == nil && m.GetNamespace() != "" && m.GetNamespace() != "default")
+			if err != nil {
+				log.Debug("failed to get object metadata", "error", err, "object", obj)
+				return false // do not filter on error, maybe the event was legitimate
+			}
+
+			namespace := m.GetNamespace()
+
+			// filter events emitted on cluster-scoped resources (namespace == ""), and resources in the default namespace
+			if namespace == "default" || namespace == "" {
+				log.Debug("event filtered", "namespace", namespace, "object", obj)
+				return true
+			}
+			return false
 		})
 	}
 
