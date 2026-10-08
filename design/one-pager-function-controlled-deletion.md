@@ -42,10 +42,19 @@ checking the XR's `deletionTimestamp` and reacting accordingly. If we started
 running the pipeline on deletion, every existing function would keep returning
 its full set of desired resources, and the XR would hang in `Deleting` forever.
 
+Deleting an XR also doesn't wait for its composed resources. Crossplane v1
+could: a claim's `compositeDeletePolicy: Foreground` made the claim delete its
+XR with foreground propagation, so the claim and XR stayed until the composed
+resources were gone. v2 removed claims, and with them this behavior for most
+XRs. The [v2 proposal review][v2-foreground] suggested requiring
+`--cascade=foreground` with a `ValidatingAdmissionPolicy` instead, but that can
+only reject a plain `kubectl delete`, not fix it.
+
 [gc]: https://github.com/crossplane/crossplane/blob/f108173392198c7aa79f3828e9b741ca3af86b9f/internal/controller/apiextensions/composite/composition_functions.go#L864
 [finalizer]: https://github.com/crossplane/crossplane/blob/f108173392198c7aa79f3828e9b741ca3af86b9f/internal/controller/apiextensions/composite/reconciler.go#L607
 [remove-finalizer]: https://github.com/crossplane/crossplane/blob/f108173392198c7aa79f3828e9b741ca3af86b9f/internal/controller/apiextensions/composite/reconciler.go#L588
 [5092]: https://github.com/crossplane/crossplane/issues/5092
+[v2-foreground]: https://github.com/crossplane/crossplane/pull/6255#discussion_r1938188224
 
 ## Goals
 
@@ -54,110 +63,91 @@ its full set of desired resources, and the XR would hang in `Deleting` forever.
 * Allow functions to perform cleanup work during XR deletion. For example a
   function could add a backup Job to desired state, wait until it completes in
   observed state, and then remove the database from desired state.
+* Support foreground deletion defined by the Composition, so that a plain
+  `kubectl delete` keeps an XR until its composed resources are gone, as v1
+  claims could.
 * Remain fully backward compatible. Existing functions and Compositions require
-  zero changes. XR deletion behavior is identical to today unless every function
-  in the pipeline explicitly opts in.
+  zero changes. XR deletion behavior is identical to today unless a Composition
+  explicitly opts in.
 
 ## Proposal
 
 Function-controlled deletion ships behind an alpha feature gate,
 `--enable-function-controlled-deletion`. When it's disabled Crossplane behaves
 exactly as it does today: it removes its finalizer as soon as an XR is deleted,
-doesn't advertise `CROSSPLANE_CAPABILITY_DELETION` to functions, and doesn't
-retain references to composed resources it has garbage collected.
+ignores a Composition's delete policy, and doesn't retain references to composed
+resources it has garbage collected.
 
-### Bidirectional Capability Advertisement
+### Composition Delete Policies
 
-Crossplane already advertises its capabilities to functions via
-[`RequestMeta.capabilities`][req-caps]. I propose making capability
-advertisement bidirectional. Functions would advertise their capabilities back
-to Crossplane via `ResponseMeta`.
+A Composition declares what happens when an XR that uses it is deleted, with a
+new `spec.deletePolicy` field. It supports multiple deletion modes:
 
-The existing `Capability` enum would be renamed to `CrossplaneCapability` to
-clarify that these are capabilities of Crossplane. A new `FunctionCapability`
-enum would be added for capabilities of functions.
+| `deletePolicy` | When the XR is deleted |
+| --- | --- |
+| `Background` (default) | Crossplane removes its finalizer, and Kubernetes deletes the composed resources once the XR is gone. This is today's behavior. |
+| `Foreground` | Crossplane deletes the composed resources, and keeps the XR until they're gone. The pipeline doesn't run. This is the foreground deletion v1 claims offered. Crossplane already deletes nested XRs this way, but v2 lacks it for an XR deleted directly. |
+| `Pipeline` | Like `Foreground`, but Crossplane keeps running the function pipeline, which decides when each composed resource may be deleted. |
 
-```protobuf
-message RequestMeta {
-  string tag = 1;
-  repeated CrossplaneCapability capabilities = 2;
-}
-
-message ResponseMeta {
-  string tag = 1;
-  optional google.protobuf.Duration ttl = 2;
-  repeated FunctionCapability capabilities = 3;
-}
+```yaml
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: databases
+spec:
+  compositeTypeRef:
+    apiVersion: platform.example.org/v1
+    kind: Database
+  deletePolicy: Pipeline
+  pipeline:
+  - step: render
+    functionRef:
+      name: function-kcl
 ```
 
-Renaming `Capability` to `CrossplaneCapability` is a source-breaking change to
-generated code in the function SDKs, but both SDKs are pre-1.0 and the wire
-format is unchanged. Only the numeric values matter for protobuf serialization.
-Already-compiled functions communicating via gRPC are unaffected.
+`Foreground` is foreground deletion performed by Crossplane rather than the
+Kubernetes garbage collector, so it works for a plain `kubectl delete`.
 
-[req-caps]: https://github.com/crossplane/crossplane/blob/f108173392198c7aa79f3828e9b741ca3af86b9f/proto/fn/v1/run_function.proto#L170
+The Composition declares this, not the functions. Whether a pipeline handles
+deletion is a property of the whole pipeline, and for templating functions of
+their templates, so only the Composition author knows. Functions don't advertise
+anything to Crossplane.
 
-### New Capabilities
-
-```protobuf
-enum CrossplaneCapability {
-  CROSSPLANE_CAPABILITY_UNSPECIFIED = 0;
-  CROSSPLANE_CAPABILITY_CAPABILITIES = 1;
-  CROSSPLANE_CAPABILITY_REQUIRED_RESOURCES = 2;
-  CROSSPLANE_CAPABILITY_CREDENTIALS = 3;
-  CROSSPLANE_CAPABILITY_CONDITIONS = 4;
-  CROSSPLANE_CAPABILITY_REQUIRED_SCHEMAS = 5;
-
-  // Crossplane runs the function pipeline when an XR is being deleted,
-  // and will honor desired state returned by functions during deletion.
-  CROSSPLANE_CAPABILITY_DELETION = 6;
-}
-
-enum FunctionCapability {
-  FUNCTION_CAPABILITY_UNSPECIFIED = 0;
-
-  // This function advertises capabilities. If this is present, the
-  // absence of another capability means the function genuinely does
-  // not support it, not that the function predates capability
-  // advertisement.
-  FUNCTION_CAPABILITY_CAPABILITIES = 1;
-
-  // This function handles XR deletion. When the XR is being deleted,
-  // it will check for the deletion timestamp and manage composed
-  // resource lifecycle via desired state accordingly.
-  FUNCTION_CAPABILITY_DELETION = 2;
-}
-```
-
-`FUNCTION_CAPABILITY_CAPABILITIES` mirrors the existing Crossplane-side
-sentinel. It lets Crossplane distinguish "this function doesn't support
-deletion" from "this function predates capability advertisement."
+The schema doesn't default the field. Leaving it unset means `Background`, so
+existing Compositions keep their hash and don't produce new revisions.
 
 ### Decision Logic on XR Deletion
 
-When the XR has a `deletionTimestamp`, the reconciler runs the pipeline instead
-of immediately removing the finalizer. Before it garbage collects or applies any
-of the desired state the pipeline returned, it inspects the capabilities
-returned by each function:
+When the XR has a `deletionTimestamp`, the reconciler reads the delete policy
+the XR recorded while it was live (see [Recording the Delete
+Policy](#recording-the-delete-policy)):
 
-1. **Every function returned `FUNCTION_CAPABILITY_DELETION`.** Crossplane trusts
-   the pipeline. It garbage collects composed resources not in desired state,
-   server-side applies resources that are in desired state, and requeues. When no
-   composed resources remain, it removes the finalizer.
+1. **`Background`.** Crossplane removes its finalizer and lets Kubernetes
+   garbage collection cascade via owner references, as it does today.
 
-2. **Any function did not return the capability.** At least one function doesn't
-   handle deletion. Crossplane discards the desired state the pipeline returned
-   and falls back to current behavior: remove the finalizer and let Kubernetes
-   garbage collection cascade via owner references.
+2. **`Foreground`.** Crossplane garbage collects the XR's composed resources and
+   requeues. When no composed resources remain, it removes the finalizer. The
+   pipeline doesn't run.
 
-This is an all-or-nothing check. Crossplane can only rely on function-controlled
-deletion if every function in the pipeline understands it. A single unaware
-function could hold resources in desired state indefinitely.
+3. **`Pipeline`.** Crossplane runs the pipeline instead of immediately removing
+   the finalizer. It garbage collects composed resources not in desired state,
+   server-side applies resources that are in desired state, and requeues. When
+   no composed resources remain, it removes the finalizer.
 
-In practice, this isn't as restrictive as it sounds. Most utility functions
-(like `function-auto-ready`) are trivial to update. They just need to return the
-capability and continue passing through desired state as they already do. They
-don't need complex deletion logic.
+With `Pipeline`, every function in the pipeline must handle deletion. A single
+unaware function could hold resources in desired state indefinitely. In
+practice, steps that only render or decorate resources, like
+`function-auto-ready`, don't need to change, as long as a later deletion-aware
+step removes resources from desired state. Such a step at the end of the
+pipeline can also delete resources in order. For example a sequencing function
+like [`function-sequencer`][function-sequencer] could remove resources from
+desired state in the reverse of the order it creates them.
+
+[function-sequencer]: https://github.com/crossplane-contrib/function-sequencer
+
+If the pipeline fails while the XR is deleted, Crossplane holds the XR and
+retries. It never falls back to `Foreground`, which would delete resources a
+function wanted to do work on first.
 
 ### Referencing Deleted Resources
 
@@ -185,38 +175,48 @@ mean waiting forever. Crossplane stops referencing those as it does today, and
 doesn't count them when deciding whether an XR's composed resources are all
 gone.
 
-### Advertising Deletion Support
+### Recording the Delete Policy
 
-Crossplane knows whether an XR's pipeline handles deletion long before the XR is
-deleted, because it runs the pipeline on every reconcile. It will record this in
-a `DeletionOrdered` status condition on the XR: true when every function in the
-pipeline advertised `FUNCTION_CAPABILITY_DELETION`, false otherwise, naming the
-steps that didn't.
+By the time an XR is deleted, its Composition may have changed, or be gone. So
+the XR records its Composition's delete policy in its status on every reconcile
+while it's live:
 
-This tells a user whether an XR will be deleted in order before they try to
-delete it. Crossplane also reads it itself, to decide how to delete an XR that
-another XR composes - see [Nested XRs](#nested-xrs).
+```yaml
+status:
+  crossplane:
+    deletePolicy: Pipeline
+```
+
+The XR records it as soon as it selects a CompositionRevision, before anything
+that can fail, so that an XR whose pipeline is failing still runs it when it's
+deleted. `Background` and `Foreground` don't need the Composition, so Crossplane
+uses them as recorded. For `Pipeline` Crossplane must fetch the XR's revision to
+run its pipeline. If the revision now has a weaker policy, Crossplane uses that
+instead.
+
+This tells a user how an XR will be deleted before they try to delete it.
+Crossplane also reads it itself, to decide how to delete an XR that another XR
+composes - see [Nested XRs](#nested-xrs).
 
 ### Walkthrough
 
 A function creates a VPC and a Subnet. The Subnet should be deleted before the
-VPC. The pipeline is `[function-templates, function-auto-ready]`.
+VPC. The pipeline is `[function-templates, function-auto-ready]`, and the
+Composition's `deletePolicy` is `Pipeline`.
 
-**Normal operation:** Both functions return `FUNCTION_CAPABILITY_DELETION`
-(among other capabilities). `function-templates` returns VPC and Subnet in
-desired state. `function-auto-ready` passes them through with readiness
-annotations.
+**Normal operation:** `function-templates` returns VPC and Subnet in desired
+state. `function-auto-ready` passes them through with readiness annotations. The
+XR records the `Pipeline` delete policy.
 
 **User deletes the XR.**
 
 Reconcile 1:
 
-* Crossplane sees `deletionTimestamp`, runs the pipeline.
+* Crossplane sees `deletionTimestamp` and the recorded `Pipeline` policy, and runs
+  the pipeline.
 * `function-templates` sees the deletion timestamp on the observed XR. It omits
-  Subnet from desired state, keeps VPC. Returns `FUNCTION_CAPABILITY_DELETION`.
-* `function-auto-ready` passes through desired state (VPC only). Returns
-  `FUNCTION_CAPABILITY_DELETION`.
-* All functions returned the capability. Active deletion path.
+  Subnet from desired state, keeps VPC.
+* `function-auto-ready` passes through desired state (VPC only).
 * Crossplane garbage collects the Subnet. Server-side applies the VPC. Requeues.
 
 Reconcile 2:
@@ -230,29 +230,25 @@ Reconcile 3:
 
 * The Subnet is gone, so Crossplane no longer references it and it's absent from
   observed state. `function-templates` omits the VPC from desired state (returns
-  empty desired). Returns `FUNCTION_CAPABILITY_DELETION`.
-* `function-auto-ready` passes through (nothing to pass). Returns
-  `FUNCTION_CAPABILITY_DELETION`.
+  empty desired).
+* `function-auto-ready` passes through (nothing to pass).
 * Crossplane garbage collects the VPC. Once it's gone too, no composed resources
   remain. Removes the finalizer. XR is deleted.
 
-**If `function-auto-ready` hasn't been updated yet:**
+**If the Composition's `deletePolicy` is `Foreground` instead:**
 
-Reconcile 1:
-
-* `function-templates` returns `FUNCTION_CAPABILITY_DELETION`.
-* `function-auto-ready` doesn't return the capability.
-* Not all functions support deletion. Fall back. Remove finalizer, Kubernetes
-  garbage collection cascades. Identical to today.
+Crossplane doesn't run the pipeline. It deletes the VPC and the Subnet, and
+removes its finalizer once they're gone.
 
 ### Templating-Based Functions
 
 This feature is most naturally used by functions written in general-purpose
 languages that already support ordered creation by gating desired state on
 observed state. Templating-based functions like `function-go-templating` and
-`function-kcl` don't typically gate on observed state today. These functions
-would simply not return `FUNCTION_CAPABILITY_DELETION`, and the pipeline would
-fall back to current behavior.
+`function-kcl` don't typically gate on observed state today. A Composition using
+them can still use `Foreground`. With `Pipeline`, their templates can read the
+XR's `deletionTimestamp` and observed state like anything else, and decide what
+to keep in desired state.
 
 If a templating-based function wanted to offer some level of deletion control,
 it could implement sync waves: let users annotate desired resources with a
@@ -262,64 +258,22 @@ something this design prescribes.
 
 ### SDK Helpers
 
-Both function SDKs should provide helpers so that function authors don't need to
-work with proto fields directly.
+Functions don't advertise anything to Crossplane, so the SDKs only need a
+convenience helper.
 
 **Go SDK (`function-sdk-go`)**
 
-The `request` package currently has helpers like `GetObservedCompositeResource`.
-New helpers:
-
 ```go
-// HasCapability returns true if Crossplane advertised the given capability.
-func HasCapability(req *v1.RunFunctionRequest, c v1.CrossplaneCapability) bool
-
 // IsDeleting returns true if the observed XR has a deletion timestamp.
 func IsDeleting(req *v1.RunFunctionRequest) bool
 ```
 
-The `response` package's `To()` function bootstraps a response from the request.
-It would also set the function's capabilities:
-
-```go
-// To creates a new response to the supplied request, advertising the
-// supplied function capabilities. It copies desired state and context
-// through, and sets the response tag and TTL.
-func To(req *v1.RunFunctionRequest, ttl time.Duration, caps ...v1.FunctionCapability) *v1.RunFunctionResponse
-```
-
-A `DefaultCapabilities()` helper would return the capabilities that most
-functions should advertise. This includes `FUNCTION_CAPABILITY_CAPABILITIES` but
-not `FUNCTION_CAPABILITY_DELETION`. Deletion support must be an explicit opt-in.
-Otherwise a function that bumps its SDK dependency would start advertising
-deletion support without implementing any deletion logic.
-
 **Python SDK (`function-sdk-python`)**
-
-The `request` module already has `advertises_capabilities` and `has_capability`.
-New helpers:
 
 ```python
 def is_deleting(req: fnv1.RunFunctionRequest) -> bool:
     """Return True if the observed XR has a deletion timestamp."""
-
-def has_capability(req: fnv1.RunFunctionRequest, c: fnv1.CrossplaneCapability) -> bool:
-    """Return True if Crossplane advertised the given capability."""
 ```
-
-The `response` module's `to()` would gain a `capabilities` parameter:
-
-```python
-def to(
-    req: fnv1.RunFunctionRequest,
-    ttl: datetime.timedelta = DEFAULT_TTL,
-    capabilities: Sequence[fnv1.FunctionCapability] = DEFAULT_CAPABILITIES,
-) -> fnv1.RunFunctionResponse:
-```
-
-Where `DEFAULT_CAPABILITIES` includes `FUNCTION_CAPABILITY_CAPABILITIES` but not
-`FUNCTION_CAPABILITY_DELETION`. Functions must explicitly opt in to deletion
-support.
 
 ### Foreground Deletion
 
@@ -349,11 +303,15 @@ finish, so the XR never finishes deleting at all.
 So Crossplane must not attempt function-controlled deletion against a foreground
 deletion of the same resources. **When a deleted XR has the `foregroundDeletion`
 finalizer, Crossplane removes its own finalizer and defers to garbage
-collection**, exactly as it would for a pipeline that doesn't handle deletion.
-It emits a warning event saying so. The two intents are contradictory -
+collection**, whatever the XR's delete policy. It emits a warning event saying
+so. The two intents are contradictory -
 foreground deletion says "delete the dependents before the owner", while
 function-controlled deletion says "let me control the order" - and someone
 passing `--cascade=foreground` is explicitly asking for the former.
+
+This differs from the `Foreground` delete policy. With the policy, Crossplane
+deletes the composed resources itself, so it can order them and doesn't race the
+garbage collector.
 
 ### Nested XRs
 
@@ -366,25 +324,24 @@ leaving it here would limit the feature to XRs that compose only managed
 resources.
 
 Crossplane will instead choose a propagation policy per composed resource. When
-it garbage collects a composed resource whose `DeletionOrdered` condition is
-true, it deletes that resource with background propagation, so the resource's
-own finalizer and pipeline control its teardown. Everything else keeps the
+it garbage collects a composed XR that recorded the `Foreground` or `Pipeline`
+delete policy, it deletes that XR with background propagation, so the XR's own
+delete policy controls its teardown. Everything else keeps the
 foreground propagation [#6599][6599] introduced - including every managed
 resource, where the two policies behave identically because managed resources
 have no dependents of their own.
 
 The guarantee [#6599][6599] wanted - a composed XR's own resources deleted
 before the XR itself - still holds, and more strictly: Crossplane doesn't
-remove the composed XR's finalizer until its pipeline reports every resource
-gone.
+remove the composed XR's finalizer until its composed resources are gone.
 
 [6599]: https://github.com/crossplane/crossplane/pull/6599
 
 ### Edge Cases
 
-**Stuck-in-deleting XRs.** If all functions claim `FUNCTION_CAPABILITY_DELETION`
-but one is buggy and never empties desired state, the XR hangs with a stuck
-finalizer. This is standard Kubernetes behavior. The same thing happens with
+**Stuck-in-deleting XRs.** If a Composition declares the `Pipeline` policy but
+a function is buggy and never empties desired state, or a composed resource
+can't be deleted, the XR hangs with a stuck finalizer. This is standard Kubernetes behavior. The same thing happens with
 any stuck finalizer. Users can manually remove it. Crossplane should emit
 warning events if the XR has been in `Deleting` for an extended period with
 composed resources remaining.
@@ -396,16 +353,12 @@ a timer either: deleting a database because a backup function was unreachable
 for a few minutes is worse than waiting for a human.
 
 **The XR's Composition is gone.** Nothing stops someone deleting a Composition,
-or the Configuration that brought it, while XRs that use it still exist. A
-deleted XR then can't run its pipeline at all, and would hang forever - which
-would also stop an XRD finishing its own deletion, wedging a package uninstall.
-
-Crossplane falls back to unordered deletion in this case. It can't do better:
-by the time it needs to decide, the Composition it would need to tell whether
-this XR wanted ordered deletion is already gone. Blocking the Composition's
-deletion while XRs reference it would avoid the situation, but that affects
-every XR and Composition, not just those using function-controlled deletion, so
-it isn't worth the complexity for a first iteration.
+or the Configuration that brought it, while XRs that use it still exist. XRs
+with the `Background` or `Foreground` policy don't need their Composition to be
+deleted, because they recorded their policy. An XR with the `Pipeline` policy
+can't run its pipeline at all, so Crossplane holds it rather than skip work its
+functions wanted to do first. Users who want to delete it anyway can remove its
+finalizer, as for any stuck XR.
 
 **Pipeline failure during deletion.** If the pipeline fails during deletion (e.g.
 function pod unavailable), the reconciler returns an error and requeues, same as
@@ -415,11 +368,8 @@ function intended to control the order.
 
 **`crank render` support.** The `crank render` CLI also runs pipelines. Function
 authors can test their deletion logic locally by setting `deletionTimestamp` on
-the XR they feed into `crank render`. `render` needs to advertise
-`CROSSPLANE_CAPABILITY_DELETION` for this to work, and its embedded `contextfn`
-function - which seeds and retrieves pipeline context - needs to advertise
-`FUNCTION_CAPABILITY_DELETION`, or every rendered pipeline will look like one
-that doesn't handle deletion.
+the XR they feed into `crank render`. For this to work `render` needs to run the
+pipeline for a deleted XR when the Composition's delete policy is `Pipeline`.
 
 **Composed resources with deletion timestamps.** A composed resource Crossplane
 has garbage collected stays in observed state, carrying its own
@@ -427,7 +377,31 @@ has garbage collected stays in observed state, carrying its own
 resource with a deletion timestamp as still being deleted, and wait for it to
 disappear from observed state before they stop desiring the next one.
 
+## Future Work
+
+**Declared ordering.** The [composed resource ordering proposal][7841] would let
+functions declare dependencies between composed resources. If it's accepted,
+Crossplane could use them to order the deletes it makes for the `Foreground`
+policy, and to order the deletes a `Pipeline` asks for.
+
+[7841]: https://github.com/crossplane/crossplane/pull/7841
+
 ## Alternatives Considered
+
+### Function-advertised capabilities
+
+An earlier version of this design had functions advertise a deletion capability
+in their responses, and ran the pipeline during deletion only if every function
+did. Any function that didn't advertise it, including ones that only pass
+desired state through like `function-auto-ready`, turned the feature off for the
+whole pipeline. Templating functions couldn't advertise it honestly, because
+whether deletion is handled depends on the template. It also needed a second
+capability mechanism, from functions to Crossplane.
+
+A variant had only the last function advertise it, taking responsibility for
+everything before it. The Composition author has to arrange the pipeline
+correctly either way, so it's simpler for them to declare the delete policy
+directly.
 
 ### Package-level capability advertisement
 
@@ -451,15 +425,14 @@ be validated against them before an XR exists. Deletion can't be known that way.
 
 ### Per-step `onDelete` configuration in the Composition
 
-Instead of function-advertised capabilities, the Composition's pipeline steps
+Instead of a pipeline-level delete policy, the Composition's pipeline steps
 could have an `onDelete: Run | Skip` field. Steps marked `Run` would be called
 during deletion; steps marked `Skip` (the default) would not.
 
-This puts the knowledge in the wrong place. The Composition author has to know
-whether a function handles deletion correctly. If they get it wrong and mark a
-function as `onDelete: Run` when it doesn't check `deletionTimestamp`, the XR
-hangs forever. The function knows whether it handles deletion; it should be the
-one to say so.
+Whether an XR finishes deleting depends on the pipeline's final desired state,
+which every step contributes to, so it's a property of the whole pipeline. A
+step that composes resources but skips deletion would keep desiring them
+forever.
 
 ### Per-response deletion status field
 
@@ -467,10 +440,10 @@ Instead of a capability, each response could include a `DeletionHandling` field
 with values like `UNSPECIFIED`, `IN_PROGRESS`, and `COMPLETE`. Crossplane would
 check these per-invocation to decide whether to trust the pipeline.
 
-This conflates a static property of the function ("I understand deletion") with
-per-invocation status. Capabilities are the right abstraction. They describe
-what the function supports, not what it's doing right now. The completion signal
-is implicit in the desired state: when it's empty, the function is done.
+This conflates a static property ("this pipeline handles deletion") with
+per-invocation status. The static property belongs in the Composition. The
+completion signal is implicit in the desired state: when it's empty, the
+function is done.
 
 ### Usages
 
