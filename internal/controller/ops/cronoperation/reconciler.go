@@ -111,9 +111,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// Derive our last scheduled time from the last time we created an
-	// Operation.
-	if t := lifecycle.LatestCreateTime(ol.Items...); !t.IsZero() {
+	// Derive our last scheduled time from the scheduled time encoded in the
+	// most recent Operation's name. This avoids using creationTimestamp,
+	// which can be slightly earlier than the scheduled time due to clock skew
+	// between the controller and the API server.
+	if t := lifecycle.LatestScheduledTime(co.GetName(), ol.Items...); !t.IsZero() {
 		co.Status.LastScheduleTime = &metav1.Time{Time: t}
 	}
 
