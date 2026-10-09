@@ -52,12 +52,14 @@ const (
 	errOwnRev          = "cannot own CompositionRevision"
 	errUpdateRevStatus = "cannot update CompositionRevision status"
 	errUpdateRevSpec   = "cannot update CompositionRevision spec"
+	errGarbageCollect  = "cannot garbage collect CompositionRevisions"
 )
 
 // Event reasons.
 const (
-	reasonCreateRev event.Reason = "CreateRevision"
-	reasonUpdateRev event.Reason = "UpdateRevision"
+	reasonCreateRev      event.Reason = "CreateRevision"
+	reasonUpdateRev      event.Reason = "UpdateRevision"
+	reasonGarbageCollect event.Reason = "GarbageCollectRevisions"
 )
 
 // Setup adds a controller that reconciles Compositions by creating new
@@ -65,9 +67,18 @@ const (
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "revisions/" + strings.ToLower(v1.CompositionGroupKind)
 
-	r := NewReconciler(mgr,
+	opts := []ReconcilerOption{
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)))
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+	}
+
+	// List XRs using the controller engine's cache. The XR controllers already
+	// run informers for every established XRD.
+	if o.ControllerEngine != nil {
+		opts = append(opts, WithRevisionGarbageCollector(NewAPIRevisionGarbageCollector(mgr.GetClient(), o.ControllerEngine.GetCached())))
+	}
+
+	r := NewReconciler(mgr, opts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -94,10 +105,19 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
+// WithRevisionGarbageCollector specifies how the Reconciler should garbage
+// collect CompositionRevisions that are no longer needed.
+func WithRevisionGarbageCollector(gc RevisionGarbageCollector) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.gc = gc
+	}
+}
+
 // NewReconciler returns a Reconciler of Compositions.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
 		client: mgr.GetClient(),
+		gc:     NopRevisionGarbageCollector{},
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
 	}
@@ -113,6 +133,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 // each revision of the Composition's spec.
 type Reconciler struct {
 	client client.Client
+	gc     RevisionGarbageCollector
 
 	log    logging.Logger
 	record event.Recorder
@@ -217,18 +238,32 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// We start from revision 1, so 0 indicates we didn't find one.
 	if existingRev > 0 {
 		log.Debug("No new revision needed.", "current-revision", existingRev)
-		return reconcile.Result{}, nil
+	} else {
+		if err := r.client.Create(ctx, NewCompositionRevision(comp, latestRev+1)); err != nil {
+			log.Debug(errCreateRev, "error", err)
+			r.record.Event(comp, event.Warning(reasonCreateRev, err))
+
+			return reconcile.Result{}, errors.Wrap(err, errCreateRev)
+		}
+
+		log.Debug("Created new revision", "revision", latestRev+1)
+		r.record.Event(comp, event.Normal(reasonCreateRev, "Created new revision", "revision", strconv.FormatInt(latestRev+1, 10)))
 	}
 
-	if err := r.client.Create(ctx, NewCompositionRevision(comp, latestRev+1)); err != nil {
-		log.Debug(errCreateRev, "error", err)
-		r.record.Event(comp, event.Warning(reasonCreateRev, err))
-
-		return reconcile.Result{}, errors.Wrap(err, errCreateRev)
+	// Garbage collection errors don't fail the reconcile. We've already
+	// created any revision we needed, and the garbage collector deletes
+	// nothing if it can't tell which revisions are in use. We'll try again the
+	// next time the Composition or one of its revisions changes.
+	n, err := r.gc.GarbageCollect(ctx, comp, rl.Items)
+	if n > 0 {
+		log.Debug("Garbage collected revisions", "count", n)
+		r.record.Event(comp, event.Normal(reasonGarbageCollect, "Garbage collected unused revisions", "count", strconv.Itoa(n)))
 	}
 
-	log.Debug("Created new revision", "revision", latestRev+1)
-	r.record.Event(comp, event.Normal(reasonCreateRev, "Created new revision", "revision", strconv.FormatInt(latestRev+1, 10)))
+	if err != nil {
+		log.Debug(errGarbageCollect, "error", err)
+		r.record.Event(comp, event.Warning(reasonGarbageCollect, errors.Wrap(err, errGarbageCollect)))
+	}
 
 	return reconcile.Result{}, nil
 }

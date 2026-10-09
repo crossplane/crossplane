@@ -19,6 +19,7 @@ package composition
 import (
 	"context"
 	"io"
+	"slices"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -144,6 +145,7 @@ func TestReconcile(t *testing.T) {
 	type args struct {
 		mgr  manager.Manager
 		opts []ReconcilerOption
+		gc   RevisionGarbageCollectorFn
 	}
 
 	type want struct {
@@ -437,11 +439,95 @@ func TestReconcile(t *testing.T) {
 				err: nil,
 			},
 		},
+		"GarbageCollectOnNoOp": {
+			reason: "We should garbage collect revisions when no new revision is needed.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*v1.Composition) = *compDev
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+								Items: []v1.CompositionRevision{*rev2, *rev3},
+							}
+							return nil
+						}),
+					},
+				},
+				gc: func(_ context.Context, _ *v1.Composition, _ []v1.CompositionRevision) (int, error) {
+					return 1, nil
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"GarbageCollectOnCreation": {
+			reason: "We should garbage collect revisions after creating a new revision.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*v1.Composition) = *compDev
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+								Items: []v1.CompositionRevision{*rev2},
+							}
+							return nil
+						}),
+						MockCreate: test.NewMockCreateFn(nil),
+					},
+				},
+				gc: func(_ context.Context, _ *v1.Composition, _ []v1.CompositionRevision) (int, error) {
+					return 0, nil
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"GarbageCollectError": {
+			reason: "We should not fail the reconcile if garbage collection fails.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*v1.Composition) = *compDev
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+								Items: []v1.CompositionRevision{*rev3},
+							}
+							return nil
+						}),
+					},
+				},
+				gc: func(_ context.Context, _ *v1.Composition, _ []v1.CompositionRevision) (int, error) {
+					return 0, errBoom
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.mgr, append(tc.args.opts, WithLogger(testLog))...)
+			opts := append(slices.Clone(tc.args.opts), WithLogger(testLog))
+
+			if tc.args.gc != nil {
+				opts = append(opts, WithRevisionGarbageCollector(RevisionGarbageCollectorFn(func(ctx context.Context, comp *v1.Composition, revs []v1.CompositionRevision) (int, error) {
+					return tc.args.gc(ctx, comp, revs)
+				})))
+			}
+
+			r := NewReconciler(tc.args.mgr, opts...)
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
