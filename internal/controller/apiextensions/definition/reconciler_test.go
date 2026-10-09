@@ -562,6 +562,16 @@ func TestReconcile(t *testing.T) {
 				ca: resource.ClientApplicator{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(got client.Object) error {
+							d := got.(*v1.CompositeResourceDefinition)
+							c := d.GetCondition(v1.TypeEstablished)
+
+							if c.Reason != v1.ReasonCannotEstablishComposite {
+								t.Errorf("MockStatusUpdate: got Established condition reason %q, want %q", c.Reason, v1.ReasonCannotEstablishComposite)
+							}
+
+							return nil
+						}),
 					},
 					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 						return errBoom
