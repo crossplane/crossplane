@@ -17,13 +17,19 @@ package xfn
 
 import (
 	"context"
+	"io"
 	"net"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/testing/protocmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -339,6 +345,65 @@ func TestGetClientConn(t *testing.T) {
 	}
 }
 
+func TestRunFunctionDetectsDeadConnection(t *testing.T) {
+	// Start a gRPC server, with a TCP proxy in front of it that lets us
+	// simulate a Function pod that goes away without closing its connection.
+	lis := NewGRPCServer(t, &MockFunctionServer{rsp: &fnv1.RunFunctionResponse{
+		Meta: &fnv1.ResponseMeta{Tag: "hi!"},
+	}})
+	defer lis.Close()
+
+	proxy := NewBlackholeProxy(t, lis.Addr().String())
+	defer proxy.Close()
+
+	target := strings.Replace(proxy.Addr().String(), "127.0.0.1", "dns:///localhost", 1)
+
+	c := &test.MockClient{
+		MockList: NewListFn(target),
+	}
+
+	// Use the most aggressive keepalive gRPC allows, so the test runs quickly.
+	r := NewPackagedFunctionRunner(c, WithKeepaliveParameters(keepalive.ClientParameters{
+		Time:    10 * time.Second,
+		Timeout: 2 * time.Second,
+	}))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Establish a connection to the Function.
+	if _, err := r.RunFunction(ctx, "cool-fn", &fnv1.RunFunctionRequest{}); err != nil {
+		t.Fatalf("r.RunFunction(...): unexpected error: %s", err)
+	}
+
+	// The Function pod goes away without closing its connection. Traffic to
+	// it is silently dropped.
+	proxy.Blackhole()
+
+	// Keepalive should detect the dead connection and fail this RPC. Without
+	// keepalive it would block until the context deadline.
+	start := time.Now()
+	_, err := r.RunFunction(ctx, "cool-fn", &fnv1.RunFunctionRequest{})
+
+	if diff := cmp.Diff(codes.Unavailable, status.Code(err)); diff != "" {
+		t.Errorf("\nr.RunFunction(...) on dead connection returned after %s: -want code, +got code:\n%s", time.Since(start), diff)
+	}
+
+	// Detecting the dead connection should have dropped it, so this RPC must
+	// be served by a new connection.
+	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if _, err := r.RunFunction(ctx, "cool-fn", &fnv1.RunFunctionRequest{}); err != nil {
+		t.Errorf("r.RunFunction(...) after dead connection was dropped: unexpected error: %s", err)
+	}
+
+	// Close any gRPC clients.
+	if _, err := r.GarbageCollectConnectionsNow(context.Background()); err != nil {
+		t.Logf("Error closing client connections: %s", err)
+	}
+}
+
 func TestGarbageCollectConnectionsNow(t *testing.T) {
 	// TestRunFunction exercises most of the GarbageCollectConnectionsNow code.
 	// Here we just test some cases that don't fit well in our usual
@@ -499,4 +564,97 @@ type MockBetaFunctionServer struct {
 
 func (s *MockBetaFunctionServer) RunFunction(context.Context, *fnv1beta1.RunFunctionRequest) (*fnv1beta1.RunFunctionResponse, error) {
 	return s.rsp, s.err
+}
+
+// A BlackholeProxy forwards TCP connections to an upstream address. Calling
+// Blackhole causes it to silently drop all traffic on the connections that
+// exist at that time, while keeping them open. This simulates a peer that
+// went away without closing its connections, e.g. a Function pod whose node
+// failed. New connections are forwarded normally, like connections to a
+// replacement pod would be.
+type BlackholeProxy struct {
+	lis      net.Listener
+	upstream string
+	gen      atomic.Int64
+}
+
+func NewBlackholeProxy(t *testing.T, upstream string) *BlackholeProxy {
+	t.Helper()
+
+	// Listen on a random port.
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("Proxying TCP connections from %q to %q", lis.Addr().String(), upstream)
+
+	p := &BlackholeProxy{lis: lis, upstream: upstream}
+
+	go func() {
+		for {
+			conn, err := lis.Accept()
+			if err != nil {
+				return
+			}
+
+			go p.forward(conn, p.gen.Load())
+		}
+	}()
+
+	return p
+}
+
+// Addr returns the address the proxy listens on.
+func (p *BlackholeProxy) Addr() net.Addr {
+	return p.lis.Addr()
+}
+
+// Blackhole silently drops all traffic on existing connections.
+func (p *BlackholeProxy) Blackhole() {
+	p.gen.Add(1)
+}
+
+// Close stops the proxy accepting new connections.
+func (p *BlackholeProxy) Close() error {
+	return p.lis.Close()
+}
+
+func (p *BlackholeProxy) forward(client net.Conn, gen int64) {
+	defer client.Close()
+
+	server, err := net.Dial("tcp", p.upstream)
+	if err != nil {
+		return
+	}
+	defer server.Close()
+
+	done := make(chan struct{}, 2)
+
+	pipe := func(dst io.Writer, src io.Reader) {
+		buf := make([]byte, 32*1024)
+
+		for {
+			n, err := src.Read(buf)
+			if err != nil {
+				break
+			}
+
+			// This connection is black-holed. Drop the data.
+			if p.gen.Load() != gen {
+				continue
+			}
+
+			if _, err := dst.Write(buf[:n]); err != nil {
+				break
+			}
+		}
+
+		done <- struct{}{}
+	}
+
+	go pipe(server, client)
+	go pipe(client, server)
+
+	<-done
 }
