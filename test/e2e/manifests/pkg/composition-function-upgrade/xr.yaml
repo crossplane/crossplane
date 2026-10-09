@@ -1,0 +1,7 @@
+apiVersion: example.org/v1alpha1
+kind: UpgradeFn
+metadata:
+  namespace: default
+  name: upgrade-fn
+spec:
+  coolField: "I'm cool!"

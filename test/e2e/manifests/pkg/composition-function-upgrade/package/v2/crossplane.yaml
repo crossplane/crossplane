@@ -1,0 +1,18 @@
+# Package metadata for the v2 Configuration installed by
+# configuration-updated.yaml.
+#
+# This package is manually built and pushed to
+# xpkg.crossplane.io/crossplane/e2e-composition-function-upgrade:v0.2.0, e.g.:
+# ❯ crossplane xpkg build --package-root . -o e2e-composition-function-upgrade-v2.xpkg
+# ❯ crossplane xpkg push -f e2e-composition-function-upgrade-v2.xpkg \
+#     xpkg.crossplane.io/crossplane/e2e-composition-function-upgrade:v0.2.0
+#
+# v2 keeps the function-dummy dependency (so the existing manager-owned
+# FunctionRevision persists) but its Composition now references the function by
+# OCI ref, exercising the upgrade path where a composition-owned external
+# revision is added to the already-installed Function.
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: e2e-composition-function-upgrade
+spec: {}

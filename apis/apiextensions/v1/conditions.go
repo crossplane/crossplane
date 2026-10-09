@@ -53,6 +53,7 @@ const (
 
 	ReasonValidPipeline       xpv2.ConditionReason = "ValidPipeline"
 	ReasonMissingCapabilities xpv2.ConditionReason = "MissingCapabilities"
+	ReasonInvalidPipeline     xpv2.ConditionReason = "InvalidPipeline"
 
 	ReasonWatchCircuitOpen   xpv2.ConditionReason = "WatchCircuitOpen"
 	ReasonWatchCircuitClosed xpv2.ConditionReason = "WatchCircuitClosed"
@@ -121,6 +122,17 @@ func MissingCapabilities(message string) xpv2.Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonMissingCapabilities,
+		Message:            message,
+	}
+}
+
+// InvalidPipeline indicates that the CompositionRevision's pipeline is invalid.
+func InvalidPipeline(message string) xpv2.Condition {
+	return xpv2.Condition{
+		Type:               TypeValidPipeline,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonInvalidPipeline,
 		Message:            message,
 	}
 }

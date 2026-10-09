@@ -25,6 +25,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	pkgName "github.com/google/go-containerregistry/pkg/name"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -44,6 +45,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
 	fakexpkg "github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/fake"
 
+	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/dag"
 	fakedag "github.com/crossplane/crossplane/v2/internal/dag/fake"
@@ -135,17 +137,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt reconciliation.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
 				},
@@ -165,19 +162,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
@@ -202,19 +192,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
@@ -242,19 +225,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
@@ -282,19 +258,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
-								Version: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "cool-repo/cool-image",
+							Version: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+						}}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
@@ -322,19 +291,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
@@ -369,19 +331,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
@@ -419,19 +374,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
@@ -469,19 +417,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
@@ -519,19 +460,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
 						MockCreate:       test.NewMockCreateFn(errBoom),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
@@ -571,19 +505,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
-								Version: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+							Version: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+						}}),
 						MockCreate:       test.NewMockCreateFn(errBoom),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
@@ -623,19 +550,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
 						MockCreate:       test.NewMockCreateFn(nil),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
@@ -675,19 +595,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
-								Version: "v1.0.0",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+							Version: "v1.0.0",
+						}}),
 						MockCreate: test.NewMockCreateFn(nil, func(o client.Object) error {
 							// Make sure the correct tag was selected - v1.0.0,
 							// not v1 or v1.0, which both parse to the same
@@ -740,19 +653,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
 						MockCreate:       test.NewMockCreateFn(nil),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
@@ -796,19 +702,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
 						MockCreate:       test.NewMockCreateFn(nil),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
@@ -845,16 +744,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
@@ -909,16 +804,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
@@ -976,16 +867,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    ptr.To(v1beta1.ProviderPackageType),
-								Source:  "xpkg.crossplane.io/cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
-						}),
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
@@ -1052,6 +939,22 @@ func TestReconcile(t *testing.T) {
 			}
 		})
 	}
+}
+
+// getLockFn returns a MockGetFn that populates a lock with the given packages
+// and returns not found for function gets. Returns an error for any other type.
+func getLockFn(pkgs []v1beta1.LockPackage) test.MockGetFn {
+	return test.NewMockGetFn(nil, func(o client.Object) error {
+		switch obj := o.(type) {
+		case *v1beta1.Lock:
+			obj.Packages = append(obj.Packages, pkgs...)
+			return nil
+
+		case *v1.Function:
+			return kerrors.NewNotFound(schema.GroupResource{}, o.GetName())
+		}
+		return errors.Errorf("unexpected get for type %T", o)
+	})
 }
 
 func TestFindDigestToUpdate(t *testing.T) {
@@ -1922,6 +1825,162 @@ func TestPruneOutdatedDependencies(t *testing.T) {
 			got := pruneOutdatedDependencies(tc.args.pkgs)
 			if diff := cmp.Diff(tc.want.pkgs, got); diff != "" {
 				t.Errorf("\n%s\npruneOutdatedDependencies(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestReconcileAdoptExternalFunction(t *testing.T) {
+	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
+
+	upgradesEnabled := &feature.Flags{}
+	upgradesEnabled.Enable(features.EnableAlphaDependencyVersionUpgrades)
+
+	const (
+		fnSource = "xpkg.crossplane.io/crossplane-contrib/function-cool"
+		fnName   = "crossplane-contrib-function-cool"
+		digest   = "sha256:c0ffee1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+	)
+
+	// A Configuration depends on function-cool, which is installed only as an
+	// external revision (e.g. by a CompositionRevision) at a digest that
+	// doesn't satisfy the dependency's constraint.
+	lockPackages := []v1beta1.LockPackage{
+		{
+			Name:    "cool-config",
+			Type:    ptr.To(v1beta1.ConfigurationPackageType),
+			Source:  "xpkg.crossplane.io/crossplane-contrib/cool-config",
+			Version: "v1.0.0",
+			Dependencies: []v1beta1.Dependency{{
+				Package:     fnSource,
+				Type:        ptr.To(v1beta1.FunctionPackageType),
+				Constraints: ">=v1.0.0",
+			}},
+		},
+		{
+			Name:    fnName + "-c0ffee123456",
+			Type:    ptr.To(v1beta1.FunctionPackageType),
+			Source:  fnSource,
+			Version: digest,
+		},
+	}
+
+	owner := metav1.OwnerReference{APIVersion: "apiextensions.crossplane.io/v1", Kind: "CompositionRevision", Name: "cool-abc", UID: "cool-abc"}
+
+	type args struct {
+		features *feature.Flags
+		newDag   dag.NewDAGFn
+		pkg      string
+	}
+
+	type want struct {
+		pkg    string
+		owners []metav1.OwnerReference
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"DefaultMode": {
+			reason: "We should adopt an external-only Function to satisfy a dependency, removing owner references.",
+			args: args{
+				features: &feature.Flags{},
+				newDag:   dag.NewMapDag,
+			},
+			want: want{
+				pkg: fnSource + ":v1.2.0",
+			},
+		},
+		"UpgradeMode": {
+			reason: "We should adopt an external-only Function to satisfy a dependency when dependency upgrades are enabled, removing CompositionRevision and Operation owner references.",
+			args: args{
+				features: upgradesEnabled,
+				newDag:   dag.NewUpgradingMapDag,
+			},
+			want: want{
+				pkg: fnSource + ":v1.2.0",
+			},
+		},
+		"DefaultModeNotExternal": {
+			reason: "We should not adopt a Function that already has a package.",
+			args: args{
+				features: &feature.Flags{},
+				newDag:   dag.NewMapDag,
+				pkg:      fnSource + ":v0.1.0",
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var updated *v1.Function
+
+			mgr := &fake.Manager{
+				Client: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, o client.Object) error {
+						switch obj := o.(type) {
+						case *v1beta1.Lock:
+							obj.SetName("lock")
+							obj.Packages = lockPackages
+						case *v1.Function:
+							if key.Name != fnName {
+								return kerrors.NewNotFound(schema.GroupResource{}, obj.GetName())
+							}
+							obj.SetName(fnName)
+							obj.SetOwnerReferences([]metav1.OwnerReference{owner})
+							obj.Spec.Package = tc.args.pkg
+						}
+						return nil
+					},
+					MockList: test.NewMockListFn(nil),
+					MockCreate: test.NewMockCreateFn(nil, func(o client.Object) error {
+						if o.GetName() == fnName {
+							return kerrors.NewAlreadyExists(schema.GroupResource{}, fnName)
+						}
+						return nil
+					}),
+					MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+						if fn, ok := o.(*v1.Function); ok {
+							updated = fn
+						}
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				},
+			}
+
+			r := NewReconciler(mgr,
+				WithLogger(testLog),
+				WithFeatures(tc.args.features),
+				WithNewDagFn(tc.args.newDag),
+				WithClient(&fakexpkg.MockClient{
+					MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v0.1.0", "v1.0.0", "v1.2.0"}, nil),
+				}),
+			)
+
+			if _, err := r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: "lock"}}); err != nil {
+				t.Fatalf("\n%s\nr.Reconcile(...): %s", tc.reason, err)
+			}
+
+			if tc.want.pkg == "" {
+				if updated != nil {
+					t.Errorf("\n%s\nUpdate(...): unexpected update of Function %q", tc.reason, updated.GetName())
+				}
+				return
+			}
+
+			if updated == nil {
+				t.Fatalf("\n%s\nUpdate(...): Function was not updated", tc.reason)
+			}
+
+			if diff := cmp.Diff(tc.want.pkg, updated.Spec.Package); diff != "" {
+				t.Errorf("\n%s\nspec.package: -want, +got:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.owners, updated.GetOwnerReferences()); diff != "" {
+				t.Errorf("\n%s\nowner references: -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

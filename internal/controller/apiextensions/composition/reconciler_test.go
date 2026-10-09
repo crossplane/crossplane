@@ -32,11 +32,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/internal/features"
 )
 
 func TestReconcile(t *testing.T) {
@@ -76,6 +78,28 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 	}
+
+	compOCIRef := &v1.Composition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cool-composition",
+			UID:  types.UID("no-you-uid"),
+		},
+		Spec: v1.CompositionSpec{
+			Pipeline: []v1.PipelineStep{
+				{
+					Step:        "by-name",
+					FunctionRef: &v1.FunctionReference{Name: "function-cool"},
+				},
+				{
+					Step:     "by-oci-ref",
+					Function: "xpkg.crossplane.io/crossplane-contrib/function-cool@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+				},
+			},
+		},
+	}
+
+	enabled := &feature.Flags{}
+	enabled.Enable(features.EnableAlphaPipelineOCIReferences)
 
 	// Not owned by the above composition.
 	rev1 := &v1.CompositionRevision{
@@ -361,6 +385,56 @@ func TestReconcile(t *testing.T) {
 						}),
 					},
 				},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: nil,
+			},
+		},
+		"MissingFunctionRefFeatureDisabled": {
+			reason: "We should not create a new CompositionRevision if a pipeline step has no functionRef and pipeline OCI references are disabled.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*v1.Composition) = *compOCIRef
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil),
+						MockCreate: test.NewMockCreateFn(nil, func(_ client.Object) error {
+							t.Errorf("Create(): unexpected call")
+							return nil
+						}),
+					},
+				},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: nil,
+			},
+		},
+		"SuccessfulCreationOCIRefFeatureEnabled": {
+			reason: "We should create a new CompositionRevision if a pipeline step references a function by OCI reference and pipeline OCI references are enabled.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*v1.Composition) = *compOCIRef
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil),
+						MockCreate: test.NewMockCreateFn(nil, func(got client.Object) error {
+							want := NewCompositionRevision(compOCIRef, 1)
+
+							if diff := cmp.Diff(want, got); diff != "" {
+								t.Errorf("Create(): -want, +got:\n%s", diff)
+							}
+
+							return nil
+						}),
+					},
+				},
+				opts: []ReconcilerOption{WithFeatures(enabled)},
 			},
 			want: want{
 				r:   reconcile.Result{},

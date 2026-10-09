@@ -73,6 +73,20 @@ func (s *FatalFunctionServer) RunFunction(_ context.Context, _ *fnv1.RunFunction
 	}, nil
 }
 
+// StaticFunctionServer is an in-process gRPC FunctionRunnerService server that
+// returns the same response to every call.
+type StaticFunctionServer struct {
+	fnv1.UnimplementedFunctionRunnerServiceServer
+
+	// Response is returned by every call to RunFunction.
+	Response *fnv1.RunFunctionResponse
+}
+
+// RunFunction implements fnv1.FunctionRunnerServiceServer.
+func (s *StaticFunctionServer) RunFunction(_ context.Context, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	return s.Response, nil
+}
+
 // StartFunctionServer starts an in-process gRPC server registered with the
 // supplied FunctionRunnerServiceServer and returns its TCP address. The
 // server is stopped automatically when the test ends.

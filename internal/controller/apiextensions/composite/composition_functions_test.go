@@ -50,9 +50,62 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
+
+// mockGetFunction returns a MockGetFn that populates *pkgv1.Function requests
+// with a package reference (so a name-based pipeline step resolves), delegating
+// any other object type to next (which may be nil).
+func mockGetFunction(next test.MockGetFn) test.MockGetFn {
+	return func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+		if f, ok := obj.(*pkgv1.Function); ok {
+			f.SetName("cool-function")
+			f.SetUID("cool-function-uid")
+			f.Spec.Package = "xpkg.crossplane.io/example/cool-function:v1.0.0"
+			return nil
+		}
+		if next != nil {
+			return next(ctx, key, obj)
+		}
+		return nil
+	}
+}
+
+// mockListFunctionRevisions returns a MockListFn that populates
+// *pkgv1.FunctionRevisionList requests with an active revision controlled by
+// the Function returned by mockGetFunction, so a name-based pipeline step
+// resolves.
+func mockListFunctionRevisions() test.MockListFn {
+	return func(_ context.Context, obj client.ObjectList, _ ...client.ListOption) error {
+		l, ok := obj.(*pkgv1.FunctionRevisionList)
+		if !ok {
+			return nil
+		}
+
+		l.Items = []pkgv1.FunctionRevision{{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "cool-function-abc123",
+				OwnerReferences: []metav1.OwnerReference{{
+					APIVersion: pkgv1.FunctionGroupVersionKind.GroupVersion().String(),
+					Kind:       pkgv1.FunctionKind,
+					Name:       "cool-function",
+					UID:        "cool-function-uid",
+					Controller: new(true),
+				}},
+			},
+			Spec: pkgv1.FunctionRevisionSpec{
+				PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+					DesiredState: pkgv1.PackageRevisionActive,
+					Package:      "xpkg.crossplane.io/example/cool-function:v1.0.0",
+				},
+			},
+		}}
+
+		return nil
+	}
+}
 
 func TestFunctionCompose(t *testing.T) {
 	errBoom := errors.New("boom")
@@ -144,7 +197,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 									Input:       &runtime.RawExtension{Raw: []byte("hi")}, // This is invalid - it must be a JSON object.
 								},
 							},
@@ -184,7 +237,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 									Credentials: []v1.FunctionCredentials{
 										{
 											Name:   "cool-secret",
@@ -208,6 +261,10 @@ func TestFunctionCompose(t *testing.T) {
 		"RunFunctionError": {
 			reason: "We should return any error encountered while running a Composition Function",
 			params: params{
+				c: &test.MockClient{
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(nil),
+				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					return nil, errBoom
 				}),
@@ -228,7 +285,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -242,6 +299,10 @@ func TestFunctionCompose(t *testing.T) {
 		"FatalFunctionResultError": {
 			reason: "We should return any fatal function results as an error. Any conditions returned by the function should be passed up. Any results returned by the function prior to the fatal result should be passed up.",
 			params: params{
+				c: &test.MockClient{
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(nil),
+				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					return &fnv1.RunFunctionResponse{
 						Results: []*fnv1.Result{
@@ -309,7 +370,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -369,6 +430,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when rendering composed resource metadata",
 			params: params{
 				c: &test.MockClient{
+					MockList:        mockListFunctionRevisions(),
+					MockGet:         mockGetFunction(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
@@ -402,7 +465,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -416,6 +479,10 @@ func TestFunctionCompose(t *testing.T) {
 		"InvalidNameCreateComposedResourceError": {
 			reason: "We should return an error when a resource has an invalid name",
 			params: params{
+				c: &test.MockClient{
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(nil),
+				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
@@ -453,7 +520,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -468,7 +535,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when naming a composed resource",
 			params: params{
 				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(errBoom),
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(test.NewMockGetFn(errBoom)),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -506,7 +574,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -535,6 +603,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when garbage collecting composed resources",
 			params: params{
 				c: &test.MockClient{
+					MockList:  mockListFunctionRevisions(),
+					MockGet:   mockGetFunction(nil),
 					MockPatch: test.NewMockPatchFn(nil),
 				},
 				uc: &test.MockClient{
@@ -564,7 +634,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -579,6 +649,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return an error when a namespaced XR tries to compose cluster-scoped resources",
 			params: params{
 				c: &test.MockClient{
+					MockList:               mockListFunctionRevisions(),
+					MockGet:                mockGetFunction(nil),
 					MockPatch:              test.NewMockPatchFn(nil),
 					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
 					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, false),
@@ -626,7 +698,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -641,6 +713,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should succeed when a namespaced XR tries to compose namespaced-scoped resources",
 			params: params{
 				c: &test.MockClient{
+					MockList:               mockListFunctionRevisions(),
+					MockGet:                mockGetFunction(nil),
 					MockPatch:              test.NewMockPatchFn(nil),
 					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
 					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, true),
@@ -688,7 +762,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -705,6 +779,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should emit a warning when a namespaced XR composes a resource with a different namespace",
 			params: params{
 				c: &test.MockClient{
+					MockList:        mockListFunctionRevisions(),
+					MockGet:         mockGetFunction(nil),
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
@@ -752,7 +828,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -779,6 +855,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should not emit a warning when a namespaced XR composes a resource with the same namespace",
 			params: params{
 				c: &test.MockClient{
+					MockList:        mockListFunctionRevisions(),
+					MockGet:         mockGetFunction(nil),
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
@@ -826,7 +904,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -843,7 +921,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "Cluster-scoped XRs should be allowed to compose cluster-scoped resources",
 			params: params{
 				c: &test.MockClient{
-					MockGet:                test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "ClusterComposed"}, "")), // all names are available
+					MockList:               mockListFunctionRevisions(),
+					MockGet:                mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "ClusterComposed"}, ""))), // all names are available
 					MockPatch:              test.NewMockPatchFn(nil),
 					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
 					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(errBoom, false),
@@ -887,7 +966,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -904,6 +983,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when applying the composite resource's resource references",
 			params: params{
 				c: &test.MockClient{
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(nil),
 					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
 						// We only want to return an error for the XR.
 						switch obj.(type) {
@@ -941,7 +1022,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -956,6 +1037,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when applying the composite resource status",
 			params: params{
 				c: &test.MockClient{
+					MockList:        mockListFunctionRevisions(),
+					MockGet:         mockGetFunction(nil),
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(errBoom),
 				},
@@ -995,7 +1078,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -1010,7 +1093,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when applying a composed resource",
 			params: params{
 				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "UncoolComposed"}, "")), // all names are available
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "UncoolComposed"}, ""))), // all names are available
 					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
 						// We only want to return an error if we're patching a
 						// composed resource.
@@ -1060,7 +1144,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -1104,7 +1188,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "cool-step",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 									Requirements: &v1.FunctionRequirements{
 										RequiredResources: []v1.RequiredResourceSelector{
 											{
@@ -1129,7 +1213,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return a valid CompositionResult when a 'pure Function' (i.e. patch-and-transform-less) reconcile succeeds",
 			params: params{
 				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					MockList: mockListFunctionRevisions(),
+					MockGet: mockGetFunction(test.NewMockGetFn(nil, func(obj client.Object) error {
 						if s, ok := obj.(*corev1.Secret); ok {
 							s.Data = map[string][]byte{
 								"secret": []byte("password"),
@@ -1142,7 +1227,7 @@ func TestFunctionCompose(t *testing.T) {
 						// TODO(negz): This is "testing through" to the
 						// names.NameGenerator implementation. Mock it out.
 						return kerrors.NewNotFound(schema.GroupResource{}, "")
-					}),
+					})),
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
@@ -1263,7 +1348,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 									Credentials: []v1.FunctionCredentials{
 										{
 											Name:   "cool-secret",
@@ -1356,7 +1441,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "When XR has resourceRefs but the actual resources don't exist, the function should use a deterministic name (same as resourceRefs).",
 			params: params{
 				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "Deployment"}, "")), // all names are available
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "Deployment"}, ""))), // all names are available
 					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
 						// Check if the composed resource uses the expected name from resourceRefs
 						if cd, ok := obj.(*composed.Unstructured); ok {
@@ -1436,7 +1522,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
