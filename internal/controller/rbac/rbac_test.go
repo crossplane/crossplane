@@ -134,6 +134,86 @@ func TestReconcileReplacesStaleRules(t *testing.T) {
 	}
 }
 
+// Rejected permission requests must not stop reconciliation from revoking
+// rules granted by an earlier reconcile.
+func TestRejectedPermissionRequestsRevokeStaleGrants(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	for _, add := range []func(*runtime.Scheme) error{apis.AddToScheme, rbacv1.AddToScheme, extv1.AddToScheme} {
+		if err := add(scheme); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	approved := rbacv1.PolicyRule{APIGroups: []string{""}, Resources: []string{"nodes"}, Verbs: []string{"get", "list"}}
+	rejected := rbacv1.PolicyRule{APIGroups: []string{rbacv1.GroupName}, Resources: []string{"clusterroles"}, Verbs: []string{"*"}}
+	widgets := []string{"widgets", "widgets/status"}
+	extra := rbacv1.PolicyRule{APIGroups: []string{"", "coordination.k8s.io"}, Resources: []string{"secrets", "configmaps", "events", "leases"}, Verbs: []string{"*"}}
+	edit := []rbacv1.PolicyRule{{APIGroups: []string{"example.org"}, Resources: widgets, Verbs: []string{"*"}}}
+	view := []rbacv1.PolicyRule{{APIGroups: []string{"example.org"}, Resources: widgets, Verbs: []string{"get", "list", "watch"}}}
+	system := []rbacv1.PolicyRule{
+		{APIGroups: []string{"example.org"}, Resources: widgets, Verbs: []string{"get", "list", "watch", "update", "patch", "create"}},
+		{APIGroups: []string{"example.org"}, Resources: []string{"widgets/finalizers"}, Verbs: []string{"update"}},
+		extra,
+	}
+
+	cases := map[string]struct {
+		reason    string
+		allowList bool
+		want      map[string][]rbacv1.PolicyRule
+	}{
+		"AllowListRejectsOneRequest": {
+			reason:    "Only the rejected request should be dropped. Approved requests and owned CRDs are still granted, and stale rules are revoked.",
+			allowList: true,
+			want:      map[string][]rbacv1.PolicyRule{":aggregate-to-edit": edit, ":aggregate-to-view": view, ":system": append(append([]rbacv1.PolicyRule(nil), system...), approved)},
+		},
+		"NoAllowList": {
+			reason: "Without an allow list every request is rejected. Owned CRDs are still granted, and stale rules are revoked.",
+			want:   map[string][]rbacv1.PolicyRule{":aggregate-to-edit": edit, ":aggregate-to-view": view, ":system": system},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			pr := &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "provider", UID: "revision-uid"}}
+			pr.Status.ObjectRefs = []xpv1.TypedReference{{APIVersion: extv1.SchemeGroupVersion.String(), Kind: "CustomResourceDefinition", Name: "clusterroles.rbac.authorization.k8s.io"}}
+			pr.Status.PermissionRequests = []rbacv1.PolicyRule{approved, rejected}
+			owner := meta.AsController(meta.TypedReferenceTo(pr, pkgv1.ProviderRevisionGroupVersionKind))
+			objects := []client.Object{
+				pr,
+				&rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "allowed"}, Rules: []rbacv1.PolicyRule{approved}},
+				&extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "widgets.example.org", OwnerReferences: []metav1.OwnerReference{owner}}},
+			}
+			for suffix := range tc.want {
+				// Seed rules an earlier reconcile rendered from the status
+				// reference.
+				objects = append(objects, &rbacv1.ClusterRole{
+					ObjectMeta: metav1.ObjectMeta{Name: "crossplane:provider:provider" + suffix, OwnerReferences: []metav1.OwnerReference{owner}},
+					Rules:      []rbacv1.PolicyRule{{APIGroups: []string{rbacv1.GroupName}, Resources: []string{"clusterroles", "clusterroles/status"}, Verbs: []string{"*"}}},
+				})
+			}
+			c := fake.NewClientBuilder().WithScheme(scheme).WithIndex(grant.CRDMetadata(), grant.IndexOwnerUID, grant.OwnerUIDs).WithObjects(objects...).Build()
+			opts := []roles.ReconcilerOption{roles.WithClientApplicator(resource.ClientApplicator{Client: c, Applicator: resource.NewAPIUpdatingApplicator(c)})}
+			if tc.allowList {
+				opts = append(opts, roles.WithPermissionRequestsValidator(roles.NewClusterRoleBackedValidator(c, "allowed")))
+			}
+			r := roles.NewReconciler(&resourcefake.Manager{}, opts...)
+			if _, err := r.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pr)}); err != nil {
+				t.Fatal(err)
+			}
+			for suffix, want := range tc.want {
+				got := &rbacv1.ClusterRole{}
+				if err := c.Get(ctx, client.ObjectKey{Name: "crossplane:provider:provider" + suffix}, got); err != nil {
+					t.Fatal(err)
+				}
+				if diff := cmp.Diff(want, got.Rules); diff != "" {
+					t.Errorf("\n%s\nrole %q rules after reconciliation (-want +got):\n%s", tc.reason, got.Name, diff)
+				}
+			}
+		})
+	}
+}
+
 // Grants follow actual CRD ownership, including inactive revisions, and
 // disappear on removal.
 func TestProviderGrantsFollowOwnedCRDs(t *testing.T) {

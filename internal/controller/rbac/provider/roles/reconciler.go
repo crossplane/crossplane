@@ -54,7 +54,8 @@ const (
 	errListPRs             = "cannot list ProviderRevisions"
 	errApplyRole           = "cannot apply ClusterRole"
 	errValidatePermissions = "cannot validate permission requests"
-	errRejectedPermission  = "refusing to apply any RBAC roles due to request for disallowed permission"
+	errRejectedPermission  = "refusing to grant disallowed permission request"
+	errInvalidPermission   = "refusing to grant invalid permission request"
 )
 
 // Event reasons.
@@ -273,7 +274,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	rejected, err := r.rbac.ValidatePermissionRequests(ctx, pr.Status.PermissionRequests...)
+	requests := make([]rbacv1.PolicyRule, 0, len(pr.Status.PermissionRequests))
+	for _, rq := range pr.Status.PermissionRequests {
+		// The API server rejects a ClusterRole with an invalid rule, which
+		// would stop us revoking stale grants.
+		if !validPolicyRule(rq) {
+			r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Errorf("%s %s", errInvalidPermission, rq.String())))
+			continue
+		}
+		requests = append(requests, rq)
+	}
+
+	approved, rejected, err := r.approvedPermissionRequests(ctx, requests)
 	if err != nil {
 		err = errors.Wrap(err, errValidatePermissions)
 		r.record.Event(pr, event.Warning(reasonApplyRoles, err))
@@ -284,18 +296,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Errorf("%s %s", errRejectedPermission, rule)))
 	}
 
-	// We return early and don't grant _any_ RBAC permissions if we would reject
-	// any requested permission. It's better for the provider to be completely
-	// and obviously broken than for it to be subtly broken in a way that may
-	// not surface immediately, i.e. due to missing an RBAC permission it only
-	// occasionally needs. There's no need to requeue - the revisions requests
-	// won't change, and we're watching the ClusterRole of allowed requests.
-	if len(rejected) > 0 {
-		return reconcile.Result{Requeue: false}, nil
-	}
+	// Rejected requests must not stop us applying roles, or rules granted
+	// earlier would never be revoked. Grant only the approved requests. There's
+	// no need to requeue - we're watching the ClusterRole of allowed requests.
+	desired := pr.DeepCopy()
+	desired.Status.PermissionRequests = approved
 
 	applied := make([]string, 0)
-	for _, cr := range r.rbac.RenderClusterRoles(pr, resources) {
+	for _, cr := range r.rbac.RenderClusterRoles(desired, resources) {
 		log := log.WithValues("role-name", cr.GetName())
 		origRV := ""
 		err := r.client.Apply(ctx, &cr,
@@ -330,6 +338,42 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// There's no need to requeue explicitly - we're watching all PRs.
 	return reconcile.Result{Requeue: false}, nil
+}
+
+// validPolicyRule returns true if the API server would accept rule in a
+// ClusterRole.
+func validPolicyRule(rule rbacv1.PolicyRule) bool {
+	if len(rule.Verbs) == 0 {
+		return false
+	}
+	if len(rule.NonResourceURLs) > 0 {
+		return len(rule.APIGroups) == 0 && len(rule.Resources) == 0 && len(rule.ResourceNames) == 0
+	}
+	return len(rule.APIGroups) > 0 && len(rule.Resources) > 0
+}
+
+// approvedPermissionRequests returns the permission requests that are allowed
+// in full, and the rules rejected from any others.
+func (r *Reconciler) approvedPermissionRequests(ctx context.Context, requests []rbacv1.PolicyRule) ([]rbacv1.PolicyRule, []Rule, error) {
+	rejected, err := r.rbac.ValidatePermissionRequests(ctx, requests...)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(rejected) == 0 {
+		return requests, nil, nil
+	}
+
+	approved := make([]rbacv1.PolicyRule, 0, len(requests))
+	for _, rq := range requests {
+		denied, err := r.rbac.ValidatePermissionRequests(ctx, rq)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(denied) == 0 {
+			approved = append(approved, rq)
+		}
+	}
+	return approved, rejected, nil
 }
 
 // definedResources discovers the CRDs owned by this revision and its family.

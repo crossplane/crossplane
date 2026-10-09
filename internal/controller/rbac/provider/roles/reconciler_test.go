@@ -83,6 +83,90 @@ func TestDiscoveryConflictsRequeueWithoutEvents(t *testing.T) {
 	}
 }
 
+func TestReconcileDropsInvalidPermissionRequests(t *testing.T) {
+	valid := rbacv1.PolicyRule{APIGroups: []string{""}, Resources: []string{"configmaps"}, Verbs: []string{"get"}}
+	invalid := rbacv1.PolicyRule{Verbs: []string{"get"}}
+
+	recorder := record.NewFakeRecorder(1)
+	c := &test.MockClient{
+		MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+			pr := obj.(*v1.ProviderRevision)
+			pr.SetName("provider")
+			pr.Status.PermissionRequests = []rbacv1.PolicyRule{invalid, valid}
+			return nil
+		}),
+		MockList: test.NewMockListFn(nil),
+	}
+
+	var granted []rbacv1.PolicyRule
+	r := NewReconciler(&fake.Manager{},
+		WithRecorder(event.NewAPIRecorder(recorder)),
+		WithClientApplicator(resource.ClientApplicator{Client: c}),
+		WithPermissionRequestsValidator(PermissionRequestsValidatorFn(func(_ context.Context, _ ...rbacv1.PolicyRule) ([]Rule, error) {
+			return nil, nil
+		})),
+		WithClusterRoleRenderer(ClusterRoleRenderFn(func(pr *v1.ProviderRevision, _ []Resource) []rbacv1.ClusterRole {
+			granted = pr.Status.PermissionRequests
+			return nil
+		})),
+	)
+
+	if _, err := r.Reconcile(context.Background(), reconcile.Request{}); err != nil {
+		t.Fatalf("Reconcile(...): unexpected error: %v", err)
+	}
+	if diff := cmp.Diff([]rbacv1.PolicyRule{valid}, granted); diff != "" {
+		t.Errorf("Reconcile(...): -want granted requests, +got:\n%s", diff)
+	}
+	select {
+	case <-recorder.Events:
+	default:
+		t.Error("Reconcile(...): want a warning event for the invalid permission request")
+	}
+}
+
+func TestValidPolicyRule(t *testing.T) {
+	cases := map[string]struct {
+		rule rbacv1.PolicyRule
+		want bool
+	}{
+		"Resource": {
+			rule: rbacv1.PolicyRule{APIGroups: []string{""}, Resources: []string{"configmaps"}, Verbs: []string{"get"}},
+			want: true,
+		},
+		"NonResourceURL": {
+			rule: rbacv1.PolicyRule{NonResourceURLs: []string{"/healthz"}, Verbs: []string{"get"}},
+			want: true,
+		},
+		"NoVerbs": {
+			rule: rbacv1.PolicyRule{APIGroups: []string{""}, Resources: []string{"configmaps"}},
+			want: false,
+		},
+		"NoAPIGroups": {
+			rule: rbacv1.PolicyRule{Resources: []string{"configmaps"}, Verbs: []string{"get"}},
+			want: false,
+		},
+		"NoResources": {
+			rule: rbacv1.PolicyRule{APIGroups: []string{""}, Verbs: []string{"get"}},
+			want: false,
+		},
+		"OnlyVerbs": {
+			rule: rbacv1.PolicyRule{Verbs: []string{"get"}},
+			want: false,
+		},
+		"ResourceAndNonResourceURL": {
+			rule: rbacv1.PolicyRule{APIGroups: []string{""}, Resources: []string{"configmaps"}, NonResourceURLs: []string{"/healthz"}, Verbs: []string{"get"}},
+			want: false,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			if got := validPolicyRule(tc.rule); got != tc.want {
+				t.Errorf("validPolicyRule(%v) = %t, want %t", tc.rule, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
@@ -200,7 +284,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"PermissionRequestRejected": {
-			reason: "We should return early without requeuing when a permission request is rejected.",
+			reason: "We should still apply ClusterRoles when a permission request is rejected, so that stale grants are revoked.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -209,14 +293,20 @@ func TestReconcile(t *testing.T) {
 							MockGet:  test.NewMockGetFn(nil),
 							MockList: test.NewMockListFn(nil),
 						},
+						Applicator: resource.ApplyFn(func(context.Context, client.Object, ...resource.ApplyOption) error {
+							return errBoom
+						}),
 					}),
 					WithPermissionRequestsValidator(PermissionRequestsValidatorFn(func(_ context.Context, _ ...rbacv1.PolicyRule) ([]Rule, error) {
 						return []Rule{{}}, nil
 					})),
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []Resource) []rbacv1.ClusterRole {
+						return []rbacv1.ClusterRole{{}}
+					})),
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: false},
+				err: errors.Wrap(errBoom, errApplyRole),
 			},
 		},
 		"ApplyClusterRoleError": {
