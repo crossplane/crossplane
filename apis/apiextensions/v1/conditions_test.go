@@ -17,6 +17,8 @@ limitations under the License.
 package v1
 
 import (
+	"bytes"
+	"encoding/json"
 	"testing"
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
@@ -62,5 +64,22 @@ func TestIsSystemConditionType(t *testing.T) {
 				t.Errorf("%s: IsSystemConditionType(%q) = %v, want %v", tc.reason, tc.conditionType, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestWatchCircuitClosedSerializesMessage(t *testing.T) {
+	// The XR status is written with server-side apply, which only takes
+	// ownership of fields present in the patch. Condition.Message is
+	// json:"message,omitempty", so if the closed condition has no message the
+	// key is absent from the patch and a message left behind by
+	// WatchCircuitOpen can never be cleared. Condition.Equal compares Message,
+	// so the orphaned message makes SetConditions rewrite the XR on every
+	// reconcile, and the XR's self-watch turns that into an infinite loop.
+	got, err := json.Marshal(WatchCircuitClosed())
+	if err != nil {
+		t.Fatalf("json.Marshal(WatchCircuitClosed()): %v", err)
+	}
+	if !bytes.Contains(got, []byte(`"message"`)) {
+		t.Errorf("WatchCircuitClosed() must serialize a message key so server-side apply owns (and can clear) the field, got %s", got)
 	}
 }
