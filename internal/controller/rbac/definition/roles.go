@@ -49,6 +49,7 @@ const (
 
 	suffixStatus     = "/status"
 	suffixFinalizers = "/finalizers"
+	suffixScale      = "/scale"
 )
 
 //nolint:gochecknoglobals // We treat these as constants.
@@ -155,6 +156,16 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 		},
 	}
 
+	scale := servesScale(d)
+
+	if scale {
+		edit.Rules = append(edit.Rules, rbacv1.PolicyRule{
+			APIGroups: []string{d.Spec.Group},
+			Resources: []string{d.Spec.Names.Plural + suffixScale},
+			Verbs:     verbsEdit,
+		})
+	}
+
 	if d.Spec.ClaimNames != nil {
 		system.Rules = append(system.Rules, rbacv1.PolicyRule{
 			APIGroups: []string{d.Spec.Group},
@@ -184,6 +195,14 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 			Verbs: verbsEdit,
 		})
 
+		if scale {
+			edit.Rules = append(edit.Rules, rbacv1.PolicyRule{
+				APIGroups: []string{d.Spec.Group},
+				Resources: []string{d.Spec.ClaimNames.Plural + suffixScale},
+				Verbs:     verbsEdit,
+			})
+		}
+
 		view.Rules = append(view.Rules, rbacv1.PolicyRule{
 			APIGroups: []string{d.Spec.Group},
 			Resources: []string{
@@ -201,4 +220,13 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 	}
 
 	return []rbacv1.ClusterRole{*system, *edit, *view, *browse}
+}
+
+func servesScale(d *v1.CompositeResourceDefinition) bool {
+	for _, v := range d.Spec.Versions {
+		if v.Subresources != nil && v.Subresources.Scale != nil {
+			return true
+		}
+	}
+	return false
 }
