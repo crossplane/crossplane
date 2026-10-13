@@ -161,6 +161,9 @@ func TestXRDSubresources(t *testing.T) {
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-scale.yaml", "spec.versions[0].subresources.scale.labelSelectorPath", ".status.labelSelector"),
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-scale.yaml", "spec.versions[0].subresources.scale.specReplicasPath", ".spec.replicas"),
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-scale.yaml", "spec.versions[0].subresources.scale.statusReplicasPath", ".status.replicas"),
+				// Generated edit ClusterRole should grant the Scale subresource
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "clusterrole-edit.yaml"),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "clusterrole-edit.yaml", "rules[1].resources[0]", "xnopresources/scale"),
 			)).
 			WithTeardown("DeleteXRDWithSubresources", funcs.AllOf(
 				funcs.DeleteResources(manifests, "setup/xrd-scale.yaml"),
