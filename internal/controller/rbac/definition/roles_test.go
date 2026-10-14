@@ -250,7 +250,8 @@ func TestRenderClusterRoles(t *testing.T) {
 					Group: group,
 					Names: extv1.CustomResourceDefinitionNames{Plural: pluralXR},
 					Versions: []v1.CompositeResourceDefinitionVersion{{
-						Name: "v1",
+						Name:   "v1",
+						Served: true,
 						Subresources: &v1.CompositeResourceDefinitionVersionSubresources{
 							Scale: &extv1.CustomResourceSubresourceScale{
 								SpecReplicasPath:   ".spec.replicas",
@@ -341,6 +342,101 @@ func TestRenderClusterRoles(t *testing.T) {
 				},
 			},
 		},
+		"UnservedVersionDeclaresScale": {
+			reason: "An XRD that declares the scale subresource only on an unserved version should not grant access to the composite's scale subresource",
+			d: &v1.CompositeResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{Name: name, UID: uid},
+				Spec: v1.CompositeResourceDefinitionSpec{
+					Group: group,
+					Names: extv1.CustomResourceDefinitionNames{Plural: pluralXR},
+					Versions: []v1.CompositeResourceDefinitionVersion{{
+						Name:   "v1",
+						Served: false,
+						Subresources: &v1.CompositeResourceDefinitionVersionSubresources{
+							Scale: &extv1.CustomResourceSubresourceScale{
+								SpecReplicasPath:   ".spec.replicas",
+								StatusReplicasPath: ".status.replicas",
+							},
+						},
+					}},
+				},
+			},
+			want: []rbacv1.ClusterRole{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            namePrefix + name + nameSuffixSystem,
+						OwnerReferences: []metav1.OwnerReference{owner},
+						Labels: map[string]string{
+							keyAggregateToSystem: valTrue,
+						},
+					},
+					Rules: []rbacv1.PolicyRule{
+						{
+							APIGroups: []string{group},
+							Resources: []string{pluralXR, pluralXR + suffixStatus},
+							Verbs:     verbsEdit,
+						},
+						{
+							APIGroups: []string{group},
+							Resources: []string{pluralXR + suffixFinalizers},
+							Verbs:     verbsUpdate,
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            namePrefix + name + nameSuffixEdit,
+						OwnerReferences: []metav1.OwnerReference{owner},
+						Labels: map[string]string{
+							keyAggregateToAdmin:   valTrue,
+							keyAggregateToNSAdmin: valTrue,
+							keyAggregateToEdit:    valTrue,
+							keyAggregateToNSEdit:  valTrue,
+						},
+					},
+					Rules: []rbacv1.PolicyRule{
+						{
+							APIGroups: []string{group},
+							Resources: []string{pluralXR, pluralXR + suffixStatus},
+							Verbs:     verbsEdit,
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            namePrefix + name + nameSuffixView,
+						OwnerReferences: []metav1.OwnerReference{owner},
+						Labels: map[string]string{
+							keyAggregateToView:   valTrue,
+							keyAggregateToNSView: valTrue,
+						},
+					},
+					Rules: []rbacv1.PolicyRule{
+						{
+							APIGroups: []string{group},
+							Resources: []string{pluralXR, pluralXR + suffixStatus},
+							Verbs:     verbsView,
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            namePrefix + name + nameSuffixBrowse,
+						OwnerReferences: []metav1.OwnerReference{owner},
+						Labels: map[string]string{
+							keyAggregateToBrowse: valTrue,
+						},
+					},
+					Rules: []rbacv1.PolicyRule{
+						{
+							APIGroups: []string{group},
+							Resources: []string{pluralXR, pluralXR + suffixStatus},
+							Verbs:     verbsBrowse,
+						},
+					},
+				},
+			},
+		},
 		"OffersClaimAndServesScale": {
 			reason: "An XRD that offers a claim and serves the scale subresource should produce an edit ClusterRole that grants access to the composite's and the claim's scale subresources",
 			d: &v1.CompositeResourceDefinition{
@@ -350,7 +446,8 @@ func TestRenderClusterRoles(t *testing.T) {
 					Names:      extv1.CustomResourceDefinitionNames{Plural: pluralXR},
 					ClaimNames: &extv1.CustomResourceDefinitionNames{Plural: pluralXRC},
 					Versions: []v1.CompositeResourceDefinitionVersion{{
-						Name: "v1",
+						Name:   "v1",
+						Served: true,
 						Subresources: &v1.CompositeResourceDefinitionVersionSubresources{
 							Scale: &extv1.CustomResourceSubresourceScale{
 								SpecReplicasPath:   ".spec.replicas",
