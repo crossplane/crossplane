@@ -50,7 +50,7 @@ XRs. The [v2 proposal review][v2-foreground] suggested requiring
 `--cascade=foreground` with a `ValidatingAdmissionPolicy` instead, but that can
 only reject a plain `kubectl delete`, not fix it.
 
-[gc]: https://github.com/crossplane/crossplane/blob/f108173392198c7aa79f3828e9b741ca3af86b9f/internal/controller/apiextensions/composite/composition_functions.go#L864
+[gc]: https://github.com/crossplane/crossplane/blob/58ad72253e81b79eb58004fe9c602be85c468fd8/internal/controller/apiextensions/composite/composition_functions.go#L958
 [finalizer]: https://github.com/crossplane/crossplane/blob/f108173392198c7aa79f3828e9b741ca3af86b9f/internal/controller/apiextensions/composite/reconciler.go#L607
 [remove-finalizer]: https://github.com/crossplane/crossplane/blob/f108173392198c7aa79f3828e9b741ca3af86b9f/internal/controller/apiextensions/composite/reconciler.go#L588
 [5092]: https://github.com/crossplane/crossplane/issues/5092
