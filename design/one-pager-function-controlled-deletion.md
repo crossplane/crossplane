@@ -75,15 +75,15 @@ only reject a plain `kubectl delete`, not fix it.
 Function-controlled deletion ships behind an alpha feature gate,
 `--enable-function-controlled-deletion`. When it's disabled Crossplane behaves
 exactly as it does today: it removes its finalizer as soon as an XR is deleted,
-ignores a Composition's delete policy, and doesn't retain references to composed
+ignores a Composition's deletion policy, and doesn't retain references to composed
 resources it has garbage collected.
 
-### Composition Delete Policies
+### Composition Deletion Policies
 
 A Composition declares what happens when an XR that uses it is deleted, with a
-new `spec.deletePolicy` field. It supports multiple deletion modes:
+new `spec.deletionPolicy` field. It supports multiple deletion modes:
 
-| `deletePolicy` | When the XR is deleted |
+| `deletionPolicy` | When the XR is deleted |
 | --- | --- |
 | `Background` (default) | Crossplane removes its finalizer, and Kubernetes deletes the composed resources once the XR is gone. This is today's behavior. |
 | `Foreground` | Crossplane deletes the composed resources, and keeps the XR until they're gone. The pipeline doesn't run. This is the foreground deletion v1 claims offered. Crossplane already deletes nested XRs this way, but v2 lacks it for an XR deleted directly. |
@@ -98,7 +98,7 @@ spec:
   compositeTypeRef:
     apiVersion: platform.example.org/v1
     kind: Database
-  deletePolicy: Pipeline
+  deletionPolicy: Pipeline
   pipeline:
   - step: render
     functionRef:
@@ -118,9 +118,9 @@ existing Compositions keep their hash and don't produce new revisions.
 
 ### Decision Logic on XR Deletion
 
-When the XR has a `deletionTimestamp`, the reconciler reads the delete policy
-the XR recorded while it was live (see [Recording the Delete
-Policy](#recording-the-delete-policy)):
+When the XR has a `deletionTimestamp`, the reconciler reads the deletion policy
+the XR recorded while it was live (see [Recording the Deletion
+Policy](#recording-the-deletion-policy)):
 
 1. **`Background`.** Crossplane removes its finalizer and lets Kubernetes
    garbage collection cascade via owner references, as it does today.
@@ -134,11 +134,12 @@ Policy](#recording-the-delete-policy)):
    server-side applies resources that are in desired state, and requeues. When
    no composed resources remain, it removes the finalizer.
 
-With `Pipeline`, every function in the pipeline must handle deletion. A single
-unaware function could hold resources in desired state indefinitely. In
-practice, steps that only render or decorate resources, like
-`function-auto-ready`, don't need to change, as long as a later deletion-aware
-step removes resources from desired state. Such a step at the end of the
+With `Pipeline`, the pipeline as a whole must handle deletion: its final
+desired state must eventually be empty. Not every step has to know about
+deletion. Steps that only render or decorate resources, like
+`function-auto-ready`, can keep returning what they always do, as long as a
+later deletion-aware step removes resources from desired state. If no step does,
+the XR stays in `Deleting` indefinitely. A deletion-aware step at the end of the
 pipeline can also delete resources in order. For example a sequencing function
 like [`function-sequencer`][function-sequencer] could remove resources from
 desired state in the reverse of the order it creates them.
@@ -175,24 +176,29 @@ mean waiting forever. Crossplane stops referencing those as it does today, and
 doesn't count them when deciding whether an XR's composed resources are all
 gone.
 
-### Recording the Delete Policy
+### Recording the Deletion Policy
 
 By the time an XR is deleted, its Composition may have changed, or be gone. So
-the XR records its Composition's delete policy in its status on every reconcile
+the XR records its Composition's deletion policy in its status on every reconcile
 while it's live:
 
 ```yaml
 status:
   crossplane:
-    deletePolicy: Pipeline
+    deletionPolicy: Pipeline
 ```
 
 The XR records it as soon as it selects a CompositionRevision, before anything
 that can fail, so that an XR whose pipeline is failing still runs it when it's
 deleted. `Background` and `Foreground` don't need the Composition, so Crossplane
-uses them as recorded. For `Pipeline` Crossplane must fetch the XR's revision to
-run its pipeline. If the revision now has a weaker policy, Crossplane uses that
-instead.
+uses them as recorded. For `Pipeline` Crossplane must fetch a
+CompositionRevision to run the pipeline. The policy in a given
+CompositionRevision can't change, since changing the policy in the Composition
+would result in a new revision being created. However, for XRs that don't pin a
+particular revision the latest revision could change before deletion, so
+Crossplane needs to fetch the effective revision (which may or may not be the
+revision that previously reconciled the XR). If that revision has a weaker
+policy, Crossplane uses it instead.
 
 This tells a user how an XR will be deleted before they try to delete it.
 Crossplane also reads it itself, to decide how to delete an XR that another XR
@@ -202,11 +208,11 @@ composes - see [Nested XRs](#nested-xrs).
 
 A function creates a VPC and a Subnet. The Subnet should be deleted before the
 VPC. The pipeline is `[function-templates, function-auto-ready]`, and the
-Composition's `deletePolicy` is `Pipeline`.
+Composition's `deletionPolicy` is `Pipeline`.
 
 **Normal operation:** `function-templates` returns VPC and Subnet in desired
 state. `function-auto-ready` passes them through with readiness annotations. The
-XR records the `Pipeline` delete policy.
+XR records the `Pipeline` deletion policy.
 
 **User deletes the XR.**
 
@@ -235,7 +241,7 @@ Reconcile 3:
 * Crossplane garbage collects the VPC. Once it's gone too, no composed resources
   remain. Removes the finalizer. XR is deleted.
 
-**If the Composition's `deletePolicy` is `Foreground` instead:**
+**If the Composition's `deletionPolicy` is `Foreground` instead:**
 
 Crossplane doesn't run the pipeline. It deletes the VPC and the Subnet, and
 removes its finalizer once they're gone.
@@ -303,13 +309,13 @@ finish, so the XR never finishes deleting at all.
 So Crossplane must not attempt function-controlled deletion against a foreground
 deletion of the same resources. **When a deleted XR has the `foregroundDeletion`
 finalizer, Crossplane removes its own finalizer and defers to garbage
-collection**, whatever the XR's delete policy. It emits a warning event saying
+collection**, whatever the XR's deletion policy. It emits a warning event saying
 so. The two intents are contradictory -
 foreground deletion says "delete the dependents before the owner", while
 function-controlled deletion says "let me control the order" - and someone
 passing `--cascade=foreground` is explicitly asking for the former.
 
-This differs from the `Foreground` delete policy. With the policy, Crossplane
+This differs from the `Foreground` deletion policy. With the policy, Crossplane
 deletes the composed resources itself, so it can order them and doesn't race the
 garbage collector.
 
@@ -325,8 +331,8 @@ resources.
 
 Crossplane will instead choose a propagation policy per composed resource. When
 it garbage collects a composed XR that recorded the `Foreground` or `Pipeline`
-delete policy, it deletes that XR with background propagation, so the XR's own
-delete policy controls its teardown. Everything else keeps the
+deletion policy, it deletes that XR with background propagation, so the XR's own
+deletion policy controls its teardown. Everything else keeps the
 foreground propagation [#6599][6599] introduced - including every managed
 resource, where the two policies behave identically because managed resources
 have no dependents of their own.
@@ -366,10 +372,16 @@ normal reconciliation failures. The XR stays in `Deleting` until the pipeline
 succeeds. This is the safe default. It avoids unordered deletion when the
 function intended to control the order.
 
-**`crank render` support.** The `crank render` CLI also runs pipelines. Function
-authors can test their deletion logic locally by setting `deletionTimestamp` on
-the XR they feed into `crank render`. For this to work `render` needs to run the
-pipeline for a deleted XR when the Composition's delete policy is `Pipeline`.
+**`crossplane render` support.** Function authors can test their deletion logic
+locally by setting `deletionTimestamp` on the XR they render. `render` records
+the Composition's deletion policy on a deleted XR unless it already has one,
+because an XR passed to `render` may never have been reconciled. With
+`Pipeline`, `render` runs the pipeline and returns the desired state the
+functions produced during deletion, plus the composed resources they stopped
+desiring as deleted resources. As a follow-up, `render` could step through a
+whole teardown, for example with an `--until-deleted` flag, rendering one
+reconcile after another until the XR is gone, and stopping if it makes no
+progress.
 
 **Composed resources with deletion timestamps.** A composed resource Crossplane
 has garbage collected stays in observed state, carrying its own
@@ -400,7 +412,7 @@ capability mechanism, from functions to Crossplane.
 
 A variant had only the last function advertise it, taking responsibility for
 everything before it. The Composition author has to arrange the pipeline
-correctly either way, so it's simpler for them to declare the delete policy
+correctly either way, so it's simpler for them to declare the deletion policy
 directly.
 
 ### Package-level capability advertisement
@@ -425,7 +437,7 @@ be validated against them before an XR exists. Deletion can't be known that way.
 
 ### Per-step `onDelete` configuration in the Composition
 
-Instead of a pipeline-level delete policy, the Composition's pipeline steps
+Instead of a pipeline-level deletion policy, the Composition's pipeline steps
 could have an `onDelete: Run | Skip` field. Steps marked `Run` would be called
 during deletion; steps marked `Skip` (the default) would not.
 
