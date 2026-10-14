@@ -206,13 +206,13 @@ func setCondition(conditions []xpv2.Condition, c xpv2.Condition) []xpv2.Conditio
 // This is a stub implementation. The actual provider integration is not yet implemented.
 //
 // Blocking items:
-// 1. The ExternalLister interface and ExternalListResult struct do not yet exist in
-//    crossplane-runtime; they are being added in a companion PR (crossplane-runtime #1183).
-// 2. Providers run as separate Deployments with their own controllers. To call a
-//    provider's ExternalLister, we need to either:
-//    a) Fetch the provider's ExternalClient from the ProviderConfig, or
-//    b) Expose discovery via a webhook/gRPC endpoint on the provider.
-//    Neither approach is implemented yet.
+//  1. The ExternalLister interface and ExternalListResult struct do not yet exist in
+//     crossplane-runtime; they are being added in a companion PR (crossplane-runtime #1183).
+//  2. Providers run as separate Deployments with their own controllers. To call a
+//     provider's ExternalLister, we need to either:
+//     a) Fetch the provider's ExternalClient from the ProviderConfig, or
+//     b) Expose discovery via a webhook/gRPC endpoint on the provider.
+//     Neither approach is implemented yet.
 //
 // Long-term, this method will:
 // - Load the provider for the MRD's group
@@ -223,7 +223,7 @@ func setCondition(conditions []xpv2.Condition, c xpv2.Condition) []xpv2.Conditio
 //
 // Until provider integration is complete, this method returns an error and the
 // controller marks the DiscoveryReport as Unavailable.
-func (r *Reconciler) discoverExternal(ctx context.Context, log logging.Logger, mrd *v1alpha1.ManagedResourceDefinition, pcName string) ([]v1alpha1.ExternalResource, error) {
+func (r *Reconciler) discoverExternal(_ context.Context, log logging.Logger, mrd *v1alpha1.ManagedResourceDefinition, pcName string) ([]v1alpha1.ExternalResource, error) {
 	// PROVIDER INTEGRATION POINT:
 	// This is where we would call the provider's ExternalLister interface.
 	// The provider must be instantiated (typically via the provider's own controller)
@@ -248,38 +248,11 @@ func (r *Reconciler) discoverExternal(ctx context.Context, log logging.Logger, m
 	// Placeholder: This would be replaced with actual provider integration
 	// var lister resource.ExternalLister
 	// if ec, ok := provider.(resource.ExternalLister); ok {
-	//     return r.listWithPagination(ctx, ec, pageToken)
+	//     ... call List() with pagination ...
 	// }
 
 	return []v1alpha1.ExternalResource{}, errors.New(
 		"external resource discovery requires provider implementation of ExternalLister interface")
-}
-
-// listWithPagination handles paginated results from ExternalLister.
-// This is a helper for when providers implement discovery.
-func (r *Reconciler) listWithPagination(ctx context.Context, pageToken string, listFunc func(ctx context.Context, token string) ([]string, string, error)) ([]v1alpha1.ExternalResource, error) {
-	var resources []v1alpha1.ExternalResource
-
-	for {
-		names, nextToken, err := listFunc(ctx, pageToken)
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot list external resources")
-		}
-
-		for _, name := range names {
-			resources = append(resources, v1alpha1.ExternalResource{
-				ExternalName: name,
-			})
-		}
-
-		// Stop if no more pages
-		if nextToken == "" {
-			break
-		}
-		pageToken = nextToken
-	}
-
-	return resources, nil
 }
 
 // getExistingManagedResources queries the cluster for all managed resources of the given kind.

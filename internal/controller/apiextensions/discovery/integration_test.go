@@ -102,9 +102,9 @@ func TestDiscoveryReportStatus(t *testing.T) {
 			Interval: metav1.Duration{Duration: 0},
 		},
 		Status: v1alpha1.DiscoveryReportStatus{
-			ConditionedStatus: xpv2.ConditionedStatus{},
-			DiscoveredResourceCount: ptr(int64(5)),
-			UnmanagedResourceCount:  ptr(int64(2)),
+			ConditionedStatus:       xpv2.ConditionedStatus{},
+			DiscoveredResourceCount: new(int64(5)),
+			UnmanagedResourceCount:  new(int64(2)),
 			UnmanagedResources: []v1alpha1.ExternalResource{
 				{
 					ExternalName: "bucket-1",
@@ -156,11 +156,6 @@ func TestDiscoveryReportConditions(t *testing.T) {
 	if cond.Message != "scanning in progress" {
 		t.Errorf("expected message 'scanning in progress', got %q", cond.Message)
 	}
-}
-
-// ptr returns a pointer to the given value.
-func ptr[T any](v T) *T {
-	return &v
 }
 
 // TestDiscoveryReportReconciliation documents the expected reconciliation behavior.

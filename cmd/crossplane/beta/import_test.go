@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package beta implements Crossplane beta (experimental) commands.
 package beta
 
 import (
@@ -128,8 +127,8 @@ func TestListExternalResources(t *testing.T) {
 	dr := &v1alpha1.DiscoveryReport{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-discovery"},
 		Status: v1alpha1.DiscoveryReportStatus{
-			DiscoveredResourceCount: ptr(int64(5)),
-			UnmanagedResourceCount:  ptr(int64(2)),
+			DiscoveredResourceCount: new(int64(5)),
+			UnmanagedResourceCount:  new(int64(2)),
 			UnmanagedResources: []v1alpha1.ExternalResource{
 				{ExternalName: "unmanaged-bucket-1"},
 				{ExternalName: "unmanaged-bucket-2"},
@@ -164,12 +163,12 @@ func TestListExternalResources(t *testing.T) {
 // TestGenerateManifests tests YAML generation for adoption.
 func TestGenerateManifests(t *testing.T) {
 	tests := []struct {
-		name           string
-		externalNames  []string
-		kind           string
-		group          string
-		wantYAMLCount  int
-		wantContains   []string
+		name          string
+		externalNames []string
+		kind          string
+		group         string
+		wantYAMLCount int
+		wantContains  []string
 	}{
 		{
 			name:          "Single bucket adoption",
@@ -199,7 +198,7 @@ func TestGenerateManifests(t *testing.T) {
 			kind:          "Bucket",
 			group:         "s3.aws.crossplane.io",
 			wantYAMLCount: 0,
-			wantContains: []string{},
+			wantContains:  []string{},
 		},
 	}
 
@@ -244,28 +243,23 @@ func TestGenerateManifests(t *testing.T) {
 // TestMarshalToYAML tests YAML marshaling of unstructured objects.
 func TestMarshalToYAML(t *testing.T) {
 	obj := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "s3.aws.crossplane.io/v1alpha1",
 			"kind":       "Bucket",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name": "my-bucket-mr",
-				"annotations": map[string]interface{}{
+				"annotations": map[string]any{
 					"crossplane.io/external-name": "my-bucket",
 				},
 			},
-			"spec": map[string]interface{}{
-				"managementPolicies": []interface{}{"Observe", "LateInitialize"},
+			"spec": map[string]any{
+				"managementPolicies": []any{"Observe", "LateInitialize"},
 			},
 		},
 	}
 
 	// Marshal to YAML
-	yamlBytes, err := marshalToYAML(obj)
-	if err != nil {
-		t.Fatalf("failed to marshal to YAML: %v", err)
-	}
-
-	yaml := string(yamlBytes)
+	yaml := string(marshalToYAML(obj))
 
 	// Check essential fields are present
 	expectedFields := []string{
@@ -296,10 +290,7 @@ spec:
   - LateInitialize
 `
 
-	obj, err := parseYAMLToUnstructured(yaml)
-	if err != nil {
-		t.Fatalf("failed to parse YAML: %v", err)
-	}
+	obj := parseYAMLToUnstructured(yaml)
 
 	// Check basic structure
 	if obj.GetKind() != "Bucket" {
@@ -315,11 +306,6 @@ spec:
 	if annotations["crossplane.io/external-name"] != "my-bucket" {
 		t.Errorf("expected external-name annotation, got %v", annotations)
 	}
-}
-
-// ptr returns a pointer to the given value.
-func ptr[T any](v T) *T {
-	return &v
 }
 
 // stringContains checks if haystack contains needle as a substring.

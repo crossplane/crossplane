@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package beta implements Crossplane beta (experimental) commands.
 package beta
 
 import (
@@ -55,11 +54,11 @@ func (c *ImportCommand) Run() error {
 // discoverCmd implements the actual discovery and import workflow.
 type discoverCmd struct {
 	Kind           string `help:"Managed resource kind to discover (required)" required:""`
-	Group          string `help:"API group of the resource (required)" required:""`
-	ProviderConfig string `help:"ProviderConfig name to use for discovery" default:"default"`
-	Namespace      string `help:"Namespace where adopted resources will be created" default:"default"`
-	DryRun         bool   `help:"Print YAML without applying (default: true)" default:"true"`
-	AutoImport     bool   `help:"Apply manifests automatically (requires --dry-run=false)" default:"false"`
+	Group          string `help:"API group of the resource (required)"         required:""`
+	ProviderConfig string `default:"default"                                   help:"ProviderConfig name to use for discovery"`
+	Namespace      string `default:"default"                                   help:"Namespace where adopted resources will be created"`
+	DryRun         bool   `default:"true"                                      help:"Print YAML without applying (default: true)"`
+	AutoImport     bool   `default:"false"                                     help:"Apply manifests automatically (requires --dry-run=false)"`
 	Output         string `help:"Write YAML to file instead of stdout"`
 }
 
@@ -121,17 +120,16 @@ func (c *discoverCmd) Run(log logging.Logger) error {
 	// Step 7: Compute set difference
 	unmanaged := setDifference(externalNames, existingNames)
 	if len(unmanaged) == 0 {
-		fmt.Println("No unmanaged resources found.")
+		if _, err := fmt.Fprintln(os.Stdout, "No unmanaged resources found."); err != nil {
+			return errors.Wrap(err, "cannot write output")
+		}
 		return nil
 	}
 	log.Debug("Unmanaged resources", "count", len(unmanaged))
 
 	// Step 8: Generate YAML manifests
 	log.Debug("Generating adoption manifests")
-	yaml, err := c.generateManifests(mrd, unmanaged)
-	if err != nil {
-		return errors.Wrap(err, "cannot generate manifests")
-	}
+	yaml := c.generateManifests(mrd, unmanaged)
 
 	// Step 9: Output YAML
 	if err := c.outputManifests(yaml); err != nil {
@@ -144,7 +142,9 @@ func (c *discoverCmd) Run(log logging.Logger) error {
 		if err := c.applyManifests(ctx, dClient, yaml, c.Namespace); err != nil {
 			return errors.Wrap(err, "cannot apply manifests")
 		}
-		fmt.Printf("Successfully imported %d resources.\n", len(unmanaged))
+		if _, err := fmt.Fprintf(os.Stdout, "Successfully imported %d resources.\n", len(unmanaged)); err != nil {
+			return errors.Wrap(err, "cannot write output")
+		}
 	}
 
 	return nil
@@ -186,7 +186,6 @@ func (c *discoverCmd) getMRD(ctx context.Context, dClient dynamic.Interface) (*x
 // listExternalResources queries the DiscoveryReport CRD to get discovered external resources.
 // The discovery controller populates the DiscoveryReport, so this reads its findings.
 func (c *discoverCmd) listExternalResources(ctx context.Context, log logging.Logger, dClient dynamic.Interface, mrd *xpv1alpha1.ManagedResourceDefinition) ([]string, error) {
-
 	// Query DiscoveryReport CRD by MRD name (cluster-scoped)
 	gvr := schema.GroupVersionResource{
 		Group:    "apiextensions.crossplane.io",
@@ -197,13 +196,16 @@ func (c *discoverCmd) listExternalResources(ctx context.Context, log logging.Log
 	// Try to get the DiscoveryReport with the same name as the MRD
 	dr, err := dClient.Resource(gvr).Get(ctx, mrd.Name, metav1.GetOptions{})
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot get DiscoveryReport for MRD %q; " +
+		return nil, errors.Wrapf(err, "cannot get DiscoveryReport for MRD %q; "+
 			"ensure the discovery controller is running and has scanned this resource type", mrd.Name)
 	}
 
 	// Extract the list of external names from the DiscoveryReport status
 	unmanagedResources, ok, err := unstructured.NestedSlice(dr.Object, "status", "unmanagedResources")
-	if err != nil || !ok {
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot read unmanaged resources from DiscoveryReport status")
+	}
+	if !ok {
 		// No unmanaged resources found (all are already managed)
 		return []string{}, nil
 	}
@@ -211,7 +213,7 @@ func (c *discoverCmd) listExternalResources(ctx context.Context, log logging.Log
 	// Convert each unmanagedResource to a string (externalName)
 	var externalNames []string
 	for _, res := range unmanagedResources {
-		resMap, ok := res.(map[string]interface{})
+		resMap, ok := res.(map[string]any)
 		if !ok {
 			log.Debug("skipping invalid unmanagedResource entry")
 			continue
@@ -224,8 +226,11 @@ func (c *discoverCmd) listExternalResources(ctx context.Context, log logging.Log
 	}
 
 	// Warn if the DiscoveryReport is stale (> 10 minutes old)
-	lastScanTime, ok, err := unstructured.NestedString(dr.Object, "status", "lastDiscoveryTime")
-	if ok && lastScanTime != "" {
+	lastScanTime, found, err := unstructured.NestedString(dr.Object, "status", "lastDiscoveryTime")
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot read last discovery time from DiscoveryReport status")
+	}
+	if found && lastScanTime != "" {
 		lastScan, parseErr := time.Parse(time.RFC3339, lastScanTime)
 		if parseErr == nil && time.Since(lastScan) > 10*time.Minute {
 			log.Debug("DiscoveryReport is stale; results may be outdated", "lastScan", lastScan)
@@ -261,8 +266,7 @@ func (c *discoverCmd) getExistingManagedResources(ctx context.Context, dClient d
 }
 
 // generateManifests creates Kubernetes manifests for adopting unmanaged resources.
-func (c *discoverCmd) generateManifests(mrd *xpv1alpha1.ManagedResourceDefinition, unmanagedNames []string) (string, error) {
-
+func (c *discoverCmd) generateManifests(mrd *xpv1alpha1.ManagedResourceDefinition, unmanagedNames []string) string {
 	var buf bytes.Buffer
 
 	sort.Strings(unmanagedNames) // Deterministic output
@@ -285,21 +289,16 @@ func (c *discoverCmd) generateManifests(mrd *xpv1alpha1.ManagedResourceDefinitio
 		obj.SetAnnotations(annotations)
 
 		// Set spec fields
-		spec := map[string]interface{}{
+		spec := map[string]any{
 			"managementPolicies": []string{"Observe", "LateInitialize"},
-			"providerConfigRef": map[string]interface{}{
+			"providerConfigRef": map[string]any{
 				"name": c.ProviderConfig,
 			},
 		}
 		obj.Object["spec"] = spec
 
 		// Marshal to YAML
-		yamlBytes, err := marshalToYAML(obj)
-		if err != nil {
-			return "", errors.Wrap(err, "cannot marshal manifest")
-		}
-
-		buf.Write(yamlBytes)
+		buf.Write(marshalToYAML(obj))
 
 		// Add separator between manifests (except after last one)
 		if i < len(unmanagedNames)-1 {
@@ -307,22 +306,26 @@ func (c *discoverCmd) generateManifests(mrd *xpv1alpha1.ManagedResourceDefinitio
 		}
 	}
 
-	return buf.String(), nil
+	return buf.String()
 }
 
 // outputManifests writes the YAML to stdout or a file.
 func (c *discoverCmd) outputManifests(yaml string) error {
 	if c.Output != "" {
 		// Write to file
-		if err := os.WriteFile(c.Output, []byte(yaml), 0o644); err != nil {
+		if err := os.WriteFile(c.Output, []byte(yaml), 0o600); err != nil {
 			return errors.Wrap(err, "cannot write to output file")
 		}
-		fmt.Printf("Manifests written to %s\n", c.Output)
+		if _, err := fmt.Fprintf(os.Stdout, "Manifests written to %s\n", c.Output); err != nil {
+			return errors.Wrap(err, "cannot write output")
+		}
 		return nil
 	}
 
 	// Write to stdout
-	fmt.Print(yaml)
+	if _, err := fmt.Fprint(os.Stdout, yaml); err != nil {
+		return errors.Wrap(err, "cannot write output")
+	}
 	return nil
 }
 
@@ -333,9 +336,9 @@ func (c *discoverCmd) applyManifests(ctx context.Context, dClient dynamic.Interf
 	// Parse YAML documents (simple splitter for now).
 	// TODO: Use sigs.k8s.io/yaml for full YAML parsing support
 	// (handles comments, aliases, complex structures, etc.)
-	documents := strings.Split(yamlContent, "---\n")
+	documents := strings.SplitSeq(yamlContent, "---\n")
 
-	for _, doc := range documents {
+	for doc := range documents {
 		doc = strings.TrimSpace(doc)
 		if doc == "" {
 			continue
@@ -343,10 +346,7 @@ func (c *discoverCmd) applyManifests(ctx context.Context, dClient dynamic.Interf
 
 		// Parse YAML into unstructured object
 		// TODO: Use proper YAML unmarshaler
-		obj, err := parseYAMLToUnstructured(doc)
-		if err != nil {
-			return errors.Wrapf(err, "cannot parse manifest")
-		}
+		obj := parseYAMLToUnstructured(doc)
 
 		// Extract API version and kind to build GVR
 		apiVersion := obj.GetAPIVersion()
@@ -374,7 +374,7 @@ func (c *discoverCmd) applyManifests(ctx context.Context, dClient dynamic.Interf
 			ns = namespace
 		}
 
-		_, err = dClient.Resource(gvr).Namespace(ns).Create(ctx, obj, metav1.CreateOptions{})
+		_, err := dClient.Resource(gvr).Namespace(ns).Create(ctx, obj, metav1.CreateOptions{})
 		if err != nil {
 			// If resource already exists, that's acceptable (idempotent)
 			if strings.Contains(err.Error(), "already exists") {
@@ -397,22 +397,22 @@ func (c *discoverCmd) applyManifests(ctx context.Context, dClient dynamic.Interf
 // Complex spec fields like managementPolicies are not yet preserved during parsing.
 // Operators should review generated manifests before applying, as some fields may be missing.
 // TODO: Implement full YAML parsing for complete adoption manifests.
-func parseYAMLToUnstructured(doc string) (*unstructured.Unstructured, error) {
+func parseYAMLToUnstructured(doc string) *unstructured.Unstructured {
 	// For now, use a simple line-by-line parser suitable for our generated format.
 	// This is sufficient for the structured YAML we generate.
 	// A production implementation would use proper YAML parsing.
 
 	obj := &unstructured.Unstructured{
-		Object: make(map[string]interface{}),
+		Object: make(map[string]any),
 	}
 
-	metadata := make(map[string]interface{})
-	spec := make(map[string]interface{})
-	annotations := make(map[string]interface{})
+	metadata := make(map[string]any)
+	spec := make(map[string]any)
+	annotations := make(map[string]any)
 
-	lines := strings.Split(doc, "\n")
+	lines := strings.SplitSeq(doc, "\n")
 
-	for _, line := range lines {
+	for line := range lines {
 		line = strings.TrimRight(line, " \t")
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -464,7 +464,7 @@ func parseYAMLToUnstructured(doc string) (*unstructured.Unstructured, error) {
 		obj.Object["spec"] = spec
 	}
 
-	return obj, nil
+	return obj
 }
 
 // Helper functions
@@ -497,7 +497,7 @@ func setDifference(a, b []string) []string {
 // marshalToYAML converts an unstructured object to YAML bytes.
 // This is a simple implementation suitable for the initial version.
 // TODO: Consider using a proper YAML marshaler (e.g., sigs.k8s.io/yaml) for full YAML support.
-func marshalToYAML(obj *unstructured.Unstructured) ([]byte, error) {
+func marshalToYAML(obj *unstructured.Unstructured) []byte {
 	var buf bytes.Buffer
 
 	// Write headers
@@ -523,28 +523,28 @@ func marshalToYAML(obj *unstructured.Unstructured) ([]byte, error) {
 	if len(obj.GetAnnotations()) > 0 {
 		buf.WriteString("  annotations:\n")
 		for k, v := range obj.GetAnnotations() {
-			buf.WriteString(fmt.Sprintf("    %s: %s\n", k, v))
+			fmt.Fprintf(&buf, "    %s: %s\n", k, v)
 		}
 	}
 
 	// Write spec
 	buf.WriteString("spec:\n")
-	if spec, ok := obj.Object["spec"].(map[string]interface{}); ok {
+	if spec, ok := obj.Object["spec"].(map[string]any); ok {
 		if policies, ok := spec["managementPolicies"].([]string); ok {
 			buf.WriteString("  managementPolicies:\n")
 			for _, p := range policies {
-				buf.WriteString(fmt.Sprintf("  - %s\n", p))
+				fmt.Fprintf(&buf, "  - %s\n", p)
 			}
 		}
-		if pcRef, ok := spec["providerConfigRef"].(map[string]interface{}); ok {
+		if pcRef, ok := spec["providerConfigRef"].(map[string]any); ok {
 			buf.WriteString("  providerConfigRef:\n")
 			if name, ok := pcRef["name"].(string); ok {
-				buf.WriteString(fmt.Sprintf("    name: %s\n", name))
+				fmt.Fprintf(&buf, "    name: %s\n", name)
 			}
 		}
 	}
 
 	buf.WriteString("\n")
 
-	return buf.Bytes(), nil
+	return buf.Bytes()
 }

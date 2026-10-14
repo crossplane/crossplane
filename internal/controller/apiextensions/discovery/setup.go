@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package discovery implements the controller that populates DiscoveryReports
+// with external resources that are not yet managed by Crossplane.
 package discovery
 
 import (

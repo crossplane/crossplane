@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package beta implements Crossplane beta (experimental) commands.
 package beta
 
 import (
@@ -24,8 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
-
-	xpv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
 )
 
 // TestManagedResourceDefinitionLookup tests MRD lookup functionality.
@@ -38,9 +35,9 @@ func TestManagedResourceDefinitionLookup(t *testing.T) {
 	mrdUnstructured.SetAPIVersion("apiextensions.crossplane.io/v1alpha1")
 	mrdUnstructured.SetKind("ManagedResourceDefinition")
 	mrdUnstructured.SetName("buckets.s3.minio.crossplane.io")
-	mrdUnstructured.Object["spec"] = map[string]interface{}{
+	mrdUnstructured.Object["spec"] = map[string]any{
 		"group": "s3.minio.crossplane.io",
-		"names": map[string]interface{}{
+		"names": map[string]any{
 			"kind":     "Bucket",
 			"listKind": "BucketList",
 			"plural":   "buckets",
@@ -59,7 +56,6 @@ func TestManagedResourceDefinitionLookup(t *testing.T) {
 	// Test MRD lookup
 	ctx := context.Background()
 	found, err := cmd.getMRD(ctx, fakeClient)
-
 	if err != nil {
 		// It's okay if this fails due to discovery client limitations
 		// This test demonstrates the integration point
@@ -159,29 +155,3 @@ func TestYAMLParsing(t *testing.T) {
 }
 
 // Helper functions
-
-// createTestMRD creates a test ManagedResourceDefinition.
-func createTestMRD(group string, kind string) *xpv1alpha1.ManagedResourceDefinition {
-	mrd := &xpv1alpha1.ManagedResourceDefinition{}
-	// Note: ManagedResourceDefinitionSpec embeds CustomResourceDefinitionSpec,
-	// which contains Name, Group, Scope, Names, etc.
-	// We can't easily set these without accessing the embedded struct directly,
-	// so this is a placeholder for the actual test.
-	_ = mrd
-	_ = group
-	_ = kind
-	return mrd
-}
-
-// contains checks if YAML contains a substring.
-func contains(yaml string, substring string) bool {
-	if substring == "" || yaml == "" {
-		return yaml == substring
-	}
-	for i := 0; i <= len(yaml)-len(substring); i++ {
-		if yaml[i:i+len(substring)] == substring {
-			return true
-		}
-	}
-	return false
-}
