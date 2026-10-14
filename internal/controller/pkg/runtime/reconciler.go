@@ -60,7 +60,7 @@ const (
 	errRuntimeConfig  = "cannot resolve deployment runtime config for package"
 	errPreHook        = "pre establish runtime hook failed for package"
 	errPostHook       = "post establish runtime hook failed for package"
-	errDeactivateHook = "deactivation runtime hook failed for package"
+	errDeactivateHook = "cannot deactivate package revision; inspect the revision's runtime resources for details"
 
 	errNoRuntimeConfig          = "no deployment runtime config set"
 	errGetRuntimeConfig         = "cannot get referenced deployment runtime config"
@@ -161,7 +161,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 	r := NewReconciler(mgr,
 		WithNewPackageRevisionWithRuntimeFn(nr),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorder(name), o.EventFilterFunctions...)),
 		WithRuntimeHooks(NewProviderHooks(mgr.GetClient(), o.Namespace, o.ServiceAccount, NewDeletingDeploymentSelectorMigrator(mgr.GetClient(), log))),
 		WithFeatureFlags(o.Features),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
@@ -193,7 +193,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 	r := NewReconciler(mgr,
 		WithNewPackageRevisionWithRuntimeFn(nr),
 		WithLogger(log),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorder(name), o.EventFilterFunctions...)),
 		WithRuntimeHooks(NewFunctionHooks(mgr.GetClient(), o.Namespace, o.ServiceAccount)),
 		WithFeatureFlags(o.Features),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
@@ -284,7 +284,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// was still the active revision.
 			status.MarkConditions(v1.RuntimeUnhealthy().WithMessage(err.Error()))
 
-			_ = r.client.Status().Update(ctx, pr)
+			if updateErr := r.client.Status().Update(ctx, pr); updateErr != nil {
+				err = errors.Wrap(updateErr, err.Error())
+			}
 			r.record.Event(pr, event.Warning(reasonDeactivate, err))
 
 			return reconcile.Result{}, err

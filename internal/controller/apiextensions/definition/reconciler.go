@@ -179,7 +179,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 
 	r := NewReconciler(NewClientApplicator(mgr.GetClient()),
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorder(name), o.EventFilterFunctions...)),
 		WithControllerEngine(o.ControllerEngine),
 		WithOptions(o))
 
@@ -592,7 +592,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		)),
 		composite.WithCompositionRevisionSelector(defaultCompositionSelector),
 		composite.WithLogger(r.log.WithValues("controller", controllerName)),
-		composite.WithRecorder(r.record.WithAnnotations("controller", controllerName)),
+		composite.WithRecorder(r.record),
 		composite.WithPollInterval(r.options.PollInterval),
 		composite.WithMinPollInterval(r.options.MinPollInterval),
 		composite.WithCircuitBreaker(cb),
