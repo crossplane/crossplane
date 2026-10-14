@@ -224,7 +224,7 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 
 func servesScale(d *v1.CompositeResourceDefinition) bool {
 	for _, v := range d.Spec.Versions {
-		if v.Subresources != nil && v.Subresources.Scale != nil {
+		if v.Served && v.Subresources != nil && v.Subresources.Scale != nil {
 			return true
 		}
 	}

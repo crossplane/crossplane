@@ -1,0 +1,50 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: xunservedscales.nop.example.org
+spec:
+  group: nop.example.org
+  names:
+    kind: XUnservedScale
+    plural: xunservedscales
+  scope: Namespaced
+  versions:
+  # Declares scale, but isn't served, so the edit role shouldn't grant it.
+  - name: v1alpha1
+    served: false
+    referenceable: false
+    subresources:
+      scale:
+        specReplicasPath: .spec.replicas
+        statusReplicasPath: .status.replicas
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              replicas:
+                type: integer
+          status:
+            type: object
+            properties:
+              replicas:
+                type: integer
+  - name: v1beta1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              replicas:
+                type: integer
+          status:
+            type: object
+            properties:
+              replicas:
+                type: integer
