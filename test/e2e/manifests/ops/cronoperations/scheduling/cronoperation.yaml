@@ -11,6 +11,7 @@ spec:
   operationTemplate:
     spec:
       mode: Pipeline
+      fieldManager: ops.crossplane.io/cronoperation/basic-cronop
       pipeline:
       - step: nop
         functionRef:
