@@ -146,16 +146,17 @@ type xr struct {
 
 // A FunctionRunner runs a single Composition Function.
 type FunctionRunner interface {
-	// RunFunction runs the named Composition Function.
-	RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+	// RunFunction runs the named FunctionRevision of a Composition Function.
+	RunFunction(ctx context.Context, rev string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
 }
 
 // A FunctionRunnerFn is a function that can run a Composition Function.
-type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+type FunctionRunnerFn func(ctx context.Context, rev string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
 
-// RunFunction runs the named Composition Function with the supplied request.
-func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	return fn(ctx, name, req)
+// RunFunction runs the named FunctionRevision of a Composition Function with
+// the supplied request.
+func (fn FunctionRunnerFn) RunFunction(ctx context.Context, rev string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	return fn(ctx, rev, req)
 }
 
 // A ConnectionSecretOwner is a resource with a connection secret.
@@ -452,7 +453,17 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// Add step metadata to context for use by downstream components like InspectedRunner.
 		stepCtx := step.ContextWithStepMetaForCompositions(ctx, traceID, fn.Step, int32(stepIndex), compositionName)
 
-		rsp, err := c.pipeline.RunFunction(stepCtx, fn.FunctionRef.Name, fnreq)
+		// Resolve the FunctionRevision to run for this step. A step that
+		// references a function by OCI reference runs the revision the
+		// CompositionRevision controller created for it. A step that
+		// references an installed Function by name runs that Function's
+		// active revision.
+		rev, err := FunctionRevisionForStep(ctx, c.client, fn)
+		if err != nil {
+			return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
+		}
+
+		rsp, err := c.pipeline.RunFunction(stepCtx, rev, fnreq)
 		if err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
 		}

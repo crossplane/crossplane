@@ -1,0 +1,20 @@
+# Package metadata for the v1 Configuration installed by configuration.yaml.
+#
+# This package is manually built and pushed to
+# xpkg.crossplane.io/crossplane/e2e-composition-function-upgrade:v0.1.0, e.g.:
+# ❯ crossplane xpkg build --package-root . -o e2e-composition-function-upgrade-v1.xpkg
+# ❯ crossplane xpkg push -f e2e-composition-function-upgrade-v1.xpkg \
+#     xpkg.crossplane.io/crossplane/e2e-composition-function-upgrade:v0.1.0
+#
+# v1 depends on function-dummy and references it the traditional way
+# (functionRef.name), so it is installed as a normal, manager-owned dependency.
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: e2e-composition-function-upgrade
+spec:
+  dependsOn:
+  - apiVersion: pkg.crossplane.io/v1
+    kind: Function
+    package: xpkg.crossplane.io/crossplane-contrib/function-dummy
+    version: "v0.4.0"

@@ -1021,3 +1021,212 @@ func TestReconcile(t *testing.T) {
 		})
 	}
 }
+
+func TestReconcileExternalRevisions(t *testing.T) {
+	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
+
+	rev := func(name string, c ...xpv2.Condition) v1.FunctionRevision {
+		r := v1.FunctionRevision{ObjectMeta: metav1.ObjectMeta{Name: name}}
+		r.SetConditions(c...)
+		return r
+	}
+	healthy := func(name string) v1.FunctionRevision {
+		return rev(name, v1.RevisionHealthy(), v1.RuntimeHealthy())
+	}
+	unhealthy := func(name string) v1.FunctionRevision {
+		return rev(name, v1.RevisionUnhealthy())
+	}
+
+	type args struct {
+		revs []v1.FunctionRevision
+	}
+
+	type want struct {
+		active xpv2.Condition
+		health xpv2.Condition
+		refs   []corev1.LocalObjectReference
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NoRevisions": {
+			reason: "A Function with no external revisions should be inactive.",
+			args:   args{},
+			want: want{
+				active: v1.Inactive().WithMessage("Package has no external revisions"),
+				health: v1.UnknownHealth(),
+			},
+		},
+		"AllHealthy": {
+			reason: "A Function should be healthy if all its external revisions are healthy.",
+			args: args{
+				revs: []v1.FunctionRevision{healthy("b"), healthy("a")},
+			},
+			want: want{
+				active: v1.Active(),
+				health: v1.Healthy(),
+				refs:   []corev1.LocalObjectReference{{Name: "a"}, {Name: "b"}},
+			},
+		},
+		"NotYetHealthyAndHealthy": {
+			reason: "A Function should be unhealthy if one of its external revisions hasn't reported health yet, even if another is healthy.",
+			args: args{
+				revs: []v1.FunctionRevision{healthy("a"), rev("b")},
+			},
+			want: want{
+				active: v1.Active(),
+				health: v1.PackageHealth(&v1.FunctionRevision{}),
+				refs:   []corev1.LocalObjectReference{{Name: "a"}, {Name: "b"}},
+			},
+		},
+		"HealthyAndUnhealthy": {
+			reason: "A Function should be unhealthy if any of its external revisions is unhealthy, regardless of order.",
+			args: args{
+				revs: []v1.FunctionRevision{healthy("a"), unhealthy("b"), healthy("c")},
+			},
+			want: want{
+				active: v1.Active(),
+				health: v1.PackageHealth(&v1.FunctionRevision{Status: unhealthy("b").Status}),
+				refs:   []corev1.LocalObjectReference{{Name: "a"}, {Name: "b"}, {Name: "c"}},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var got *v1.Function
+
+			rec := &Reconciler{
+				newPackage:             func() v1.Package { return &v1.Function{} },
+				newPackageRevision:     func() v1.PackageRevision { return &v1.FunctionRevision{} },
+				newPackageRevisionList: func() v1.PackageRevisionList { return &v1.FunctionRevisionList{} },
+				kube: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							o.SetName("test")
+							o.SetUID("test-uid")
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
+							o.(*v1.FunctionRevisionList).Items = tc.args.revs
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							got = o.(*v1.Function)
+							return nil
+						}),
+					},
+				},
+				log:        testLog,
+				record:     event.NewNopRecorder(),
+				conditions: conditions.ObservedGenerationPropagationManager{},
+			}
+
+			if _, err := rec.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}}); err != nil {
+				t.Fatalf("\n%s\nr.Reconcile(...): %s", tc.reason, err)
+			}
+
+			if diff := cmp.Diff(tc.want.active, got.GetCondition(v1.TypeInstalled), test.EquateConditions()); diff != "" {
+				t.Errorf("\n%s\nInstalled condition: -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.health, got.GetCondition(v1.TypeHealthy), test.EquateConditions()); diff != "" {
+				t.Errorf("\n%s\nHealthy condition: -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.refs, got.Status.ExternalRevisionRefs); diff != "" {
+				t.Errorf("\n%s\nstatus.externalRevisionRefs: -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestReconcileIgnoresUncontrolledFunctionRevisions(t *testing.T) {
+	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
+	digest := "1234567890123456789012345678901234567890123456789012345678901234"
+	revisionName := xpkg.FriendlyID("test", packageRevisionID(digest, 0))
+
+	// The Function has a package and an active revision it controls. An
+	// external revision has also been created for it. We should never
+	// deactivate (or otherwise touch) the external revision, but we should
+	// record it in the Function's status.
+	var got []corev1.LocalObjectReference
+	rec := &Reconciler{
+		newPackage:             func() v1.Package { return &v1.Function{} },
+		newPackageRevision:     func() v1.PackageRevision { return &v1.FunctionRevision{} },
+		newPackageRevisionList: func() v1.PackageRevisionList { return &v1.FunctionRevisionList{} },
+		kube: resource.ClientApplicator{
+			Client: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+					if p, ok := o.(*v1.Function); ok {
+						p.SetName("test")
+						p.SetUID("test-uid")
+						p.SetGroupVersionKind(v1.FunctionGroupVersionKind)
+						p.Spec.Package = "xpkg.crossplane.io/test:v1.0.0"
+					}
+					return nil
+				}),
+				MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
+					managed := v1.FunctionRevision{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: revisionName,
+							OwnerReferences: []metav1.OwnerReference{{
+								APIVersion: v1.FunctionGroupVersionKind.GroupVersion().String(),
+								Kind:       v1.FunctionKind,
+								Name:       "test",
+								UID:        "test-uid",
+								Controller: new(true),
+							}},
+						},
+					}
+					managed.SetConditions(v1.RevisionHealthy(), v1.RuntimeHealthy())
+					managed.SetDesiredState(v1.PackageRevisionActive)
+					managed.SetRevision(1)
+
+					external := v1.FunctionRevision{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-external",
+						},
+					}
+					external.SetDesiredState(v1.PackageRevisionActive)
+					external.SetRevision(1)
+
+					o.(*v1.FunctionRevisionList).Items = []v1.FunctionRevision{managed, external}
+					return nil
+				}),
+				MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+					got = o.(*v1.Function).Status.ExternalRevisionRefs
+					return nil
+				}),
+			},
+			Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
+				if o.GetName() == "test-external" {
+					t.Errorf("Apply(...): unexpected call for external revision %q", o.GetName())
+				}
+				return nil
+			}),
+		},
+		pkg: &fake.MockClient{
+			MockGet: fake.NewMockGetFn(&xpkg.Package{
+				Digest:          "sha256:" + digest,
+				Version:         "v1.0.0",
+				Source:          "xpkg.crossplane.io/test",
+				ResolvedVersion: "v1.0.0",
+				ResolvedSource:  "xpkg.crossplane.io/test",
+			}, nil),
+		},
+		log:        testLog,
+		record:     event.NewNopRecorder(),
+		conditions: conditions.ObservedGenerationPropagationManager{},
+	}
+
+	if _, err := rec.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}}); err != nil {
+		t.Fatalf("r.Reconcile(...): %s", err)
+	}
+
+	want := []corev1.LocalObjectReference{{Name: "test-external"}}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("status.externalRevisionRefs: -want, +got:\n%s", diff)
+	}
+}

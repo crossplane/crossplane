@@ -354,6 +354,62 @@ func TestEnqueuePackagesForImageConfig(t *testing.T) {
 	}
 }
 
+func TestEnqueueParentPackageForRevision(t *testing.T) {
+	type want struct {
+		reqs []reconcile.Request
+	}
+
+	cases := map[string]struct {
+		reason string
+		obj    client.Object
+		want   want
+	}{
+		"NotPackageRevision": {
+			reason: "Should not enqueue when object is not a package revision",
+			obj:    &v1beta1.ImageConfig{},
+			want: want{
+				reqs: nil,
+			},
+		},
+		"NoParentPackageLabel": {
+			reason: "Should not enqueue when the revision has no parent package label",
+			obj: &v1.FunctionRevision{
+				ObjectMeta: metav1.ObjectMeta{Name: "function-rev-abcdef"},
+			},
+			want: want{
+				reqs: nil,
+			},
+		},
+		"ParentPackageLabel": {
+			reason: "Should enqueue the parent package named by the revision's label",
+			obj: &v1.FunctionRevision{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   "function-rev-abcdef",
+					Labels: map[string]string{v1.LabelParentPackage: "function"},
+				},
+			},
+			want: want{
+				reqs: []reconcile.Request{
+					{NamespacedName: types.NamespacedName{Name: "function"}},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			handler := EnqueueParentPackageForRevision(logging.NewNopLogger())
+
+			mockQueue := &MockWorkQueue{}
+			handler.Create(context.Background(), event.CreateEvent{Object: tc.obj}, mockQueue)
+
+			if diff := cmp.Diff(tc.want.reqs, mockQueue.requests); diff != "" {
+				t.Errorf("\n%s\nEnqueueParentPackageForRevision(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 // MockWorkQueue implements workqueue.TypedRateLimitingInterface for testing.
 type MockWorkQueue struct {
 	workqueue.TypedRateLimitingInterface[reconcile.Request]

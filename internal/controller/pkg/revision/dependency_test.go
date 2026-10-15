@@ -507,6 +507,76 @@ func TestResolve(t *testing.T) {
 				invalid:   0,
 			},
 		},
+		"SuccessfulSelfExistOtherVersionMissingDependencies": {
+			reason: "Should not return error if another installed version of self has missing dependencies that this version doesn't have.",
+			args: args{
+				dep: &PackageDependencyManager{
+					client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							l := obj.(*v1beta1.Lock)
+							l.Packages = []v1beta1.LockPackage{
+								{
+									Name:    "config-nop-a-abc123",
+									Source:  "xpkg.crossplane.io/hasheddan/config-nop-a",
+									Version: "v0.0.1",
+									Dependencies: []v1beta1.Dependency{
+										{
+											Package: "not-here-1",
+											Type:    ptr.To(v1beta1.ProviderPackageType),
+										},
+									},
+								},
+								{
+									Name:    "config-nop-a-def456",
+									Source:  "xpkg.crossplane.io/hasheddan/config-nop-a",
+									Version: "v0.0.2",
+									Dependencies: []v1beta1.Dependency{
+										{
+											Package:     "here-1",
+											Type:        ptr.To(v1beta1.ProviderPackageType),
+											Constraints: ">=v0.1.0",
+										},
+									},
+								},
+								{
+									Source:  "here-1",
+									Version: "v0.1.0",
+								},
+							}
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
+					newDag: dag.NewMapDag,
+					log:    logging.NewNopLogger(),
+				},
+				meta: &pkgmetav1.Configuration{
+					Spec: pkgmetav1.ConfigurationSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							DependsOn: []pkgmetav1.Dependency{
+								{
+									Provider: new("here-1"),
+									Version:  ">=v0.1.0",
+								},
+							},
+						},
+					},
+				},
+				pr: &v1.ConfigurationRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "config-nop-a-def456",
+					},
+					Spec: v1.PackageRevisionSpec{
+						Package:      "xpkg.crossplane.io/hasheddan/config-nop-a:v0.0.2",
+						DesiredState: v1.PackageRevisionActive,
+					},
+				},
+			},
+			want: want{
+				total:     1,
+				installed: 1,
+			},
+		},
 		"SuccessfulLockPackageSourceMismatch": {
 			reason: "Should not return error if source in packages does not match provider revision package.",
 			args: args{

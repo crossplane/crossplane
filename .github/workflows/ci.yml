@@ -149,12 +149,18 @@ jobs:
             test-suite: function-response-cache
           - test-area: apiextensions-legacy
             test-suite: function-response-cache
+          - test-area: apiextensions
+            test-suite: pipeline-oci-references
           - test-area: pkg
             test-suite: package-dependency-updates
           - test-area: pkg
             test-suite: package-signature-verification
+          - test-area: pkg
+            test-suite: pipeline-oci-references
           - test-area: ops
             test-suite: ops
+          - test-area: ops
+            test-suite: pipeline-oci-references
           - test-area: mrap
             test-suite: mrap
           - test-area: protection

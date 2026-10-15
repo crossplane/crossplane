@@ -247,25 +247,45 @@ func (d *MapUpgradingDag) visit(name string, neighbors []Node, stack map[string]
 	return nil
 }
 
+// isValidConstraints reports whether the installed node satisfies the wanted
+// node's constraint. A package may have more than one version installed at
+// once (e.g. multiple active function revisions), so the constraint is
+// considered satisfied if any installed version satisfies it.
 func isValidConstraints(installed, wanted Node) bool {
-	// NOTE(ezgidemirel): This condition also satisfies digests
-	if installed.GetConstraints() == wanted.GetConstraints() {
-		return true
+	c, cErr := semver.NewConstraint(wanted.GetConstraints())
+
+	for _, iv := range installedVersions(installed) {
+		// NOTE(ezgidemirel): This condition also satisfies digests.
+		if iv == wanted.GetConstraints() {
+			return true
+		}
+
+		if cErr != nil {
+			continue
+		}
+
+		v, err := semver.NewVersion(iv)
+		if err != nil {
+			continue
+		}
+
+		if c.Check(v) {
+			return true
+		}
 	}
 
-	c, err := semver.NewConstraint(wanted.GetConstraints())
-	if err != nil {
-		return false
+	return false
+}
+
+// installedVersions returns the installed versions a node represents. A merged
+// PackageNode may represent several versions; any other node represents the
+// single version or constraint returned by GetConstraints.
+func installedVersions(n Node) []string {
+	if pn, ok := n.(*PackageNode); ok {
+		if vs := pn.GetVersions(); len(vs) > 0 {
+			return vs
+		}
 	}
 
-	v, err := semver.NewVersion(installed.GetConstraints())
-	if err != nil {
-		return false
-	}
-
-	if !c.Check(v) {
-		return false
-	}
-
-	return true
+	return []string{n.GetConstraints()}
 }
