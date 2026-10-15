@@ -256,6 +256,19 @@ spec:
                 x-kubernetes-list-map-keys:
                 - step
                 x-kubernetes-list-type: map
+              revisionHistoryLimit:
+                default: 1
+                description: |-
+                  RevisionHistoryLimit controls how many unused CompositionRevisions
+                  Crossplane keeps. The latest revision and any revision referenced by a
+                  composite resource do not count toward the limit. The oldest revisions
+                  beyond this limit will be garbage collected. Defaults to 1. Set to 0 to
+                  keep every revision.
+
+                  Changing this field doesn't create a new CompositionRevision.
+                format: int64
+                minimum: 0
+                type: integer
               writeConnectionSecretsToNamespace:
                 description: |-
                   WriteConnectionSecretsToNamespace specifies the namespace in which the
