@@ -260,7 +260,7 @@ type TargetedEvent struct {
 
 // AsEvent produces the base event.
 func (e *TargetedEvent) AsEvent() event.Event {
-	return event.Event{Type: e.Type, Reason: e.Reason, Message: e.Message, Annotations: e.Annotations}
+	return event.Event{Type: e.Type, Reason: e.Reason, Message: e.Message}
 }
 
 // AsDetailedEvent produces an event with additional detail if available.
@@ -271,7 +271,7 @@ func (e *TargetedEvent) AsDetailedEvent() event.Event {
 
 	msg := fmt.Sprintf("%s: %s", e.Detail, e.Message)
 
-	return event.Event{Type: e.Type, Reason: e.Reason, Message: msg, Annotations: e.Annotations}
+	return event.Event{Type: e.Type, Reason: e.Reason, Message: msg}
 }
 
 // A TargetedCondition represents a condition produced by the composition
@@ -621,7 +621,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if token, ok := meta.GetReconcileRequest(xr); ok {
 		if xr.GetLastHandledReconcileAt() != token {
 			log.Debug("Processing reconcile request", "token", token)
-			r.record.Event(xr, event.Normal(reasonReconcileRequestHandled, "Handling reconcile request", "token", token))
+			r.record.Event(xr, event.Normal(reasonReconcileRequestHandled, fmt.Sprintf("Handling reconcile request (token: %s)", token)))
 			xr.SetLastHandledReconcileAt(token)
 		}
 	}

@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
@@ -441,7 +443,11 @@ func TestReconcile(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.mgr, append(tc.args.opts, WithLogger(testLog))...)
+			// Record events so we can assert on the messages the reconciler emits.
+			var recorded []string
+			rec := &mockEventRecorder{events: &recorded}
+
+			r := NewReconciler(tc.args.mgr, append(tc.args.opts, WithLogger(testLog), WithRecorder(rec))...)
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -451,6 +457,31 @@ func TestReconcile(t *testing.T) {
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
+			// The events.k8s.io API requires a non-empty action, so the revision
+			// number has to make it into the message rather than the action.
+			if name == "SuccessfulCreation" {
+				want := "Created new revision 3"
+				if len(recorded) == 0 {
+					t.Fatalf("\n%s\nwant event %q, got none", tc.reason, want)
+				}
+				if diff := cmp.Diff(want, recorded[len(recorded)-1]); diff != "" {
+					t.Errorf("\n%s\nevent message: -want, +got:\n%s", tc.reason, diff)
+				}
+			}
 		})
 	}
+}
+
+// mockEventRecorder records event messages for verification in tests.
+type mockEventRecorder struct {
+	events *[]string
+}
+
+func (m *mockEventRecorder) Event(_ runtime.Object, e event.Event) {
+	*m.events = append(*m.events, e.Message)
+}
+
+func (m *mockEventRecorder) WithAnnotations(...string) event.Recorder {
+	return m
 }
