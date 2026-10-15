@@ -91,6 +91,7 @@ func (m *MockHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWithRun
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
+	errStatusUpdateBoom := "cannot update status"
 	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
 
 	type args struct {
@@ -394,6 +395,45 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errDeactivateHook),
+			},
+		},
+		"ErrDeactivateAndUpdateStatus": {
+			reason: "We should return both the deactivation and the status update error when deactivating an inactive revision and reporting the failure both fail.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								obj.SetDesiredState(v1.PackageRevisionInactive)
+								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(errors.New(errStatusUpdateBoom)),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithRuntimeHooks(&MockHooks{
+						MockDeactivate: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ *v1beta1.DeploymentRuntimeConfig) error {
+							return errBoom
+						},
+					}),
+				},
+			},
+			want: want{
+				// The status update error wraps the deactivation error, so
+				// neither failure is lost.
+				err: errors.Wrap(errors.New(errStatusUpdateBoom), errors.Wrap(errBoom, errDeactivateHook).Error()),
 			},
 		},
 		"DeactivateRevisionConflict": {
