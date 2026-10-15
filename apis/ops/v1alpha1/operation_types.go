@@ -244,6 +244,10 @@ type OperationStatus struct {
 
 	// AppliedResourceRefs references all resources the Operation applied.
 	AppliedResourceRefs []AppliedResourceRef `json:"appliedResourceRefs,omitempty"`
+
+	// AppliedResourceCount is the number of resources applied by this Operation.
+	// +optional
+	AppliedResourceCount int64 `json:"appliedResourceCount,omitempty"`
 }
 
 // PipelineStepStatus represents the status of an individual pipeline step.
@@ -296,6 +300,7 @@ func (r *AppliedResourceRef) Equals(other AppliedResourceRef) bool {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
 // +kubebuilder:printcolumn:name="SUCCEEDED",type="string",JSONPath=".status.conditions[?(@.type=='Succeeded')].status"
+// +kubebuilder:printcolumn:name="APPLIED",type="integer",JSONPath=".status.appliedResourceCount"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=ops
 type Operation struct {

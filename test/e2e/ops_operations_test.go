@@ -74,6 +74,7 @@ func TestOperation(t *testing.T) {
 			Assess("OperationSucceeded", funcs.AllOf(
 				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "operation.yaml", v1alpha1.Complete()),
 				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.appliedResourceRefs[0].name", "cool-map"),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.appliedResourceCount", int64(1)),
 				funcs.ResourceHasFieldValueWithin(30*time.Second, cm, "data[coolData]", "I'm cool!"),
 			)).
 			WithTeardown("DeleteOperation", funcs.AllOf(
@@ -157,6 +158,7 @@ func TestOperationMultiStepPipeline(t *testing.T) {
 				// Verify appliedResourceRefs contains both ConfigMaps
 				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.appliedResourceRefs[0].name", "multi-step-configmap-a"),
 				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.appliedResourceRefs[1].name", "multi-step-configmap-b"),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "operation.yaml", "status.appliedResourceCount", int64(2)),
 			)).
 			Assess("OperationCapturesFunctionOutputs", funcs.AllOf(
 				// Verify function outputs are captured in Operation status
