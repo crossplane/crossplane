@@ -107,6 +107,95 @@ func TestLatestCreateTime(t *testing.T) {
 	}
 }
 
+func TestLatestScheduledTime(t *testing.T) {
+	type args struct {
+		cronName string
+		ops      []v1alpha1.Operation
+	}
+	type want struct {
+		latest time.Time
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"EmptySlice": {
+			reason: "Should return zero time for empty slice",
+			args: args{
+				cronName: "my-cron",
+				ops:      []v1alpha1.Operation{},
+			},
+			want: want{latest: time.Time{}},
+		},
+		"SingleOperation": {
+			reason: "Should parse the Unix timestamp from a single Operation name",
+			args: args{
+				cronName: "my-cron",
+				ops: []v1alpha1.Operation{
+					{ObjectMeta: metav1.ObjectMeta{Name: "my-cron-1781709000"}},
+				},
+			},
+			want: want{latest: time.Unix(1781709000, 0)},
+		},
+		"MultipleOperations": {
+			reason: "Should return the latest scheduled time from multiple Operations",
+			args: args{
+				cronName: "my-cron",
+				ops: []v1alpha1.Operation{
+					{ObjectMeta: metav1.ObjectMeta{Name: "my-cron-1781708700"}},
+					{ObjectMeta: metav1.ObjectMeta{Name: "my-cron-1781709000"}},
+					{ObjectMeta: metav1.ObjectMeta{Name: "my-cron-1781708400"}},
+				},
+			},
+			want: want{latest: time.Unix(1781709000, 0)},
+		},
+		"SkipsMalformedNames": {
+			reason: "Should skip Operations whose names don't have a valid Unix suffix",
+			args: args{
+				cronName: "my-cron",
+				ops: []v1alpha1.Operation{
+					{ObjectMeta: metav1.ObjectMeta{Name: "my-cron-notanumber"}},
+					{ObjectMeta: metav1.ObjectMeta{Name: "my-cron-1781709000"}},
+				},
+			},
+			want: want{latest: time.Unix(1781709000, 0)},
+		},
+		"SkipsWrongPrefix": {
+			reason: "Should skip Operations that don't belong to this CronOperation",
+			args: args{
+				cronName: "my-cron",
+				ops: []v1alpha1.Operation{
+					{ObjectMeta: metav1.ObjectMeta{Name: "other-cron-9999999999"}},
+					{ObjectMeta: metav1.ObjectMeta{Name: "my-cron-1781709000"}},
+				},
+			},
+			want: want{latest: time.Unix(1781709000, 0)},
+		},
+		"AllMalformed": {
+			reason: "Should return zero time when no names are parseable",
+			args: args{
+				cronName: "my-cron",
+				ops: []v1alpha1.Operation{
+					{ObjectMeta: metav1.ObjectMeta{Name: "my-cron-abc"}},
+					{ObjectMeta: metav1.ObjectMeta{Name: "unrelated"}},
+				},
+			},
+			want: want{latest: time.Time{}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := LatestScheduledTime(tc.args.cronName, tc.args.ops...)
+			if diff := cmp.Diff(tc.want.latest, got); diff != "" {
+				t.Errorf("\n%s\nLatestScheduledTime(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestLatestSucceededTransitionTime(t *testing.T) {
 	now := time.Now()
 	earlier := now.Add(-time.Hour)
