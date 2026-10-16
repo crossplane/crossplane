@@ -576,6 +576,12 @@ func (e *APIEstablisher) prepareApply(ctx context.Context, current, desired, par
 		return nil, false, err
 	}
 
+	// Non-Active MRD state belongs to the activation policy controller.
+	leaveState := control && leavesState(desired)
+	if leaveState {
+		unstructured.RemoveNestedField(apply.Object, "spec", "state")
+	}
+
 	if current == nil {
 		if !control {
 			return apply, false, nil
@@ -618,12 +624,6 @@ func (e *APIEstablisher) prepareApply(ctx context.Context, current, desired, par
 			return nil, false, err
 		}
 
-		// The activation policy controller, not the package establisher, owns
-		// state after an MRD has been created. Omitting it also avoids comparing
-		// the package's absent value with the API server's Inactive default.
-		if _, ok := desired.(*v1alpha1.ManagedResourceDefinition); ok {
-			unstructured.RemoveNestedField(apply.Object, "spec", "state")
-		}
 		if err := setApplyHash(apply); err != nil {
 			return nil, false, err
 		}
@@ -631,16 +631,40 @@ func (e *APIEstablisher) prepareApply(ctx context.Context, current, desired, par
 		meta.AddOwnerReference(apply, meta.AsOwner(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind())))
 	}
 
+	needed, err := applyNeeded(current, apply, control)
+	if err != nil {
+		return nil, false, err
+	}
+	if needed && leaveState {
+		keepActiveState(apply, current)
+	}
+
+	return apply, needed, nil
+}
+
+func leavesState(desired resource.Object) bool {
+	mrd, ok := desired.(*v1alpha1.ManagedResourceDefinition)
+	return ok && !mrd.Spec.State.IsActive()
+}
+
+// Omitting spec.state would deactivate an active MRD, which the MRD rejects.
+func keepActiveState(apply *unstructured.Unstructured, current resource.Object) {
+	if mrd, ok := current.(*v1alpha1.ManagedResourceDefinition); ok && mrd.Spec.State.IsActive() {
+		_ = unstructured.SetNestedField(apply.Object, string(v1alpha1.ManagedResourceDefinitionActive), "spec", "state")
+	}
+}
+
+func applyNeeded(current resource.Object, apply *unstructured.Unstructured, control bool) (bool, error) {
 	if !reflect.DeepEqual(current.GetOwnerReferences(), apply.GetOwnerReferences()) {
-		return apply, true, nil
+		return true, nil
 	}
 	if !control {
-		return apply, false, nil
+		return false, nil
 	}
 
 	cu, err := runtime.DefaultUnstructuredConverter.ToUnstructured(current)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "cannot convert current object to unstructured")
+		return false, errors.Wrap(err, "cannot convert current object to unstructured")
 	}
 	unstructured.RemoveNestedField(cu, "metadata", "ownerReferences")
 	want := apply.DeepCopy()
@@ -660,7 +684,7 @@ func (e *APIEstablisher) prepareApply(ctx context.Context, current, desired, par
 	sortFinalizers(want.Object)
 	sortFinalizers(cu)
 
-	return apply, !jsonSubset(want.Object, cu), nil
+	return !jsonSubset(want.Object, cu), nil
 }
 
 // sortFinalizers sorts obj's metadata.finalizers in place, if present.

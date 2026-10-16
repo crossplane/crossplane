@@ -190,22 +190,98 @@ func TestAPIEstablisherPrepareApply(t *testing.T) {
 		}
 	})
 
-	t.Run("OmitExistingMRDState", func(t *testing.T) {
-		current := &v1alpha1.ManagedResourceDefinition{
+	t.Run("MRDState", func(t *testing.T) {
+		active := v1alpha1.ManagedResourceDefinitionActive
+		inactive := v1alpha1.ManagedResourceDefinitionInactive
+
+		cases := map[string]struct {
+			desired v1alpha1.ManagedResourceDefinitionState
+			current v1alpha1.ManagedResourceDefinitionState
+			want    v1alpha1.ManagedResourceDefinitionState
+		}{
+			"UnsetOmitsInactive":     {current: inactive},
+			"UnsetKeepsActive":       {current: active, want: active},
+			"InactiveOmitsInactive":  {desired: inactive, current: inactive},
+			"InactiveKeepsActive":    {desired: inactive, current: active, want: active},
+			"ActivePromotesInactive": {desired: active, current: inactive, want: active},
+			"ActiveKeepsActive":      {desired: active, current: active, want: active},
+		}
+
+		for name, tc := range cases {
+			t.Run(name, func(t *testing.T) {
+				current := &v1alpha1.ManagedResourceDefinition{
+					TypeMeta:   metav1.TypeMeta{APIVersion: v1alpha1.SchemeGroupVersion.String(), Kind: v1alpha1.ManagedResourceDefinitionKind},
+					ObjectMeta: metav1.ObjectMeta{Name: "widgets.example.org", OwnerReferences: []metav1.OwnerReference{pkgRef, controllerRef}},
+					Spec:       v1alpha1.ManagedResourceDefinitionSpec{State: tc.current},
+				}
+				desired := current.DeepCopy()
+				desired.SetOwnerReferences(nil)
+				desired.Spec.Names.ShortNames = []string{"w"}
+				desired.Spec.State = tc.desired
+
+				apply, needed, err := newAPIEstablisher(nil).prepareApply(context.Background(), current, desired, parent, true)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !needed {
+					t.Fatal("prepareApply(...) did not report changed package intent")
+				}
+
+				got, _, _ := unstructured.NestedString(apply.Object, "spec", "state")
+				if diff := cmp.Diff(string(tc.want), got); diff != "" {
+					t.Errorf("prepareApply(...): -want spec.state, +got spec.state:\n%s", diff)
+				}
+			})
+		}
+	})
+
+	t.Run("MRDStateIsNotAskedForUnlessActive", func(t *testing.T) {
+		desired := &v1alpha1.ManagedResourceDefinition{
 			TypeMeta:   metav1.TypeMeta{APIVersion: v1alpha1.SchemeGroupVersion.String(), Kind: v1alpha1.ManagedResourceDefinitionKind},
-			ObjectMeta: metav1.ObjectMeta{Name: "widgets.example.org", OwnerReferences: []metav1.OwnerReference{pkgRef, controllerRef}},
+			ObjectMeta: metav1.ObjectMeta{Name: "widgets.example.org"},
 			Spec:       v1alpha1.ManagedResourceDefinitionSpec{State: v1alpha1.ManagedResourceDefinitionInactive},
 		}
-		desired := current.DeepCopy()
-		desired.SetOwnerReferences(nil)
-		desired.Spec.State = v1alpha1.ManagedResourceDefinitionActive
 
-		apply, _, err := newAPIEstablisher(nil).prepareApply(context.Background(), current, desired, parent, true)
+		apply, _, err := newAPIEstablisher(nil).prepareApply(context.Background(), nil, desired, parent, true)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if _, found, _ := unstructured.NestedFieldNoCopy(apply.Object, "spec", "state"); found {
-			t.Error("controlled apply included spec.state for an existing MRD")
+			t.Error("creating an MRD applied an Inactive spec.state")
+		}
+	})
+
+	t.Run("MRDIntentHashIsStable", func(t *testing.T) {
+		for _, state := range []v1alpha1.ManagedResourceDefinitionState{"", v1alpha1.ManagedResourceDefinitionInactive, v1alpha1.ManagedResourceDefinitionActive} {
+			desired := &v1alpha1.ManagedResourceDefinition{
+				TypeMeta:   metav1.TypeMeta{APIVersion: v1alpha1.SchemeGroupVersion.String(), Kind: v1alpha1.ManagedResourceDefinitionKind},
+				ObjectMeta: metav1.ObjectMeta{Name: "widgets.example.org"},
+				Spec:       v1alpha1.ManagedResourceDefinitionSpec{State: state},
+			}
+
+			created, _, err := newAPIEstablisher(nil).prepareApply(context.Background(), nil, desired, parent, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			for _, current := range []v1alpha1.ManagedResourceDefinitionState{v1alpha1.ManagedResourceDefinitionInactive, v1alpha1.ManagedResourceDefinitionActive} {
+				if state.IsActive() && current != state {
+					continue
+				}
+
+				stored := desired.DeepCopy()
+				stored.SetOwnerReferences([]metav1.OwnerReference{pkgRef, controllerRef})
+				stored.SetAnnotations(map[string]string{annotationKeyEstablisherHash: created.GetAnnotations()[annotationKeyEstablisherHash]})
+				stored.Spec.State = current
+
+				_, needed, err := newAPIEstablisher(nil).prepareApply(context.Background(), stored, desired, parent, true)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if needed {
+					t.Errorf("package state %q, current state %q: prepareApply(...) reported a change for an unchanged package", state, current)
+				}
+			}
 		}
 	})
 
@@ -988,7 +1064,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			},
 		},
 		"SuccessfulManagedResourceDefinitionAllStateCombinations": {
-			reason: "Establishment should omit state for existing ManagedResourceDefinitions regardless of current and desired state.",
+			reason: "Establishment should keep an Active state, leave an Inactive one out, and take Active from a package that asks for it.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
@@ -1078,8 +1154,16 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						if !ok {
 							return errors.Errorf("expected unstructured apply object, got %T", obj)
 						}
-						if state, found, _ := unstructured.NestedFieldNoCopy(u.Object, "spec", "state"); found {
-							return errors.Errorf("expected spec.state to be omitted for %s, got %v", u.GetName(), state)
+						want := map[string]string{
+							"active-to-unset":      "Active",
+							"active-to-active":     "Active",
+							"active-to-inactive":   "Active",
+							"inactive-to-unset":    "",
+							"inactive-to-active":   "Active",
+							"inactive-to-inactive": "",
+						}
+						if got, _, _ := unstructured.NestedString(u.Object, "spec", "state"); got != want[u.GetName()] {
+							return errors.Errorf("expected spec.state %q for %s, got %q", want[u.GetName()], u.GetName(), got)
 						}
 						return nil
 					},
