@@ -41,6 +41,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
 )
 
@@ -557,11 +558,33 @@ func TestReconcileCRDControllerHandoff(t *testing.T) {
 		return &extv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{OwnerReferences: refs}}
 	}
 
+	// A ProviderRevision, used to resolve the package a controlling revision
+	// belongs to from its parent-package label.
+	rev := func(name string, uid types.UID, pkg string) *unstructured.Unstructured {
+		u := &unstructured.Unstructured{}
+		u.SetGroupVersionKind(pkgv1.ProviderRevisionGroupVersionKind)
+		u.SetName(name)
+		u.SetUID(uid)
+		u.SetLabels(map[string]string{pkgv1.LabelParentPackage: pkg})
+		return u
+	}
+
+	// Both revisions in the demote cases are revisions of the same package - an
+	// ordinary upgrade from revision a to revision b of "cool-provider".
+	sameProvider := map[string]*unstructured.Unstructured{
+		"cool-provider-a": rev("cool-provider-a", "uid-a", "cool-provider"),
+		"cool-provider-b": rev("cool-provider-b", "uid-b", "cool-provider"),
+	}
+
 	type args struct {
 		mrd *v1alpha1.ManagedResourceDefinition
 
 		// The live CRD, or nil if it doesn't exist yet.
 		crd *extv1.CustomResourceDefinition
+
+		// The package revisions that exist, keyed by name, used to resolve the
+		// package a controlling revision belongs to.
+		revs map[string]*unstructured.Unstructured
 	}
 
 	cases := map[string]struct {
@@ -570,20 +593,43 @@ func TestReconcileCRDControllerHandoff(t *testing.T) {
 		want   []metav1.OwnerReference
 	}{
 		"DemoteReplacedRevision": {
-			reason: "We should declare the outgoing revision's reference demoted alongside our own, so one apply completes the hand-off.",
+			reason: "We should declare the outgoing revision's reference demoted alongside our own, so one apply completes the hand-off, when it's a revision of the same package.",
 			args: args{
-				mrd: mrd(incoming),
-				crd: crd(outgoing),
+				mrd:  mrd(incoming),
+				crd:  crd(outgoing),
+				revs: sameProvider,
 			},
 			want: []metav1.OwnerReference{mrdOwner, incoming, demoted},
 		},
 		"DemoteAnotherAPIVersionOfSameKind": {
 			reason: "We should take the CRD from a revision of the same group and kind whose reference was written through another API version, since the API server may serve the type at more than one.",
 			args: args{
-				mrd: mrd(incoming),
-				crd: crd(outgoingV1beta1),
+				mrd:  mrd(incoming),
+				crd:  crd(outgoingV1beta1),
+				revs: sameProvider,
 			},
 			want: []metav1.OwnerReference{mrdOwner, incoming, demotedV1beta1},
+		},
+		"DemoteMissingRevision": {
+			reason: "A revision that no longer exists won't keep control, so we should demote it even though we can't resolve its package.",
+			args: args{
+				mrd:  mrd(incoming),
+				crd:  crd(outgoing),
+				revs: map[string]*unstructured.Unstructured{"cool-provider-b": rev("cool-provider-b", "uid-b", "cool-provider")},
+			},
+			want: []metav1.OwnerReference{mrdOwner, incoming, demoted},
+		},
+		"RefuseDifferentPackage": {
+			reason: "We should not take the CRD from a revision of a different package, even one of the same kind, so one package can't take over a managed resource CRD another established.",
+			args: args{
+				mrd: mrd(incoming),
+				crd: crd(outgoing),
+				revs: map[string]*unstructured.Unstructured{
+					"cool-provider-a": rev("cool-provider-a", "uid-a", "evil-provider"),
+					"cool-provider-b": rev("cool-provider-b", "uid-b", "cool-provider"),
+				},
+			},
+			want: []metav1.OwnerReference{mrdOwner, incoming},
 		},
 		"RefuseAnotherKind": {
 			reason: "We should not take the CRD from a controller that isn't a package revision of the kind that controls the MRD, so the apply fails loudly instead.",
@@ -631,7 +677,7 @@ func TestReconcileCRDControllerHandoff(t *testing.T) {
 			var got []metav1.OwnerReference
 
 			c := &test.MockClient{
-				MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+				MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 					switch o := obj.(type) {
 					case *v1alpha1.ManagedResourceDefinition:
 						*o = *tc.args.mrd
@@ -641,6 +687,13 @@ func TestReconcileCRDControllerHandoff(t *testing.T) {
 						}
 
 						*o = *tc.args.crd
+					case *unstructured.Unstructured:
+						r, ok := tc.args.revs[key.Name]
+						if !ok {
+							return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+						}
+
+						*o = *r
 					}
 
 					return nil
