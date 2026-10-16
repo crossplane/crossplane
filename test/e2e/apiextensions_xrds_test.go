@@ -17,9 +17,13 @@ limitations under the License.
 package e2e
 
 import (
+	"strings"
 	"testing"
 	"time"
 
+	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
@@ -161,10 +165,48 @@ func TestXRDSubresources(t *testing.T) {
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-scale.yaml", "spec.versions[0].subresources.scale.labelSelectorPath", ".status.labelSelector"),
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-scale.yaml", "spec.versions[0].subresources.scale.specReplicasPath", ".spec.replicas"),
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "crd-scale.yaml", "spec.versions[0].subresources.scale.statusReplicasPath", ".status.replicas"),
+				// Generated edit ClusterRole should grant the Scale subresource
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "clusterrole-edit.yaml"),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "clusterrole-edit.yaml", "rules[1].resources[0]", "xnopresources/scale"),
 			)).
 			WithTeardown("DeleteXRDWithSubresources", funcs.AllOf(
 				funcs.DeleteResources(manifests, "setup/xrd-scale.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "setup/xrd-scale.yaml"),
+			)).
+			Feature(),
+		features.NewWithDescription(
+			"XRDSubresourcesScaleUnserved",
+			"A XRD that declares the Scale subresource only on an unserved version should not grant access to it.",
+		).
+			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreateXRDWithUnservedSubresourcesScale", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "unserved/setup/xrd-scale-unserved.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "unserved/setup/xrd-scale-unserved.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "unserved/setup/xrd-scale-unserved.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("EditClusterRoleOmitsSubresourcesScale", funcs.ResourceValidatedWithin(1*time.Minute,
+				&rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "crossplane:composite:xunservedscales.nop.example.org:aggregate-to-edit"}},
+				func(o k8s.Object) bool {
+					cr, ok := o.(*rbacv1.ClusterRole)
+					if !ok || len(cr.Rules) == 0 {
+						return false
+					}
+					for _, r := range cr.Rules {
+						for _, res := range r.Resources {
+							if strings.HasSuffix(res, "/scale") {
+								return false
+							}
+						}
+					}
+					return true
+				},
+			)).
+			WithTeardown("DeleteXRDWithUnservedSubresources", funcs.AllOf(
+				funcs.DeleteResources(manifests, "unserved/setup/xrd-scale-unserved.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "unserved/setup/xrd-scale-unserved.yaml"),
 			)).
 			Feature(),
 	)
