@@ -41,6 +41,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	"github.com/crossplane/crossplane/v2/internal/xfn/ordering"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
@@ -1281,5 +1282,65 @@ func TestFunctionComposeOrderingCycleNamesBothSteps(t *testing.T) {
 
 	if !strings.Contains(err.Error(), `declared by pipeline steps "first", "second"`) {
 		t.Errorf("Compose(...): a cycle assembled by two steps should name both, got: %v", err)
+	}
+}
+
+// TestFunctionComposeOrderingWatchesLeavingResources pins that, with ordering,
+// a composed resource that has left desired state but still exists stays
+// watched. Its deletion finishing is what releases the next wave of a live
+// removal, and with realtime compositions nothing else wakes the XR.
+func TestFunctionComposeOrderingWatchesLeavingResources(t *testing.T) {
+	observed := ComposedResourceStates{
+		"vpc":    observedResource("vpc"),
+		"subnet": observedResource("subnet"),
+	}
+
+	r := FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+		// The pipeline keeps the subnet and drops the VPC.
+		return &fnv1.RunFunctionResponse{
+			Desired: &fnv1.State{Resources: map[string]*fnv1.Resource{"subnet": composedResource("subnet", true)}},
+		}, nil
+	})
+
+	cases := map[string]struct {
+		reason   string
+		ordering bool
+		want     bool
+	}{
+		"Ordering": {
+			reason:   "With ordering, the VPC is watched until it's gone.",
+			ordering: true,
+			want:     true,
+		},
+		"NoOrdering": {
+			reason: "Without ordering nothing waits on a deletion, so only desired resources are watched, as before.",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tracker := dependency.NewInMemory()
+
+			c := NewFunctionComposer(
+				&test.MockClient{
+					MockPatch:              test.NewMockPatchFn(nil),
+					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
+					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, false),
+				},
+				&test.MockClient{},
+				r,
+				append(orderingParams(observed, nil, tc.ordering), WithResourceTracker(tracker))...,
+			)
+
+			xr := WithParentLabel()
+			if _, err := c.Compose(context.Background(), xr, singleStep()); err != nil {
+				t.Fatalf("\n%s\nCompose(...): unexpected error: %v", tc.reason, err)
+			}
+
+			got := slices.Contains(tracker.Dependants(observed["vpc"].Resource), client.ObjectKeyFromObject(xr))
+			if got != tc.want {
+				t.Errorf("\n%s\nthe XR depends on the VPC it's deleting: want %t, got %t", tc.reason, tc.want, got)
+			}
+		})
 	}
 }
