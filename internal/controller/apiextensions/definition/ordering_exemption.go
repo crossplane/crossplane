@@ -126,7 +126,7 @@ func pendingDependsOn(xr *kunstructured.Unstructured, name string) bool {
 				continue
 			}
 
-			if dep["name"] == name {
+			if dep["resourceName"] == name {
 				return true
 			}
 		}

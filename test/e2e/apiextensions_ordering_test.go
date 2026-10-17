@@ -1226,7 +1226,7 @@ func TestComposedResourceOrderingWaitsForRequiredResource(t *testing.T) {
 				for _, d := range deps {
 					dep, _ := d.(map[string]any)
 					req, _ := dep["requirement"].(map[string]any)
-					if dep["type"] == "RequiredResource" && req["name"] == "env" {
+					if dep["type"] == "RequiredResource" && req["requirementName"] == "env" {
 						return ""
 					}
 				}

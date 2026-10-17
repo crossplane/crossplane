@@ -351,10 +351,10 @@ func TestPendingResources(t *testing.T) {
 				Operation:    reference.OperationCreate,
 				Reason:       "waiting for vpc to be ready",
 				DependsOn: []reference.Dependency{
-					{Name: "vpc"},
+					{ResourceName: "vpc"},
 					{
 						Type:        reference.DependencyTypeRequiredResource,
-						Requirement: &reference.RequirementDependency{Name: "kubeconfig"},
+						Requirement: &reference.RequirementDependency{RequirementName: "kubeconfig"},
 					},
 				},
 			}},
@@ -389,10 +389,10 @@ func TestPendingResources(t *testing.T) {
 				Reason:       "depends on vpc, which is not desired",
 				Deadlocked:   true,
 				DependsOn: []reference.Dependency{
-					{Name: "vpc"},
+					{ResourceName: "vpc"},
 					{
 						Type:        reference.DependencyTypeRequiredResource,
-						Requirement: &reference.RequirementDependency{Name: "kubeconfig"},
+						Requirement: &reference.RequirementDependency{RequirementName: "kubeconfig"},
 					},
 				},
 			}},
