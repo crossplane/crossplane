@@ -231,7 +231,8 @@ the composite reconciler is unaware of."
   dependency pair: each with its own reconcile, finalizer, and admission round
   trip. It also requires deleting the XR with `--cascade=foreground`, which is
   the one propagation mode that defeats function-controlled deletion (see
-  "Interaction with Function-Controlled Deletion" below).
+  [Foreground Deletion](../../design-doc-composed-resource-ordering.md#foreground-deletion)
+  in the design).
 
 In a complex project like
 [modelplane](https://github.com/modelplaneai/modelplane) a single deployment can
