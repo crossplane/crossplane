@@ -401,7 +401,7 @@ func TestPendingResources(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := pendingResources(tc.decisions, tc.desired, tc.observed, deps)
+			got := pendingResources(tc.decisions, tc.desired, tc.observed, deps, false)
 
 			if diff := cmp.Diff(tc.want, got, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\npendingResources(...): -want, +got:\n%s", tc.reason, diff)
@@ -508,5 +508,43 @@ func TestTeardownOrdersALegacyXR(t *testing.T) {
 
 	if diff := cmp.Diff([]string{"subnet"}, deleted); diff != "" {
 		t.Errorf("teardown(...) deletes the leaf first on a legacy XR too: -want, +got:\n%s", diff)
+	}
+}
+
+// TestPendingResourcesNamespace pins that a pending entry records a namespace
+// only for a cluster scoped XR. A namespaced XR's schema has no namespace
+// field, so setting one would be pruned on write and status would never match
+// what the composer computes - turning every reconcile into a status write.
+func TestPendingResourcesNamespace(t *testing.T) {
+	vpc := composed.New()
+	vpc.SetAPIVersion("example.org/v1")
+	vpc.SetKind("Thing")
+	vpc.SetName("cool-xr-vpc")
+	vpc.SetNamespace("cool-ns")
+
+	decisions := ordering.Decisions{Blocked: map[string]ordering.Decision{
+		"vpc": {Blocked: true, Reason: "subnet still depends on it"},
+	}}
+	observed := ComposedResourceStates{"vpc": {Resource: vpc}}
+
+	cases := map[string]struct {
+		namespaced bool
+		want       string
+	}{
+		"ClusterScopedXR": {namespaced: false, want: "cool-ns"},
+		"NamespacedXR":    {namespaced: true, want: ""},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := pendingResources(decisions, ComposedResourceStates{}, observed, nil, tc.namespaced)
+			if len(got) != 1 {
+				t.Fatalf("pendingResources(...): want one entry, got %+v", got)
+			}
+
+			if got[0].Namespace != tc.want {
+				t.Errorf("pendingResources(...)[0].Namespace: want %q, got %q", tc.want, got[0].Namespace)
+			}
+		})
 	}
 }
