@@ -119,8 +119,7 @@ func asLifecycle(l fnv1.DependencyLifecycle) (ordering.Lifecycle, error) {
 // A composed resource's readiness is the pipeline's own verdict, taken from the
 // final desired state. A required resource has no such verdict - no function
 // reports readiness for a resource it didn't compose - so we read its Ready
-// status condition, treating existence alone as ready for kinds that don't have
-// one.
+// status condition. See isReady.
 func AsOrderingState(desired, observed ComposedResourceStates, required map[string]*fnv1.Resources) ordering.State {
 	s := ordering.State{
 		Composed: make(map[string]ordering.ComposedState, len(desired)+len(observed)),
@@ -160,14 +159,19 @@ func AsOrderingState(desired, observed ComposedResourceStates, required map[stri
 	return s
 }
 
-// isReady reports whether a required resource should count as ready. A resource
-// whose kind has no Ready condition counts as ready once it exists.
+// isReady reports whether a required resource should count as ready.
+//
+// A resource with a Ready condition is ready when it's True. A resource with
+// no Ready condition counts as ready once it exists. That's a heuristic, and
+// it's checked per object, not per kind: Crossplane can't tell a kind that
+// never has a Ready condition - a ConfigMap, a Secret - from an object that
+// just hasn't been given one yet, like a managed resource its provider hasn't
+// observed. The second can be released one reconcile early. Authors depending
+// on such a resource should narrow the edge to it by name, and not lean on
+// existence alone.
 func isReady(cd *composed.Unstructured) bool {
 	c := cd.GetCondition(xpv2.TypeReady)
 	if c.Type == "" {
-		// The resource has no Ready condition. Many kinds a function might
-		// require - a ConfigMap, a Secret - never will. Existence is all the
-		// readiness they have.
 		return true
 	}
 
