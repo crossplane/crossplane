@@ -25,8 +25,6 @@ import (
 	"fmt"
 	"slices"
 	"sort"
-
-	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
 
 // A RequiredRef identifies a resource the pipeline required rather than
@@ -244,34 +242,76 @@ func (g *Graph) Prune(s State) (*Graph, []Edge) {
 func (g *Graph) Validate(s State, requirements map[string]bool) error {
 	for _, e := range g.edges {
 		if _, ok := s.Composed[e.Resource]; !ok {
-			return errors.Errorf("edge refers to unknown composed resource %q", e.Resource)
+			return edgeErrorf(e, "edge refers to unknown composed resource %q", e.Resource)
 		}
 
 		switch t := e.DependsOn; {
 		case t.RequiredResource != nil && t.ComposedResource != "":
-			return errors.Errorf("edge from %q sets both a composed and a required target", e.Resource)
+			return edgeErrorf(e, "edge from %q sets both a composed and a required target", e.Resource)
 
 		case t.RequiredResource != nil:
 			if !requirements[t.RequiredResource.RequirementName] {
-				return errors.Errorf("edge from %q refers to undeclared requirement %q", e.Resource, t.RequiredResource.RequirementName)
+				return edgeErrorf(e, "edge from %q refers to undeclared requirement %q", e.Resource, t.RequiredResource.RequirementName)
 			}
 			// Crossplane never deletes a resource it doesn't compose, so
 			// there is no delete direction to opt out of.
 			if e.Lifecycle != LifecycleSymmetric {
-				return errors.Errorf("edge from %q to requirement %q cannot set lifecycle %s", e.Resource, t.RequiredResource.RequirementName, e.Lifecycle)
+				return edgeErrorf(e, "edge from %q to requirement %q cannot set lifecycle %s", e.Resource, t.RequiredResource.RequirementName, e.Lifecycle)
 			}
 
 		case t.ComposedResource != "":
 			if _, ok := s.Composed[t.ComposedResource]; !ok {
-				return errors.Errorf("edge from %q refers to unknown composed resource %q", e.Resource, t.ComposedResource)
+				return edgeErrorf(e, "edge from %q refers to unknown composed resource %q", e.Resource, t.ComposedResource)
 			}
 
 		default:
-			return errors.Errorf("edge from %q has no target", e.Resource)
+			return edgeErrorf(e, "edge from %q has no target", e.Resource)
 		}
 	}
 
 	return g.acyclic()
+}
+
+// An EdgeError is a validation failure caused by a single edge. It carries the
+// edge so a caller that knows where edges came from - which pipeline step
+// declared them - can say so.
+type EdgeError struct {
+	Edge Edge
+	msg  string
+}
+
+// Error returns the reason the edge is invalid.
+func (e *EdgeError) Error() string { return e.msg }
+
+func edgeErrorf(e Edge, format string, args ...any) error {
+	return &EdgeError{Edge: e, msg: fmt.Sprintf(format, args...)}
+}
+
+// A CycleError is a dependency cycle among composed resources. Path is the
+// walk that found it, ending with the resource that closed the cycle; the
+// cycle itself starts at that resource's first appearance in Path.
+type CycleError struct {
+	Path []string
+}
+
+// Error describes the cycle.
+func (e *CycleError) Error() string { return fmt.Sprintf("dependency cycle: %v", e.Path) }
+
+// Edges returns the edges that form the cycle, in order.
+func (e *CycleError) Edges() []Edge {
+	if len(e.Path) < 2 {
+		return nil
+	}
+
+	closer := e.Path[len(e.Path)-1]
+	start := slices.Index(e.Path, closer)
+
+	out := []Edge{}
+	for i := start; i < len(e.Path)-1; i++ {
+		out = append(out, Edge{Resource: e.Path[i], DependsOn: Target{ComposedResource: e.Path[i+1]}})
+	}
+
+	return out
 }
 
 // acyclic reports whether the composed-resource edges form a DAG.
@@ -291,7 +331,7 @@ func (g *Graph) acyclic() error {
 		case black:
 			return nil
 		case grey:
-			return errors.Errorf("dependency cycle: %v", append(path, n))
+			return &CycleError{Path: append(path, n)}
 		}
 
 		color[n] = grey
