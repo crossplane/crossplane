@@ -185,54 +185,206 @@ func RequirementNames(required map[string]*fnv1.Resources) map[string]bool {
 	return out
 }
 
-// desiredStates adapts the in-flight desired State from a function pipeline to
-// the ComposedResourceStates that AsOrderingState consumes. It's a partial view
-// - it carries names and the pipeline's readiness verdict, not the rendered
-// resources - which is all an ordering decision needs mid-pipeline.
-func desiredStates(d *fnv1.State) ComposedResourceStates {
-	out := make(ComposedResourceStates, len(d.GetResources()))
-	for name, dr := range d.GetResources() {
-		out[ResourceName(name)] = ComposedResourceState{Ready: dr.GetReady() == fnv1.Ready_READY_TRUE}
+// AsDependencies converts ordering edges to protobuf dependencies. It's the
+// inverse of AsEdges, used to bring edges rebuilt from an XR's references back
+// alongside the ones a pipeline declared.
+func AsDependencies(edges []ordering.Edge) []*fnv1.Dependency {
+	out := make([]*fnv1.Dependency, 0, len(edges))
+
+	for _, e := range edges {
+		d := &fnv1.Dependency{Resource: e.Resource}
+
+		switch t := e.DependsOn; {
+		case t.RequiredResource != nil:
+			d.DependsOn = &fnv1.Dependency_RequiredResource{RequiredResource: &fnv1.RequiredResourceDependency{
+				RequirementName: t.RequiredResource.RequirementName,
+				Name:            ptrIfSet(t.RequiredResource.Name),
+				Namespace:       ptrIfSet(t.RequiredResource.Namespace),
+			}}
+		default:
+			d.DependsOn = &fnv1.Dependency_ComposedResource{ComposedResource: t.ComposedResource}
+		}
+
+		if e.Lifecycle == ordering.LifecycleCreateBeforeDestroy {
+			d.Lifecycle = fnv1.DependencyLifecycle_DEPENDENCY_LIFECYCLE_CREATE_BEFORE_DESTROY
+		}
+
+		out = append(out, d)
 	}
 
 	return out
 }
 
-// retainDependencies returns the edges to carry forward, given what a function
-// returned and what it was sent. It keeps any edge the function dropped whose
-// target has left desired state but is still observed - the pending-deletion
-// case, and the only one where losing an edge does damage.
-func retainDependencies(prev, next []*fnv1.Dependency, s ordering.State) []*fnv1.Dependency {
-	have := make(map[dependencyIdentity]bool, len(next))
-	for _, d := range next {
-		have[dependencyKey(d)] = true
+func ptrIfSet(s string) *string {
+	if s == "" {
+		return nil
 	}
 
-	out := next
+	return &s
+}
 
-	for _, d := range prev {
-		if have[dependencyKey(d)] {
-			continue
+// CarryForward returns the edges, from candidates, that should keep ordering
+// this reconcile although the pipeline no longer declares them. candidates is
+// the graph persisted by the last successful reconcile, plus every edge any
+// step declared during this one.
+//
+// The rule is that history orders the exit, but never blocks the present. An
+// edge is carried only when its dependent has left desired state but still
+// exists, and what it depends on still exists too. A function that drops a
+// resource very often drops that resource's edges with it - it no longer
+// reasons about the resource at all - and that's exactly when the garbage
+// collector needs them: the dependency must outlive its dependent. XR teardown
+// is the same rule with nothing desired.
+//
+// An edge whose dependent is still desired is never carried. The pipeline
+// declares what it wants now, and if it stopped declaring that edge it may
+// have meant to - so carrying it could hold a resource back, or deadlock it,
+// on the strength of a constraint nobody asserts any more. Those edges are
+// returned as orphaned instead, keyed by the resource leaving desired state,
+// so the composer can warn that a dependency it once had no longer protects
+// it.
+//
+// Nor is any edge carried that would close a cycle with the declared edges or
+// the edges carried before it, so carried edges can never fail validation.
+func CarryForward(declared, candidates []*fnv1.Dependency, desired, observed ComposedResourceStates) ([]*fnv1.Dependency, map[string][]string) {
+	have := make(map[dependencyIdentity]bool, len(declared))
+
+	// What each composed resource depends on, to detect cycles.
+	deps := map[string][]string{}
+
+	for _, d := range declared {
+		have[dependencyKey(d)] = true
+
+		if t := d.GetComposedResource(); t != "" {
+			deps[d.GetResource()] = append(deps[d.GetResource()], t)
 		}
+	}
 
-		// Only composed resources are deleted by Crossplane, so only their
-		// edges are worth retaining.
-		t := d.GetComposedResource()
+	carried := []*fnv1.Dependency{}
+	orphaned := map[string][]string{}
+
+	for _, d := range candidates {
+		// Only composed resources are deleted by Crossplane, so only edges
+		// between them order an exit.
+		r, t := d.GetResource(), d.GetComposedResource()
 		if t == "" {
 			continue
 		}
 
-		if cs := s.Composed[t]; !cs.Desired && cs.Observed {
-			out = append(out, d)
+		k := dependencyKey(d)
+		if have[k] {
+			continue
 		}
+
+		have[k] = true
+
+		_, rDesired := desired[ResourceName(r)]
+		_, rObserved := observed[ResourceName(r)]
+		_, tDesired := desired[ResourceName(t)]
+		_, tObserved := observed[ResourceName(t)]
+
+		if !tObserved {
+			continue
+		}
+
+		if rDesired {
+			if !tDesired && !slices.Contains(orphaned[t], r) {
+				orphaned[t] = append(orphaned[t], r)
+			}
+
+			continue
+		}
+
+		if !rObserved || reaches(deps, t, r) {
+			continue
+		}
+
+		deps[r] = append(deps[r], t)
+		carried = append(carried, d)
 	}
 
-	return out
+	for t := range orphaned {
+		slices.Sort(orphaned[t])
+	}
+
+	return carried, orphaned
 }
 
-// A dependencyIdentity identifies an edge by its endpoints, so
-// retainDependencies can use it as a map key to detect the same edge across
-// two slices.
+// reaches reports whether from depends, directly or transitively, on to.
+func reaches(deps map[string][]string, from, to string) bool {
+	visited := map[string]bool{}
+	stack := []string{from}
+
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		if n == to {
+			return true
+		}
+
+		if visited[n] {
+			continue
+		}
+
+		visited[n] = true
+		stack = append(stack, deps[n]...)
+	}
+
+	return false
+}
+
+// attributeToSteps adds the pipeline steps that declared the edges behind a
+// validation error to its message. The graph is validated once, after the whole
+// pipeline has run, so without this an author learns that the pipeline's
+// dependencies are invalid but not which function to look at.
+func attributeToSteps(err error, declaredBy map[dependencyIdentity]string) error {
+	var edges []ordering.Edge
+
+	ee := &ordering.EdgeError{}
+	ce := &ordering.CycleError{}
+
+	switch {
+	case errors.As(err, &ee):
+		edges = []ordering.Edge{ee.Edge}
+	case errors.As(err, &ce):
+		edges = ce.Edges()
+	default:
+		return err
+	}
+
+	steps := []string{}
+
+	for _, d := range AsDependencies(edges) {
+		s, ok := declaredBy[dependencyKey(d)]
+		if !ok || slices.Contains(steps, s) {
+			continue
+		}
+
+		steps = append(steps, s)
+	}
+
+	switch len(steps) {
+	case 0:
+		return err
+	case 1:
+		return errors.Errorf("%w (declared by pipeline step %q)", err, steps[0])
+	default:
+		return errors.Errorf("%w (declared by pipeline steps %s)", err, quoted(steps))
+	}
+}
+
+func quoted(ss []string) string {
+	q := make([]string, len(ss))
+	for i, s := range ss {
+		q[i] = fmt.Sprintf("%q", s)
+	}
+
+	return strings.Join(q, ", ")
+}
+
+// A dependencyIdentity identifies an edge by its endpoints, so it can be used
+// as a map key to detect the same edge across two slices.
 //
 // Composed resource names and requirement names are arbitrary strings a
 // function pipeline chooses, with no constraint on their characters.

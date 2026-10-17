@@ -20,8 +20,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -72,6 +74,7 @@ const (
 	errMarshalJSON              = "cannot marshal to JSON"
 
 	errFmtApplyCD                     = "cannot apply composed resource %q"
+	errFmtOrphanedDependency          = "composed resource %q left desired state while %s, which declared a dependency on it, is still desired; the pipeline no longer declares that dependency, so it does not hold back the deletion"
 	errFmtFetchCDConnectionDetails    = "cannot fetch connection details for composed resource %q (a %s named %s)"
 	errFmtUnmarshalPipelineStepInput  = "cannot unmarshal input for Composition pipeline step %q"
 	errFmtGetCredentialsFromSecret    = "cannot get Composition pipeline step %q credential %q from Secret"
@@ -385,6 +388,20 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	deps := []*fnv1.Dependency{}
 	reqres := map[string]*fnv1.Resources{}
 
+	// Every edge any step declared this run, and the step that first declared
+	// it. A later step may drop an edge an earlier one declared; we keep it
+	// here so that, if the edge's resource is leaving, it can still order the
+	// exit - and so a validation failure can name the step to look at.
+	seen := []*fnv1.Dependency{}
+	declaredBy := map[dependencyIdentity]string{}
+
+	// The graph as of the last reconcile that succeeded. We capture it before
+	// this reconcile rewrites the XR's references.
+	var persisted []*fnv1.Dependency
+	if c.ordering {
+		persisted = AsDependencies(EdgesFromRefs(xr.GetComposedResourceReferences()))
+	}
+
 	// Requirement names an edge may refer to. A function declares what it
 	// requires in the same response that declares edges over it, so this has
 	// to include names the pipeline asked for but Crossplane hasn't fetched
@@ -563,13 +580,17 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			// would let one such function erase every constraint declared
 			// before it.
 			if next := rsp.GetDependencies(); next != nil {
-				items := next.GetItems()
-				// A function that does have an opinion returns the whole set,
-				// and will naturally drop edges for resources it's removing -
-				// which is exactly when the garbage collector needs them. Keep
-				// any edge whose target is on its way out.
-				state := AsOrderingState(desiredStates(d), observed, reqres)
-				deps = retainDependencies(deps, items, state)
+				deps = next.GetItems()
+
+				for _, dep := range deps {
+					k := dependencyKey(dep)
+					if _, ok := declaredBy[k]; ok {
+						continue
+					}
+
+					declaredBy[k] = fn.Step
+					seen = append(seen, dep)
+				}
 			}
 		}
 
@@ -726,7 +747,25 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// something that depends on it is still around.
 	decisions := ordering.Decisions{Blocked: map[string]ordering.Decision{}}
 
-	if c.ordering && len(deps) > 0 {
+	// Edges the pipeline no longer declares can still order a resource's
+	// exit: history orders the exit, but never blocks the present. See
+	// CarryForward.
+	var carried []*fnv1.Dependency
+
+	if c.ordering {
+		var orphaned map[string][]string
+
+		carried, orphaned = CarryForward(deps, slices.Concat(persisted, seen), desired, observed)
+
+		for _, t := range slices.Sorted(maps.Keys(orphaned)) {
+			events = append(events, TargetedEvent{
+				Event:  event.Warning(reasonCompose, errors.Errorf(errFmtOrphanedDependency, t, strings.Join(orphaned[t], ", "))),
+				Target: CompositionTargetComposite,
+			})
+		}
+	}
+
+	if c.ordering && len(deps)+len(carried) > 0 {
 		state := AsOrderingState(desired, observed, reqres)
 
 		edges, err := AsEdges(deps)
@@ -754,8 +793,25 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			reqnames[name] = true
 		}
 
+		// Only what the pipeline declared is validated. Carried edges are
+		// valid by construction - both ends exist, and none closes a cycle -
+		// so history can never fail a reconcile.
 		if err := g.Validate(state, reqnames); err != nil {
-			return CompositionResult{}, errors.Wrap(err, errInvalidDependencies)
+			return CompositionResult{}, errors.Wrap(attributeToSteps(err, declaredBy), errInvalidDependencies)
+		}
+
+		if len(carried) > 0 {
+			ce, err := AsEdges(carried)
+			if err != nil {
+				return CompositionResult{}, errors.Wrap(err, errInvalidDependencies)
+			}
+
+			g = ordering.New(slices.Concat(g.Edges(), ce)...)
+
+			// Persist them too. A resource held back from deletion keeps its
+			// reference, and its reference must keep the edges, or an XR
+			// deleted mid-wave would tear down out of order.
+			deps = slices.Concat(deps, carried)
 		}
 
 		decisions = g.Decide(state)
