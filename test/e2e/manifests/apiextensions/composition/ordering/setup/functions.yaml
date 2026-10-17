@@ -3,4 +3,4 @@ kind: Function
 metadata:
   name: function-ordering
 spec:
-  package: ghcr.io/stevendborrelli/function-ordering-test:dependency-test.6
+  package: ghcr.io/stevendborrelli/function-ordering-test:dependency-test.7
