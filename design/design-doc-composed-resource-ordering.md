@@ -403,13 +403,14 @@ composition permanently. Crossplane emits an event naming the pruned edges
 instead. An edge whose resource is only in `observed` is kept: the resource has
 been dropped from desired state, and the edge is what blocks its deletion until
 its dependents are gone. Crossplane adds edges like these back itself when the
-pipeline stops declaring them, before validation runs; see
-[Resources Leaving Desired State](#resources-leaving-desired-state).
+pipeline stops declaring them, after validation and only where they can't fail
+it; see [Resources Leaving Desired State](#resources-leaving-desired-state).
 
 A violation is reported the way Crossplane reports other invalid function
 output: the pipeline run fails, and Crossplane records a warning event and a
-`Synced: False` condition on the XR, naming the function step that declared the
-offending edge. Doing these checks in Crossplane means every SDK doesn't need to
+`Synced: False` condition on the XR. The error names the pipeline step that
+first declared the offending edge, or the steps, for a cycle assembled by more
+than one. Doing these checks in Crossplane means every SDK doesn't need to
 separately implement validation.
 
 ### Using the Graph to Order Creation and Deletion
@@ -426,11 +427,11 @@ The following flowchart documents the prototype's behavior.
 ```mermaid
 flowchart TD
     A["Edges accumulated across the pipeline"]
-    A --> K["Keep: add back persisted edges whose<br/>dependent has left desired state"]
-    K --> B["Prune: drop edges naming resources that are<br/>neither desired nor observed"]
+    A --> B["Prune: drop edges naming resources that are<br/>neither desired nor observed"]
     B --> C{"Validate: endpoints known, one target per edge,<br/>requirement declared, acyclic"}
     C -- invalid --> X["Fail the reconcile:<br/>Synced=False, warning naming the function step"]
-    C -- valid --> D{"For each composed resource:<br/>is it desired? is it observed?"}
+    C -- valid --> K["Keep: add back edges whose dependent has left<br/>desired state, unless they would close a cycle"]
+    K --> D{"For each composed resource:<br/>is it desired? is it observed?"}
 
     D -- "desired, already exists" --> AP["Apply"]
     D -- "desired, not created yet" --> G1{"Is everything it depends on ready?"}
@@ -497,11 +498,13 @@ first, and the two would be deleted in one wave. Worse, the XR's references are
 rewritten from what the pipeline declared, so the persisted graph would lose
 the edge too, and an XR deleted partway through would tear down out of order.
 
-Crossplane keeps those edges itself. After the pipeline runs, it adds back any
-edge whose *dependent* has left desired state but still exists, taken from the
-graph persisted on the XR's references, or from an earlier step in the same
-run that declared it. The kept edges are written back to the dependent's
-reference, so the persisted graph holds them until the dependent is gone.
+Crossplane keeps those edges itself. The candidates are the graph persisted on
+the XR's references and every edge any step declared during the run. After the
+pipeline runs and its edges are validated, Crossplane adds back each candidate
+edge the pipeline no longer declares whose *dependent* has left desired state
+but still exists, and whose dependency still exists. The kept edges are
+written back to the dependent's reference, so the persisted graph holds them
+until the dependent is gone.
 
 The rule is narrow on purpose: history orders the exit; it never blocks the
 present.
@@ -511,15 +514,19 @@ present.
   its word: `r` no longer depends on `t`, and `t` may go. A function retracting
   an edge and a function forgetting one look the same from here, and treating
   history as binding would turn every deliberate retraction into a deadlock
-  that no one can see by reading the pipeline. Crossplane emits a warning event
-  instead, naming `t` and the still-desired `r` that declared a dependency on
-  it, so an accidental omission is visible without stopping anything.
+  that no one can see by reading the pipeline. When `t` is leaving, Crossplane
+  emits a warning event instead, naming `t` and the still-desired `r` that
+  declared a dependency on it and saying the dependency no longer holds back
+  the deletion, so an accidental omission is visible without stopping
+  anything.
 * **Only what the pipeline declares now can deadlock a resource.** A resource is
   deadlocked when the current pipeline says something still desired depends on
   it, never because of an edge it once declared.
-* **A kept edge never fails validation.** If a kept edge would close a cycle
-  with what the pipeline declares now, the declared edges win and the kept edge
-  is dropped.
+* **History never fails a reconcile.** Kept edges are added after validation,
+  and only when they don't close a cycle with what the pipeline declares or
+  with edges already kept, so they are valid by construction. Where history
+  and the present disagree, the declared edges win and the kept edge is
+  dropped.
 
 XR teardown is the same rule with nothing desired: every resource is leaving,
 so every persisted edge applies. It is also how Terraform behaves, where
