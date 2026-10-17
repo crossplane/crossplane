@@ -74,6 +74,7 @@ const (
 	errMarshalJSON              = "cannot marshal to JSON"
 
 	errFmtApplyCD                     = "cannot apply composed resource %q"
+	errFmtDependenciesIgnored         = "pipeline step %q returned %d dependency edge(s), but composed resource ordering is not enabled (--enable-composed-resource-ordering); they are ignored"
 	errFmtOrphanedDependency          = "composed resource %q left desired state while %s, which declared a dependency on it, is still desired; the pipeline no longer declares that dependency, so it does not hold back the deletion"
 	errFmtFetchCDConnectionDetails    = "cannot fetch connection details for composed resource %q (a %s named %s)"
 	errFmtUnmarshalPipelineStepInput  = "cannot unmarshal input for Composition pipeline step %q"
@@ -592,6 +593,21 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 					seen = append(seen, dep)
 				}
 			}
+		}
+
+		// Without ordering, Crossplane neither advertises the capability nor
+		// sends dependencies, so a function that returns some anyway didn't
+		// check. Say so rather than ignore them in silence: the function's
+		// author expects an order no one is enforcing. It's a warning, not a
+		// failure. A function whose ordering is required for correctness
+		// should require the capability itself, which is the only check that
+		// also works against a Crossplane that predates the field.
+		if n := len(rsp.GetDependencies().GetItems()); !c.ordering && n > 0 {
+			events = append(events, TargetedEvent{
+				Event:  event.Warning(reasonCompose, errors.Errorf(errFmtDependenciesIgnored, fn.Step, n)),
+				Detail: fmt.Sprintf("Pipeline step %q", fn.Step),
+				Target: CompositionTargetComposite,
+			})
 		}
 
 		// Pass the Function context returned by this Function to the next one.

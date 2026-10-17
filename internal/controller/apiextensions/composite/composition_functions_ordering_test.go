@@ -1344,3 +1344,72 @@ func TestFunctionComposeOrderingWatchesLeavingResources(t *testing.T) {
 		})
 	}
 }
+
+// TestFunctionComposeDependenciesWithoutOrdering pins that dependencies
+// returned while ordering is disabled are reported, not silently ignored: the
+// function's author expects an order nothing is enforcing.
+func TestFunctionComposeDependenciesWithoutOrdering(t *testing.T) {
+	cases := map[string]struct {
+		reason   string
+		ordering bool
+		deps     *fnv1.Dependencies
+		warned   bool
+	}{
+		"DependenciesIgnored": {
+			reason: "A step that returns dependencies while ordering is off didn't check the capability, so Crossplane warns that they're ignored.",
+			deps:   &fnv1.Dependencies{Items: []*fnv1.Dependency{dependsOn("subnet", "vpc")}},
+			warned: true,
+		},
+		"NoDependencies": {
+			reason: "A step that returns none - or an empty list, as an SDK echoing an empty request might - has nothing to warn about.",
+			deps:   &fnv1.Dependencies{},
+		},
+		"OrderingEnabled": {
+			reason:   "With ordering on, the dependencies are honored, not ignored.",
+			ordering: true,
+			deps:     &fnv1.Dependencies{Items: []*fnv1.Dependency{dependsOn("subnet", "vpc")}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				return &fnv1.RunFunctionResponse{
+					Desired: &fnv1.State{Resources: map[string]*fnv1.Resource{
+						"vpc":    composedResource("vpc", true),
+						"subnet": composedResource("subnet", true),
+					}},
+					Dependencies: tc.deps,
+				}, nil
+			})
+
+			c := NewFunctionComposer(
+				&test.MockClient{
+					MockPatch:              test.NewMockPatchFn(nil),
+					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
+					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, false),
+				},
+				&test.MockClient{},
+				r,
+				orderingParams(nil, nil, tc.ordering)...,
+			)
+
+			res, err := c.Compose(context.Background(), WithParentLabel(), singleStep())
+			if err != nil {
+				t.Fatalf("\n%s\nCompose(...): unexpected error: %v", tc.reason, err)
+			}
+
+			warned := false
+
+			for _, e := range res.Events {
+				if e.Type == event.TypeWarning && strings.Contains(e.Message, `pipeline step "run-cool-function" returned 1 dependency edge(s), but composed resource ordering is not enabled`) {
+					warned = true
+				}
+			}
+
+			if warned != tc.warned {
+				t.Errorf("\n%s\nwarned that dependencies are ignored: want %t, got %t. Events: %+v", tc.reason, tc.warned, warned, res.Events)
+			}
+		})
+	}
+}
