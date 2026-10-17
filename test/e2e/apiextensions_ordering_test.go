@@ -351,6 +351,7 @@ func TestComposedResourceOrderingRemovalIsOrdered(t *testing.T) {
 			Assess("ThenSecondIsDeleting",
 				composedStateIs(map[string]bool{"first": false, "second": true}),
 			).
+			Assess("SecondIsGone", composedStateIs(exists("first"))).
 			Assess("FirstStays", composedStateStays(10*time.Second, exists("first"))).
 			WithTeardown("DeleteXR", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationBackground),
