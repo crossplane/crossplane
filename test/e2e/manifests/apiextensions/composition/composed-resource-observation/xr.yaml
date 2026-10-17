@@ -1,0 +1,10 @@
+apiVersion: example.org/v1alpha1
+kind: Test
+metadata:
+  namespace: default
+  name: observe-test-xr
+spec:
+  coolField: "test"
+  crossplane:
+    compositionRef:
+      name: observe-composition-namespaced
