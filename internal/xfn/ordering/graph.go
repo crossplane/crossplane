@@ -23,6 +23,7 @@ package ordering
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -296,7 +297,11 @@ func (g *Graph) acyclic() error {
 		color[n] = grey
 
 		for _, d := range g.dependenciesOf(n) {
-			if err := visit(d, append(path, n)); err != nil {
+			// A fresh slice per branch: appending to path in place would let
+			// one sibling's recursion overwrite the backing array another
+			// sibling's error message is still being built from, garbling the
+			// reported cycle.
+			if err := visit(d, append(slices.Clone(path), n)); err != nil {
 				return err
 			}
 		}

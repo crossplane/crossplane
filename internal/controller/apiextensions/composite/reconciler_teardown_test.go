@@ -59,6 +59,9 @@ func TestReconcileDeleteIsOrdered(t *testing.T) {
 
 	deletingXR := func(cr *composite.Unstructured) {
 		cr.SetDeletionTimestamp(&now)
+		// The composed resources state() observes carry this XR's controller
+		// reference, which teardown requires before it will consider them.
+		cr.SetUID(teardownXRUID)
 		cr.SetComposedResourceReferences(graph)
 	}
 
@@ -309,5 +312,73 @@ func TestTeardownWithoutGraph(t *testing.T) {
 				t.Errorf("\n%s\nteardown(...): deleted -want, +got:\n%s", tc.reason, diff)
 			}
 		})
+	}
+}
+
+// TestTeardownWithGraphIgnoresUncontrolled covers the same rule as
+// TestTeardownWithoutGraph's IgnoresResourcesItDoesNotControl case, with a
+// graph present: an XR whose references name a resource it does not control
+// must not let that resource wedge teardown.
+//
+// The garbage collector refuses to delete a resource whose controller
+// reference isn't ours, so the graph would nominate it every reconcile and
+// it would never go - reporting "already asked to delete" on a resource no
+// one asked, and holding the XR's finalizer indefinitely.
+func TestTeardownWithGraphIgnoresUncontrolled(t *testing.T) {
+	now := metav1.Now()
+	uid := types.UID("xr-uid")
+
+	controlled := func(name string) ComposedResourceState {
+		s := state("Thing", "xr-"+name)
+		s.Resource.SetOwnerReferences([]metav1.OwnerReference{{
+			APIVersion: "example.org/v1", Kind: "XR", Name: "xr", UID: uid,
+			Controller: new(true), BlockOwnerDeletion: new(true),
+		}})
+
+		return s
+	}
+
+	// someone-elses is a leaf everything hangs off, but its controller
+	// reference is not this XR's. Only ours must be deleted; the uncontrolled
+	// resource must neither be deleted nor block the ones we do control.
+	xr := composite.New()
+	xr.SetUID(uid)
+	xr.SetDeletionTimestamp(&now)
+	xr.SetComposedResourceReferences([]reference.Composed{
+		{APIVersion: "example.org/v1", Kind: "Thing", Name: "someone-elses", ResourceName: "root"},
+		{APIVersion: "example.org/v1", Kind: "Thing", Name: "xr-leaf", ResourceName: "leaf", DependsOn: []string{"root"}},
+	})
+
+	deleted := []string{}
+
+	r := NewReconciler(&test.MockClient{}, schema.GroupVersionKind{},
+		WithOrderedTeardown(
+			ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+				return ComposedResourceStates{
+					"root": state("Thing", "someone-elses"),
+					"leaf": controlled("leaf"),
+				}, nil
+			}),
+			ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, observed, _ ComposedResourceStates) error {
+				for n := range observed {
+					deleted = append(deleted, string(n))
+				}
+
+				return nil
+			}),
+		),
+	)
+
+	done, err := r.teardown(context.Background(), xr, r.conditions.For(xr))
+	if err != nil {
+		t.Fatalf("teardown(...): unexpected error: %v", err)
+	}
+
+	if done {
+		t.Error("teardown(...): reported done while a controlled composed resource still exists")
+	}
+
+	if diff := cmp.Diff([]string{"leaf"}, deleted); diff != "" {
+		t.Errorf("teardown(...): deleted -want, +got:\n%s", diff)
 	}
 }
