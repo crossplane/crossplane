@@ -18,6 +18,7 @@ package composite
 
 import (
 	"context"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -36,6 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
@@ -518,141 +520,212 @@ func TestFunctionComposeOrderingAcrossSteps(t *testing.T) {
 	}
 }
 
-// TestFunctionComposeOrderingEdgeRetention covers the case a function is most
-// likely to get wrong: dropping a resource from desired state, and dropping its
-// edges in the same response, at exactly the moment the collector needs them.
-func TestFunctionComposeOrderingEdgeRetention(t *testing.T) {
-	observed := ComposedResourceStates{
-		"vpc":    observedResource("vpc"),
-		"subnet": observedResource("subnet"),
+// TestFunctionComposeOrderingCarryForward covers edges the pipeline no longer
+// declares. History orders the exit, but never blocks the present: an edge is
+// kept only while its dependent is on its way out.
+func TestFunctionComposeOrderingCarryForward(t *testing.T) {
+	subnetOnVPC := []reference.Composed{
+		{APIVersion: "test.crossplane.io/v1", Kind: "Composed", Name: "subnet", ResourceName: "subnet", DependsOn: []string{"vpc"}},
+		{APIVersion: "test.crossplane.io/v1", Kind: "Composed", Name: "vpc", ResourceName: "vpc"},
 	}
 
-	gc := ComposedResourceStates{}
+	declaresBoth := &fnv1.RunFunctionResponse{
+		Desired: &fnv1.State{Resources: map[string]*fnv1.Resource{
+			"vpc":    composedResource("vpc", true),
+			"subnet": composedResource("subnet", true),
+		}},
+		Dependencies: &fnv1.Dependencies{Items: []*fnv1.Dependency{dependsOn("subnet", "vpc")}},
+	}
 
-	r := FunctionRunnerFn(func(_ context.Context, name string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-		switch name {
-		case "declares-edges":
-			return &fnv1.RunFunctionResponse{
-				Desired: &fnv1.State{Resources: map[string]*fnv1.Resource{
-					"vpc":    composedResource("vpc", true),
-					"subnet": composedResource("subnet", true),
-				}},
-				Dependencies: &fnv1.Dependencies{Items: []*fnv1.Dependency{dependsOn("subnet", "vpc")}},
-			}, nil
-		default:
-			// Decides the VPC should go, and drops its edge in the same breath.
-			return &fnv1.RunFunctionResponse{
-				Desired: &fnv1.State{Resources: map[string]*fnv1.Resource{
-					"subnet": composedResource("subnet", true),
-				}},
-				Dependencies: &fnv1.Dependencies{Items: []*fnv1.Dependency{}},
-			}, nil
-		}
-	})
+	type want struct {
+		// held is what ordering kept from the garbage collector.
+		held     []ResourceName
+		subnetOn []string
+		warned   bool
+	}
 
-	c := NewFunctionComposer(
-		&test.MockClient{
-			MockPatch:              test.NewMockPatchFn(nil),
-			MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
-			MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, false),
+	cases := map[string]struct {
+		reason    string
+		persisted []reference.Composed
+		pipeline  []string
+		responses map[string]*fnv1.RunFunctionResponse
+		want      want
+	}{
+		"AcrossReconcilesBothLeaving": {
+			reason:    "The last reconcile recorded subnet -> vpc. This one drops both and their edge, as a function that no longer reasons about them would. The subnet goes first, the VPC waits, and the subnet's reference keeps the edge.",
+			persisted: subnetOnVPC,
+			pipeline:  []string{"removes-both"},
+			responses: map[string]*fnv1.RunFunctionResponse{
+				"removes-both": {
+					Desired:      &fnv1.State{},
+					Dependencies: &fnv1.Dependencies{Items: []*fnv1.Dependency{}},
+				},
+			},
+			want: want{held: []ResourceName{"vpc"}, subnetOn: []string{"vpc"}},
 		},
-		&test.MockClient{},
-		r,
-		orderingParams(observed, &gc, true)...,
-	)
-
-	res, err := c.Compose(context.Background(), WithParentLabel(), steps("declares-edges", "removes-vpc"))
-	if err != nil {
-		t.Fatalf("Compose(...): unexpected error: %v", err)
+		"WithinAReconcileBothLeaving": {
+			reason:   "One step declares subnet -> vpc; a later step drops both and the edge. The edge still orders their exit.",
+			pipeline: []string{"declares-edges", "removes-both"},
+			responses: map[string]*fnv1.RunFunctionResponse{
+				"declares-edges": declaresBoth,
+				"removes-both": {
+					Desired:      &fnv1.State{},
+					Dependencies: &fnv1.Dependencies{Items: []*fnv1.Dependency{}},
+				},
+			},
+			want: want{held: []ResourceName{"vpc"}, subnetOn: []string{"vpc"}},
+		},
+		"AcrossReconcilesDependentStays": {
+			reason:    "The subnet stays and the pipeline drops the VPC without declaring the edge. The pipeline may have meant to, so history doesn't hold the VPC back or deadlock it - but Crossplane warns.",
+			persisted: subnetOnVPC,
+			pipeline:  []string{"removes-vpc"},
+			responses: map[string]*fnv1.RunFunctionResponse{
+				"removes-vpc": {
+					Desired:      &fnv1.State{Resources: map[string]*fnv1.Resource{"subnet": composedResource("subnet", true)}},
+					Dependencies: &fnv1.Dependencies{Items: []*fnv1.Dependency{}},
+				},
+			},
+			want: want{warned: true},
+		},
+		"WithinAReconcileDependentStays": {
+			reason:   "One step declares subnet -> vpc; a later step drops the VPC and the edge but keeps the subnet. Same as across reconciles: the VPC goes, with a warning.",
+			pipeline: []string{"declares-edges", "removes-vpc"},
+			responses: map[string]*fnv1.RunFunctionResponse{
+				"declares-edges": declaresBoth,
+				"removes-vpc": {
+					Desired:      &fnv1.State{Resources: map[string]*fnv1.Resource{"subnet": composedResource("subnet", true)}},
+					Dependencies: &fnv1.Dependencies{Items: []*fnv1.Dependency{}},
+				},
+			},
+			want: want{warned: true},
+		},
+		"UnawareFunctionKeepsDeclaredEdges": {
+			reason:    "A function that leaves dependencies unset changes nothing, so this is the ordinary declared case: both stay, nothing is offered, the edge is persisted.",
+			persisted: subnetOnVPC,
+			pipeline:  []string{"declares-edges"},
+			responses: map[string]*fnv1.RunFunctionResponse{"declares-edges": declaresBoth},
+			want:      want{subnetOn: []string{"vpc"}},
+		},
+		"HistoryNeverClosesACycle": {
+			reason:    "The last reconcile recorded subnet -> vpc. Now the subnet is leaving and the pipeline declares vpc -> subnet. Carrying the old edge would close a cycle and fail the reconcile on history alone, so it isn't carried.",
+			persisted: subnetOnVPC,
+			pipeline:  []string{"reverses"},
+			responses: map[string]*fnv1.RunFunctionResponse{
+				"reverses": {
+					Desired:      &fnv1.State{Resources: map[string]*fnv1.Resource{"vpc": composedResource("vpc", true)}},
+					Dependencies: &fnv1.Dependencies{Items: []*fnv1.Dependency{dependsOn("vpc", "subnet")}},
+				},
+			},
+			// The VPC still exists and depends on the subnet, so the subnet
+			// can't go - that's the declared edge at work, not the carried one.
+			want: want{held: []ResourceName{"subnet"}},
+		},
 	}
 
-	// The retained edge means the VPC isn't offered to the collector while the
-	// subnet that depends on it is still around.
-	if _, offered := gc["vpc"]; offered {
-		t.Errorf("Retaining the edge should stop the VPC being collected while the subnet still exists, but it was offered to the collector")
-	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			observed := ComposedResourceStates{
+				"vpc":    observedResource("vpc"),
+				"subnet": observedResource("subnet"),
+			}
 
-	// The pipeline wants the VPC gone and wants the subnet, which depends on
-	// it, to stay. Waiting cannot resolve that, so the VPC is reported rather
-	// than left to stall. The subnet already exists and keeps reconciling:
-	// ordering gates creation, not updates.
-	got := map[ResourceName]ComposedResource{}
-	for _, cd := range res.Composed {
-		got[cd.ResourceName] = cd
-	}
+			gc := ComposedResourceStates{}
 
-	if cd, ok := got["vpc"]; !ok || cd.Synced {
-		t.Errorf("The VPC can never be deleted while the subnet depends on it, so it should be reported as not synced, got %+v", cd)
-	}
+			var persisted []reference.Composed
 
-	if cd := got["vpc"]; !strings.Contains(cd.Reason, "cannot be satisfied") {
-		t.Errorf("The VPC's reason should say the contradiction can't be waited out, got %q", cd.Reason)
-	}
+			r := FunctionRunnerFn(func(_ context.Context, name string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				return tc.responses[name], nil
+			})
 
-	if cd, ok := got["subnet"]; !ok || !cd.Synced {
-		t.Errorf("The subnet exists already, so it should keep being applied, got %+v", cd)
-	}
+			c := NewFunctionComposer(
+				&test.MockClient{
+					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+						if xr, ok := obj.(*composite.Unstructured); ok {
+							persisted = xr.GetComposedResourceReferences()
+						}
 
-	// A contradiction can never resolve by waiting, so it must not be folded
-	// into the summary of resources that are merely waiting. It gets a warning
-	// of its own whichever side of the graph reports it.
-	warned := false
+						return nil
+					}),
+					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
+					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, false),
+				},
+				&test.MockClient{},
+				r,
+				orderingParams(observed, &gc, true)...,
+			)
 
-	for _, e := range res.Events {
-		if e.Type == event.TypeWarning && strings.Contains(e.Message, "contradict each other") {
-			warned = true
-		}
-	}
+			xr := WithParentLabel()
+			xr.SetComposedResourceReferences(tc.persisted)
 
-	if !warned {
-		t.Errorf("A contradiction should be reported as a warning, not folded into the waiting summary. Got events: %+v", res.Events)
-	}
+			res, err := c.Compose(context.Background(), xr, steps(tc.pipeline...))
+			if err != nil {
+				t.Fatalf("\n%s\nCompose(...): unexpected error: %v", tc.reason, err)
+			}
 
-	// An XR that can never converge must not report Available. The apply-side
-	// gate has always withheld readiness from a deadlocked resource; the
-	// delete-side gate has to do the same, or moving a contradiction from one
-	// side to the other quietly changes what the XR claims about itself.
-	if cd := got["vpc"]; cd.Ready {
-		t.Errorf("A deadlocked resource must not count towards the XR's readiness, got %+v", cd)
+			held := []ResourceName{}
+
+			for _, name := range slices.Sorted(maps.Keys(observed)) {
+				if _, offered := gc[name]; !offered {
+					held = append(held, name)
+				}
+			}
+
+			if diff := cmp.Diff(tc.want.held, held, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("\n%s\nresources held back from the garbage collector: -want, +got:\n%s", tc.reason, diff)
+			}
+
+			var subnetOn []string
+
+			for _, ref := range persisted {
+				if ref.ResourceName == "subnet" {
+					subnetOn = ref.DependsOn
+				}
+			}
+
+			if diff := cmp.Diff(tc.want.subnetOn, subnetOn, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("\n%s\nsubnet's persisted dependsOn: -want, +got:\n%s", tc.reason, diff)
+			}
+
+			warned := false
+
+			for _, e := range res.Events {
+				if e.Type == event.TypeWarning && strings.Contains(e.Message, "no longer declares that dependency") {
+					warned = true
+				}
+
+				if e.Type == event.TypeWarning && strings.Contains(e.Message, "contradict each other") && name != "HistoryNeverClosesACycle" {
+					t.Errorf("\n%s\nhistory must never deadlock a resource, got warning: %s", tc.reason, e.Message)
+				}
+			}
+
+			if warned != tc.want.warned {
+				t.Errorf("\n%s\nwarned that a dropped dependency no longer protects a resource: want %t, got %t. Events: %+v", tc.reason, tc.want.warned, warned, res.Events)
+			}
+		})
 	}
 }
 
-// TestRetainDependenciesKeyCollision guards against a specific regression: a
-// naive resource+"->"+target string key for detecting whether an edge is
-// still present would let two unrelated edges collide, because composed
-// resource names are arbitrary strings a function pipeline chooses and
-// aren't guaranteed free of "->".
-func TestRetainDependenciesKeyCollision(t *testing.T) {
+// TestCarryForwardKeyCollision guards against a specific regression: a naive
+// resource+"->"+target string key for detecting whether an edge is still
+// declared would let two unrelated edges collide, because composed resource
+// names are arbitrary strings a function pipeline chooses and aren't
+// guaranteed free of "->".
+func TestCarryForwardKeyCollision(t *testing.T) {
 	// Two distinct edges that produce the identical string
 	// "a->b" + "->" + "c" == "a" + "->" + "b->c" == "a->b->c" under the old
 	// key scheme.
 	kept := dependsOn("a->b", "c")
 	dropped := dependsOn("a", "b->c")
 
-	prev := []*fnv1.Dependency{kept, dropped}
-	next := []*fnv1.Dependency{kept} // The function didn't return "dropped" this pass.
+	// "a" has left desired state but still exists, so its edge should be
+	// carried to order its exit before "b->c".
+	desired := ComposedResourceStates{"a->b": {}, "c": {}, "b->c": {}}
+	observed := ComposedResourceStates{"a->b": {}, "c": {}, "a": {}, "b->c": {}}
 
-	// "b->c" has left desired state but is still observed - exactly the
-	// pending-deletion case retention exists to protect.
-	state := ordering.State{Composed: map[string]ordering.ComposedState{
-		"a->b": {Desired: true, Observed: true, Ready: true},
-		"c":    {Desired: true, Observed: true, Ready: true},
-		"a":    {Desired: true, Observed: true, Ready: true},
-		"b->c": {Observed: true},
-	}}
+	got, _ := CarryForward([]*fnv1.Dependency{kept}, []*fnv1.Dependency{kept, dropped}, desired, observed)
 
-	got := retainDependencies(prev, next, state)
-
-	found := false
-
-	for _, d := range got {
-		if proto.Equal(d, dropped) {
-			found = true
-		}
-	}
-
-	if !found {
-		t.Errorf("retainDependencies(...) did not retain an edge to a pending-deletion resource; its key likely collided with an unrelated edge's key: %+v", got)
+	if len(got) != 1 || !proto.Equal(got[0], dropped) {
+		t.Errorf("CarryForward(...) did not carry an edge from a leaving resource; its key likely collided with an unrelated edge's key: %+v", got)
 	}
 }
 
@@ -703,8 +776,15 @@ func TestFunctionComposeOrderingInvalid(t *testing.T) {
 				orderingParams(nil, nil, true)...,
 			)
 
-			if _, err := c.Compose(context.Background(), WithParentLabel(), singleStep()); err == nil {
-				t.Errorf("\n%s\nCompose(...): want error, got none", tc.reason)
+			_, err := c.Compose(context.Background(), WithParentLabel(), singleStep())
+			if err == nil {
+				t.Fatalf("\n%s\nCompose(...): want error, got none", tc.reason)
+			}
+
+			// Validation runs once, after the whole pipeline, so the error
+			// has to say which step to look at.
+			if !strings.Contains(err.Error(), `declared by pipeline step "run-cool-function"`) {
+				t.Errorf("\n%s\nCompose(...): error should name the step that declared the offending edge, got: %v", tc.reason, err)
 			}
 		})
 	}
@@ -1135,5 +1215,71 @@ func TestNewFunctionComposerDeletePropagation(t *testing.T) {
 				t.Errorf("\n%s\nNewFunctionComposer(...): propagation = %q, want %q", tc.reason, gc.propagation, tc.want)
 			}
 		})
+	}
+}
+
+// TestCarryForwardNeverClosesACycle pins that a carried edge can't close a
+// cycle with what the pipeline declares now, directly or transitively. Carried
+// edges skip validation, so this is what keeps the graph a DAG.
+func TestCarryForwardNeverClosesACycle(t *testing.T) {
+	declared := []*fnv1.Dependency{dependsOn("c", "b"), dependsOn("b", "a")}
+
+	// a is leaving and, last reconcile, depended on c. Carrying a -> c would
+	// close a -> c -> b -> a.
+	candidates := []*fnv1.Dependency{dependsOn("a", "c")}
+
+	desired := ComposedResourceStates{"b": {}, "c": {}}
+	observed := ComposedResourceStates{"a": {}, "b": {}, "c": {}}
+
+	got, _ := CarryForward(declared, candidates, desired, observed)
+	if len(got) != 0 {
+		t.Errorf("CarryForward(...): carried %v, which closes a cycle with the declared edges", got)
+	}
+}
+
+// TestFunctionComposeOrderingCycleNamesBothSteps pins that a cycle assembled by
+// two steps names both: neither step's edges are wrong on their own.
+func TestFunctionComposeOrderingCycleNamesBothSteps(t *testing.T) {
+	both := map[string]*fnv1.Resource{
+		"vpc":    composedResource("vpc", true),
+		"subnet": composedResource("subnet", true),
+	}
+
+	r := FunctionRunnerFn(func(_ context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+		// Each step echoes what it was sent and adds one edge, as an SDK
+		// that carries dependencies forward would.
+		items := slices.Clone(req.GetDependencies().GetItems())
+
+		switch name {
+		case "first":
+			items = append(items, dependsOn("subnet", "vpc"))
+		case "second":
+			items = append(items, dependsOn("vpc", "subnet"))
+		}
+
+		return &fnv1.RunFunctionResponse{
+			Desired:      &fnv1.State{Resources: both},
+			Dependencies: &fnv1.Dependencies{Items: items},
+		}, nil
+	})
+
+	c := NewFunctionComposer(
+		&test.MockClient{
+			MockPatch:              test.NewMockPatchFn(nil),
+			MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
+			MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, false),
+		},
+		&test.MockClient{},
+		r,
+		orderingParams(nil, nil, true)...,
+	)
+
+	_, err := c.Compose(context.Background(), WithParentLabel(), steps("first", "second"))
+	if err == nil {
+		t.Fatal("Compose(...): want a cycle error, got none")
+	}
+
+	if !strings.Contains(err.Error(), `declared by pipeline steps "first", "second"`) {
+		t.Errorf("Compose(...): a cycle assembled by two steps should name both, got: %v", err)
 	}
 }
