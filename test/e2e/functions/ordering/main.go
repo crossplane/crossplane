@@ -106,6 +106,13 @@ type input struct {
 	// XR is alive.
 	Remove []string `json:"remove"`
 
+	// DropRemovedEdges omits every edge that names a removed resource, the way
+	// a function that emits edges alongside its desired resources would. By
+	// default the function keeps declaring them. With this set, ordering the
+	// removed resources' exit is up to Crossplane carrying their edges forward
+	// from the graph persisted on the XR.
+	DropRemovedEdges bool `json:"dropRemovedEdges"`
+
 	// Composites are composed as given, in the XR's namespace, rather than as
 	// NopResources or ConfigMaps. They exist so that an XR can compose another
 	// XR, whose own ordering is then under test. Each is ready once its Ready
@@ -187,9 +194,8 @@ func (f *function) RunFunction(_ context.Context, req *fnv1.RunFunctionRequest) 
 	rsp := &fnv1.RunFunctionResponse{
 		Meta:    &fnv1.ResponseMeta{Tag: req.GetMeta().GetTag(), Ttl: durationpb.New(60_000_000_000)},
 		Desired: &fnv1.State{Composite: req.GetDesired().GetComposite(), Resources: map[string]*fnv1.Resource{}},
-		// Always return the full set, including edges for resources we're
-		// removing. Dropping those is the mistake the retention rule guards
-		// against, and this function shouldn't rely on that guard.
+		// Return the full set, including edges for resources we're removing,
+		// unless DropRemovedEdges says otherwise.
 		Dependencies: &fnv1.Dependencies{},
 	}
 
@@ -264,6 +270,12 @@ func (f *function) RunFunction(_ context.Context, req *fnv1.RunFunctionRequest) 
 			Resource:  e.Resource,
 			DependsOn: &fnv1.Dependency_ComposedResource{ComposedResource: e.DependsOn},
 			Lifecycle: lifecycle,
+		})
+	}
+
+	if in.DropRemovedEdges {
+		rsp.Dependencies.Items = slices.DeleteFunc(rsp.Dependencies.Items, func(d *fnv1.Dependency) bool {
+			return remove[d.GetResource()] || remove[d.GetComposedResource()]
 		})
 	}
 

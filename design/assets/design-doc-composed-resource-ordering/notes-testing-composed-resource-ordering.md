@@ -428,6 +428,7 @@ it.
 | --- | --- |
 | `CreatesInWaves` | Only the roots exist before the level below them is ready, over a four-level graph with a diamond, fan-out and parallel branches. Unordered composition creates all ten at once. |
 | `TeardownIsOrdered` | Only the leaf carries a deletion timestamp while what it depends on is untouched. A cascade stamps all three at once. |
+| `RemovalIsOrdered` | With the XR still live, the pipeline drops two resources and the edges between them. They still go a level at a time, leaf first, which only the graph persisted on the XR can order: nothing the pipeline declares does. Needs a function build with `dropRemovedEdges`. |
 | `TeardownBlocks` | A resource that refuses to delete holds the XR indefinitely and says so; clearing the cause lets teardown resume where it stopped. |
 | `CreateBeforeDestroy` | A replacement and its predecessor exist at the same time, which a symmetric edge would never allow. |
 | `TeardownSurvivesRestart` | Teardown continues in order after Crossplane is restarted mid-way. The replacement process never ran the pipeline for that XR, so the order can only have come from `spec.crossplane.resourceRefs`. |
@@ -436,9 +437,11 @@ it.
 | `WaitsForRequiredResource` | A composed resource that depends on a required resource isn't created until the requirement is satisfied, its dependents wait with it, and `pendingResources` names the requirement. |
 | `ReportsContradiction` | When the pipeline drops a resource another still-desired resource depends on, it isn't deleted: it's reported deadlocked, the XR is held un-ready, and both recover once the pipeline wants it again. |
 
-The nine tests take about seven minutes on an 8 vCPU machine, not counting
-building Crossplane, with the circuit breaker at its defaults. `CreatesInWaves`
-is the longest, at just under two minutes.
+The nine tests before `RemovalIsOrdered` took about seven minutes on an 8 vCPU
+machine, not counting building Crossplane, with the circuit breaker at its
+defaults. `CreatesInWaves` is the longest, at just under two minutes.
+`RemovalIsOrdered` hasn't been timed yet; its waves are the same as
+`TeardownIsOrdered`'s.
 
 ## Rebuilding the function
 

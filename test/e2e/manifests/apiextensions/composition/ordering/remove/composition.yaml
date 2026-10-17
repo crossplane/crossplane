@@ -1,0 +1,32 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xorderings.ordering.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: ordering.example.org/v1alpha1
+    kind: XOrdering
+  mode: Pipeline
+  pipeline:
+  - step: compose-in-order
+    functionRef:
+      name: function-ordering
+    input:
+      # The same first <- second <- third as teardown/composition.yaml, but
+      # second and third leave desired state while the XR stays - and their
+      # edges go with them, the way a function that emits edges alongside its
+      # desired resources drops them. Nothing this pipeline declares orders
+      # their exit, so only the graph persisted on the XR can: third must go
+      # before second, and first stays.
+      apiVersion: ordering.fn.crossplane.io/v1alpha1
+      kind: Input
+      sequence:
+      - first
+      - second
+      - third
+      readyAfter: 1s
+      deleteAfter: 5s
+      remove:
+      - second
+      - third
+      dropRemovedEdges: true

@@ -316,6 +316,54 @@ func TestComposedResourceOrderingTeardownIsOrdered(t *testing.T) {
 	)
 }
 
+func TestComposedResourceOrderingRemovalIsOrdered(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/ordering"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that when a pipeline drops resources and their edges while the XR stays, Crossplane still deletes them in order, from the graph persisted on the XR. Each NopResource takes 5s to delete, which is what makes the order observable.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteComposedResourceOrdering).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("UseTheSlowDeletingComposition", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "teardown/composition.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "teardown/composition.yaml"),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRIsReady",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv2.Available()),
+			).
+			// The pipeline is about to stop declaring these edges, so the
+			// persisted graph is the only thing that can order the removal.
+			Assess("GraphIsPersistedOnTheXR", xrReferencesCarryGraph()).
+			Assess("DropSecondAndThirdAndTheirEdges", funcs.ApplyResources(FieldManager, manifests, "remove/composition.yaml")).
+			Assess("OnlyTheLeafIsDeleting",
+				composedStateIs(map[string]bool{"first": false, "second": false, "third": true}),
+			).
+			Assess("ThenSecondIsDeleting",
+				composedStateIs(map[string]bool{"first": false, "second": true}),
+			).
+			Assess("FirstStays", composedStateStays(10*time.Second, exists("first"))).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationBackground),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
 // logXRReferences dumps the XR's composed resource references. They are the
 // graph core reads on teardown, so a reference missing resourceName or
 // dependsOn means there is no graph and teardown silently does nothing.
