@@ -1120,7 +1120,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		Events:            events,
 		Conditions:        conditions,
 		TTL:               ttl,
-		Pending:           pendingResources(decisions, desired, observed, deps),
+		Pending:           pendingResources(decisions, desired, observed, deps, xr.GetNamespace() != ""),
 	}, nil
 }
 
@@ -1135,7 +1135,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 // A resource held back from creation is the case that needs this most. It has
 // no composed resource reference - Crossplane doesn't write one for something
 // it deliberately hasn't applied - so this is the only place it appears.
-func pendingResources(decisions ordering.Decisions, desired, observed ComposedResourceStates, deps []*fnv1.Dependency) []reference.Pending {
+func pendingResources(decisions ordering.Decisions, desired, observed ComposedResourceStates, deps []*fnv1.Dependency, namespaced bool) []reference.Pending {
 	if len(decisions.Blocked) == 0 {
 		return nil
 	}
@@ -1200,7 +1200,14 @@ func pendingResources(decisions ordering.Decisions, desired, observed ComposedRe
 		gvk := cd.Resource.GetObjectKind().GroupVersionKind()
 		p.APIVersion = gvk.GroupVersion().String()
 		p.Kind = gvk.Kind
-		p.Namespace = cd.Resource.GetNamespace()
+
+		// A namespaced XR composes only into its own namespace, so there's
+		// nothing to record - and its schema has no namespace field. Setting
+		// one anyway would be pruned on write, so status would never match
+		// what we compute, and every reconcile would write it again.
+		if !namespaced {
+			p.Namespace = cd.Resource.GetNamespace()
+		}
 
 		pending = append(pending, p)
 	}
