@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -461,6 +462,133 @@ func TestStopController(t *testing.T) {
 			if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Stop(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+		})
+	}
+}
+
+func TestFailedControllerCleanup(t *testing.T) {
+	type params struct {
+		mgr  manager.Manager
+		infs TrackingInformers
+		c    client.Client
+		uc   client.Client
+		opts []ControllerEngineOption
+	}
+
+	type args struct {
+		name    string
+		replace bool
+	}
+
+	type want struct {
+		running bool
+	}
+
+	elected := func() <-chan struct{} {
+		e := make(chan struct{})
+		close(e)
+		return e
+	}
+
+	cases := map[string]struct {
+		reason string
+		params params
+		args   args
+		want   want
+	}{
+		"NotReplaced": {
+			reason: "A controller that stops with an error should be cleaned up, so IsRunning reports it as stopped.",
+			params: params{
+				mgr:  &MockManager{MockElected: elected},
+				infs: &MockTrackingInformers{},
+			},
+			args: args{
+				name: "cool-controller",
+			},
+			want: want{
+				running: false,
+			},
+		},
+		"Replaced": {
+			reason: "A controller that stops with an error after the engine restarted it should leave the replacement running.",
+			params: params{
+				mgr:  &MockManager{MockElected: elected},
+				infs: &MockTrackingInformers{},
+			},
+			args: args{
+				name:    "cool-controller",
+				replace: true,
+			},
+			want: want{
+				running: true,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.uc, tc.params.opts...)
+
+				// A controller fails while it's adding its sources to their
+				// informers, before it starts watching its context, so this one
+				// ignores its context and fails when we tell it to.
+				fail := make(chan struct{})
+				failed := make(chan struct{})
+
+				err := e.Start(tc.args.name, WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
+					return &MockController{MockStart: func(_ context.Context) error {
+						defer close(failed)
+						<-fail
+
+						return errors.New("boom")
+					}}, nil
+				}))
+				if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
+					t.Fatalf("\n%s\ne.Start(...): -want error, +got error:\n%s", tc.reason, diff)
+				}
+
+				if tc.args.replace {
+					// Restart the controller, like the XRD reconciler does when its
+					// XRD changes.
+					err = e.Stop(context.Background(), tc.args.name)
+					if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
+						t.Fatalf("\n%s\ne.Stop(...): -want error, +got error:\n%s", tc.reason, diff)
+					}
+
+					err = e.Start(tc.args.name, WithNewControllerFn(func(_ string, _ kcontroller.Options) (kcontroller.Controller, error) {
+						return &MockController{MockStart: func(ctx context.Context) error {
+							<-ctx.Done()
+							return nil
+						}}, nil
+					}))
+					if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
+						t.Fatalf("\n%s\ne.Start(...): -want error, +got error:\n%s", tc.reason, diff)
+					}
+				}
+
+				close(fail)
+				<-failed
+
+				// The failed controller cleans up in the goroutine the engine started
+				// it in, and that goroutine returns once it has. Waiting for the bubble
+				// to settle waits for exactly that.
+				synctest.Wait()
+
+				running := e.IsRunning(tc.args.name)
+				if diff := cmp.Diff(tc.want.running, running); diff != "" {
+					t.Errorf("\n%s\ne.IsRunning(...): -want, +got:\n%s", tc.reason, diff)
+				}
+
+				// Stop the controller. Will be a no-op if it never started.
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+
+				err = e.Stop(ctx, tc.args.name)
+				if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
+					t.Errorf("\n%s\ne.Stop(...): -want error, +got error:\n%s", tc.reason, diff)
+				}
+			})
 		})
 	}
 }
