@@ -479,6 +479,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		)
 	}
 
+	// A claim that asks for foreground deletion would otherwise have the
+	// Kubernetes garbage collector delete everything its XR composed at once,
+	// bypassing the order the XR's graph records. Background propagation lets
+	// the XR's finalizer order its own teardown, and the claim still waits for
+	// the XR to be gone.
+	if r.options.Features.Enabled(features.EnableAlphaComposedResourceOrdering) {
+		o = append(o, claim.WithForegroundDeletePropagation(metav1.DeletePropagationBackground))
+	}
+
 	observed := d.Status.Controllers.CompositeResourceClaimTypeRef
 
 	desired := v1.TypeReferenceTo(d.GetClaimGroupVersionKind())

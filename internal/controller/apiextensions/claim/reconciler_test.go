@@ -701,3 +701,79 @@ func WantClaim(t *testing.T, want *claim.Unstructured) func(_ context.Context, o
 		return nil
 	}
 }
+
+// TestForegroundDeletePropagation pins how a claim with compositeDeletePolicy
+// Foreground deletes its XR. With composed resource ordering it must not use
+// foreground propagation, which would delete everything the XR composed at
+// once, bypassing the XR's ordered teardown.
+func TestForegroundDeletePropagation(t *testing.T) {
+	now := metav1.Now()
+
+	cases := map[string]struct {
+		reason string
+		opts   []ReconcilerOption
+		want   metav1.DeletionPropagation
+	}{
+		"Default": {
+			reason: "Without ordering a claim asking for foreground deletion gets foreground propagation.",
+			want:   metav1.DeletePropagationForeground,
+		},
+		"Ordering": {
+			reason: "With ordering the XR is deleted in the background, so its finalizer orders its teardown.",
+			opts:   []ReconcilerOption{WithForegroundDeletePropagation(metav1.DeletePropagationBackground)},
+			want:   metav1.DeletePropagationBackground,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var got metav1.DeletionPropagation
+
+			c := &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					switch o := obj.(type) {
+					case *claim.Unstructured:
+						o.SetDeletionTimestamp(&now)
+						o.SetResourceReference(&reference.Composite{Name: "cool-composite"})
+						fg := xpv2.CompositeDeleteForeground
+						o.SetCompositeDeletePolicy(&fg)
+					case *composite.Unstructured:
+						o.SetCreationTimestamp(now)
+						o.SetClaimReference(&reference.Claim{})
+					}
+					return nil
+				}),
+				MockList: test.NewMockListFn(nil),
+				MockDelete: func(_ context.Context, _ client.Object, opts ...client.DeleteOption) error {
+					do := &client.DeleteOptions{}
+					do.ApplyOptions(opts)
+					if do.PropagationPolicy != nil {
+						got = *do.PropagationPolicy
+					}
+					return nil
+				},
+				MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+			}
+
+			opts := append([]ReconcilerOption{WithClaimFinalizer(resource.FinalizerFns{
+				RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
+			})}, tc.opts...)
+
+			r := NewReconciler(c, schema.GroupVersionKind{}, schema.GroupVersionKind{}, opts...)
+
+			res, err := r.Reconcile(context.Background(), reconcile.Request{})
+			if err != nil {
+				t.Fatalf("\n%s\nr.Reconcile(...): unexpected error: %v", tc.reason, err)
+			}
+
+			// Either way the claim waits for the XR to be gone.
+			if !res.Requeue { //nolint:staticcheck // Requeue is what this reconciler returns.
+				t.Errorf("\n%s\nr.Reconcile(...): want the claim to wait for its XR, got %+v", tc.reason, res)
+			}
+
+			if got != tc.want {
+				t.Errorf("\n%s\nDelete propagation: want %s, got %s", tc.reason, tc.want, got)
+			}
+		})
+	}
+}
