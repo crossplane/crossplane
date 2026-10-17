@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -219,7 +220,9 @@ func TestTeardown(t *testing.T) {
 			}
 
 			if tc.want.deleted != nil {
-				if diff := cmp.Diff(tc.want.deleted, deleted); diff != "" {
+				// Resources deleted in the same wave go in no particular
+				// order, so compare them as a set.
+				if diff := cmp.Diff(tc.want.deleted, deleted, cmpopts.SortSlices(func(a, b string) bool { return a < b })); diff != "" {
 					t.Errorf("\n%s\nteardown(...): -want deleted, +got deleted:\n%s", tc.reason, diff)
 				}
 			}
