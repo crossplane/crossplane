@@ -20,6 +20,7 @@
   * [Backward Compatibility for Functions](#backward-compatibility-for-functions)
   * [Validation in the Core Engine for Valid and Acyclic Graphs](#validation-in-the-core-engine-for-valid-and-acyclic-graphs)
   * [Using the Graph to Order Creation and Deletion](#using-the-graph-to-order-creation-and-deletion)
+    * [Resources Leaving Desired State](#resources-leaving-desired-state)
     * [Foreground Deletion](#foreground-deletion)
     * [Dealing With Contradictions in the Graph](#dealing-with-contradictions-in-the-graph)
     * [Determining Readiness](#determining-readiness)
@@ -36,8 +37,9 @@
 * [Enabling Adoption with `function-ordering`](#enabling-adoption-with-function-ordering)
   * [How It Works](#how-it-works)
 * [API Impact and Capabilities](#api-impact-and-capabilities)
-* [Comparison to Function Ordered Deletion](#comparison-to-function-ordered-deletion)
+* [Relationship to Function Ordered Deletion](#relationship-to-function-ordered-deletion)
 * [Alternatives Considered](#alternatives-considered)
+* [Future Work](#future-work)
 
 ## Background
 
@@ -49,15 +51,20 @@ for the background that led to this proposal.
 
 The proposal is implemented as an alpha prototype in
 [#7842](https://github.com/crossplane/crossplane/pull/7842), behind
-`--enable-composed-resource-ordering`. The prototype's branch carries the
-material this document draws on:
+`--enable-composed-resource-ordering`. The evidence this document draws on is
+kept alongside it:
 
-* [A testing guide](https://github.com/stevendborrelli/crossplane/blob/composed-resource-ordering-prototype/design/assets/design-doc-composed-resource-ordering/notes-testing-composed-resource-ordering.md) for trying
-  the feature in a kind cluster, from a published Helm chart.
-* [Scale findings](https://github.com/stevendborrelli/crossplane/blob/composed-resource-ordering-prototype/design/assets/design-doc-composed-resource-ordering/notes-scale-findings.md), and the
-  [harness](https://github.com/stevendborrelli/crossplane/tree/composed-resource-ordering-prototype/design/assets/design-doc-composed-resource-ordering/scale) that produced them.
-* [Results](https://github.com/stevendborrelli/crossplane/blob/composed-resource-ordering-prototype/design/assets/design-doc-composed-resource-ordering/notes-remote-e2e-results.md) of running Modelplane's e2e suite
-  against the prototype.
+* [Scale findings](assets/design-doc-composed-resource-ordering/notes-scale-findings.md),
+  and the [harness](assets/design-doc-composed-resource-ordering/scale/) that
+  produced them.
+* [Results](assets/design-doc-composed-resource-ordering/notes-remote-e2e-results.md)
+  of running Modelplane's e2e suite against the prototype, and the
+  [plan](assets/design-doc-composed-resource-ordering/notes-remote-e2e-plan.md)
+  they followed.
+
+A [testing guide](https://github.com/stevendborrelli/crossplane/blob/composed-resource-ordering-prototype/design/assets/design-doc-composed-resource-ordering/notes-testing-composed-resource-ordering.md)
+for trying the feature in a kind cluster, from a published Helm chart, lives
+with the prototype in #7842, since it tracks the prototype's build.
 
 ## Proposal
 
@@ -81,13 +88,13 @@ applying resources based on graph order.
   the pipeline, ordering is managed by controllers in the core.
 * Stay backward compatible with functions built with previous SDK versions, and
   enable tooling to adopt dependencies in legacy Compositions.
-* Represent dependencies in the XR `resourceRefs` so external tools can read the
-  graph.
+* Represent dependencies on the XR so external tools can read the graph: the
+  edges of resources that exist in `resourceRefs`, and the edges of resources
+  waiting to be created in `pendingResources`.
 * Represent pending resources and the reason they are pending in the XR so
   external tools know the state of all resources in the composition.
 * Enable ordering policies: for example, create a resource before another is
   deleted.
-* Enable a pathway for deprecating Managed Resource References.
 
 ## Non-Goals
 
@@ -98,8 +105,11 @@ applying resources based on graph order.
   already produces.
 * Making the function pipeline run during XR deletion. Ordering on teardown is
   driven by the graph persisted on the XR instead, so it does not need the
-  pipeline to run. This is handled by the proposal in
-  [#7242](https://github.com/crossplane/crossplane/pull/7242).
+  pipeline to run. Running the pipeline during deletion is the subject of
+  [#7242](https://github.com/crossplane/crossplane/pull/7242), which this
+  proposal complements rather than replaces. See
+  [Relationship to Function Ordered Deletion](#relationship-to-function-ordered-deletion)
+  for how the two combine.
 
 ## Proposed Implementation
 
@@ -272,10 +282,19 @@ a dependency differs from one within the composition:
   empty `Resources` message when a requirement matched no objects, which will
   block the creation of Composed resources. When a requirement matches several
   objects and `name` is unset, all of them must be ready to unblock creation.
-* **Readiness is read from the object.** Ready means a `Ready: True` status
-  condition, or, for object kinds that have no `Ready` condition at all,
-  existence. We may need to examine the real-world effects of this, as `Ready`
-  state is often set at the end of the pipeline.
+* **Readiness is read from the object.** A required resource is ready when it
+  has a `Ready: True` status condition. One with no `Ready` condition at all is
+  ready as soon as it exists, which is right for kinds that never report one,
+  like a ConfigMap or a Secret. This is a heuristic, and it is worth being
+  plain about its limit: Crossplane checks the object, not its kind, and cannot
+  tell a kind that never sets `Ready` from an object that hasn't set it yet. A
+  managed resource created moments ago has no conditions until its provider
+  first reconciles it, and counts as ready in that window, so its dependents
+  can be released a reconcile early. Narrow an edge with `name` where you can,
+  so it waits on the object that matters rather than whatever the selector
+  matched, and treat an edge on a freshly created managed resource as weaker
+  than one on a composed resource, whose readiness comes from the pipeline.
+  Letting an edge say what ready means for it is [future work](#future-work).
 
 One more validation is needed when depending on a Required Resource:
 `requirement_name` must correspond to a requirement the pipeline actually
@@ -304,6 +323,13 @@ to exist and be ready before deleting `depends_on`. This keeps the graph a
 single, simple structure: the value changes only which side of a transition may
 proceed early, not the topology.
 
+The function owns a create-before-destroy edge for as long as it matters. It
+declares `new -> old` from when it adds `new` until `old` is gone, including
+the reconciles after it has dropped `old` from desired state. Crossplane keeps
+the edges of resources that are leaving (see
+[Resources Leaving Desired State](#resources-leaving-desired-state)), but `new`
+is still desired, so its edge is not one of them.
+
 Using an enum enables the API to include other lifecycle policies in the future,
 like Pulumi's
 [`deletedWith`](https://www.pulumi.com/docs/iac/concepts/resources/options/deletedwith/).
@@ -316,6 +342,10 @@ works. A function with no ordering opinion copies `request.dependencies` into
 `response.dependencies` unchanged. SDKs should make this the default behavior of
 their request and response builders, so unaware function code doesn't have to do
 anything special to avoid dropping edges it doesn't understand.
+
+A function also doesn't have to go on declaring edges for resources it has
+dropped. Crossplane keeps those itself until the resources are gone; see
+[Resources Leaving Desired State](#resources-leaving-desired-state).
 
 ### Backward Compatibility for Functions
 
@@ -372,13 +402,15 @@ Crossplane cannot tell that apart from a typo, so rejecting them would fail
 composition permanently. Crossplane emits an event naming the pruned edges
 instead. An edge whose resource is only in `observed` is kept: the resource has
 been dropped from desired state, and the edge is what blocks its deletion until
-its dependents are gone.
+its dependents are gone. Crossplane adds edges like these back itself when the
+pipeline stops declaring them, before validation runs; see
+[Resources Leaving Desired State](#resources-leaving-desired-state).
 
 A violation is reported the way Crossplane reports other invalid function
 output: the pipeline run fails, and Crossplane records a warning event and a
-`Synced: False` condition on the XR, naming the function whose response
-introduced the violation. Doing these checks in Crossplane means every SDK
-doesn't need to separately implement validation.
+`Synced: False` condition on the XR, naming the function step that declared the
+offending edge. Doing these checks in Crossplane means every SDK doesn't need to
+separately implement validation.
 
 ### Using the Graph to Order Creation and Deletion
 
@@ -394,9 +426,10 @@ The following flowchart documents the prototype's behavior.
 ```mermaid
 flowchart TD
     A["Edges accumulated across the pipeline"]
-    A --> B["Prune: drop edges naming resources that are<br/>neither desired nor observed"]
+    A --> K["Keep: add back persisted edges whose<br/>dependent has left desired state"]
+    K --> B["Prune: drop edges naming resources that are<br/>neither desired nor observed"]
     B --> C{"Validate: endpoints known, one target per edge,<br/>requirement declared, acyclic"}
-    C -- invalid --> X["Fail the reconcile:<br/>Synced=False, warning naming the function"]
+    C -- invalid --> X["Fail the reconcile:<br/>Synced=False, warning naming the function step"]
     C -- valid --> D{"For each composed resource:<br/>is it desired? is it observed?"}
 
     D -- "desired, already exists" --> AP["Apply"]
@@ -436,10 +469,13 @@ reconciler does not requeue on a fixed interval; a dependency becoming ready is
 itself the event that unblocks its dependents.
 
 Deletion ordering does not depend on the function pipeline. While the XR is
-live, the pipeline decides what to drop from desired state and the graph decides
-when it goes. When the XR itself is deleted the pipeline does not run at all,
-and the reconciler rebuilds the graph from `spec.crossplane.resourceRefs`.
-Either way, deletion proceeds in waves:
+live, the pipeline decides what to drop from desired state, and the graph
+decides when it goes. That graph is what the pipeline declares now, plus the
+persisted edges Crossplane keeps for resources on their way out (see
+[Resources Leaving Desired State](#resources-leaving-desired-state)). When the
+XR itself is deleted the pipeline does not run at all, and the reconciler
+rebuilds the graph from `spec.crossplane.resourceRefs`. Either way, deletion
+proceeds in waves:
 
 1. A resource leaves desired state, or the XR is being deleted.
 2. If something that depends on it still exists, the graph hides it from
@@ -449,6 +485,53 @@ Either way, deletion proceeds in waves:
    deletion, and the resource leaves observed state.
 4. The next reconcile recomputes the graph, and resources that were waiting on
    it are released to the garbage collector.
+
+#### Resources Leaving Desired State
+
+The pipeline declares its edges afresh on every run, and a function naturally
+declares edges over the resources it wants. When it stops wanting a resource it
+usually stops declaring that resource's edges in the same response, and those
+are exactly the edges deleting it needs. If `a` depends on `b` and a function
+drops both along with `a -> b`, nothing the pipeline returns says `a` must go
+first, and the two would be deleted in one wave. Worse, the XR's references are
+rewritten from what the pipeline declared, so the persisted graph would lose
+the edge too, and an XR deleted partway through would tear down out of order.
+
+Crossplane keeps those edges itself. After the pipeline runs, it adds back any
+edge whose *dependent* has left desired state but still exists, taken from the
+graph persisted on the XR's references, or from an earlier step in the same
+run that declared it. The kept edges are written back to the dependent's
+reference, so the persisted graph holds them until the dependent is gone.
+
+The rule is narrow on purpose: history orders the exit; it never blocks the
+present.
+
+* **An edge is kept only when its dependent is leaving.** If `r` is still
+  desired and the pipeline stops declaring `r -> t`, Crossplane takes that at
+  its word: `r` no longer depends on `t`, and `t` may go. A function retracting
+  an edge and a function forgetting one look the same from here, and treating
+  history as binding would turn every deliberate retraction into a deadlock
+  that no one can see by reading the pipeline. Crossplane emits a warning event
+  instead, naming `t` and the still-desired `r` that declared a dependency on
+  it, so an accidental omission is visible without stopping anything.
+* **Only what the pipeline declares now can deadlock a resource.** A resource is
+  deadlocked when the current pipeline says something still desired depends on
+  it, never because of an edge it once declared.
+* **A kept edge never fails validation.** If a kept edge would close a cycle
+  with what the pipeline declares now, the declared edges win and the kept edge
+  is dropped.
+
+XR teardown is the same rule with nothing desired: every resource is leaving,
+so every persisted edge applies. It is also how Terraform behaves, where
+configuration decides what remains and the dependencies recorded in state order
+only what is destroyed.
+
+Create-before-destroy is outside the rule by design. A replacement is still
+desired, so its edge to the resource it replaces is not kept, and the function
+declares it for as long as it matters (see
+[Dependency Lifecycle](#dependency-lifecycle-create-before-destroy)).
+Persisted edges don't record lifecycle, so Crossplane could not keep one as
+create-before-destroy anyway.
 
 #### Foreground Deletion
 
@@ -469,7 +552,7 @@ That happens in three places:
    the proposal inherits rather than one it can fix.
 2. **A legacy claim with `compositeDeletePolicy: Foreground`.** The claim
    deletes its XR with foreground propagation, with the same effect as the
-   first case.
+   first case. Unlike the first case, that delete is Crossplane's own.
 3. **Nested XRs.** Crossplane deletes every composed resource with foreground
    propagation, so that a nested XR is deleted bottom up, and ordered teardown
    deletes each wave the same way. The parent's order holds, and a child XR
@@ -477,8 +560,8 @@ That happens in three places:
    for the whole subtree. But inside the child, the garbage collector deletes
    everything at once and the child's own graph is ignored.
 
-The third case is Crossplane's own choice, so the prototype fixes it. With
-ordering enabled:
+The second and third cases are Crossplane's own choice, so the prototype fixes
+them. With ordering enabled:
 
 * An XR being deleted keeps its finalizer until the composed resources it
   controls are gone, even when it has no graph, and deletes them all in a
@@ -488,6 +571,11 @@ ordering enabled:
   of foreground, both during teardown and when a resource leaves desired
   state. The child's finalizer then gives the bottom-up guarantee that
   foreground propagation gave, and the child orders its own teardown.
+* A claim with `compositeDeletePolicy: Foreground` deletes its XR with
+  background propagation. The claim already waits for its XR to be gone before
+  it removes its own finalizer, so it still isn't deleted before what it
+  composed, which is what the policy promises. The XR's finalizer holds its
+  composed resources, and the XR orders its own teardown.
 
 An end-to-end test, `TeardownIsOrderedInNestedXR`, covers it. Before the fix,
 the parent deleted its child XR first, as its graph said, but all three of the
@@ -504,6 +592,10 @@ Crossplane reports it as `deadlocked: true` in
 `status.crossplane.pendingResources`, with a warning event and `Synced: False`
 on the XR.
 
+Only edges the pipeline declares now can deadlock a resource. The edges
+Crossplane keeps for resources on their way out order deletions but never
+contradict desired state, because their dependent is already leaving it.
+
 #### Determining Readiness
 
 When ordering resources, it is important to know when to create dependent
@@ -515,7 +607,10 @@ is running on is also being torn down).
 
 Crossplane already provides the readiness signal creation ordering needs.
 Dependent resources are created when the resources they depend on reach the
-`Ready` state returned at the end of a pipeline run.
+`Ready` state returned at the end of a pipeline run. A required resource has no
+pipeline verdict, so its readiness is read from the object itself, using the
+heuristic described under
+[depending on a Required Resource](#support-the-ability-to-depend-on-a-required-resource-in-the-grpc-message).
 
 A benefit of this approach is the XR's state now accurately represents the
 complete state of all composed resources, avoiding workarounds like
@@ -553,9 +648,15 @@ spec:
 also answers "which reference is which template" without reading every composed
 resource.
 
-`dependsOn` records the edge but not its `lifecycle`. Right now the only
-non-default lifecycle is `create-before-destroy`, which is not in effect during
-teardown. This may be a future improvement as the lifecycle option matures.
+`dependsOn` records the edge but deliberately not its `lifecycle`. The only
+non-default lifecycle today is `create-before-destroy`, which governs a
+replacement while the XR is live and the function declaring it is running.
+During teardown every edge is symmetric, so nothing is lost. A future lifecycle
+that does constrain teardown, like `deletedWith`, would have to be persisted,
+and that means replacing the list of names with a list of objects. While the
+field is alpha that is an ordinary breaking change to it; after that, it would
+be a new sibling field written alongside `dependsOn` for a release before
+`dependsOn` is retired.
 
 Existing XRs that do not have any dependencies will not populate these fields,
 retaining backwards compatibility. Once a Function pipeline has been updated,
@@ -565,7 +666,12 @@ enabling a transition to the ordering feature.
 This does limit downgrading Crossplane. The schema fields are added whether or
 not ordering is enabled, so turning the feature flag off keeps them. An XR
 restored to, or downgraded onto, a Crossplane version that predates these fields
-has them pruned, and loses the graph it needs for ordered teardown.
+has them pruned, and loses the graph it needs for ordered teardown. Creation
+recovers once Crossplane is upgraded again, because the next pipeline run
+declares the edges again. Teardown does not: it never runs the pipeline, so an
+XR whose teardown is in progress when Crossplane is downgraded loses its order
+for the rest of that teardown. Don't downgrade while ordered XRs are being
+deleted.
 
 The XR grows with the number of edges rather than the number of resources, so
 the cost is set by how interconnected a composition is and not by how large it
@@ -574,6 +680,14 @@ is 999 edges, and the resources in a realistic graph depend on a handful of
 things each. A deliberately dense test graph - 400 resources with 7,600 edges
 between them - put `dependsOn` at 69KB of a 132KB XR, which is well inside
 etcd's 1.5MiB object limit at a density no real composition approaches.
+
+The budget has to count `status.crossplane.pendingResources` too, because both
+fields are at their largest at the same moment: the start of a teardown, when
+every resource is still referenced and most are held back with a reason naming
+what they wait on. That hasn't been measured on the dense graph. It is bounded
+by the same edges, so expect it to be of the same order as `dependsOn`, which
+still leaves the dense graph's XR at a fraction of the limit. Status is written
+only when it changes, so it is this peak, not the steady state, that matters.
 
 The graph becomes readable by any tool with a `GET` on the XR, so
 `crossplane resource trace` and dashboards can render it without replaying a
@@ -612,6 +726,13 @@ graph. As the XR converges, `pendingResources` will converge to zero items as
 resources either migrate to `resourceRefs` during creation or are removed during
 teardown.
 
+Together the two fields hold the graph. The edges of a resource that exists are
+on its reference; the edges of a resource waiting to be created are on its
+`pendingResources` entry, because it has no reference yet. A tool drawing the
+whole graph reads both. Edges to required resources appear only on pending
+entries: they order creation and nothing else, so once a resource exists they
+have nothing left to say and are not persisted.
+
 Each entry in `status.crossplane.pendingResources` has:
 
 | Field | Meaning |
@@ -620,8 +741,14 @@ Each entry in `status.crossplane.pendingResources` has:
 | `resourceName` | The composition resource name, the key a function uses and the name edges refer to. Always set. |
 | `operation` | `Create` or `Delete`, the change being held back. Always set. |
 | `name` | The composed object's name. Set only for `Delete`, because only then does the object exist. |
-| `namespace` | Set only on cluster-scoped XRs. A namespaced XR composes into its own namespace, so there is nothing to record. |
-| `dependsOn` | What a pending creation waits on. Each entry has a `type` of `ComposedResource` (the default, with `name`) or `RequiredResource` (with `requirement.name`, and optionally `requirement.resourceName` and `requirement.namespace`). |
+| `namespace` | The composed object's own namespace, not the XR's. Recorded only for cluster-scoped XRs, whose composed resources may live in any namespace. A namespaced XR composes only into its own namespace, so there is nothing to record. |
+| `dependsOn` | Every edge of a pending creation. Each entry has a `type` of `ComposedResource` (the default, with `resourceName`) or `RequiredResource` (with `requirement.requirementName`, and optionally `requirement.name` and `requirement.namespace`, mirroring the protocol's `RequiredResourceDependency`). |
+
+The names follow one rule everywhere on the XR: `resourceName` is a composition
+resource name, the key a function uses, and `name` is an object's name in the
+API server. A composed edge names a composition resource, so it uses
+`resourceName`; a requirement edge names a requirement and, optionally, one
+object it matched, so it uses `requirementName` and `name`.
 | `reason` | Why, in words meant for a person. |
 | `deadlocked` | `true` when waiting cannot resolve it and someone has to act. |
 
@@ -674,11 +801,11 @@ status:
       resourceName: database
       operation: Create
       dependsOn:
-      - name: subnet-a
+      - resourceName: subnet-a
       - type: RequiredResource
         requirement:
-          name: platform-config
-          resourceName: prod
+          requirementName: platform-config
+          name: prod
           namespace: platform
       reason: waiting for [subnet-a] to be ready; waiting for [requirement platform-config] to match a resource
     - apiVersion: ec2.aws.m.upbound.io/v1beta1
@@ -699,7 +826,7 @@ status:
       resourceName: subnet-a
       operation: Create
       dependsOn:
-      - name: vpc
+      - resourceName: vpc
       reason: waiting for [vpc] to be ready
 ```
 
@@ -716,11 +843,17 @@ Read together, the two lists account for every composed resource:
   released and its entry disappears.
 * **`nat-gateway` is waiting to be deleted.** It still exists, so it keeps its
   reference and its edges stay there. The entry adds its `name` and the reason,
-  which names the dependent it waits on.
+  which names the dependent it waits on. The pipeline no longer declares
+  `route-private -> nat-gateway`, having dropped both; Crossplane kept the edge
+  because `route-private` is on its way out, and that is what holds
+  `nat-gateway` back.
 * **`legacy-sg` is deadlocked.** The pipeline dropped it but still wants
-  `bastion`, which depends on it, so no amount of waiting deletes it. This is a
-  mistake in the composition, and `deadlocked: true` is what an alert matches
-  on, not the wording of the reason.
+  `bastion`, and still declares that `bastion` depends on it, so no amount of
+  waiting deletes it. This is a mistake in the composition, and
+  `deadlocked: true` is what an alert matches on, not the wording of the
+  reason. Had the pipeline also stopped declaring `bastion -> legacy-sg`,
+  Crossplane would have taken that as the edge being retracted, deleted
+  `legacy-sg`, and emitted a warning event naming `bastion`.
 * **`vpc` and `bastion` are not listed.** They exist and are desired, so
   ordering is not holding back any change to them.
 
@@ -740,11 +873,16 @@ one that cannot be deleted yet are the same decision seen from either side, and
 the engine already reports them through a single path. Splitting them — a field
 for one, a formatted string for the other — is how the two drift apart.
 
-**It is never authoritative.** Teardown reads `spec.crossplane.resourceRefs`,
-which is where the graph that survives a restart lives. Nothing reads this field
-to make a decision, so losing it costs visibility until the next reconcile and
-nothing more. That is what keeps it free: it is derived from the same decisions
-the engine has already made.
+**It is never authoritative for ordering.** Teardown reads
+`spec.crossplane.resourceRefs`, which is where the graph that survives a
+restart lives, and no ordering decision reads this field. The one decision it
+informs is whether a watch event may wake the XR past the circuit breaker (see
+[Interaction with the Realtime Compositions Circuit Breaker](#interaction-with-the-realtime-compositions-circuit-breaker));
+correctness does not depend on it. If the field is lost or stale, the exemption
+doesn't fire and the XR converges at the breaker's pace until the next
+reconcile writes it again: slower, never out of order. Otherwise losing it costs
+visibility until the next reconcile and nothing more. That is what keeps it
+free: it is derived from the same decisions the engine has already made.
 
 **It sits under `status.crossplane`.** Modern XRs configure their Crossplane
 machinery under `spec.crossplane`, and report it under `status.crossplane` to
@@ -882,7 +1020,7 @@ At scale performance is more likely to be degraded outside the graph: the XR
 circuit breaker tripping (see below), provider performance at
 scale, and processing time for function pipelines.
 
-The harness is in [`scale/`](https://github.com/stevendborrelli/crossplane/tree/composed-resource-ordering-prototype/design/assets/design-doc-composed-resource-ordering/scale) on the prototype branch.
+The harness is in [`scale/`](assets/design-doc-composed-resource-ordering/scale/).
 
 ### Interaction with the Realtime Compositions Circuit Breaker
 
@@ -918,6 +1056,14 @@ flaps without becoming ready is still metered. Every other event is metered as
 before, and once the dependent exists its dependency's events are metered too.
 Legacy XRs report no pending resources, so nothing about them changes.
 
+This is the one place `pendingResources` informs a decision, and it only ever
+decides whether an event may skip the breaker. A lost or stale field means the
+exemption doesn't fire, and the XR is metered like any other. The exemption
+also reads the XR from the informer cache for every event from a composed
+resource, before the rate limit applies: a cache read rather than an API call,
+but on the watch path. Checking first whether the breaker is open at all, or
+memoizing the pending set per XR, is left for scale testing at beta.
+
 Measured against the prototype without it, with the same harness and the
 breaker at its defaults:
 
@@ -931,9 +1077,9 @@ waited more than a second after its dependencies were ready. Core spent the same
 time reconciling either way — 15.0s over 100 reconciles against 14.1s over 96 —
 so the difference is all waiting. Layered and fanout shapes have not been
 measured with the exemption. The measurements are in
-[`notes-scale-findings.md`](https://github.com/stevendborrelli/crossplane/blob/composed-resource-ordering-prototype/design/assets/design-doc-composed-resource-ordering/notes-scale-findings.md), and the change is in
-the prototype, in
-[`ordering_exemption.go`](https://github.com/stevendborrelli/crossplane/blob/composed-resource-ordering-prototype/internal/controller/apiextensions/definition/ordering_exemption.go).
+[`notes-scale-findings.md`](assets/design-doc-composed-resource-ordering/notes-scale-findings.md), and the change is in
+the prototype, in `internal/controller/apiextensions/definition/ordering_exemption.go`
+([#7842](https://github.com/crossplane/crossplane/pull/7842)).
 
 ### Compared with `function-sequencer`
 
@@ -1091,8 +1237,10 @@ generates for every XR:
 * **`spec.crossplane.resourceRefs[].resourceName`** and **`.dependsOn`** — what
   makes the graph rebuildable without a pipeline run.
 * **`status.crossplane.pendingResources`** — what ordering is holding back.
-  Additive and never read to make a decision, so an XR that predates it, or one
-  whose status is lost in a restore, tears down exactly as it would have.
+  Additive and never read to make an ordering decision, so an XR that predates
+  it, or one whose status is lost in a restore, tears down exactly as it would
+  have. Only the circuit breaker exemption reads it, and without it the XR is
+  merely metered like any other.
 
 Neither appears on a Claim: a claim composes nothing, so it has no graph and
 nothing to hold back.
@@ -1108,14 +1256,28 @@ composition render` passes through when asked. Rendering then shows one
 reconcile's worth - the first wave composed, the rest in
 `status.crossplane.pendingResources`.
 
-## Comparison to Function Ordered Deletion
+## Relationship to Function Ordered Deletion
 
 [function-ordered-deletion](https://github.com/crossplane/crossplane/pull/7242)
 is a design where deletion ordering is handled by the functions using a new gRPC
-message.
+message, by running the pipeline while the XR is deleted.
 
-One major difference is that ordered teardown in this proposal needs no pipeline
-run at all. The graph is persisted on the XR in
+The two proposals complement each other, and both can land. This one gives
+core a graph it can act on with nothing but the XR. Function-ordered deletion
+lets a function take part in deletion while its pipeline is available, for
+decisions a static edge can't express. When both are enabled, the persisted
+graph is the floor:
+
+* Function-ordered deletion may add constraints, holding a resource longer than
+  the graph would.
+* Crossplane never deletes a resource the persisted graph still blocks,
+  whatever the pipeline returns.
+* When the pipeline can't run, because the function package is gone, its image
+  can't be pulled, or the Composition was deleted before its XRs, teardown
+  proceeds from the graph alone rather than falling back to unordered deletion.
+
+What the persisted graph adds is that ordered teardown needs no pipeline run at
+all. The graph is persisted on the XR in
 `spec.crossplane.resourceRefs[].dependsOn`, so the reconciler rebuilds it from
 the XR's own references, observes what is left, and deletes a wave at a time.
 Functions are never called. The `TeardownSurvivesRestart` end-to-end test passes
@@ -1131,9 +1293,11 @@ case: a Composition deleted before its XRs, which is easy to do by deleting a
 Configuration, and which leaves those XRs unable to be torn down in order at
 all. The discussion there settles on falling back to unordered deletion. A
 persisted graph holds through all of it, because core needs nothing but the XR —
-which is the state every XR reaches eventually.
+which is the state every XR reaches eventually. With both proposals in place,
+that fallback becomes ordered by the graph instead.
 
-There are further issues with offloading responsibility to functions:
+Declaring edges also covers ground that function-controlled deletion, on its
+own, leaves to each function:
 
 * Gating is still handled by the functions, which increases complexity and the
   probability of bugs. This Modelplane branch shows the code that moving the DAG
@@ -1150,19 +1314,15 @@ There are further issues with offloading responsibility to functions:
     ```
 
 * The graph architecture has a clear separation of concerns. Functions emit
-  edges, the Graph is managed by Crossplane. In the function-ordered-deletion
-  proposal functions must manage graph state.
-* All functions in a function-ordered-deletion Pipeline need to be updated,
-  slowing adoption of the feature. In this proposal a single function (like
-  function-sequencer) can emit edges, and existing functions that don't support
-  ordering have no impact on the graph.
-* This proposal enables a path to deprecation of Managed Resource References by
-  embedding implicit reference support in the SDKs. For example, if a Subnet
-  uses a field like `vpcId: ref(vpc.externalName())`, the SDK can create the
-  edge automatically. The Python SDK does this in
-  [function-sdk-python#241](https://github.com/crossplane/function-sdk-python/pull/241),
-  and the Modelplane fork uses it to build an inference cluster's backend from
-  the Secrets the cluster publishes.
+  edges, the Graph is managed by Crossplane. With function-controlled deletion
+  alone, functions must manage graph state.
+* With function-controlled deletion alone, every function in a pipeline needs
+  to be updated before deletion is ordered, which slows adoption. Here a single
+  function (like function-sequencer) can emit edges, and existing functions
+  that don't support ordering have no impact on the graph.
+* Edges open a path to deprecating Managed Resource References, by having SDKs
+  create edges from implicit references. That is
+  [future work](#future-work).
 * Since this proposal supports required resources, Managed Resource References
   where `matchControllerRef: false` can be replaced with a required resource
   dependency. The Modelplane fork above demonstrates this pattern as a
@@ -1201,3 +1361,28 @@ There are further issues with offloading responsibility to functions:
   resource's status into another's spec forces an implicit order, and is how
   many Compositions sequence resources today. Rejected as the sole mechanism
   because it can only express an order that coincides with a data dependency.
+
+## Future Work
+
+* **A pathway for deprecating Managed Resource References.** Edges let SDKs
+  create a dependency from an implicit reference: if a Subnet sets a field like
+  `vpcId: ref(vpc.externalName())`, the SDK can declare `subnet -> vpc` without
+  the author writing it. The Python SDK does this in
+  [function-sdk-python#241](https://github.com/crossplane/function-sdk-python/pull/241),
+  and the Modelplane fork uses it to build an inference cluster's backend from
+  the Secrets the cluster publishes. This proposal doesn't design implicit
+  edges; it is an SDK convention so far, and a deprecation path for MR
+  references would need its own design.
+* **Per-edge readiness for required resources.** Readiness of a required
+  resource is a heuristic today: `Ready: True`, or existence when the object
+  has no `Ready` condition. An edge could say what ready means for it, as a
+  `readiness` field on `Dependency` holding a `oneof` of `exists` or a
+  condition match (`type`, `status`), valid only on required-resource edges.
+  It would order creation only, so nothing would be persisted, and an unset
+  field would keep today's default. This is deferred until the feature sees
+  real use: it is worth revisiting if users hit the heuristic's early-release
+  window, or need to wait on conditions like a Deployment's `Available` or a
+  Job's `Complete`.
+* **Persisted lifecycle.** See
+  [Persisting Dependencies](#persisting-dependencies-in-speccrossplaneresourcerefs)
+  for what persisting a teardown-affecting lifecycle would take.
