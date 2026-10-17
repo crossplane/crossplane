@@ -111,7 +111,7 @@ func TestRender(t *testing.T) {
 						},
 						"status": map[string]any{
 							"conditions": []any{
-								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed", "message": "Watch events are within limits. Allowing all events."},
 								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
 								map[string]any{"type": "Ready", "status": "True", "reason": "Available"},
 							},
@@ -174,7 +174,7 @@ func TestRender(t *testing.T) {
 						},
 						"status": map[string]any{
 							"conditions": []any{
-								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed", "message": "Watch events are within limits. Allowing all events."},
 								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
 								map[string]any{"type": "Ready", "status": "True", "reason": "Available"},
 							},
@@ -235,7 +235,7 @@ func TestRender(t *testing.T) {
 						},
 						"status": map[string]any{
 							"conditions": []any{
-								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed", "message": "Watch events are within limits. Allowing all events."},
 								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
 								map[string]any{"type": "Ready", "status": "True", "reason": "Available"},
 							},
@@ -297,7 +297,7 @@ func TestRender(t *testing.T) {
 						},
 						"status": map[string]any{
 							"conditions": []any{
-								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed", "message": "Watch events are within limits. Allowing all events."},
 								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
 								map[string]any{"type": "Ready", "status": "True", "reason": "Available"},
 							},
@@ -380,7 +380,7 @@ func TestRender(t *testing.T) {
 						},
 						"status": map[string]any{
 							"conditions": []any{
-								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed", "message": "Watch events are within limits. Allowing all events."},
 								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
 								map[string]any{"type": "Ready", "status": "True", "reason": "Available"},
 							},

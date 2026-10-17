@@ -363,7 +363,12 @@ func TestCircuitBreaker(t *testing.T) {
 			Assess("WaitForNormalOperation", funcs.SleepFor(45*time.Second)).
 			// Verify the circuit stays closed under normal operation
 			Assess("VerifyCircuitStaysClosedUnderNormalOperation",
-				funcs.ResourcesHaveConditionWithin(10*time.Second, manifests, "xr.yaml", apiextensionsv1.WatchCircuitClosed()),
+				funcs.ResourcesHaveConditionWithin(10*time.Second, manifests, "xr.yaml",
+					xpv2.Condition{
+						Type:   apiextensionsv1.TypeResponsive,
+						Status: corev1.ConditionTrue,
+						Reason: apiextensionsv1.ReasonWatchCircuitClosed,
+					}),
 			).
 			Assess("TriggerCircuitBreakerWithRapidUpdates", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 				t.Helper()
