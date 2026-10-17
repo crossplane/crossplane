@@ -1103,7 +1103,13 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// Record the resources this XR depends on so the controller can watch them.
 	// A resource it composes is matched by name; a resource it requires is
 	// matched by name or label.
-	composed := make([]dependency.Reference, 0, len(desired))
+	//
+	// With ordering, that includes what's left desired state but still exists.
+	// Its deletion finishing is the event that releases whatever the graph was
+	// holding back behind it, and with realtime compositions nothing else
+	// wakes the XR: without the watch, a live removal stalls after its first
+	// wave.
+	composed := make([]dependency.Reference, 0, len(desired)+len(observed))
 	for _, cd := range desired {
 		composed = append(composed, dependency.Reference{
 			GVK:       cd.Resource.GetObjectKind().GroupVersionKind(),
@@ -1111,6 +1117,21 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			Name:      cd.Resource.GetName(),
 		})
 	}
+
+	if c.ordering {
+		for name, cd := range observed {
+			if _, ok := desired[name]; ok {
+				continue
+			}
+
+			composed = append(composed, dependency.Reference{
+				GVK:       cd.Resource.GetObjectKind().GroupVersionKind(),
+				Namespace: cd.Resource.GetNamespace(),
+				Name:      cd.Resource.GetName(),
+			})
+		}
+	}
+
 	c.tracker.Track(xrKey, composed, required)
 
 	return CompositionResult{
