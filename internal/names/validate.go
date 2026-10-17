@@ -16,7 +16,7 @@ specific language governing permissions and limitations under the License.
 package names
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -55,5 +55,8 @@ func ValidateName(name string, gk schema.GroupKind) (bool, error) {
 		name = strings.ReplaceAll(name, ":", "")
 	}
 	errs := validation.IsDNS1123Subdomain(name)
-	return len(errs) == 0, fmt.Errorf("%s", strings.Join(errs, ", "))
+	if len(errs) == 0 {
+		return true, nil
+	}
+	return false, errors.New(strings.Join(errs, ", "))
 }
