@@ -18,6 +18,7 @@
     * [Dependency Lifecycle: create-before-destroy](#dependency-lifecycle-create-before-destroy)
     * [Dependencies Accumulate like Desired Resources](#dependencies-accumulate-like-desired-resources)
   * [Backward Compatibility for Functions](#backward-compatibility-for-functions)
+    * [When Crossplane Doesn't Order](#when-crossplane-doesnt-order)
   * [Validation in the Core Engine for Valid and Acyclic Graphs](#validation-in-the-core-engine-for-valid-and-acyclic-graphs)
   * [Using the Graph to Order Creation and Deletion](#using-the-graph-to-order-creation-and-deletion)
     * [Resources Leaving Desired State](#resources-leaving-desired-state)
@@ -377,6 +378,34 @@ By convention many Function SDKs implement a `to()` function that sets the
 response at the start of a pipeline. SDKs should be updated to include the
 dependencies from previous functions in the pipeline as an additional
 improvement.
+
+#### When Crossplane Doesn't Order
+
+A function can return `dependencies` to a Crossplane that won't honor them, and
+the three layers handle it differently:
+
+* **A Crossplane that predates the field** drops it while decoding the response,
+  without a trace. Nothing in core can report it.
+* **A Crossplane with ordering disabled** knows the field but doesn't advertise
+  `CAPABILITY_DEPENDENCIES` or send `dependencies`, so a function that returns
+  some anyway didn't check. Crossplane ignores them and emits a warning event on
+  the XR naming the step and how many edges it ignored. It doesn't fail the
+  pipeline: some edges only save retries, and composing unordered is what that
+  Composition did before.
+* **The function** is the only layer that knows whether its ordering is required
+  for correctness, and the only one whose check works against every Crossplane
+  version. A function that requires ordering should require the capability, and
+  fail when it's absent. The SDKs provide a helper that fails with one fatal
+  result naming every missing capability:
+
+    ```python
+    if not request.require_capabilities(req, rsp, fnv1.CAPABILITY_DEPENDENCIES):
+        return rsp
+    ```
+
+  Modelplane's serving stack does this: a stack created all at once into
+  ProviderConfigs that don't exist yet, and torn down in no particular order, is
+  harder to diagnose than a Composition that reports why it won't reconcile.
 
 ### Validation in the Core Engine for Valid and Acyclic Graphs
 
