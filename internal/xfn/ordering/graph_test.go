@@ -122,6 +122,46 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+// TestValidateCyclePathIsNotGarbled pins the reported cycle path against the
+// append-aliasing that made it wrong.
+//
+// The cycle detector builds the path it reports by appending each visited
+// node onto its parent's path. Appending in place lets one sibling branch
+// overwrite the backing array another branch's recursion is still reading,
+// so the "dependency cycle: [...]" message could name nodes that were never
+// on the cycle it found. The shape that triggers it: a node with several
+// dependents, where the cycle is behind one of them.
+func TestValidateCyclePathIsNotGarbled(t *testing.T) {
+	// d hangs off b, and the cycle runs b -> c -> b. Visiting d first (nodes
+	// are sorted, so d precedes nothing here - b is visited first with d's
+	// path still spare) must not leave d in the path the b-c cycle reports.
+	g := New(
+		on("d", "b"),
+		on("b", "c"),
+		on("c", "b"),
+	)
+
+	s := State{Composed: map[string]ComposedState{
+		"b": live,
+		"c": live,
+		"d": live,
+	}}
+
+	err := g.Validate(s, nil)
+	if err == nil {
+		t.Fatal("Validate(...): want a cycle error, got none")
+	}
+
+	// The reported path must start and end at the cycle, and must not contain
+	// d: it is a dependent of the cycle, not part of it. The exact message is
+	// "dependency cycle: [b c b]" - the visit order is deterministic because
+	// dependenciesOf is sorted.
+	want := "dependency cycle: [b c b]"
+	if err.Error() != want {
+		t.Errorf("Validate(...):\nwant: %s\n got: %s", want, err)
+	}
+}
+
 func TestRetain(t *testing.T) {
 	cases := map[string]struct {
 		reason string

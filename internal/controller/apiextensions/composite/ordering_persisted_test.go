@@ -53,11 +53,17 @@ func dep(resource, dependsOn string) *fnv1.Dependency {
 }
 
 // state returns a composed resource state for a resource of the supplied kind.
+// The resource carries this XR's controller reference, which teardown requires
+// before it will consider deleting it.
 func state(kind, name string) ComposedResourceState {
 	cd := composed.New()
 	cd.SetAPIVersion("example.org/v1")
 	cd.SetKind(kind)
 	cd.SetName(name)
+	cd.SetOwnerReferences([]metav1.OwnerReference{{
+		APIVersion: "example.org/v1", Kind: "XR", Name: "cool-xr", UID: teardownXRUID,
+		Controller: new(true), BlockOwnerDeletion: new(true),
+	}})
 
 	return ComposedResourceState{Resource: cd}
 }
@@ -464,6 +470,8 @@ func TestOrderingOnLegacyXRs(t *testing.T) {
 func TestTeardownOrdersALegacyXR(t *testing.T) {
 	xr := composite.New(composite.WithSchema(composite.SchemaLegacy))
 	xr.SetName("cool-xr")
+	// The observed resources carry this XR's controller reference via state().
+	xr.SetUID(teardownXRUID)
 	xr.SetComposedResourceReferences([]reference.Composed{
 		{APIVersion: "example.org/v1", Kind: "Thing", Name: "cool-xr-vpc", ResourceName: "vpc"},
 		{APIVersion: "example.org/v1", Kind: "Thing", Name: "cool-xr-subnet", ResourceName: "subnet", DependsOn: []string{"vpc"}},

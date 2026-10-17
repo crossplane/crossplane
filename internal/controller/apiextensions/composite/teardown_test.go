@@ -25,6 +25,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -47,10 +48,15 @@ func ref(resourceName string, dependsOn ...string) reference.Composed {
 	}
 }
 
+// teardownXRUID is the UID of the XR teardownXR returns, matching the
+// controller reference state() puts on the resources it observes.
+const teardownXRUID = types.UID("teardown-xr-uid")
+
 // teardownXR returns an XR whose references record the supplied graph.
 func teardownXR(refs ...reference.Composed) *composite.Unstructured {
 	xr := composite.New()
 	xr.SetName("cool-xr")
+	xr.SetUID(teardownXRUID)
 	xr.SetComposedResourceReferences(refs)
 
 	return xr
@@ -128,11 +134,11 @@ func TestTeardown(t *testing.T) {
 			want:   want{done: true},
 		},
 		"NoGraph": {
-			reason:   "An XR whose references record no ordering tears down the way it always has.",
+			reason:   "An XR whose references record no ordering still holds its finalizer, and deletes everything it controls in one wave.",
 			observer: observing("vpc", "subnet"),
 			gc:       true,
 			xr:       teardownXR(ref("vpc"), ref("subnet")),
-			want:     want{done: true},
+			want:     want{done: false, deleted: []string{"subnet", "vpc"}},
 		},
 		"NothingLeft": {
 			reason:   "Once every composed resource is gone the XR is done deleting.",
