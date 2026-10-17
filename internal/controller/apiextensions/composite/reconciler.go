@@ -1135,7 +1135,19 @@ func (r *Reconciler) teardown(ctx context.Context, xr *composite.Unstructured, s
 	refs := xr.GetComposedResourceReferences()
 
 	edges := EdgesFromRefs(refs)
-	log.Debug("Rebuilt the dependency graph from the XR's references", "references", len(refs), "edges", len(edges))
+
+	// A reference with no composition resource name can't be placed in the
+	// graph. Counting them is what lets an operator tell an XR whose pipeline
+	// declared no ordering from one whose references predate the fields that
+	// record it - both tear down in a single wave.
+	unnamed := 0
+	for _, ref := range refs {
+		if ref.ResourceName == "" {
+			unnamed++
+		}
+	}
+
+	log.Debug("Rebuilt the dependency graph from the XR's references", "references", len(refs), "edges", len(edges), "references-without-resource-name", unnamed)
 
 	observed, err := r.observer.ObserveComposedResources(ctx, xr)
 	if err != nil {
