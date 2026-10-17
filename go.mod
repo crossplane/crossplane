@@ -232,4 +232,4 @@ require (
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 )
 
-replace github.com/crossplane/crossplane-runtime/v2 => github.com/stevendborrelli/crossplane-runtime/v2 v2.0.0-20260924172442-ea7442312042
+replace github.com/crossplane/crossplane-runtime/v2 => github.com/stevendborrelli/crossplane-runtime/v2 v2.0.0-20261017171108-cd78969854d3

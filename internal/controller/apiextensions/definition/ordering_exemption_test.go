@@ -41,12 +41,12 @@ func TestPendingDependencyExemption(t *testing.T) {
 			map[string]any{
 				"resourceName": "subnet",
 				"operation":    "Create",
-				"dependsOn":    []any{map[string]any{"name": "vpc"}},
+				"dependsOn":    []any{map[string]any{"resourceName": "vpc"}},
 			},
 			map[string]any{
 				"resourceName": "database",
 				"operation":    "Create",
-				"dependsOn":    []any{map[string]any{"type": "RequiredResource", "name": "db-config", "requirement": map[string]any{"name": "vpc"}}},
+				"dependsOn":    []any{map[string]any{"type": "RequiredResource", "requirement": map[string]any{"requirementName": "vpc", "name": "vpc"}}},
 			},
 			map[string]any{
 				"resourceName": "old",
@@ -111,7 +111,7 @@ func TestPendingDependencyExemptionIsRateLimited(t *testing.T) {
 	c := &test.MockClient{MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
 		u, _ := obj.(*kunstructured.Unstructured)
 		u.Object = map[string]any{"status": map[string]any{"crossplane": map[string]any{"pendingResources": []any{
-			map[string]any{"resourceName": "subnet", "operation": "Create", "dependsOn": []any{map[string]any{"name": "vpc"}}},
+			map[string]any{"resourceName": "subnet", "operation": "Create", "dependsOn": []any{map[string]any{"resourceName": "vpc"}}},
 		}}}}
 		return nil
 	}}

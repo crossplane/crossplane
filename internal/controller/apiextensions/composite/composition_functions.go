@@ -1147,14 +1147,14 @@ func pendingResources(decisions ordering.Decisions, desired, observed ComposedRe
 
 		switch {
 		case d.GetComposedResource() != "":
-			e.Name = d.GetComposedResource()
+			e.ResourceName = d.GetComposedResource()
 		case d.GetRequiredResource() != nil:
 			r := d.GetRequiredResource()
 			e.Type = reference.DependencyTypeRequiredResource
 			e.Requirement = &reference.RequirementDependency{
-				Name:         r.GetRequirementName(),
-				ResourceName: r.GetName(),
-				Namespace:    r.GetNamespace(),
+				RequirementName: r.GetRequirementName(),
+				Name:            r.GetName(),
+				Namespace:       r.GetNamespace(),
 			}
 		default:
 			continue
