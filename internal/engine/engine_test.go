@@ -341,10 +341,15 @@ func TestIsRunning(t *testing.T) {
 			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.uc, tc.params.opts...)
 			_ = e.Start(tc.args.name, tc.argsStart.opts...)
 
-			// Give the start goroutine a little time to fail.
-			time.Sleep(1 * time.Second)
-
-			running := e.IsRunning(tc.args.name)
+			var running bool
+			deadline := time.Now().Add(2 * time.Second)
+			for {
+				running = e.IsRunning(tc.args.name)
+				if running == tc.want.running || time.Now().After(deadline) {
+					break
+				}
+				time.Sleep(5 * time.Millisecond)
+			}
 			if diff := cmp.Diff(tc.want.running, running); diff != "" {
 				t.Errorf("\n%s\ne.IsRunning(...): -want, +got:\n%s", tc.reason, diff)
 			}
