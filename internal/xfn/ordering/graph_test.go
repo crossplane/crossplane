@@ -17,6 +17,7 @@ limitations under the License.
 package ordering
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -323,4 +324,47 @@ func TestTargetDescribe(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestValidateErrorsCarryTheirEdges pins that validation failures say which
+// edges caused them, so the composer can name the pipeline step that declared
+// them.
+func TestValidateErrorsCarryTheirEdges(t *testing.T) {
+	live := ComposedState{Desired: true, Observed: true}
+	s := State{Composed: map[string]ComposedState{"a": live, "b": live, "c": live, "d": live}}
+
+	t.Run("EdgeError", func(t *testing.T) {
+		bad := onReq("a", "undeclared")
+		err := New(on("b", "a"), bad).Validate(s, map[string]bool{})
+
+		ee := &EdgeError{}
+		if !errors.As(err, &ee) {
+			t.Fatalf("Validate(...): want an *EdgeError, got %T: %v", err, err)
+		}
+
+		if diff := cmp.Diff(bad, ee.Edge); diff != "" {
+			t.Errorf("EdgeError.Edge: -want, +got:\n%s", diff)
+		}
+	})
+
+	t.Run("CycleError", func(t *testing.T) {
+		// d leads into the cycle but isn't part of it.
+		err := New(on("d", "a"), on("a", "b"), on("b", "c"), on("c", "a")).Validate(s, nil)
+
+		ce := &CycleError{}
+		if !errors.As(err, &ce) {
+			t.Fatalf("Validate(...): want a *CycleError, got %T: %v", err, err)
+		}
+
+		got := ce.Edges()
+		for _, e := range got {
+			if e.Resource == "d" {
+				t.Errorf("CycleError.Edges(): %v includes an edge leading into the cycle, not on it", got)
+			}
+		}
+
+		if len(got) != 3 {
+			t.Errorf("CycleError.Edges(): want the 3 edges of the cycle, got %v", got)
+		}
+	})
 }
