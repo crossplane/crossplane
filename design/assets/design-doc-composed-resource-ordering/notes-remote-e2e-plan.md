@@ -29,9 +29,9 @@ Specifically, whether:
 
 | Repo | Branch | Where |
 |---|---|---|
-| crossplane | `composed-resource-ordering-prototype` | pushed, `sb` remote (`github.com/stevendborrelli/crossplane`), at `4d7f1b2` |
-| function-sdk-python | `composed-resource-dependencies` | pushed, `origin` = fork (`github.com/stevendborrelli/function-sdk-python`), at `8e5a0b2` |
-| modelplane | `composed-resource-ordering` | pushed, `sb` remote (`github.com/stevendborrelli/modelplane`), three commits off `main` |
+| crossplane | `composed-resource-ordering-prototype` | pushed, `sb` remote (`github.com/stevendborrelli/crossplane`), at `876824dff` |
+| function-sdk-python | `composed-resource-dependencies` | pushed, `origin` = fork (`github.com/stevendborrelli/function-sdk-python`), at `78346f4` |
+| modelplane | `composed-resource-ordering` | pushed, `sb` remote (`github.com/stevendborrelli/modelplane`), at `12ff4e32`, nine commits off upstream `main` (`0ee6ab4`) |
 
 Everything needed is pushed; the VM clones all three.
 
@@ -41,15 +41,17 @@ Note the remotes differ per repo: in the crossplane and modelplane checkouts
 
 ## The VM
 
-A VM is already provisioned and set up:
+The last run (2026-10-17) used a fresh VM:
 
 ```bash
-gcloud compute ssh borrelli-modelplane \
-  --project=crossplane-playground --zone=us-central1-c --tunnel-through-iap
+gcloud compute ssh instance-20261017-174742 \
+  --project=crossplane-playground --zone=us-central1-b --tunnel-through-iap
 ```
 
-`c4-standard-8` (8 vCPU, 30 GB RAM), Debian 13, 200 GB disk, passwordless
-sudo, and both repos cloned under `~/code`. Rebuilt on 2026-09-28 with:
+`e2-highmem-4` (4 vCPU, 31 GB RAM), Debian 13, 200 GB disk, passwordless
+sudo, and both repos cloned under `~/code`. The runs before it used
+`borrelli-modelplane` (`c4-standard-8`, 8 vCPU, `us-central1-c`). Either way
+the box is set up with:
 
 - Docker CE 29.8.1 from Docker's apt repository, with `docker-ce`,
   `docker-ce-cli` and `containerd.io` held.
@@ -57,17 +59,31 @@ sudo, and both repos cloned under `~/code`. Rebuilt on 2026-09-28 with:
 - kind v0.32 and helm v4.3 on the default Nix profile
   (`/nix/var/nix/profiles/default/bin`), and kubectl from `pkgs.k8s.io`.
 - `crossplane-graph` installed into `~/bin`, which survives a stop where `/tmp`
-  does not.
+  does not. The quickest route is to cross-compile it on a laptop
+  (`GOOS=linux GOARCH=amd64 go build`) and `gcloud compute scp` the binary
+  over.
   `~/.profile` puts `~/bin` and the Nix profile on `PATH` for login shells.
 - inotify limits raised in `/etc/sysctl.d/99-kind.conf`
   (`max_user_instances=8192`, `max_user_watches=1048576`), so the scale
   cluster and both Modelplane clusters can run at once.
 
-The VM has its own VPC network, also named `borrelli-modelplane`, whose only
+Both VMs sit on a VPC network named `borrelli-modelplane`, whose only
 ingress rules allow SSH. Connect through IAP, with `--tunnel-through-iap`, which
 `borrelli-modelplane-allow-iap-ssh` admits from Google's IAP range and which
 works from any network. `borrelli-modelplane-allow-ssh-home` allows direct SSH
 from one IP address only, so it stops working whenever that address changes.
+
+A new VM on that network can't be reached until the IAP rule exists. IAP
+connects, then fails with `failed to connect to backend: port 22`. If the
+rule is gone, recreate it:
+
+```bash
+gcloud compute firewall-rules create borrelli-modelplane-allow-iap-ssh \
+  --project=crossplane-playground --network=borrelli-modelplane \
+  --direction=INGRESS --action=ALLOW --rules=tcp:22 \
+  --source-ranges=35.235.240.0/20 \
+  --description="SSH via IAP TCP forwarding only"
+```
 
 **Don't `apt-get install kind`.** kind is already on the Nix profile, and
 Debian's package depends on `docker.io`, which conflicts with Docker CE: apt
@@ -97,8 +113,12 @@ export PATH=/nix/var/nix/profiles/default/bin:$PATH
 
 An interactive login shell is unaffected.
 
-Phase 2 takes about 15 minutes on this box once images are cached, and
-longer on a first run while they pull. A 4 vCPU box takes 60-90.
+Phase 2's `--verify` takes about 15 minutes on the 8 vCPU box once images are
+cached. On the 4 vCPU box, the last run spent 10 minutes in `--clean`,
+mostly rebuilding the function images after a pull. `--verify` then took 24
+minutes: 16 to bring up both clusters and apply Modelplane, and 8 in the
+tests themselves. `--teardown` took 10 minutes, nearly all of it a Nix
+rebuild. Phase 1 took 14 minutes on the same box.
 
 ## VM requirements (if building a different box)
 
@@ -127,7 +147,7 @@ the e2e tests written for the feature.
 git clone -b composed-resource-ordering-prototype \
   https://github.com/stevendborrelli/crossplane.git
 cd crossplane
-git rev-parse --short HEAD    # expect 4d7f1b2
+git rev-parse --short HEAD    # expect 876824dff
 
 ./nix.sh run .#e2e -- --test-suite=composed-resource-ordering
 ```
@@ -138,11 +158,19 @@ installs Crossplane with the feature flag already set
 (`--set args={--debug,--enable-composed-resource-ordering}`). Phase 2 is where
 you have to pass it yourself.
 
-It covers creation ordering, teardown ordering, a dependency on a required
-(rather than composed) resource, nested XRs, and a blocked teardown.
+Ten tests cover:
+
+- creation ordering;
+- teardown ordering, including on a legacy XR, inside a nested XR, and across
+  a Crossplane restart;
+- a blocked teardown;
+- create-before-destroy;
+- removal from a live XR whose function drops the edges too;
+- a dependency on a required (rather than composed) resource;
+- a contradiction between the graph and desired state.
 
 **Dependency to check first.** The suite installs a Function package from
-`ghcr.io/stevendborrelli/function-ordering-test:dependency-test.5`
+`ghcr.io/stevendborrelli/function-ordering-test:dependency-test.7`
 (`test/e2e/manifests/apiextensions/composition/ordering/setup/functions.yaml`).
 If that tag is gone or private, rebuild and push it with
 `test/e2e/functions/ordering/build.sh <registry>/function-ordering-test:<tag>`,
@@ -239,22 +267,29 @@ Both variables are required, for different reasons:
 
 - `CROSSPLANE_IMAGE` — `crossplane project run` installs Crossplane from
   `charts.crossplane.io` by version, so a branch build can't come in through
-  the CLI. `run.sh` loads the image into the control-plane cluster and
-  repoints both Crossplane Deployments after the chart lands, before any
-  Modelplane manifest is applied.
+  the CLI. Bring-up (`e2e/environment.py`) loads the image into the
+  control-plane cluster and repoints both Crossplane Deployments after the
+  chart lands, before any Modelplane manifest is applied.
 - `CROSSPLANE_ARGS` — ordering is an **alpha feature, off by default**.
   Without `--enable-composed-resource-ordering` Crossplane doesn't advertise
-  `CAPABILITY_DEPENDENCIES`, and `compose-serving-stack` deliberately fails
-  the pipeline rather than composing a stack whose ordering nothing will
-  enforce.
+  `CAPABILITY_DEPENDENCIES`, and `compose-serving-stack` and
+  `compose-inference-cluster` deliberately fail the pipeline, through the
+  SDK's `require_capabilities`, rather than composing a stack whose ordering
+  nothing will enforce.
 
   Leave the circuit breaker at its defaults. The ServingStack converges over
   five waves, and before the prototype exempted the events that release a
   wave, the breaker opened partway through and each later wave waited for a
   periodic probe. Earlier runs raised `--circuit-breaker-burst=100000` to
-  avoid that; it's no longer needed. `run.sh` splits `CROSSPLANE_ARGS` on
+  avoid that; it's no longer needed. Bring-up splits `CROSSPLANE_ARGS` on
   whitespace and appends each flag separately, so extra flags go in the same
   variable.
+
+Bring-up also waits for provider-helm and provider-kubernetes to roll out
+onto their DeploymentRuntimeConfigs before applying anything. It logs that
+wait as `Done after <n>s`; it took 99s on the 4 vCPU box. Without that wait,
+the old provider-helm pod can be killed partway through a `helm install
+--wait`, and the release sticks at `pending-install` (see "If it fails").
 
 The functions need no flag: they resolve the branch SDK from `uv.lock`, which
 points at the `function-sdk-python` rev above.
@@ -263,10 +298,12 @@ points at the `function-sdk-python` rev above.
 Budget 30-45 minutes for a first run on a cold VM; on the warm 8 vCPU box it
 took about 15.
 
-Both phases have been run and passed (2026-09-21, `e284c1b`): phase 1 green
-across all five ordering tests, phase 2 serving live traffic and tearing
-down in dependency order. The Crossplane image that run used was
-`crossplane/crossplane:v0.0.0-1790012250-e284c1b`.
+The last full pass (2026-10-17) was phase 1 green across all ten ordering
+tests, at `876824dff` for `RemovalIsOrdered` and `741a590dd` for the rest.
+Phase 2 passed `--verify` and `--teardown` on
+`crossplane/crossplane:v0.0.0-1792261451-20fd96e` with Modelplane at
+`12ff4e32`. Results are in
+[notes-remote-e2e-results.md](notes-remote-e2e-results.md).
 
 ### Reading the graph
 
@@ -279,7 +316,7 @@ checks below do by hand:
 ```bash
 cd ~/code/crossplane && GOBIN=~/bin nix develop -c go install github.com/stevendborrelli/crossplane-graph@latest
 
-~/bin/crossplane-graph inferencegateway/default                     # cluster scoped
+~/bin/crossplane-graph inferencegateway/local                       # cluster scoped
 ~/bin/crossplane-graph servingstack/<name> -n modelplane-system     # namespaced
 ~/bin/crossplane-graph xordering/ordered -n default --dot           # Graphviz
 ```
@@ -302,14 +339,11 @@ ordering directly, on the control-plane cluster
    The ServingStack lives in `modelplane-system`, not `ml-team` - `ml-team`
    holds the ModelDeployment and ModelService.
 
-1. **No `Usage`s owned by the ServingStack.** Not "no Usages at all": the
-   InferenceGateway composes its own, and a ClusterUsage protects the
-   InferenceCluster from deletion while ModelReplicas are scheduled to it.
-   Both are untouched by this change and should still be there. Check
-   ownership rather than counting:
-   `kubectl get usages.protection.crossplane.io -A -o jsonpath='{range
-   .items[*]}{.metadata.ownerReferences[0].kind}{"\n"}{end}'` - every owner
-   should be an InferenceGateway.
+1. **One Usage, and it isn't for ordering.** All three composing functions
+   now declare edges, so the only Usage left should be the `ClusterUsage`
+   that protects the InferenceCluster while ModelReplicas are scheduled to
+   it. It guards one XR against another, which a graph can't replace:
+   `kubectl get usages.protection.crossplane.io,clusterusages.protection.crossplane.io -A`.
 2. **Edges reached the XR.** The composed resource references should carry
    `dependsOn`:
    `kubectl get servingstack -n modelplane-system -o json | jq
@@ -324,9 +358,16 @@ ordering directly, on the control-plane cluster
    one-second granularity, so treat ties as inconclusive rather than as
    failures.
 4. **Teardown runs in reverse.** This is the part `Usage`s used to do, so
-   it's the real regression risk. Don't delete the ServingStack directly - it
-   is composed by `InferenceCluster/local` and would just be recomposed.
-   Delete from the top, and delete the model layer first or the ClusterUsage
+   it's the real regression risk. `nix run .#e2e -- --teardown` automates
+   it: it deletes from the top with a plain `kubectl delete`, watches every
+   composed resource, nested XRs included, and fails if anything starts
+   deleting while a dependent still exists, if an XR goes before what it
+   composed, or if anything is left. It prints `OK` and one line per object
+   with when it started deleting and when it was gone.
+
+   To do it by hand instead: don't delete the ServingStack directly - it is
+   composed by `InferenceCluster/local` and would just be recomposed. Delete
+   from the top, and delete the model layer first or the ClusterUsage
    refuses:
 
    ```bash
@@ -339,16 +380,21 @@ ordering directly, on the control-plane cluster
    are gone, and the ProviderConfigs last. A `ProviderConfig` deleted while a
    Release still exists is the specific failure the `Usage`s used to prevent.
 
-   Observed on the first run, and worth keeping as the reference shape:
+   The reference shape, from `--teardown` on the last run (seconds from the
+   start of teardown; the InferenceCluster started deleting at +18s):
 
    ```
-   +0s    leaves: ai-gateway, kube-prometheus-stack, gateway, gateway-proxy...
-   +16s   gateway-proxy gone   -> gateway-namespace starts deleting
-   +64s   gateway gone         -> gateway-class starts deleting
-   +96s   gateway-class gone   -> envoy-gateway starts deleting
-          cert-manager still alive, holding for envoy-gateway
-          both ProviderConfigs still alive, holding for everything
+   +22s   gateway-ca-bundle, gateway-serving-certificate, gateway-proxy,
+          gateway-class gone
+   +26s   gateway-ca-issuer gone; trust-manager, envoy-gateway start deleting
+   +30s   gateway-ca-certificate, trust-manager, envoy-gateway gone
+   +35s   gateway-selfsigned-issuer gone; cert-manager starts deleting
+   +38s   cert-manager, provider-config-helm gone
+   +40s   provider-config-kubernetes, InferenceCluster, ServingStack gone
    ```
+
+   Each controller's release (cert-manager, trust-manager, envoy-gateway)
+   should start deleting only once the objects it finalizes are gone.
 
 ## If it fails
 
@@ -366,6 +412,17 @@ ordering directly, on the control-plane cluster
   resource rather than a cycle.
 - **Serving stack never goes Ready** — most likely resource exhaustion, not
   ordering. Check for Pending pods and disk before suspecting the feature.
+- **A Release reports `another operation (install/upgrade/rollback) is in
+  progress`** — provider-helm was restarted partway through installing it,
+  and Helm left the release at `pending-install`. Nothing recovers it,
+  because Modelplane's Releases don't set `spec.rollbackLimit`. Everything
+  that depends on the release stays held, so the test times out. Check
+  with `helm list -A --pending` on the workload cluster. To unstick a run,
+  delete the release's record, the
+  `sh.helm.release.v1.<release>.v1` Secret in its namespace; provider-helm
+  then installs it again. Bring-up's provider rollout wait stops this
+  happening in the harness. A provider-helm restart from any other cause
+  can still do it.
 
 Collect on failure: `kubectl -n crossplane-system logs deploy/crossplane`,
 the XR's status and `resourceRefs`, and the function pod's logs from

@@ -7,9 +7,11 @@ creation and deletion of resources in PR [#7841](https://github.com/crossplane/c
 The runbook that describes how to repeat it is
 [notes-remote-e2e-plan.md](notes-remote-e2e-plan.md).
 
-Both phases passed. The graph behaved correctly throughout: every failure
-along the way was in test scaffolding or in a published artifact, and each is
-recorded below with its fix.
+Both phases passed. Until the last round, every failure along the way was in
+test scaffolding or in a published artifact. The last round, run after the
+review fixes, found one defect in Crossplane itself: an XR stopped watching
+composed resources that were leaving desired state, so a removal ordered by
+carried-forward edges stalled. Each failure is recorded below with its fix.
 
 ## What was under test
 
@@ -258,11 +260,129 @@ Getting there turned up two more problems, both fixed:
   started deleting in the same wave as the uninstall. The release, its
   IPAddressPool and its L2Advertisement now depend on the namespace.
 
+## After the review fixes
+
+The review of #7841 and #7842 changed how the graph behaves, so both phases
+were run again from scratch on a new VM. The changes under test:
+
+- Edges are carried forward for resources leaving desired state. A function
+  that drops resources and stops declaring their edges in the same reconcile
+  still has them removed in order, and the persisted graph no longer loses
+  those edges.
+- `pendingResources` follows one naming rule: `resourceName` is a
+  composition resource name and `name` is an object name.
+- Claims that ask for foreground deletion delete their XR in the background.
+
+| | |
+|---|---|
+| Host | GCE `instance-20261017-174742`, `e2-highmem-4` (4 vCPU, 31 GB), Debian 13, 200 GB disk |
+| Nix | 2.35.3, multi-user, run natively |
+| Crossplane | phase 1 at `741a590dd`, then reruns at `20fd96e86` and `876824dff`; phase 2 on image `crossplane/crossplane:v0.0.0-1792261451-20fd96e` |
+| Modelplane | `composed-resource-ordering`, ported onto upstream `main` (`0ee6ab4`); the first phase 2 run at `70a2c34c`, the second at `12ff4e32` |
+| SDK | `function-sdk-python` @ `78346f4` |
+
+The phase 2 image predates the last two Crossplane commits. `3d7d9f8aa`
+changes only an e2e test. `876824dff` adds a warning that fires only with
+ordering off. Both phases ran with ordering on, so the results hold for
+`876824dff`.
+
+### Phase 1
+
+The suite now has ten ordering tests. `RemovalIsOrdered` is new. It drops
+two resources and the edge between them in one reconcile, then asserts they
+go in order. That is what carry-forward exists for.
+
+```
+--- PASS: TestComposedResourceOrderingTeardownIsOrdered             (33.96s)
+--- FAIL: TestComposedResourceOrderingRemovalIsOrdered              (77.00s)
+--- PASS: TestComposedResourceOrderingTeardownBlocks                (40.02s)
+--- PASS: TestComposedResourceOrderingCreateBeforeDestroy           (26.94s)
+--- PASS: TestComposedResourceOrderingCreatesInWaves                (98.25s)
+--- PASS: TestComposedResourceOrderingTeardownSurvivesRestart       (40.56s)
+--- PASS: TestComposedResourceOrderingTeardownIsOrderedOnLegacyXR   (27.68s)
+--- PASS: TestComposedResourceOrderingTeardownIsOrderedInNestedXR   (52.52s)
+--- PASS: TestComposedResourceOrderingWaitsForRequiredResource      (44.36s)
+--- PASS: TestComposedResourceOrderingReportsContradiction          (30.08s)
+```
+
+`RemovalIsOrdered` failed for two reasons, fixed one at a time (findings 5
+and 6 below). It passed on the third run:
+
+```
+--- PASS: TestComposedResourceOrderingRemovalIsOrdered              (48.55s)
+```
+
+### Phase 2, first run: stuck behind a Helm release
+
+`--verify` failed after 25 minutes with 10 passed and 15 errors. The
+ServingStack never went Ready because cert-manager never installed (finding
+7). The graph held everything that depends on cert-manager, as it should.
+
+The two stuck Helm releases were cleared by hand, and the stack converged
+within minutes. `--teardown` then passed, but it showed that several gateway
+objects had no edge to the controller that finalizes them (finding 8). They
+finished first only because of timing.
+
+### Phase 2, second run: clean
+
+The second run included the harness fix for finding 7 and the edges for
+finding 8. Clusters were rebuilt from scratch, with no intervention.
+
+`--verify` passed:
+
+```
+======================== 25 passed in 481.52s (0:08:01) ========================
+```
+
+The harness waited 99s for provider-helm to finish rolling out onto its
+runtime config. That is the window in which the first run's installs were
+killed. No release reached `pending-install`.
+
+Readiness, from the XRs' creation at 20:16:39 UTC:
+
+| | |
+|---|---|
+| InferenceCluster `ClusterReady` | +9s |
+| InferenceGateway `Ready` | +4m12s |
+| ServingStack `Ready`, and with it the InferenceCluster | +5m15s |
+| ModelService `RoutingReady` | +7m16s |
+
+The only Usage left was the `ClusterUsage` that protects the InferenceCluster
+while ModelReplicas are scheduled to it. It belongs to a different XR, so a
+graph can't replace it.
+
+`--teardown` printed `OK` and left nothing behind. The InferenceCluster
+started deleting at +18s from the start of teardown and was gone at +40s.
+The gateway PKI rows, against the same rows from the first run (`-` means
+the deletion started between two polls):
+
+| Object | First run: deleting / gone | Second run: deleting / gone |
+|---|---|---|
+| `gateway-serving-certificate` | `-` / +23s | `-` / +22s |
+| `gateway-ca-issuer` | +19s / +23s | `-` / +26s |
+| `gateway-ca-certificate` | +19s / +23s | `-` / +30s |
+| `gateway-selfsigned-issuer` | +27s / +30s | +33s / +35s |
+| `cert-manager` | +30s / +38s | +35s / +38s |
+| `gateway-ca-bundle` | `-` / +23s | `-` / +22s |
+| `trust-manager` | +19s / +27s | +26s / +30s |
+| `gateway-proxy`, `gateway-class` | +19s / +23s | `-` / +22s |
+| `envoy-gateway` | `-` / +27s | +26s / +30s |
+| ProviderConfigs | `-` / +38s | `-` / +38s and +40s |
+
+In the first run, trust-manager started uninstalling at +19s, while the
+Bundle it reconciles was still there. In the second, it waited until the
+Bundle was gone. cert-manager now waits for the last of its Certificates and
+Issuers. envoy-gateway now waits for its EnvoyProxy and GatewayClass. Each
+controller outlives the objects it has to finalize, and teardown took no
+longer: the InferenceCluster took 22s, against 19s in the first run.
+
 ## Findings, and what fixed them
 
-Four, none in the ordering graph itself: three in test scaffolding or a
-published artifact, one in this document's own instructions. All are fixed,
-and the confirmation runs above cover them.
+Eight. Four came from the earlier runs: three in test scaffolding or a
+published artifact, and one in this document's own instructions. Four came
+from the run after the review fixes. Of those four, one was in Crossplane,
+one in a test, one in Modelplane's e2e harness and one in Modelplane's graph.
+All are fixed, and the runs above cover them.
 
 **1. `provider-nop:timed-deletes.2` was published arm64-only.** Built on a
 laptop, so on an amd64 cluster the provider pod crashlooped with an exec
@@ -321,6 +441,70 @@ in `modelplane-system` rather than `ml-team`, "no Usages at all" was the wrong
 assertion, and teardown cannot start by deleting the ServingStack because
 `InferenceCluster/local` composes it. Corrected in `fb9db6ae4`.
 
+**5. A live removal stalled after its first wave.** This one was in
+Crossplane. Compose registered only desired composed resources with the
+tracker that maps realtime-composition watch events back to the XR. A
+resource that had left desired state was no longer watched. That covers a
+resource already deleting, and one held back from deletion behind a
+dependent. So when its deletion finished, nothing enqueued the XR. With
+realtime compositions nothing polls, so `RemovalIsOrdered` deleted its first
+wave and then reported the next as waiting on a resource that was already
+gone. XR teardown wasn't affected, because it requeues itself. Live removal
+had no e2e coverage until this test, which is why this hadn't come up
+before. Fixed in `ba2452838`: with ordering on, the tracker also records
+observed resources that aren't desired, until they're gone.
+
+**6. `RemovalIsOrdered` raced its own wave.** Its `FirstStays` step started
+as soon as `second` began deleting, saw `second` still there partway
+through deletion, and failed, though the waves were right. Fixed in
+`3d7d9f8aa`, which waits for only `first` to remain before asserting it's
+left alone.
+
+**7. provider-helm was killed in the middle of a Helm install.** Bring-up
+points provider-helm and provider-kubernetes at the
+DeploymentRuntimeConfigs Modelplane defines. That creates a new
+ProviderRevision for each, whose pod replaces the old one. Nothing waited
+for the rollout. On the 4 vCPU box, the old provider-helm pod was killed in
+the middle of `helm install --wait` for cert-manager and
+kube-prometheus-stack. Helm records a release as `pending-install` until
+the install finishes, so both stayed that way. Every later attempt failed
+with `another operation (install/upgrade/rollback) is in progress`, and the
+ServingStack waited behind cert-manager until the test timed out. Fixed in
+the Modelplane fork's harness (`12ff4e32`): bring-up waits for each
+provider's current revision to use its runtime config and report
+`RuntimeHealthy`, and for the old revision's pods to go, before applying
+anything.
+
+That fixes the harness, not the exposure. A provider-helm restart during
+an install, from an upgrade, a node drain or an out-of-memory kill, leaves
+the release stuck the same way. provider-helm recovers a stuck release
+only when the Release sets `spec.rollbackLimit`, and Modelplane's
+Releases don't set it.
+
+**8. Gateway objects had no edge to their controllers.** The serving stack's
+hand-written gateway objects depended only on their ProviderConfig:
+
+- the cert-manager Certificates and Issuers;
+- the trust-manager Bundle;
+- the EnvoyProxy.
+
+So they were all created in the first wave and retried with
+`ReconcileError` until their CRDs arrived. Upstream's create gate was the
+same, so that is how it always converged. At teardown, though, nothing kept
+cert-manager, trust-manager or envoy-gateway from uninstalling while their
+objects still existed. Objects left without their controller can't
+finalize. The first run's teardown passed only because of timing. Fixed in
+the Modelplane fork (`eec480dd`), which declares each edge only while both
+ends are composed:
+
+- the PKI in chain order: self-signed issuer, CA certificate, CA issuer,
+  serving certificate;
+- the CA bundle on trust-manager and the CA certificate;
+- the EnvoyProxy on envoy-gateway;
+- the Gateway on its serving certificate.
+
+The second run's teardown table above shows the result.
+
 ## What this does not establish
 
 - **Scale.** The largest graph exercised here is 18 composed resources.
@@ -337,9 +521,17 @@ assertion, and teardown cannot start by deleting the ServingStack because
 - **Out-of-band deletion.** A `Usage` refuses a direct `kubectl delete` of a
   ProviderConfig; dependencies only order the deletes Crossplane performs.
   That trade was accepted deliberately and was not tested.
-- **The capability guard.** `compose-serving-stack` fails the pipeline when
-  Crossplane does not advertise `CAPABILITY_DEPENDENCIES`. The flag was set
-  for every run here, so that path ran only in unit tests.
+- **The capability guard.** `compose-serving-stack` and
+  `compose-inference-cluster` fail the pipeline, through the SDK's
+  `require_capabilities`, when Crossplane does
+  not advertise `CAPABILITY_DEPENDENCIES`. The flag was set for every run
+  here, so that path ran only in unit tests. So did the warning Crossplane
+  raises when a step returns dependencies with ordering off.
+- **Live removal in Modelplane.** `RemovalIsOrdered` covers carry-forward
+  against purpose-built fixtures. Modelplane's runs only create and tear
+  down, so no Modelplane function dropped resources from a live XR.
+- **Claims.** Background deletion for claims that ask for foreground
+  deletion has unit tests only; nothing here creates a claim.
 - **Real workloads.** Mock engine, fake DRA devices, no GPUs, no cloud
   provisioning, single-node clusters. So #477's hang itself, which needs the
   InferenceCluster's deletion to take a provisioned cluster's API server with
@@ -356,14 +548,14 @@ assertion, and teardown cannot start by deleting the ServingStack because
 
 See [notes-remote-e2e-plan.md](notes-remote-e2e-plan.md) for the VM setup,
 both phases, and the verification steps, all corrected against this run.
-Branches, at the final run: crossplane `f322547`, function-sdk-python
-`8e5a0b2`, modelplane `38b3543`, all on `github.com/stevendborrelli` forks.
+Branches, at the last run: crossplane `876824dff`, function-sdk-python
+`78346f4`, modelplane `12ff4e32`, all on `github.com/stevendborrelli` forks.
 
-`xpgraph` prints the graph off a live composite, which is the quickest way to
-see whether the edges reached the XR and where a reconcile has got to:
+[crossplane-graph](https://github.com/stevendborrelli/crossplane-graph)
+prints the graph off a live composite, which is the quickest way to see
+whether the edges reached the XR and where a reconcile has got to:
 
 ```bash
-go build -o /tmp/xpgraph ./cmd/xpgraph
-/tmp/xpgraph inferencegateway/default
-/tmp/xpgraph servingstack/<name> -n modelplane-system --dot | dot -Tpng -o graph.png
+crossplane-graph inferencegateway/local
+crossplane-graph servingstack/<name> -n modelplane-system --dot | dot -Tpng -o graph.png
 ```
