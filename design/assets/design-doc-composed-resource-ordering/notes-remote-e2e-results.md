@@ -277,14 +277,14 @@ were run again from scratch on a new VM. The changes under test:
 |---|---|
 | Host | GCE `instance-20261017-174742`, `e2-highmem-4` (4 vCPU, 31 GB), Debian 13, 200 GB disk |
 | Nix | 2.35.3, multi-user, run natively |
-| Crossplane | phase 1 at `741a590dd`, then reruns at `20fd96e86` and `876824dff`; phase 2 on image `crossplane/crossplane:v0.0.0-1792261451-20fd96e` |
+| Crossplane | phase 1 at `d1bd20b7d`, then reruns at `dd1f2baae` and `1f8da79a6`; phase 2 on image `crossplane/crossplane:v0.0.0-1792261451-20fd96e`, built from `dd1f2baae` (the tag's `20fd96e` is that commit before sign-offs were added to the branch) |
 | Modelplane | `composed-resource-ordering`, ported onto upstream `main` (`0ee6ab4`); the first phase 2 run at `70a2c34c`, the second at `12ff4e32` |
 | SDK | `function-sdk-python` @ `78346f4` |
 
-The phase 2 image predates the last two Crossplane commits. `3d7d9f8aa`
-changes only an e2e test. `876824dff` adds a warning that fires only with
+The phase 2 image predates the last two Crossplane commits. `5c7d3acfa`
+changes only an e2e test. `1f8da79a6` adds a warning that fires only with
 ordering off. Both phases ran with ordering on, so the results hold for
-`876824dff`.
+`1f8da79a6`.
 
 ### Phase 1
 
@@ -451,13 +451,13 @@ realtime compositions nothing polls, so `RemovalIsOrdered` deleted its first
 wave and then reported the next as waiting on a resource that was already
 gone. XR teardown wasn't affected, because it requeues itself. Live removal
 had no e2e coverage until this test, which is why this hadn't come up
-before. Fixed in `ba2452838`: with ordering on, the tracker also records
+before. Fixed in `7e72bbb3f`: with ordering on, the tracker also records
 observed resources that aren't desired, until they're gone.
 
 **6. `RemovalIsOrdered` raced its own wave.** Its `FirstStays` step started
 as soon as `second` began deleting, saw `second` still there partway
 through deletion, and failed, though the waves were right. Fixed in
-`3d7d9f8aa`, which waits for only `first` to remain before asserting it's
+`5c7d3acfa`, which waits for only `first` to remain before asserting it's
 left alone.
 
 **7. provider-helm was killed in the middle of a Helm install.** Bring-up
@@ -548,7 +548,7 @@ The second run's teardown table above shows the result.
 
 See [notes-remote-e2e-plan.md](notes-remote-e2e-plan.md) for the VM setup,
 both phases, and the verification steps, all corrected against this run.
-Branches, at the last run: crossplane `876824dff`, function-sdk-python
+Branches, at the last run: crossplane `1f8da79a6`, function-sdk-python
 `78346f4`, modelplane `12ff4e32`, all on `github.com/stevendborrelli` forks.
 
 [crossplane-graph](https://github.com/stevendborrelli/crossplane-graph)

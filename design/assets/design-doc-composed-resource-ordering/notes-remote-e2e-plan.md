@@ -29,7 +29,7 @@ Specifically, whether:
 
 | Repo | Branch | Where |
 |---|---|---|
-| crossplane | `composed-resource-ordering-prototype` | pushed, `sb` remote (`github.com/stevendborrelli/crossplane`), at `876824dff` |
+| crossplane | `composed-resource-ordering-prototype` | pushed, `sb` remote (`github.com/stevendborrelli/crossplane`), at `1f8da79a6` |
 | function-sdk-python | `composed-resource-dependencies` | pushed, `origin` = fork (`github.com/stevendborrelli/function-sdk-python`), at `78346f4` |
 | modelplane | `composed-resource-ordering` | pushed, `sb` remote (`github.com/stevendborrelli/modelplane`), at `12ff4e32`, nine commits off upstream `main` (`0ee6ab4`) |
 
@@ -147,7 +147,7 @@ the e2e tests written for the feature.
 git clone -b composed-resource-ordering-prototype \
   https://github.com/stevendborrelli/crossplane.git
 cd crossplane
-git rev-parse --short HEAD    # expect 876824dff
+git rev-parse --short HEAD    # expect 1f8da79a6
 
 ./nix.sh run .#e2e -- --test-suite=composed-resource-ordering
 ```
@@ -299,7 +299,7 @@ Budget 30-45 minutes for a first run on a cold VM; on the warm 8 vCPU box it
 took about 15.
 
 The last full pass (2026-10-17) was phase 1 green across all ten ordering
-tests, at `876824dff` for `RemovalIsOrdered` and `741a590dd` for the rest.
+tests, at `1f8da79a6` for `RemovalIsOrdered` and `d1bd20b7d` for the rest.
 Phase 2 passed `--verify` and `--teardown` on
 `crossplane/crossplane:v0.0.0-1792261451-20fd96e` with Modelplane at
 `12ff4e32`. Results are in
