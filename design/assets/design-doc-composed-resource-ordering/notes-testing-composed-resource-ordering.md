@@ -61,7 +61,7 @@ ordering turned on, so nothing needs building:
 ```shell
 kind create cluster --name xp-ordering
 helm install crossplane oci://ghcr.io/stevendborrelli/charts/crossplane \
-  --version 2.5.0-ordering.5 \
+  --version 2.5.0-ordering.6 \
   -n crossplane-system --create-namespace --wait
 ```
 
@@ -77,6 +77,18 @@ because at the default burst the breaker opened partway through a deep graph
 and each later wave waited for a periodic probe. From `2.5.0-ordering.3` the
 events that release a wave get past the breaker, so it doesn't need raising.
 See Limitations.
+
+`2.5.0-ordering.6` changes what you'll see against earlier releases:
+
+* A resource the pipeline drops along with its edges still goes in order.
+  Edges whose dependent has left desired state but still exists are carried
+  forward from the graph recorded on the XR.
+* `pendingResources` follows one naming rule: `resourceName` is always a
+  composition resource name and `name` always an object name. A composed
+  dependency is `dependsOn[].resourceName`. A required one is
+  `requirement.requirementName`, `.name` and `.namespace`. Tools written
+  against earlier releases read the old names, and crossplane-graph needs to
+  be current to read the new ones.
 
 ### Building Crossplane from the branch instead
 
@@ -363,7 +375,7 @@ git clone -b composed-resource-ordering https://github.com/stevendborrelli/cli.g
 
 /tmp/crossplane composition render $M/xr.yaml $M/create/composition-nested.yaml $M/setup/functions.yaml \
   --xrd $M/setup/definition.yaml \
-  --crossplane-image ghcr.io/stevendborrelli/crossplane:v2.5.0-ordering.5 \
+  --crossplane-image ghcr.io/stevendborrelli/crossplane:v2.5.0-ordering.6 \
   --enable-composed-resource-ordering
 ```
 
