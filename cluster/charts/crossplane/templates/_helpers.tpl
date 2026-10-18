@@ -14,19 +14,35 @@ Create chart name and version as used by the chart label.
 {{- end -}}
 
 {{/*
-Generate basic labels
+Generate basic labels for the given component. Expects a list of the root
+context and the value of the app.kubernetes.io/component label.
 */}}
-{{- define "crossplane.labels" }}
-helm.sh/chart: {{ include "crossplane.chart" . }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/component: cloud-infrastructure-controller
-app.kubernetes.io/part-of: {{ template "crossplane.name" . }}
-app.kubernetes.io/name: {{ include "crossplane.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- define "crossplane.componentLabels" }}
+{{- $root := index . 0 }}
+helm.sh/chart: {{ include "crossplane.chart" $root }}
+app.kubernetes.io/managed-by: {{ $root.Release.Service }}
+app.kubernetes.io/component: {{ index . 1 }}
+app.kubernetes.io/part-of: {{ template "crossplane.name" $root }}
+app.kubernetes.io/name: {{ include "crossplane.name" $root }}
+app.kubernetes.io/instance: {{ $root.Release.Name }}
+{{- if $root.Chart.AppVersion }}
+app.kubernetes.io/version: {{ $root.Chart.AppVersion | quote }}
 {{- end }}
-{{- if .Values.customLabels }}
-{{ toYaml .Values.customLabels }}
+{{- if $root.Values.customLabels }}
+{{ toYaml $root.Values.customLabels }}
 {{- end }}
+{{- end }}
+
+{{/*
+Generate basic labels for the Crossplane core controller.
+*/}}
+{{- define "crossplane.labels" -}}
+{{ include "crossplane.componentLabels" (list . "cloud-infrastructure-controller") }}
+{{- end }}
+
+{{/*
+Generate basic labels for the RBAC manager.
+*/}}
+{{- define "crossplane.rbacManagerLabels" -}}
+{{ include "crossplane.componentLabels" (list . "rbac-manager") }}
 {{- end }}
