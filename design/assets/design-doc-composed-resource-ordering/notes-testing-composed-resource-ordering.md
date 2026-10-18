@@ -191,8 +191,8 @@ kubectl apply -f $M/create/composition-nested.yaml
 kubectl apply -f $M/xr.yaml
 ```
 
-Resources move from `blocked` to `creating` to `ready` a wave at a time. Each
-blocked resource says what it is waiting for. Resources with no dependencies
+Resources move from `pending` to `creating` to `ready` a wave at a time. Each
+pending resource says what it is waiting for. Resources with no dependencies
 are never held back.
 
 Afterwards, the creation timestamps make the waves exact:
@@ -319,7 +319,7 @@ long as the external resource exists, so every slow delete produces it.
 **crossplane-graph's readiness is a best-effort read.** It judges each composed
 resource by its own conditions, where Crossplane uses the function pipeline's
 verdict, which isn't persisted. The two can briefly disagree - a dependency
-shown ready while its dependent is still blocked on it - until the next
+shown ready while its dependent is still pending on it - until the next
 reconcile.
 
 ## Writing a function that declares dependencies
