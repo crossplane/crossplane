@@ -91,6 +91,10 @@ and their default values.
 | `leaderElection` | Enable [leader election](https://docs.crossplane.io/latest/guides/pods/#leader-election) for the Crossplane pod. | `true` |
 | `metrics.enabled` | Enable Prometheus path, port and scrape annotations and expose port 8080 for both the Crossplane and RBAC Manager pods. | `false` |
 | `metrics.port` | The port the metrics server listens on. | `""` |
+| `networkPolicy.additionalIngress` | Additional ingress rules to append to the NetworkPolicy. | `[]` |
+| `networkPolicy.enabled` | Create a NetworkPolicy that restricts ingress to the Crossplane and RBAC Manager pods. | `false` |
+| `networkPolicy.metricsIngressFrom` | Sources allowed to access the metrics port when metrics are enabled. An empty list blocks metrics ingress. | `[]` |
+| `networkPolicy.webhookIngressFrom` | Sources allowed to access the Crossplane webhook port. An empty list allows webhook traffic from all sources because Kubernetes API server source addresses vary by cluster and CNI. | `[]` |
 | `nodeSelector` | Add `nodeSelectors` to the Crossplane pod deployment. | `{}` |
 | `packageCache.configMap` | The name of a ConfigMap to use as the package cache. Disables the default package cache `emptyDir` Volume. | `""` |
 | `packageCache.medium` | Set to `Memory` to hold the package cache in a RAM backed file system. Useful for Crossplane development. | `""` |
@@ -127,13 +131,19 @@ and their default values.
 | `runtimeClassName` | The runtimeClassName name to apply to the Crossplane and RBAC Manager pods. | `""` |
 | `secrets.customAnnotations` | Add custom annotations to Crossplane Secret resources. | `{}` |
 | `securityContextCrossplane.allowPrivilegeEscalation` | Enable `allowPrivilegeEscalation` for the Crossplane pod. | `false` |
+| `securityContextCrossplane.capabilities.drop` | Drop all Linux capabilities from the Crossplane containers. | `["ALL"]` |
 | `securityContextCrossplane.readOnlyRootFilesystem` | Set the Crossplane pod root file system as read-only. | `true` |
 | `securityContextCrossplane.runAsGroup` | The group ID used by the Crossplane pod. | `65532` |
+| `securityContextCrossplane.runAsNonRoot` | Require the Crossplane containers to run as a non-root user. | `true` |
 | `securityContextCrossplane.runAsUser` | The user ID used by the Crossplane pod. | `65532` |
+| `securityContextCrossplane.seccompProfile.type` | Apply the default container runtime seccomp profile to the Crossplane containers. | `"RuntimeDefault"` |
 | `securityContextRBACManager.allowPrivilegeEscalation` | Enable `allowPrivilegeEscalation` for the RBAC Manager pod. | `false` |
+| `securityContextRBACManager.capabilities.drop` | Drop all Linux capabilities from the RBAC Manager containers. | `["ALL"]` |
 | `securityContextRBACManager.readOnlyRootFilesystem` | Set the RBAC Manager pod root file system as read-only. | `true` |
 | `securityContextRBACManager.runAsGroup` | The group ID used by the RBAC Manager pod. | `65532` |
+| `securityContextRBACManager.runAsNonRoot` | Require the RBAC Manager containers to run as a non-root user. | `true` |
 | `securityContextRBACManager.runAsUser` | The user ID used by the RBAC Manager pod. | `65532` |
+| `securityContextRBACManager.seccompProfile.type` | Apply the default container runtime seccomp profile to the RBAC Manager containers. | `"RuntimeDefault"` |
 | `service.customAnnotations` | Configure annotations on the service object. Only enabled when webhooks.enabled = true | `{}` |
 | `serviceAccount.create` | Specifies whether Crossplane ServiceAccount should be created | `true` |
 | `serviceAccount.customAnnotations` | Add custom `annotations` to the Crossplane ServiceAccount. | `{}` |
