@@ -25,7 +25,7 @@ spec:
     {{- if .Values.webhooks.enabled }}
     - ports:
         - protocol: TCP
-          port: {{ .Values.webhooks.port | default 9443 }}
+          port: webhooks
       {{- with .Values.networkPolicy.webhookIngressFrom }}
       from:
         {{- toYaml . | nindent 8 }}
@@ -34,7 +34,7 @@ spec:
     {{- if and .Values.metrics.enabled .Values.networkPolicy.metricsIngressFrom }}
     - ports:
         - protocol: TCP
-          port: {{ .Values.metrics.port | default 8080 }}
+          port: metrics
       from:
         {{- toYaml .Values.networkPolicy.metricsIngressFrom | nindent 8 }}
     {{- end }}
