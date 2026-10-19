@@ -78,7 +78,7 @@ func TestReconcile(t *testing.T) {
 									Pipeline: []v1alpha1.PipelineStep{
 										{
 											Step: "test-step",
-											FunctionRef: v1alpha1.FunctionReference{
+											FunctionRef: &v1alpha1.FunctionReference{
 												Name: "test-function",
 											},
 										},
@@ -115,7 +115,7 @@ func TestReconcile(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "test-step",
-										FunctionRef: v1alpha1.FunctionReference{
+										FunctionRef: &v1alpha1.FunctionReference{
 											Name: "test-function",
 										},
 									},
@@ -386,7 +386,7 @@ func TestReconcile(t *testing.T) {
 									Pipeline: []v1alpha1.PipelineStep{
 										{
 											Step: "test-step",
-											FunctionRef: v1alpha1.FunctionReference{
+											FunctionRef: &v1alpha1.FunctionReference{
 												Name: "test-function",
 											},
 										},
@@ -423,7 +423,7 @@ func TestReconcile(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "test-step",
-										FunctionRef: v1alpha1.FunctionReference{
+										FunctionRef: &v1alpha1.FunctionReference{
 											Name: "test-function",
 										},
 									},
@@ -678,7 +678,7 @@ func TestNewOperation(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "test-step",
-										FunctionRef: v1alpha1.FunctionReference{
+										FunctionRef: &v1alpha1.FunctionReference{
 											Name: "test-function",
 										},
 									},
@@ -731,7 +731,7 @@ func TestNewOperation(t *testing.T) {
 						Pipeline: []v1alpha1.PipelineStep{
 							{
 								Step: "test-step",
-								FunctionRef: v1alpha1.FunctionReference{
+								FunctionRef: &v1alpha1.FunctionReference{
 									Name: "test-function",
 								},
 								Requirements: &v1alpha1.FunctionRequirements{
@@ -766,7 +766,7 @@ func TestNewOperation(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "test-step",
-										FunctionRef: v1alpha1.FunctionReference{
+										FunctionRef: &v1alpha1.FunctionReference{
 											Name: "test-function",
 										},
 									},
@@ -815,7 +815,7 @@ func TestNewOperation(t *testing.T) {
 						Pipeline: []v1alpha1.PipelineStep{
 							{
 								Step: "test-step",
-								FunctionRef: v1alpha1.FunctionReference{
+								FunctionRef: &v1alpha1.FunctionReference{
 									Name: "test-function",
 								},
 								Requirements: &v1alpha1.FunctionRequirements{
@@ -849,7 +849,7 @@ func TestNewOperation(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "test-step",
-										FunctionRef: v1alpha1.FunctionReference{
+										FunctionRef: &v1alpha1.FunctionReference{
 											Name: "test-function",
 										},
 										Requirements: &v1alpha1.FunctionRequirements{
@@ -910,7 +910,7 @@ func TestNewOperation(t *testing.T) {
 						Pipeline: []v1alpha1.PipelineStep{
 							{
 								Step: "test-step",
-								FunctionRef: v1alpha1.FunctionReference{
+								FunctionRef: &v1alpha1.FunctionReference{
 									Name: "test-function",
 								},
 								Requirements: &v1alpha1.FunctionRequirements{
@@ -951,7 +951,7 @@ func TestNewOperation(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "test-step",
-										FunctionRef: v1alpha1.FunctionReference{
+										FunctionRef: &v1alpha1.FunctionReference{
 											Name: "test-function",
 										},
 									},
@@ -1004,7 +1004,7 @@ func TestNewOperation(t *testing.T) {
 						Pipeline: []v1alpha1.PipelineStep{
 							{
 								Step: "test-step",
-								FunctionRef: v1alpha1.FunctionReference{
+								FunctionRef: &v1alpha1.FunctionReference{
 									Name: "test-function",
 								},
 								Requirements: &v1alpha1.FunctionRequirements{

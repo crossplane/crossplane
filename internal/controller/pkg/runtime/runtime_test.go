@@ -963,7 +963,7 @@ func TestFunctionService(t *testing.T) {
 						Kind:       "Service",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      functionName,
+						Name:      functionRevisionName,
 						Namespace: namespace,
 						OwnerReferences: []metav1.OwnerReference{
 							{
