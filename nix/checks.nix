@@ -128,7 +128,41 @@ in
         nativeBuildInputs = [ pkgs.kubernetes-helm ];
       }
       ''
-        helm lint ${self}/cluster/charts/crossplane
+        chart=${self}/cluster/charts/crossplane
+        helm lint "$chart"
+
+        helm template crossplane "$chart" > "$TMPDIR/default.yaml"
+        test "$(grep -c 'runAsNonRoot: true' "$TMPDIR/default.yaml")" -eq 4
+        test "$(grep -c 'allowPrivilegeEscalation: false' "$TMPDIR/default.yaml")" -eq 4
+        test "$(grep -c 'readOnlyRootFilesystem: true' "$TMPDIR/default.yaml")" -eq 4
+        test "$(grep -c -- '- ALL' "$TMPDIR/default.yaml")" -eq 4
+        test "$(grep -c 'type: RuntimeDefault' "$TMPDIR/default.yaml")" -eq 4
+        if grep -q '^kind: NetworkPolicy$' "$TMPDIR/default.yaml"; then
+          echo "NetworkPolicy must be disabled by default"
+          exit 1
+        fi
+
+        cat > "$TMPDIR/security-values.yaml" <<EOF
+        webhooks:
+          port: 9444
+        metrics:
+          enabled: true
+        networkPolicy:
+          enabled: true
+          metricsIngressFrom:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: monitoring
+        EOF
+
+        helm template crossplane "$chart" \
+          --values "$TMPDIR/security-values.yaml" > "$TMPDIR/security.yaml"
+        grep -q '^kind: NetworkPolicy$' "$TMPDIR/security.yaml"
+        grep -q 'kubernetes.io/metadata.name: monitoring' "$TMPDIR/security.yaml"
+        grep -q 'value: "9444"' "$TMPDIR/security.yaml"
+        grep -q 'containerPort: 9444' "$TMPDIR/security.yaml"
+        grep -q 'targetPort: 9444' "$TMPDIR/security.yaml"
+
         mkdir -p $out
         touch $out/.lint-passed
       '';
