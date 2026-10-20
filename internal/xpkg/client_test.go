@@ -20,14 +20,17 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
+	"testing/iotest"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -1053,6 +1056,140 @@ func TestClientGet(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.pkg, got, PackageComparer()); diff != "" {
 				t.Errorf("\n%s\nGet(...): -want Package, +got Package:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+// truncatedLayer is a package layer whose stream fails with
+// io.ErrUnexpectedEOF after its content, like a download that dies partway.
+type truncatedLayer struct {
+	v1.Layer
+	content string
+}
+
+func (l *truncatedLayer) Uncompressed() (io.ReadCloser, error) {
+	return io.NopCloser(io.MultiReader(strings.NewReader(l.content), iotest.ErrReader(io.ErrUnexpectedEOF))), nil
+}
+
+func TestClientGetCachesOnlyCompletePackages(t *testing.T) {
+	providerMeta := `{"apiVersion":"meta.pkg.crossplane.io/v1","kind":"Provider","metadata":{"name":"provider-aws"}}`
+	crd := `{"apiVersion":"apiextensions.k8s.io/v1","kind":"CustomResourceDefinition","metadata":{"name":"%s.example.org"}}`
+	names := []string{"aaa", "bbb", "ccc", "ddd"}
+
+	docs := make([]string, 0, 1+len(names))
+	docs = append(docs, providerMeta)
+	for _, n := range names {
+		docs = append(docs, fmt.Sprintf(crd, n))
+	}
+	packageYAML := "---\n" + strings.Join(docs, "\n---\n") + "\n"
+	tarContent := CreateTarWithPackageYAML(packageYAML)
+
+	// The package.yaml body starts after the 512 byte tar header.
+	const tarHeaderSize = 512
+	docBoundary := tarHeaderSize + strings.Index(packageYAML, "\n---\n"+fmt.Sprintf(crd, "ccc")) + len("\n---\n")
+	midString := tarHeaderSize + strings.Index(packageYAML, `"ccc.exa`) + len(`"ccc.exa`)
+
+	image := func(layer v1.Layer) func(context.Context, name.Reference, ...string) (v1.Image, error) {
+		return func(_ context.Context, _ name.Reference, _ ...string) (v1.Image, error) {
+			return &MockImage{
+				MockManifest: func() (*v1.Manifest, error) {
+					return &v1.Manifest{
+						Layers: []v1.Descriptor{{
+							Annotations: map[string]string{AnnotationKey: PackageAnnotation},
+							Digest:      v1.Hash{Algorithm: "sha256", Hex: "layer123"},
+						}},
+					}, nil
+				},
+				MockLayerByDigest: func(_ v1.Hash) (v1.Layer, error) {
+					return layer, nil
+				},
+			}, nil
+		}
+	}
+
+	newClient := func(cache PackageCache, fetch func(context.Context, name.Reference, ...string) (v1.Image, error)) *CachedClient {
+		return &CachedClient{
+			fetcher: &MockFetcher{MockFetch: fetch},
+			parser:  NewTestParser(t),
+			cache:   cache,
+			config: &MockConfigStore{
+				MockRewritePath: func(_ context.Context, _ string) (string, string, error) {
+					return "", "", nil
+				},
+				MockPullSecretFor: func(_ context.Context, _ string) (string, string, error) {
+					return "", "", nil
+				},
+				MockImageVerificationConfigFor: func(_ context.Context, _ string) (string, *v1beta1.ImageVerification, error) {
+					return "", nil, nil
+				},
+			},
+		}
+	}
+
+	type args struct {
+		layer v1.Layer
+	}
+	type want struct {
+		fetchErr     error
+		cachedFiles  int
+		cacheHitErr  error
+		cacheObjects int
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"CompletePackage": {
+			reason: "A package that downloads and parses successfully should be cached in full.",
+			args:   args{layer: NewMockLayer(tarContent)},
+			want:   want{cachedFiles: 1, cacheObjects: len(names)},
+		},
+		"TruncatedAtDocumentBoundary": {
+			reason: "A download that fails between two YAML documents must not be cached, because the prefix is itself a valid YAML stream.",
+			args:   args{layer: &truncatedLayer{content: tarContent[:docBoundary]}},
+			want:   want{fetchErr: cmpopts.AnyError, cacheHitErr: cmpopts.AnyError},
+		},
+		"TruncatedMidString": {
+			reason: "A download that fails in the middle of a value must not be cached, because the prefix parses as a partial object.",
+			args:   args{layer: &truncatedLayer{content: tarContent[:midString]}},
+			want:   want{fetchErr: cmpopts.AnyError, cacheHitErr: cmpopts.AnyError},
+		},
+	}
+
+	for caseName, tc := range cases {
+		t.Run(caseName, func(t *testing.T) {
+			fs := afero.NewMemMapFs()
+			cache := NewFsPackageCache("/cache", fs)
+			ref := testSource + "@" + testDigest
+
+			_, err := newClient(cache, image(tc.args.layer)).Get(context.Background(), ref)
+			if diff := cmp.Diff(tc.want.fetchErr, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nGet(...) with fetch: -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			files, _ := afero.ReadDir(fs, "/cache")
+			if diff := cmp.Diff(tc.want.cachedFiles, len(files)); diff != "" {
+				t.Errorf("\n%s\nfiles in cache: -want, +got:\n%s", tc.reason, diff)
+			}
+
+			// With the registry unavailable, Get can only succeed from the cache.
+			unavailable := func(_ context.Context, _ name.Reference, _ ...string) (v1.Image, error) {
+				return nil, errors.New("registry unavailable")
+			}
+			got, err := newClient(cache, unavailable).Get(context.Background(), ref)
+			if diff := cmp.Diff(tc.want.cacheHitErr, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nGet(...) from cache: -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			objects := 0
+			if got != nil {
+				objects = len(got.GetObjects())
+			}
+			if diff := cmp.Diff(tc.want.cacheObjects, objects); diff != "" {
+				t.Errorf("\n%s\nGet(...) from cache: -want objects, +got objects:\n%s", tc.reason, diff)
 			}
 		})
 	}

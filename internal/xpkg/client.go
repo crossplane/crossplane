@@ -343,21 +343,29 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 	}
 
 	pipeR, pipeW := io.Pipe()
-	teeRC := TeeReadCloser(rc, pipeW)
-	defer teeRC.Close() //nolint:errcheck // Would only error if we called pipeW.CloseWithError()
+	stored := make(chan struct{})
 
 	go func() {
+		defer close(stored)
 		defer pipeR.Close() //nolint:errcheck // Only open for reading.
 		_ = c.cache.Store(cacheKey, pipeR)
 	}()
 
+	// The parser closes its reader even when parsing fails, so it must only
+	// close the package content. Closing the pipe there would end the cache
+	// write cleanly and cache whatever prefix was read before the failure.
 	pkg, err := c.parser.Parse(ctx, struct {
 		io.Reader
 		io.Closer
 	}{
-		Reader: io.LimitReader(teeRC, maxPackageSize),
-		Closer: teeRC,
+		Reader: io.LimitReader(io.TeeReader(rc, pipeW), maxPackageSize),
+		Closer: rc,
 	})
+
+	// Fail the cache write if parsing failed. A nil error closes it cleanly.
+	_ = pipeW.CloseWithError(err)
+	<-stored
+
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot parse package %s", resolvedRef)
 	}
