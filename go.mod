@@ -15,7 +15,7 @@ require (
 	github.com/google/go-containerregistry v0.22.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/afero v1.15.0
-	golang.org/x/sync v0.23.0
+	golang.org/x/sync v0.24.0
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
 	k8s.io/api v0.35.3
