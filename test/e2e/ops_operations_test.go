@@ -468,27 +468,94 @@ func TestOperationFieldManager(t *testing.T) {
 }
 
 func TestOperationFieldManagerValidation(t *testing.T) {
-	cases := map[string]struct {
+	type args struct {
 		manager *string
-		valid   bool
+	}
+
+	type want struct {
+		valid bool
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
 	}{
-		"Default":          {valid: true},
-		"ASCII":            {manager: new("ops.crossplane.io/test"), valid: true},
-		"Chinese":          {manager: new("\u4f60\u597d"), valid: true},
-		"Emoji":            {manager: new("🍔"), valid: true},
-		"CombiningMark":    {manager: new("e\u0301"), valid: true},
-		"Space":            {manager: new("field manager"), valid: true},
-		"ASCIIAtLimit":     {manager: new(strings.Repeat("a", 128)), valid: true},
-		"UnicodeAtLimit":   {manager: new(strings.Repeat("é", 64)), valid: true},
-		"Empty":            {manager: new("")},
-		"ASCIIOverLimit":   {manager: new(strings.Repeat("a", 129))},
-		"UnicodeOverLimit": {manager: new(strings.Repeat("é", 65))},
-		"Newline":          {manager: new("field\nmanager")},
-		"Tab":              {manager: new("field\tmanager")},
-		"Null":             {manager: new("field\x00manager")},
-		"Delete":           {manager: new("field\x7fmanager")},
-		"NonBreakingSpace": {manager: new("field\u00a0manager")},
-		"ZeroWidthSpace":   {manager: new("field\u200bmanager")},
+		"Default": {
+			reason: "An omitted field manager should be accepted.",
+			want:   want{valid: true},
+		},
+		"ASCII": {
+			reason: "A printable ASCII field manager should be accepted.",
+			args:   args{manager: new("ops.crossplane.io/test")},
+			want:   want{valid: true},
+		},
+		"Chinese": {
+			reason: "Printable Chinese characters should be accepted.",
+			args:   args{manager: new("\u4f60\u597d")},
+			want:   want{valid: true},
+		},
+		"Emoji": {
+			reason: "Printable emoji should be accepted.",
+			args:   args{manager: new("🍔")},
+			want:   want{valid: true},
+		},
+		"CombiningMark": {
+			reason: "Printable combining marks should be accepted.",
+			args:   args{manager: new("e\u0301")},
+			want:   want{valid: true},
+		},
+		"Space": {
+			reason: "An ASCII space should be accepted.",
+			args:   args{manager: new("field manager")},
+			want:   want{valid: true},
+		},
+		"ASCIIAtLimit": {
+			reason: "An ASCII field manager of exactly 128 bytes should be accepted.",
+			args:   args{manager: new(strings.Repeat("a", 128))},
+			want:   want{valid: true},
+		},
+		"UnicodeAtLimit": {
+			reason: "A Unicode field manager of exactly 128 bytes should be accepted.",
+			args:   args{manager: new(strings.Repeat("é", 64))},
+			want:   want{valid: true},
+		},
+		"Empty": {
+			reason: "An explicitly empty field manager should be rejected.",
+			args:   args{manager: new("")},
+		},
+		"ASCIIOverLimit": {
+			reason: "An ASCII field manager exceeding 128 bytes should be rejected.",
+			args:   args{manager: new(strings.Repeat("a", 129))},
+		},
+		"UnicodeOverLimit": {
+			reason: "A Unicode field manager exceeding 128 bytes should be rejected even with fewer than 128 characters.",
+			args:   args{manager: new(strings.Repeat("é", 65))},
+		},
+		"Newline": {
+			reason: "A newline is not printable and should be rejected.",
+			args:   args{manager: new("field\nmanager")},
+		},
+		"Tab": {
+			reason: "A tab is not printable and should be rejected.",
+			args:   args{manager: new("field\tmanager")},
+		},
+		"Null": {
+			reason: "A null character is not printable and should be rejected.",
+			args:   args{manager: new("field\x00manager")},
+		},
+		"Delete": {
+			reason: "A delete character is not printable and should be rejected.",
+			args:   args{manager: new("field\x7fmanager")},
+		},
+		"NonBreakingSpace": {
+			reason: "A non-breaking space is not printable under Kubernetes field-manager rules.",
+			args:   args{manager: new("field\u00a0manager")},
+		},
+		"ZeroWidthSpace": {
+			reason: "A zero-width space is not printable and should be rejected.",
+			args:   args{manager: new("field\u200bmanager")},
+		},
 	}
 
 	environment.Test(t,
@@ -508,8 +575,8 @@ func TestOperationFieldManagerValidation(t *testing.T) {
 									"step": "test", "functionRef": map[string]any{"name": "function-test"},
 								}},
 							}
-							if tc.manager != nil {
-								op["fieldManager"] = *tc.manager
+							if tc.args.manager != nil {
+								op["fieldManager"] = *tc.args.manager
 							}
 							spec := op
 							switch kind {
@@ -529,14 +596,14 @@ func TestOperationFieldManagerValidation(t *testing.T) {
 							err := c.Client().Resources().Create(ctx, o, func(opts *metav1.CreateOptions) {
 								opts.DryRun = []string{metav1.DryRunAll}
 							})
-							if tc.valid {
+							if tc.want.valid {
 								if err != nil {
-									t.Errorf("cannot admit valid field manager: %v", err)
+									t.Errorf("%s\ncannot admit valid field manager: %v", tc.reason, err)
 								}
 								return
 							}
 							if !apierrors.IsInvalid(err) || !strings.Contains(err.Error(), "fieldManager") {
-								t.Errorf("want fieldManager validation error, got: %v", err)
+								t.Errorf("%s\nwant fieldManager validation error, got: %v", tc.reason, err)
 							}
 						})
 					}

@@ -893,19 +893,27 @@ func TestReconcile(t *testing.T) {
 }
 
 func TestReconcileFieldManager(t *testing.T) {
-	cases := map[string]struct {
-		reason       string
+	type args struct {
 		fieldManager *string
-		want         string
+	}
+
+	type want struct {
+		fieldManager string
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
 	}{
 		"Default": {
 			reason: "An Operation without a field manager should use its UID.",
-			want:   FieldOwnerPrefix + "test-uid",
+			want:   want{fieldManager: FieldOwnerPrefix + "test-uid"},
 		},
 		"Explicit": {
-			reason:       "An Operation should use its configured field manager.",
-			fieldManager: new("ops.crossplane.io/watchoperation/test-watch"),
-			want:         "ops.crossplane.io/watchoperation/test-watch",
+			reason: "An Operation should use its configured field manager.",
+			args:   args{fieldManager: new("ops.crossplane.io/watchoperation/test-watch")},
+			want:   want{fieldManager: "ops.crossplane.io/watchoperation/test-watch"},
 		},
 	}
 
@@ -917,7 +925,7 @@ func TestReconcileFieldManager(t *testing.T) {
 					switch obj := obj.(type) {
 					case *v1alpha1.Operation:
 						obj.SetUID("test-uid")
-						obj.Spec.FieldManager = tc.fieldManager
+						obj.Spec.FieldManager = tc.args.fieldManager
 						obj.Spec.Pipeline = []v1alpha1.PipelineStep{{Step: "apply", FunctionRef: &v1alpha1.FunctionReference{Name: "function-test"}}}
 					case *pkgv1.Function:
 						obj.SetUID("function-uid")
@@ -946,7 +954,7 @@ func TestReconcileFieldManager(t *testing.T) {
 					}
 					got := &client.PatchOptions{}
 					got.ApplyOptions(opts)
-					want := &client.PatchOptions{FieldManager: tc.want, Force: new(true)}
+					want := &client.PatchOptions{FieldManager: tc.want.fieldManager, Force: new(true)}
 					if diff := cmp.Diff(want, got); diff != "" {
 						t.Errorf("%s\nPatch options: -want, +got:\n%s", tc.reason, diff)
 					}
