@@ -79,33 +79,48 @@ func (c *FsPackageCache) Get(id string) (io.ReadCloser, error) {
 	return GzipReadCloser(f)
 }
 
-// Store saves the package contents to the cache.
-func (c *FsPackageCache) Store(id string, content io.ReadCloser) error {
+// Store saves the package contents to the cache. The contents are written to
+// a temporary file that is renamed into place only once they have been
+// written in full, so the cache never holds a partially written package.
+func (c *FsPackageCache) Store(id string, content io.ReadCloser) (err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	cf, err := c.fs.Create(BuildPath(c.dir, id, cacheContentExt))
+	path := BuildPath(c.dir, id, cacheContentExt)
+	tmp := path + ".tmp"
+
+	cf, err := c.fs.Create(tmp)
 	if err != nil {
 		return err
 	}
-	defer cf.Close() //nolint:errcheck // Error is checked in the happy path.
+	defer func() {
+		if err != nil {
+			_ = cf.Close()
+			_ = c.fs.Remove(tmp)
+		}
+	}()
 
 	w, err := gzip.NewWriterLevel(cf, gzip.BestSpeed)
 	if err != nil {
 		return err
 	}
 
-	_, err = io.Copy(w, content)
-	if err != nil {
+	if _, err = io.Copy(w, content); err != nil {
 		return err
 	}
 	// NOTE(hasheddan): gzip writer must be closed to ensure all data is flushed
 	// to file.
-	if err := w.Close(); err != nil {
+	if err = w.Close(); err != nil {
+		return err
+	}
+	if err = cf.Sync(); err != nil {
+		return err
+	}
+	if err = cf.Close(); err != nil {
 		return err
 	}
 
-	return cf.Close()
+	return c.fs.Rename(tmp, path)
 }
 
 // Delete removes package contents from the cache.

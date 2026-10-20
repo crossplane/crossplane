@@ -21,12 +21,16 @@ import (
 	"compress/gzip"
 	"io"
 	"os"
+	"strings"
 	"syscall"
 	"testing"
+	"testing/iotest"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/afero"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
@@ -142,40 +146,69 @@ func TestGet(t *testing.T) {
 }
 
 func TestStore(t *testing.T) {
-	fs := afero.NewMemMapFs()
+	errBoom := errors.New("boom")
 
 	type args struct {
-		cache PackageCache
-		id    string
+		cache   func(fs afero.Fs) PackageCache
+		id      string
+		content io.Reader
+	}
+	type want struct {
+		err   error
+		files []string
 	}
 
 	cases := map[string]struct {
 		reason string
 		args   args
-		want   error
+		want   want
 	}{
 		"Success": {
 			reason: "Should not return an error if package is created at path.",
 			args: args{
-				cache: NewFsPackageCache("/cache", fs),
-				id:    "exists-1234567",
+				cache:   func(fs afero.Fs) PackageCache { return NewFsPackageCache("/cache", fs) },
+				id:      "exists-1234567",
+				content: new(bytes.Buffer),
 			},
+			want: want{files: []string{"exists-1234567.gz"}},
 		},
 		"ErrFailedCreate": {
 			reason: "Should return an error if file creation fails.",
 			args: args{
-				cache: NewFsPackageCache("/cache", afero.NewReadOnlyFs(fs)),
-				id:    "exists-1234567",
+				cache:   func(fs afero.Fs) PackageCache { return NewFsPackageCache("/cache", afero.NewReadOnlyFs(fs)) },
+				id:      "exists-1234567",
+				content: new(bytes.Buffer),
 			},
-			want: syscall.EPERM,
+			want: want{err: syscall.EPERM},
+		},
+		"ErrFailedReadLeavesNoFile": {
+			reason: "Should return an error and leave nothing in the cache if reading the content fails partway.",
+			args: args{
+				cache:   func(fs afero.Fs) PackageCache { return NewFsPackageCache("/cache", fs) },
+				id:      "partial-1234567",
+				content: io.MultiReader(strings.NewReader("partial content"), iotest.ErrReader(errBoom)),
+			},
+			want: want{err: errBoom},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := tc.args.cache.Store(tc.args.id, io.NopCloser(new(bytes.Buffer)))
-			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
+			fs := afero.NewMemMapFs()
+			_ = fs.Mkdir("/cache", 0o755)
+
+			err := tc.args.cache(fs).Store(tc.args.id, io.NopCloser(tc.args.content))
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nStore(...): -want err, +got err:\n%s", tc.reason, diff)
+			}
+
+			infos, _ := afero.ReadDir(fs, "/cache")
+			files := make([]string, 0, len(infos))
+			for _, fi := range infos {
+				files = append(files, fi.Name())
+			}
+			if diff := cmp.Diff(tc.want.files, files, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("\n%s\nStore(...): -want files in cache, +got files in cache:\n%s", tc.reason, diff)
 			}
 		})
 	}
