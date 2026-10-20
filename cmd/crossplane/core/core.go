@@ -386,8 +386,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		},
 
 		// Only the informer garbage collector and the OpenAPI discovery
-		// cache invalidation read CRDs from this cache. Neither needs the
-		// OpenAPI schemas, which are most of a CRD's size.
+		// cache invalidation read CRDs from this cache.
+		// Neither needs the OpenAPI schemas, which are most of a CRD's size.
 		ByObject: map[client.Object]cache.ByObject{
 			&extv1.CustomResourceDefinition{}: {Transform: customresourcesgate.TransformStripCRDSchema},
 		},
