@@ -1014,6 +1014,127 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: 30 * time.Second},
 			},
 		},
+		"SuccessfulDeleteWhenUsingBeingDeletedInForeground": {
+			reason: "We should not wait for a using resource that owns the usage and is being deleted in the foreground, because it cannot disappear until the usage does.",
+			args: args{
+				mgr: &fake.Manager{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*v1beta1.Usage); ok {
+									o.SetDeletionTimestamp(&now)
+									o.SetUID("usage-uid")
+									o.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "some-composite"})
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
+									o.Spec.By = &v1beta1.Resource{
+										APIVersion:  "v1",
+										Kind:        "AnotherKind",
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
+									}
+									// The usage is owned by the using resource.
+									o.SetOwnerReferences([]metav1.OwnerReference{{
+										APIVersion: "v1",
+										Kind:       "AnotherKind",
+										Name:       usingName,
+										UID:        "using-uid",
+										Controller: new(true),
+									}})
+									return nil
+								}
+								if o, ok := obj.(*composed.Unstructured); ok {
+									if o.GetName() == usingName {
+										// The using resource is being deleted in the foreground.
+										o.SetDeletionTimestamp(&now)
+										o.SetUID("using-uid")
+										return nil
+									}
+									o.SetLabels(map[string]string{inUseLabelKey: "true"})
+									return nil
+								}
+								return errors.New("unexpected object type")
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*composed.Unstructured); ok {
+									if o.GetLabels()[inUseLabelKey] != "" {
+										t.Errorf("expected in use label to be removed")
+									}
+									return nil
+								}
+								return errors.New("unexpected object type")
+							}),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"SuccessfulWaitWhenUsingBeingDeletedButNotOwner": {
+			reason: "We should keep waiting if the using resource is being deleted but does not own the usage, since it can still disappear on its own.",
+			args: args{
+				mgr: &fake.Manager{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*v1beta1.Usage); ok {
+									o.SetDeletionTimestamp(&now)
+									o.SetUID("usage-uid")
+									o.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "some-composite"})
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
+									o.Spec.By = &v1beta1.Resource{
+										APIVersion:  "v1",
+										Kind:        "AnotherKind",
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
+									}
+									return nil
+								}
+								if o, ok := obj.(*composed.Unstructured); ok {
+									if o.GetName() == usingName {
+										o.SetDeletionTimestamp(&now)
+										o.SetUID("using-uid")
+										return nil
+									}
+									o.SetLabels(map[string]string{inUseLabelKey: "true"})
+									return nil
+								}
+								return errors.New("unexpected object type")
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: 30 * time.Second},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
