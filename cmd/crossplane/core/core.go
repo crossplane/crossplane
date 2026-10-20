@@ -29,6 +29,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
@@ -51,6 +52,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/customresourcesgate"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/parser"
@@ -381,6 +383,13 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 				return
 			}
 			log.Debug("Watch error - probably due to CRD being uninstalled", "error", err)
+		},
+
+		// Only the informer garbage collector and the OpenAPI discovery
+		// cache invalidation read CRDs from this cache. Neither needs the
+		// OpenAPI schemas, which are most of a CRD's size.
+		ByObject: map[client.Object]cache.ByObject{
+			&extv1.CustomResourceDefinition{}: {Transform: customresourcesgate.TransformStripCRDSchema},
 		},
 	}
 
