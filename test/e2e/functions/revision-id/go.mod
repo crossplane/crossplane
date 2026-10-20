@@ -3,7 +3,7 @@ module github.com/crossplane/crossplane/test/e2e/functions/revision-id
 go 1.26.7
 
 require (
-	github.com/alecthomas/kong v1.6.0
+	github.com/alecthomas/kong v1.16.1
 	github.com/crossplane/function-sdk-go v0.5.0
 	k8s.io/apimachinery v0.33.0
 )
