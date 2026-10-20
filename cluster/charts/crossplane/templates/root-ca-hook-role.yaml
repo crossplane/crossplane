@@ -1,0 +1,21 @@
+{{- if .Values.rootCA.manageLifecycle }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ template "crossplane.name" . }}-root-ca-hook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,pre-delete
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    # The hook jobs operate on the three known Secret names by name; no list
+    # is required. `get` is used to check existence, `create` to place a
+    # placeholder, and `delete` for the pre-delete cleanup job.
+    verbs: ["get", "create", "delete"]
+{{- end }}
