@@ -19,6 +19,8 @@ package roles
 import (
 	"context"
 	"io"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -29,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -142,6 +145,26 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errListPRs),
 			},
 		},
+		"ListOwnedResourcesError": {
+			reason: "We should return an error encountered listing the CRDs owned by the ProviderRevision.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								o.(*v1.ProviderRevision).SetName("provider-revision")
+								return nil
+							}),
+							MockList: test.NewMockListFn(errBoom),
+						},
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errBoom, "cannot list CustomResourceDefinitions for ProviderRevision %q", "provider-revision"),
+			},
+		},
 		"ApplyClusterRoleError": {
 			reason: "We should return an error encountered applying a ClusterRole.",
 			args: args{
@@ -204,7 +227,12 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
-								l := o.(*v1.ProviderRevisionList)
+								// ownedResources also lists CRDs and MRDs; only
+								// populate the ProviderRevision family list here.
+								l, ok := o.(*v1.ProviderRevisionList)
+								if !ok {
+									return nil
+								}
 								l.Items = []v1.ProviderRevision{
 									{
 										ObjectMeta: metav1.ObjectMeta{UID: familyUID},
@@ -272,6 +300,166 @@ func TestReconcile(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+// clusterRoleGrants reports whether the ClusterRole grants any verb on the
+// supplied API group and resource.
+func clusterRoleGrants(cr rbacv1.ClusterRole, group, plural string) bool {
+	for _, rule := range cr.Rules {
+		if slices.Contains(rule.APIGroups, group) && slices.Contains(rule.Resources, plural) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// TestReconcileGrantsOwnedResources covers the case where a ProviderRevision's
+// status.objectRefs is incomplete - e.g. lost after a backup/restore, or not yet
+// updated after a managed resource was established. The provider's system
+// ClusterRole must still grant access to the CRDs and MRDs the revision controls
+// (derived from the live API server), otherwise the provider crashes for lack of
+// RBAC on resources it runs controllers for.
+func TestReconcileGrantsOwnedResources(t *testing.T) {
+	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
+	prUID := types.UID("provider-revision-uid")
+
+	// ownedBy points a resource's controller reference at our ProviderRevision.
+	ownedBy := []metav1.OwnerReference{{
+		APIVersion: "pkg.crossplane.io/v1",
+		Kind:       "ProviderRevision",
+		Name:       "provider-revision",
+		UID:        prUID,
+		Controller: ptr.To(true),
+	}}
+
+	// getProviderRevision returns a Get that populates our ProviderRevision with
+	// the supplied references in its status.objectRefs.
+	getProviderRevision := func(refs ...xpv2.TypedReference) test.MockGetFn {
+		return test.NewMockGetFn(nil, func(o client.Object) error {
+			pr := o.(*v1.ProviderRevision)
+			pr.SetName("provider-revision")
+			pr.SetUID(prUID)
+			pr.Status.ObjectRefs = refs
+			return nil
+		})
+	}
+
+	// listOwned returns a List that returns the supplied CRD and MRD metadata.
+	// ownedResources lists CRDs and MRDs as metadata only, so both calls arrive
+	// as PartialObjectMetadataLists distinguished by their kind.
+	listOwned := func(crds, mrds []metav1.PartialObjectMetadata) test.MockListFn {
+		return test.NewMockListFn(nil, func(o client.ObjectList) error {
+			l, ok := o.(*metav1.PartialObjectMetadataList)
+			if !ok {
+				return nil
+			}
+			switch l.GetObjectKind().GroupVersionKind().Kind {
+			case "CustomResourceDefinitionList":
+				l.Items = crds
+			case "ManagedResourceDefinitionList":
+				l.Items = mrds
+			}
+			return nil
+		})
+	}
+
+	type args struct {
+		client client.Client
+	}
+
+	type want struct {
+		// grants maps a "group/plural" resource to whether the provider's system
+		// ClusterRole should grant access to it.
+		grants map[string]bool
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"OwnedResourcesAbsentFromObjectRefs": {
+			reason: "Resources the revision owns must be granted even when status.objectRefs is empty, and resources it doesn't own must not be.",
+			args: args{
+				client: &test.MockClient{
+					MockGet: getProviderRevision(),
+					MockList: listOwned(
+						[]metav1.PartialObjectMetadata{
+							{ObjectMeta: metav1.ObjectMeta{Name: "policies.rbac.example.org", OwnerReferences: ownedBy}},
+							// Not controlled by our revision - must be ignored.
+							{ObjectMeta: metav1.ObjectMeta{Name: "widgets.unowned.example.org"}},
+						},
+						[]metav1.PartialObjectMetadata{
+							{ObjectMeta: metav1.ObjectMeta{Name: "tests.synthetic.example.org", OwnerReferences: ownedBy}},
+						},
+					),
+				},
+			},
+			want: want{
+				grants: map[string]bool{
+					"rbac.example.org/policies":   true,
+					"synthetic.example.org/tests": true,
+					"unowned.example.org/widgets": false,
+				},
+			},
+		},
+		"UnionOfObjectRefsAndOwnedResources": {
+			reason: "Resources from status.objectRefs and owned resources must both be granted.",
+			args: args{
+				client: &test.MockClient{
+					MockGet: getProviderRevision(xpv2.TypedReference{
+						APIVersion: extv1.SchemeGroupVersion.String(),
+						Kind:       "CustomResourceDefinition",
+						Name:       "monitors.alerting.example.org",
+					}),
+					MockList: listOwned(
+						[]metav1.PartialObjectMetadata{
+							{ObjectMeta: metav1.ObjectMeta{Name: "policies.rbac.example.org", OwnerReferences: ownedBy}},
+						},
+						nil,
+					),
+				},
+			},
+			want: want{
+				grants: map[string]bool{
+					"alerting.example.org/monitors": true,
+					"rbac.example.org/policies":     true,
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			applied := map[string]rbacv1.ClusterRole{}
+			ca := resource.ClientApplicator{
+				Client: tc.args.client,
+				Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
+					cr := o.(*rbacv1.ClusterRole)
+					applied[cr.GetName()] = *cr.DeepCopy()
+					return nil
+				}),
+			}
+
+			r := NewReconciler(&fake.Manager{}, WithClientApplicator(ca), WithLogger(testLog))
+			if _, err := r.Reconcile(context.Background(), reconcile.Request{}); err != nil {
+				t.Fatalf("%s\nr.Reconcile(...): unexpected error: %v", tc.reason, err)
+			}
+
+			system := applied[SystemClusterRoleName("provider-revision")]
+
+			got := make(map[string]bool, len(tc.want.grants))
+			for gr := range tc.want.grants {
+				group, plural, _ := strings.Cut(gr, "/")
+				got[gr] = clusterRoleGrants(system, group, plural)
+			}
+
+			if diff := cmp.Diff(tc.want.grants, got); diff != "" {
+				t.Errorf("%s\nr.Reconcile(...): -want grants, +got grants:\n%s", tc.reason, diff)
 			}
 		})
 	}
