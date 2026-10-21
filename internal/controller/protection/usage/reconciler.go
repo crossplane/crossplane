@@ -552,15 +552,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 // deleted with foreground propagation it cannot disappear until the Usage does.
 // Waiting for it to be deleted would never end, so treat it as gone once it has
 // a deletion timestamp, which lets the Usage finalizer be removed and the
-// cascade complete. Background deletion is unaffected: the owner reference does
-// not block the garbage collector in that case.
+// cascade complete. Background deletion is unaffected.
 func usingIsGone(using, uu client.Object) bool {
 	if using.GetDeletionTimestamp() == nil {
 		return false
 	}
 
+	if !slices.Contains(using.GetFinalizers(), metav1.FinalizerDeleteDependents) {
+		return false
+	}
+
 	return slices.ContainsFunc(uu.GetOwnerReferences(), func(owner metav1.OwnerReference) bool {
-		return owner.UID == using.GetUID() && ptr.Deref(owner.Controller, false)
+		return owner.UID == using.GetUID() && ptr.Deref(owner.Controller, false) && ptr.Deref(owner.BlockOwnerDeletion, false)
 	})
 }
 

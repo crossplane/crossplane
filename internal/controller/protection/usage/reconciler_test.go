@@ -1036,21 +1036,26 @@ func TestReconcile(t *testing.T) {
 										Kind:        "AnotherKind",
 										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
 									}
-									// The usage is owned by the using resource.
+									// The usage is owned by the using resource with
+									// blockOwnerDeletion, which is what makes the
+									// garbage collector block foreground deletion.
 									o.SetOwnerReferences([]metav1.OwnerReference{{
-										APIVersion: "v1",
-										Kind:       "AnotherKind",
-										Name:       usingName,
-										UID:        "using-uid",
-										Controller: new(true),
+										APIVersion:         "v1",
+										Kind:               "AnotherKind",
+										Name:               usingName,
+										UID:                "using-uid",
+										Controller:         new(true),
+										BlockOwnerDeletion: new(true),
 									}})
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
 									if o.GetName() == usingName {
-										// The using resource is being deleted in the foreground.
+										// The using resource is being deleted in the
+										// foreground.
 										o.SetDeletionTimestamp(&now)
 										o.SetUID("using-uid")
+										o.SetFinalizers([]string{metav1.FinalizerDeleteDependents})
 										return nil
 									}
 									o.SetLabels(map[string]string{inUseLabelKey: "true"})
@@ -1111,6 +1116,131 @@ func TestReconcile(t *testing.T) {
 									if o.GetName() == usingName {
 										o.SetDeletionTimestamp(&now)
 										o.SetUID("using-uid")
+										return nil
+									}
+									o.SetLabels(map[string]string{inUseLabelKey: "true"})
+									return nil
+								}
+								return errors.New("unexpected object type")
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: 30 * time.Second},
+			},
+		},
+		"SuccessfulWaitWhenUsingDeletedInBackground": {
+			reason: "We should keep waiting if the using resource is being deleted without foreground deletion, since an unrelated finalizer keeps it present and it can still disappear on its own.",
+			args: args{
+				mgr: &fake.Manager{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*v1beta1.Usage); ok {
+									o.SetDeletionTimestamp(&now)
+									o.SetUID("usage-uid")
+									o.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "some-composite"})
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
+									o.Spec.By = &v1beta1.Resource{
+										APIVersion:  "v1",
+										Kind:        "AnotherKind",
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
+									}
+									o.SetOwnerReferences([]metav1.OwnerReference{{
+										APIVersion:         "v1",
+										Kind:               "AnotherKind",
+										Name:               usingName,
+										UID:                "using-uid",
+										Controller:         new(true),
+										BlockOwnerDeletion: new(true),
+									}})
+									return nil
+								}
+								if o, ok := obj.(*composed.Unstructured); ok {
+									if o.GetName() == usingName {
+										// The using resource is being deleted in the
+										// background: it has a deletion timestamp, but no
+										// foregroundDeletion finalizer, and an unrelated
+										// finalizer keeps it present.
+										o.SetDeletionTimestamp(&now)
+										o.SetUID("using-uid")
+										o.SetFinalizers([]string{"some.example.com/unrelated"})
+										return nil
+									}
+									o.SetLabels(map[string]string{inUseLabelKey: "true"})
+									return nil
+								}
+								return errors.New("unexpected object type")
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: 30 * time.Second},
+			},
+		},
+		"SuccessfulWaitWhenUsingForegroundDeletedWithoutBlockOwnerDeletion": {
+			reason: "We should keep waiting if the using resource is being deleted in the foreground but its owner reference does not block owner deletion, since the garbage collector will not wait for this usage and the using resource can still disappear on its own.",
+			args: args{
+				mgr: &fake.Manager{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*v1beta1.Usage); ok {
+									o.SetDeletionTimestamp(&now)
+									o.SetUID("usage-uid")
+									o.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "some-composite"})
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
+									o.Spec.By = &v1beta1.Resource{
+										APIVersion:  "v1",
+										Kind:        "AnotherKind",
+										ResourceRef: &v1beta1.ResourceRef{Name: usingName},
+									}
+									o.SetOwnerReferences([]metav1.OwnerReference{{
+										APIVersion: "v1",
+										Kind:       "AnotherKind",
+										Name:       usingName,
+										UID:        "using-uid",
+										Controller: new(true),
+									}})
+									return nil
+								}
+								if o, ok := obj.(*composed.Unstructured); ok {
+									if o.GetName() == usingName {
+										o.SetDeletionTimestamp(&now)
+										o.SetUID("using-uid")
+										o.SetFinalizers([]string{metav1.FinalizerDeleteDependents})
 										return nil
 									}
 									o.SetLabels(map[string]string{inUseLabelKey: "true"})
