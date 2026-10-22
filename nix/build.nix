@@ -87,6 +87,14 @@ let
       nsswitch = pkgs.writeText "nsswitch.conf" ''
         hosts: files dns
       '';
+      # Distrust the roots behind the compromised eMudhra intermediates until
+      # nixpkgs ships an updated cacert. https://go.dev/issue/82345
+      cacert = pkgs.cacert.override {
+        blacklist = [
+          "Comodo AAA Services root"
+          "emSign ECC Root CA - G3"
+        ];
+      };
     in
     {
       name = "crossplane/crossplane";
@@ -96,7 +104,7 @@ let
 
       contents = [
         crossplaneBin
-        pkgs.cacert
+        cacert
         pkgs.tzdata
         pkgs.iana-etc
       ];
@@ -119,7 +127,7 @@ let
         User = "65532";
         Env = [
           "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-          "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-certificates.crt"
+          "SSL_CERT_FILE=${cacert}/etc/ssl/certs/ca-certificates.crt"
         ];
         Labels = {
           "org.opencontainers.image.source" = "https://github.com/crossplane/crossplane";
