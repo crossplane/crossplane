@@ -146,8 +146,8 @@ github.com/coreos/go-oidc/v3 v3.17.0/go.mod h1:wqPbKFrVnE90vty060SB40FCJ8fTHTxSw
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
 github.com/creack/pty v1.1.18/go.mod h1:MOBLtS5ELjhRRrroQr9kyvTxUAFNvYEK993ew/Vr4O4=
-github.com/crossplane/crossplane-runtime/v2 v2.4.2 h1:MXc37IyL7iyrQIxs0qrAtdOsy0mdQkxOMie4UVWSFQ4=
-github.com/crossplane/crossplane-runtime/v2 v2.4.2/go.mod h1:jDwOCwt+LMD6KXsnvvm1mNNiVqKZ2ZWZxuUnkxdkBPE=
+github.com/crossplane/crossplane-runtime/v2 v2.4.3 h1:L50ZZl5sePBAHw5nKUqgtwKhp4o7LDZ/19Fi5Ryn9Co=
+github.com/crossplane/crossplane-runtime/v2 v2.4.3/go.mod h1:XETDdRo3qbzYa1lOwJG11bQFgCKEs+PwJpwXzhXK9bI=
 github.com/cyberphone/json-canonicalization v0.0.0-20241213102144-19d51d7fe467 h1:uX1JmpONuD549D73r6cgnxyUu18Zb7yHAy5AYU0Pm4Q=
 github.com/cyberphone/json-canonicalization v0.0.0-20241213102144-19d51d7fe467/go.mod h1:uzvlm1mxhHkdfqitSA92i7Se+S9ksOn3a3qmv/kyOCw=
 github.com/danieljoos/wincred v1.2.3 h1:v7dZC2x32Ut3nEfRH+vhoZGvN72+dQ/snVXo/vMFLdQ=
