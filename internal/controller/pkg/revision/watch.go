@@ -48,6 +48,17 @@ func hasRewriteRules(ic *v1beta1.ImageConfig) bool {
 	return ic.Spec.RewriteImage != nil
 }
 
+// hasRuntimeConfig returns true if the ImageConfig references a runtime config.
+func hasRuntimeConfig(ic *v1beta1.ImageConfig) bool {
+	if ic.Spec.Runtime == nil {
+		return false
+	}
+	if ic.Spec.Runtime.ConfigReference == nil {
+		return false
+	}
+	return ic.Spec.Runtime.ConfigReference.Name != ""
+}
+
 // EnqueuePackageRevisionsForImageConfig enqueues a reconcile for all package
 // revisions an ImageConfig applies to.
 func EnqueuePackageRevisionsForImageConfig(kube client.Client, l v1.PackageRevisionList, log logging.Logger) handler.EventHandler {
@@ -56,8 +67,9 @@ func EnqueuePackageRevisionsForImageConfig(kube client.Client, l v1.PackageRevis
 		if !ok {
 			return nil
 		}
-		// We only care about ImageConfigs that have a pull secret or rewrite rules.
-		if !hasPullSecret(ic) && !hasRewriteRules(ic) {
+		// We only care about ImageConfigs that have a pull secret, rewrite
+		// rules, or a runtime config.
+		if !hasPullSecret(ic) && !hasRewriteRules(ic) && !hasRuntimeConfig(ic) {
 			return nil
 		}
 		// Enqueue all package revisions matching the prefixes in the ImageConfig.
