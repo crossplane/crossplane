@@ -38,65 +38,117 @@ import (
 var _ FunctionRunner = &FetchingFunctionRunner{}
 
 func TestExistingRequiredResourcesFetcherKinds(t *testing.T) {
-	for _, kind := range []string{"Foo", "ManagedPrefixList"} {
-		for _, match := range []string{"All", "Labels", "Name"} {
-			t.Run(kind+match, func(t *testing.T) {
-				rs := &fnv1.ResourceSelector{
-					ApiVersion: "test.crossplane.io/v1",
-					Kind:       kind,
-					Namespace:  new("default"),
-				}
-				switch match {
-				case "Labels":
-					rs.Match = &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"app": "test"}}}
-				case "Name":
-					rs.Match = &fnv1.ResourceSelector_MatchName{MatchName: "required"}
-				}
-
-				called := false
-				c := &test.MockClient{
-					MockList: func(_ context.Context, list client.ObjectList, opts ...client.ListOption) error {
-						called = true
-						if match == "Name" {
-							t.Fatal("List called for a name selector")
-						}
-						want := schema.GroupVersionKind{Group: "test.crossplane.io", Version: "v1", Kind: kind + "List"}
-						if diff := cmp.Diff(want, list.GetObjectKind().GroupVersionKind()); diff != "" {
-							t.Errorf("List GVK: -want, +got:\n%s", diff)
-						}
-						options := &client.ListOptions{}
-						options.ApplyOptions(opts)
-						if options.Namespace != "default" {
-							t.Errorf("List namespace: want default, got %q", options.Namespace)
-						}
-						if match == "Labels" && (options.LabelSelector == nil || options.LabelSelector.String() != "app=test") {
-							t.Errorf("List labels: want app=test, got %v", options.LabelSelector)
-						}
-						return nil
-					},
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-						called = true
-						if match != "Name" {
-							t.Fatal("Get called for a list selector")
-						}
-						want := schema.GroupVersionKind{Group: "test.crossplane.io", Version: "v1", Kind: kind}
-						if diff := cmp.Diff(want, obj.GetObjectKind().GroupVersionKind()); diff != "" {
-							t.Errorf("Get GVK: -want, +got:\n%s", diff)
-						}
-						if diff := cmp.Diff((client.ObjectKey{Namespace: "default", Name: "required"}), key); diff != "" {
-							t.Errorf("Get key: -want, +got:\n%s", diff)
-						}
-						return nil
-					},
-				}
-				if _, err := NewExistingRequiredResourcesFetcher(c).Fetch(context.Background(), rs); err != nil {
-					t.Fatalf("Fetch(...): %v", err)
-				}
-				if !called {
-					t.Error("Fetch did not call the client")
-				}
-			})
-		}
+	type args struct {
+		selector *fnv1.ResourceSelector
+	}
+	type want struct {
+		call      string
+		gvk       schema.GroupVersionKind
+		namespace string
+		labels    string
+		key       client.ObjectKey
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"FooAll": {
+			reason: "List selectors should append a suffix without removing any part of the item kind.",
+			args: args{selector: &fnv1.ResourceSelector{
+				ApiVersion: "test.crossplane.io/v1", Kind: "Foo", Namespace: new("default"),
+			}},
+			want: want{
+				call:      "List",
+				gvk:       schema.GroupVersionKind{Group: "test.crossplane.io", Version: "v1", Kind: "FooList"},
+				namespace: "default",
+			},
+		},
+		"FooLabels": {
+			reason: "List selectors should append a suffix without removing any part of the item kind.",
+			args: args{selector: &fnv1.ResourceSelector{
+				ApiVersion: "test.crossplane.io/v1", Kind: "Foo", Namespace: new("default"),
+				Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"app": "test"}}},
+			}},
+			want: want{
+				call:      "List",
+				gvk:       schema.GroupVersionKind{Group: "test.crossplane.io", Version: "v1", Kind: "FooList"},
+				namespace: "default", labels: "app=test",
+			},
+		},
+		"FooName": {
+			reason: "Name selectors should fetch the original item kind.",
+			args: args{selector: &fnv1.ResourceSelector{
+				ApiVersion: "test.crossplane.io/v1", Kind: "Foo", Namespace: new("default"),
+				Match: &fnv1.ResourceSelector_MatchName{MatchName: "required"},
+			}},
+			want: want{
+				call: "Get",
+				gvk:  schema.GroupVersionKind{Group: "test.crossplane.io", Version: "v1", Kind: "Foo"},
+				key:  client.ObjectKey{Namespace: "default", Name: "required"},
+			},
+		},
+		"ManagedPrefixListAll": {
+			reason: "List selectors should append a suffix without removing any part of the item kind.",
+			args: args{selector: &fnv1.ResourceSelector{
+				ApiVersion: "test.crossplane.io/v1", Kind: "ManagedPrefixList", Namespace: new("default"),
+			}},
+			want: want{
+				call:      "List",
+				gvk:       schema.GroupVersionKind{Group: "test.crossplane.io", Version: "v1", Kind: "ManagedPrefixListList"},
+				namespace: "default",
+			},
+		},
+		"ManagedPrefixListLabels": {
+			reason: "List selectors should append a suffix without removing any part of the item kind.",
+			args: args{selector: &fnv1.ResourceSelector{
+				ApiVersion: "test.crossplane.io/v1", Kind: "ManagedPrefixList", Namespace: new("default"),
+				Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"app": "test"}}},
+			}},
+			want: want{
+				call:      "List",
+				gvk:       schema.GroupVersionKind{Group: "test.crossplane.io", Version: "v1", Kind: "ManagedPrefixListList"},
+				namespace: "default", labels: "app=test",
+			},
+		},
+		"ManagedPrefixListName": {
+			reason: "Name selectors should fetch the original item kind.",
+			args: args{selector: &fnv1.ResourceSelector{
+				ApiVersion: "test.crossplane.io/v1", Kind: "ManagedPrefixList", Namespace: new("default"),
+				Match: &fnv1.ResourceSelector_MatchName{MatchName: "required"},
+			}},
+			want: want{
+				call: "Get",
+				gvk:  schema.GroupVersionKind{Group: "test.crossplane.io", Version: "v1", Kind: "ManagedPrefixList"},
+				key:  client.ObjectKey{Namespace: "default", Name: "required"},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := want{}
+			c := &test.MockClient{
+				MockList: func(_ context.Context, list client.ObjectList, opts ...client.ListOption) error {
+					options := &client.ListOptions{}
+					options.ApplyOptions(opts)
+					got = want{call: "List", gvk: list.GetObjectKind().GroupVersionKind(), namespace: options.Namespace}
+					if options.LabelSelector != nil {
+						got.labels = options.LabelSelector.String()
+					}
+					return nil
+				},
+				MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					got = want{call: "Get", gvk: obj.GetObjectKind().GroupVersionKind(), key: key}
+					return nil
+				},
+			}
+			if _, err := NewExistingRequiredResourcesFetcher(c).Fetch(context.Background(), tc.args.selector); err != nil {
+				t.Fatalf("%s\nFetch(...): %v", tc.reason, err)
+			}
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(want{})); diff != "" {
+				t.Errorf("%s\nFetch client call: -want, +got:\n%s", tc.reason, diff)
+			}
+		})
 	}
 }
 

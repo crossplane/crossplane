@@ -62,34 +62,40 @@ func TestRequiredResourcesFetcherListKind(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cases := map[string]struct {
+	type args struct {
 		selector *fnv1.ResourceSelector
-		want     *fnv1.Resources
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   *fnv1.Resources
 	}{
 		"MatchAll": {
-			selector: &fnv1.ResourceSelector{ApiVersion: "test.crossplane.io/v1", Kind: "WidgetList", Namespace: new("default")},
+			reason: "Match-all selectors should return only the requested kind and namespace.",
+			args:   args{selector: &fnv1.ResourceSelector{ApiVersion: "test.crossplane.io/v1", Kind: "WidgetList", Namespace: new("default")}},
 			want: &fnv1.Resources{Items: []*fnv1.Resource{
 				{Resource: requiredStruct},
 				{Resource: unlabeledStruct},
 			}},
 		},
 		"MatchLabels": {
-			selector: &fnv1.ResourceSelector{
+			reason: "Label selectors should return only the requested kind, namespace, and labels.",
+			args: args{selector: &fnv1.ResourceSelector{
 				ApiVersion: "test.crossplane.io/v1", Kind: "WidgetList", Namespace: new("default"),
 				Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"app": "test"}}},
-			},
+			}},
 			want: &fnv1.Resources{Items: []*fnv1.Resource{{Resource: requiredStruct}}},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewInMemoryClient(runtime.NewScheme(), widget, required, otherNamespace, unlabeled)
-			got, err := xfn.NewExistingRequiredResourcesFetcher(c).Fetch(context.Background(), tc.selector)
+			got, err := xfn.NewExistingRequiredResourcesFetcher(c).Fetch(context.Background(), tc.args.selector)
 			if err != nil {
-				t.Fatalf("Fetch(...): %v", err)
+				t.Fatalf("%s\nFetch(...): %v", tc.reason, err)
 			}
 			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
-				t.Errorf("Fetch(...): -want, +got:\n%s", diff)
+				t.Errorf("%s\nFetch(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
