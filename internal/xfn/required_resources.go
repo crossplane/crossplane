@@ -237,7 +237,7 @@ func (e *ExistingRequiredResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.R
 	// match is specified, list all resources of this apiVersion and kind.
 	list := &kunstructured.UnstructuredList{}
 	list.SetAPIVersion(rs.GetApiVersion())
-	list.SetKind(rs.GetKind())
+	list.SetKind(rs.GetKind() + "List")
 
 	opts := []client.ListOption{client.InNamespace(rs.GetNamespace())}
 	if match, ok := rs.GetMatch().(*fnv1.ResourceSelector_MatchLabels); ok {
