@@ -29,6 +29,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
@@ -51,6 +52,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/customresourcesgate"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/xpkg/parser"
@@ -387,6 +389,18 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 				return
 			}
 			log.Debug("Watch error - probably due to CRD being uninstalled", "error", err)
+		},
+
+		// Strip the OpenAPI schemas (most of CRDs' size) from typed CRDs in this cache.
+		// Typed CRD readers, like the informer GC and the OpenAPI discovery cache invalidation,
+		// only need names and versions.
+		//
+		// Required resources and composed resources are read as unstructured,
+		// from a separate unstructured informer.
+		// The transform only strips typed CRDs, so a function that requires a
+		// CRD still gets its schemas.
+		ByObject: map[client.Object]cache.ByObject{
+			&extv1.CustomResourceDefinition{}: {Transform: customresourcesgate.TransformStripCRDSchema},
 		},
 	}
 
