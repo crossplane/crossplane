@@ -1,0 +1,13 @@
+apiVersion: example.org/v1alpha1
+kind: RevisionGC
+metadata:
+  namespace: default
+  name: revision-gc
+spec:
+  coolField: "I'm cool!"
+  crossplane:
+    compositionRef:
+      name: revision-gc
+    # Crossplane pins the XR to the latest revision when it's first reconciled,
+    # and never moves it.
+    compositionUpdatePolicy: Manual

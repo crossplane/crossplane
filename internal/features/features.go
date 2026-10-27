@@ -59,6 +59,11 @@ const (
 	// pipelines, using a pipeline step's function field rather than its
 	// functionRef.
 	EnableAlphaPipelineOCIReferences feature.Flag = "EnableAlphaPipelineOCIReferences"
+
+	// EnableAlphaCompositionRevisionGC enables alpha support for garbage
+	// collecting unused CompositionRevisions, according to each Composition's
+	// unusedRevisionHistoryLimit.
+	EnableAlphaCompositionRevisionGC feature.Flag = "EnableAlphaCompositionRevisionGC"
 )
 
 // Beta Feature Flags.

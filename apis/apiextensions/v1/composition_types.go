@@ -58,6 +58,18 @@ type CompositionSpec struct {
 	// this composition will be created.
 	// +optional
 	WriteConnectionSecretsToNamespace *string `json:"writeConnectionSecretsToNamespace,omitempty"`
+
+	// UnusedRevisionHistoryLimit controls how many unused CompositionRevisions
+	// Crossplane keeps. The latest revision and any revision in use by a
+	// composite resource are always kept and don't count toward the limit.
+	// The oldest unused revisions beyond this limit will be garbage collected.
+	// Defaults to 1. Set to 0 to keep every revision.
+	//
+	// Changing this field doesn't create a new CompositionRevision.
+	// +optional
+	// +kubebuilder:default=1
+	// +kubebuilder:validation:Minimum=0
+	UnusedRevisionHistoryLimit *int64 `json:"unusedRevisionHistoryLimit,omitempty"`
 }
 
 // +kubebuilder:object:root=true
