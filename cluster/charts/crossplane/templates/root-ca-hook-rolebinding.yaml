@@ -1,0 +1,22 @@
+{{- if .Values.rootCA.manageLifecycle }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ template "crossplane.name" . }}-root-ca-hook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,pre-delete
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+subjects:
+  - kind: ServiceAccount
+    name: {{ template "crossplane.name" . }}-root-ca-hook
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ template "crossplane.name" . }}-root-ca-hook
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
