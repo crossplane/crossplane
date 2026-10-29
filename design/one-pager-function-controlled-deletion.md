@@ -116,6 +116,10 @@ anything to Crossplane.
 The schema doesn't default the field. Leaving it unset means `Background`, so
 existing Compositions keep their hash and don't produce new revisions.
 
+Legacy cluster scoped XRs (`spec.scope: LegacyCluster`) are out of scope. They
+always use `Background`. Their claims already offer foreground deletion through
+`compositeDeletePolicy`.
+
 ### Decision Logic on XR Deletion
 
 When the XR has a `deletionTimestamp`, the reconciler reads the deletion policy
