@@ -1266,7 +1266,7 @@ func TestClientGetPullAlwaysTagMove(t *testing.T) {
 			MockFetch: func(_ context.Context, ref name.Reference, _ ...string) (v1.Image, error) {
 				d, err := v1.NewHash(ref.Identifier())
 				if err != nil {
-					return nil, fmt.Errorf("expected a fetch by digest, got %q: %w", ref, err)
+					return nil, errors.Wrapf(err, "expected a fetch by digest, got %q", ref)
 				}
 				fetched = append(fetched, d)
 				content := CreateTarWithPackageYAML(packages[d])
@@ -1300,45 +1300,60 @@ func TestClientGetPullAlwaysTagMove(t *testing.T) {
 		},
 	}
 
+	type args struct {
+		tagDigest v1.Hash
+	}
+	type want struct {
+		name    string
+		digest  v1.Hash
+		fetched []v1.Hash
+	}
+
 	steps := []struct {
-		reason      string
-		tagDigest   v1.Hash
-		wantName    string
-		wantDigest  v1.Hash
-		wantFetched []v1.Hash
+		reason string
+		args   args
+		want   want
 	}{
 		{
-			reason:      "The first Get should fetch the package the tag points at.",
-			tagDigest:   digestA,
-			wantName:    "provider-a",
-			wantDigest:  digestA,
-			wantFetched: []v1.Hash{digestA},
+			reason: "The first Get should fetch the package the tag points at.",
+			args:   args{tagDigest: digestA},
+			want: want{
+				name:    "provider-a",
+				digest:  digestA,
+				fetched: []v1.Hash{digestA},
+			},
 		},
 		{
-			reason:      "A second Get with an unchanged digest should be served from the cache.",
-			tagDigest:   digestA,
-			wantName:    "provider-a",
-			wantDigest:  digestA,
-			wantFetched: []v1.Hash{digestA},
+			reason: "A second Get with an unchanged digest should be served from the cache.",
+			args:   args{tagDigest: digestA},
+			want: want{
+				name:    "provider-a",
+				digest:  digestA,
+				fetched: []v1.Hash{digestA},
+			},
 		},
 		{
-			reason:      "After the tag moves, Get should fetch the new digest rather than return the cached package.",
-			tagDigest:   digestB,
-			wantName:    "provider-b",
-			wantDigest:  digestB,
-			wantFetched: []v1.Hash{digestA, digestB},
+			reason: "After the tag moves, Get should fetch the new digest rather than return the cached package.",
+			args:   args{tagDigest: digestB},
+			want: want{
+				name:    "provider-b",
+				digest:  digestB,
+				fetched: []v1.Hash{digestA, digestB},
+			},
 		},
 		{
-			reason:      "Moving the tag back should hit the cache entry for the original digest.",
-			tagDigest:   digestA,
-			wantName:    "provider-a",
-			wantDigest:  digestA,
-			wantFetched: []v1.Hash{digestA, digestB},
+			reason: "Moving the tag back should hit the cache entry for the original digest.",
+			args:   args{tagDigest: digestA},
+			want: want{
+				name:    "provider-a",
+				digest:  digestA,
+				fetched: []v1.Hash{digestA, digestB},
+			},
 		},
 	}
 
 	for i, step := range steps {
-		tagDigest = step.tagDigest
+		tagDigest = step.args.tagDigest
 
 		got, err := c.Get(context.Background(), testSource+":"+testTag, WithPullPolicy(corev1.PullAlways))
 		if err != nil {
@@ -1349,13 +1364,13 @@ func TestClientGetPullAlwaysTagMove(t *testing.T) {
 		if m := got.GetMeta(); m != nil {
 			gotName = m.GetName()
 		}
-		if diff := cmp.Diff(step.wantName, gotName); diff != "" {
+		if diff := cmp.Diff(step.want.name, gotName); diff != "" {
 			t.Errorf("step %d: %s\nGet(...): -want package name, +got package name:\n%s", i, step.reason, diff)
 		}
-		if diff := cmp.Diff(step.wantDigest.String(), got.Digest); diff != "" {
+		if diff := cmp.Diff(step.want.digest.String(), got.Digest); diff != "" {
 			t.Errorf("step %d: %s\nGet(...): -want digest, +got digest:\n%s", i, step.reason, diff)
 		}
-		if diff := cmp.Diff(step.wantFetched, fetched); diff != "" {
+		if diff := cmp.Diff(step.want.fetched, fetched); diff != "" {
 			t.Errorf("step %d: %s\nfetched digests: -want, +got:\n%s", i, step.reason, diff)
 		}
 	}
