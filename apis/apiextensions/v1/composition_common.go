@@ -41,6 +41,30 @@ const (
 	CompositionModePipeline CompositionMode = "Pipeline"
 )
 
+// A CompositionDeletionPolicy determines how a Composition handles the deletion
+// of its composite resources.
+type CompositionDeletionPolicy string
+
+const (
+	// CompositionDeletionPolicyBackground means Crossplane stops managing a
+	// composite resource as soon as it's deleted. Kubernetes deletes its
+	// composed resources once the composite resource is gone.
+	CompositionDeletionPolicyBackground CompositionDeletionPolicy = "Background"
+
+	// CompositionDeletionPolicyForeground means Crossplane deletes a composite
+	// resource's composed resources, and keeps the composite resource until
+	// they're gone. The function pipeline doesn't run.
+	CompositionDeletionPolicyForeground CompositionDeletionPolicy = "Foreground"
+
+	// CompositionDeletionPolicyPipeline is like Foreground, but Crossplane keeps
+	// running the function pipeline while the composite resource is deleted.
+	// Functions decide when each composed resource may be deleted by removing
+	// it from their desired state, and can compose resources that do work
+	// first, like taking a backup. Crossplane keeps the composite resource
+	// until all its composed resources are gone.
+	CompositionDeletionPolicyPipeline CompositionDeletionPolicy = "Pipeline"
+)
+
 // TypeReference is used to refer to a type for declaring compatibility.
 type TypeReference struct {
 	// APIVersion of the type.

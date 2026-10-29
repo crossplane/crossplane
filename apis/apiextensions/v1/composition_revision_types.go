@@ -64,6 +64,26 @@ type CompositionRevisionSpec struct {
 	// +kubebuilder:validation:MaxItems=99
 	Pipeline []PipelineStep `json:"pipeline,omitempty"`
 
+	// DeletionPolicy determines how this Composition handles the deletion of
+	// its composite resources. "Background" is Crossplane's default behavior,
+	// used when this field is unset. It stops managing the composite resource
+	// as soon as it's deleted, and Kubernetes deletes its composed resources
+	// once it's gone. "Foreground" deletes the composed resources and keeps
+	// the composite resource until they're gone. "Pipeline" is like
+	// "Foreground", but keeps running the function pipeline, which decides
+	// when each composed resource may be deleted. The pipeline must
+	// eventually stop desiring every composed resource, or the composite
+	// resource will never finish deleting.
+	//
+	// Crossplane ignores this field for legacy cluster scoped composite
+	// resources, which always use "Background".
+	//
+	// This is an alpha field. It's ignored unless Crossplane runs with the
+	// --enable-function-controlled-deletion flag.
+	// +optional
+	// +kubebuilder:validation:Enum=Background;Foreground;Pipeline
+	DeletionPolicy CompositionDeletionPolicy `json:"deletionPolicy,omitempty"`
+
 	// WriteConnectionSecretsToNamespace specifies the namespace in which the
 	// connection secrets of composite resource dynamically provisioned using
 	// this composition will be created.

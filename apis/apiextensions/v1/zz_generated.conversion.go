@@ -20,6 +20,7 @@ func (c *GeneratedRevisionSpecConverter) FromRevisionSpec(source CompositionRevi
 			v1CompositionSpec.Pipeline[i] = c.v1PipelineStepToV1PipelineStep(source.Pipeline[i])
 		}
 	}
+	v1CompositionSpec.DeletionPolicy = c.v1CompositionDeletionPolicyToV1CompositionDeletionPolicy(source.DeletionPolicy)
 	if source.WriteConnectionSecretsToNamespace != nil {
 		xstring := *source.WriteConnectionSecretsToNamespace
 		v1CompositionSpec.WriteConnectionSecretsToNamespace = &xstring
@@ -36,6 +37,7 @@ func (c *GeneratedRevisionSpecConverter) ToRevisionSpec(source CompositionSpec) 
 			v1CompositionRevisionSpec.Pipeline[i] = c.v1PipelineStepToV1PipelineStep(source.Pipeline[i])
 		}
 	}
+	v1CompositionRevisionSpec.DeletionPolicy = c.v1CompositionDeletionPolicyToV1CompositionDeletionPolicy(source.DeletionPolicy)
 	if source.WriteConnectionSecretsToNamespace != nil {
 		xstring := *source.WriteConnectionSecretsToNamespace
 		v1CompositionRevisionSpec.WriteConnectionSecretsToNamespace = &xstring
@@ -88,6 +90,19 @@ func (c *GeneratedRevisionSpecConverter) pV2SecretReferenceToPV2SecretReference(
 		pV2SecretReference = &v2SecretReference
 	}
 	return pV2SecretReference
+}
+func (c *GeneratedRevisionSpecConverter) v1CompositionDeletionPolicyToV1CompositionDeletionPolicy(source CompositionDeletionPolicy) CompositionDeletionPolicy {
+	var v1CompositionDeletionPolicy CompositionDeletionPolicy
+	switch source {
+	case CompositionDeletionPolicyBackground:
+		v1CompositionDeletionPolicy = CompositionDeletionPolicyBackground
+	case CompositionDeletionPolicyForeground:
+		v1CompositionDeletionPolicy = CompositionDeletionPolicyForeground
+	case CompositionDeletionPolicyPipeline:
+		v1CompositionDeletionPolicy = CompositionDeletionPolicyPipeline
+	default: // ignored
+	}
+	return v1CompositionDeletionPolicy
 }
 func (c *GeneratedRevisionSpecConverter) v1CompositionModeToV1CompositionMode(source CompositionMode) CompositionMode {
 	var v1CompositionMode CompositionMode
