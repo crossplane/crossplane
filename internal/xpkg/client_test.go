@@ -1244,6 +1244,123 @@ func TestClientGetCachesOnlyCompletePackages(t *testing.T) {
 	}
 }
 
+func TestClientGetPullAlwaysTagMove(t *testing.T) {
+	meta := `{"apiVersion":"meta.pkg.crossplane.io/v1","kind":"Provider","metadata":{"name":"%s"}}`
+	digestA := v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("a", 64)}
+	digestB := v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("b", 64)}
+
+	// The tag resolves to whatever digest it currently points at, and each
+	// digest serves a package with a different name.
+	tagDigest := digestA
+	packages := map[v1.Hash]string{
+		digestA: fmt.Sprintf(meta, "provider-a"),
+		digestB: fmt.Sprintf(meta, "provider-b"),
+	}
+	var fetched []v1.Hash
+
+	c := &CachedClient{
+		fetcher: &MockFetcher{
+			MockHead: func(_ context.Context, _ name.Reference, _ ...string) (*v1.Descriptor, error) {
+				return &v1.Descriptor{Digest: tagDigest}, nil
+			},
+			MockFetch: func(_ context.Context, ref name.Reference, _ ...string) (v1.Image, error) {
+				d, err := v1.NewHash(ref.Identifier())
+				if err != nil {
+					return nil, fmt.Errorf("expected a fetch by digest, got %q: %w", ref, err)
+				}
+				fetched = append(fetched, d)
+				content := CreateTarWithPackageYAML(packages[d])
+				return &MockImage{
+					MockManifest: func() (*v1.Manifest, error) {
+						return &v1.Manifest{
+							Layers: []v1.Descriptor{{
+								Annotations: map[string]string{AnnotationKey: PackageAnnotation},
+								Digest:      v1.Hash{Algorithm: "sha256", Hex: "layer123"},
+							}},
+						}, nil
+					},
+					MockLayerByDigest: func(_ v1.Hash) (v1.Layer, error) {
+						return NewMockLayer(content), nil
+					},
+				}, nil
+			},
+		},
+		parser: NewTestParser(t),
+		cache:  NewFsPackageCache("/cache", afero.NewMemMapFs()),
+		config: &MockConfigStore{
+			MockRewritePath: func(_ context.Context, _ string) (string, string, error) {
+				return "", "", nil
+			},
+			MockPullSecretFor: func(_ context.Context, _ string) (string, string, error) {
+				return "", "", nil
+			},
+			MockImageVerificationConfigFor: func(_ context.Context, _ string) (string, *v1beta1.ImageVerification, error) {
+				return "", nil, nil
+			},
+		},
+	}
+
+	steps := []struct {
+		reason      string
+		tagDigest   v1.Hash
+		wantName    string
+		wantDigest  v1.Hash
+		wantFetched []v1.Hash
+	}{
+		{
+			reason:      "The first Get should fetch the package the tag points at.",
+			tagDigest:   digestA,
+			wantName:    "provider-a",
+			wantDigest:  digestA,
+			wantFetched: []v1.Hash{digestA},
+		},
+		{
+			reason:      "A second Get with an unchanged digest should be served from the cache.",
+			tagDigest:   digestA,
+			wantName:    "provider-a",
+			wantDigest:  digestA,
+			wantFetched: []v1.Hash{digestA},
+		},
+		{
+			reason:      "After the tag moves, Get should fetch the new digest rather than return the cached package.",
+			tagDigest:   digestB,
+			wantName:    "provider-b",
+			wantDigest:  digestB,
+			wantFetched: []v1.Hash{digestA, digestB},
+		},
+		{
+			reason:      "Moving the tag back should hit the cache entry for the original digest.",
+			tagDigest:   digestA,
+			wantName:    "provider-a",
+			wantDigest:  digestA,
+			wantFetched: []v1.Hash{digestA, digestB},
+		},
+	}
+
+	for i, step := range steps {
+		tagDigest = step.tagDigest
+
+		got, err := c.Get(context.Background(), testSource+":"+testTag, WithPullPolicy(corev1.PullAlways))
+		if err != nil {
+			t.Fatalf("step %d: %s\nGet(...): unexpected error: %v", i, step.reason, err)
+		}
+
+		gotName := ""
+		if m := got.GetMeta(); m != nil {
+			gotName = m.GetName()
+		}
+		if diff := cmp.Diff(step.wantName, gotName); diff != "" {
+			t.Errorf("step %d: %s\nGet(...): -want package name, +got package name:\n%s", i, step.reason, diff)
+		}
+		if diff := cmp.Diff(step.wantDigest.String(), got.Digest); diff != "" {
+			t.Errorf("step %d: %s\nGet(...): -want digest, +got digest:\n%s", i, step.reason, diff)
+		}
+		if diff := cmp.Diff(step.wantFetched, fetched); diff != "" {
+			t.Errorf("step %d: %s\nfetched digests: -want, +got:\n%s", i, step.reason, diff)
+		}
+	}
+}
+
 func TestClientListVersions(t *testing.T) {
 	type args struct {
 		source string
