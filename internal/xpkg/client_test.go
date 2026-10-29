@@ -453,7 +453,14 @@ func TestClientGet(t *testing.T) {
 						return "", "", nil
 					},
 					MockImageVerificationConfigFor: func(_ context.Context, _ string) (string, *v1beta1.ImageVerification, error) {
-						return "", nil, nil
+						return "test-verification-config", &v1beta1.ImageVerification{
+							Provider: v1beta1.ImageVerificationProviderCosign,
+						}, nil
+					},
+				},
+				validator: &MockValidator{
+					MockValidate: func(_ context.Context, _ name.Reference, _ *v1beta1.ImageVerification, _ ...string) error {
+						return errors.New("signature verification should not run when the resolved digest is cached")
 					},
 				},
 			},
