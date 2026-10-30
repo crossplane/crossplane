@@ -5,7 +5,7 @@
   description = "Crossplane - The cloud native control plane framework";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   };
 
@@ -196,7 +196,7 @@
               pkgs.coreutils
               pkgs.gnused
               pkgs.ncurses
-              pkgs.unstable.go_1_25
+              pkgs.unstable.go_1_26
               pkgs.golangci-lint
               pkgs.kubectl
               pkgs.kubernetes-helm
@@ -214,7 +214,7 @@
               pkgs.kubernetes-controller-tools
 
               # Nix
-              pkgs.nixfmt-rfc-style
+              pkgs.nixfmt
             ];
 
             shellHook = ''

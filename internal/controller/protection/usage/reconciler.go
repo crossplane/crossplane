@@ -399,7 +399,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if policy, ok := used.GetAnnotations()[protection.AnnotationKeyDeletionAttempt]; ok {
 				// We have already recorded a deletion attempt and want to replay deletion, let's delete the used resource.
 
-				//nolint:contextcheck // We cannot use the context from the reconcile function since it will be cancelled after the reconciliation.
+				//nolint:contextcheck,gosec // G118: We cannot use the context from the reconcile function since it will be cancelled after the reconciliation.
 				go func() {
 					// We do the deletion async and after some delay to make sure the usage is deleted before the
 					// deletion attempt. We remove the finalizer on this Usage right below, so, we know it will disappear
@@ -474,11 +474,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// Used resource should have in-use label.
-	if used.GetLabels()[inUseLabelKey] != "true" || !used.OwnedBy(uu.GetUID()) {
-		// Note(turkenh): Composite controller will not remove this label with
-		// new reconciles since it uses a patching applicator to update the
-		// resource.
+	if used.GetLabels()[inUseLabelKey] != "true" {
+		// Note(turkenh): the composite controller's patching applicator won't remove this label on later reconciles.
 		meta.AddLabels(used, map[string]string{inUseLabelKey: "true"})
 
 		if err := r.client.Update(ctx, used); err != nil {

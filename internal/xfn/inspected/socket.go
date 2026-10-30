@@ -37,6 +37,11 @@ const (
 
 	// redactedValue is used to replace sensitive data values while preserving keys.
 	redactedValue = "**REDACTED**"
+
+	// lastAppliedConfigAnnotation is written by kubectl apply. Its value is the
+	// entire applied object as JSON, so on a Secret it embeds a verbatim copy
+	// of the data we redact.
+	lastAppliedConfigAnnotation = "kubectl.kubernetes.io/last-applied-configuration"
 )
 
 // A SocketPipelineInspector emits pipeline execution data to a Pipeline
@@ -200,8 +205,9 @@ func redactConnectionDetails(connectionDetails map[string][]byte) {
 }
 
 // stripSecretData redacts the data and stringData field values from a resource
-// if it is a Kubernetes Secret. The keys are preserved but values are replaced
-// with redactedValue.
+// if it is a Kubernetes Secret, preserving their keys but replacing their
+// values with redactedValue, and drops its kubectl last-applied-configuration
+// annotation entirely.
 func stripSecretData(resource *structpb.Struct) {
 	if resource == nil {
 		return
@@ -224,5 +230,13 @@ func stripSecretData(resource *structpb.Struct) {
 				}
 			}
 		}
+
+		// Secrets applied with kubectl carry the whole object, data included,
+		// in the last-applied-configuration annotation. Redacting only the
+		// fields above would leave that copy of them behind. We drop the
+		// annotation rather than redact it: it duplicates state the inspector
+		// already shows, so its key isn't worth surfacing.
+		a := fields["metadata"].GetStructValue().GetFields()["annotations"].GetStructValue()
+		delete(a.GetFields(), lastAppliedConfigAnnotation)
 	}
 }

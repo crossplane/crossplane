@@ -1,5 +1,5 @@
 apiVersion: nop.crossplane.io/v1alpha1
-kind: NopResource
+kind: ClusterNopResource
 metadata:
   name: using-resource
 spec:

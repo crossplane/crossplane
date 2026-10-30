@@ -20,6 +20,7 @@ package operation
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -33,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
 	apis "github.com/crossplane/crossplane/apis/v2"
@@ -41,6 +43,7 @@ import (
 	cronrec "github.com/crossplane/crossplane/v2/internal/controller/ops/cronoperation"
 	oprec "github.com/crossplane/crossplane/v2/internal/controller/ops/operation"
 	watchrec "github.com/crossplane/crossplane/v2/internal/controller/ops/watched"
+	"github.com/crossplane/crossplane/v2/internal/features"
 	"github.com/crossplane/crossplane/v2/internal/render"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
@@ -83,6 +86,14 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 		}
 		store = append(store, *u)
 	}
+	// Seed synthetic Function and FunctionRevision resources so the reconciler
+	// can resolve each pipeline step to a FunctionRevision.
+	fns, err := render.SyntheticFunctions(in.GetFunctions())
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot build synthetic functions")
+	}
+	store = append(store, fns...)
+
 	c := render.NewInMemoryClient(s, store...)
 
 	runner, err := render.NewFunctionRunner(in.GetFunctions())
@@ -98,11 +109,15 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 	sf := xfn.NewOpenAPIRequiredSchemasFetcher(oc)
 	rsf := render.NewRecordingRequiredSchemasFetcher(sf)
 	rrf := render.NewRecordingRequiredResourcesFetcher(xfn.NewExistingRequiredResourcesFetcher(c))
+	// For render purposes, there's no harm in unconditionally enabling this
+	// feature.
+	ff := &feature.Flags{}
+	ff.Enable(features.EnableAlphaPipelineOCIReferences)
 
 	rec := &render.EventRecorder{}
 
 	r := oprec.NewReconciler(c,
-		oprec.WithFunctionRunner(xfn.NewFetchingFunctionRunner(runner, rrf, rsf)),
+		oprec.WithFunctionRunner(xfn.NewFetchingFunctionRunner(render.NewFunctionRevisionRunner(runner, c, in.GetFunctions()), rrf, rsf)),
 		oprec.WithCapabilityChecker(xfn.CapabilityCheckerFn(
 			func(_ context.Context, _ []string, _ ...string) error {
 				return nil
@@ -112,6 +127,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Operatio
 		oprec.WithRequiredSchemasFetcher(rsf),
 		oprec.WithRecorder(rec),
 		oprec.WithLogger(log),
+		oprec.WithFeatures(ff),
 	)
 
 	req := reconcile.Request{NamespacedName: types.NamespacedName{
@@ -202,8 +218,7 @@ func NewFromWatchOperation(in *renderv1alpha1.WatchOperationInput) (*renderv1alp
 func buildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstructured) bool, rec *render.EventRecorder, rrf *render.RecordingRequiredResourcesFetcher, rsf *render.RecordingRequiredSchemasFetcher) (*renderv1alpha1.OperationOutput, error) {
 	out := &renderv1alpha1.OperationOutput{}
 
-	for i := len(c.Updated()) - 1; i >= 0; i-- {
-		u := c.Updated()[i]
+	for _, u := range slices.Backward(c.Updated()) {
 		if isPrimary(u) {
 			s, err := xfn.AsStruct(&u)
 			if err != nil {
@@ -236,7 +251,7 @@ func buildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstruct
 		out.RequiredResources = append(out.RequiredResources, s)
 	}
 
-	// Collect required schmea selectors.
+	// Collect required schema selectors.
 	for _, ss := range rsf.GetSchemaSelectors() {
 		s, err := messageToStruct(ss)
 		if err != nil {

@@ -29,7 +29,6 @@ import (
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -59,6 +58,17 @@ var ignoreTimestamps = cmp.FilterPath(func(p cmp.Path) bool {
 }, cmp.Ignore())
 
 func TestRender(t *testing.T) {
+	// Steps may reference function packages by digest. Rendering doesn't
+	// install functions, so the function must be supplied using its package as
+	// its name.
+	const pkg = "xpkg.crossplane.io/crossplane-contrib/function-cool@sha256:c0ffee1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+
+	addr := rendertest.StartFunctionServer(t, &rendertest.StaticFunctionServer{
+		Response: &fnv1.RunFunctionResponse{
+			Results: []*fnv1.Result{{Severity: fnv1.Severity_SEVERITY_NORMAL, Message: "cool function ran"}},
+		},
+	})
+
 	type want struct {
 		err error
 		out *renderv1alpha1.CompositeOutput
@@ -305,7 +315,7 @@ func TestRender(t *testing.T) {
 				CompositeResource: mustStruct(map[string]any{
 					"apiVersion": "example.org/v1alpha1",
 					"kind":       "XLegacyResource",
-					"metadata":   map[string]any{"name": "my-xr"},
+					"metadata":   map[string]any{"name": "my-xr", "uid": "xr-uid"},
 				}),
 				Composition: mustStruct(map[string]any{
 					"metadata": map[string]any{"name": "legacy-composition"},
@@ -325,6 +335,16 @@ func TestRender(t *testing.T) {
 							"name": "obs-1",
 							"annotations": map[string]any{
 								"crossplane.io/composition-resource-name": "obs-1",
+							},
+							"ownerReferences": []any{
+								map[string]any{
+									"apiVersion":         "example.org/v1alpha1",
+									"kind":               "XLegacyResource",
+									"name":               "my-xr",
+									"uid":                "xr-uid",
+									"controller":         true,
+									"blockOwnerDeletion": true,
+								},
 							},
 						},
 					}),
@@ -375,11 +395,77 @@ func TestRender(t *testing.T) {
 								"annotations": map[string]any{
 									"crossplane.io/composition-resource-name": "obs-1",
 								},
+								"ownerReferences": []any{
+									map[string]any{
+										"apiVersion":         "example.org/v1alpha1",
+										"kind":               "XLegacyResource",
+										"name":               "my-xr",
+										"uid":                "xr-uid",
+										"controller":         true,
+										"blockOwnerDeletion": true,
+									},
+								},
 							},
 						}),
 					},
 					Events: []*renderv1alpha1.Event{
 						{Type: "Normal", Reason: "SelectComposition", Message: "Successfully selected composition: legacy-composition"},
+					},
+				},
+			},
+		},
+		"FunctionByPackage": {
+			reason: "A pipeline step that references its function by package OCI reference should be routed to the function supplied with that package as its name.",
+			input: &renderv1alpha1.CompositeInput{
+				CompositeResource: mustStruct(map[string]any{
+					"apiVersion": "example.org/v1alpha1",
+					"kind":       "XBucket",
+					"metadata":   map[string]any{"name": "my-bucket"},
+				}),
+				Composition: mustStruct(map[string]any{
+					"metadata": map[string]any{"name": "bucket-composition"},
+					"spec": map[string]any{
+						"compositeTypeRef": map[string]any{
+							"apiVersion": "example.org/v1alpha1",
+							"kind":       "XBucket",
+						},
+						"mode": "Pipeline",
+						"pipeline": []any{
+							map[string]any{
+								"step":     "cool",
+								"function": pkg,
+							},
+						},
+					},
+				}),
+				Functions: []*renderv1alpha1.FunctionInput{
+					{Name: pkg, Address: addr},
+				},
+			},
+			want: want{
+				out: &renderv1alpha1.CompositeOutput{
+					CompositeResource: mustStruct(map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XBucket",
+						"metadata":   map[string]any{"name": "my-bucket"},
+						"spec": map[string]any{
+							"crossplane": map[string]any{
+								"resourceRefs": []any{},
+							},
+						},
+						"status": map[string]any{
+							"conditions": []any{
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
+								map[string]any{"type": "Ready", "status": "True", "reason": "Available"},
+							},
+						},
+					}),
+					// Our function's result surfaces as an event. Seeing it
+					// means we routed to the function by package.
+					Events: []*renderv1alpha1.Event{
+						{Type: "Normal", Reason: "SelectComposition", Message: "Successfully selected composition: bucket-composition"},
+						{Type: "Normal", Reason: "ComposeResources", Message: "Pipeline step \"cool\": cool function ran"},
 					},
 				},
 			},
@@ -469,13 +555,13 @@ func TestSelectSchema(t *testing.T) {
 		"V1XRDExplicitLegacyClusterScope": {
 			reason:     "A v1 XRD with explicit Spec.Scope=LegacyCluster yields SchemaLegacy.",
 			gvk:        xrGVK,
-			def:        v1XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", ptr.To("LegacyCluster")),
+			def:        v1XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", new("LegacyCluster")),
 			wantSchema: ucomposite.SchemaLegacy,
 		},
 		"V1XRDExplicitClusterScope": {
 			reason:     "A v1 XRD with explicit Spec.Scope=Cluster (theoretical edge case) yields SchemaModern. Mirrors the production reconciler's rule.",
 			gvk:        xrGVK,
-			def:        v1XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", ptr.To("Cluster")),
+			def:        v1XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", new("Cluster")),
 			wantSchema: ucomposite.SchemaModern,
 		},
 		"V2XRD": {
@@ -487,7 +573,7 @@ func TestSelectSchema(t *testing.T) {
 		"V2FormPreservingLegacyClusterScope": {
 			reason:     "A v2-form XRD with Spec.Scope=LegacyCluster (e.g. a v1-posted XRD round-tripped through the storage version) yields SchemaLegacy. The v2 Go type's Spec.Scope is a string alias with no runtime enum validation, so 'LegacyCluster' survives the round-trip and must be honored to avoid forcing consumers to specifically fetch v1-form.",
 			gvk:        xrGVK,
-			def:        v2XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", ptr.To("LegacyCluster")),
+			def:        v2XRD("xlegacyresources.example.org", "example.org", "XLegacyResource", new("LegacyCluster")),
 			wantSchema: ucomposite.SchemaLegacy,
 		},
 		"XRDDoesNotMatchXR": {
@@ -731,7 +817,7 @@ func TestCheckObservedResources(t *testing.T) {
 			Kind:       "XLegacyResource",
 			Name:       "my-xr",
 			UID:        uid,
-			Controller: ptr.To(true),
+			Controller: new(true),
 		}
 	}
 	nonControllerRef := func(uid types.UID) metav1.OwnerReference {

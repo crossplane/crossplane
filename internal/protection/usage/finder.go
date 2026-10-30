@@ -53,7 +53,12 @@ func indexVal(apiVersion, kind, name, namespace string) string {
 	// ignore the error is that the IndexerFunc using this value to index the
 	// objects does not return an error, so we cannot bubble up the error here.
 	gr, _ := schema.ParseGroupVersion(apiVersion)
-	return fmt.Sprintf("%s.%s.%s.%s", gr.Group, kind, name, namespace)
+	// Join with '/' rather than '.'. API groups and resource names may both
+	// contain '.', so a '.'-joined key is ambiguous and distinct resources can
+	// collapse to the same value (e.g. group "example.org"/name "bar" and group
+	// "example"/name "Foo.bar"). '/' cannot appear in a group, kind, name, or
+	// namespace, so it keeps each resource's key unique.
+	return fmt.Sprintf("%s/%s/%s/%s", gr.Group, kind, name, namespace)
 }
 
 // A Finder finds all usages of a resource. It supports all known types of usage

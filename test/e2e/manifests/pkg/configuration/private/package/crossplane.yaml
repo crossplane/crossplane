@@ -1,5 +1,6 @@
 # This is the package metadata for the Configuration installed by
-# configuration.yaml.
+# configuration.yaml. The package is built manually and pushed to
+# xpkg.upbound.io/crossplane-contrib/e2e-private-configuration.
 apiVersion: meta.pkg.crossplane.io/v1
 kind: Configuration
 metadata:

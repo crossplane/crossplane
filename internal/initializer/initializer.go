@@ -72,7 +72,7 @@ func (c *Initializer) Init(ctx context.Context) error {
 		var name string
 
 		if t != nil {
-			if t.Kind() == reflect.Ptr {
+			if t.Kind() == reflect.Pointer {
 				t = t.Elem()
 			}
 

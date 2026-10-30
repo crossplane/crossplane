@@ -31,6 +31,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
 
 // storeKey uniquely identifies a resource in the fake client's store.
@@ -137,7 +139,7 @@ func (c *InMemoryClient) Get(_ context.Context, key client.ObjectKey, obj client
 
 // List lists resources from the in-memory store, filtering by GVK, namespace,
 // and label selector.
-func (c *InMemoryClient) List(_ context.Context, list client.ObjectList, opts ...client.ListOption) error {
+func (c *InMemoryClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
 	listOpts := &client.ListOptions{}
 	for _, o := range opts {
 		o.ApplyToList(listOpts)
@@ -145,7 +147,20 @@ func (c *InMemoryClient) List(_ context.Context, list client.ObjectList, opts ..
 
 	ul, ok := list.(*unstructured.UnstructuredList)
 	if !ok {
-		return kerrors.NewInternalError(nil)
+		// For typed lists, list unstructured resources of the list's GVK and
+		// convert them.
+		gvks, _, err := c.scheme.ObjectKinds(list)
+		if err != nil || len(gvks) == 0 {
+			return kerrors.NewInternalError(errors.Errorf("cannot determine GroupVersionKind of %T", list))
+		}
+
+		tmp := &unstructured.UnstructuredList{}
+		tmp.SetGroupVersionKind(gvks[0])
+		if err := c.List(ctx, tmp, opts...); err != nil {
+			return err
+		}
+
+		return runtime.DefaultUnstructuredConverter.FromUnstructured(tmp.UnstructuredContent(), list)
 	}
 
 	gvk := ul.GroupVersionKind()

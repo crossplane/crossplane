@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/aws/smithy-go/ptr"
 	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -179,7 +178,7 @@ func TestGenerateName(t *testing.T) {
 						Kind:       "Bar",
 						Name:       "parent",
 						UID:        "75e4a668-035f-4ce8-8c45-f4d3ac850155",
-						Controller: ptr.Bool(true),
+						Controller: new(true),
 					}},
 					Annotations: map[string]string{
 						xcrd.AnnotationKeyCompositionResourceName: "pipeline-name-of-cool-resource",
@@ -195,7 +194,7 @@ func TestGenerateName(t *testing.T) {
 						Kind:       "Bar",
 						Name:       "parent",
 						UID:        "75e4a668-035f-4ce8-8c45-f4d3ac850155",
-						Controller: ptr.Bool(true),
+						Controller: new(true),
 					}},
 					Annotations: map[string]string{
 						xcrd.AnnotationKeyCompositionResourceName: "pipeline-name-of-cool-resource",
@@ -214,7 +213,7 @@ func TestGenerateName(t *testing.T) {
 						Kind:       "Bar",
 						Name:       "parent",
 						UID:        "75e4a668-035f-4ce8-8c45-f4d3ac850155",
-						Controller: ptr.Bool(true),
+						Controller: new(true),
 					}},
 					Annotations: map[string]string{
 						xcrd.AnnotationKeyCompositionResourceName: "kid1",
@@ -230,7 +229,7 @@ func TestGenerateName(t *testing.T) {
 						Kind:       "Bar",
 						Name:       "parent",
 						UID:        "75e4a668-035f-4ce8-8c45-f4d3ac850155",
-						Controller: ptr.Bool(true),
+						Controller: new(true),
 					}},
 					Annotations: map[string]string{
 						xcrd.AnnotationKeyCompositionResourceName: "kid1",

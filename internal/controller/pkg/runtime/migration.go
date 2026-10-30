@@ -33,7 +33,7 @@ import (
 // DeploymentSelectorMigrator handles migration of provider deployments
 // that have outdated selector labels from older Crossplane versions.
 type DeploymentSelectorMigrator interface {
-	MigrateDeploymentSelector(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error
+	MigrateDeploymentSelector(ctx context.Context, pr v1.PackageRevisionWithRuntime, d *appsv1.Deployment) error
 }
 
 // NopDeploymentSelectorMigrator is a no-op implementation of DeploymentSelectorMigrator.
@@ -45,7 +45,7 @@ func NewNopDeploymentSelectorMigrator() *NopDeploymentSelectorMigrator {
 }
 
 // MigrateDeploymentSelector does nothing and always returns nil.
-func (n *NopDeploymentSelectorMigrator) MigrateDeploymentSelector(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
+func (n *NopDeploymentSelectorMigrator) MigrateDeploymentSelector(_ context.Context, _ v1.PackageRevisionWithRuntime, _ *appsv1.Deployment) error {
 	return nil
 }
 
@@ -75,7 +75,7 @@ func NewDeletingDeploymentSelectorMigrator(client client.Client, log logging.Log
 // support older Crossplane versions that use the old provider deployment
 // selector labels. The latest Crossplane version using the old selector labels
 // is v1.20.0.
-func (m *DeletingDeploymentSelectorMigrator) MigrateDeploymentSelector(ctx context.Context, pr v1.PackageRevisionWithRuntime, builder ManifestBuilder) error {
+func (m *DeletingDeploymentSelectorMigrator) MigrateDeploymentSelector(ctx context.Context, pr v1.PackageRevisionWithRuntime, d *appsv1.Deployment) error {
 	// Only migrate provider revisions
 	providerRev, ok := pr.(*v1.ProviderRevision)
 	if !ok {
@@ -87,17 +87,12 @@ func (m *DeletingDeploymentSelectorMigrator) MigrateDeploymentSelector(ctx conte
 		return nil
 	}
 
-	// Build the expected deployment to get the correct name and selectors
-	// This respects any DeploymentRuntimeConfig settings
-	sa := builder.ServiceAccount()
-	expectedDeploy := builder.Deployment(sa.Name)
-
 	// Check if there's an existing deployment
 	existingDeploy := &appsv1.Deployment{}
 
 	err := m.client.Get(ctx, types.NamespacedName{
-		Name:      expectedDeploy.Name,
-		Namespace: expectedDeploy.Namespace,
+		Name:      d.Name,
+		Namespace: d.Namespace,
 	}, existingDeploy)
 	if kerrors.IsNotFound(err) {
 		// No existing deployment, no migration needed
@@ -124,7 +119,7 @@ func (m *DeletingDeploymentSelectorMigrator) MigrateDeploymentSelector(ctx conte
 	}
 
 	m.log.Info("Deleting provider deployment with outdated selector",
-		"deployment", expectedDeploy.Name,
+		"deployment", d.Name,
 		"revision", pr.GetName(),
 		"old-provider-label", expected,
 		"new-provider-label", existing)

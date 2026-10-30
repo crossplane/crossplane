@@ -19,6 +19,7 @@ package composition
 import (
 	"context"
 	"io"
+	"slices"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -32,11 +33,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
+	"github.com/crossplane/crossplane/v2/internal/features"
 )
 
 func TestReconcile(t *testing.T) {
@@ -76,6 +79,28 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 	}
+
+	compOCIRef := &v1.Composition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cool-composition",
+			UID:  types.UID("no-you-uid"),
+		},
+		Spec: v1.CompositionSpec{
+			Pipeline: []v1.PipelineStep{
+				{
+					Step:        "by-name",
+					FunctionRef: &v1.FunctionReference{Name: "function-cool"},
+				},
+				{
+					Step:     "by-oci-ref",
+					Function: "xpkg.crossplane.io/crossplane-contrib/function-cool@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+				},
+			},
+		},
+	}
+
+	enabled := &feature.Flags{}
+	enabled.Enable(features.EnableAlphaPipelineOCIReferences)
 
 	// Not owned by the above composition.
 	rev1 := &v1.CompositionRevision{
@@ -144,6 +169,7 @@ func TestReconcile(t *testing.T) {
 	type args struct {
 		mgr  manager.Manager
 		opts []ReconcilerOption
+		gc   RevisionGarbageCollectorFn
 	}
 
 	type want struct {
@@ -367,6 +393,56 @@ func TestReconcile(t *testing.T) {
 				err: nil,
 			},
 		},
+		"MissingFunctionRefFeatureDisabled": {
+			reason: "We should not create a new CompositionRevision if a pipeline step has no functionRef and pipeline OCI references are disabled.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*v1.Composition) = *compOCIRef
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil),
+						MockCreate: test.NewMockCreateFn(nil, func(_ client.Object) error {
+							t.Errorf("Create(): unexpected call")
+							return nil
+						}),
+					},
+				},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: nil,
+			},
+		},
+		"SuccessfulCreationOCIRefFeatureEnabled": {
+			reason: "We should create a new CompositionRevision if a pipeline step references a function by OCI reference and pipeline OCI references are enabled.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*v1.Composition) = *compOCIRef
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil),
+						MockCreate: test.NewMockCreateFn(nil, func(got client.Object) error {
+							want := NewCompositionRevision(compOCIRef, 1)
+
+							if diff := cmp.Diff(want, got); diff != "" {
+								t.Errorf("Create(): -want, +got:\n%s", diff)
+							}
+
+							return nil
+						}),
+					},
+				},
+				opts: []ReconcilerOption{WithFeatures(enabled)},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: nil,
+			},
+		},
 		"SuccessfulCreationLabelUpdate": {
 			reason: "We should create a new composition revision when we update labels.",
 			args: args{
@@ -437,11 +513,95 @@ func TestReconcile(t *testing.T) {
 				err: nil,
 			},
 		},
+		"GarbageCollectOnNoOp": {
+			reason: "We should garbage collect revisions when no new revision is needed.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*v1.Composition) = *compDev
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+								Items: []v1.CompositionRevision{*rev2, *rev3},
+							}
+							return nil
+						}),
+					},
+				},
+				gc: func(_ context.Context, _ *v1.Composition, _ []v1.CompositionRevision) (int, error) {
+					return 1, nil
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"GarbageCollectOnCreation": {
+			reason: "We should garbage collect revisions after creating a new revision.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*v1.Composition) = *compDev
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+								Items: []v1.CompositionRevision{*rev2},
+							}
+							return nil
+						}),
+						MockCreate: test.NewMockCreateFn(nil),
+					},
+				},
+				gc: func(_ context.Context, _ *v1.Composition, _ []v1.CompositionRevision) (int, error) {
+					return 0, nil
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"GarbageCollectError": {
+			reason: "We should not fail the reconcile if garbage collection fails.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*v1.Composition) = *compDev
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+								Items: []v1.CompositionRevision{*rev3},
+							}
+							return nil
+						}),
+					},
+				},
+				gc: func(_ context.Context, _ *v1.Composition, _ []v1.CompositionRevision) (int, error) {
+					return 0, errBoom
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.mgr, append(tc.args.opts, WithLogger(testLog))...)
+			opts := append(slices.Clone(tc.args.opts), WithLogger(testLog))
+
+			if tc.args.gc != nil {
+				opts = append(opts, WithRevisionGarbageCollector(RevisionGarbageCollectorFn(func(ctx context.Context, comp *v1.Composition, revs []v1.CompositionRevision) (int, error) {
+					return tc.args.gc(ctx, comp, revs)
+				})))
+			}
+
+			r := NewReconciler(tc.args.mgr, opts...)
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

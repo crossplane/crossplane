@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -79,7 +78,7 @@ func TestReconcile(t *testing.T) {
 									Pipeline: []v1alpha1.PipelineStep{
 										{
 											Step: "test-step",
-											FunctionRef: v1alpha1.FunctionReference{
+											FunctionRef: &v1alpha1.FunctionReference{
 												Name: "test-function",
 											},
 										},
@@ -116,7 +115,7 @@ func TestReconcile(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "test-step",
-										FunctionRef: v1alpha1.FunctionReference{
+										FunctionRef: &v1alpha1.FunctionReference{
 											Name: "test-function",
 										},
 									},
@@ -387,7 +386,7 @@ func TestReconcile(t *testing.T) {
 									Pipeline: []v1alpha1.PipelineStep{
 										{
 											Step: "test-step",
-											FunctionRef: v1alpha1.FunctionReference{
+											FunctionRef: &v1alpha1.FunctionReference{
 												Name: "test-function",
 											},
 										},
@@ -424,7 +423,7 @@ func TestReconcile(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "test-step",
-										FunctionRef: v1alpha1.FunctionReference{
+										FunctionRef: &v1alpha1.FunctionReference{
 											Name: "test-function",
 										},
 									},
@@ -678,7 +677,7 @@ func TestNewOperation(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "test-step",
-										FunctionRef: v1alpha1.FunctionReference{
+										FunctionRef: &v1alpha1.FunctionReference{
 											Name: "test-function",
 										},
 									},
@@ -720,8 +719,8 @@ func TestNewOperation(t *testing.T) {
 								Kind:               "WatchOperation",
 								Name:               "test-watch",
 								UID:                types.UID("test-uid"),
-								Controller:         ptr.To(true),
-								BlockOwnerDeletion: ptr.To(true),
+								Controller:         new(true),
+								BlockOwnerDeletion: new(true),
 							},
 						},
 					},
@@ -730,7 +729,7 @@ func TestNewOperation(t *testing.T) {
 						Pipeline: []v1alpha1.PipelineStep{
 							{
 								Step: "test-step",
-								FunctionRef: v1alpha1.FunctionReference{
+								FunctionRef: &v1alpha1.FunctionReference{
 									Name: "test-function",
 								},
 								Requirements: &v1alpha1.FunctionRequirements{
@@ -739,8 +738,8 @@ func TestNewOperation(t *testing.T) {
 											RequirementName: v1alpha1.RequirementNameWatchedResource,
 											APIVersion:      "v1",
 											Kind:            "Pod",
-											Namespace:       ptr.To("default"),
-											Name:            ptr.To("test-pod"),
+											Namespace:       new("default"),
+											Name:            new("test-pod"),
 										},
 									},
 								},
@@ -765,7 +764,7 @@ func TestNewOperation(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "test-step",
-										FunctionRef: v1alpha1.FunctionReference{
+										FunctionRef: &v1alpha1.FunctionReference{
 											Name: "test-function",
 										},
 									},
@@ -804,8 +803,8 @@ func TestNewOperation(t *testing.T) {
 								Kind:               "WatchOperation",
 								Name:               "test-watch",
 								UID:                types.UID("test-uid"),
-								Controller:         ptr.To(true),
-								BlockOwnerDeletion: ptr.To(true),
+								Controller:         new(true),
+								BlockOwnerDeletion: new(true),
 							},
 						},
 					},
@@ -814,7 +813,7 @@ func TestNewOperation(t *testing.T) {
 						Pipeline: []v1alpha1.PipelineStep{
 							{
 								Step: "test-step",
-								FunctionRef: v1alpha1.FunctionReference{
+								FunctionRef: &v1alpha1.FunctionReference{
 									Name: "test-function",
 								},
 								Requirements: &v1alpha1.FunctionRequirements{
@@ -823,7 +822,7 @@ func TestNewOperation(t *testing.T) {
 											RequirementName: v1alpha1.RequirementNameWatchedResource,
 											APIVersion:      "v1",
 											Kind:            "Node",
-											Name:            ptr.To("test-node"),
+											Name:            new("test-node"),
 										},
 									},
 								},
@@ -848,7 +847,7 @@ func TestNewOperation(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "test-step",
-										FunctionRef: v1alpha1.FunctionReference{
+										FunctionRef: &v1alpha1.FunctionReference{
 											Name: "test-function",
 										},
 										Requirements: &v1alpha1.FunctionRequirements{
@@ -857,7 +856,7 @@ func TestNewOperation(t *testing.T) {
 													RequirementName: "existing-requirement",
 													APIVersion:      "v1",
 													Kind:            "Secret",
-													Name:            ptr.To("existing-secret"),
+													Name:            new("existing-secret"),
 												},
 											},
 										},
@@ -899,8 +898,8 @@ func TestNewOperation(t *testing.T) {
 								Kind:               "WatchOperation",
 								Name:               "test-watch",
 								UID:                types.UID("test-uid"),
-								Controller:         ptr.To(true),
-								BlockOwnerDeletion: ptr.To(true),
+								Controller:         new(true),
+								BlockOwnerDeletion: new(true),
 							},
 						},
 					},
@@ -909,7 +908,7 @@ func TestNewOperation(t *testing.T) {
 						Pipeline: []v1alpha1.PipelineStep{
 							{
 								Step: "test-step",
-								FunctionRef: v1alpha1.FunctionReference{
+								FunctionRef: &v1alpha1.FunctionReference{
 									Name: "test-function",
 								},
 								Requirements: &v1alpha1.FunctionRequirements{
@@ -918,14 +917,14 @@ func TestNewOperation(t *testing.T) {
 											RequirementName: "existing-requirement",
 											APIVersion:      "v1",
 											Kind:            "Secret",
-											Name:            ptr.To("existing-secret"),
+											Name:            new("existing-secret"),
 										},
 										{
 											RequirementName: v1alpha1.RequirementNameWatchedResource,
 											APIVersion:      "v1",
 											Kind:            "Pod",
-											Namespace:       ptr.To("default"),
-											Name:            ptr.To("test-pod"),
+											Namespace:       new("default"),
+											Name:            new("test-pod"),
 										},
 									},
 								},
@@ -950,7 +949,7 @@ func TestNewOperation(t *testing.T) {
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "test-step",
-										FunctionRef: v1alpha1.FunctionReference{
+										FunctionRef: &v1alpha1.FunctionReference{
 											Name: "test-function",
 										},
 									},
@@ -993,8 +992,8 @@ func TestNewOperation(t *testing.T) {
 								Kind:               "WatchOperation",
 								Name:               "test-watch",
 								UID:                types.UID("test-uid"),
-								Controller:         ptr.To(true),
-								BlockOwnerDeletion: ptr.To(true),
+								Controller:         new(true),
+								BlockOwnerDeletion: new(true),
 							},
 						},
 					},
@@ -1003,7 +1002,7 @@ func TestNewOperation(t *testing.T) {
 						Pipeline: []v1alpha1.PipelineStep{
 							{
 								Step: "test-step",
-								FunctionRef: v1alpha1.FunctionReference{
+								FunctionRef: &v1alpha1.FunctionReference{
 									Name: "test-function",
 								},
 								Requirements: &v1alpha1.FunctionRequirements{
@@ -1012,8 +1011,8 @@ func TestNewOperation(t *testing.T) {
 											RequirementName: v1alpha1.RequirementNameWatchedResource,
 											APIVersion:      "v1",
 											Kind:            "Pod",
-											Namespace:       ptr.To("default"),
-											Name:            ptr.To("test-pod"),
+											Namespace:       new("default"),
+											Name:            new("test-pod"),
 										},
 									},
 								},

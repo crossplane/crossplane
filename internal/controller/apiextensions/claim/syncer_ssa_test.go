@@ -430,6 +430,83 @@ func TestServerSideSync(t *testing.T) {
 				}),
 			},
 		},
+		"DoNotPropagateInjectedMachineryFields": {
+			reason: "XR machinery fields (e.g. resourceRefs) injected into a claim's spec must not be propagated to the XR.",
+			params: params{
+				c: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+						obj.(*composite.Unstructured).Object["status"] = map[string]any{
+							"userDefinedField": "status",
+						}
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				},
+				ng: names.NameGeneratorFn(func(_ context.Context, cd resource.Object) error {
+					cd.SetName("cool-claim-random")
+					return nil
+				}),
+			},
+			args: args{
+				cm: NewClaim(func(cm *claim.Unstructured) {
+					cm.SetNamespace("default")
+					cm.SetName("cool-claim")
+
+					// A user-defined field we should propagate, plus XR
+					// machinery injected via an XRD schema with
+					// x-kubernetes-preserve-unknown-fields: true. The machinery
+					// must not be propagated to the XR.
+					cm.Object["spec"] = map[string]any{
+						"userDefinedField": "spec",
+						"resourceRefs": []any{
+							map[string]any{"apiVersion": "v1", "kind": "Secret", "name": "victim"},
+						},
+					}
+				}),
+				xr: NewComposite(),
+			},
+			want: want{
+				cm: NewClaim(func(cm *claim.Unstructured) {
+					cm.SetNamespace("default")
+					cm.SetName("cool-claim")
+					cm.Object["spec"] = map[string]any{
+						"userDefinedField": "spec",
+						// The injected field stays on the claim; we only refuse
+						// to copy it onward to the XR.
+						"resourceRefs": []any{
+							map[string]any{"apiVersion": "v1", "kind": "Secret", "name": "victim"},
+						},
+					}
+					cm.SetResourceReference(&reference.Composite{
+						Name: "cool-claim-random",
+					})
+					cm.Object["status"] = map[string]any{
+						"userDefinedField": "status",
+					}
+				}),
+				xr: NewComposite(func(xr *composite.Unstructured) {
+					xr.SetGenerateName("cool-claim-")
+					xr.SetName("cool-claim-random")
+					xr.SetLabels(map[string]string{
+						xcrd.LabelKeyClaimNamespace: "default",
+						xcrd.LabelKeyClaimName:      "cool-claim",
+					})
+					xr.Object["spec"] = map[string]any{
+						"userDefinedField": "spec",
+						// resourceRefs deliberately absent: it must not be
+						// propagated from the claim.
+					}
+					xr.SetClaimReference(&reference.Claim{
+						Namespace: "default",
+						Name:      "cool-claim",
+					})
+					xr.Object["status"] = map[string]any{
+						"userDefinedField": "status",
+					}
+				}),
+			},
+		},
 		"XRExists": {
 			reason: "When the XR already exists, we should ensure we preserve any custom status conditions.",
 			params: params{

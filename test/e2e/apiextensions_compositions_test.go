@@ -20,6 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -28,6 +30,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
+	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
@@ -50,6 +54,10 @@ const LabelAreaAPIExtensions = "apiextensions"
 // test suite with caching enabled.
 const SuiteFunctionResponseCache = "function-response-cache"
 
+// Tests that should be part of the test suite for the alpha composition
+// revision garbage collection feature.
+const SuiteCompositionRevisionGC = "composition-revision-gc"
+
 func init() {
 	environment.AddTestSuite(SuiteFunctionResponseCache,
 		config.WithHelmInstallOpts(
@@ -57,6 +65,14 @@ func init() {
 		),
 		config.WithLabelsToSelect(features.Labels{
 			config.LabelTestSuite: []string{SuiteFunctionResponseCache, config.TestSuiteDefault},
+		}),
+	)
+	environment.AddTestSuite(SuiteCompositionRevisionGC,
+		config.WithHelmInstallOpts(
+			helm.WithArgs("--set args={--debug,--enable-composition-revision-gc}"),
+		),
+		config.WithLabelsToSelect(features.Labels{
+			config.LabelTestSuite: []string{SuiteCompositionRevisionGC, config.TestSuiteDefault},
 		}),
 	)
 }
@@ -481,6 +497,21 @@ func TestRequiredResources(t *testing.T) {
 			Assess("ResourceHasExpectedData",
 				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.resourceHasExpectedData", true),
 			).
+			Assess("XRReflectsInitialValue",
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.receivedValue", "test-value"),
+			).
+			// Changing the required ConfigMap must reconcile the XR, so its
+			// status reflects the new value. The XR doesn't compose the
+			// ConfigMap, so no composed resource watch observes it. function-python
+			// applies a default 60s response TTL, but we assert the change within
+			// 30s - before that requeue could fire - so the reconcile is
+			// attributable to the required resource watch, not to polling.
+			Assess("UpdateRequiredResource",
+				funcs.ApplyResources(FieldManager, manifests, "configmap-update.yaml"),
+			).
+			Assess("XRReactsToRequiredResourceChange",
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "xr.yaml", "status.receivedValue", "updated-value"),
+			).
 			WithTeardown("DeleteXR", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
@@ -568,4 +599,114 @@ func TestRealtimeNamespacedXR(t *testing.T) {
 			)).
 			Feature(),
 	)
+}
+
+func TestCompositionRevisionGarbageCollection(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/revision-gc"
+
+	// Each update changes an annotation, which creates a new revision. We wait
+	// for each revision before the next update. The controller only sees the
+	// latest state, so updating faster could skip revisions.
+	update := func(n int) features.Func {
+		return funcs.ApplyResources(FieldManager, manifests, "composition.yaml",
+			funcs.SetAnnotationMutateOption("revision-gc.e2e.crossplane.io/update", strconv.Itoa(n)))
+	}
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that Crossplane deletes unused CompositionRevisions beyond the Composition's revision history limit.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteCompositionRevisionGC).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateComposition", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "composition.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "composition.yaml"),
+				compositionRevisionsWithin(30*time.Second, "revision-gc", 1),
+			)).
+			// Create an XR with the manual update policy. It will be pinned to
+			// revision 1, so revision 1 is in use.
+			Assess("CreateXRPinnedToFirstRevision", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "xr.yaml", "spec.crossplane.compositionRevisionRef.name", funcs.Any),
+			)).
+			// No GC on the first update: all revisions are in use.
+			Assess("UpdateCompositionOnce", funcs.AllOf(
+				update(1),
+				compositionRevisionsWithin(30*time.Second, "revision-gc", 1, 2),
+			)).
+			// No GC on the second update: revision 2 is the only unused
+			// revision and unusedRevisionHistoryLimit is 1. Revision 1 is in
+			// use, so it doesn't count toward the limit.
+			Assess("UpdateCompositionTwice", funcs.AllOf(
+				update(2),
+				compositionRevisionsWithin(30*time.Second, "revision-gc", 1, 2, 3),
+			)).
+			// GC on the third update: revisions 2 and 3 are unused, so we
+			// should keep 3 and delete 2.
+			Assess("UpdateCompositionThreeTimes", funcs.AllOf(
+				update(3),
+				compositionRevisionsWithin(30*time.Second, "revision-gc", 1, 3, 4),
+			)).
+			// Delete the XR to make revision 1 unused.
+			Assess("DeleteXR", funcs.AllOf(
+				funcs.DeleteResources(manifests, "xr.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
+			)).
+			// GC on the fourth update: revisions 1, 3, and 4 are now unused,
+			// so we should keep 4 and 5.
+			Assess("UpdateCompositionAfterXRIsDeleted", funcs.AllOf(
+				update(4),
+				compositionRevisionsWithin(30*time.Second, "revision-gc", 4, 5),
+			)).
+			// Deleting the XRD deletes the XR too, if an earlier step failed
+			// before deleting it.
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResources(manifests, "composition.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "composition.yaml"),
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+// compositionRevisionsWithin fails a test if the revision numbers of the named
+// Composition's CompositionRevisions aren't exactly the supplied revisions
+// within the supplied duration.
+func compositionRevisionsWithin(d time.Duration, comp string, want ...int64) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		var got []int64
+
+		err := wait.For(func(ctx context.Context) (bool, error) {
+			l := &apiextensionsv1.CompositionRevisionList{}
+			if err := c.Client().Resources().List(ctx, l, resources.WithLabelSelector(apiextensionsv1.LabelCompositionName+"="+comp)); err != nil {
+				t.Logf("cannot list CompositionRevisions: %v", err)
+				return false, nil
+			}
+
+			got = make([]int64, 0, len(l.Items))
+			for _, rev := range l.Items {
+				got = append(got, rev.Spec.Revision)
+			}
+
+			slices.Sort(got)
+
+			return slices.Equal(got, want), nil
+		}, wait.WithTimeout(d), wait.WithInterval(funcs.DefaultPollInterval))
+		if err != nil {
+			t.Errorf("Composition %q has revisions %v, want %v: %v", comp, got, want, err)
+			return ctx
+		}
+
+		t.Logf("Composition %q has revisions %v", comp, want)
+
+		return ctx
+	}
 }

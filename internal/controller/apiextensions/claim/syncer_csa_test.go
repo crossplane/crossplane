@@ -393,6 +393,84 @@ func TestClientSideSync(t *testing.T) {
 				err: nil,
 			},
 		},
+		"DoNotPropagateInjectedMachineryFields": {
+			reason: "XR machinery fields (e.g. resourceRefs) injected into a claim's spec must not be propagated to the XR.",
+			params: params{
+				ng: names.NameGeneratorFn(func(_ context.Context, cd resource.Object) error {
+					cd.SetName("cool-claim-random")
+					return nil
+				}),
+				c: &test.MockClient{
+					MockUpdate:       test.NewMockUpdateFn(nil),
+					MockGet:          test.NewMockGetFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				},
+			},
+			args: args{
+				cm: NewClaim(func(cm *claim.Unstructured) {
+					cm.SetNamespace("default")
+					cm.SetName("cool-claim")
+
+					// Make the claim spec an object.
+					cm.SetCompositionReference(&corev1.ObjectReference{
+						Name: "some-composition",
+					})
+
+					// A user-defined spec field we should propagate.
+					cm.Object["spec"].(map[string]any)["propagateMe"] = "user-value"
+
+					// XR machinery injected into the claim's spec, e.g. via an
+					// XRD schema with x-kubernetes-preserve-unknown-fields: true.
+					// It must not be propagated to the XR.
+					cm.Object["spec"].(map[string]any)["resourceRefs"] = []any{
+						map[string]any{"apiVersion": "v1", "kind": "Secret", "name": "victim"},
+					}
+				}),
+				xr: NewComposite(),
+			},
+			want: want{
+				cm: NewClaim(func(cm *claim.Unstructured) {
+					cm.SetNamespace("default")
+					cm.SetName("cool-claim")
+
+					cm.SetCompositionReference(&corev1.ObjectReference{
+						Name: "some-composition",
+					})
+					cm.SetResourceReference(&reference.Composite{
+						Name: "cool-claim-random",
+					})
+
+					cm.Object["spec"].(map[string]any)["propagateMe"] = "user-value"
+					// The injected field stays on the claim - we only refuse to
+					// copy it onward to the XR.
+					cm.Object["spec"].(map[string]any)["resourceRefs"] = []any{
+						map[string]any{"apiVersion": "v1", "kind": "Secret", "name": "victim"},
+					}
+				}),
+				xr: NewComposite(func(xr *composite.Unstructured) {
+					xr.SetGenerateName("cool-claim-")
+					xr.SetName("cool-claim-random")
+
+					xr.SetLabels(map[string]string{
+						xcrd.LabelKeyClaimNamespace: "default",
+						xcrd.LabelKeyClaimName:      "cool-claim",
+					})
+
+					xr.SetClaimReference(&reference.Claim{
+						Namespace: "default",
+						Name:      "cool-claim",
+					})
+					xr.SetCompositionReference(&corev1.ObjectReference{
+						Name: "some-composition",
+					})
+
+					xr.Object["spec"].(map[string]any)["propagateMe"] = "user-value"
+					// resourceRefs is deliberately absent: it must not be
+					// propagated from the claim.
+				}),
+				err: nil,
+			},
+		},
 	}
 
 	for name, tc := range cases {

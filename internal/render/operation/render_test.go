@@ -51,6 +51,17 @@ var ignoreTimestamps = cmp.FilterPath(func(p cmp.Path) bool {
 }, cmp.Ignore())
 
 func TestRender(t *testing.T) {
+	// Steps may reference function packages by digest. Rendering doesn't
+	// install functions, so the function must be supplied using its package as
+	// its name.
+	const pkg = "xpkg.crossplane.io/crossplane-contrib/function-cool@sha256:c0ffee1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+
+	addr := rendertest.StartFunctionServer(t, &rendertest.StaticFunctionServer{
+		Response: &fnv1.RunFunctionResponse{
+			Results: []*fnv1.Result{{Severity: fnv1.Severity_SEVERITY_NORMAL, Message: "cool function ran"}},
+		},
+	})
+
 	type want struct {
 		err error
 		out *renderv1alpha1.OperationOutput
@@ -99,6 +110,65 @@ func TestRender(t *testing.T) {
 							},
 						},
 					}),
+				},
+			},
+		},
+		"FunctionByPackage": {
+			reason: "A pipeline step that references its function by package OCI reference should be routed to the function supplied with that package as its name.",
+			input: &renderv1alpha1.OperationInput{
+				Operation: mustStruct(map[string]any{
+					"apiVersion": "ops.crossplane.io/v1alpha1",
+					"kind":       "Operation",
+					"metadata": map[string]any{
+						"name":      "my-operation",
+						"namespace": "default",
+					},
+					"spec": map[string]any{
+						"mode": "Pipeline",
+						"pipeline": []any{
+							map[string]any{
+								"step":     "cool",
+								"function": pkg,
+							},
+						},
+					},
+				}),
+				Functions: []*renderv1alpha1.FunctionInput{
+					{Name: pkg, Address: addr},
+				},
+			},
+			want: want{
+				out: &renderv1alpha1.OperationOutput{
+					Operation: mustStruct(map[string]any{
+						"apiVersion": "ops.crossplane.io/v1alpha1",
+						"kind":       "Operation",
+						"metadata": map[string]any{
+							"name":            "my-operation",
+							"namespace":       "default",
+							"resourceVersion": "999",
+						},
+						"spec": map[string]any{
+							"mode": "Pipeline",
+							"pipeline": []any{
+								map[string]any{
+									"step":     "cool",
+									"function": pkg,
+								},
+							},
+						},
+						"status": map[string]any{
+							"conditions": []any{
+								map[string]any{"type": "Succeeded", "status": "True", "reason": "PipelineSuccess"},
+								map[string]any{"type": "ValidPipeline", "status": "True", "reason": "ValidPipeline"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
+							},
+						},
+					}),
+					// Our function's result surfaces as an event. Seeing it
+					// means we routed to the function by package.
+					Events: []*renderv1alpha1.Event{
+						{Type: "Normal", Reason: "RunPipelineStep", Message: "Pipeline step \"cool\": cool function ran"},
+					},
 				},
 			},
 		},

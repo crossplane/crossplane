@@ -1,0 +1,8 @@
+# This file is NOT applied by the test. It describes the Function that the v1
+# Configuration installs as a dependency.
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: crossplane-contrib-function-dummy
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.0

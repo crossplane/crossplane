@@ -20,6 +20,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const labelController = "controller"
+
 var (
 	_ Metrics              = &NopMetrics{}
 	_ Metrics              = &PrometheusMetrics{}
@@ -52,37 +54,37 @@ func NewPrometheusMetrics() *PrometheusMetrics {
 			Subsystem: "circuit_breaker",
 			Name:      "opens_total",
 			Help:      "Number of times the XR circuit breaker transitioned from closed to open.",
-		}, []string{"controller"}),
+		}, []string{labelController}),
 
 		closes: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Subsystem: "circuit_breaker",
 			Name:      "closes_total",
 			Help:      "Number of times the XR circuit breaker transitioned from open to closed.",
-		}, []string{"controller"}),
+		}, []string{labelController}),
 
 		events: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Subsystem: "circuit_breaker",
 			Name:      "events_total",
 			Help:      "Number of XR watch events handled by the circuit breaker, labelled by outcome.",
-		}, []string{"controller", "result"}),
+		}, []string{labelController, "result"}),
 	}
 }
 
 // IncOpen records a circuit breaker open transition.
 func (m *PrometheusMetrics) IncOpen(controller string) {
-	m.opens.With(prometheus.Labels{"controller": controller}).Inc()
+	m.opens.With(prometheus.Labels{labelController: controller}).Inc()
 }
 
 // IncClose records a circuit breaker close transition.
 func (m *PrometheusMetrics) IncClose(controller string) {
-	m.closes.With(prometheus.Labels{"controller": controller}).Inc()
+	m.closes.With(prometheus.Labels{labelController: controller}).Inc()
 }
 
 // IncEvent records a circuit breaker event outcome.
 func (m *PrometheusMetrics) IncEvent(controller, result string) {
 	m.events.With(prometheus.Labels{
-		"controller": controller,
-		"result":     result,
+		labelController: controller,
+		"result":        result,
 	}).Inc()
 }
 

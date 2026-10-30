@@ -22,7 +22,7 @@ spec:
             nop-resource-1:
               resource:
                 apiVersion: nop.crossplane.io/v1alpha1
-                kind: NopResource
+                kind: ClusterNopResource
                 spec:
                   forProvider:
                     conditionAfter:

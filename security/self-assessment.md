@@ -179,12 +179,23 @@ cluster scoped and Crossplane does not have built-in mechanisms or experiences
 to further restrict their access. This can be configured outside of Crossplane
 via manual RBAC or policy configurations.
 
+`Compositions` and `CompositeResourceDefinitions` are cluster scoped resources
+authored by trusted members of the platform team, so Crossplane does not treat
+the logic of a `Composition` as a security boundary. Crossplane executes the
+function pipeline they define and applies the resulting composed resources using
+its own service account. A `Composition` that passes end user input through to
+the kind, scope, or other identity-related fields of a composed resource
+therefore grants that user whatever the `Composition` specifies. Preventing that
+is the platform team's responsibility, for example by controlling who can create
+`Compositions` and `CompositeResourceDefinitions`, by applying admission policy
+to the resources they compose, or by simply not writing `Compositions` that
+grant application developers more access than intended.
+
 Crossplane does not intend to exhaustively restrict the controller workloads
 that are run as extensions in the control plane. Users have the ability to
 configure the `Deployment` that manages the extension's pod (and therefore
 internal controllers), but the specific execution and runtime of the extension
 is not restricted further by Crossplane.
-
 
 ## Self-assessment Use
 

@@ -41,6 +41,30 @@ const (
 	CompositionModePipeline CompositionMode = "Pipeline"
 )
 
+// A CompositionDeletionPolicy determines how a Composition handles the deletion
+// of its composite resources.
+type CompositionDeletionPolicy string
+
+const (
+	// CompositionDeletionPolicyBackground means Crossplane stops managing a
+	// composite resource as soon as it's deleted. Kubernetes deletes its
+	// composed resources once the composite resource is gone.
+	CompositionDeletionPolicyBackground CompositionDeletionPolicy = "Background"
+
+	// CompositionDeletionPolicyForeground means Crossplane deletes a composite
+	// resource's composed resources, and keeps the composite resource until
+	// they're gone. The function pipeline doesn't run.
+	CompositionDeletionPolicyForeground CompositionDeletionPolicy = "Foreground"
+
+	// CompositionDeletionPolicyPipeline is like Foreground, but Crossplane keeps
+	// running the function pipeline while the composite resource is deleted.
+	// Functions decide when each composed resource may be deleted by removing
+	// it from their desired state, and can compose resources that do work
+	// first, like taking a backup. Crossplane keeps the composite resource
+	// until all its composed resources are gone.
+	CompositionDeletionPolicyPipeline CompositionDeletionPolicy = "Pipeline"
+)
+
 // TypeReference is used to refer to a type for declaring compatibility.
 type TypeReference struct {
 	// APIVersion of the type.
@@ -56,13 +80,23 @@ func TypeReferenceTo(gvk schema.GroupVersionKind) TypeReference {
 }
 
 // A PipelineStep in a function pipeline.
+//
+// +kubebuilder:validation:XValidation:rule="(has(self.functionRef) && !has(self.function)) || (has(self.function) && !has(self.functionRef))",message="exactly one of functionRef or function must be provided"
 type PipelineStep struct {
 	// Step name. Must be unique within its Pipeline.
 	Step string `json:"step"`
 
 	// FunctionRef is a reference to the function this step should
 	// execute.
-	FunctionRef FunctionReference `json:"functionRef"`
+	// +optional
+	FunctionRef *FunctionReference `json:"functionRef,omitempty"`
+
+	// Function is a fully-qualified OCI reference to the function package this
+	// step should execute. The package must be specified by digest.
+	// +optional
+	// +kubebuilder:validation:MaxLength=512
+	// +kubebuilder:validation:XValidation:rule="self.matches('^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\\\\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*(:[0-9]+)?(\\\\/[a-z0-9]+((\\\\.|_|__|-+)[a-z0-9]+)*)+(:[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127})?@[a-z0-9]+:[a-f0-9]+$')",message="must be a fully qualified OCI reference specified by digest, including the registry and repository. For example, 'registry.example.com/repo/package@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'."
+	Function string `json:"function,omitempty"`
 
 	// Input is an optional, arbitrary Kubernetes resource (i.e. a resource
 	// with an apiVersion and kind) that will be passed to the function as

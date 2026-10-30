@@ -30,3 +30,5 @@ spec:
                 type: boolean
               resourceHasExpectedData:
                 type: boolean
+              receivedValue:
+                type: string

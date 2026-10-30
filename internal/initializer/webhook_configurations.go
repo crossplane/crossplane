@@ -45,6 +45,31 @@ func WithWebhookConfigurationsFs(fs afero.Fs) WebhookConfigurationsOption {
 	}
 }
 
+// WithSkippedConfigurations is used to skip applying the webhook
+// configurations with the supplied metadata names.
+func WithSkippedConfigurations(names ...string) WebhookConfigurationsOption {
+	return func(c *WebhookConfigurations) {
+		if c.skip == nil {
+			c.skip = make(map[string]bool, len(names))
+		}
+		for _, n := range names {
+			c.skip[n] = true
+		}
+	}
+}
+
+// WithFailurePolicyOverride is used to override the failurePolicy of every
+// webhook of the ValidatingWebhookConfiguration with the supplied metadata
+// name at apply time.
+func WithFailurePolicyOverride(configName string, p admv1.FailurePolicyType) WebhookConfigurationsOption {
+	return func(c *WebhookConfigurations) {
+		if c.failurePolicyOverrides == nil {
+			c.failurePolicyOverrides = make(map[string]admv1.FailurePolicyType, 1)
+		}
+		c.failurePolicyOverrides[configName] = p
+	}
+}
+
 // WebhookConfigurationsOption configures WebhookConfigurations step.
 type WebhookConfigurationsOption func(*WebhookConfigurations)
 
@@ -72,7 +97,9 @@ type WebhookConfigurations struct {
 	TLSSecretRef     types.NamespacedName
 	ServiceReference admv1.ServiceReference
 
-	fs afero.Fs
+	fs                     afero.Fs
+	skip                   map[string]bool
+	failurePolicyOverrides map[string]admv1.FailurePolicyType
 }
 
 // Run applies all webhook ValidatingWebhookConfigurations and
@@ -113,6 +140,10 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 	pa := resource.NewAPIPatchingApplicator(kube)
 
 	for _, obj := range pkg.GetObjects() {
+		if mo, ok := obj.(client.Object); ok && c.skip[mo.GetName()] {
+			continue
+		}
+
 		switch conf := obj.(type) {
 		case *admv1.ValidatingWebhookConfiguration:
 			for i := range conf.Webhooks {
@@ -120,6 +151,13 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 				conf.Webhooks[i].ClientConfig.Service.Name = c.ServiceReference.Name
 				conf.Webhooks[i].ClientConfig.Service.Namespace = c.ServiceReference.Namespace
 				conf.Webhooks[i].ClientConfig.Service.Port = c.ServiceReference.Port
+
+				// Note that the applicator uses a JSON merge patch of the full
+				// desired object, so an override set here (or reverted to the
+				// value in the packaged YAML) always takes effect on re-apply.
+				if p, ok := c.failurePolicyOverrides[conf.GetName()]; ok {
+					conf.Webhooks[i].FailurePolicy = &p
+				}
 			}
 		case *admv1.MutatingWebhookConfiguration:
 			for i := range conf.Webhooks {

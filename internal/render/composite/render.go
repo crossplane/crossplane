@@ -21,6 +21,7 @@ package composite
 
 import (
 	"context"
+	"slices"
 
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -36,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	managed "github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	xpresource "github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -46,7 +48,9 @@ import (
 	apiextensionsv2 "github.com/crossplane/crossplane/apis/v2/apiextensions/v2"
 	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composition"
+	"github.com/crossplane/crossplane/v2/internal/features"
 	"github.com/crossplane/crossplane/v2/internal/render"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
@@ -159,6 +163,14 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		store = append(store, *u)
 	}
 
+	// Seed synthetic Function and FunctionRevision resources so the
+	// FunctionComposer can resolve each pipeline step to a FunctionRevision.
+	fns, err := render.SyntheticFunctions(in.GetFunctions())
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot build synthetic functions")
+	}
+	store = append(store, fns...)
+
 	c := render.NewInMemoryClient(s, store...)
 
 	runner, err := render.NewFunctionRunner(in.GetFunctions())
@@ -174,9 +186,13 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 	sf := xfn.NewOpenAPIRequiredSchemasFetcher(oc)
 	rsf := render.NewRecordingRequiredSchemasFetcher(sf)
 	rrf := render.NewRecordingRequiredResourcesFetcher(xfn.NewExistingRequiredResourcesFetcher(c))
+	// For render purposes, there's no harm in unconditionally enabling this
+	// feature.
+	ff := &feature.Flags{}
+	ff.Enable(features.EnableAlphaPipelineOCIReferences)
 
 	fc := composite.NewFunctionComposer(c, c,
-		xfn.NewFetchingFunctionRunner(runner, rrf, rsf),
+		xfn.NewFetchingFunctionRunner(render.NewFunctionRevisionRunner(runner, c, in.GetFunctions()), rrf, rsf),
 		composite.WithComposedResourceObserver(
 			composite.NewExistingComposedResourceObserver(c, c,
 				composite.NewSecretConnectionDetailsFetcher(c))),
@@ -213,10 +229,11 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 				return false, nil
 			},
 		)),
-		composite.WithWatchStarter("render", nil, &composite.NopWatchStarter{}),
+		composite.WithWatchStarter("render", nil, &composite.NopWatchStarter{}, dependency.NopTracker{}),
 		composite.WithCircuitBreaker(&circuit.NopBreaker{}),
 		composite.WithRecorder(rec),
 		composite.WithLogger(log),
+		composite.WithFeatures(ff),
 	)
 
 	req := reconcile.Request{NamespacedName: types.NamespacedName{
@@ -406,8 +423,7 @@ func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstruct
 
 	// Find the final XR state. It's the last Status().Update or
 	// Status().Patch call for the XR.
-	for i := len(c.Updated()) - 1; i >= 0; i-- {
-		u := c.Updated()[i]
+	for _, u := range slices.Backward(c.Updated()) {
 		if isPrimary(u) {
 			s, err := xfn.AsStruct(&u)
 			if err != nil {
@@ -421,8 +437,7 @@ func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstruct
 	// If the XR wasn't in the updated list, check applied (from
 	// Status().Patch, which records to applied).
 	if out.GetCompositeResource() == nil {
-		for i := len(c.Applied()) - 1; i >= 0; i-- {
-			u := c.Applied()[i]
+		for _, u := range slices.Backward(c.Applied()) {
 			if isPrimary(u) {
 				s, err := xfn.AsStruct(&u)
 				if err != nil {
@@ -468,7 +483,7 @@ func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstruct
 		out.RequiredResources = append(out.RequiredResources, s)
 	}
 
-	// Collect required schmea selectors.
+	// Collect required schema selectors.
 	for _, ss := range rsf.GetSchemaSelectors() {
 		s, err := messageToStruct(ss)
 		if err != nil {

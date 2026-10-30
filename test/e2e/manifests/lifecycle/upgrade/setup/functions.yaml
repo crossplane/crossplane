@@ -15,4 +15,4 @@ spec:
   # TODO(negz): This function should use meta.pkg.crossplane.io/v1 metadata.
   # It supports the new v1 RPCs but it can't be built using v1 metadata until
   # https://github.com/crossplane/crossplane/issues/5971 is fixed.
-  package: xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.3.0
+  package: xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.7.0
