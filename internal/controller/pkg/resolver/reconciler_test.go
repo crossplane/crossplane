@@ -466,6 +466,7 @@ func TestReconcile(t *testing.T) {
 							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 							Version: "v0.0.1",
 						}}),
+						MockList:         test.NewMockListFn(nil),
 						MockCreate:       test.NewMockCreateFn(errBoom),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
@@ -511,6 +512,7 @@ func TestReconcile(t *testing.T) {
 							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 							Version: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
 						}}),
+						MockList:         test.NewMockListFn(nil),
 						MockCreate:       test.NewMockCreateFn(errBoom),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
@@ -556,6 +558,7 @@ func TestReconcile(t *testing.T) {
 							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 							Version: "v0.0.1",
 						}}),
+						MockList:         test.NewMockListFn(nil),
 						MockCreate:       test.NewMockCreateFn(nil),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
@@ -590,6 +593,70 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
+		"SuccessfulCreateMissingDependencyWithImageConfigName": {
+			reason: "We should name a created dependency using a matching ImageConfig.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "cool-package",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
+							Version: "v0.0.1",
+						}}),
+						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							l, ok := obj.(*v1beta1.ImageConfigList)
+							if !ok {
+								return nil
+							}
+							l.Items = []v1beta1.ImageConfig{{
+								ObjectMeta: metav1.ObjectMeta{Name: "nop"},
+								Spec: v1beta1.ImageConfigSpec{
+									MatchImages: []v1beta1.ImageMatch{{Prefix: "xpkg.crossplane.io/hasheddan/"}},
+									PackageName: "<< .Remainder >>",
+								},
+							}}
+							return nil
+						}),
+						MockCreate: test.NewMockCreateFn(nil, func(o client.Object) error {
+							if o.GetName() != "config-nop-c" {
+								return errors.Errorf("incorrect package name; want config-nop-c, got %s", o.GetName())
+							}
+							return nil
+						}),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return []dag.Node{
+									&dag.DependencyNode{
+										Dependency: v1beta1.Dependency{
+											Package:     "xpkg.crossplane.io/hasheddan/config-nop-c",
+											Constraints: ">v1.0.0",
+											Type:        ptr.To(v1beta1.ConfigurationPackageType),
+										},
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
+					}),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v1.2.0"}, nil),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
 		"SuccessfulCreateMissingDependencyWithRejectedTags": {
 			reason: "We should not requeue if able to create missing dependency.",
 			args: args{
@@ -601,6 +668,7 @@ func TestReconcile(t *testing.T) {
 							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 							Version: "v1.0.0",
 						}}),
+						MockList: test.NewMockListFn(nil),
 						MockCreate: test.NewMockCreateFn(nil, func(o client.Object) error {
 							// Make sure the correct tag was selected - v1.0.0,
 							// not v1 or v1.0, which both parse to the same
@@ -659,6 +727,7 @@ func TestReconcile(t *testing.T) {
 							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 							Version: "v0.0.1",
 						}}),
+						MockList:         test.NewMockListFn(nil),
 						MockCreate:       test.NewMockCreateFn(nil),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
@@ -708,6 +777,7 @@ func TestReconcile(t *testing.T) {
 							Source:  "xpkg.crossplane.io/cool-repo/cool-image",
 							Version: "v0.0.1",
 						}}),
+						MockList:         test.NewMockListFn(nil),
 						MockCreate:       test.NewMockCreateFn(nil),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
@@ -955,6 +1025,118 @@ func getLockFn(pkgs []v1beta1.LockPackage) test.MockGetFn {
 		}
 		return errors.Errorf("unexpected get for type %T", o)
 	})
+}
+
+func TestNewPackage(t *testing.T) {
+	ref, err := pkgName.ParseReference("xpkg.crossplane.io/crossplane-contrib/provider-nop")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type args struct {
+		dep     *v1beta1.Dependency
+		version string
+		objName string
+	}
+
+	type want struct {
+		name       string
+		apiVersion string
+		kind       string
+		pkg        string
+		err        error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"Provider": {
+			reason: "We should use the supplied object name and derive the GVK from the dependency type.",
+			args: args{
+				dep:     &v1beta1.Dependency{Type: ptr.To(v1beta1.ProviderPackageType)},
+				version: "v1.0.0",
+				objName: "cool-name",
+			},
+			want: want{
+				name:       "cool-name",
+				apiVersion: v1.ProviderGroupVersionKind.GroupVersion().String(),
+				kind:       v1.ProviderKind,
+				pkg:        "xpkg.crossplane.io/crossplane-contrib/provider-nop:v1.0.0",
+			},
+		},
+		"ExplicitAPIVersionAndKind": {
+			reason: "We should use an explicit apiVersion and kind when the dependency specifies them.",
+			args: args{
+				dep: &v1beta1.Dependency{
+					APIVersion: new("example.org/v1"),
+					Kind:       new("CoolPackage"),
+				},
+				version: "v1.0.0",
+				objName: "cool-name",
+			},
+			want: want{
+				name:       "cool-name",
+				apiVersion: "example.org/v1",
+				kind:       "CoolPackage",
+				pkg:        "xpkg.crossplane.io/crossplane-contrib/provider-nop:v1.0.0",
+			},
+		},
+		"Digest": {
+			reason: "We should reference the package by digest when the version is a digest.",
+			args: args{
+				dep:     &v1beta1.Dependency{Type: ptr.To(v1beta1.FunctionPackageType)},
+				version: "sha256:ecc25c121e6ed0f84dc17eb8e09ba2c1e2b70b9ba7adee1e8c2a2ee6a09a0c4c",
+				objName: "cool-name",
+			},
+			want: want{
+				name:       "cool-name",
+				apiVersion: v1.FunctionGroupVersionKind.GroupVersion().String(),
+				kind:       v1.FunctionKind,
+				pkg:        "xpkg.crossplane.io/crossplane-contrib/provider-nop@sha256:ecc25c121e6ed0f84dc17eb8e09ba2c1e2b70b9ba7adee1e8c2a2ee6a09a0c4c",
+			},
+		},
+		"InvalidDependency": {
+			reason: "We should return an error for a dependency with neither a type nor an explicit apiVersion and kind.",
+			args: args{
+				dep:     &v1beta1.Dependency{},
+				version: "v1.0.0",
+				objName: "cool-name",
+			},
+			want: want{
+				err: errors.New("encountered an invalid dependency: package dependencies must specify either a valid type, or an explicit apiVersion, kind, and package"),
+			},
+		},
+	}
+
+	for tn, tc := range cases {
+		t.Run(tn, func(t *testing.T) {
+			pack, err := NewPackage(tc.args.dep, tc.args.version, ref, tc.args.objName)
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nNewPackage(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if tc.want.err != nil {
+				return
+			}
+
+			pkg, _ := fieldpath.Pave(pack.Object).GetString("spec.package")
+
+			if diff := cmp.Diff(tc.want.name, pack.GetName()); diff != "" {
+				t.Errorf("\n%s\nNewPackage(...): -want name, +got name:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.apiVersion, pack.GetAPIVersion()); diff != "" {
+				t.Errorf("\n%s\nNewPackage(...): -want apiVersion, +got apiVersion:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.kind, pack.GetKind()); diff != "" {
+				t.Errorf("\n%s\nNewPackage(...): -want kind, +got kind:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.pkg, pkg); diff != "" {
+				t.Errorf("\n%s\nNewPackage(...): -want spec.package, +got spec.package:\n%s", tc.reason, diff)
+			}
+		})
+	}
 }
 
 func TestFindDigestToUpdate(t *testing.T) {

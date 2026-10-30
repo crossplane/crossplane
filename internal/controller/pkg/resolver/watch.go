@@ -43,6 +43,35 @@ func HasPullSecret() FilterFn {
 	}
 }
 
+// HasPackageName returns a FilterFn that filters any object that either isn't
+// an ImageConfig, or is an ImageConfig that doesn't configure a package name.
+func HasPackageName() FilterFn {
+	return func(o client.Object) bool {
+		ic, ok := o.(*v1beta1.ImageConfig)
+		if !ok {
+			// Not an ImageConfig - filter it.
+			return true
+		}
+		// Filter ImageConfigs that don't configure a package name.
+		return ic.Spec.PackageName == ""
+	}
+}
+
+// AllOf returns a FilterFn that filters an object only if all of the supplied
+// FilterFns filter it. It's useful to enqueue objects that are interesting for
+// any one of several reasons.
+func AllOf(fns ...FilterFn) FilterFn {
+	return func(o client.Object) bool {
+		for _, fn := range fns {
+			if !fn(o) {
+				return false
+			}
+		}
+
+		return true
+	}
+}
+
 // ForName enqueues a request for the named object. It only enqueues a request
 // if all supplied filter functions return false.
 func ForName(name string, fns ...FilterFn) handler.MapFunc {

@@ -76,7 +76,8 @@ func TestEnsureFunctions(t *testing.T) {
 		}
 
 		c := &test.MockClient{
-			MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+			MockList: test.NewMockListFn(nil),
+			MockGet:  test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 			MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
 				if o, ok := obj.(*pkgv1.FunctionRevision); ok {
 					created = o.DeepCopy()
@@ -108,6 +109,7 @@ func TestEnsureFunctions(t *testing.T) {
 		var updated []client.Object
 
 		c := &test.MockClient{
+			MockList: test.NewMockListFn(nil),
 			MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 				switch o := obj.(type) {
 				case *pkgv1.FunctionRevision:
@@ -148,6 +150,7 @@ func TestEnsureFunctions(t *testing.T) {
 		var updatedFn *pkgv1.Function
 
 		c := &test.MockClient{
+			MockList: test.NewMockListFn(nil),
 			MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 				switch o := obj.(type) {
 				case *pkgv1.FunctionRevision:
@@ -186,6 +189,7 @@ func TestEnsureFunctions(t *testing.T) {
 
 	t.Run("RejectsFunctionRevisionForDifferentPackage", func(t *testing.T) {
 		c := &test.MockClient{
+			MockList: test.NewMockListFn(nil),
 			MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 				if o, ok := obj.(*pkgv1.FunctionRevision); ok {
 					o.Spec.Package = "registry.example.org/crossplane-contrib/function-patch-and-transform@sha256:c0ffee1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
