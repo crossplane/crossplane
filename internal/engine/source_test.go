@@ -129,6 +129,8 @@ type MockRegistration struct{}
 
 func (m *MockRegistration) HasSynced() bool { return true }
 
+func (m *MockRegistration) HasSyncedChecker() kcache.DoneChecker { return nil }
+
 func TestStopSource(t *testing.T) {
 	type params struct {
 		inf cache.Informer
