@@ -22,6 +22,7 @@ import (
 	"time"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -42,6 +43,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/xcrd"
 
 	"github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	protectionv1beta1 "github.com/crossplane/crossplane/apis/v2/protection/v1beta1"
 	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
@@ -160,7 +162,13 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	// The CRD's controller follows the MRD's, so an upgrade hands the CRD
 	// over between package revisions just as it hands the MRD over. See
 	// handOverControl for why the apply below can't do that on its own.
-	handOverControl(patch, crd)
+	if err := r.handOverControl(ctx, patch, crd); err != nil {
+		log.Debug("cannot determine whether to hand over CustomResourceDefinition control", "error", err)
+		r.record.Event(mrd, event.Warning(reasonReconcile, err))
+		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to check ownership of CustomResourceDefinition, see events"))
+		_ = r.client.Status().Update(ogctx, mrd)
+		return reconcile.Result{}, errors.Wrap(err, "cannot hand over CustomResourceDefinition control")
+	}
 
 	// Server-side apply the CRD. This handles both create and update.
 	// The Patch call updates patch in-place with the server response.
@@ -217,26 +225,86 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 // write and makes it ours, so the next apply, which no longer declares it,
 // prunes it.
 //
-// We only do this for a revision of the same group and kind as the MRD's
-// controller. The establisher already decides which revision controls the
-// MRD, so the CRD just follows. Anything else keeps control and the apply
-// fails as it always has.
-func handOverControl(patch, crd metav1.Object) {
+// We only do this for a revision of the same group and kind, and the same
+// package, as the MRD's controller. The establisher refuses to take an
+// established object from a revision of a different package (see its
+// controlledByReplacedRevision), but a managed resource CRD a different
+// package established directly still reaches us here, where a group-and-kind
+// match alone would let this MRD's package take it over. Anything else keeps
+// its controller and the apply fails as it always has.
+func (r *Reconciler) handOverControl(ctx context.Context, patch, crd metav1.Object) error {
 	want := metav1.GetControllerOf(patch)
 	got := metav1.GetControllerOf(crd)
 
 	if want == nil || got == nil || got.UID == want.UID {
-		return
+		return nil
 	}
 
 	// Compare group and kind rather than the whole API version, since the API
 	// server may serve the revision's type at more than one.
 	if schema.FromAPIVersionAndKind(got.APIVersion, got.Kind).GroupKind() != schema.FromAPIVersionAndKind(want.APIVersion, want.Kind).GroupKind() {
-		return
+		return nil
+	}
+
+	same, err := r.sameParentPackage(ctx, *got, *want)
+	if err != nil {
+		return err
+	}
+	if !same {
+		return nil
 	}
 
 	got.Controller = new(false)
 	meta.AddOwnerReference(patch, *got)
+	return nil
+}
+
+// sameParentPackage reports whether two package-revision owner references
+// belong to the same package, read from each revision's parent-package label.
+// The revision controlling the live CRD (got) is treated as belonging to the
+// same package when it no longer exists, or was replaced by one with the same
+// name but a different UID: either way it's on its way out and won't keep
+// control, matching how the establisher treats a replaced revision.
+func (r *Reconciler) sameParentPackage(ctx context.Context, got, want metav1.OwnerReference) (bool, error) {
+	gotPkg, exists, err := r.parentPackage(ctx, got)
+	if err != nil {
+		return false, err
+	}
+	if !exists {
+		return true, nil
+	}
+
+	wantPkg, exists, err := r.parentPackage(ctx, want)
+	if err != nil {
+		return false, err
+	}
+	if !exists {
+		return false, nil
+	}
+
+	return gotPkg != "" && gotPkg == wantPkg, nil
+}
+
+// parentPackage returns the package a revision belongs to, read from its
+// pkg.crossplane.io/package label. The second return is false when the
+// revision no longer exists, or was replaced by one with the same name but a
+// different UID.
+func (r *Reconciler) parentPackage(ctx context.Context, ref metav1.OwnerReference) (string, bool, error) {
+	rev := &kunstructured.Unstructured{}
+	rev.SetGroupVersionKind(schema.FromAPIVersionAndKind(ref.APIVersion, ref.Kind))
+
+	err := r.client.Get(ctx, types.NamespacedName{Name: ref.Name}, rev)
+	if kerrors.IsNotFound(err) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, errors.Wrapf(err, "cannot get %s %q to check which package owns the CustomResourceDefinition", ref.Kind, ref.Name)
+	}
+	if rev.GetUID() != ref.UID {
+		return "", false, nil
+	}
+
+	return rev.GetLabels()[pkgv1.LabelParentPackage], true, nil
 }
 
 // protectionEnabled returns true if provider deletion protection is enabled.
