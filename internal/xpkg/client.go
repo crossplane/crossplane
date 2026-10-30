@@ -275,28 +275,28 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 
 	cacheKey := FriendlyID(ParsePackageSourceFromReference(parsedOriginalRef), digest)
 
-	if cfg.pullPolicy != corev1.PullAlways {
-		rc, err := c.cache.Get(cacheKey)
+	// The cache key includes the resolved digest, so a hit is the exact
+	// package we'd otherwise download. That holds for PullAlways too, which
+	// always resolves the tag above but needn't download unchanged content.
+	if rc, err := c.cache.Get(cacheKey); err == nil {
+		pkg, err := c.parser.Parse(ctx, struct {
+			io.Reader
+			io.Closer
+		}{
+			Reader: io.LimitReader(rc, maxPackageSize),
+			Closer: rc,
+		})
+		rc.Close() //nolint:errcheck // Only open for reading.
 		if err == nil {
-			pkg, err := c.parser.Parse(ctx, struct {
-				io.Reader
-				io.Closer
-			}{
-				Reader: io.LimitReader(rc, maxPackageSize),
-				Closer: rc,
-			})
-			rc.Close() //nolint:errcheck // Only open for reading.
-			if err == nil {
-				return &Package{
-					Package:             pkg,
-					Digest:              digest,
-					Version:             parsedOriginalRef.Identifier(),
-					Source:              ParsePackageSourceFromReference(parsedOriginalRef),
-					ResolvedVersion:     parsedResolvedRef.Identifier(),
-					ResolvedSource:      ParsePackageSourceFromReference(parsedResolvedRef),
-					AppliedImageConfigs: applied,
-				}, nil
-			}
+			return &Package{
+				Package:             pkg,
+				Digest:              digest,
+				Version:             parsedOriginalRef.Identifier(),
+				Source:              ParsePackageSourceFromReference(parsedOriginalRef),
+				ResolvedVersion:     parsedResolvedRef.Identifier(),
+				ResolvedSource:      ParsePackageSourceFromReference(parsedResolvedRef),
+				AppliedImageConfigs: applied,
+			}, nil
 		}
 	}
 

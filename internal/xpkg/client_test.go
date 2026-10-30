@@ -423,6 +423,62 @@ func TestClientGet(t *testing.T) {
 				},
 			},
 		},
+		"SuccessFromCacheWithPullAlways": {
+			reason: "Should return cached package without fetching when PullAlways resolves to a cached digest",
+			client: &CachedClient{
+				fetcher: &MockFetcher{
+					MockHead: func(_ context.Context, _ name.Reference, _ ...string) (*v1.Descriptor, error) {
+						return &v1.Descriptor{
+							Digest: v1.Hash{
+								Algorithm: "sha256",
+								Hex:       "abc123def456789012345678901234567890123456789012345678901234abcd",
+							},
+						}, nil
+					},
+					MockFetch: func(_ context.Context, _ name.Reference, _ ...string) (v1.Image, error) {
+						return nil, errors.New("Fetch should not be called when the resolved digest is cached")
+					},
+				},
+				parser: NewTestParser(t),
+				cache: &MockCache{
+					MockGet: func(_ string) (io.ReadCloser, error) {
+						return io.NopCloser(strings.NewReader(providerMeta)), nil
+					},
+				},
+				config: &MockConfigStore{
+					MockRewritePath: func(_ context.Context, _ string) (string, string, error) {
+						return "", "", nil
+					},
+					MockPullSecretFor: func(_ context.Context, _ string) (string, string, error) {
+						return "", "", nil
+					},
+					MockImageVerificationConfigFor: func(_ context.Context, _ string) (string, *v1beta1.ImageVerification, error) {
+						return "test-verification-config", &v1beta1.ImageVerification{
+							Provider: v1beta1.ImageVerificationProviderCosign,
+						}, nil
+					},
+				},
+				validator: &MockValidator{
+					MockValidate: func(_ context.Context, _ name.Reference, _ *v1beta1.ImageVerification, _ ...string) error {
+						return errors.New("signature verification should not run when the resolved digest is cached")
+					},
+				},
+			},
+			args: args{
+				ref:  testSource + ":" + testTag,
+				opts: []GetOption{WithPullPolicy(corev1.PullAlways)},
+			},
+			want: want{
+				pkg: &Package{
+					Package:         NewTestPackage(t, providerMeta),
+					Digest:          testDigest,
+					Version:         testTag,
+					Source:          testSource,
+					ResolvedVersion: testTag,
+					ResolvedSource:  testSource,
+				},
+			},
+		},
 		"SuccessWithImageConfigRewrite": {
 			reason: "Should use rewritten path from ImageConfig and track which config was applied",
 			client: &CachedClient{
@@ -567,7 +623,7 @@ func TestClientGet(t *testing.T) {
 			},
 		},
 		"SuccessWithPullAlways": {
-			reason: "Should bypass cache when PullAlways is specified",
+			reason: "Should fetch when PullAlways resolves to a digest that isn't cached",
 			client: &CachedClient{
 				fetcher: &MockFetcher{
 					MockHead: func(_ context.Context, _ name.Reference, _ ...string) (*v1.Descriptor, error) {
@@ -601,7 +657,7 @@ func TestClientGet(t *testing.T) {
 				parser: NewTestParser(t),
 				cache: &MockCache{
 					MockGet: func(_ string) (io.ReadCloser, error) {
-						return nil, errors.New("cache should not be checked with PullAlways")
+						return nil, errors.New("not in cache")
 					},
 					MockStore: func(_ string, rc io.ReadCloser) error {
 						_, _ = io.Copy(io.Discard, rc)
@@ -1192,6 +1248,138 @@ func TestClientGetCachesOnlyCompletePackages(t *testing.T) {
 				t.Errorf("\n%s\nGet(...) from cache: -want objects, +got objects:\n%s", tc.reason, diff)
 			}
 		})
+	}
+}
+
+func TestClientGetPullAlwaysTagMove(t *testing.T) {
+	meta := `{"apiVersion":"meta.pkg.crossplane.io/v1","kind":"Provider","metadata":{"name":"%s"}}`
+	digestA := v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("a", 64)}
+	digestB := v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("b", 64)}
+
+	// The tag resolves to whatever digest it currently points at, and each
+	// digest serves a package with a different name.
+	tagDigest := digestA
+	packages := map[v1.Hash]string{
+		digestA: fmt.Sprintf(meta, "provider-a"),
+		digestB: fmt.Sprintf(meta, "provider-b"),
+	}
+	var fetched []v1.Hash
+
+	c := &CachedClient{
+		fetcher: &MockFetcher{
+			MockHead: func(_ context.Context, _ name.Reference, _ ...string) (*v1.Descriptor, error) {
+				return &v1.Descriptor{Digest: tagDigest}, nil
+			},
+			MockFetch: func(_ context.Context, ref name.Reference, _ ...string) (v1.Image, error) {
+				d, err := v1.NewHash(ref.Identifier())
+				if err != nil {
+					return nil, errors.Wrapf(err, "expected a fetch by digest, got %q", ref)
+				}
+				fetched = append(fetched, d)
+				content := CreateTarWithPackageYAML(packages[d])
+				return &MockImage{
+					MockManifest: func() (*v1.Manifest, error) {
+						return &v1.Manifest{
+							Layers: []v1.Descriptor{{
+								Annotations: map[string]string{AnnotationKey: PackageAnnotation},
+								Digest:      v1.Hash{Algorithm: "sha256", Hex: "layer123"},
+							}},
+						}, nil
+					},
+					MockLayerByDigest: func(_ v1.Hash) (v1.Layer, error) {
+						return NewMockLayer(content), nil
+					},
+				}, nil
+			},
+		},
+		parser: NewTestParser(t),
+		cache:  NewFsPackageCache("/cache", afero.NewMemMapFs()),
+		config: &MockConfigStore{
+			MockRewritePath: func(_ context.Context, _ string) (string, string, error) {
+				return "", "", nil
+			},
+			MockPullSecretFor: func(_ context.Context, _ string) (string, string, error) {
+				return "", "", nil
+			},
+			MockImageVerificationConfigFor: func(_ context.Context, _ string) (string, *v1beta1.ImageVerification, error) {
+				return "", nil, nil
+			},
+		},
+	}
+
+	type args struct {
+		tagDigest v1.Hash
+	}
+	type want struct {
+		name    string
+		digest  v1.Hash
+		fetched []v1.Hash
+	}
+
+	steps := []struct {
+		reason string
+		args   args
+		want   want
+	}{
+		{
+			reason: "The first Get should fetch the package the tag points at.",
+			args:   args{tagDigest: digestA},
+			want: want{
+				name:    "provider-a",
+				digest:  digestA,
+				fetched: []v1.Hash{digestA},
+			},
+		},
+		{
+			reason: "A second Get with an unchanged digest should be served from the cache.",
+			args:   args{tagDigest: digestA},
+			want: want{
+				name:    "provider-a",
+				digest:  digestA,
+				fetched: []v1.Hash{digestA},
+			},
+		},
+		{
+			reason: "After the tag moves, Get should fetch the new digest rather than return the cached package.",
+			args:   args{tagDigest: digestB},
+			want: want{
+				name:    "provider-b",
+				digest:  digestB,
+				fetched: []v1.Hash{digestA, digestB},
+			},
+		},
+		{
+			reason: "Moving the tag back should hit the cache entry for the original digest.",
+			args:   args{tagDigest: digestA},
+			want: want{
+				name:    "provider-a",
+				digest:  digestA,
+				fetched: []v1.Hash{digestA, digestB},
+			},
+		},
+	}
+
+	for i, step := range steps {
+		tagDigest = step.args.tagDigest
+
+		got, err := c.Get(context.Background(), testSource+":"+testTag, WithPullPolicy(corev1.PullAlways))
+		if err != nil {
+			t.Fatalf("step %d: %s\nGet(...): unexpected error: %v", i, step.reason, err)
+		}
+
+		gotName := ""
+		if m := got.GetMeta(); m != nil {
+			gotName = m.GetName()
+		}
+		if diff := cmp.Diff(step.want.name, gotName); diff != "" {
+			t.Errorf("step %d: %s\nGet(...): -want package name, +got package name:\n%s", i, step.reason, diff)
+		}
+		if diff := cmp.Diff(step.want.digest.String(), got.Digest); diff != "" {
+			t.Errorf("step %d: %s\nGet(...): -want digest, +got digest:\n%s", i, step.reason, diff)
+		}
+		if diff := cmp.Diff(step.want.fetched, fetched); diff != "" {
+			t.Errorf("step %d: %s\nfetched digests: -want, +got:\n%s", i, step.reason, diff)
+		}
 	}
 }
 
