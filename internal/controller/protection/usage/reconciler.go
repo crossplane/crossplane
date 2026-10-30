@@ -339,7 +339,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				r.record.Event(uu, event.Warning(reasonGetUsing, err))
 
 				return reconcile.Result{}, err
-			} else if err == nil {
+			} else if err == nil && !usingIsGone(using, uu) {
 				// Using resource is still there, so we need to wait for it to be deleted.
 				msg := fmt.Sprintf("Waiting for the using resource (which is a %q named %q) to be deleted.", by.Kind, by.ResourceRef.Name)
 				log.Debug(msg)
@@ -544,6 +544,27 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	return reconcile.Result{RequeueAfter: r.pollInterval}, nil
+}
+
+// usingIsGone reports whether the using resource can never become NotFound
+// while this Usage exists. A Usage composed together with its using resource is
+// owned by that resource with blockOwnerDeletion, so when the using resource is
+// deleted with foreground propagation it cannot disappear until the Usage does.
+// Waiting for it to be deleted would never end, so treat it as gone once it has
+// a deletion timestamp, which lets the Usage finalizer be removed and the
+// cascade complete. Background deletion is unaffected.
+func usingIsGone(using, uu client.Object) bool {
+	if using.GetDeletionTimestamp() == nil {
+		return false
+	}
+
+	if !slices.Contains(using.GetFinalizers(), metav1.FinalizerDeleteDependents) {
+		return false
+	}
+
+	return slices.ContainsFunc(uu.GetOwnerReferences(), func(owner metav1.OwnerReference) bool {
+		return owner.UID == using.GetUID() && ptr.Deref(owner.Controller, false) && ptr.Deref(owner.BlockOwnerDeletion, false)
+	})
 }
 
 func detailsAnnotation(u protection.Usage) string {
