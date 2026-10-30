@@ -31,6 +31,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/imageconfig"
 )
 
 const (
@@ -41,6 +42,7 @@ const (
 	errFmtNoActiveFunctionRevision   = "Function %q has no active FunctionRevision"
 	errFmtNoExternalFunctionRevision = "no active FunctionRevision exists for function package %q"
 	errFmtParseFunctionPackage       = "cannot parse function package %q; it must be a fully qualified OCI reference specified by digest"
+	errFmtFunctionName               = "cannot determine Function name for package %q"
 )
 
 // FunctionRevisionForStep returns the name of the FunctionRevision that should
@@ -104,7 +106,10 @@ func ExternalFunctionRevision(ctx context.Context, c client.Reader, pkg string) 
 		return "", err
 	}
 
-	revName := FunctionRevisionName(ref)
+	revName, err := FunctionRevisionNameFor(ctx, c, ref)
+	if err != nil {
+		return "", err
+	}
 
 	var rev pkgv1.FunctionRevision
 	if err := c.Get(ctx, types.NamespacedName{Name: revName}, &rev); err != nil {
@@ -140,8 +145,21 @@ func NormalizeFunctionOCIRef(ref string) (name.Digest, error) {
 // FunctionName derives a Function name from a package reference. Names are
 // constructed using the same method the package manager uses when installing
 // dependencies, so we may share functions with the package manager.
+//
+// Prefer FunctionNameFor when a client is available. An ImageConfig may name
+// the package something other than this default, and the package manager
+// honors it.
 func FunctionName(ref name.Digest) string {
 	return xpkg.ToDNSLabel(ref.Context().RepositoryStr())
+}
+
+// FunctionNameFor derives a Function name from a package reference, honoring
+// any ImageConfig that names the package. Names are constructed using the same
+// method the package manager uses when installing dependencies, so we may share
+// functions with the package manager.
+func FunctionNameFor(ctx context.Context, c client.Reader, ref name.Digest) (string, error) {
+	fnName, _, err := imageconfig.NewNamer(c).Name(ctx, ref)
+	return fnName, errors.Wrapf(err, errFmtFunctionName, ref.Name())
 }
 
 // FunctionRevisionName derives a FunctionRevision name from a package
@@ -149,8 +167,27 @@ func FunctionName(ref name.Digest) string {
 // composition revisions referencing the same package will share a function
 // revision. Note, however, that we construct names differently from the package
 // manager, so we will not share revisions with it.
+//
+// Prefer FunctionRevisionNameFor when a client is available.
 func FunctionRevisionName(ref name.Digest) string {
-	fnName := FunctionName(ref)
+	return FunctionRevisionNameFrom(FunctionName(ref), ref)
+}
+
+// FunctionRevisionNameFor derives a FunctionRevision name from a package
+// reference, honoring any ImageConfig that names the parent Function.
+func FunctionRevisionNameFor(ctx context.Context, c client.Reader, ref name.Digest) (string, error) {
+	fnName, err := FunctionNameFor(ctx, c, ref)
+	if err != nil {
+		return "", err
+	}
+
+	return FunctionRevisionNameFrom(fnName, ref), nil
+}
+
+// FunctionRevisionNameFrom derives a FunctionRevision name from an already
+// resolved parent Function name and a package reference. Use it to avoid
+// resolving the Function name twice.
+func FunctionRevisionNameFrom(fnName string, ref name.Digest) string {
 	h := sha256.Sum256([]byte(ref.Name()))
 	return xpkg.FriendlyID(fnName, hex.EncodeToString(h[:]))
 }

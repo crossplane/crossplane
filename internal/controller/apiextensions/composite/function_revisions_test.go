@@ -30,6 +30,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	pkgv1beta1 "github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 )
 
 func TestFunctionRevisionForStep(t *testing.T) {
@@ -104,7 +105,9 @@ func TestFunctionRevisionForStep(t *testing.T) {
 		"FunctionRefGetFunctionError": {
 			reason: "We should return an error if we can't get the referenced Function.",
 			args: args{
-				c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+				c: &test.MockClient{
+					MockList: test.NewMockListFn(nil), MockGet: test.NewMockGetFn(errBoom),
+				},
 				s: v1.PipelineStep{FunctionRef: &v1.FunctionReference{Name: "function-cool"}},
 			},
 			want: want{
@@ -177,7 +180,9 @@ func TestFunctionRevisionForStep(t *testing.T) {
 		"FunctionInvalidReference": {
 			reason: "We should return an error if a step's function isn't a digest reference.",
 			args: args{
-				c: &test.MockClient{},
+				c: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
+				},
 				s: v1.PipelineStep{Function: tagged},
 			},
 			want: want{
@@ -187,7 +192,9 @@ func TestFunctionRevisionForStep(t *testing.T) {
 		"FunctionGetError": {
 			reason: "We should return an error if we can't list FunctionRevisions.",
 			args: args{
-				c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+				c: &test.MockClient{
+					MockList: test.NewMockListFn(nil), MockGet: test.NewMockGetFn(errBoom),
+				},
 				s: v1.PipelineStep{Function: "xpkg.crossplane.io/example/function-cool@" + digest},
 			},
 			want: want{
@@ -198,6 +205,7 @@ func TestFunctionRevisionForStep(t *testing.T) {
 			reason: "We should return the active external revision for the package, ignoring any tag.",
 			args: args{
 				c: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						o := obj.(*pkgv1.FunctionRevision)
 
@@ -227,4 +235,69 @@ func TestFunctionRevisionForStep(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFunctionNameFor(t *testing.T) {
+	const digest = "sha256:c0ffee1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+
+	ref, err := NormalizeFunctionOCIRef("xpkg.crossplane.io/example/function-cool@" + digest)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cases := map[string]struct {
+		reason string
+		c      client.Reader
+		want   string
+	}{
+		"NoImageConfig": {
+			reason: "We should derive the name from the repository path when no ImageConfig names the package.",
+			c:      &test.MockClient{MockList: test.NewMockListFn(nil)},
+			want:   "example-function-cool",
+		},
+		"ImageConfig": {
+			reason: "We should use the name from a matching ImageConfig, so that we share the Function with the package manager.",
+			c: &test.MockClient{MockList: test.NewMockListFn(nil, func(l client.ObjectList) error {
+				l.(*pkgv1beta1.ImageConfigList).Items = []pkgv1beta1.ImageConfig{{
+					ObjectMeta: metav1.ObjectMeta{Name: "cool"},
+					Spec: pkgv1beta1.ImageConfigSpec{
+						MatchImages: []pkgv1beta1.ImageMatch{{Prefix: "xpkg.crossplane.io/example/"}},
+						PackageName: "<< .Remainder >>",
+					},
+				}}
+				return nil
+			})},
+			want: "function-cool",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := FunctionNameFor(context.Background(), tc.c, ref)
+			if err != nil {
+				t.Fatalf("FunctionNameFor(...): unexpected error: %v", err)
+			}
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\nFunctionNameFor(...): -want, +got:\n%s", tc.reason, diff)
+			}
+
+			// The revision name must be derived from the Function name so that
+			// revisions follow their parent.
+			if diff := cmp.Diff(FunctionRevisionNameFrom(tc.want, ref), mustRevisionName(t, tc.c, ref)); diff != "" {
+				t.Errorf("\n%s\nFunctionRevisionNameFor(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func mustRevisionName(t *testing.T, c client.Reader, ref name.Digest) string {
+	t.Helper()
+
+	rev, err := FunctionRevisionNameFor(context.Background(), c, ref)
+	if err != nil {
+		t.Fatalf("FunctionRevisionNameFor(...): unexpected error: %v", err)
+	}
+
+	return rev
 }

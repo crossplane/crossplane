@@ -52,6 +52,7 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/controller/pkg/controller"
 	internaldag "github.com/crossplane/crossplane/v2/internal/dag"
 	"github.com/crossplane/crossplane/v2/internal/features"
+	"github.com/crossplane/crossplane/v2/internal/imageconfig"
 )
 
 const (
@@ -79,6 +80,7 @@ const (
 	errFmtNoValidVersion      = "dependency (%s) does not have a valid version to upgrade that satisfies all constraints. If there is a valid version that requires downgrade, manual intervention is required. Constraints: %v"
 	errGetDependency          = "cannot get dependency package"
 	errConstructDependency    = "cannot construct dependency package"
+	errPackageName            = "cannot determine dependency package name"
 	errCreateDependency       = "cannot create dependency package"
 	errUpdateDependency       = "cannot update dependency package"
 	errFmtDiffConstraintTypes = "a dependency package has different types of parent constraints (%v)"
@@ -119,6 +121,20 @@ func WithClient(c xpkg.Client) ReconcilerOption {
 	}
 }
 
+// A PackageNamer returns the object name to use for the package created for a
+// dependency, and the name of the ImageConfig that determined it, if any.
+type PackageNamer interface {
+	Name(ctx context.Context, ref name.Reference) (objName, imageConfig string, err error)
+}
+
+// WithPackageNamer specifies how the Reconciler should name the packages it
+// creates for dependencies.
+func WithPackageNamer(n PackageNamer) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.namer = n
+	}
+}
+
 // WithFeatures specifies which feature flags should be enabled.
 func WithFeatures(f *feature.Flags) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -140,6 +156,7 @@ type Reconciler struct {
 	log        logging.Logger
 	lock       resource.Finalizer
 	newDag     internaldag.NewDAGFn
+	namer      PackageNamer
 	features   *feature.Flags
 	conditions conditions.Manager
 
@@ -175,8 +192,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		// checking the source of each package against the prefixes in the
 		// ImageConfig. However, this is a bit more complex than needed, and we
 		// don't expect to have many ImageConfigs so we just enqueue for all
-		// ImageConfigs with a pull secret.
-		Watches(&v1beta1.ImageConfig{}, handler.EnqueueRequestsFromMapFunc(ForName(lockName, HasPullSecret()))).
+		// ImageConfigs that are relevant to the resolver.
+		Watches(&v1beta1.ImageConfig{}, handler.EnqueueRequestsFromMapFunc(ForName(lockName, AllOf(HasPullSecret(), HasPackageName())))).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(errors.WithSilentRequeueOnConflict(NewReconciler(mgr, opts...)))
 }
@@ -188,6 +205,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		lock:       resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
 		log:        logging.NewNopLogger(),
 		newDag:     internaldag.NewMapDag,
+		namer:      imageconfig.NewNamer(mgr.GetClient()),
 		conditions: conditions.ObservedGenerationPropagationManager{},
 	}
 
@@ -399,7 +417,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, lock), errCannotUpdateStatus)
 		}
 
-		pack, err := NewPackage(&dep.Dependency, addVer, ref)
+		objName, icName, err := r.namer.Name(ctx, ref)
+		if err != nil {
+			log.Debug(errPackageName, "error", err)
+			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errPackageName)))
+
+			_ = r.kube.Status().Update(ctx, lock)
+
+			return reconcile.Result{}, errors.Wrap(err, errPackageName)
+		}
+
+		if icName != "" {
+			log.Debug("Named dependency package using an ImageConfig", "image-config", icName, "package-name", objName)
+		}
+
+		pack, err := NewPackage(&dep.Dependency, addVer, ref, objName)
 		if err != nil {
 			log.Debug(errConstructDependency, "error", err)
 			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errConstructDependency)))
@@ -798,10 +830,11 @@ func matchesAnyConstraint(version string, constraints []string) bool {
 	return false
 }
 
-// NewPackage creates a new package from the given dependency and version.
-func NewPackage(dep *v1beta1.Dependency, version string, ref name.Reference) (*unstructured.Unstructured, error) {
+// NewPackage creates a new package with the supplied object name from the given
+// dependency and version.
+func NewPackage(dep *v1beta1.Dependency, version string, ref name.Reference, objName string) (*unstructured.Unstructured, error) {
 	pack := &unstructured.Unstructured{}
-	pack.SetName(xpkg.ToDNSLabel(ref.Context().RepositoryStr()))
+	pack.SetName(objName)
 
 	format := packageTagFmt
 	if strings.HasPrefix(version, "sha256:") {

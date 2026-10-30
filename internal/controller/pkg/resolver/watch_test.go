@@ -74,6 +74,80 @@ func TestHasPullSecret(t *testing.T) {
 	}
 }
 
+func TestHasPackageName(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		o      client.Object
+		want   bool
+	}{
+		"NotAnImageConfig": {
+			reason: "Objects that aren't an ImageConfig should be filtered.",
+			o:      &fake.Object{},
+			want:   true,
+		},
+		"ImageConfigWithoutPackageName": {
+			reason: "An ImageConfig without a package name should be filtered.",
+			o:      &v1beta1.ImageConfig{},
+			want:   true,
+		},
+		"ImageConfigWithPackageName": {
+			reason: "An ImageConfig with a package name shouldn't be filtered.",
+			o: &v1beta1.ImageConfig{
+				Spec: v1beta1.ImageConfigSpec{
+					PackageName: "cool-package",
+				},
+			},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := HasPackageName()(tc.o)
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\nHasPackageName(): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAllOf(t *testing.T) {
+	filter := func(_ client.Object) bool { return true }
+	keep := func(_ client.Object) bool { return false }
+
+	cases := map[string]struct {
+		reason string
+		fns    []FilterFn
+		want   bool
+	}{
+		"NoFilters": {
+			reason: "An object should be filtered if there's nothing to keep it.",
+			want:   true,
+		},
+		"AllFilter": {
+			reason: "An object should be filtered if every FilterFn filters it.",
+			fns:    []FilterFn{filter, filter},
+			want:   true,
+		},
+		"OneKeeps": {
+			reason: "An object shouldn't be filtered if any FilterFn keeps it.",
+			fns:    []FilterFn{filter, keep},
+			want:   false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := AllOf(tc.fns...)(&v1beta1.ImageConfig{})
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\nAllOf(): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestForName(t *testing.T) {
 	type args struct {
 		name string
