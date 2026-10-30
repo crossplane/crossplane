@@ -16,8 +16,9 @@ package v1alpha1
 import (
 	"reflect"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
 // Package type metadata.
@@ -31,7 +32,7 @@ var (
 	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
-	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
 
 	// AddToScheme adds all registered types to scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
@@ -61,8 +62,14 @@ var (
 	WatchOperationGroupVersionKind = SchemeGroupVersion.WithKind(WatchOperationKind)
 )
 
-func init() {
-	SchemeBuilder.Register(&Operation{}, &OperationList{})
-	SchemeBuilder.Register(&CronOperation{}, &CronOperationList{})
-	SchemeBuilder.Register(&WatchOperation{}, &WatchOperationList{})
+// addKnownTypes adds this package's types to the supplied scheme.
+func addKnownTypes(s *runtime.Scheme) error {
+	s.AddKnownTypes(SchemeGroupVersion,
+		&Operation{}, &OperationList{},
+		&CronOperation{}, &CronOperationList{},
+		&WatchOperation{}, &WatchOperationList{},
+	)
+	metav1.AddToGroupVersion(s, SchemeGroupVersion)
+
+	return nil
 }
