@@ -488,6 +488,8 @@ func TestReconcile(t *testing.T) {
 // written by a field manager that isn't ours, in which case server-side apply
 // can't prune it and we have to declare it, demoted, to take it over.
 func TestReconcileCRDControllerHandoff(t *testing.T) {
+	errBoom := errors.New("boom")
+
 	// The revision that controls the MRD, and so should control its CRD.
 	incoming := metav1.OwnerReference{
 		APIVersion: "pkg.crossplane.io/v1",
@@ -585,12 +587,16 @@ func TestReconcileCRDControllerHandoff(t *testing.T) {
 		// The package revisions that exist, keyed by name, used to resolve the
 		// package a controlling revision belongs to.
 		revs map[string]*unstructured.Unstructured
+
+		// The error returned when getting a package revision, if any.
+		revErr error
 	}
 
 	cases := map[string]struct {
 		reason string
 		args   args
 		want   []metav1.OwnerReference
+		err    error
 	}{
 		"DemoteReplacedRevision": {
 			reason: "We should declare the outgoing revision's reference demoted alongside our own, so one apply completes the hand-off, when it's a revision of the same package.",
@@ -618,6 +624,27 @@ func TestReconcileCRDControllerHandoff(t *testing.T) {
 				revs: map[string]*unstructured.Unstructured{"cool-provider-b": rev("cool-provider-b", "uid-b", "cool-provider")},
 			},
 			want: []metav1.OwnerReference{mrdOwner, incoming, demoted},
+		},
+		"DemoteRecreatedRevision": {
+			reason: "A revision with the same name but a different UID is a new object and the one that held control is gone, so we should demote it whichever package the new one belongs to.",
+			args: args{
+				mrd: mrd(incoming),
+				crd: crd(outgoing),
+				revs: map[string]*unstructured.Unstructured{
+					"cool-provider-a": rev("cool-provider-a", "uid-recreated", "evil-provider"),
+					"cool-provider-b": rev("cool-provider-b", "uid-b", "cool-provider"),
+				},
+			},
+			want: []metav1.OwnerReference{mrdOwner, incoming, demoted},
+		},
+		"ErrorGetRevision": {
+			reason: "We should return an error and not apply when we can't tell which package the controlling revision belongs to.",
+			args: args{
+				mrd:    mrd(incoming),
+				crd:    crd(outgoing),
+				revErr: errBoom,
+			},
+			err: errors.Wrap(errors.Wrapf(errBoom, "cannot get %s %q to check which package owns the CustomResourceDefinition", pkgv1.ProviderRevisionKind, "cool-provider-a"), "cannot hand over CustomResourceDefinition control"),
 		},
 		"RefuseDifferentPackage": {
 			reason: "We should not take the CRD from a revision of a different package, even one of the same kind, so one package can't take over a managed resource CRD another established.",
@@ -688,6 +715,10 @@ func TestReconcileCRDControllerHandoff(t *testing.T) {
 
 						*o = *tc.args.crd
 					case *unstructured.Unstructured:
+						if tc.args.revErr != nil {
+							return tc.args.revErr
+						}
+
 						r, ok := tc.args.revs[key.Name]
 						if !ok {
 							return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
@@ -714,8 +745,9 @@ func TestReconcileCRDControllerHandoff(t *testing.T) {
 				conditions:    conditions.ObservedGenerationPropagationManager{},
 			}
 
-			if _, err := r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: "test-mrd"}}); err != nil {
-				t.Fatalf("\n%s\nr.Reconcile(...): unexpected error: %v", tc.reason, err)
+			_, err := r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: "test-mrd"}})
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {

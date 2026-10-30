@@ -164,8 +164,8 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	// handOverControl for why the apply below can't do that on its own.
 	if err := r.handOverControl(ctx, patch, crd); err != nil {
 		log.Debug("cannot determine whether to hand over CustomResourceDefinition control", "error", err)
-		r.record.Event(mrd, event.Warning(reasonApplyCRD, err))
-		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to apply CustomResourceDefinition, see events"))
+		r.record.Event(mrd, event.Warning(reasonReconcile, err))
+		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to check ownership of CustomResourceDefinition, see events"))
 		_ = r.client.Status().Update(ogctx, mrd)
 		return reconcile.Result{}, errors.Wrap(err, "cannot hand over CustomResourceDefinition control")
 	}
@@ -298,7 +298,7 @@ func (r *Reconciler) parentPackage(ctx context.Context, ref metav1.OwnerReferenc
 		return "", false, nil
 	}
 	if err != nil {
-		return "", false, errors.Wrap(err, "cannot get controlling package revision")
+		return "", false, errors.Wrapf(err, "cannot get %s %q to check which package owns the CustomResourceDefinition", ref.Kind, ref.Name)
 	}
 	if rev.GetUID() != ref.UID {
 		return "", false, nil
