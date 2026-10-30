@@ -534,8 +534,12 @@ func (r *Reconciler) ensureFunctions(ctx context.Context, op *v1alpha1.Operation
 			return errors.Wrapf(err, "invalid package reference in pipeline step %q", step.Step)
 		}
 
-		fnName := xcomposite.FunctionName(ref)
-		revName := xcomposite.FunctionRevisionName(ref)
+		fnName, err := xcomposite.FunctionNameFor(ctx, r.client, ref)
+		if err != nil {
+			return errors.Wrapf(err, "cannot determine Function name for pipeline step %q", step.Step)
+		}
+
+		revName := xcomposite.FunctionRevisionNameFrom(fnName, ref)
 
 		if err := r.ensureFunctionRevision(ctx, revName, fnName, ref.Name(), owner); err != nil {
 			return errors.Wrapf(err, "cannot ensure FunctionRevision for pipeline step %q", step.Step)
