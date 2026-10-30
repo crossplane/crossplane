@@ -139,6 +139,7 @@ type startCommand struct {
 	EnableProviderDeletionProtection  bool `group:"Alpha Features:" help:"Enable automatic protection of Providers from deletion when they have active managed resources. Requires --enable-usages."`
 	EnablePipelineOCIReferences       bool `group:"Alpha Features:" help:"Enable support for referencing functions by OCI reference in Composition and Operation pipelines."`
 	EnableCompositionRevisionGC       bool `group:"Alpha Features:" help:"Enable garbage collection of unused CompositionRevisions."`
+	EnableFunctionControlledDeletion  bool `group:"Alpha Features:" help:"Enable support for function-controlled deletion of composite resources."`
 
 	XfnCacheDir             string        `default:"/cache/xfn"                         env:"XFN_CACHE_DIR"             group:"Alpha Features:" help:"Directory used for caching function responses. Requires --enable-function-response-cache."`
 	XfnCacheMaxTTL          time.Duration `default:"24h"                                env:"XFN_CACHE_MAX_TTL"         group:"Alpha Features:" help:"Maximum TTL for cached function responses. Set to 0 to disable. Requires --enable-function-response-cache."`
@@ -368,6 +369,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableCompositionRevisionGC {
 		o.Features.Enable(features.EnableAlphaCompositionRevisionGC)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionRevisionGC)
+	}
+
+	if c.EnableFunctionControlledDeletion {
+		o.Features.Enable(features.EnableAlphaFunctionControlledDeletion)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaFunctionControlledDeletion)
 	}
 
 	cacheOptionsAPIExt := cache.Options{

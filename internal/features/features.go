@@ -64,6 +64,10 @@ const (
 	// collecting unused CompositionRevisions, according to each Composition's
 	// unusedRevisionHistoryLimit.
 	EnableAlphaCompositionRevisionGC feature.Flag = "EnableAlphaCompositionRevisionGC"
+	// EnableAlphaFunctionControlledDeletion enables alpha support for
+	// Composition deletion policies. See the below design for more details.
+	// https://github.com/crossplane/crossplane/blob/main/design/one-pager-function-controlled-deletion.md
+	EnableAlphaFunctionControlledDeletion feature.Flag = "EnableAlphaFunctionControlledDeletion"
 )
 
 // Beta Feature Flags.

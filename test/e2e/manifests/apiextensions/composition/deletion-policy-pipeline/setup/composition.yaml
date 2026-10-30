@@ -1,0 +1,47 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: deletion-policy-pipeline
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: PipelineDeletionTest
+  mode: Pipeline
+  deletionPolicy: Pipeline
+  pipeline:
+  - step: compose-configmaps
+    functionRef:
+      name: function-python-deletion-policy-pipeline
+    input:
+      apiVersion: python.fn.crossplane.io/v1beta1
+      kind: Script
+      script: |
+        from crossplane.function import resource
+        from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+
+        def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+            names = ["first", "second"]
+
+            # When the XR is deleted, delete second before first. Crossplane
+            # keeps second in observed state until it's really gone, so keep
+            # desiring first until then.
+            xr = resource.struct_to_dict(req.observed.composite.resource)
+            if xr["metadata"].get("deletionTimestamp"):
+                names = ["first"] if "second" in req.observed.resources else []
+
+            # The e2e test holds the ConfigMaps with a finalizer, so it can
+            # see the order Crossplane deletes them in.
+            for name in names:
+                resource.update(rsp.desired.resources[name], {
+                    "apiVersion": "v1",
+                    "kind": "ConfigMap",
+                    "metadata": {
+                        "labels": {
+                            "e2e.crossplane.io/deletion-policy": "pipeline",
+                            "e2e.crossplane.io/resource": name,
+                        },
+                        "finalizers": ["e2e.crossplane.io/hold"],
+                    },
+                    "data": {"name": name},
+                })
+                rsp.desired.resources[name].ready = fnv1.READY_TRUE
