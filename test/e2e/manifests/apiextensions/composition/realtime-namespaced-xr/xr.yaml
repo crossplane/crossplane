@@ -1,0 +1,10 @@
+apiVersion: nop.example.org/v1alpha1
+kind: XRealtimeTest
+metadata:
+  namespace: default
+  name: realtime-xr-namespaced
+spec:
+  coolField: "realtime test"
+  crossplane:
+    compositionRef:
+      name: realtime-composition-namespaced
