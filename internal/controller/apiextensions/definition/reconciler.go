@@ -557,11 +557,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	fetcher := composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached())
+	observer := composite.NewExistingComposedResourceObserver(r.engine.GetCached(), r.engine.GetUncached(), fetcher)
 	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), r.options.FunctionRunner,
-		composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.engine.GetCached(), r.engine.GetUncached(), fetcher)),
+		composite.WithComposedResourceObserver(observer),
 		composite.WithCompositeConnectionDetailsFetcher(fetcher),
 		composite.WithRequiredSchemasFetcher(xfn.NewOpenAPIRequiredSchemasFetcher(r.options.OpenAPIClient)),
 		composite.WithResourceTracker(tracker),
+		composite.WithFunctionControlledDeletion(r.options.Features.Enabled(features.EnableAlphaFunctionControlledDeletion)),
 	)
 
 	cb := circuit.NewTokenBucketBreaker(controllerName,
@@ -607,6 +609,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			composite.WithWatchStarter(controllerName, h, r.engine, tracker),
 			composite.WithPollInterval(0), // Disable polling.
 		)
+	}
+
+	// With deletion policies enabled the XR controller deletes an XR's composed
+	// resources itself when the XR's deletion policy is Foreground.
+	if r.options.Features.Enabled(features.EnableAlphaFunctionControlledDeletion) {
+		ro = append(ro, composite.WithForegroundDeletion(
+			observer,
+			composite.NewDeletingComposedResourceGarbageCollector(r.engine.GetCached(), composite.WithDeletionPolicies(true)),
+		))
 	}
 
 	cr := composite.NewReconciler(r.engine.GetCached(), gvk, ro...)
