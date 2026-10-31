@@ -16,7 +16,7 @@ permissions:
 
 env:
   LOG_LEVEL: "info"
-  RENOVATE_VERSION: "44.171.1"
+  RENOVATE_VERSION: "44.198.3"
 
 jobs:
   renovate:
