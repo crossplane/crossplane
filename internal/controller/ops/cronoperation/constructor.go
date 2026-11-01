@@ -25,12 +25,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	crtevent "sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	opscontroller "github.com/crossplane/crossplane/v2/internal/controller/ops/controller"
@@ -47,10 +49,26 @@ func Setup(mgr ctrl.Manager, o opscontroller.Options) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1alpha1.CronOperation{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&v1alpha1.CronOperation{}, builder.WithPredicates(cronOperationPredicate())).
 		Owns(&v1alpha1.Operation{}).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(errors.WithSilentRequeueOnConflict(r))
+}
+
+// cronOperationPredicate returns the predicate guarding CronOperation
+// reconciles. Besides spec changes, it lets through updates that change
+// the pause state, so pausing or unpausing takes effect without an
+// unrelated spec change: annotation-only updates leave generation
+// unchanged, and GenerationChangedPredicate alone would drop them.
+func cronOperationPredicate() predicate.Predicate {
+	return predicate.Or(
+		predicate.GenerationChangedPredicate{},
+		predicate.Funcs{
+			UpdateFunc: func(e crtevent.UpdateEvent) bool {
+				return meta.IsPaused(e.ObjectOld) != meta.IsPaused(e.ObjectNew)
+			},
+		},
+	)
 }
 
 // ReconcilerOption is used to configure the Reconciler.
