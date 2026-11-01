@@ -172,12 +172,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	future, _ := r.schedule.Next(co.Spec.Schedule, now)
 
 	// If the next scheduled operation is in the past, but we missed its
-	// deadline, requeue in time for the first one scheduled in the future.
+	// deadline, see whether a later scheduled operation is still within its
+	// deadline. If none is, requeue in time for the first one scheduled in
+	// the future.
 	if deadline := co.Spec.StartingDeadlineSeconds; deadline != nil {
 		grace := time.Duration(*deadline) * time.Second
 		if next.Add(grace).Before(now) {
-			r.log.Debug("Missed deadline for scheduled Operation - doing nothing", "scheduled-time", next, "deadline", next.Add(grace))
-			return reconcile.Result{RequeueAfter: future.Sub(now)}, errors.Wrap(r.client.Status().Update(ctx, co), "cannot update CronOperation status")
+			// We compute next from the last time we created an Operation,
+			// so it's the earliest schedule we missed. If we missed several
+			// (e.g. because we weren't running) only the latest can still
+			// be within its deadline. Without this check we'd compute the
+			// same missed schedule on every reconcile, and never create
+			// another Operation.
+			latest := latestScheduleWithinDeadline(r.schedule, co.Spec.Schedule, now, grace)
+			if latest.IsZero() {
+				r.log.Debug("Missed deadline for scheduled Operation - doing nothing", "scheduled-time", next, "deadline", next.Add(grace))
+				return reconcile.Result{RequeueAfter: future.Sub(now)}, errors.Wrap(r.client.Status().Update(ctx, co), "cannot update CronOperation status")
+			}
+
+			r.log.Debug("Missed deadline for earliest missed scheduled Operation - using latest missed scheduled Operation instead", "missed-scheduled-time", next, "scheduled-time", latest)
+			next = latest
 		}
 	}
 
@@ -225,6 +239,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	status.MarkConditions(xpv2.ReconcileSuccess())
 	return reconcile.Result{RequeueAfter: future.Sub(now)}, errors.Wrap(r.client.Status().Update(ctx, co), "cannot update CronOperation status")
+}
+
+// latestScheduleWithinDeadline returns the latest time the supplied schedule
+// was due that isn't after now, and isn't more than grace before now. It
+// returns the zero time if there's no such time.
+func latestScheduleWithinDeadline(s Scheduler, schedule string, now time.Time, grace time.Duration) time.Time {
+	latest := time.Time{}
+
+	// Only times after now minus grace are within their deadline, so we
+	// start looking there. Next always returns a time after the one it's
+	// passed, or the zero time if the schedule never matches.
+	for t, err := s.Next(schedule, now.Add(-grace)); err == nil && !t.IsZero() && !t.After(now); t, err = s.Next(schedule, t) {
+		latest = t
+	}
+
+	return latest
 }
 
 // NewOperation creates a new operation given the CronOperation's template.
