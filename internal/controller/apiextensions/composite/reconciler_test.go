@@ -2021,6 +2021,7 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			xr := NewComposite(func(cr *composite.Unstructured) {
+				cr.SetUID(xrUID)
 				cr.SetDeletionTimestamp(&now)
 				cr.SetFinalizers(tc.args.finalizers)
 				cr.SetDeletionPolicy(tc.args.recorded)
@@ -2109,6 +2110,9 @@ func TestDeleteInForeground(t *testing.T) {
 	orphaned := state("Thing", "xr-orphaned")
 	orphaned.Resource.SetOwnerReferences(nil)
 
+	other := state("Thing", "other")
+	other.Resource.SetOwnerReferences([]metav1.OwnerReference{{UID: "other-uid", Controller: new(true)}})
+
 	type args struct {
 		observed   ComposedResourceStates
 		observeErr error
@@ -2155,6 +2159,15 @@ func TestDeleteInForeground(t *testing.T) {
 			reason: "We shouldn't wait for composed resources we don't control, because we'd never delete them.",
 			args: args{
 				observed: ComposedResourceStates{"orphaned": orphaned},
+			},
+			want: want{
+				removedFinalizer: true,
+			},
+		},
+		"OtherOwnersResourcesDontBlock": {
+			reason: "We shouldn't delete or wait for composed resources another owner controls, because we'd never delete them.",
+			args: args{
+				observed: ComposedResourceStates{"other": other},
 			},
 			want: want{
 				removedFinalizer: true,
@@ -2214,7 +2227,7 @@ func TestDeleteInForeground(t *testing.T) {
 				),
 			)
 
-			xr := NewComposite()
+			xr := NewComposite(func(cr *composite.Unstructured) { cr.SetUID(xrUID) })
 
 			res, err := r.deleteInForeground(context.Background(), context.Background(), logging.NewNopLogger(), r.conditions.For(xr), xr)
 			got.err = err != nil
@@ -2377,12 +2390,16 @@ func TestReconcileRecordsDeletionPolicy(t *testing.T) {
 }
 
 // state returns an observed composed resource that the XR controls.
+// xrUID is the UID of the XR that controls the composed resources state
+// returns.
+const xrUID = "xr-uid"
+
 func state(kind, name string) ComposedResourceState {
 	cd := composed.New()
 	cd.SetAPIVersion("example.org/v1")
 	cd.SetKind(kind)
 	cd.SetName(name)
-	cd.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
+	cd.SetOwnerReferences([]metav1.OwnerReference{{UID: xrUID, Controller: new(true)}})
 
 	return ComposedResourceState{Resource: cd}
 }

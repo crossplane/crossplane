@@ -1024,7 +1024,7 @@ func (r *Reconciler) deleteInForeground(ctx, updateCtx context.Context, log logg
 	}
 
 	// Don't wait for composed resources we wouldn't delete.
-	observed = controlled(observed)
+	observed = controlled(xr, observed)
 
 	if len(observed) == 0 {
 		log.Debug("Deleted all composed resources")

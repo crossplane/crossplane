@@ -2917,13 +2917,15 @@ func TestPipelineFatalErrorAs(t *testing.T) {
 }
 
 func TestReferenced(t *testing.T) {
-	ctrl := []metav1.OwnerReference{{Controller: new(true)}}
+	xr := &fake.Composite{ObjectMeta: metav1.ObjectMeta{UID: "xr-uid"}}
 
 	desired := &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "desired"}}
-	deleting := &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "deleting", OwnerReferences: ctrl}}
+	deleting := &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "deleting", OwnerReferences: []metav1.OwnerReference{{UID: "xr-uid", Controller: new(true)}}}}
 	orphaned := &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "orphaned"}}
+	other := &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "other", OwnerReferences: []metav1.OwnerReference{{UID: "other-uid", Controller: new(true)}}}}
 
 	type args struct {
+		xr       metav1.Object
 		desired  ComposedResourceStates
 		observed ComposedResourceStates
 		retain   bool
@@ -2937,6 +2939,7 @@ func TestReferenced(t *testing.T) {
 		"DontRetain": {
 			reason: "We should only reference desired resources when we're not retaining references.",
 			args: args{
+				xr:       xr,
 				desired:  ComposedResourceStates{"desired": {Resource: desired}},
 				observed: ComposedResourceStates{"deleting": {Resource: deleting}},
 				retain:   false,
@@ -2946,6 +2949,7 @@ func TestReferenced(t *testing.T) {
 		"RetainControlled": {
 			reason: "We should keep referencing a controlled resource that still exists after we stop desiring it.",
 			args: args{
+				xr:       xr,
 				desired:  ComposedResourceStates{"desired": {Resource: desired}},
 				observed: ComposedResourceStates{"deleting": {Resource: deleting}},
 				retain:   true,
@@ -2955,8 +2959,19 @@ func TestReferenced(t *testing.T) {
 		"DontRetainUncontrolled": {
 			reason: "We should stop referencing a resource without a controller reference, because we'll never delete it.",
 			args: args{
+				xr:       xr,
 				desired:  ComposedResourceStates{"desired": {Resource: desired}},
 				observed: ComposedResourceStates{"orphaned": {Resource: orphaned}},
+				retain:   true,
+			},
+			want: []ResourceName{"desired"},
+		},
+		"DontRetainControlledByOthers": {
+			reason: "We should stop referencing a resource another owner controls, because we'll never delete it.",
+			args: args{
+				xr:       xr,
+				desired:  ComposedResourceStates{"desired": {Resource: desired}},
+				observed: ComposedResourceStates{"other": {Resource: other}},
 				retain:   true,
 			},
 			want: []ResourceName{"desired"},
@@ -2964,6 +2979,7 @@ func TestReferenced(t *testing.T) {
 		"KeepDesiredUncontrolled": {
 			reason: "We should keep referencing a desired resource, even if it doesn't have a controller reference yet.",
 			args: args{
+				xr:       xr,
 				desired:  ComposedResourceStates{"orphaned": {Resource: orphaned}},
 				observed: ComposedResourceStates{"orphaned": {Resource: orphaned}},
 				retain:   true,
@@ -2974,7 +2990,7 @@ func TestReferenced(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := referenced(tc.args.desired, tc.args.observed, tc.args.retain)
+			got := referenced(tc.args.xr, tc.args.desired, tc.args.observed, tc.args.retain)
 
 			names := make([]ResourceName, 0, len(got))
 			for n := range got {

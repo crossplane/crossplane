@@ -684,7 +684,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// Only XRs that delete their own composed resources need to keep
 	// referencing them while they're deleted.
 	retain := c.functionControlledDeletion && deletionPolicy(xr) != v1.CompositionDeletionPolicyBackground
-	known := referenced(desired, observed, retain)
+	known := referenced(xr, desired, observed, retain)
 
 	refs := composite.New(composite.WithSchema(xr.Schema), composite.WithGroupVersionKind(xr.GroupVersionKind()))
 	refs.SetNamespace(xr.GetNamespace())
@@ -843,20 +843,20 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		Events:            events,
 		Conditions:        conditions,
 		TTL:               ttl,
-		Existing:          len(controlled(observed)),
+		Existing:          len(controlled(xr, observed)),
 	}, nil
 }
 
 // referenced returns the composed resources the XR should reference: everything
-// the pipeline desires, plus - when retain is true - every controlled composed
-// resource that still exists, so functions can see it being deleted.
-func referenced(desired, observed ComposedResourceStates, retain bool) ComposedResourceStates {
+// the pipeline desires, plus - when retain is true - every composed resource the
+// XR controls that still exists, so functions can see it being deleted.
+func referenced(xr metav1.Object, desired, observed ComposedResourceStates, retain bool) ComposedResourceStates {
 	if !retain {
 		return desired
 	}
 
 	known := make(ComposedResourceStates, len(desired)+len(observed))
-	maps.Copy(known, controlled(observed))
+	maps.Copy(known, controlled(xr, observed))
 	maps.Copy(known, desired)
 
 	return known
@@ -1051,13 +1051,13 @@ func deletionPolicyOf(cd resource.Composed) v1.CompositionDeletionPolicy {
 	return (&composite.Unstructured{Unstructured: u.Unstructured}).GetDeletionPolicy()
 }
 
-// controlled returns the observed composed resources that have a controller
-// reference.
-func controlled(observed ComposedResourceStates) ComposedResourceStates {
+// controlled returns the observed composed resources the supplied XR
+// controls. The XR never deletes the others, so it shouldn't wait for them.
+func controlled(xr metav1.Object, observed ComposedResourceStates) ComposedResourceStates {
 	out := make(ComposedResourceStates, len(observed))
 
 	for name, cd := range observed {
-		if metav1.GetControllerOf(cd.Resource) == nil {
+		if !metav1.IsControlledBy(cd.Resource, xr) {
 			continue
 		}
 
