@@ -2154,6 +2154,7 @@ func TestDeleteInForeground(t *testing.T) {
 		observed   ComposedResourceStates
 		observeErr error
 		gcErr      error
+		statusErr  error
 	}
 
 	type want struct {
@@ -2161,7 +2162,7 @@ func TestDeleteInForeground(t *testing.T) {
 		deleted          []string // What did we garbage collect?
 		requeue          bool     // Did we requeue?
 		removedFinalizer bool     // Was our finalizer removed?
-		err              bool
+		err              error
 	}
 
 	cases := map[string]struct {
@@ -2210,13 +2211,25 @@ func TestDeleteInForeground(t *testing.T) {
 				removedFinalizer: true,
 			},
 		},
+		"StatusUpdateError": {
+			reason: "We should return any error encountered updating the XR's status while we wait for its composed resources, without also requeueing.",
+			args: args{
+				observed:  ComposedResourceStates{"first": state("Thing", "xr-first")},
+				statusErr: errBoom,
+			},
+			want: want{
+				watched: true,
+				deleted: []string{"first"},
+				err:     errBoom,
+			},
+		},
 		"ObserveError": {
 			reason: "We should return any error encountered observing the XR's composed resources.",
 			args: args{
 				observeErr: errBoom,
 			},
 			want: want{
-				err: true,
+				err: errBoom,
 			},
 		},
 		"GarbageCollectError": {
@@ -2227,7 +2240,7 @@ func TestDeleteInForeground(t *testing.T) {
 			},
 			want: want{
 				deleted: []string{"first"},
-				err:     true,
+				err:     errBoom,
 			},
 		},
 	}
@@ -2237,7 +2250,7 @@ func TestDeleteInForeground(t *testing.T) {
 			got := want{}
 
 			r := NewReconciler(&test.MockClient{
-				MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				MockStatusUpdate: test.NewMockSubResourceUpdateFn(tc.args.statusErr),
 			}, schema.GroupVersionKind{},
 				WithPollInterval(time.Minute),
 				WithCompositeFinalizer(resource.FinalizerFns{
@@ -2267,12 +2280,12 @@ func TestDeleteInForeground(t *testing.T) {
 			xr := NewComposite(func(cr *composite.Unstructured) { cr.SetUID(xrUID) })
 
 			res, err := r.deleteInForeground(context.Background(), context.Background(), logging.NewNopLogger(), r.conditions.For(xr), xr)
-			got.err = err != nil
+			got.err = err
 			got.requeue = !res.IsZero()
 
 			slices.Sort(got.deleted)
 
-			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(want{})); diff != "" {
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(want{}), cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.deleteInForeground(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -2280,6 +2293,8 @@ func TestDeleteInForeground(t *testing.T) {
 }
 
 func TestReconcileRecordsDeletionPolicy(t *testing.T) {
+	errBoom := errors.New("boom")
+
 	type args struct {
 		enabled bool
 		legacy  bool
@@ -2290,7 +2305,7 @@ func TestReconcileRecordsDeletionPolicy(t *testing.T) {
 	type want struct {
 		recorded              v1.CompositionDeletionPolicy
 		recordedBeforeCompose v1.CompositionDeletionPolicy
-		err                   bool
+		err                   error
 	}
 
 	cases := map[string]struct {
@@ -2319,7 +2334,7 @@ func TestReconcileRecordsDeletionPolicy(t *testing.T) {
 			want: want{
 				recorded:              v1.CompositionDeletionPolicyPipeline,
 				recordedBeforeCompose: v1.CompositionDeletionPolicyPipeline,
-				err:                   true,
+				err:                   errBoom,
 			},
 		},
 		"Foreground": {
@@ -2408,7 +2423,7 @@ func TestReconcileRecordsDeletionPolicy(t *testing.T) {
 				got.recordedBeforeCompose = got.recorded
 
 				if tc.args.fails {
-					return CompositionResult{}, errors.New("boom")
+					return CompositionResult{}, errBoom
 				}
 
 				return CompositionResult{}, nil
@@ -2417,9 +2432,9 @@ func TestReconcileRecordsDeletionPolicy(t *testing.T) {
 			r := newDeletionPolicyReconciler(c, f, rev, compose, WithCompositeFinalizer(resource.NewNopFinalizer()))
 
 			_, err := r.Reconcile(context.Background(), reconcile.Request{})
-			got.err = err != nil
+			got.err = err
 
-			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(want{})); diff != "" {
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(want{}), cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nReconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})

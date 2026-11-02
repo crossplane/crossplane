@@ -1069,7 +1069,11 @@ func (r *Reconciler) deleteInForeground(ctx, updateCtx context.Context, log logg
 	log.Debug("Waiting for composed resources to be deleted", "remaining", len(observed))
 	status.MarkConditions(xpv2.Deleting().WithMessage(fmt.Sprintf("Waiting for %d composed resource(s) to be deleted", len(observed))), xpv2.ReconcileSuccess())
 
-	return reconcile.Result{RequeueAfter: jitter(r.effectivePollInterval(xr))}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+	if err := r.client.Status().Update(updateCtx, xr); err != nil {
+		return reconcile.Result{}, errors.Wrap(err, errUpdateStatus)
+	}
+
+	return reconcile.Result{RequeueAfter: jitter(r.effectivePollInterval(xr))}, nil
 }
 
 // startWatches watches every kind this controller's XRs depend on.
