@@ -1857,6 +1857,7 @@ func newDeletionPolicyReconciler(c client.Client, f *feature.Flags, rev func() (
 func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 	now := metav1.Now()
 	errBoom := errors.New("boom")
+	errFatal := &PipelineFatalError{Step: "cool-step", Message: "cool function failed"}
 
 	type args struct {
 		finalizers []string
@@ -1876,9 +1877,10 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 		removedFinalizer      bool
 
 		requeue  bool                         // Did we requeue?
-		syncErr  bool                         // Did the Synced condition report an error?
+		synced   xpv2.Condition               // The Synced condition in the last status update.
+		ready    xpv2.Condition               // The Ready condition in the last status update.
 		recorded v1.CompositionDeletionPolicy // The policy in the last status update.
-		err      bool
+		err      error
 	}
 
 	cases := map[string]struct {
@@ -1889,6 +1891,8 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 		"NoRecordedPolicy": {
 			reason: "An XR that never recorded a policy uses Background, so it finishes deleting immediately.",
 			want: want{
+				synced:           xpv2.ReconcileSuccess(),
+				ready:            xpv2.Deleting(),
 				removedFinalizer: true,
 			},
 		},
@@ -1898,6 +1902,8 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 				recorded: v1.CompositionDeletionPolicyForeground,
 			},
 			want: want{
+				synced:                xpv2.ReconcileSuccess(),
+				ready:                 xpv2.Deleting().WithMessage("Waiting for 1 composed resource(s) to be deleted"),
 				ranForegroundDeletion: true,
 				requeue:               true,
 				recorded:              v1.CompositionDeletionPolicyForeground,
@@ -1913,6 +1919,8 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 				},
 			},
 			want: want{
+				synced:      xpv2.ReconcileSuccess(),
+				ready:       xpv2.Deleting().WithMessage(waitingForPipelineMsg),
 				ranPipeline: true,
 				requeue:     true,
 				recorded:    v1.CompositionDeletionPolicyPipeline,
@@ -1928,6 +1936,8 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 				},
 			},
 			want: want{
+				synced:           xpv2.ReconcileSuccess(),
+				ready:            xpv2.Deleting().WithMessage(waitingForPipelineMsg),
 				ranPipeline:      true,
 				removedFinalizer: true,
 				recorded:         v1.CompositionDeletionPolicyPipeline,
@@ -1943,10 +1953,28 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 				},
 			},
 			want: want{
+				synced:      xpv2.ReconcileError(errors.Wrap(errBoom, errCompose)),
+				ready:       xpv2.Deleting().WithMessage(waitingForPipelineMsg),
 				ranPipeline: true,
-				syncErr:     true,
 				recorded:    v1.CompositionDeletionPolicyPipeline,
-				err:         true,
+				err:         errBoom,
+			},
+		},
+		"PipelineFatal": {
+			reason: "An XR with the Pipeline policy whose pipeline returns a fatal result is held, and reports the failure as a Synced error rather than only waiting.",
+			args: args{
+				recorded: v1.CompositionDeletionPolicyPipeline,
+				policy:   v1.CompositionDeletionPolicyPipeline,
+				compose: func() (CompositionResult, error) {
+					return CompositionResult{}, errFatal
+				},
+			},
+			want: want{
+				synced:      xpv2.ReconcileError(errors.Wrap(errFatal, errCompose)),
+				ready:       xpv2.Deleting().WithMessage(waitingForPipelineMsg),
+				ranPipeline: true,
+				recorded:    v1.CompositionDeletionPolicyPipeline,
+				err:         errFatal,
 			},
 		},
 		"PipelineWithoutComposition": {
@@ -1956,9 +1984,10 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 				noRevision: true,
 			},
 			want: want{
-				syncErr:  true,
+				synced:   xpv2.ReconcileError(errors.Wrap(errBoom, errFetchComp)),
+				ready:    xpv2.Deleting().WithMessage(waitingForPipelineMsg),
 				recorded: v1.CompositionDeletionPolicyPipeline,
-				err:      true,
+				err:      errBoom,
 			},
 		},
 		"PipelineNowForeground": {
@@ -1969,6 +1998,8 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 				invalid:  true,
 			},
 			want: want{
+				synced:   xpv2.Condition{Type: xpv2.TypeSynced, Status: corev1.ConditionUnknown},
+				ready:    xpv2.Deleting().WithMessage(waitingForPipelineMsg),
 				requeue:  true,
 				recorded: v1.CompositionDeletionPolicyForeground,
 			},
@@ -1979,6 +2010,8 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 				recorded: v1.CompositionDeletionPolicyPipeline,
 			},
 			want: want{
+				synced:   xpv2.Condition{Type: xpv2.TypeSynced, Status: corev1.ConditionUnknown},
+				ready:    xpv2.Deleting().WithMessage(waitingForPipelineMsg),
 				requeue:  true,
 				recorded: v1.CompositionDeletionPolicyBackground,
 			},
@@ -1990,6 +2023,8 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 				recorded:   v1.CompositionDeletionPolicyPipeline,
 			},
 			want: want{
+				synced:           xpv2.ReconcileSuccess(),
+				ready:            xpv2.Deleting(),
 				removedFinalizer: true,
 				recorded:         v1.CompositionDeletionPolicyPipeline,
 			},
@@ -2001,6 +2036,8 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 				recorded:   v1.CompositionDeletionPolicyPipeline,
 			},
 			want: want{
+				synced:           xpv2.ReconcileSuccess(),
+				ready:            xpv2.Deleting(),
 				removedFinalizer: true,
 				recorded:         v1.CompositionDeletionPolicyPipeline,
 			},
@@ -2012,6 +2049,8 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 				disabled: true,
 			},
 			want: want{
+				synced:           xpv2.ReconcileSuccess(),
+				ready:            xpv2.Deleting(),
 				removedFinalizer: true,
 				recorded:         v1.CompositionDeletionPolicyPipeline,
 			},
@@ -2034,14 +2073,13 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 
 			got := want{}
 
-			var synced xpv2.Condition
-
 			c := &test.MockClient{
 				MockGet: WithComposite(t, xr),
 				MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
 					if xr, ok := obj.(*composite.Unstructured); ok {
 						got.recorded = xr.GetDeletionPolicy()
-						synced = xr.GetCondition(xpv2.TypeSynced)
+						got.synced = xr.GetCondition(xpv2.TypeSynced)
+						got.ready = xr.GetCondition(xpv2.TypeReady)
 					}
 
 					return nil
@@ -2093,11 +2131,10 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 			)
 
 			res, err := r.Reconcile(context.Background(), reconcile.Request{})
-			got.err = err != nil
+			got.err = err
 			got.requeue = !res.IsZero()
-			got.syncErr = synced.Reason == xpv2.ReasonReconcileError
 
-			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(want{})); diff != "" {
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(want{}), cmpopts.EquateErrors(), cmpopts.IgnoreFields(xpv2.Condition{}, "LastTransitionTime")); diff != "" {
 				t.Errorf("\n%s\nReconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})

@@ -773,8 +773,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Record the Composition's deletion policy for when the XR is deleted. Do it
 	// first and persist it right away, so a later failure can't lose it. Legacy
-	// XRs don't record one. A deleting XR that recorded a new policy requeues,
-	// so it's deleted using that policy.
+	// XRs don't record one. Only a Pipeline XR gets here while it's deleted,
+	// because the other policies don't use the Composition. If its current
+	// revision now has a weaker policy, record it and requeue, so the XR is
+	// deleted using that policy.
 	if xr.Schema != composite.SchemaLegacy && r.features.Enabled(features.EnableAlphaFunctionControlledDeletion) {
 		p := rev.Spec.DeletionPolicy
 		if p == "" {
@@ -1084,16 +1086,6 @@ func (r *Reconciler) startWatches(ctx context.Context, log logging.Logger) error
 	// The ControllerEngine that starts this controller also starts a
 	// garbage collector for its watches.
 	return errors.Wrap(r.engine.StartWatches(ctx, r.controllerName, ws...), errWatch)
-}
-
-// deletionPolicy returns the deletion policy the XR recorded, or Background if
-// it recorded none.
-func deletionPolicy(xr *composite.Unstructured) v1.CompositionDeletionPolicy {
-	if p := xr.GetDeletionPolicy(); p != "" {
-		return p
-	}
-
-	return v1.CompositionDeletionPolicyBackground
 }
 
 // finishDelete removes the XR's finalizer.

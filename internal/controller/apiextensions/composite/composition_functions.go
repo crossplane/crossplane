@@ -657,12 +657,23 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		}
 	}
 
-	// Deleting an XR with orphan propagation strips our controller reference
-	// from its composed resources. Don't take them back.
+	// Deleting an XR with orphan propagation strips our owner reference from its
+	// composed resources.
 	if meta.WasDeleted(xr) {
-		for name, cd := range observed {
-			if _, ok := desired[name]; ok && metav1.GetControllerOf(cd.Resource) == nil {
-				delete(desired, name)
+		if len(observed) > 0 && len(owned(xr, observed)) == 0 {
+			// Kubernetes may have finished orphaning them before we
+			// reconciled, leaving no other sign of it. The XR still references
+			// composed resources but owns none of them, so assume it was
+			// orphaned: desire nothing, so it finishes deleting without
+			// composing anything new.
+			desired = ComposedResourceStates{}
+		} else {
+			// Don't take back composed resources that lost our controller
+			// reference.
+			for name, cd := range observed {
+				if _, ok := desired[name]; ok && metav1.GetControllerOf(cd.Resource) == nil {
+					delete(desired, name)
+				}
 			}
 		}
 	}
@@ -1040,6 +1051,16 @@ func WithDeletionPolicies(enabled bool) DeletingComposedResourceGarbageCollector
 	}
 }
 
+// deletionPolicy returns the deletion policy the XR recorded, or Background if
+// it recorded none.
+func deletionPolicy(xr *composite.Unstructured) v1.CompositionDeletionPolicy {
+	if p := xr.GetDeletionPolicy(); p != "" {
+		return p
+	}
+
+	return v1.CompositionDeletionPolicyBackground
+}
+
 // deletionPolicyOf returns the deletion policy a composed XR recorded. It
 // returns an empty policy if the composed resource isn't an XR, or recorded none.
 func deletionPolicyOf(cd resource.Composed) v1.CompositionDeletionPolicy {
@@ -1049,6 +1070,23 @@ func deletionPolicyOf(cd resource.Composed) v1.CompositionDeletionPolicy {
 	}
 
 	return (&composite.Unstructured{Unstructured: u.Unstructured}).GetDeletionPolicy()
+}
+
+// owned returns the observed composed resources with an owner reference to the
+// supplied XR.
+func owned(xr metav1.Object, observed ComposedResourceStates) ComposedResourceStates {
+	out := make(ComposedResourceStates, len(observed))
+
+	for name, cd := range observed {
+		for _, ref := range cd.Resource.GetOwnerReferences() {
+			if ref.UID == xr.GetUID() {
+				out[name] = cd
+				break
+			}
+		}
+	}
+
+	return out
 }
 
 // controlled returns the observed composed resources the supplied XR
@@ -1080,6 +1118,9 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 	}
 
 	for name, cd := range del {
+		// It's already being deleted. Deleting it again, or removing its
+		// labels, would only repeat work, and we keep referencing it until
+		// it's gone.
 		if d.functionControlledDeletion && cd.Resource.GetDeletionTimestamp() != nil {
 			continue
 		}
