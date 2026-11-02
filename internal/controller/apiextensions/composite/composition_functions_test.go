@@ -3003,3 +3003,41 @@ func TestReferenced(t *testing.T) {
 		})
 	}
 }
+
+func TestNewFunctionComposerGarbageCollector(t *testing.T) {
+	supplied := NewDeletingComposedResourceGarbageCollector(nil)
+
+	cases := map[string]struct {
+		reason string
+		o      []FunctionComposerOption
+		want   ComposedResourceGarbageCollector
+	}{
+		"Default": {
+			reason: "The default garbage collector shouldn't know about deletion policies when they're disabled.",
+			want:   &DeletingComposedResourceGarbageCollector{},
+		},
+		"DefaultWithFunctionControlledDeletion": {
+			reason: "The default garbage collector should know about deletion policies when they're enabled.",
+			o:      []FunctionComposerOption{WithFunctionControlledDeletion(true)},
+			want:   &DeletingComposedResourceGarbageCollector{functionControlledDeletion: true},
+		},
+		"Supplied": {
+			reason: "A garbage collector supplied by an option should be used as is, even when deletion policies are enabled.",
+			o: []FunctionComposerOption{
+				WithComposedResourceGarbageCollector(supplied),
+				WithFunctionControlledDeletion(true),
+			},
+			want: &DeletingComposedResourceGarbageCollector{},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := NewFunctionComposer(nil, nil, nil, tc.o...)
+
+			if diff := cmp.Diff(tc.want, c.composite.ComposedResourceGarbageCollector, cmp.AllowUnexported(DeletingComposedResourceGarbageCollector{})); diff != "" {
+				t.Errorf("\n%s\nNewFunctionComposer(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
