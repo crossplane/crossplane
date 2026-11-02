@@ -2116,6 +2116,7 @@ func TestDeleteInForeground(t *testing.T) {
 	}
 
 	type want struct {
+		watched          bool     // Did we start watching?
 		deleted          []string // What did we garbage collect?
 		requeue          bool     // Did we requeue?
 		removedFinalizer bool     // Was our finalizer removed?
@@ -2136,6 +2137,7 @@ func TestDeleteInForeground(t *testing.T) {
 				},
 			},
 			want: want{
+				watched: true,
 				deleted: []string{"first", "second"},
 				requeue: true,
 			},
@@ -2194,6 +2196,10 @@ func TestDeleteInForeground(t *testing.T) {
 						return nil
 					},
 				}),
+				WithWatchStarter("cool-controller", nil, WatchStarterFn(func(_ context.Context, _ string, ws ...engine.Watch) error {
+					got.watched = len(ws) > 0
+					return nil
+				}), dependency.NewInMemory()),
 				WithForegroundDeletion(
 					ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
 						return tc.args.observed, tc.args.observeErr

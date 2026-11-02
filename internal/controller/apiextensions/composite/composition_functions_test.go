@@ -1524,6 +1524,86 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 		},
+		"DontReadoptOrphanedResources": {
+			reason: "While an XR is deleted, we shouldn't apply a desired composed resource that lost its controller reference, because the XR was deleted with orphan propagation.",
+			params: params{
+				c: &test.MockClient{
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))),
+					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+						xr, ok := obj.(*composite.Unstructured)
+						if !ok {
+							return errors.Errorf("want no composed resources applied, got %q", obj.GetName())
+						}
+
+						if refs := xr.GetResourceReferences(); len(refs) != 0 {
+							return errors.Errorf("want no resource references, got %d", len(refs))
+						}
+
+						return nil
+					}),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// A function that still desires the orphaned resource.
+					d := &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							"cool-resource": {
+								Resource: MustStruct(map[string]any{
+									"apiVersion": "test.crossplane.io/v1",
+									"kind":       "CoolComposed",
+								}),
+							},
+						},
+					}
+					return &fnv1.RunFunctionResponse{Desired: d}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithFunctionControlledDeletion(true),
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						// Kubernetes removed our controller reference.
+						cd := &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cool-resource-abc"}}
+						return ComposedResourceStates{"cool-resource": ComposedResourceState{Resource: cd}}, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: func() *composite.Unstructured {
+					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+						Group:   "test.crossplane.io",
+						Version: "v1",
+						Kind:    "CoolComposite",
+					}))
+					xr.SetName("cool-xr")
+					xr.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"})
+					xr.SetDeletionPolicy(v1.CompositionDeletionPolicyPipeline)
+					xr.SetDeletionTimestamp(&metav1.Time{Time: time.Now()})
+
+					return xr
+				}(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{{
+								Step:        "run-cool-function",
+								FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+							}},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{},
+				},
+			},
+		},
 		"DontRetainReferencesForBackgroundXRs": {
 			reason: "With function-controlled deletion, an XR with the Background policy should stop referencing a composed resource as soon as the pipeline no longer desires it, as it does without the feature.",
 			params: params{

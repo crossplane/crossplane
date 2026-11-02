@@ -657,6 +657,16 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		}
 	}
 
+	// Deleting an XR with orphan propagation strips our controller reference
+	// from its composed resources. Don't take them back.
+	if meta.WasDeleted(xr) {
+		for name, cd := range observed {
+			if _, ok := desired[name]; ok && metav1.GetControllerOf(cd.Resource) == nil {
+				delete(desired, name)
+			}
+		}
+	}
+
 	// Garbage collect any observed resources that aren't part of our final
 	// desired state. We must do this before we update the XR's resource
 	// references to ensure that we don't forget and leak them if a delete

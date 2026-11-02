@@ -82,7 +82,8 @@ const (
 	errGetClaim             = "cannot get referenced claim"
 	errParseClaimRef        = "cannot parse claim reference"
 
-	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
+	reconcilePausedMsg    = "Reconciliation (including deletion) is paused via the pause annotation"
+	waitingForPipelineMsg = "Waiting for the function pipeline to delete composed resources"
 )
 
 // Event reasons.
@@ -695,6 +696,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// Keep running the pipeline until it stops desiring composed
 			// resources and they're gone.
 			log.Debug("Running the function pipeline to delete composed resources")
+			status.MarkConditions(xpv2.Deleting().WithMessage(waitingForPipelineMsg))
 		case v1.CompositionDeletionPolicyBackground:
 			return r.finishDelete(ctx, updateCtx, log, status, xr)
 		}
@@ -883,19 +885,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Watch every kind this controller's XRs depend on - the resources they
 	// compose and the resources their functions require. The tracker was
 	// updated with this XR's dependencies as it was composed above.
-	gvks := r.tracker.GVKs()
-	log.Debug("Watching kinds this controller's composite resources depend on", "count", len(gvks), "gvks", gvks)
-	ws := make([]engine.Watch, len(gvks))
-	for i, gvk := range gvks {
-		cr := &kunstructured.Unstructured{}
-		cr.SetGroupVersionKind(gvk)
-		ws[i] = engine.WatchFor(cr, engine.WatchTypeDependency, r.watchHandler)
-	}
-
-	// The ControllerEngine that starts this controller also starts a
-	// garbage collector for its watches.
-	if err := r.engine.StartWatches(ctx, r.controllerName, ws...); err != nil {
-		err = errors.Wrap(err, errWatch)
+	if err := r.startWatches(ctx, log); err != nil {
 		r.record.Event(xr, event.Warning(reasonWatch, err))
 		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(updateCtx, xr)
@@ -991,7 +981,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if deleting {
-		ready = xpv2.Deleting().WithMessage("Waiting for the function pipeline to delete composed resources")
+		ready = xpv2.Deleting().WithMessage(waitingForPipelineMsg)
 	}
 
 	status.MarkConditions(synced, ready)
@@ -1054,10 +1044,46 @@ func (r *Reconciler) deleteInForeground(ctx, updateCtx context.Context, log logg
 		return reconcile.Result{}, err
 	}
 
+	// If Crossplane restarted while this XR was deleting, it never tracked the
+	// XR's composed resources. Track them so their deletion requeues the XR.
+	refs := make([]dependency.Reference, 0, len(observed))
+	for _, cd := range observed {
+		refs = append(refs, dependency.Reference{
+			GVK:       cd.Resource.GetObjectKind().GroupVersionKind(),
+			Namespace: cd.Resource.GetNamespace(),
+			Name:      cd.Resource.GetName(),
+		})
+	}
+	r.tracker.Track(client.ObjectKeyFromObject(xr), refs, nil)
+
+	if err := r.startWatches(ctx, log); err != nil {
+		r.record.Event(xr, event.Warning(reasonDelete, err))
+		status.MarkConditions(xpv2.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
+
+		return reconcile.Result{}, err
+	}
+
 	log.Debug("Waiting for composed resources to be deleted", "remaining", len(observed))
 	status.MarkConditions(xpv2.Deleting().WithMessage(fmt.Sprintf("Waiting for %d composed resource(s) to be deleted", len(observed))), xpv2.ReconcileSuccess())
 
 	return reconcile.Result{RequeueAfter: jitter(r.effectivePollInterval(xr))}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
+}
+
+// startWatches watches every kind this controller's XRs depend on.
+func (r *Reconciler) startWatches(ctx context.Context, log logging.Logger) error {
+	gvks := r.tracker.GVKs()
+	log.Debug("Watching kinds this controller's composite resources depend on", "count", len(gvks), "gvks", gvks)
+	ws := make([]engine.Watch, len(gvks))
+	for i, gvk := range gvks {
+		cr := &kunstructured.Unstructured{}
+		cr.SetGroupVersionKind(gvk)
+		ws[i] = engine.WatchFor(cr, engine.WatchTypeDependency, r.watchHandler)
+	}
+
+	// The ControllerEngine that starts this controller also starts a
+	// garbage collector for its watches.
+	return errors.Wrap(r.engine.StartWatches(ctx, r.controllerName, ws...), errWatch)
 }
 
 // deletionPolicy returns the deletion policy the XR recorded, or Background if
