@@ -72,7 +72,7 @@ type Reconciler struct {
 
 // Reconcile is triggered when a watched resource changes, and creates an
 // Operation using the WatchOperation's template.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Reconcilers are typically complex
 	log := r.log.WithValues(
 		"request", req,
 		"gvk", r.watchedGVK,

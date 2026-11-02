@@ -5,13 +5,13 @@ go 1.26.7
 replace github.com/crossplane/crossplane/apis/v2 => ./apis
 
 require (
+	cel.dev/cel-go v0.33.2
 	dario.cat/mergo v1.0.2
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/alecthomas/kong v1.17.0
 	github.com/crossplane/crossplane-runtime/v2 v2.5.0-rc.0.0.20261030000521-f78c9aebf4ff
 	github.com/crossplane/crossplane/apis/v2 v2.5.0-rc.0.0.20261029180807-76a72bee8a19
-	github.com/google/cel-go v0.30.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-containerregistry v0.22.1
 	github.com/robfig/cron/v3 v3.0.1
@@ -34,7 +34,7 @@ require (
 )
 
 require (
-	cel.dev/expr v0.25.2 // indirect
+	cel.dev/expr v0.25.3 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.22.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/containers/azcontainerregistry v0.2.3 // indirect

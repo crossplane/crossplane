@@ -247,11 +247,13 @@ func WatchedControllerName(name string) string {
 func (r *Reconciler) watchedReconciler(wo *v1alpha1.WatchOperation) (*watched.Reconciler, error) {
 	name := wo.GetName()
 	if existing, ok := r.watched.Load(name); ok {
-		wr := existing.(*watched.Reconciler)
-		if err := wr.UpdateProgram(wo.Spec.Watch); err != nil {
-			return nil, err
+		if wr, ok := existing.(*watched.Reconciler); ok {
+			if err := wr.UpdateProgram(wo.Spec.Watch); err != nil {
+				return nil, err
+			}
+			return wr, nil
 		}
-		return wr, nil
+		return nil, errors.Errorf("cannot reconcile WatchOperation %s", name)
 	}
 
 	wr, err := watched.NewReconciler(r.engine.GetCached(), wo,

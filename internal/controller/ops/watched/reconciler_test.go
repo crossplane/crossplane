@@ -591,8 +591,10 @@ func TestReconcileWatchConditions(t *testing.T) {
 					Spec: v1alpha1.OperationSpec{
 						Mode: v1alpha1.OperationModePipeline,
 						Pipeline: []v1alpha1.PipelineStep{{
-							Step:        "test-step",
-							FunctionRef: v1alpha1.FunctionReference{Name: "test-function"},
+							Step: "test-step",
+							FunctionRef: &v1alpha1.FunctionReference{
+								Name: "test-function",
+							},
 						}},
 					},
 				},
@@ -862,7 +864,7 @@ func TestReconcileWatchConditions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Reconcile(): %v", err)
 		}
-		if result.Requeue {
+		if result.RequeueAfter > 0 {
 			t.Fatal("expected deleted resource evaluation failure not to requeue")
 		}
 		if _, ok := r.fingerprints.Load(req.NamespacedName); ok {
