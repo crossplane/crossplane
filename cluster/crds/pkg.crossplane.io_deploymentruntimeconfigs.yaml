@@ -12,6 +12,8 @@ spec:
     kind: DeploymentRuntimeConfig
     listKind: DeploymentRuntimeConfigList
     plural: deploymentruntimeconfigs
+    shortNames:
+    - drc
     singular: deploymentruntimeconfig
   scope: Cluster
   versions:
