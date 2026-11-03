@@ -2561,8 +2561,45 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 			},
 			want: want{err: nil},
 		},
-		"BackgroundDeletionForXRsThatDeleteTheirOwnResources": {
-			reason: "With function-controlled deletion, we should delete a composed XR that deletes its own composed resources with background propagation, so Kubernetes garbage collection doesn't fight it.",
+		"BackgroundDeletionForForegroundXRs": {
+			reason: "With function-controlled deletion, we should delete a composed XR with the Foreground policy using background propagation. It deletes its own composed resources, so Kubernetes garbage collection shouldn't.",
+			params: params{
+				functionControlledDeletion: true,
+				client: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+					MockDelete: func(_ context.Context, _ client.Object, opts ...client.DeleteOption) error {
+						do := &client.DeleteOptions{}
+						for _, o := range opts {
+							o.ApplyToDelete(do)
+						}
+						if do.PropagationPolicy == nil || *do.PropagationPolicy != metav1.DeletePropagationBackground {
+							return errors.Errorf("want background propagation, got %v", do.PropagationPolicy)
+						}
+
+						return nil
+					},
+				},
+			},
+			args: args{
+				owner: &fake.Composite{ObjectMeta: metav1.ObjectMeta{UID: "cool-xr"}},
+				observed: ComposedResourceStates{
+					"undesired-resource": ComposedResourceState{Resource: func() *composed.Unstructured {
+						cd := composed.New()
+						cd.SetOwnerReferences([]metav1.OwnerReference{{
+							Controller: new(true),
+							UID:        "cool-xr",
+						}})
+						// This composed resource is an XR whose deletion policy is
+						// Foreground.
+						_ = fieldpath.Pave(cd.Object).SetValue("status.crossplane.deletionPolicy", "Foreground")
+						return cd
+					}()},
+				},
+			},
+			want: want{err: nil},
+		},
+		"BackgroundDeletionForPipelineXRs": {
+			reason: "With function-controlled deletion, we should delete a composed XR with the Pipeline policy using background propagation. It deletes its own composed resources, so Kubernetes garbage collection shouldn't.",
 			params: params{
 				functionControlledDeletion: true,
 				client: &test.MockClient{
