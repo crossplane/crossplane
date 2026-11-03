@@ -209,3 +209,181 @@ func TestCompositionDeletionPolicyPipeline(t *testing.T) {
 			Feature(),
 	)
 }
+
+func TestCompositionDeletionPolicyNestedForeground(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/deletion-policy-nested-foreground"
+
+	// Crossplane removes crossplane.io/composite before it deletes a composed
+	// resource, so select the composed ConfigMaps by test labels.
+	background := resources.WithLabelSelector("e2e.crossplane.io/deletion-policy=nested-background")
+	pipeline := resources.WithLabelSelector("e2e.crossplane.io/deletion-policy=nested-pipeline")
+	first := resources.WithLabelSelector("e2e.crossplane.io/deletion-policy=nested-pipeline,e2e.crossplane.io/resource=first")
+	second := resources.WithLabelSelector("e2e.crossplane.io/deletion-policy=nested-pipeline,e2e.crossplane.io/resource=second")
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that an XR with the Foreground deletion policy deletes its composed XRs using their own deletion policies, and is kept until they're gone.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteFunctionControlledDeletion).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definitions.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRsAreReady", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "children/*.yaml", xpv2.Available(), xpv2.ReconcileSuccess()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "xr.yaml", xpv2.Available(), xpv2.ReconcileSuccess()),
+			)).
+			Assess("XRsRecordTheirDeletionPolicies", funcs.AllOf(
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.crossplane.deletionPolicy", "Foreground"),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "children/pipeline.yaml", "status.crossplane.deletionPolicy", "Pipeline"),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "children/background.yaml", "status.crossplane.deletionPolicy", "Background"),
+			)).
+			Assess("ComposedResourcesAreCreated", funcs.AllOf(
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, &corev1.ConfigMapList{}, 2, func(k8s.Object) bool { return true }, background),
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, &corev1.ConfigMapList{}, 2, func(k8s.Object) bool { return true }, pipeline),
+			)).
+			// The parent deletes the Background child with foreground
+			// propagation, so Kubernetes deletes its ConfigMaps. It deletes the
+			// Pipeline child with background propagation, so the child's
+			// function deletes second before first.
+			Assess("DeleteParentXR", funcs.AllOf(
+				funcs.DeleteResources(manifests, "xr.yaml"),
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, &corev1.ConfigMapList{}, 2, heldForDeletion, background),
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, &corev1.ConfigMapList{}, 1, heldForDeletion, second),
+			)).
+			Assess("ChildrenAreDeletedUsingTheirPolicies", funcs.AllOf(
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "children/background.yaml", "metadata.finalizers", []any{metav1.FinalizerDeleteDependents}),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "children/pipeline.yaml", "metadata.finalizers", []any{"composite.apiextensions.crossplane.io"}),
+				funcs.SleepFor(10*time.Second),
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, &corev1.ConfigMapList{}, 1, func(o k8s.Object) bool { return o.GetDeletionTimestamp() == nil }, first),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv2.Deleting()),
+			)).
+			Assess("ReleaseBackgroundChild", funcs.AllOf(
+				funcs.ListedResourcesModifiedWith(&corev1.ConfigMapList{}, 2, release, background),
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, &corev1.ConfigMapList{}, background),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "children/background.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv2.Deleting()),
+			)).
+			Assess("ReleaseSecond", funcs.AllOf(
+				funcs.ListedResourcesModifiedWith(&corev1.ConfigMapList{}, 1, release, second),
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, &corev1.ConfigMapList{}, second),
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, &corev1.ConfigMapList{}, 1, heldForDeletion, first),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv2.Deleting()),
+			)).
+			Assess("ReleaseFirst", funcs.AllOf(
+				funcs.ListedResourcesModifiedWith(&corev1.ConfigMapList{}, 1, release, first),
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, &corev1.ConfigMapList{}, first),
+			)).
+			Assess("XRsAreDeleted", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "children/pipeline.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
+			)).
+			// The assessments delete the XRs. If one failed, don't leave
+			// composed resources stuck behind the test finalizer.
+			WithTeardown("ReleaseComposedResources", funcs.AllOf(
+				funcs.ListedResourcesModifiedWith(&corev1.ConfigMapList{}, 0, release, background),
+				funcs.ListedResourcesModifiedWith(&corev1.ConfigMapList{}, 0, release, pipeline),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestCompositionDeletionPolicyNestedPipeline(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/deletion-policy-nested-pipeline"
+
+	// Crossplane removes crossplane.io/composite before it deletes a composed
+	// resource, so select the composed ConfigMaps by test labels.
+	background := resources.WithLabelSelector("e2e.crossplane.io/deletion-policy=pipeline-parent-background")
+	pipeline := resources.WithLabelSelector("e2e.crossplane.io/deletion-policy=pipeline-parent-pipeline")
+	first := resources.WithLabelSelector("e2e.crossplane.io/deletion-policy=pipeline-parent-pipeline,e2e.crossplane.io/resource=first")
+	second := resources.WithLabelSelector("e2e.crossplane.io/deletion-policy=pipeline-parent-pipeline,e2e.crossplane.io/resource=second")
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that an XR with the Pipeline deletion policy deletes its composed XRs in the order its function decides, using their own deletion policies.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteFunctionControlledDeletion).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definitions.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRsAreReady", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "children/*.yaml", xpv2.Available(), xpv2.ReconcileSuccess()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "xr.yaml", xpv2.Available(), xpv2.ReconcileSuccess()),
+			)).
+			Assess("XRsRecordTheirDeletionPolicies", funcs.AllOf(
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.crossplane.deletionPolicy", "Pipeline"),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "children/pipeline.yaml", "status.crossplane.deletionPolicy", "Pipeline"),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "children/background.yaml", "status.crossplane.deletionPolicy", "Background"),
+			)).
+			Assess("ComposedResourcesAreCreated", funcs.AllOf(
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, &corev1.ConfigMapList{}, 2, func(k8s.Object) bool { return true }, background),
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, &corev1.ConfigMapList{}, 2, func(k8s.Object) bool { return true }, pipeline),
+			)).
+			// The parent's function deletes the Background child first.
+			// Crossplane deletes it with foreground propagation, so Kubernetes
+			// deletes its ConfigMaps.
+			Assess("DeleteParentXR", funcs.AllOf(
+				funcs.DeleteResources(manifests, "xr.yaml"),
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, &corev1.ConfigMapList{}, 2, heldForDeletion, background),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "children/background.yaml", "metadata.finalizers", []any{metav1.FinalizerDeleteDependents}),
+			)).
+			Assess("PipelineChildWaitsForBackgroundChild", funcs.AllOf(
+				funcs.SleepFor(10*time.Second),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "children/pipeline.yaml", "metadata.deletionTimestamp", funcs.NotFound),
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, &corev1.ConfigMapList{}, 2, func(o k8s.Object) bool { return o.GetDeletionTimestamp() == nil }, pipeline),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv2.Deleting()),
+			)).
+			// Once the Background child is gone the parent's function deletes
+			// the Pipeline child. Crossplane deletes it with background
+			// propagation, so the child's function deletes second before
+			// first.
+			Assess("ReleaseBackgroundChild", funcs.AllOf(
+				funcs.ListedResourcesModifiedWith(&corev1.ConfigMapList{}, 2, release, background),
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, &corev1.ConfigMapList{}, background),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "children/background.yaml"),
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, &corev1.ConfigMapList{}, 1, heldForDeletion, second),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "children/pipeline.yaml", "metadata.finalizers", []any{"composite.apiextensions.crossplane.io"}),
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, &corev1.ConfigMapList{}, 1, func(o k8s.Object) bool { return o.GetDeletionTimestamp() == nil }, first),
+			)).
+			Assess("ReleaseSecond", funcs.AllOf(
+				funcs.ListedResourcesModifiedWith(&corev1.ConfigMapList{}, 1, release, second),
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, &corev1.ConfigMapList{}, second),
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, &corev1.ConfigMapList{}, 1, heldForDeletion, first),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "xr.yaml", xpv2.Deleting()),
+			)).
+			Assess("ReleaseFirst", funcs.AllOf(
+				funcs.ListedResourcesModifiedWith(&corev1.ConfigMapList{}, 1, release, first),
+				funcs.ListedResourcesDeletedWithin(1*time.Minute, &corev1.ConfigMapList{}, first),
+			)).
+			Assess("XRsAreDeleted", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "children/pipeline.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
+			)).
+			// The assessments delete the XRs. If one failed, don't leave
+			// composed resources stuck behind the test finalizer.
+			WithTeardown("ReleaseComposedResources", funcs.AllOf(
+				funcs.ListedResourcesModifiedWith(&corev1.ConfigMapList{}, 0, release, background),
+				funcs.ListedResourcesModifiedWith(&corev1.ConfigMapList{}, 0, release, pipeline),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
