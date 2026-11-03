@@ -1937,7 +1937,7 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 			},
 			want: want{
 				synced:           xpv2.ReconcileSuccess(),
-				ready:            xpv2.Deleting().WithMessage(waitingForPipelineMsg),
+				ready:            xpv2.Deleting(),
 				ranPipeline:      true,
 				removedFinalizer: true,
 				recorded:         v1.CompositionDeletionPolicyPipeline,

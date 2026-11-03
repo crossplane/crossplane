@@ -660,8 +660,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if deleting {
 		log = log.WithValues("deletion-timestamp", xr.GetDeletionTimestamp())
 
-		status.MarkConditions(xpv2.Deleting())
-
 		// Orphan propagation leaves the composed resources alone.
 		if slices.Contains(xr.GetFinalizers(), metav1.FinalizerOrphanDependents) {
 			log.Debug("Composite resource is being deleted with orphan propagation, leaving its composed resources alone")
@@ -1024,7 +1022,7 @@ func (r *Reconciler) deleteInForeground(ctx, updateCtx context.Context, log logg
 	if err != nil {
 		err = errors.Wrap(err, errGetExistingCDs)
 		r.record.Event(xr, event.Warning(reasonDelete, err))
-		status.MarkConditions(xpv2.ReconcileError(err))
+		status.MarkConditions(xpv2.Deleting(), xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(updateCtx, xr)
 
 		return reconcile.Result{}, err
@@ -1037,6 +1035,8 @@ func (r *Reconciler) deleteInForeground(ctx, updateCtx context.Context, log logg
 		log.Debug("Deleted all composed resources")
 		return r.finishDelete(ctx, updateCtx, log, status, xr)
 	}
+
+	status.MarkConditions(xpv2.Deleting().WithMessage(fmt.Sprintf("Waiting for %d composed resource(s) to be deleted", len(observed))))
 
 	if err := r.gc.GarbageCollectComposedResources(ctx, xr, observed, ComposedResourceStates{}); err != nil {
 		if kerrors.IsConflict(err) {
@@ -1072,7 +1072,7 @@ func (r *Reconciler) deleteInForeground(ctx, updateCtx context.Context, log logg
 	}
 
 	log.Debug("Waiting for composed resources to be deleted", "remaining", len(observed))
-	status.MarkConditions(xpv2.Deleting().WithMessage(fmt.Sprintf("Waiting for %d composed resource(s) to be deleted", len(observed))), xpv2.ReconcileSuccess())
+	status.MarkConditions(xpv2.ReconcileSuccess())
 
 	if err := r.client.Status().Update(updateCtx, xr); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, errUpdateStatus)
@@ -1099,6 +1099,8 @@ func (r *Reconciler) startWatches(ctx context.Context, log logging.Logger) error
 
 // finishDelete removes the XR's finalizer.
 func (r *Reconciler) finishDelete(ctx, updateCtx context.Context, log logging.Logger, status conditions.ConditionSet, xr *composite.Unstructured) (reconcile.Result, error) {
+	status.MarkConditions(xpv2.Deleting())
+
 	if err := r.composite.RemoveFinalizer(ctx, xr); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
