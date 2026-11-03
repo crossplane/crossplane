@@ -1440,7 +1440,7 @@ func TestFunctionCompose(t *testing.T) {
 			},
 		},
 		"RetainReferencesToResourcesThatStillExist": {
-			reason: "With function-controlled deletion and a Foreground or Pipeline policy, we should keep referencing a composed resource the pipeline no longer desires until it's really gone, so functions can see it's still being deleted.",
+			reason: "With function-controlled deletion, we should keep referencing a composed resource the pipeline no longer desires until it's really gone, so functions can see it's still being deleted. This applies to any XR, whatever its deletion policy.",
 			params: params{
 				c: &test.MockClient{
 					MockList: mockListFunctionRevisions(),
@@ -1496,16 +1496,11 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: func() *composite.Unstructured {
-					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
-						Group:   "test.crossplane.io",
-						Version: "v1",
-						Kind:    "CoolComposite",
-					}))
-					xr.SetDeletionPolicy(v1.CompositionDeletionPolicyPipeline)
-
-					return xr
-				}(),
+				xr: composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+					Group:   "test.crossplane.io",
+					Version: "v1",
+					Kind:    "CoolComposite",
+				})),
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{
 						Spec: v1.CompositionRevisionSpec{
@@ -1691,8 +1686,8 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 		},
-		"DontRetainReferencesForBackgroundXRs": {
-			reason: "With function-controlled deletion, an XR with the Background policy should stop referencing a composed resource as soon as the pipeline no longer desires it, as it does without the feature.",
+		"DontRetainReferencesWhenDisabled": {
+			reason: "Without function-controlled deletion, we should stop referencing a composed resource as soon as the pipeline no longer desires it.",
 			params: params{
 				c: &test.MockClient{
 					MockList: mockListFunctionRevisions(),
@@ -1719,7 +1714,6 @@ func TestFunctionCompose(t *testing.T) {
 					return &fnv1.RunFunctionResponse{Desired: &fnv1.State{}}, nil
 				}),
 				o: []FunctionComposerOption{
-					WithFunctionControlledDeletion(true),
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),

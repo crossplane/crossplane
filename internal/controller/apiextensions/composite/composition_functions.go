@@ -692,10 +692,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// randomly generated names and hit an error applying the second one we need
 	// to know that the first one (that _was_ created) exists next time we
 	// reconcile the XR.
-	// Only XRs that delete their own composed resources need to keep
-	// referencing them while they're deleted.
-	retain := c.functionControlledDeletion && deletionPolicy(xr) != v1.CompositionDeletionPolicyBackground
-	known := referenced(xr, desired, observed, retain)
+	known := referenced(xr, desired, observed, c.functionControlledDeletion)
 
 	refs := composite.New(composite.WithSchema(xr.Schema), composite.WithGroupVersionKind(xr.GroupVersionKind()))
 	refs.SetNamespace(xr.GetNamespace())
