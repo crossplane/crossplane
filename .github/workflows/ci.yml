@@ -153,6 +153,8 @@ jobs:
             test-suite: pipeline-oci-references
           - test-area: apiextensions
             test-suite: composition-revision-gc
+          - test-area: apiextensions
+            test-suite: function-controlled-deletion
           - test-area: pkg
             test-suite: package-dependency-updates
           - test-area: pkg

@@ -19,6 +19,7 @@ package composite
 import (
 	"context"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -36,10 +37,13 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/claim"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
@@ -49,6 +53,7 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/circuit"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
 	"github.com/crossplane/crossplane/v2/internal/engine"
+	"github.com/crossplane/crossplane/v2/internal/features"
 )
 
 func TestReconcile(t *testing.T) {
@@ -102,9 +107,11 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetDeletionTimestamp(&now)
+						cr.SetFinalizers([]string{finalizer})
 					})),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetDeletionTimestamp(&now)
+						cr.SetFinalizers([]string{finalizer})
 						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.Deleting(), xpv2.ReconcileError(errors.Wrap(errBoom, errRemoveFinalizer)))
 					})),
 				},
@@ -127,9 +134,11 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetDeletionTimestamp(&now)
+						cr.SetFinalizers([]string{finalizer})
 					})),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetDeletionTimestamp(&now)
+						cr.SetFinalizers([]string{finalizer})
 						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.Deleting(), xpv2.ReconcileSuccess())
 					})),
 				},
@@ -143,6 +152,20 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				err: nil,
+			},
+		},
+		"AlreadyDeleted": {
+			reason: "We shouldn't do anything with an XR we already finished deleting, which another finalizer keeps around.",
+			args: args{
+				c: &test.MockClient{
+					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
+						cr.SetDeletionTimestamp(&now)
+						cr.SetFinalizers([]string{"example.org/other"})
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
 			},
 		},
 		"AddFinalizerError": {
@@ -1827,4 +1850,644 @@ func newTestRecorder(expected ...eventArgs) *testRecorder {
 	return &testRecorder{
 		Want: expected,
 	}
+}
+
+// newDeletionPolicyReconciler returns a Reconciler for the deletion policy
+// tests. The XR's Composition resolves to the supplied revision.
+func newDeletionPolicyReconciler(c client.Client, f *feature.Flags, rev func() (*v1.CompositionRevision, error), compose ComposerFn, o ...ReconcilerOption) *Reconciler {
+	return NewReconciler(c, schema.GroupVersionKind{}, append([]ReconcilerOption{
+		WithFeatures(f),
+		WithPollInterval(time.Minute),
+		WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+			cr.SetCompositionReference(&corev1.ObjectReference{})
+			return nil
+		})),
+		WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
+			return rev()
+		})),
+		WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
+			return nil
+		})),
+		WithComposer(compose),
+	}, o...)...)
+}
+
+func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
+	now := metav1.Now()
+	errBoom := errors.New("boom")
+	errFatal := &PipelineFatalError{Step: "cool-step", Message: "cool function failed"}
+
+	type args struct {
+		finalizers []string
+		recorded   v1.CompositionDeletionPolicy // What the XR recorded while live.
+		policy     v1.CompositionDeletionPolicy // The revision's policy.
+		noRevision bool                         // Is the revision gone?
+		invalid    bool                         // Does the revision have an invalid pipeline?
+		disabled   bool                         // Is function-controlled deletion disabled?
+		compose    func() (CompositionResult, error)
+	}
+
+	type want struct {
+		// Which path the delete took. Background, and anything that defers to
+		// Kubernetes, only removes the finalizer.
+		ranPipeline           bool
+		ranForegroundDeletion bool
+		removedFinalizer      bool
+
+		requeue  bool                         // Did we requeue?
+		synced   xpv2.Condition               // The Synced condition in the last status update.
+		ready    xpv2.Condition               // The Ready condition in the last status update.
+		recorded v1.CompositionDeletionPolicy // The policy in the last status update.
+		err      error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NoRecordedPolicy": {
+			reason: "An XR that never recorded a policy uses Background, so it finishes deleting immediately.",
+			want: want{
+				synced:           xpv2.ReconcileSuccess(),
+				ready:            xpv2.Deleting(),
+				removedFinalizer: true,
+			},
+		},
+		"Foreground": {
+			reason: "An XR with the Foreground policy is deleted in the foreground, without running its pipeline.",
+			args: args{
+				recorded: v1.CompositionDeletionPolicyForeground,
+			},
+			want: want{
+				synced:                xpv2.ReconcileSuccess(),
+				ready:                 xpv2.Deleting().WithMessage("Waiting for 1 composed resource(s) to be deleted"),
+				ranForegroundDeletion: true,
+				requeue:               true,
+				recorded:              v1.CompositionDeletionPolicyForeground,
+			},
+		},
+		"Pipeline": {
+			reason: "An XR with the Pipeline policy runs its pipeline, and waits while composed resources still exist.",
+			args: args{
+				recorded: v1.CompositionDeletionPolicyPipeline,
+				policy:   v1.CompositionDeletionPolicyPipeline,
+				compose: func() (CompositionResult, error) {
+					return CompositionResult{Existing: 1}, nil
+				},
+			},
+			want: want{
+				synced:      xpv2.ReconcileSuccess(),
+				ready:       xpv2.Deleting().WithMessage(waitingForPipelineMsg),
+				ranPipeline: true,
+				requeue:     true,
+				recorded:    v1.CompositionDeletionPolicyPipeline,
+			},
+		},
+		"PipelineDeletedEverything": {
+			reason: "Once the pipeline desires nothing and nothing exists, the XR finishes deleting.",
+			args: args{
+				recorded: v1.CompositionDeletionPolicyPipeline,
+				policy:   v1.CompositionDeletionPolicyPipeline,
+				compose: func() (CompositionResult, error) {
+					return CompositionResult{}, nil
+				},
+			},
+			want: want{
+				synced:           xpv2.ReconcileSuccess(),
+				ready:            xpv2.Deleting(),
+				ranPipeline:      true,
+				removedFinalizer: true,
+				recorded:         v1.CompositionDeletionPolicyPipeline,
+			},
+		},
+		"PipelineCreatesResources": {
+			reason: "An XR with the Pipeline policy waits while its pipeline desires composed resources, even if none exist yet.",
+			args: args{
+				recorded: v1.CompositionDeletionPolicyPipeline,
+				policy:   v1.CompositionDeletionPolicyPipeline,
+				compose: func() (CompositionResult, error) {
+					return CompositionResult{Composed: []ComposedResource{{ResourceName: "backup", Synced: true}}}, nil
+				},
+			},
+			want: want{
+				synced:      xpv2.ReconcileSuccess(),
+				ready:       xpv2.Deleting().WithMessage(waitingForPipelineMsg),
+				ranPipeline: true,
+				requeue:     true,
+				recorded:    v1.CompositionDeletionPolicyPipeline,
+			},
+		},
+		"PipelineFails": {
+			reason: "An XR with the Pipeline policy whose pipeline fails is held.",
+			args: args{
+				recorded: v1.CompositionDeletionPolicyPipeline,
+				policy:   v1.CompositionDeletionPolicyPipeline,
+				compose: func() (CompositionResult, error) {
+					return CompositionResult{}, errBoom
+				},
+			},
+			want: want{
+				synced:      xpv2.ReconcileError(errors.Wrap(errBoom, errCompose)),
+				ready:       xpv2.Deleting().WithMessage(waitingForPipelineMsg),
+				ranPipeline: true,
+				recorded:    v1.CompositionDeletionPolicyPipeline,
+				err:         errBoom,
+			},
+		},
+		"PipelineFatal": {
+			reason: "An XR with the Pipeline policy whose pipeline returns a fatal result is held, and reports the failure as a Synced error rather than only waiting.",
+			args: args{
+				recorded: v1.CompositionDeletionPolicyPipeline,
+				policy:   v1.CompositionDeletionPolicyPipeline,
+				compose: func() (CompositionResult, error) {
+					return CompositionResult{}, errFatal
+				},
+			},
+			want: want{
+				synced:      xpv2.ReconcileError(errors.Wrap(errFatal, errCompose)),
+				ready:       xpv2.Deleting().WithMessage(waitingForPipelineMsg),
+				ranPipeline: true,
+				recorded:    v1.CompositionDeletionPolicyPipeline,
+				err:         errFatal,
+			},
+		},
+		"PipelineWithoutComposition": {
+			reason: "An XR with the Pipeline policy whose Composition is gone can't run its pipeline, so it's held.",
+			args: args{
+				recorded:   v1.CompositionDeletionPolicyPipeline,
+				noRevision: true,
+			},
+			want: want{
+				synced:   xpv2.ReconcileError(errors.Wrap(errBoom, errFetchComp)),
+				ready:    xpv2.Deleting().WithMessage(waitingForPipelineMsg),
+				recorded: v1.CompositionDeletionPolicyPipeline,
+				err:      errBoom,
+			},
+		},
+		"PipelineNowForeground": {
+			reason: "If an XR's Composition changed from Pipeline to Foreground, the XR records Foreground and requeues to use it. It doesn't need a valid pipeline to do so.",
+			args: args{
+				recorded: v1.CompositionDeletionPolicyPipeline,
+				policy:   v1.CompositionDeletionPolicyForeground,
+				invalid:  true,
+			},
+			want: want{
+				synced:   xpv2.Condition{Type: xpv2.TypeSynced, Status: corev1.ConditionUnknown},
+				ready:    xpv2.Deleting().WithMessage(waitingForPipelineMsg),
+				requeue:  true,
+				recorded: v1.CompositionDeletionPolicyForeground,
+			},
+		},
+		"PipelineNowBackground": {
+			reason: "If an XR's Composition changed from Pipeline to Background, the XR records Background and requeues to use it.",
+			args: args{
+				recorded: v1.CompositionDeletionPolicyPipeline,
+			},
+			want: want{
+				synced:   xpv2.Condition{Type: xpv2.TypeSynced, Status: corev1.ConditionUnknown},
+				ready:    xpv2.Deleting().WithMessage(waitingForPipelineMsg),
+				requeue:  true,
+				recorded: v1.CompositionDeletionPolicyBackground,
+			},
+		},
+		"OrphanPropagation": {
+			reason: "An XR deleted with orphan propagation leaves its composed resources alone, whatever its policy.",
+			args: args{
+				finalizers: []string{metav1.FinalizerOrphanDependents},
+				recorded:   v1.CompositionDeletionPolicyPipeline,
+			},
+			want: want{
+				synced:           xpv2.ReconcileSuccess(),
+				ready:            xpv2.Deleting(),
+				removedFinalizer: true,
+				recorded:         v1.CompositionDeletionPolicyPipeline,
+			},
+		},
+		"ForegroundPropagation": {
+			reason: "An XR deleted with foreground propagation defers to Kubernetes garbage collection, whatever its policy.",
+			args: args{
+				finalizers: []string{metav1.FinalizerDeleteDependents},
+				recorded:   v1.CompositionDeletionPolicyPipeline,
+			},
+			want: want{
+				synced:           xpv2.ReconcileSuccess(),
+				ready:            xpv2.Deleting(),
+				removedFinalizer: true,
+				recorded:         v1.CompositionDeletionPolicyPipeline,
+			},
+		},
+		"Disabled": {
+			reason: "An XR finishes deleting immediately when function-controlled deletion is disabled, whatever its policy.",
+			args: args{
+				recorded: v1.CompositionDeletionPolicyPipeline,
+				disabled: true,
+			},
+			want: want{
+				synced:           xpv2.ReconcileSuccess(),
+				ready:            xpv2.Deleting(),
+				removedFinalizer: true,
+				recorded:         v1.CompositionDeletionPolicyPipeline,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			xr := NewComposite(func(cr *composite.Unstructured) {
+				cr.SetUID(xrUID)
+				cr.SetDeletionTimestamp(&now)
+				cr.SetFinalizers(tc.args.finalizers)
+				cr.SetDeletionPolicy(tc.args.recorded)
+				meta.AddFinalizer(cr, finalizer)
+			})
+
+			f := &feature.Flags{}
+			if !tc.args.disabled {
+				f.Enable(features.EnableAlphaFunctionControlledDeletion)
+			}
+
+			got := want{}
+
+			c := &test.MockClient{
+				MockGet: WithComposite(t, xr),
+				MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
+					if xr, ok := obj.(*composite.Unstructured); ok {
+						got.recorded = xr.GetDeletionPolicy()
+						got.synced = xr.GetCondition(xpv2.TypeSynced)
+						got.ready = xr.GetCondition(xpv2.TypeReady)
+					}
+
+					return nil
+				}),
+			}
+
+			rev := func() (*v1.CompositionRevision, error) {
+				if tc.args.noRevision {
+					return nil, errBoom
+				}
+
+				rev := NewCompositionRevision()
+				rev.Spec.DeletionPolicy = tc.args.policy
+
+				if tc.args.invalid {
+					rev.SetConditions(xpv2.Condition{Type: v1.TypeValidPipeline, Status: corev1.ConditionFalse, Reason: "InvalidPipeline"})
+				}
+
+				return rev, nil
+			}
+
+			compose := ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+				got.ranPipeline = true
+
+				if tc.args.compose == nil {
+					t.Errorf("\n%s\nReconcile(...): ran the function pipeline, which shouldn't run", tc.reason)
+					return CompositionResult{}, nil
+				}
+
+				return tc.args.compose()
+			})
+
+			r := newDeletionPolicyReconciler(c, f, rev, compose,
+				WithCompositeFinalizer(resource.FinalizerFns{
+					RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						got.removedFinalizer = true
+						return nil
+					},
+				}),
+				WithForegroundDeletion(
+					ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return ComposedResourceStates{"first": state("Thing", "xr-first")}, nil
+					}),
+					ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						got.ranForegroundDeletion = true
+						return nil
+					}),
+				),
+			)
+
+			res, err := r.Reconcile(context.Background(), reconcile.Request{})
+			got.err = err
+			got.requeue = !res.IsZero()
+
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(want{}), cmpopts.EquateErrors(), cmpopts.IgnoreFields(xpv2.Condition{}, "LastTransitionTime")); diff != "" {
+				t.Errorf("\n%s\nReconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestDeleteInForeground(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	orphaned := state("Thing", "xr-orphaned")
+	orphaned.Resource.SetOwnerReferences(nil)
+
+	other := state("Thing", "other")
+	other.Resource.SetOwnerReferences([]metav1.OwnerReference{{UID: "other-uid", Controller: new(true)}})
+
+	type args struct {
+		observed   ComposedResourceStates
+		observeErr error
+		gcErr      error
+		statusErr  error
+	}
+
+	type want struct {
+		watched          bool     // Did we start watching?
+		deleted          []string // What did we garbage collect?
+		requeue          bool     // Did we requeue?
+		removedFinalizer bool     // Was our finalizer removed?
+		err              error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ComposedResourcesExist": {
+			reason: "We should delete the XR's composed resources, and keep its finalizer until they're gone.",
+			args: args{
+				observed: ComposedResourceStates{
+					"first":  state("Thing", "xr-first"),
+					"second": state("Thing", "xr-second"),
+				},
+			},
+			want: want{
+				watched: true,
+				deleted: []string{"first", "second"},
+				requeue: true,
+			},
+		},
+		"NothingLeft": {
+			reason: "We should remove the XR's finalizer once its composed resources are gone.",
+			args: args{
+				observed: ComposedResourceStates{},
+			},
+			want: want{
+				removedFinalizer: true,
+			},
+		},
+		"OrphanedResourcesDontBlock": {
+			reason: "We shouldn't wait for composed resources we don't control, because we'd never delete them.",
+			args: args{
+				observed: ComposedResourceStates{"orphaned": orphaned},
+			},
+			want: want{
+				removedFinalizer: true,
+			},
+		},
+		"OtherOwnersResourcesDontBlock": {
+			reason: "We shouldn't delete or wait for composed resources another owner controls, because we'd never delete them.",
+			args: args{
+				observed: ComposedResourceStates{"other": other},
+			},
+			want: want{
+				removedFinalizer: true,
+			},
+		},
+		"StatusUpdateError": {
+			reason: "We should return any error encountered updating the XR's status while we wait for its composed resources, without also requeueing.",
+			args: args{
+				observed:  ComposedResourceStates{"first": state("Thing", "xr-first")},
+				statusErr: errBoom,
+			},
+			want: want{
+				watched: true,
+				deleted: []string{"first"},
+				err:     errBoom,
+			},
+		},
+		"ObserveError": {
+			reason: "We should return any error encountered observing the XR's composed resources.",
+			args: args{
+				observeErr: errBoom,
+			},
+			want: want{
+				err: errBoom,
+			},
+		},
+		"GarbageCollectError": {
+			reason: "We should return any error encountered deleting the XR's composed resources.",
+			args: args{
+				observed: ComposedResourceStates{"first": state("Thing", "xr-first")},
+				gcErr:    errBoom,
+			},
+			want: want{
+				deleted: []string{"first"},
+				err:     errBoom,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := want{}
+
+			r := NewReconciler(&test.MockClient{
+				MockStatusUpdate: test.NewMockSubResourceUpdateFn(tc.args.statusErr),
+			}, schema.GroupVersionKind{},
+				WithPollInterval(time.Minute),
+				WithCompositeFinalizer(resource.FinalizerFns{
+					RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						got.removedFinalizer = true
+						return nil
+					},
+				}),
+				WithWatchStarter("cool-controller", nil, WatchStarterFn(func(_ context.Context, _ string, ws ...engine.Watch) error {
+					got.watched = len(ws) > 0
+					return nil
+				}), dependency.NewInMemory()),
+				WithForegroundDeletion(
+					ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return tc.args.observed, tc.args.observeErr
+					}),
+					ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, observed, _ ComposedResourceStates) error {
+						for n := range observed {
+							got.deleted = append(got.deleted, string(n))
+						}
+
+						return tc.args.gcErr
+					}),
+				),
+			)
+
+			xr := NewComposite(func(cr *composite.Unstructured) { cr.SetUID(xrUID) })
+
+			res, err := r.deleteInForeground(context.Background(), context.Background(), logging.NewNopLogger(), r.conditions.For(xr), xr)
+			got.err = err
+			got.requeue = !res.IsZero()
+
+			slices.Sort(got.deleted)
+
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(want{}), cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nr.deleteInForeground(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestReconcileRecordsDeletionPolicy(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	type args struct {
+		enabled bool
+		legacy  bool
+		policy  v1.CompositionDeletionPolicy
+		fails   bool
+	}
+
+	type want struct {
+		recorded              v1.CompositionDeletionPolicy
+		recordedBeforeCompose v1.CompositionDeletionPolicy
+		err                   error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"Pipeline": {
+			reason: "A Composition with the Pipeline policy is recorded as such.",
+			args: args{
+				enabled: true,
+				policy:  v1.CompositionDeletionPolicyPipeline,
+			},
+			want: want{
+				recorded:              v1.CompositionDeletionPolicyPipeline,
+				recordedBeforeCompose: v1.CompositionDeletionPolicyPipeline,
+			},
+		},
+		"PipelineThatFails": {
+			reason: "A Composition with the Pipeline policy is recorded before composing, so the XR still runs its pipeline when it's deleted even if the pipeline is failing.",
+			args: args{
+				enabled: true,
+				policy:  v1.CompositionDeletionPolicyPipeline,
+				fails:   true,
+			},
+			want: want{
+				recorded:              v1.CompositionDeletionPolicyPipeline,
+				recordedBeforeCompose: v1.CompositionDeletionPolicyPipeline,
+				err:                   errBoom,
+			},
+		},
+		"Foreground": {
+			reason: "A Composition with the Foreground policy is recorded as such.",
+			args: args{
+				enabled: true,
+				policy:  v1.CompositionDeletionPolicyForeground,
+			},
+			want: want{
+				recorded:              v1.CompositionDeletionPolicyForeground,
+				recordedBeforeCompose: v1.CompositionDeletionPolicyForeground,
+			},
+		},
+		"Background": {
+			reason: "A Composition with the Background policy is recorded as such.",
+			args: args{
+				enabled: true,
+				policy:  v1.CompositionDeletionPolicyBackground,
+			},
+			want: want{
+				recorded:              v1.CompositionDeletionPolicyBackground,
+				recordedBeforeCompose: v1.CompositionDeletionPolicyBackground,
+			},
+		},
+		"Unset": {
+			reason: "A Composition that sets no policy is recorded as Background.",
+			args: args{
+				enabled: true,
+			},
+			want: want{
+				recorded:              v1.CompositionDeletionPolicyBackground,
+				recordedBeforeCompose: v1.CompositionDeletionPolicyBackground,
+			},
+		},
+		"Legacy": {
+			reason: "A legacy XR's schema has nowhere to record a policy, so nothing is recorded.",
+			args: args{
+				enabled: true,
+				legacy:  true,
+				policy:  v1.CompositionDeletionPolicyPipeline,
+			},
+			want: want{},
+		},
+		"Disabled": {
+			reason: "Nothing is recorded unless function-controlled deletion is enabled.",
+			args: args{
+				policy: v1.CompositionDeletionPolicyPipeline,
+			},
+			want: want{},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := &feature.Flags{}
+			if tc.args.enabled {
+				f.Enable(features.EnableAlphaFunctionControlledDeletion)
+			}
+
+			xr := NewComposite()
+			if tc.args.legacy {
+				xr.Schema = composite.SchemaLegacy
+			}
+
+			got := want{}
+
+			c := &test.MockClient{
+				MockGet: WithComposite(t, xr),
+				MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
+					if xr, ok := obj.(*composite.Unstructured); ok {
+						got.recorded = xr.GetDeletionPolicy()
+					}
+
+					return nil
+				}),
+			}
+
+			rev := func() (*v1.CompositionRevision, error) {
+				rev := NewCompositionRevision()
+				rev.Spec.DeletionPolicy = tc.args.policy
+
+				return rev, nil
+			}
+
+			compose := ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+				got.recordedBeforeCompose = got.recorded
+
+				if tc.args.fails {
+					return CompositionResult{}, errBoom
+				}
+
+				return CompositionResult{}, nil
+			})
+
+			r := newDeletionPolicyReconciler(c, f, rev, compose, WithCompositeFinalizer(resource.NewNopFinalizer()))
+
+			_, err := r.Reconcile(context.Background(), reconcile.Request{})
+			got.err = err
+
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(want{}), cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nReconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+// state returns an observed composed resource that the XR controls.
+// xrUID is the UID of the XR that controls the composed resources state
+// returns.
+const xrUID = "xr-uid"
+
+func state(kind, name string) ComposedResourceState {
+	cd := composed.New()
+	cd.SetAPIVersion("example.org/v1")
+	cd.SetKind(kind)
+	cd.SetName(name)
+	cd.SetOwnerReferences([]metav1.OwnerReference{{UID: xrUID, Controller: new(true)}})
+
+	return ComposedResourceState{Resource: cd}
 }

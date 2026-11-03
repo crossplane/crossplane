@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"slices"
 	"strconv"
 	"time"
 
@@ -62,24 +63,27 @@ const (
 
 // Error strings.
 const (
-	errGet              = "cannot get composite resource"
-	errUpdate           = "cannot update composite resource"
-	errUpdateStatus     = "cannot update composite resource status"
-	errAddFinalizer     = "cannot add composite resource finalizer"
-	errRemoveFinalizer  = "cannot remove composite resource finalizer"
-	errSelectComp       = "cannot select Composition"
-	errSelectCompRev    = "cannot select CompositionRevision"
-	errFetchComp        = "cannot fetch Composition"
-	errConfigure        = "cannot configure composite resource"
-	errPublish          = "cannot publish connection details"
-	errWatch            = "cannot watch resource for changes"
-	errCompose          = "cannot compose resources"
-	errInvalidResources = "some resources were invalid, check events"
-	errSyncResources    = "cannot sync composed resources"
-	errGetClaim         = "cannot get referenced claim"
-	errParseClaimRef    = "cannot parse claim reference"
+	errGet                  = "cannot get composite resource"
+	errUpdate               = "cannot update composite resource"
+	errUpdateStatus         = "cannot update composite resource status"
+	errAddFinalizer         = "cannot add composite resource finalizer"
+	errRemoveFinalizer      = "cannot remove composite resource finalizer"
+	errRecordDeletionPolicy = "cannot record deletion policy"
+	errForegroundDeletion   = "ignoring deletion policy because the composite resource is being deleted with foreground propagation"
+	errSelectComp           = "cannot select Composition"
+	errSelectCompRev        = "cannot select CompositionRevision"
+	errFetchComp            = "cannot fetch Composition"
+	errConfigure            = "cannot configure composite resource"
+	errPublish              = "cannot publish connection details"
+	errWatch                = "cannot watch resource for changes"
+	errCompose              = "cannot compose resources"
+	errInvalidResources     = "some resources were invalid, check events"
+	errSyncResources        = "cannot sync composed resources"
+	errGetClaim             = "cannot get referenced claim"
+	errParseClaimRef        = "cannot parse claim reference"
 
-	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
+	reconcilePausedMsg    = "Reconciliation (including deletion) is paused via the pause annotation"
+	waitingForPipelineMsg = "Waiting for the function pipeline to delete composed resources"
 )
 
 // Event reasons.
@@ -236,6 +240,9 @@ type CompositionResult struct {
 
 	// TTL for this composition result.
 	TTL time.Duration
+
+	// Existing is how many of the XR's composed resources still exist.
+	Existing int
 }
 
 // A CompositionTarget is the target of a composition event or condition.
@@ -428,6 +435,15 @@ func WithCircuitBreaker(cb circuit.Breaker) ReconcilerOption {
 	}
 }
 
+// WithForegroundDeletion configures how the Reconciler deletes composed
+// resources for the Foreground deletion policy.
+func WithForegroundDeletion(o ComposedResourceObserver, gc ComposedResourceGarbageCollector) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.observer = o
+		r.gc = gc
+	}
+}
+
 type revision struct {
 	CompositionRevisionFetcher
 }
@@ -501,6 +517,16 @@ func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...Rec
 			return CompositionResult{}, nil
 		}),
 
+		// Foreground deletion is disabled by default. The definition
+		// controller passes in a real observer and garbage collector when
+		// function-controlled deletion is enabled.
+		observer: ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+			return nil, nil
+		}),
+		gc: ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+			return nil
+		}),
+
 		// Dynamic watches are disabled by default.
 		engine:  &NopWatchStarter{},
 		tracker: dependency.NopTracker{},
@@ -543,6 +569,10 @@ type Reconciler struct {
 	authorizer Authorizer
 
 	circuit circuit.Breaker
+
+	// Used for the Foreground deletion policy.
+	observer ComposedResourceObserver
+	gc       ComposedResourceGarbageCollector
 
 	log        logging.Logger
 	record     event.Recorder
@@ -626,35 +656,61 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	if meta.WasDeleted(xr) {
+	deleting := meta.WasDeleted(xr)
+	if deleting {
 		log = log.WithValues("deletion-timestamp", xr.GetDeletionTimestamp())
 
-		status.MarkConditions(xpv2.Deleting())
-
-		if err := r.composite.RemoveFinalizer(ctx, xr); err != nil {
-			if kerrors.IsConflict(err) {
-				return reconcile.Result{Requeue: true}, nil
-			}
-
-			err = errors.Wrap(err, errRemoveFinalizer)
-			r.record.Event(xr, event.Warning(reasonDelete, err))
-			status.MarkConditions(xpv2.ReconcileError(err))
-			_ = r.client.Status().Update(updateCtx, xr)
-
-			return reconcile.Result{}, err
+		// We already finished deleting this XR. Another finalizer is keeping
+		// it around, so there's nothing left for us to do.
+		if !slices.Contains(xr.GetFinalizers(), finalizer) {
+			log.Debug("Composite resource is waiting for other finalizers to be removed")
+			return reconcile.Result{}, nil
 		}
 
-		// Stop tracking the XR's dependencies. Any watch only it needed will be
-		// garbage collected.
-		r.tracker.Forget(client.ObjectKeyFromObject(xr))
+		// Orphan propagation leaves the composed resources alone.
+		if slices.Contains(xr.GetFinalizers(), metav1.FinalizerOrphanDependents) {
+			log.Debug("Composite resource is being deleted with orphan propagation, leaving its composed resources alone")
 
-		log.Debug("Successfully deleted composite resource")
-		status.MarkConditions(xpv2.ReconcileSuccess())
+			return r.finishDelete(ctx, updateCtx, log, status, xr)
+		}
 
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
-	}
+		// Without deletion policies, defer to Kubernetes garbage collection.
+		if !r.features.Enabled(features.EnableAlphaFunctionControlledDeletion) {
+			return r.finishDelete(ctx, updateCtx, log, status, xr)
+		}
 
-	if err := r.composite.AddFinalizer(ctx, xr); err != nil {
+		// Use the policy the XR recorded. Its Composition may have changed or
+		// be gone.
+		policy := deletionPolicy(xr)
+
+		// With foreground propagation Kubernetes is already deleting the
+		// composed resources. Defer to it rather than fight it.
+		if slices.Contains(xr.GetFinalizers(), metav1.FinalizerDeleteDependents) {
+			if policy != v1.CompositionDeletionPolicyBackground {
+				log.Debug(errForegroundDeletion, "deletion-policy", policy)
+				r.record.Event(xr, event.Warning(reasonDelete, errors.New(errForegroundDeletion)))
+			}
+
+			return r.finishDelete(ctx, updateCtx, log, status, xr)
+		}
+
+		switch policy {
+		case v1.CompositionDeletionPolicyForeground:
+			// Delete the composed resources ourselves, rather than deleting
+			// the XR again with foreground propagation and letting Kubernetes
+			// do it. Kubernetes would delete a composed XR with foreground
+			// propagation too, so a nested XR with the Pipeline policy would
+			// skip its pipeline.
+			return r.deleteInForeground(ctx, updateCtx, log, status, xr)
+		case v1.CompositionDeletionPolicyPipeline:
+			// Keep running the pipeline until it stops desiring composed
+			// resources and they're gone.
+			log.Debug("Running the function pipeline to delete composed resources")
+			status.MarkConditions(xpv2.Deleting().WithMessage(waitingForPipelineMsg))
+		case v1.CompositionDeletionPolicyBackground:
+			return r.finishDelete(ctx, updateCtx, log, status, xr)
+		}
+	} else if err := r.composite.AddFinalizer(ctx, xr); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -723,6 +779,38 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if rev := xr.GetCompositionRevisionReference(); rev != nil && (origRev == nil || *rev != *origRev) {
 		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Selected composition revision: %s", rev.Name)))
+	}
+
+	// Record the Composition's deletion policy for when the XR is deleted. Do it
+	// first and persist it right away, so a later failure can't lose it. Legacy
+	// XRs don't record one. Only a Pipeline XR gets here while it's deleted,
+	// because the other policies don't use the Composition. If its current
+	// revision now has a weaker policy, record it and requeue, so the XR is
+	// deleted using that policy.
+	if xr.Schema != composite.SchemaLegacy && r.features.Enabled(features.EnableAlphaFunctionControlledDeletion) {
+		p := rev.Spec.DeletionPolicy
+		if p == "" {
+			p = v1.CompositionDeletionPolicyBackground
+		}
+
+		if xr.GetDeletionPolicy() != p {
+			xr.SetDeletionPolicy(p)
+
+			if err := r.client.Status().Update(updateCtx, xr); err != nil {
+				if kerrors.IsConflict(err) {
+					return reconcile.Result{Requeue: true}, nil
+				}
+
+				err = errors.Wrap(err, errRecordDeletionPolicy)
+				r.record.Event(xr, event.Warning(reasonCompose, err))
+
+				return reconcile.Result{}, err
+			}
+
+			if deleting {
+				return reconcile.Result{Requeue: true}, nil
+			}
+		}
 	}
 
 	// Check if the CompositionRevision has a valid pipeline before proceeding.
@@ -809,19 +897,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Watch every kind this controller's XRs depend on - the resources they
 	// compose and the resources their functions require. The tracker was
 	// updated with this XR's dependencies as it was composed above.
-	gvks := r.tracker.GVKs()
-	log.Debug("Watching kinds this controller's composite resources depend on", "count", len(gvks), "gvks", gvks)
-	ws := make([]engine.Watch, len(gvks))
-	for i, gvk := range gvks {
-		cr := &kunstructured.Unstructured{}
-		cr.SetGroupVersionKind(gvk)
-		ws[i] = engine.WatchFor(cr, engine.WatchTypeDependency, r.watchHandler)
-	}
-
-	// The ControllerEngine that starts this controller also starts a
-	// garbage collector for its watches.
-	if err := r.engine.StartWatches(ctx, r.controllerName, ws...); err != nil {
-		err = errors.Wrap(err, errWatch)
+	if err := r.startWatches(ctx, log); err != nil {
 		r.record.Event(xr, event.Warning(reasonWatch, err))
 		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.client.Status().Update(updateCtx, xr)
@@ -829,26 +905,36 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	published, err := r.composite.PublishConnection(ctx, xr, res.ConnectionDetails)
-	if err != nil {
-		log.Debug(errPublish, "error", err)
+	// The pipeline is done deleting: it desires nothing, and nothing exists.
+	if deleting && res.Existing == 0 && len(res.Composed) == 0 {
+		log.Debug("Functions deleted all composed resources")
 
-		if kerrors.IsConflict(err) {
-			return reconcile.Result{Requeue: true}, nil
-		}
-
-		err = errors.Wrap(err, errPublish)
-		r.record.Event(xr, event.Warning(reasonPublish, err))
-		status.MarkConditions(xpv2.ReconcileError(err))
-		_ = r.client.Status().Update(updateCtx, xr)
-
-		return reconcile.Result{}, err
+		return r.finishDelete(ctx, updateCtx, log, status, xr)
 	}
 
-	if published {
-		xr.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
-		log.Debug("Successfully published connection details")
-		r.record.Event(xr, event.Normal(reasonPublish, "Successfully published connection details"))
+	// There's no point publishing connection details while deleting.
+	if !deleting {
+		published, err := r.composite.PublishConnection(ctx, xr, res.ConnectionDetails)
+		if err != nil {
+			log.Debug(errPublish, "error", err)
+
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
+
+			err = errors.Wrap(err, errPublish)
+			r.record.Event(xr, event.Warning(reasonPublish, err))
+			status.MarkConditions(xpv2.ReconcileError(err))
+			_ = r.client.Status().Update(updateCtx, xr)
+
+			return reconcile.Result{}, err
+		}
+
+		if published {
+			xr.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
+			log.Debug("Successfully published connection details")
+			r.record.Event(xr, event.Normal(reasonPublish, "Successfully published connection details"))
+		}
 	}
 
 	meta := r.handleCommonCompositionResult(updateCtx, res, xr)
@@ -906,6 +992,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
+	if deleting {
+		ready = xpv2.Deleting().WithMessage(waitingForPipelineMsg)
+	}
+
 	status.MarkConditions(synced, ready)
 
 	// Requeue after the configured poll interval by default. If realtime
@@ -930,6 +1020,115 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return result, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 	}
 	return result, nil
+}
+
+// deleteInForeground deletes the XR's composed resources, and removes its
+// finalizer once they're gone.
+func (r *Reconciler) deleteInForeground(ctx, updateCtx context.Context, log logging.Logger, status conditions.ConditionSet, xr *composite.Unstructured) (reconcile.Result, error) {
+	observed, err := r.observer.ObserveComposedResources(ctx, xr)
+	if err != nil {
+		err = errors.Wrap(err, errGetExistingCDs)
+		r.record.Event(xr, event.Warning(reasonDelete, err))
+		status.MarkConditions(xpv2.Deleting(), xpv2.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
+
+		return reconcile.Result{}, err
+	}
+
+	// Don't wait for composed resources we wouldn't delete.
+	observed = controlled(xr, observed)
+
+	if len(observed) == 0 {
+		log.Debug("Deleted all composed resources")
+		return r.finishDelete(ctx, updateCtx, log, status, xr)
+	}
+
+	status.MarkConditions(xpv2.Deleting().WithMessage(fmt.Sprintf("Waiting for %d composed resource(s) to be deleted", len(observed))))
+
+	if err := r.gc.GarbageCollectComposedResources(ctx, xr, observed, ComposedResourceStates{}); err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
+
+		err = errors.Wrap(err, errGarbageCollectCDs)
+		r.record.Event(xr, event.Warning(reasonDelete, err))
+		status.MarkConditions(xpv2.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
+
+		return reconcile.Result{}, err
+	}
+
+	// If Crossplane restarted while this XR was deleting, it never tracked the
+	// XR's composed resources. Track them so their deletion requeues the XR.
+	refs := make([]dependency.Reference, 0, len(observed))
+	for _, cd := range observed {
+		refs = append(refs, dependency.Reference{
+			GVK:       cd.Resource.GetObjectKind().GroupVersionKind(),
+			Namespace: cd.Resource.GetNamespace(),
+			Name:      cd.Resource.GetName(),
+		})
+	}
+	r.tracker.Track(client.ObjectKeyFromObject(xr), refs, nil)
+
+	if err := r.startWatches(ctx, log); err != nil {
+		r.record.Event(xr, event.Warning(reasonDelete, err))
+		status.MarkConditions(xpv2.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
+
+		return reconcile.Result{}, err
+	}
+
+	log.Debug("Waiting for composed resources to be deleted", "remaining", len(observed))
+	status.MarkConditions(xpv2.ReconcileSuccess())
+
+	if err := r.client.Status().Update(updateCtx, xr); err != nil {
+		return reconcile.Result{}, errors.Wrap(err, errUpdateStatus)
+	}
+
+	return reconcile.Result{RequeueAfter: jitter(r.effectivePollInterval(xr))}, nil
+}
+
+// startWatches watches every kind this controller's XRs depend on.
+func (r *Reconciler) startWatches(ctx context.Context, log logging.Logger) error {
+	gvks := r.tracker.GVKs()
+	log.Debug("Watching kinds this controller's composite resources depend on", "count", len(gvks), "gvks", gvks)
+	ws := make([]engine.Watch, len(gvks))
+	for i, gvk := range gvks {
+		cr := &kunstructured.Unstructured{}
+		cr.SetGroupVersionKind(gvk)
+		ws[i] = engine.WatchFor(cr, engine.WatchTypeDependency, r.watchHandler)
+	}
+
+	// The ControllerEngine that starts this controller also starts a
+	// garbage collector for its watches.
+	return errors.Wrap(r.engine.StartWatches(ctx, r.controllerName, ws...), errWatch)
+}
+
+// finishDelete removes the XR's finalizer.
+func (r *Reconciler) finishDelete(ctx, updateCtx context.Context, log logging.Logger, status conditions.ConditionSet, xr *composite.Unstructured) (reconcile.Result, error) {
+	status.MarkConditions(xpv2.Deleting())
+
+	if err := r.composite.RemoveFinalizer(ctx, xr); err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
+
+		err = errors.Wrap(err, errRemoveFinalizer)
+		r.record.Event(xr, event.Warning(reasonDelete, err))
+		status.MarkConditions(xpv2.ReconcileError(err))
+		_ = r.client.Status().Update(updateCtx, xr)
+
+		return reconcile.Result{}, err
+	}
+
+	// Stop tracking the XR's dependencies. Any watch only it needed will be
+	// garbage collected.
+	r.tracker.Forget(client.ObjectKeyFromObject(xr))
+
+	log.Debug("Successfully deleted composite resource")
+	status.MarkConditions(xpv2.ReconcileSuccess())
+
+	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(updateCtx, xr), errUpdateStatus)
 }
 
 type compositionResultMeta struct {
