@@ -294,10 +294,11 @@ func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...
 		client: cached,
 
 		composite: xr{
-			ConnectionDetailsFetcher: f,
-			ComposedResourceObserver: NewExistingComposedResourceObserver(cached, uncached, f),
-			NameGenerator:            names.NewNameGenerator(cached),
-			ManagedFieldsUpgrader:    ssa.NewPatchingManagedFieldsUpgrader(cached, ssa.PrefixMatch(FieldOwnerComposedPrefix)),
+			ConnectionDetailsFetcher:         f,
+			ComposedResourceObserver:         NewExistingComposedResourceObserver(cached, uncached, f),
+			ComposedResourceGarbageCollector: NewDeletingComposedResourceGarbageCollector(cached),
+			NameGenerator:                    names.NewNameGenerator(cached),
+			ManagedFieldsUpgrader:            ssa.NewPatchingManagedFieldsUpgrader(cached, ssa.PrefixMatch(FieldOwnerComposedPrefix)),
 		},
 
 		pipeline:  r,
@@ -308,13 +309,6 @@ func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...
 
 	for _, fn := range o {
 		fn(c)
-	}
-
-	// The default garbage collector needs to know whether deletion policies are
-	// enabled, which an option may set. A garbage collector supplied by an
-	// option is used as is.
-	if c.composite.ComposedResourceGarbageCollector == nil {
-		c.composite.ComposedResourceGarbageCollector = NewDeletingComposedResourceGarbageCollector(cached, WithDeletionPolicies(c.functionControlledDeletion))
 	}
 
 	return c
