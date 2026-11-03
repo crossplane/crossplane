@@ -1943,6 +1943,23 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 				recorded:         v1.CompositionDeletionPolicyPipeline,
 			},
 		},
+		"PipelineCreatesResources": {
+			reason: "An XR with the Pipeline policy waits while its pipeline desires composed resources, even if none exist yet.",
+			args: args{
+				recorded: v1.CompositionDeletionPolicyPipeline,
+				policy:   v1.CompositionDeletionPolicyPipeline,
+				compose: func() (CompositionResult, error) {
+					return CompositionResult{Composed: []ComposedResource{{ResourceName: "backup", Synced: true}}}, nil
+				},
+			},
+			want: want{
+				synced:      xpv2.ReconcileSuccess(),
+				ready:       xpv2.Deleting().WithMessage(waitingForPipelineMsg),
+				ranPipeline: true,
+				requeue:     true,
+				recorded:    v1.CompositionDeletionPolicyPipeline,
+			},
+		},
 		"PipelineFails": {
 			reason: "An XR with the Pipeline policy whose pipeline fails is held.",
 			args: args{
