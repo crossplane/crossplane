@@ -107,9 +107,11 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetDeletionTimestamp(&now)
+						cr.SetFinalizers([]string{finalizer})
 					})),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetDeletionTimestamp(&now)
+						cr.SetFinalizers([]string{finalizer})
 						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.Deleting(), xpv2.ReconcileError(errors.Wrap(errBoom, errRemoveFinalizer)))
 					})),
 				},
@@ -132,9 +134,11 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetDeletionTimestamp(&now)
+						cr.SetFinalizers([]string{finalizer})
 					})),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetDeletionTimestamp(&now)
+						cr.SetFinalizers([]string{finalizer})
 						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.Deleting(), xpv2.ReconcileSuccess())
 					})),
 				},
@@ -148,6 +152,20 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				err: nil,
+			},
+		},
+		"AlreadyDeleted": {
+			reason: "We shouldn't do anything with an XR we already finished deleting, which another finalizer keeps around.",
+			args: args{
+				c: &test.MockClient{
+					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
+						cr.SetDeletionTimestamp(&now)
+						cr.SetFinalizers([]string{"example.org/other"})
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
 			},
 		},
 		"AddFinalizerError": {
@@ -2081,6 +2099,7 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 				cr.SetDeletionTimestamp(&now)
 				cr.SetFinalizers(tc.args.finalizers)
 				cr.SetDeletionPolicy(tc.args.recorded)
+				meta.AddFinalizer(cr, finalizer)
 			})
 
 			f := &feature.Flags{}

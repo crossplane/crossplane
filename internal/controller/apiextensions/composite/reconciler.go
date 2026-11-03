@@ -660,6 +660,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if deleting {
 		log = log.WithValues("deletion-timestamp", xr.GetDeletionTimestamp())
 
+		// We already finished deleting this XR. Another finalizer is keeping
+		// it around, so there's nothing left for us to do.
+		if !slices.Contains(xr.GetFinalizers(), finalizer) {
+			log.Debug("Composite resource is waiting for other finalizers to be removed")
+			return reconcile.Result{}, nil
+		}
+
 		// Orphan propagation leaves the composed resources alone.
 		if slices.Contains(xr.GetFinalizers(), metav1.FinalizerOrphanDependents) {
 			log.Debug("Composite resource is being deleted with orphan propagation, leaving its composed resources alone")
