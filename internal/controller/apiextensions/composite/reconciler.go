@@ -691,6 +691,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		switch policy {
 		case v1.CompositionDeletionPolicyForeground:
+			// Delete the composed resources ourselves, rather than deleting
+			// the XR again with foreground propagation and letting Kubernetes
+			// do it. Kubernetes would delete a composed XR with foreground
+			// propagation too, so a nested XR with the Pipeline policy would
+			// skip its pipeline.
 			return r.deleteInForeground(ctx, updateCtx, log, status, xr)
 		case v1.CompositionDeletionPolicyPipeline:
 			// Keep running the pipeline until it stops desiring composed

@@ -1155,8 +1155,10 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 			return errors.Wrapf(err, errFmtCleanupLabelsCD, name, cd.Resource.GetObjectKind().GroupVersionKind().Kind, cd.Resource.GetName())
 		}
 		// Use foreground deletion, so nested XRs are deleted "bottom up". An XR
-		// that deletes its own composed resources gets background deletion, so
-		// Kubernetes garbage collection doesn't fight it.
+		// that deletes its own composed resources (e.g. Foreground or Pipeline
+		// policy) gets background deletion instead, so Kubernetes garbage
+		// collection leaves them alone and lets the XR handle their deletion
+		// itself.
 		policy := metav1.DeletePropagationForeground
 		if d.functionControlledDeletion {
 			switch deletionPolicyOf(cd.Resource) {
