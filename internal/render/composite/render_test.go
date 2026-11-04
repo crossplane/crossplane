@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
@@ -474,7 +475,7 @@ func TestRender(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			out, err := Render(t.Context(), logging.NewNopLogger(), tc.input)
+			out, err := Render(t.Context(), logging.NewNopLogger(), &feature.Flags{}, tc.input)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRender(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -746,7 +747,7 @@ func TestRenderErrors(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			out, err := Render(t.Context(), logging.NewNopLogger(), tc.input(t))
+			out, err := Render(t.Context(), logging.NewNopLogger(), &feature.Flags{}, tc.input(t))
 
 			if err == nil {
 				t.Fatalf("%s\nRender(...) expected error, got nil", tc.reason)

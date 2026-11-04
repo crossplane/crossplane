@@ -32,6 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
 	xcomposite "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/v2/internal/render"
 	"github.com/crossplane/crossplane/v2/internal/render/composite"
 	"github.com/crossplane/crossplane/v2/internal/render/operation"
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
@@ -94,9 +95,14 @@ func (c *Command) Run(log logging.Logger) error {
 	// stdout AND a typed error with a distinct exit code.
 	var renderErr error
 
+	ff, err := render.Features(req.GetMeta().GetFeatures())
+	if err != nil {
+		return errors.Wrap(err, "invalid render request")
+	}
+
 	switch in := req.GetInput().(type) {
 	case *renderv1alpha1.RenderRequest_Composite:
-		out, err := composite.Render(ctx, log, in.Composite)
+		out, err := composite.Render(ctx, log, ff, in.Composite)
 		if out != nil {
 			rsp.Output = &renderv1alpha1.RenderResponse_Composite{Composite: out}
 		}

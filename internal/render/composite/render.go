@@ -58,8 +58,12 @@ import (
 )
 
 // Render runs one real XR reconcile loop using the real reconciler engine
-// backed by a fake in-memory client.
-func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.CompositeInput) (*renderv1alpha1.CompositeOutput, error) {
+// backed by a fake in-memory client, with the supplied features enabled.
+func Render(ctx context.Context, log logging.Logger, ff *feature.Flags, in *renderv1alpha1.CompositeInput) (*renderv1alpha1.CompositeOutput, error) {
+	if ff == nil {
+		ff = &feature.Flags{}
+	}
+
 	s := runtime.NewScheme()
 	if err := corev1.AddToScheme(s); err != nil {
 		return nil, errors.Wrap(err, "cannot add core/v1 to scheme")
@@ -188,7 +192,6 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 	rrf := render.NewRecordingRequiredResourcesFetcher(xfn.NewExistingRequiredResourcesFetcher(c))
 	// For render purposes, there's no harm in unconditionally enabling this
 	// feature.
-	ff := &feature.Flags{}
 	ff.Enable(features.EnableAlphaPipelineOCIReferences)
 
 	fc := composite.NewFunctionComposer(c, c,
