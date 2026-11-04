@@ -107,11 +107,11 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetDeletionTimestamp(&now)
-						cr.SetFinalizers([]string{finalizer})
+						cr.SetFinalizers([]string{Finalizer})
 					})),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetDeletionTimestamp(&now)
-						cr.SetFinalizers([]string{finalizer})
+						cr.SetFinalizers([]string{Finalizer})
 						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.Deleting(), xpv2.ReconcileError(errors.Wrap(errBoom, errRemoveFinalizer)))
 					})),
 				},
@@ -134,11 +134,11 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetDeletionTimestamp(&now)
-						cr.SetFinalizers([]string{finalizer})
+						cr.SetFinalizers([]string{Finalizer})
 					})),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr *composite.Unstructured) {
 						cr.SetDeletionTimestamp(&now)
-						cr.SetFinalizers([]string{finalizer})
+						cr.SetFinalizers([]string{Finalizer})
 						cr.SetConditions(v1.WatchCircuitClosed(), xpv2.Deleting(), xpv2.ReconcileSuccess())
 					})),
 				},
@@ -2099,7 +2099,7 @@ func TestReconcileDeleteFollowsDeletionPolicy(t *testing.T) {
 				cr.SetDeletionTimestamp(&now)
 				cr.SetFinalizers(tc.args.finalizers)
 				cr.SetDeletionPolicy(tc.args.recorded)
-				meta.AddFinalizer(cr, finalizer)
+				meta.AddFinalizer(cr, Finalizer)
 			})
 
 			f := &feature.Flags{}

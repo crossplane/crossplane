@@ -58,7 +58,10 @@ import (
 const (
 	timeout       = 2 * time.Minute
 	timeoutUpdate = timeout + 20*time.Second
-	finalizer     = "composite.apiextensions.crossplane.io"
+
+	// Finalizer is the finalizer Crossplane adds to an XR. It removes it
+	// once it's done deleting the XR.
+	Finalizer = "composite.apiextensions.crossplane.io"
 )
 
 // Error strings.
@@ -497,7 +500,7 @@ func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...Rec
 		},
 
 		composite: compositeResource{
-			Finalizer:                   resource.NewAPIFinalizer(cached, finalizer),
+			Finalizer:                   resource.NewAPIFinalizer(cached, Finalizer),
 			CompositionSelector:         NewAPILabelSelectorResolver(cached),
 			CompositionRevisionSelector: NewNopCompositionRevisionSelector(),
 			Configurator:                NewConfiguratorChain(NewAPINamingConfigurator(cached), NewAPIConfigurator(cached)),
@@ -662,7 +665,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		// We already finished deleting this XR. Another finalizer is keeping
 		// it around, so there's nothing left for us to do.
-		if !slices.Contains(xr.GetFinalizers(), finalizer) {
+		if !slices.Contains(xr.GetFinalizers(), Finalizer) {
 			log.Debug("Composite resource is waiting for other finalizers to be removed")
 			return reconcile.Result{}, nil
 		}
