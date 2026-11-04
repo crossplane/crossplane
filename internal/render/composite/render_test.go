@@ -1267,6 +1267,65 @@ func TestRenderDeletion(t *testing.T) {
 				},
 			},
 		},
+		"PipelineWaitsForDeletingResource": {
+			reason: "A deleted Pipeline XR whose pipeline desires nothing should keep Crossplane's finalizer while a composed resource it controls is still being deleted.",
+			args: args{
+				ff: fcd,
+				input: &renderv1alpha1.CompositeInput{
+					CompositeResource: xr,
+					Composition:       composition("Pipeline"),
+					ObservedResources: []*structpb.Struct{mustStruct(map[string]any{
+						"apiVersion": "v1",
+						"kind":       "ConfigMap",
+						"metadata": map[string]any{
+							"name":              "first",
+							"namespace":         "default",
+							"deletionTimestamp": "2026-11-02T00:00:00Z",
+							"finalizers":        []any{"example.org/hold"},
+							"annotations":       map[string]any{"crossplane.io/composition-resource-name": "first"},
+							"ownerReferences": []any{map[string]any{
+								"apiVersion":         "example.org/v1alpha1",
+								"kind":               "XThing",
+								"name":               "my-xr",
+								"uid":                "xr-uid",
+								"controller":         true,
+								"blockOwnerDeletion": true,
+							}},
+						},
+					})},
+					Functions: []*renderv1alpha1.FunctionInput{{Name: "function-teardown", Address: nothing}},
+				},
+			},
+			want: want{
+				out: &renderv1alpha1.CompositeOutput{
+					CompositeResource: mustStruct(map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XThing",
+						"metadata": map[string]any{
+							"name":              "my-xr",
+							"namespace":         "default",
+							"deletionTimestamp": "2026-11-02T00:00:00Z",
+							"finalizers":        []any{"composite.apiextensions.crossplane.io"},
+						},
+						"spec": map[string]any{
+							// Crossplane keeps referencing first until it's gone.
+							"crossplane": map[string]any{"resourceRefs": []any{ref("first")}},
+						},
+						"status": map[string]any{
+							"conditions": []any{
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Ready", "status": "False", "reason": "Deleting", "message": "Waiting for the function pipeline to delete composed resources"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
+							},
+							"crossplane": map[string]any{"deletionPolicy": "Pipeline"},
+						},
+					}),
+					Events: []*renderv1alpha1.Event{
+						{Type: "Normal", Reason: "SelectComposition", Message: "Successfully selected composition: things"},
+					},
+				},
+			},
+		},
 	}
 
 	// Crossplane deletes composed resources in no particular order.
