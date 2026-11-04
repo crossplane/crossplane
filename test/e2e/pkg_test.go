@@ -293,29 +293,7 @@ func TestProviderUpgradeInactiveRevisionHoldsControl(t *testing.T) {
 					return ctx
 				}
 
-				// The revision's own controller writes to it while we do, so
-				// retry rather than failing the test for a conflict that has
-				// nothing to do with the hand-off.
-				if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					pr := &pkgv1.ProviderRevision{}
-					if err := c.Client().Resources().Get(ctx, outgoingName, "", pr); err != nil {
-						return err
-					}
-
-					xpmeta.AddAnnotations(pr, map[string]string{xpmeta.AnnotationKeyReconciliationPaused: "true"})
-
-					return c.Client().Resources().Update(ctx, pr)
-				}); err != nil {
-					t.Errorf("cannot pause revision %s: %v", outgoingName, err)
-					return ctx
-				}
-
-				// Wait for the pause to take effect, so the revision can't
-				// relinquish control once the upgrade deactivates it.
-				return funcs.ResourceHasConditionWithin(1*time.Minute,
-					&pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: outgoingName}},
-					xpv2.ReconcilePaused(),
-				)(ctx, t, c)
+				return pauseProviderRevision(ctx, t, c, outgoingName)
 			}).
 			Assess("UpgradeProvider", funcs.ApplyResources(FieldManager, manifests, "provider-upgrade.yaml")).
 			// This is the assessment that fails when the establisher can't take
@@ -407,24 +385,7 @@ func TestProviderUpgradeInactiveRevisionHoldsControl(t *testing.T) {
 					return ctx
 				}
 
-				// Retry on conflict as above. Leaving the revision paused here
-				// would block the deletions below, since a paused reconciler
-				// never removes its finalizer.
-				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					pr := &pkgv1.ProviderRevision{}
-					if err := c.Client().Resources().Get(ctx, outgoingName, "", pr); err != nil {
-						return err
-					}
-
-					xpmeta.RemoveAnnotations(pr, xpmeta.AnnotationKeyReconciliationPaused)
-
-					return c.Client().Resources().Update(ctx, pr)
-				})
-				if err != nil && !kerrors.IsNotFound(err) {
-					t.Errorf("cannot unpause revision %s: %v", outgoingName, err)
-				}
-
-				return ctx
+				return unpauseProviderRevision(ctx, t, c, outgoingName)
 			}).
 			WithTeardown("DeleteManagedResource", funcs.AllOf(
 				funcs.DeleteResources(manifests, "mr.yaml"),
@@ -436,6 +397,58 @@ func TestProviderUpgradeInactiveRevisionHoldsControl(t *testing.T) {
 			)).
 			Feature(),
 	)
+}
+
+// pauseProviderRevision pauses the named provider revision and waits for the
+// pause to take effect, so the revision can't relinquish control of its objects
+// once an upgrade deactivates it.
+func pauseProviderRevision(ctx context.Context, t *testing.T, c *envconf.Config, name string) context.Context {
+	t.Helper()
+
+	// The revision's own controller writes to it while we do, so retry rather
+	// than failing the test for a conflict that has nothing to do with the
+	// hand-off.
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		pr := &pkgv1.ProviderRevision{}
+		if err := c.Client().Resources().Get(ctx, name, "", pr); err != nil {
+			return err
+		}
+
+		xpmeta.AddAnnotations(pr, map[string]string{xpmeta.AnnotationKeyReconciliationPaused: "true"})
+
+		return c.Client().Resources().Update(ctx, pr)
+	}); err != nil {
+		t.Errorf("cannot pause revision %s: %v", name, err)
+		return ctx
+	}
+
+	return funcs.ResourceHasConditionWithin(1*time.Minute,
+		&pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: name}},
+		xpv2.ReconcilePaused(),
+	)(ctx, t, c)
+}
+
+// unpauseProviderRevision unpauses the named provider revision. A paused
+// revision never removes its finalizer, so it must be unpaused before anything
+// that deletes it.
+func unpauseProviderRevision(ctx context.Context, t *testing.T, c *envconf.Config, name string) context.Context {
+	t.Helper()
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		pr := &pkgv1.ProviderRevision{}
+		if err := c.Client().Resources().Get(ctx, name, "", pr); err != nil {
+			return err
+		}
+
+		xpmeta.RemoveAnnotations(pr, xpmeta.AnnotationKeyReconciliationPaused)
+
+		return c.Client().Resources().Update(ctx, pr)
+	})
+	if err != nil && !kerrors.IsNotFound(err) {
+		t.Errorf("cannot unpause revision %s: %v", name, err)
+	}
+
+	return ctx
 }
 
 func TestDeploymentRuntimeConfig(t *testing.T) {
