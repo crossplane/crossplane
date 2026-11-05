@@ -216,7 +216,7 @@ jobs:
 
       - name: Publish E2E Test Flakes
         if: "!cancelled() && env.BUILDPULSE_CONFIGURED == 'true'"
-        uses: buildpulse/buildpulse-action@76dbedc6585e8731b40a19da1ebc3f6609dbbb83 # v3
+        uses: BuildPulseLLC/test-reporter-action@02b5aaf7cf2e448dfffe2b92969d3d6ffbef42fb # v3.2.0
         with:
           account: 45158470
           repository: 147886080
