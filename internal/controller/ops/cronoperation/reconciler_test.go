@@ -624,7 +624,7 @@ func TestReconcileClockSkewCollision(t *testing.T) {
 					Pipeline: []v1alpha1.PipelineStep{
 						{
 							Step:        "test-step",
-							FunctionRef: v1alpha1.FunctionReference{Name: "test-function"},
+							FunctionRef: &v1alpha1.FunctionReference{Name: "test-function"},
 						},
 					},
 				},
