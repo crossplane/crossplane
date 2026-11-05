@@ -97,6 +97,7 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get ManagedResourceDefinition")
 	}
 
+	statusBefore := mrd.Status.DeepCopy()
 	status := r.conditions.For(mrd)
 
 	log = log.WithValues(
@@ -108,7 +109,10 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	if meta.WasDeleted(mrd) {
 		r.cleanupProtection(ctx, log, mrd.GetName())
 		status.MarkConditions(v1alpha1.TerminatingManaged())
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+		if statusChanged(statusBefore, &mrd.Status) {
+			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+		}
+		return reconcile.Result{}, nil
 	}
 	// Check for pause annotation
 	if meta.IsPaused(mrd) {
@@ -120,7 +124,10 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	if !mrd.Spec.State.IsActive() {
 		r.cleanupProtection(ctx, log, mrd.GetName())
 		status.MarkConditions(v1alpha1.InactiveManaged())
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+		if statusChanged(statusBefore, &mrd.Status) {
+			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+		}
+		return reconcile.Result{}, nil
 	}
 
 	// Read the CRD to upgrade its managed fields if needed.
@@ -129,7 +136,9 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		log.Debug("cannot get CustomResourceDefinition", "error", err)
 		r.record.Event(mrd, event.Warning(reasonReconcile, err))
 		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to get CustomResourceDefinition, see events"))
-		_ = r.client.Status().Update(ogctx, mrd)
+		if statusChanged(statusBefore, &mrd.Status) {
+			_ = r.client.Status().Update(ogctx, mrd)
+		}
 		return reconcile.Result{}, errors.Wrap(err, "cannot get CustomResourceDefinition")
 	}
 
@@ -140,7 +149,9 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		log.Debug("cannot upgrade managed fields", "error", err)
 		r.record.Event(mrd, event.Warning(reasonReconcile, err))
 		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to upgrade managed fields, see events"))
-		_ = r.client.Status().Update(ogctx, mrd)
+		if statusChanged(statusBefore, &mrd.Status) {
+			_ = r.client.Status().Update(ogctx, mrd)
+		}
 		return reconcile.Result{}, errors.Wrap(err, "cannot upgrade managed fields")
 	}
 
@@ -153,7 +164,9 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		log.Debug("cannot form CustomResourceDefinition", "error", err)
 		r.record.Event(mrd, event.Warning(reasonReconcile, err))
 		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to form CustomResourceDefinition, see events"))
-		_ = r.client.Status().Update(ogctx, mrd)
+		if statusChanged(statusBefore, &mrd.Status) {
+			_ = r.client.Status().Update(ogctx, mrd)
+		}
 		return reconcile.Result{}, errors.Wrap(err, "cannot form CustomResourceDefinition")
 	}
 
@@ -170,7 +183,9 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		log.Debug("cannot apply CustomResourceDefinition", "error", err)
 		r.record.Event(mrd, event.Warning(reasonApplyCRD, err))
 		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to apply CustomResourceDefinition, see events"))
-		_ = r.client.Status().Update(ogctx, mrd)
+		if statusChanged(statusBefore, &mrd.Status) {
+			_ = r.client.Status().Update(ogctx, mrd)
+		}
 		return reconcile.Result{}, errors.Wrap(err, "cannot apply CustomResourceDefinition")
 	}
 
@@ -181,13 +196,19 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		log.Debug("cannot convert CustomResourceDefinition from unstructured", "error", err)
 		r.record.Event(mrd, event.Warning(reasonReconcile, err))
 		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage("unable to form CustomResourceDefinition, see events"))
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+		if statusChanged(statusBefore, &mrd.Status) {
+			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+		}
+		return reconcile.Result{}, nil
 	}
 
 	if !xcrd.IsEstablished(crd.Status) {
 		log.Debug("waiting for managed resource CustomResourceDefinition to be established")
 		status.MarkConditions(v1alpha1.PendingManaged())
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+		if statusChanged(statusBefore, &mrd.Status) {
+			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+		}
+		return reconcile.Result{}, nil
 	}
 
 	status.MarkConditions(v1alpha1.EstablishedManaged())
@@ -202,7 +223,15 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 		}
 	}
 
-	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+	if statusChanged(statusBefore, &mrd.Status) {
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ogctx, mrd), "cannot update status of ManagedResourceDefinition")
+	}
+	return reconcile.Result{}, nil
+}
+
+// statusChanged uses API semantic equality, ignoring condition order and transition time.
+func statusChanged(before, after *v1alpha1.ManagedResourceDefinitionStatus) bool {
+	return !before.Equal(&after.ConditionedStatus)
 }
 
 // handOverControl lets the CRD we are about to apply take control from the
