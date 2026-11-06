@@ -135,7 +135,7 @@ func Render(ctx context.Context, log logging.Logger, ff *feature.Flags, in *rend
 	// With function-controlled deletion an XR records its deletion policy, and
 	// a deleted XR renders as Crossplane would delete it using that policy.
 	functionControlledDeletion := ff.Enabled(features.EnableAlphaFunctionControlledDeletion)
-	isDeleting := prepareDeletion(xr, comp, functionControlledDeletion)
+	isDeleting := prepareDeletion(xr, comp, observed, functionControlledDeletion)
 
 	// Synthesize a CompositionRevision from the Composition.
 	rev := composition.NewCompositionRevision(comp, 1)
@@ -315,7 +315,12 @@ func Render(ctx context.Context, log logging.Logger, ff *feature.Flags, in *rend
 // With function-controlled deletion Crossplane deletes an XR using the policy
 // the XR recorded while it was live, so prepareDeletion records the
 // Composition's policy if the XR has none.
-func prepareDeletion(xr *ucomposite.Unstructured, comp *apiextensionsv1.Composition, functionControlledDeletion bool) bool {
+//
+// Crossplane only deletes and waits for composed resources the XR controls.
+// Render generates the XR's UID if it has none, so observed resources often
+// lack a matching controller ref. prepareDeletion makes the XR the controller of
+// observed resources that have no controller.
+func prepareDeletion(xr *ucomposite.Unstructured, comp *apiextensionsv1.Composition, observed []kunstructured.Unstructured, functionControlledDeletion bool) bool {
 	if !meta.WasDeleted(xr) || meta.IsPaused(xr) {
 		return false
 	}
@@ -324,6 +329,13 @@ func prepareDeletion(xr *ucomposite.Unstructured, comp *apiextensionsv1.Composit
 
 	if functionControlledDeletion && xr.GetDeletionPolicy() == "" {
 		xr.SetDeletionPolicy(comp.Spec.DeletionPolicy)
+	}
+
+	ref := meta.AsController(meta.TypedReferenceTo(xr, xr.GroupVersionKind()))
+	for i := range observed {
+		if metav1.GetControllerOf(&observed[i]) == nil {
+			meta.AddOwnerReference(&observed[i], ref)
+		}
 	}
 
 	return true

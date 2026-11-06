@@ -1017,6 +1017,17 @@ func TestRenderDeletion(t *testing.T) {
 			},
 		})
 	}
+	unowned := func(name string) *structpb.Struct {
+		return mustStruct(map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name":        name,
+				"namespace":   "default",
+				"annotations": map[string]any{"crossplane.io/composition-resource-name": name},
+			},
+		})
+	}
 	ref := func(name string) map[string]any {
 		return map[string]any{"apiVersion": "v1", "kind": "ConfigMap", "name": name}
 	}
@@ -1125,6 +1136,46 @@ func TestRenderDeletion(t *testing.T) {
 					CompositeResource: xr,
 					Composition:       composition("Foreground"),
 					ObservedResources: []*structpb.Struct{composed("first"), composed("second")},
+					Functions:         []*renderv1alpha1.FunctionInput{{Name: "function-teardown", Address: first}},
+				},
+			},
+			want: want{
+				out: &renderv1alpha1.CompositeOutput{
+					CompositeResource: mustStruct(map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XThing",
+						"metadata": map[string]any{
+							"name":              "my-xr",
+							"namespace":         "default",
+							"uid":               "xr-uid",
+							"resourceVersion":   "999",
+							"deletionTimestamp": "2026-11-02T00:00:00Z",
+							"finalizers":        []any{"composite.apiextensions.crossplane.io"},
+						},
+						"spec": map[string]any{
+							"crossplane": map[string]any{"resourceRefs": []any{ref("first"), ref("second")}},
+						},
+						"status": map[string]any{
+							"conditions": []any{
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Ready", "status": "False", "reason": "Deleting", "message": "Waiting for 2 composed resource(s) to be deleted"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
+							},
+							"crossplane": map[string]any{"deletionPolicy": "Foreground"},
+						},
+					}),
+					DeletedResources: []*structpb.Struct{composed("first"), composed("second")},
+				},
+			},
+		},
+		"ForegroundWithoutControllerRefs": {
+			reason: "A deleted XR should control observed resources that have no controller, so Crossplane deletes and waits for them.",
+			args: args{
+				ff: fcd,
+				input: &renderv1alpha1.CompositeInput{
+					CompositeResource: xr,
+					Composition:       composition("Foreground"),
+					ObservedResources: []*structpb.Struct{unowned("first"), unowned("second")},
 					Functions:         []*renderv1alpha1.FunctionInput{{Name: "function-teardown", Address: first}},
 				},
 			},
@@ -1351,14 +1402,35 @@ func TestRenderDeletion(t *testing.T) {
 func TestPrepareDeletion(t *testing.T) {
 	deleted := metav1.Now()
 
+	controller := metav1.OwnerReference{
+		APIVersion:         "example.org/v1alpha1",
+		Kind:               "XThing",
+		Name:               "my-xr",
+		UID:                "xr-uid",
+		Controller:         new(true),
+		BlockOwnerDeletion: new(true),
+	}
+	owner := metav1.OwnerReference{APIVersion: "v1", Kind: "ConfigMap", Name: "owner", UID: "owner-uid"}
+
+	composed := func(name string, refs ...metav1.OwnerReference) kunstructured.Unstructured {
+		u := kunstructured.Unstructured{}
+		u.SetAPIVersion("v1")
+		u.SetKind("ConfigMap")
+		u.SetName(name)
+		u.SetOwnerReferences(refs)
+		return u
+	}
+
 	type args struct {
 		xr                         *ucomposite.Unstructured
 		comp                       *apiextensionsv1.Composition
+		observed                   []kunstructured.Unstructured
 		functionControlledDeletion bool
 	}
 
 	type want struct {
 		xr       *ucomposite.Unstructured
+		observed []kunstructured.Unstructured
 		deleting bool
 	}
 
@@ -1388,6 +1460,7 @@ func TestPrepareDeletion(t *testing.T) {
 					return xr
 				}(),
 				comp:                       &apiextensionsv1.Composition{},
+				observed:                   []kunstructured.Unstructured{composed("first")},
 				functionControlledDeletion: true,
 			},
 			want: want{
@@ -1397,6 +1470,7 @@ func TestPrepareDeletion(t *testing.T) {
 					xr.SetAnnotations(map[string]string{"crossplane.io/paused": "true"})
 					return xr
 				}(),
+				observed: []kunstructured.Unstructured{composed("first")},
 			},
 		},
 		"FunctionControlledDeletionDisabled": {
@@ -1464,6 +1538,36 @@ func TestPrepareDeletion(t *testing.T) {
 				deleting: true,
 			},
 		},
+		"ControlObservedResources": {
+			reason: "We should make the XR the controller of observed resources that have no controller, keeping their other owners, because Crossplane only deletes resources the XR controls.",
+			args: args{
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New()
+					xr.SetAPIVersion("example.org/v1alpha1")
+					xr.SetKind("XThing")
+					xr.SetName("my-xr")
+					xr.SetUID("xr-uid")
+					xr.SetDeletionTimestamp(&deleted)
+					return xr
+				}(),
+				comp:     &apiextensionsv1.Composition{},
+				observed: []kunstructured.Unstructured{composed("first", owner), composed("second", controller)},
+			},
+			want: want{
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New()
+					xr.SetAPIVersion("example.org/v1alpha1")
+					xr.SetKind("XThing")
+					xr.SetName("my-xr")
+					xr.SetUID("xr-uid")
+					xr.SetDeletionTimestamp(&deleted)
+					xr.SetFinalizers([]string{xcomposite.Finalizer})
+					return xr
+				}(),
+				observed: []kunstructured.Unstructured{composed("first", owner, controller), composed("second", controller)},
+				deleting: true,
+			},
+		},
 		"LegacyXR": {
 			reason: "We should only add Crossplane's finalizer to a legacy XR, because legacy XRs don't support deletion policies.",
 			args: args{
@@ -1489,13 +1593,16 @@ func TestPrepareDeletion(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			deleting := prepareDeletion(tc.args.xr, tc.args.comp, tc.args.functionControlledDeletion)
+			deleting := prepareDeletion(tc.args.xr, tc.args.comp, tc.args.observed, tc.args.functionControlledDeletion)
 
 			if diff := cmp.Diff(tc.want.deleting, deleting); diff != "" {
 				t.Errorf("\n%s\nprepareDeletion(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.xr.Object, tc.args.xr.Object); diff != "" {
 				t.Errorf("\n%s\nprepareDeletion(...): -want XR, +got XR:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.observed, tc.args.observed); diff != "" {
+				t.Errorf("\n%s\nprepareDeletion(...): -want observed, +got observed:\n%s", tc.reason, diff)
 			}
 		})
 	}
