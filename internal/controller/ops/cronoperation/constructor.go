@@ -42,6 +42,7 @@ func Setup(mgr ctrl.Manager, o opscontroller.Options) error {
 	name := "ops/" + strings.ToLower(v1alpha1.CronOperationGroupKind)
 
 	r := NewReconciler(mgr.GetClient(),
+		WithAPIReader(mgr.GetAPIReader()),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)))
 
@@ -70,6 +71,16 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
+// WithAPIReader specifies a reader the Reconciler should use for reads that
+// must bypass the client's cache. Defaults to the same client.Client used
+// for everything else, which is fine for tests but should be
+// mgr.GetAPIReader() in production - see Reconciler.apiReader.
+func WithAPIReader(a client.Reader) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.apiReader = a
+	}
+}
+
 // WithScheduler specifies how the Reconciler should schedule operations.
 func WithScheduler(s Scheduler) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -81,6 +92,7 @@ func WithScheduler(s Scheduler) ReconcilerOption {
 func NewReconciler(c client.Client, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
 		client:     c,
+		apiReader:  c,
 		log:        logging.NewNopLogger(),
 		record:     event.NewNopRecorder(),
 		conditions: conditions.ObservedGenerationPropagationManager{},
