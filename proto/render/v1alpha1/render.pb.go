@@ -45,55 +45,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// A Feature is a Crossplane feature that changes how render renders.
-type Feature int32
-
-const (
-	Feature_FEATURE_UNSPECIFIED Feature = 0
-	// Render a deleted XR as Crossplane would delete it using its Composition's
-	// deletion policy. Crossplane's --enable-function-controlled-deletion flag.
-	Feature_FEATURE_FUNCTION_CONTROLLED_DELETION Feature = 1
-)
-
-// Enum value maps for Feature.
-var (
-	Feature_name = map[int32]string{
-		0: "FEATURE_UNSPECIFIED",
-		1: "FEATURE_FUNCTION_CONTROLLED_DELETION",
-	}
-	Feature_value = map[string]int32{
-		"FEATURE_UNSPECIFIED":                  0,
-		"FEATURE_FUNCTION_CONTROLLED_DELETION": 1,
-	}
-)
-
-func (x Feature) Enum() *Feature {
-	p := new(Feature)
-	*p = x
-	return p
-}
-
-func (x Feature) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (Feature) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_render_v1alpha1_render_proto_enumTypes[0].Descriptor()
-}
-
-func (Feature) Type() protoreflect.EnumType {
-	return &file_proto_render_v1alpha1_render_proto_enumTypes[0]
-}
-
-func (x Feature) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use Feature.Descriptor instead.
-func (Feature) EnumDescriptor() ([]byte, []int) {
-	return file_proto_render_v1alpha1_render_proto_rawDescGZIP(), []int{0}
-}
-
 // A RenderRequest asks the render engine to render a resource.
 type RenderRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -348,11 +299,7 @@ func (*RenderResponse_WatchOperation) isRenderResponse_Output() {}
 
 // RequestMeta contains metadata pertaining to a RenderRequest.
 type RequestMeta struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Features to enable. Render behaves as Crossplane would with the matching
-	// feature flags enabled. Render returns an error for a feature it doesn't
-	// support. Optional.
-	Features      []Feature `protobuf:"varint,1,rep,packed,name=features,proto3,enum=crossplane.render.v1alpha1.Feature" json:"features,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -385,13 +332,6 @@ func (x *RequestMeta) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RequestMeta.ProtoReflect.Descriptor instead.
 func (*RequestMeta) Descriptor() ([]byte, []int) {
 	return file_proto_render_v1alpha1_render_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *RequestMeta) GetFeatures() []Feature {
-	if x != nil {
-		return x.Features
-	}
-	return nil
 }
 
 // ResponseMeta contains metadata pertaining to a RenderResponse.
@@ -1159,9 +1099,8 @@ const file_proto_render_v1alpha1_render_proto_rawDesc = "" +
 	"\toperation\x18\x03 \x01(\v2+.crossplane.render.v1alpha1.OperationOutputH\x00R\toperation\x12X\n" +
 	"\x0ecron_operation\x18\x04 \x01(\v2/.crossplane.render.v1alpha1.CronOperationOutputH\x00R\rcronOperation\x12[\n" +
 	"\x0fwatch_operation\x18\x05 \x01(\v20.crossplane.render.v1alpha1.WatchOperationOutputH\x00R\x0ewatchOperationB\b\n" +
-	"\x06output\"N\n" +
-	"\vRequestMeta\x12?\n" +
-	"\bfeatures\x18\x01 \x03(\x0e2#.crossplane.render.v1alpha1.FeatureR\bfeatures\"\x0e\n" +
+	"\x06output\"\r\n" +
+	"\vRequestMeta\"\x0e\n" +
 	"\fResponseMeta\"=\n" +
 	"\rFunctionInput\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
@@ -1208,10 +1147,7 @@ const file_proto_render_v1alpha1_render_proto_rawDesc = "" +
 	"\x0fwatch_operation\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x0ewatchOperation\x12B\n" +
 	"\x10watched_resource\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x0fwatchedResource\"M\n" +
 	"\x14WatchOperationOutput\x125\n" +
-	"\toperation\x18\x01 \x01(\v2\x17.google.protobuf.StructR\toperation*L\n" +
-	"\aFeature\x12\x17\n" +
-	"\x13FEATURE_UNSPECIFIED\x10\x00\x12(\n" +
-	"$FEATURE_FUNCTION_CONTROLLED_DELETION\x10\x01B;Z9github.com/crossplane/crossplane/v2/proto/render/v1alpha1b\x06proto3"
+	"\toperation\x18\x01 \x01(\v2\x17.google.protobuf.StructR\toperationB;Z9github.com/crossplane/crossplane/v2/proto/render/v1alpha1b\x06proto3"
 
 var (
 	file_proto_render_v1alpha1_render_proto_rawDescOnce sync.Once
@@ -1225,74 +1161,71 @@ func file_proto_render_v1alpha1_render_proto_rawDescGZIP() []byte {
 	return file_proto_render_v1alpha1_render_proto_rawDescData
 }
 
-var file_proto_render_v1alpha1_render_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_proto_render_v1alpha1_render_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_proto_render_v1alpha1_render_proto_goTypes = []any{
-	(Feature)(0),                  // 0: crossplane.render.v1alpha1.Feature
-	(*RenderRequest)(nil),         // 1: crossplane.render.v1alpha1.RenderRequest
-	(*RenderResponse)(nil),        // 2: crossplane.render.v1alpha1.RenderResponse
-	(*RequestMeta)(nil),           // 3: crossplane.render.v1alpha1.RequestMeta
-	(*ResponseMeta)(nil),          // 4: crossplane.render.v1alpha1.ResponseMeta
-	(*FunctionInput)(nil),         // 5: crossplane.render.v1alpha1.FunctionInput
-	(*Event)(nil),                 // 6: crossplane.render.v1alpha1.Event
-	(*CompositeInput)(nil),        // 7: crossplane.render.v1alpha1.CompositeInput
-	(*CompositeOutput)(nil),       // 8: crossplane.render.v1alpha1.CompositeOutput
-	(*OperationInput)(nil),        // 9: crossplane.render.v1alpha1.OperationInput
-	(*OperationOutput)(nil),       // 10: crossplane.render.v1alpha1.OperationOutput
-	(*CronOperationInput)(nil),    // 11: crossplane.render.v1alpha1.CronOperationInput
-	(*CronOperationOutput)(nil),   // 12: crossplane.render.v1alpha1.CronOperationOutput
-	(*WatchOperationInput)(nil),   // 13: crossplane.render.v1alpha1.WatchOperationInput
-	(*WatchOperationOutput)(nil),  // 14: crossplane.render.v1alpha1.WatchOperationOutput
-	(*structpb.Struct)(nil),       // 15: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil), // 16: google.protobuf.Timestamp
+	(*RenderRequest)(nil),         // 0: crossplane.render.v1alpha1.RenderRequest
+	(*RenderResponse)(nil),        // 1: crossplane.render.v1alpha1.RenderResponse
+	(*RequestMeta)(nil),           // 2: crossplane.render.v1alpha1.RequestMeta
+	(*ResponseMeta)(nil),          // 3: crossplane.render.v1alpha1.ResponseMeta
+	(*FunctionInput)(nil),         // 4: crossplane.render.v1alpha1.FunctionInput
+	(*Event)(nil),                 // 5: crossplane.render.v1alpha1.Event
+	(*CompositeInput)(nil),        // 6: crossplane.render.v1alpha1.CompositeInput
+	(*CompositeOutput)(nil),       // 7: crossplane.render.v1alpha1.CompositeOutput
+	(*OperationInput)(nil),        // 8: crossplane.render.v1alpha1.OperationInput
+	(*OperationOutput)(nil),       // 9: crossplane.render.v1alpha1.OperationOutput
+	(*CronOperationInput)(nil),    // 10: crossplane.render.v1alpha1.CronOperationInput
+	(*CronOperationOutput)(nil),   // 11: crossplane.render.v1alpha1.CronOperationOutput
+	(*WatchOperationInput)(nil),   // 12: crossplane.render.v1alpha1.WatchOperationInput
+	(*WatchOperationOutput)(nil),  // 13: crossplane.render.v1alpha1.WatchOperationOutput
+	(*structpb.Struct)(nil),       // 14: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
 }
 var file_proto_render_v1alpha1_render_proto_depIdxs = []int32{
-	3,  // 0: crossplane.render.v1alpha1.RenderRequest.meta:type_name -> crossplane.render.v1alpha1.RequestMeta
-	7,  // 1: crossplane.render.v1alpha1.RenderRequest.composite:type_name -> crossplane.render.v1alpha1.CompositeInput
-	9,  // 2: crossplane.render.v1alpha1.RenderRequest.operation:type_name -> crossplane.render.v1alpha1.OperationInput
-	11, // 3: crossplane.render.v1alpha1.RenderRequest.cron_operation:type_name -> crossplane.render.v1alpha1.CronOperationInput
-	13, // 4: crossplane.render.v1alpha1.RenderRequest.watch_operation:type_name -> crossplane.render.v1alpha1.WatchOperationInput
-	4,  // 5: crossplane.render.v1alpha1.RenderResponse.meta:type_name -> crossplane.render.v1alpha1.ResponseMeta
-	8,  // 6: crossplane.render.v1alpha1.RenderResponse.composite:type_name -> crossplane.render.v1alpha1.CompositeOutput
-	10, // 7: crossplane.render.v1alpha1.RenderResponse.operation:type_name -> crossplane.render.v1alpha1.OperationOutput
-	12, // 8: crossplane.render.v1alpha1.RenderResponse.cron_operation:type_name -> crossplane.render.v1alpha1.CronOperationOutput
-	14, // 9: crossplane.render.v1alpha1.RenderResponse.watch_operation:type_name -> crossplane.render.v1alpha1.WatchOperationOutput
-	0,  // 10: crossplane.render.v1alpha1.RequestMeta.features:type_name -> crossplane.render.v1alpha1.Feature
-	15, // 11: crossplane.render.v1alpha1.CompositeInput.composite_resource:type_name -> google.protobuf.Struct
-	15, // 12: crossplane.render.v1alpha1.CompositeInput.composition:type_name -> google.protobuf.Struct
-	5,  // 13: crossplane.render.v1alpha1.CompositeInput.functions:type_name -> crossplane.render.v1alpha1.FunctionInput
-	15, // 14: crossplane.render.v1alpha1.CompositeInput.observed_resources:type_name -> google.protobuf.Struct
-	15, // 15: crossplane.render.v1alpha1.CompositeInput.required_resources:type_name -> google.protobuf.Struct
-	15, // 16: crossplane.render.v1alpha1.CompositeInput.credentials:type_name -> google.protobuf.Struct
-	15, // 17: crossplane.render.v1alpha1.CompositeInput.required_schemas:type_name -> google.protobuf.Struct
-	15, // 18: crossplane.render.v1alpha1.CompositeInput.composite_resource_definition:type_name -> google.protobuf.Struct
-	15, // 19: crossplane.render.v1alpha1.CompositeOutput.composite_resource:type_name -> google.protobuf.Struct
-	15, // 20: crossplane.render.v1alpha1.CompositeOutput.composed_resources:type_name -> google.protobuf.Struct
-	15, // 21: crossplane.render.v1alpha1.CompositeOutput.deleted_resources:type_name -> google.protobuf.Struct
-	6,  // 22: crossplane.render.v1alpha1.CompositeOutput.events:type_name -> crossplane.render.v1alpha1.Event
-	15, // 23: crossplane.render.v1alpha1.CompositeOutput.required_resources:type_name -> google.protobuf.Struct
-	15, // 24: crossplane.render.v1alpha1.CompositeOutput.required_schemas:type_name -> google.protobuf.Struct
-	15, // 25: crossplane.render.v1alpha1.OperationInput.operation:type_name -> google.protobuf.Struct
-	5,  // 26: crossplane.render.v1alpha1.OperationInput.functions:type_name -> crossplane.render.v1alpha1.FunctionInput
-	15, // 27: crossplane.render.v1alpha1.OperationInput.required_resources:type_name -> google.protobuf.Struct
-	15, // 28: crossplane.render.v1alpha1.OperationInput.credentials:type_name -> google.protobuf.Struct
-	15, // 29: crossplane.render.v1alpha1.OperationInput.required_schemas:type_name -> google.protobuf.Struct
-	15, // 30: crossplane.render.v1alpha1.OperationOutput.operation:type_name -> google.protobuf.Struct
-	15, // 31: crossplane.render.v1alpha1.OperationOutput.applied_resources:type_name -> google.protobuf.Struct
-	6,  // 32: crossplane.render.v1alpha1.OperationOutput.events:type_name -> crossplane.render.v1alpha1.Event
-	15, // 33: crossplane.render.v1alpha1.OperationOutput.required_resources:type_name -> google.protobuf.Struct
-	15, // 34: crossplane.render.v1alpha1.OperationOutput.required_schemas:type_name -> google.protobuf.Struct
-	15, // 35: crossplane.render.v1alpha1.CronOperationInput.cron_operation:type_name -> google.protobuf.Struct
-	16, // 36: crossplane.render.v1alpha1.CronOperationInput.scheduled_time:type_name -> google.protobuf.Timestamp
-	15, // 37: crossplane.render.v1alpha1.CronOperationOutput.operation:type_name -> google.protobuf.Struct
-	15, // 38: crossplane.render.v1alpha1.WatchOperationInput.watch_operation:type_name -> google.protobuf.Struct
-	15, // 39: crossplane.render.v1alpha1.WatchOperationInput.watched_resource:type_name -> google.protobuf.Struct
-	15, // 40: crossplane.render.v1alpha1.WatchOperationOutput.operation:type_name -> google.protobuf.Struct
-	41, // [41:41] is the sub-list for method output_type
-	41, // [41:41] is the sub-list for method input_type
-	41, // [41:41] is the sub-list for extension type_name
-	41, // [41:41] is the sub-list for extension extendee
-	0,  // [0:41] is the sub-list for field type_name
+	2,  // 0: crossplane.render.v1alpha1.RenderRequest.meta:type_name -> crossplane.render.v1alpha1.RequestMeta
+	6,  // 1: crossplane.render.v1alpha1.RenderRequest.composite:type_name -> crossplane.render.v1alpha1.CompositeInput
+	8,  // 2: crossplane.render.v1alpha1.RenderRequest.operation:type_name -> crossplane.render.v1alpha1.OperationInput
+	10, // 3: crossplane.render.v1alpha1.RenderRequest.cron_operation:type_name -> crossplane.render.v1alpha1.CronOperationInput
+	12, // 4: crossplane.render.v1alpha1.RenderRequest.watch_operation:type_name -> crossplane.render.v1alpha1.WatchOperationInput
+	3,  // 5: crossplane.render.v1alpha1.RenderResponse.meta:type_name -> crossplane.render.v1alpha1.ResponseMeta
+	7,  // 6: crossplane.render.v1alpha1.RenderResponse.composite:type_name -> crossplane.render.v1alpha1.CompositeOutput
+	9,  // 7: crossplane.render.v1alpha1.RenderResponse.operation:type_name -> crossplane.render.v1alpha1.OperationOutput
+	11, // 8: crossplane.render.v1alpha1.RenderResponse.cron_operation:type_name -> crossplane.render.v1alpha1.CronOperationOutput
+	13, // 9: crossplane.render.v1alpha1.RenderResponse.watch_operation:type_name -> crossplane.render.v1alpha1.WatchOperationOutput
+	14, // 10: crossplane.render.v1alpha1.CompositeInput.composite_resource:type_name -> google.protobuf.Struct
+	14, // 11: crossplane.render.v1alpha1.CompositeInput.composition:type_name -> google.protobuf.Struct
+	4,  // 12: crossplane.render.v1alpha1.CompositeInput.functions:type_name -> crossplane.render.v1alpha1.FunctionInput
+	14, // 13: crossplane.render.v1alpha1.CompositeInput.observed_resources:type_name -> google.protobuf.Struct
+	14, // 14: crossplane.render.v1alpha1.CompositeInput.required_resources:type_name -> google.protobuf.Struct
+	14, // 15: crossplane.render.v1alpha1.CompositeInput.credentials:type_name -> google.protobuf.Struct
+	14, // 16: crossplane.render.v1alpha1.CompositeInput.required_schemas:type_name -> google.protobuf.Struct
+	14, // 17: crossplane.render.v1alpha1.CompositeInput.composite_resource_definition:type_name -> google.protobuf.Struct
+	14, // 18: crossplane.render.v1alpha1.CompositeOutput.composite_resource:type_name -> google.protobuf.Struct
+	14, // 19: crossplane.render.v1alpha1.CompositeOutput.composed_resources:type_name -> google.protobuf.Struct
+	14, // 20: crossplane.render.v1alpha1.CompositeOutput.deleted_resources:type_name -> google.protobuf.Struct
+	5,  // 21: crossplane.render.v1alpha1.CompositeOutput.events:type_name -> crossplane.render.v1alpha1.Event
+	14, // 22: crossplane.render.v1alpha1.CompositeOutput.required_resources:type_name -> google.protobuf.Struct
+	14, // 23: crossplane.render.v1alpha1.CompositeOutput.required_schemas:type_name -> google.protobuf.Struct
+	14, // 24: crossplane.render.v1alpha1.OperationInput.operation:type_name -> google.protobuf.Struct
+	4,  // 25: crossplane.render.v1alpha1.OperationInput.functions:type_name -> crossplane.render.v1alpha1.FunctionInput
+	14, // 26: crossplane.render.v1alpha1.OperationInput.required_resources:type_name -> google.protobuf.Struct
+	14, // 27: crossplane.render.v1alpha1.OperationInput.credentials:type_name -> google.protobuf.Struct
+	14, // 28: crossplane.render.v1alpha1.OperationInput.required_schemas:type_name -> google.protobuf.Struct
+	14, // 29: crossplane.render.v1alpha1.OperationOutput.operation:type_name -> google.protobuf.Struct
+	14, // 30: crossplane.render.v1alpha1.OperationOutput.applied_resources:type_name -> google.protobuf.Struct
+	5,  // 31: crossplane.render.v1alpha1.OperationOutput.events:type_name -> crossplane.render.v1alpha1.Event
+	14, // 32: crossplane.render.v1alpha1.OperationOutput.required_resources:type_name -> google.protobuf.Struct
+	14, // 33: crossplane.render.v1alpha1.OperationOutput.required_schemas:type_name -> google.protobuf.Struct
+	14, // 34: crossplane.render.v1alpha1.CronOperationInput.cron_operation:type_name -> google.protobuf.Struct
+	15, // 35: crossplane.render.v1alpha1.CronOperationInput.scheduled_time:type_name -> google.protobuf.Timestamp
+	14, // 36: crossplane.render.v1alpha1.CronOperationOutput.operation:type_name -> google.protobuf.Struct
+	14, // 37: crossplane.render.v1alpha1.WatchOperationInput.watch_operation:type_name -> google.protobuf.Struct
+	14, // 38: crossplane.render.v1alpha1.WatchOperationInput.watched_resource:type_name -> google.protobuf.Struct
+	14, // 39: crossplane.render.v1alpha1.WatchOperationOutput.operation:type_name -> google.protobuf.Struct
+	40, // [40:40] is the sub-list for method output_type
+	40, // [40:40] is the sub-list for method input_type
+	40, // [40:40] is the sub-list for extension type_name
+	40, // [40:40] is the sub-list for extension extendee
+	0,  // [0:40] is the sub-list for field type_name
 }
 
 func init() { file_proto_render_v1alpha1_render_proto_init() }
@@ -1318,14 +1251,13 @@ func file_proto_render_v1alpha1_render_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_render_v1alpha1_render_proto_rawDesc), len(file_proto_render_v1alpha1_render_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      0,
 			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_proto_render_v1alpha1_render_proto_goTypes,
 		DependencyIndexes: file_proto_render_v1alpha1_render_proto_depIdxs,
-		EnumInfos:         file_proto_render_v1alpha1_render_proto_enumTypes,
 		MessageInfos:      file_proto_render_v1alpha1_render_proto_msgTypes,
 	}.Build()
 	File_proto_render_v1alpha1_render_proto = out.File

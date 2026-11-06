@@ -58,21 +58,7 @@ message RenderResponse {
 }
 
 // RequestMeta contains metadata pertaining to a RenderRequest.
-message RequestMeta {
-  // Features to enable. Render behaves as Crossplane would with the matching
-  // feature flags enabled. Render returns an error for a feature it doesn't
-  // support. Optional.
-  repeated Feature features = 1;
-}
-
-// A Feature is a Crossplane feature that changes how render renders.
-enum Feature {
-  FEATURE_UNSPECIFIED = 0;
-
-  // Render a deleted XR as Crossplane would delete it using its Composition's
-  // deletion policy. Crossplane's --enable-function-controlled-deletion flag.
-  FEATURE_FUNCTION_CONTROLLED_DELETION = 1;
-}
+message RequestMeta {}
 
 // ResponseMeta contains metadata pertaining to a RenderResponse.
 message ResponseMeta {}
