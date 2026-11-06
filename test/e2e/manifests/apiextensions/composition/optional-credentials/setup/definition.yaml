@@ -1,0 +1,30 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: optionalcredentialtests.example.org
+spec:
+  scope: Cluster
+  group: example.org
+  names:
+    kind: OptionalCredentialTest
+    plural: optionalcredentialtests
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+     openAPIV3Schema:
+       type: object
+       properties:
+        spec:
+          type: object
+          properties:
+            testField:
+              type: string
+          required:
+          - testField
+        status:
+          type: object
+          properties:
+            resultField:
+              type: string

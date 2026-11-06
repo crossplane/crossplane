@@ -1,0 +1,53 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: optional-credentials-composition
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: OptionalCredentialTest
+  mode: Pipeline
+  pipeline:
+  - step: be-a-dummy
+    functionRef:
+      name: function-dummy-optional-creds
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      # This is a YAML-serialized RunFunctionResponse. function-dummy will
+      # overlay the desired state on any that was passed into it.
+      response:
+        desired:
+          composite:
+            resource:
+              status:
+                resultField: "success-without-optional-secret"
+          resources:
+            configmap:
+              resource:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  namespace: default
+                data:
+                  testData: "created-by-optional-creds-test"
+              ready: READY_TRUE
+        results:
+         - severity: SEVERITY_NORMAL
+           message: "Pipeline executed successfully with optional credentials"
+    credentials:
+    # This credential is optional - the pipeline should succeed even if the
+    # secret does not exist.
+    - name: optional-secret
+      source: Secret
+      secretRef:
+        namespace: crossplane-system
+        name: optional-secret-does-not-exist
+      resolvePolicy: Optional
+    # This credential is required and exists - it ensures the required
+    # credential logic still works alongside optional credentials.
+    - name: required-secret
+      source: Secret
+      secretRef:
+        namespace: crossplane-system
+        name: required-secret-exists
