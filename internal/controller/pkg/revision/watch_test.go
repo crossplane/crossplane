@@ -287,6 +287,53 @@ func TestEnqueuePackageRevisionsForImageConfig(t *testing.T) {
 				},
 			},
 		},
+		"SuccessfulWithRuntimeConfig": {
+			reason: "Should enqueue matching package revisions when ImageConfig only references a runtime config",
+			params: params{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						list := obj.(*v1.ProviderRevisionList)
+						list.Items = []v1.ProviderRevision{
+							{
+								ObjectMeta: metav1.ObjectMeta{Name: "provider-aws-abc123"},
+								Spec: v1.ProviderRevisionSpec{
+									PackageRevisionSpec: v1.PackageRevisionSpec{
+										Package: "xpkg.upbound.io/upbound/provider-aws:v1.0.0",
+									},
+								},
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{Name: "provider-gcp-def456"},
+								Spec: v1.ProviderRevisionSpec{
+									PackageRevisionSpec: v1.PackageRevisionSpec{
+										Package: "xpkg.crossplane.io/crossplane-contrib/provider-gcp:v1.0.0",
+									},
+								},
+							},
+						}
+						return nil
+					}),
+				},
+				l:   &v1.ProviderRevisionList{},
+				log: logging.NewNopLogger(),
+				obj: &v1beta1.ImageConfig{
+					ObjectMeta: metav1.ObjectMeta{Name: "test-config"},
+					Spec: v1beta1.ImageConfigSpec{
+						MatchImages: []v1beta1.ImageMatch{
+							{Prefix: "xpkg.upbound.io/upbound/"},
+						},
+						Runtime: &v1beta1.ImageRuntime{
+							ConfigReference: &v1beta1.RuntimeConfigReference{Name: "my-runtime-config"},
+						},
+					},
+				},
+			},
+			want: want{
+				reqs: []reconcile.Request{
+					{NamespacedName: types.NamespacedName{Name: "provider-aws-abc123"}},
+				},
+			},
+		},
 		"NoMatchingPackageRevisions": {
 			reason: "Should not enqueue when no package revisions match the prefix",
 			params: params{
