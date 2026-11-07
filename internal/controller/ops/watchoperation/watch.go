@@ -32,11 +32,21 @@ import (
 // NewWatchedResourceHandler returns a handler that enqueues reconcile requests
 // for the WatchOperation when watched resources change, filtering based on the
 // WatchOperation's matchLabels and namespace specifications.
-func NewWatchedResourceHandler(wo *v1alpha1.WatchOperation) handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(_ context.Context, obj client.Object) []reconcile.Request {
+//
+// The WatchOperation is read on every event instead of captured at watch
+// start: the engine keeps an already-running watch as-is, so a handler holding
+// the first fetched spec would keep filtering on a stale selector after a
+// spec change.
+func NewWatchedResourceHandler(c client.Client, key types.NamespacedName) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
 		// Convert to unstructured to handle any resource type
 		u, ok := obj.(*unstructured.Unstructured)
 		if !ok {
+			return nil
+		}
+
+		wo := &v1alpha1.WatchOperation{}
+		if err := c.Get(ctx, key, wo); err != nil {
 			return nil
 		}
 
