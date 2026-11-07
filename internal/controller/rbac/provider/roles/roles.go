@@ -100,6 +100,12 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 		return nil
 	}
 
+	// Callers may supply the same resource more than once - e.g. a resource that
+	// appears both in a revision's status.objectRefs and in the set of CRDs/MRDs
+	// it owns, or a type shared by multiple providers in a family. Deduplicate so
+	// we emit each resource in our RBAC rules only once.
+	rs = dedupeResources(rs)
+
 	// Our list of resources has no guaranteed order, so we sort them in order
 	// to ensure we don't reorder our RBAC rules on each update.
 	sort.Slice(rs, func(i, j int) bool {
@@ -202,4 +208,21 @@ func withVerbs(r []rbacv1.PolicyRule, verbs []string) []rbacv1.PolicyRule {
 	}
 
 	return verbal
+}
+
+// dedupeResources returns the supplied resources with duplicates removed,
+// preserving the order in which each distinct resource first appeared.
+func dedupeResources(rs []Resource) []Resource {
+	seen := make(map[Resource]struct{}, len(rs))
+	out := make([]Resource, 0, len(rs))
+	for _, r := range rs {
+		if _, ok := seen[r]; ok {
+			continue
+		}
+
+		seen[r] = struct{}{}
+		out = append(out, r)
+	}
+
+	return out
 }
