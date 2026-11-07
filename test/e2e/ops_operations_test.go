@@ -33,7 +33,7 @@ import (
 	"github.com/crossplane/crossplane/v2/test/e2e/funcs"
 )
 
-// LabelAreaAPIExtensions is applied to all features pertaining to ops (e.g.
+// LabelAreaOps is applied to all features pertaining to ops (e.g.
 // Operations, CronOperations, etc).
 const LabelAreaOps = "ops"
 
