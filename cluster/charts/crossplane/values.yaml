@@ -143,10 +143,19 @@ securityContextCrossplane:
   runAsUser: 65532
   # -- The group ID used by the Crossplane pod.
   runAsGroup: 65532
+  # -- Require the Crossplane containers to run as a non-root user.
+  runAsNonRoot: true
   # -- Enable `allowPrivilegeEscalation` for the Crossplane pod.
   allowPrivilegeEscalation: false
   # -- Set the Crossplane pod root file system as read-only.
   readOnlyRootFilesystem: true
+  capabilities:
+    # -- Drop all Linux capabilities from the Crossplane containers.
+    drop:
+      - ALL
+  seccompProfile:
+    # -- Apply the default container runtime seccomp profile to the Crossplane containers.
+    type: RuntimeDefault
 
 packageCache:
   # -- Set to `Memory` to hold the package cache in a RAM backed file system. Useful for Crossplane development.
@@ -183,10 +192,19 @@ securityContextRBACManager:
   runAsUser: 65532
   # -- The group ID used by the RBAC Manager pod.
   runAsGroup: 65532
+  # -- Require the RBAC Manager containers to run as a non-root user.
+  runAsNonRoot: true
   # -- Enable `allowPrivilegeEscalation` for the RBAC Manager pod.
   allowPrivilegeEscalation: false
   # -- Set the RBAC Manager pod root file system as read-only.
   readOnlyRootFilesystem: true
+  capabilities:
+    # -- Drop all Linux capabilities from the RBAC Manager containers.
+    drop:
+      - ALL
+  seccompProfile:
+    # -- Apply the default container runtime seccomp profile to the RBAC Manager containers.
+    type: RuntimeDefault
 
 metrics:
   # -- Enable Prometheus path, port and scrape annotations and expose port 8080 for both the Crossplane and RBAC Manager pods.
@@ -197,6 +215,16 @@ metrics:
 readiness:
   # -- The port the readyz server listens on.
   port: ""
+
+networkPolicy:
+  # -- Create a NetworkPolicy that restricts ingress to the Crossplane and RBAC Manager pods.
+  enabled: false
+  # -- Sources allowed to access the Crossplane webhook port. An empty list allows webhook traffic from all sources because Kubernetes API server source addresses vary by cluster and CNI.
+  webhookIngressFrom: []
+  # -- Sources allowed to access the metrics port when metrics are enabled. An empty list blocks metrics ingress.
+  metricsIngressFrom: []
+  # -- Additional ingress rules to append to the NetworkPolicy.
+  additionalIngress: []
 
 # -- Add custom environmental variables to the Crossplane pod deployment init container.
 # Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`.

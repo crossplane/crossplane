@@ -1,0 +1,47 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ template "crossplane.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "crossplane.name" . }}
+    release: {{ .Release.Name }}
+    {{- include "crossplane.labels" . | indent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      release: {{ .Release.Name }}
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - {{ template "crossplane.name" . }}
+          - {{ template "crossplane.name" . }}-rbac-manager
+  policyTypes:
+    - Ingress
+  {{- if or .Values.webhooks.enabled (and .Values.metrics.enabled .Values.networkPolicy.metricsIngressFrom) .Values.networkPolicy.additionalIngress }}
+  ingress:
+    {{- if .Values.webhooks.enabled }}
+    - ports:
+        - protocol: TCP
+          port: webhooks
+      {{- with .Values.networkPolicy.webhookIngressFrom }}
+      from:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- if and .Values.metrics.enabled .Values.networkPolicy.metricsIngressFrom }}
+    - ports:
+        - protocol: TCP
+          port: metrics
+      from:
+        {{- toYaml .Values.networkPolicy.metricsIngressFrom | nindent 8 }}
+    {{- end }}
+    {{- with .Values.networkPolicy.additionalIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- else }}
+  ingress: []
+  {{- end }}
+{{- end }}
