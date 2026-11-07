@@ -18,6 +18,7 @@ package cronoperation
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -50,6 +51,97 @@ func EquateApproxDuration(tolerance time.Duration) cmp.Option {
 		}
 		return diff <= tolerance
 	})
+}
+
+// hourlyFrom returns a Scheduler that's due every hour, on the hour relative
+// to the supplied base time. Unlike a real cron schedule this lets tests use
+// times relative to time.Now() without being sensitive to wall clock time.
+func hourlyFrom(base time.Time) SchedulerFn {
+	return func(_ string, last time.Time) (time.Time, error) {
+		d := last.Sub(base)
+		k := d / time.Hour
+		if d < 0 && d%time.Hour != 0 {
+			k-- // Round toward negative infinity.
+		}
+		return base.Add((k + 1) * time.Hour), nil
+	}
+}
+
+func TestLatestScheduleWithinDeadline(t *testing.T) {
+	base := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	type args struct {
+		s        Scheduler
+		schedule string
+		now      time.Time
+		grace    time.Duration
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   time.Time
+	}{
+		"LatestOfSeveral": {
+			reason: "We should return the latest of several schedules that are within their deadline.",
+			args: args{
+				s:        NewReconciler(nil).schedule,
+				schedule: "*/10 * * * *",
+				now:      base.Add(35 * time.Minute),
+				grace:    time.Hour,
+			},
+			want: base.Add(30 * time.Minute),
+		},
+		"DueNow": {
+			reason: "A schedule that is due exactly now is within its deadline.",
+			args: args{
+				s:        NewReconciler(nil).schedule,
+				schedule: "0 * * * *",
+				now:      base,
+				grace:    time.Minute,
+			},
+			want: base,
+		},
+		"NoneWithinDeadline": {
+			reason: "We should return the zero time if no schedule is within its deadline.",
+			args: args{
+				s:        NewReconciler(nil).schedule,
+				schedule: "0 * * * *",
+				now:      base.Add(30 * time.Minute),
+				grace:    10 * time.Minute,
+			},
+			want: time.Time{},
+		},
+		"NeverDue": {
+			reason: "We should return the zero time, not loop forever, if the schedule is never due.",
+			args: args{
+				s:        NewReconciler(nil).schedule,
+				schedule: "0 0 30 2 *", // February 30th.
+				now:      base,
+				grace:    time.Hour,
+			},
+			want: time.Time{},
+		},
+		"SchedulerError": {
+			reason: "We should return the zero time if the schedule can't be parsed.",
+			args: args{
+				s:        NewReconciler(nil).schedule,
+				schedule: "not a schedule",
+				now:      base,
+				grace:    time.Hour,
+			},
+			want: time.Time{},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := latestScheduleWithinDeadline(tc.args.s, tc.args.schedule, tc.args.now, tc.args.grace)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\nlatestScheduleWithinDeadline(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
 }
 
 func TestReconcile(t *testing.T) {
@@ -255,6 +347,89 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				r: reconcile.Result{RequeueAfter: time.Hour},
+			},
+		},
+		"MissedDeadlineOfEarliestScheduleOnly": {
+			reason: "We should create an Operation for the latest missed schedule if it's within its deadline, even though earlier schedules missed theirs",
+			params: params{
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						co := &v1alpha1.CronOperation{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "test-cron",
+								// No Operations were ever created, so the
+								// earliest missed schedule is ~4 hours ago.
+								CreationTimestamp: metav1.Time{Time: now.Add(-5 * time.Hour)},
+							},
+							Spec: v1alpha1.CronOperationSpec{
+								Schedule:                "30 * * * *",
+								StartingDeadlineSeconds: new(int64(3600)),
+							},
+						}
+						co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+						return nil
+					}),
+					MockList: test.NewMockListFn(nil),
+					MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
+						// The latest missed schedule was 30 minutes ago.
+						want := fmt.Sprintf("test-cron-%d", now.Add(-30*time.Minute).Unix())
+						if got := obj.GetName(); got != want {
+							t.Errorf("Expected Operation for latest missed schedule %q, got %q", want, got)
+						}
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
+						// We only mark the reconcile successful after we
+						// create an Operation. Without this check this case
+						// would pass even if we created no Operation.
+						co := obj.(*v1alpha1.CronOperation)
+						if got := co.GetCondition(xpv2.TypeSynced).Reason; got != xpv2.ReasonReconcileSuccess {
+							t.Errorf("Expected Synced condition reason %q after creating an Operation, got %q", xpv2.ReasonReconcileSuccess, got)
+						}
+						return nil
+					}),
+				},
+				opts: []ReconcilerOption{
+					WithScheduler(hourlyFrom(now.Add(-30 * time.Minute))),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: 30 * time.Minute},
+			},
+		},
+		"MissedDeadlineOfAllSchedules": {
+			reason: "We should requeue for the next schedule without creating an Operation if every missed schedule is past its deadline",
+			params: params{
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						co := &v1alpha1.CronOperation{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "test-cron",
+								CreationTimestamp: metav1.Time{Time: now.Add(-5 * time.Hour)},
+							},
+							Spec: v1alpha1.CronOperationSpec{
+								Schedule: "30 * * * *",
+								// The latest missed schedule was 30 minutes
+								// ago, which is past this deadline.
+								StartingDeadlineSeconds: new(int64(600)),
+							},
+						}
+						co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+						return nil
+					}),
+					MockList: test.NewMockListFn(nil),
+					MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
+						t.Errorf("Unexpected Operation %q created for a schedule that missed its deadline", obj.GetName())
+						return nil
+					}),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				},
+				opts: []ReconcilerOption{
+					WithScheduler(hourlyFrom(now.Add(-30 * time.Minute))),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: 30 * time.Minute},
 			},
 		},
 		"ConcurrencyPolicyForbid": {
