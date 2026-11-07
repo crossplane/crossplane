@@ -84,8 +84,13 @@ func NewReconciler(c client.Client, opts ...ReconcilerOption) *Reconciler {
 		log:        logging.NewNopLogger(),
 		record:     event.NewNopRecorder(),
 		conditions: conditions.ObservedGenerationPropagationManager{},
-		schedule: SchedulerFn(func(schedule string, last time.Time) (time.Time, error) {
-			cs, err := cron.ParseStandard(schedule)
+		schedule: SchedulerFn(func(schedule, timeZone string, last time.Time) (time.Time, error) {
+			spec, err := cronSchedule(schedule, timeZone)
+			if err != nil {
+				return time.Time{}, err
+			}
+
+			cs, err := cron.ParseStandard(spec)
 			if err != nil {
 				return time.Time{}, errors.Wrap(err, "cannot parse cron schedule")
 			}
@@ -99,4 +104,27 @@ func NewReconciler(c client.Client, opts ...ReconcilerOption) *Reconciler {
 	}
 
 	return r
+}
+
+// cronSchedule returns the schedule to parse. A time zone is applied as the
+// CRON_TZ prefix that robfig/cron understands, so the schedule must not carry
+// one of its own.
+func cronSchedule(schedule, timeZone string) (string, error) {
+	if timeZone == "" {
+		return schedule, nil
+	}
+
+	if strings.Contains(schedule, "TZ") {
+		return "", errors.Errorf("cannot use both time zone %q and a TZ or CRON_TZ prefix in schedule %q", timeZone, schedule)
+	}
+
+	if strings.EqualFold(timeZone, "Local") {
+		return "", errors.Errorf("time zone %q must be an explicit IANA time zone", timeZone)
+	}
+
+	if _, err := time.LoadLocation(timeZone); err != nil {
+		return "", errors.Wrapf(err, "cannot load time zone %q", timeZone)
+	}
+
+	return "CRON_TZ=" + timeZone + " " + schedule, nil
 }
