@@ -83,10 +83,12 @@ func TestCRDAsUnstructured(t *testing.T) {
 							"name": "databases.example.com",
 							"ownerReferences": []any{
 								map[string]any{
-									"apiVersion": "apiextensions.crossplane.io/v1alpha1",
-									"kind":       "ManagedResourceDefinition",
-									"name":       "databases.example.com",
-									"uid":        mrdUID,
+									"apiVersion":         "apiextensions.crossplane.io/v1alpha1",
+									"kind":               "ManagedResourceDefinition",
+									"name":               "databases.example.com",
+									"uid":                mrdUID,
+									"controller":         true,
+									"blockOwnerDeletion": true,
 								},
 							},
 						},
@@ -177,10 +179,12 @@ func TestCRDAsUnstructured(t *testing.T) {
 							"name": "databases.example.com",
 							"ownerReferences": []any{
 								map[string]any{
-									"apiVersion": "apiextensions.crossplane.io/v1alpha1",
-									"kind":       "ManagedResourceDefinition",
-									"name":       "databases.example.com",
-									"uid":        mrdUID,
+									"apiVersion":         "apiextensions.crossplane.io/v1alpha1",
+									"kind":               "ManagedResourceDefinition",
+									"name":               "databases.example.com",
+									"uid":                mrdUID,
+									"controller":         true,
+									"blockOwnerDeletion": true,
 								},
 							},
 						},
@@ -288,10 +292,12 @@ func TestCRDAsUnstructured(t *testing.T) {
 							"name": "databases.example.com",
 							"ownerReferences": []any{
 								map[string]any{
-									"apiVersion": "apiextensions.crossplane.io/v1alpha1",
-									"kind":       "ManagedResourceDefinition",
-									"name":       "databases.example.com",
-									"uid":        mrdUID,
+									"apiVersion":         "apiextensions.crossplane.io/v1alpha1",
+									"kind":               "ManagedResourceDefinition",
+									"name":               "databases.example.com",
+									"uid":                mrdUID,
+									"controller":         true,
+									"blockOwnerDeletion": true,
 								},
 							},
 						},
@@ -326,7 +332,7 @@ func TestCRDAsUnstructured(t *testing.T) {
 		},
 
 		"MRDWithControllerOwner": {
-			reason: "Should propagate controller owner from MRD to CRD",
+			reason: "Should set MRD as controller of CRD; ProviderRevision is not propagated to avoid controller conflicts during upgrades",
 			args: args{
 				mrd: &v1alpha1.ManagedResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
@@ -371,16 +377,10 @@ func TestCRDAsUnstructured(t *testing.T) {
 							"name": "databases.example.com",
 							"ownerReferences": []any{
 								map[string]any{
-									"apiVersion": "apiextensions.crossplane.io/v1alpha1",
-									"kind":       "ManagedResourceDefinition",
-									"name":       "databases.example.com",
-									"uid":        mrdUID,
-								},
-								map[string]any{
-									"apiVersion":         "pkg.crossplane.io/v1",
-									"kind":               "ProviderRevision",
-									"name":               "provider-example-abc123",
-									"uid":                providerRevisionUID,
+									"apiVersion":         "apiextensions.crossplane.io/v1alpha1",
+									"kind":               "ManagedResourceDefinition",
+									"name":               "databases.example.com",
+									"uid":                mrdUID,
 									"controller":         true,
 									"blockOwnerDeletion": true,
 								},
