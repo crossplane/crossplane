@@ -77,6 +77,38 @@ registryCaBundleConfig:
   # -- The ConfigMap key containing a custom CA bundle to enable fetching packages from registries with unknown or untrusted certificates.
   key: ""
 
+rootCA:
+  # -- Manage the lifecycle of the crossplane-root-ca, crossplane-tls-server, and crossplane-tls-client Secrets via Helm hook jobs. When true (default), a pre-install/pre-upgrade hook creates the Secrets only if missing (so existing CAs and per-pod TLS material survive upgrades), and a pre-delete hook removes them on `helm uninstall`. Set to false to fall back to the upstream behavior of having Helm manage the Secrets directly, which will rotate the CA and per-pod TLS material on every upgrade and break mTLS with installed provider/function packages.
+  manageLifecycle: true
+  bootstrap:
+    # -- Enable the pre-install/pre-upgrade hook job that creates the three crossplane TLS Secrets on first install and preserves them on subsequent upgrades. Has no effect when `rootCA.manageLifecycle` is false.
+    enabled: true
+    image:
+      # -- Container image for the hook job. Must contain a `kubectl` binary.
+      repository: registry.k8s.io/kubernetes/kubectl
+      # -- Tag for the hook job container image. Should be a kubectl version compatible with the Kubernetes server (see `kubeVersion` in Chart.yaml).
+      tag: v1.31.1
+    # -- Resource requests and limits for the hook job container.
+    resources:
+      requests:
+        # -- CPU request for the hook job container.
+        cpu: 10m
+        # -- Memory request for the hook job container.
+        memory: 32Mi
+      limits:
+        # -- CPU limit for the hook job container.
+        cpu: 100m
+        # -- Memory limit for the hook job container.
+        memory: 64Mi
+    # -- Security context for the hook job container. Hardened defaults: non-root, no privilege escalation, read-only root filesystem.
+    securityContext:
+      # -- Run as non-root user. The kubectl image runs as user 65532 by default.
+      runAsNonRoot: true
+      # -- Disable privilege escalation.
+      allowPrivilegeEscalation: false
+      # -- Mount root filesystem as read-only.
+      readOnlyRootFilesystem: true
+
 service:
   # -- Configure annotations on the service object. Only enabled when webhooks.enabled = true
   customAnnotations: {}
