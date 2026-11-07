@@ -899,6 +899,98 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errGCPackageRevision),
 			},
 		},
+		"SuccessfulGCRevisionAlreadyDeleted": {
+			reason: "We should treat a revision that is already gone as garbage collected.",
+			args: args{
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: &Reconciler{
+					newPackage:             func() v1.Package { return &v1.Configuration{} },
+					newPackageRevision:     func() v1.PackageRevision { return &v1.ConfigurationRevision{} },
+					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
+					kube: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								p := o.(*v1.Configuration)
+								p.SetName("test")
+								p.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
+								p.SetRevisionHistoryLimit(&revHistory)
+								return nil
+							}),
+							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
+								l := o.(*v1.ConfigurationRevisionList)
+								cr := v1.ConfigurationRevision{
+									ObjectMeta: metav1.ObjectMeta{
+										Name: revisionName,
+									},
+								}
+								cr.SetRevision(3)
+								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								cr.SetConditions(v1.RevisionHealthy())
+								cr.SetDesiredState(v1.PackageRevisionInactive)
+								c := v1.ConfigurationRevisionList{
+									Items: []v1.ConfigurationRevision{
+										cr,
+										{
+											ObjectMeta: metav1.ObjectMeta{
+												Name: "made-the-cut",
+											},
+											Spec: v1.PackageRevisionSpec{
+												Revision:     2,
+												DesiredState: v1.PackageRevisionInactive,
+											},
+										},
+										{
+											ObjectMeta: metav1.ObjectMeta{
+												Name: "missed-the-cut",
+											},
+											Spec: v1.PackageRevisionSpec{
+												Revision:     1,
+												DesiredState: v1.PackageRevisionInactive,
+											},
+										},
+									},
+								}
+								*l = c
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.Configuration{}
+								want.SetName("test")
+								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
+								want.SetCurrentRevision(revisionName)
+								want.SetRevisionHistoryLimit(&revHistory)
+								want.SetConditions(v1.Healthy())
+								want.SetConditions(v1.Active())
+								want.SetResolvedSource("xpkg.crossplane.io/test:v1.0.0")
+								if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockDelete: test.NewMockDeleteFn(kerrors.NewNotFound(schema.GroupResource{Group: v1.Group, Resource: "configurationrevisions"}, "missed-the-cut")),
+						},
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+							return nil
+						}),
+					},
+					pkg: &fake.MockClient{
+						MockGet: fake.NewMockGetFn(&xpkg.Package{
+							Digest:          "sha256:1234567890123456789012345678901234567890123456789012345678901234",
+							Version:         "v1.0.0",
+							Source:          "xpkg.crossplane.io/test",
+							ResolvedVersion: "v1.0.0",
+							ResolvedSource:  "xpkg.crossplane.io/test",
+						}, nil),
+					},
+					log:        testLog,
+					record:     event.NewNopRecorder(),
+					conditions: conditions.ObservedGenerationPropagationManager{},
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
 		"PauseReconcile": {
 			reason: "Pause reconciliation if the pause annotation is set",
 			args: args{
