@@ -19,8 +19,9 @@ package v1beta1
 import (
 	"reflect"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
 // Package type metadata.
@@ -34,7 +35,7 @@ var (
 	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
-	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
 
 	// AddToScheme adds all registered types to the scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
@@ -80,10 +81,16 @@ var (
 	ImageConfigGroupVersionKind = SchemeGroupVersion.WithKind(ImageConfigKind)
 )
 
-func init() {
-	SchemeBuilder.Register(&Lock{}, &LockList{})
-	SchemeBuilder.Register(&Function{}, &FunctionList{})
-	SchemeBuilder.Register(&FunctionRevision{}, &FunctionRevisionList{})
-	SchemeBuilder.Register(&DeploymentRuntimeConfig{}, &DeploymentRuntimeConfigList{})
-	SchemeBuilder.Register(&ImageConfig{}, &ImageConfigList{})
+// addKnownTypes adds this package's types to the supplied scheme.
+func addKnownTypes(s *runtime.Scheme) error {
+	s.AddKnownTypes(SchemeGroupVersion,
+		&Lock{}, &LockList{},
+		&Function{}, &FunctionList{},
+		&FunctionRevision{}, &FunctionRevisionList{},
+		&DeploymentRuntimeConfig{}, &DeploymentRuntimeConfigList{},
+		&ImageConfig{}, &ImageConfigList{},
+	)
+	metav1.AddToGroupVersion(s, SchemeGroupVersion)
+
+	return nil
 }

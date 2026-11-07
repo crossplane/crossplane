@@ -39,6 +39,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -50,9 +51,62 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
+	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
+
+// mockGetFunction returns a MockGetFn that populates *pkgv1.Function requests
+// with a package reference (so a name-based pipeline step resolves), delegating
+// any other object type to next (which may be nil).
+func mockGetFunction(next test.MockGetFn) test.MockGetFn {
+	return func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+		if f, ok := obj.(*pkgv1.Function); ok {
+			f.SetName("cool-function")
+			f.SetUID("cool-function-uid")
+			f.Spec.Package = "xpkg.crossplane.io/example/cool-function:v1.0.0"
+			return nil
+		}
+		if next != nil {
+			return next(ctx, key, obj)
+		}
+		return nil
+	}
+}
+
+// mockListFunctionRevisions returns a MockListFn that populates
+// *pkgv1.FunctionRevisionList requests with an active revision controlled by
+// the Function returned by mockGetFunction, so a name-based pipeline step
+// resolves.
+func mockListFunctionRevisions() test.MockListFn {
+	return func(_ context.Context, obj client.ObjectList, _ ...client.ListOption) error {
+		l, ok := obj.(*pkgv1.FunctionRevisionList)
+		if !ok {
+			return nil
+		}
+
+		l.Items = []pkgv1.FunctionRevision{{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "cool-function-abc123",
+				OwnerReferences: []metav1.OwnerReference{{
+					APIVersion: pkgv1.FunctionGroupVersionKind.GroupVersion().String(),
+					Kind:       pkgv1.FunctionKind,
+					Name:       "cool-function",
+					UID:        "cool-function-uid",
+					Controller: new(true),
+				}},
+			},
+			Spec: pkgv1.FunctionRevisionSpec{
+				PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+					DesiredState: pkgv1.PackageRevisionActive,
+					Package:      "xpkg.crossplane.io/example/cool-function:v1.0.0",
+				},
+			},
+		}}
+
+		return nil
+	}
+}
 
 func TestFunctionCompose(t *testing.T) {
 	errBoom := errors.New("boom")
@@ -144,7 +198,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 									Input:       &runtime.RawExtension{Raw: []byte("hi")}, // This is invalid - it must be a JSON object.
 								},
 							},
@@ -184,7 +238,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 									Credentials: []v1.FunctionCredentials{
 										{
 											Name:   "cool-secret",
@@ -205,9 +259,561 @@ func TestFunctionCompose(t *testing.T) {
 				err: errors.Wrapf(errBoom, errFmtGetCredentialsFromSecret, "run-cool-function", "cool-secret"),
 			},
 		},
+		"OptionalCredentialMissingSecretContinues": {
+			reason: "When an optional credential's secret does not exist, the pipeline should continue without error and not include that credential in the function request.",
+			params: params{
+				c: &test.MockClient{
+					MockGet:         mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "optional-secret"))),
+					MockList:        mockListFunctionRevisions(),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// Verify the optional credential was not included
+					if len(req.GetCredentials()) != 0 {
+						return nil, errors.Errorf("expected no credentials, got %d", len(req.GetCredentials()))
+					}
+					return &fnv1.RunFunctionResponse{}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "optional-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv2.SecretReference{
+												Namespace: "default",
+												Name:      "optional-secret",
+											},
+											ResolvePolicy: new(v1.CredentialResolvePolicyOptional),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Events: []TargetedEvent{
+						{
+							Event: event.Event{
+								Type:    "Normal",
+								Reason:  "ComposeResources",
+								Message: "Optional credential \"optional-cred\" not found (secret default/optional-secret does not exist), continuing without it",
+							},
+							Detail: "Pipeline step \"run-cool-function\"",
+							Target: CompositionTargetComposite,
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+		"OptionalCredentialWithExistingSecretUsed": {
+			reason: "When an optional credential's secret exists, the credential should be passed to the function.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: mockGetFunction(test.NewMockGetFn(nil, func(obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							s.Data = map[string][]byte{
+								"api-key": []byte("secret-value"),
+							}
+						}
+						return nil
+					})),
+					MockList:        mockListFunctionRevisions(),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// Verify the optional credential was included
+					if len(req.GetCredentials()) != 1 {
+						return nil, errors.Errorf("expected 1 credential, got %d", len(req.GetCredentials()))
+					}
+					cred, ok := req.GetCredentials()["optional-cred"]
+					if !ok {
+						return nil, errors.New("expected credential 'optional-cred' not found")
+					}
+					data := cred.GetCredentialData().GetData()
+					if string(data["api-key"]) != "secret-value" {
+						return nil, errors.Errorf("expected api-key='secret-value', got '%s'", string(data["api-key"]))
+					}
+					return &fnv1.RunFunctionResponse{}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "optional-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv2.SecretReference{
+												Namespace: "default",
+												Name:      "optional-secret",
+											},
+											ResolvePolicy: new(v1.CredentialResolvePolicyOptional),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{},
+				err: nil,
+			},
+		},
+		"RequiredCredentialOptionalFalseMissingSecretFails": {
+			reason: "When a credential has optional=false and its secret does not exist, the pipeline should fail.",
+			params: params{
+				c: &test.MockClient{
+					MockGet:  mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "required-secret"))),
+					MockList: mockListFunctionRevisions(),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "required-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv2.SecretReference{
+												Namespace: "default",
+												Name:      "required-secret",
+											},
+											ResolvePolicy: new(v1.CredentialResolvePolicyRequired),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "required-secret"), errFmtGetCredentialsFromSecret, "run-cool-function", "required-cred"),
+			},
+		},
+		"RequiredCredentialNilOptionalMissingSecretFails": {
+			reason: "When a credential has no optional field (nil), it should be treated as required and fail when secret is missing (backward compatibility).",
+			params: params{
+				c: &test.MockClient{
+					MockGet:  mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "required-secret"))),
+					MockList: mockListFunctionRevisions(),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "required-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv2.SecretReference{
+												Namespace: "default",
+												Name:      "required-secret",
+											},
+											// Optional is nil - should be treated as required
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "required-secret"), errFmtGetCredentialsFromSecret, "run-cool-function", "required-cred"),
+			},
+		},
+		"OptionalCredentialPermissionErrorFails": {
+			reason: "When an optional credential encounters a permission error (non-NotFound), the pipeline should fail regardless of the optional flag.",
+			params: params{
+				c: &test.MockClient{
+					MockGet:  mockGetFunction(test.NewMockGetFn(kerrors.NewForbidden(schema.GroupResource{Resource: "secrets"}, "optional-secret", errors.New("access denied")))),
+					MockList: mockListFunctionRevisions(),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "optional-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv2.SecretReference{
+												Namespace: "default",
+												Name:      "optional-secret",
+											},
+											ResolvePolicy: new(v1.CredentialResolvePolicyOptional),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(kerrors.NewForbidden(schema.GroupResource{Resource: "secrets"}, "optional-secret", errors.New("access denied")), errFmtGetCredentialsFromSecret, "run-cool-function", "optional-cred"),
+			},
+		},
+		"MixedRequiredAndOptionalCredentials": {
+			reason: "When a step has both required and optional credentials and the required one is missing, the pipeline should fail.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: mockGetFunction(func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						if key.Name == "required-secret" {
+							return kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "required-secret")
+						}
+						if s, ok := obj.(*corev1.Secret); ok {
+							s.Data = map[string][]byte{"key": []byte("value")}
+						}
+						return nil
+					}),
+					MockList: mockListFunctionRevisions(),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "optional-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv2.SecretReference{
+												Namespace: "default",
+												Name:      "optional-secret",
+											},
+											ResolvePolicy: new(v1.CredentialResolvePolicyOptional),
+										},
+										{
+											Name:   "required-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv2.SecretReference{
+												Namespace: "default",
+												Name:      "required-secret",
+											},
+											// Required (no optional field)
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "required-secret"), errFmtGetCredentialsFromSecret, "run-cool-function", "required-cred"),
+			},
+		},
+		"OptionalCredentialWithEmptySecretDataPassed": {
+			reason: "When an optional credential's secret exists but has empty data, the credential should be passed to the function with empty data.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: mockGetFunction(test.NewMockGetFn(nil, func(obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							s.Data = map[string][]byte{} // Empty data
+						}
+						return nil
+					})),
+					MockList:        mockListFunctionRevisions(),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// Verify the credential was included with empty data
+					if len(req.GetCredentials()) != 1 {
+						return nil, errors.Errorf("expected 1 credential, got %d", len(req.GetCredentials()))
+					}
+					cred, ok := req.GetCredentials()["optional-cred"]
+					if !ok {
+						return nil, errors.New("expected credential 'optional-cred' not found")
+					}
+					data := cred.GetCredentialData().GetData()
+					if len(data) != 0 {
+						return nil, errors.Errorf("expected empty data, got %d entries", len(data))
+					}
+					return &fnv1.RunFunctionResponse{}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "optional-cred",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv2.SecretReference{
+												Namespace: "default",
+												Name:      "optional-secret",
+											},
+											ResolvePolicy: new(v1.CredentialResolvePolicyOptional),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{},
+				err: nil,
+			},
+		},
+		"MultipleOptionalCredentialsSomeMissingSomePresent": {
+			reason: "When multiple optional credentials are specified and some are missing, only the present ones should be passed to the function.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: mockGetFunction(func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						if key.Name == "missing-secret" {
+							return kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "missing-secret")
+						}
+						if s, ok := obj.(*corev1.Secret); ok {
+							s.Data = map[string][]byte{"key": []byte("present-" + key.Name)}
+						}
+						return nil
+					}),
+					MockList:        mockListFunctionRevisions(),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// Verify only the present credentials were included
+					if len(req.GetCredentials()) != 2 {
+						return nil, errors.Errorf("expected 2 credentials, got %d", len(req.GetCredentials()))
+					}
+					if _, ok := req.GetCredentials()["optional-cred-1"]; !ok {
+						return nil, errors.New("expected credential 'optional-cred-1' not found")
+					}
+					if _, ok := req.GetCredentials()["optional-cred-3"]; !ok {
+						return nil, errors.New("expected credential 'optional-cred-3' not found")
+					}
+					if _, ok := req.GetCredentials()["optional-cred-2"]; ok {
+						return nil, errors.New("credential 'optional-cred-2' should not be present (its secret is missing)")
+					}
+					return &fnv1.RunFunctionResponse{}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "optional-cred-1",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv2.SecretReference{
+												Namespace: "default",
+												Name:      "present-secret-1",
+											},
+											ResolvePolicy: new(v1.CredentialResolvePolicyOptional),
+										},
+										{
+											Name:   "optional-cred-2",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv2.SecretReference{
+												Namespace: "default",
+												Name:      "missing-secret",
+											},
+											ResolvePolicy: new(v1.CredentialResolvePolicyOptional),
+										},
+										{
+											Name:   "optional-cred-3",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv2.SecretReference{
+												Namespace: "default",
+												Name:      "present-secret-2",
+											},
+											ResolvePolicy: new(v1.CredentialResolvePolicyOptional),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Events: []TargetedEvent{
+						{
+							Event: event.Event{
+								Type:    "Normal",
+								Reason:  "ComposeResources",
+								Message: "Optional credential \"optional-cred-2\" not found (secret default/missing-secret does not exist), continuing without it",
+							},
+							Detail: "Pipeline step \"run-cool-function\"",
+							Target: CompositionTargetComposite,
+						},
+					},
+				},
+				err: nil,
+			},
+		},
 		"RunFunctionError": {
 			reason: "We should return any error encountered while running a Composition Function",
 			params: params{
+				c: &test.MockClient{
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(nil),
+				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					return nil, errBoom
 				}),
@@ -228,7 +834,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -242,6 +848,10 @@ func TestFunctionCompose(t *testing.T) {
 		"FatalFunctionResultError": {
 			reason: "We should return any fatal function results as an error. Any conditions returned by the function should be passed up. Any results returned by the function prior to the fatal result should be passed up.",
 			params: params{
+				c: &test.MockClient{
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(nil),
+				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					return &fnv1.RunFunctionResponse{
 						Results: []*fnv1.Result{
@@ -309,7 +919,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -369,6 +979,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when rendering composed resource metadata",
 			params: params{
 				c: &test.MockClient{
+					MockList:        mockListFunctionRevisions(),
+					MockGet:         mockGetFunction(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
@@ -402,7 +1014,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -416,6 +1028,10 @@ func TestFunctionCompose(t *testing.T) {
 		"InvalidNameCreateComposedResourceError": {
 			reason: "We should return an error when a resource has an invalid name",
 			params: params{
+				c: &test.MockClient{
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(nil),
+				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
@@ -453,7 +1069,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -468,7 +1084,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when naming a composed resource",
 			params: params{
 				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(errBoom),
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(test.NewMockGetFn(errBoom)),
 				},
 				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
@@ -506,7 +1123,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -535,6 +1152,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when garbage collecting composed resources",
 			params: params{
 				c: &test.MockClient{
+					MockList:  mockListFunctionRevisions(),
+					MockGet:   mockGetFunction(nil),
 					MockPatch: test.NewMockPatchFn(nil),
 				},
 				uc: &test.MockClient{
@@ -564,7 +1183,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -579,6 +1198,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return an error when a namespaced XR tries to compose cluster-scoped resources",
 			params: params{
 				c: &test.MockClient{
+					MockList:               mockListFunctionRevisions(),
+					MockGet:                mockGetFunction(nil),
 					MockPatch:              test.NewMockPatchFn(nil),
 					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
 					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, false),
@@ -626,7 +1247,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -641,6 +1262,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should succeed when a namespaced XR tries to compose namespaced-scoped resources",
 			params: params{
 				c: &test.MockClient{
+					MockList:               mockListFunctionRevisions(),
+					MockGet:                mockGetFunction(nil),
 					MockPatch:              test.NewMockPatchFn(nil),
 					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
 					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, true),
@@ -688,7 +1311,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -705,6 +1328,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should emit a warning when a namespaced XR composes a resource with a different namespace",
 			params: params{
 				c: &test.MockClient{
+					MockList:        mockListFunctionRevisions(),
+					MockGet:         mockGetFunction(nil),
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
@@ -752,7 +1377,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -779,6 +1404,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should not emit a warning when a namespaced XR composes a resource with the same namespace",
 			params: params{
 				c: &test.MockClient{
+					MockList:        mockListFunctionRevisions(),
+					MockGet:         mockGetFunction(nil),
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
@@ -826,7 +1453,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -843,7 +1470,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "Cluster-scoped XRs should be allowed to compose cluster-scoped resources",
 			params: params{
 				c: &test.MockClient{
-					MockGet:                test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "ClusterComposed"}, "")), // all names are available
+					MockList:               mockListFunctionRevisions(),
+					MockGet:                mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "ClusterComposed"}, ""))), // all names are available
 					MockPatch:              test.NewMockPatchFn(nil),
 					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
 					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(errBoom, false),
@@ -887,7 +1515,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -904,6 +1532,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when applying the composite resource's resource references",
 			params: params{
 				c: &test.MockClient{
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(nil),
 					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
 						// We only want to return an error for the XR.
 						switch obj.(type) {
@@ -941,7 +1571,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -956,6 +1586,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when applying the composite resource status",
 			params: params{
 				c: &test.MockClient{
+					MockList:        mockListFunctionRevisions(),
+					MockGet:         mockGetFunction(nil),
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(errBoom),
 				},
@@ -995,7 +1627,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -1010,7 +1642,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when applying a composed resource",
 			params: params{
 				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "UncoolComposed"}, "")), // all names are available
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "UncoolComposed"}, ""))), // all names are available
 					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
 						// We only want to return an error if we're patching a
 						// composed resource.
@@ -1060,7 +1693,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -1104,7 +1737,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "cool-step",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 									Requirements: &v1.FunctionRequirements{
 										RequiredResources: []v1.RequiredResourceSelector{
 											{
@@ -1129,7 +1762,8 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return a valid CompositionResult when a 'pure Function' (i.e. patch-and-transform-less) reconcile succeeds",
 			params: params{
 				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					MockList: mockListFunctionRevisions(),
+					MockGet: mockGetFunction(test.NewMockGetFn(nil, func(obj client.Object) error {
 						if s, ok := obj.(*corev1.Secret); ok {
 							s.Data = map[string][]byte{
 								"secret": []byte("password"),
@@ -1142,7 +1776,7 @@ func TestFunctionCompose(t *testing.T) {
 						// TODO(negz): This is "testing through" to the
 						// names.NameGenerator implementation. Mock it out.
 						return kerrors.NewNotFound(schema.GroupResource{}, "")
-					}),
+					})),
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
@@ -1231,7 +1865,7 @@ func TestFunctionCompose(t *testing.T) {
 						r := ComposedResourceStates{
 							"observed-resource-a": ComposedResourceState{
 								Resource: &fake.Composed{
-									ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-a"},
+									ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-a", OwnerReferences: []metav1.OwnerReference{{Controller: new(true)}}},
 								},
 							},
 						}
@@ -1263,7 +1897,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 									Credentials: []v1.FunctionCredentials{
 										{
 											Name:   "cool-secret",
@@ -1347,16 +1981,462 @@ func TestFunctionCompose(t *testing.T) {
 							Target: CompositionTargetCompositeAndClaim,
 						},
 					},
-					TTL: 5 * time.Minute,
+					TTL:      5 * time.Minute,
+					Existing: 1,
 				},
 				err: nil,
+			},
+		},
+		"RetainReferencesToResourcesThatStillExist": {
+			reason: "With function-controlled deletion, we should keep referencing a composed resource the pipeline no longer desires until it's really gone, so functions can see it's still being deleted. This applies to any XR, whatever its deletion policy.",
+			params: params{
+				c: &test.MockClient{
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))),
+					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+						// We only care about the patch that persists the XR's
+						// composed resource references.
+						xr, ok := obj.(*composite.Unstructured)
+						if !ok {
+							return nil
+						}
+
+						refs := xr.GetResourceReferences()
+						if len(refs) != 1 {
+							return errors.Errorf("want 1 resource reference, got %d", len(refs))
+						}
+						if refs[0].Name != "observed-resource-a" {
+							return errors.Errorf("want a reference to observed-resource-a, got %q", refs[0].Name)
+						}
+						// No resourceRefs schema has a uid field.
+						if refs[0].UID != "" {
+							return errors.Errorf("want no UID in the resource reference, got %q", refs[0].UID)
+						}
+
+						return nil
+					}),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// A function that has stopped desiring the composed resource
+					// it used to desire, e.g. to tear it down in order.
+					return &fnv1.RunFunctionResponse{Desired: &fnv1.State{}}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithFunctionControlledDeletion(true),
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						// The resource still exists, and Kubernetes has begun
+						// deleting it.
+						cd := &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+							Name:              "observed-resource-a",
+							UID:               "some-uid",
+							DeletionTimestamp: &metav1.Time{Time: time.Now()},
+							OwnerReferences:   []metav1.OwnerReference{{Controller: new(true)}},
+						}}
+						return ComposedResourceStates{"observed-resource-a": ComposedResourceState{Resource: cd}}, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+					Group:   "test.crossplane.io",
+					Version: "v1",
+					Kind:    "CoolComposite",
+				})),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{{
+								Step:        "run-cool-function",
+								FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+							}},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{},
+					Existing: 1,
+				},
+			},
+		},
+		"DontReadoptOrphanedResources": {
+			reason: "While an XR is deleted, we shouldn't apply a desired composed resource that lost its controller reference, because the XR was deleted with orphan propagation.",
+			params: params{
+				c: &test.MockClient{
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))),
+					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+						xr, ok := obj.(*composite.Unstructured)
+						if !ok {
+							return errors.Errorf("want no composed resources applied, got %q", obj.GetName())
+						}
+
+						if refs := xr.GetResourceReferences(); len(refs) != 0 {
+							return errors.Errorf("want no resource references, got %d", len(refs))
+						}
+
+						return nil
+					}),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// A function that still desires the orphaned resource.
+					d := &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							"cool-resource": {
+								Resource: MustStruct(map[string]any{
+									"apiVersion": "test.crossplane.io/v1",
+									"kind":       "CoolComposed",
+								}),
+							},
+						},
+					}
+					return &fnv1.RunFunctionResponse{Desired: d}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithFunctionControlledDeletion(true),
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						// Kubernetes removed our controller reference.
+						cd := &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cool-resource-abc"}}
+						return ComposedResourceStates{"cool-resource": ComposedResourceState{Resource: cd}}, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: func() *composite.Unstructured {
+					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+						Group:   "test.crossplane.io",
+						Version: "v1",
+						Kind:    "CoolComposite",
+					}))
+					xr.SetName("cool-xr")
+					xr.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"})
+					xr.SetDeletionPolicy(v1.CompositionDeletionPolicyPipeline)
+					xr.SetDeletionTimestamp(&metav1.Time{Time: time.Now()})
+
+					return xr
+				}(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{{
+								Step:        "run-cool-function",
+								FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+							}},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{},
+				},
+			},
+		},
+		"DontComposeNewResourcesForOrphanedXRs": {
+			reason: "While an XR is deleted, if it references composed resources but owns none of them it was deleted with orphan propagation, so we shouldn't compose anything new.",
+			params: params{
+				c: &test.MockClient{
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))),
+					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+						xr, ok := obj.(*composite.Unstructured)
+						if !ok {
+							return errors.Errorf("want no composed resources applied, got %q", obj.GetName())
+						}
+
+						if refs := xr.GetResourceReferences(); len(refs) != 0 {
+							return errors.Errorf("want no resource references, got %d", len(refs))
+						}
+
+						return nil
+					}),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// A function that still desires the orphaned resource, and a
+					// new one to run while the XR is deleted.
+					d := &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							"cool-resource": {
+								Resource: MustStruct(map[string]any{
+									"apiVersion": "test.crossplane.io/v1",
+									"kind":       "CoolComposed",
+								}),
+							},
+							"backup-job": {
+								Resource: MustStruct(map[string]any{
+									"apiVersion": "test.crossplane.io/v1",
+									"kind":       "CoolComposed",
+								}),
+							},
+						},
+					}
+					return &fnv1.RunFunctionResponse{Desired: d}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithFunctionControlledDeletion(true),
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						// Kubernetes removed our controller reference.
+						cd := &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cool-resource-abc"}}
+						return ComposedResourceStates{"cool-resource": ComposedResourceState{Resource: cd}}, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: func() *composite.Unstructured {
+					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+						Group:   "test.crossplane.io",
+						Version: "v1",
+						Kind:    "CoolComposite",
+					}))
+					xr.SetName("cool-xr")
+					xr.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"})
+					xr.SetDeletionPolicy(v1.CompositionDeletionPolicyPipeline)
+					xr.SetDeletionTimestamp(&metav1.Time{Time: time.Now()})
+
+					return xr
+				}(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{{
+								Step:        "run-cool-function",
+								FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+							}},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{},
+				},
+			},
+		},
+		"DontRetainReferencesWhenDisabled": {
+			reason: "Without function-controlled deletion, we should stop referencing a composed resource as soon as the pipeline no longer desires it.",
+			params: params{
+				c: &test.MockClient{
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))),
+					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+						// We only care about the patch that persists the XR's
+						// composed resource references.
+						xr, ok := obj.(*composite.Unstructured)
+						if !ok {
+							return nil
+						}
+
+						if refs := xr.GetResourceReferences(); len(refs) != 0 {
+							return errors.Errorf("want no resource references, got %d", len(refs))
+						}
+
+						return nil
+					}),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// A function that has stopped desiring the composed resource
+					// it used to desire, e.g. to tear it down in order.
+					return &fnv1.RunFunctionResponse{Desired: &fnv1.State{}}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						// The resource still exists, and Kubernetes has begun
+						// deleting it.
+						cd := &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+							Name:              "observed-resource-a",
+							UID:               "some-uid",
+							DeletionTimestamp: &metav1.Time{Time: time.Now()},
+							OwnerReferences:   []metav1.OwnerReference{{Controller: new(true)}},
+						}}
+						return ComposedResourceStates{"observed-resource-a": ComposedResourceState{Resource: cd}}, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+					Group:   "test.crossplane.io",
+					Version: "v1",
+					Kind:    "CoolComposite",
+				})),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{{
+								Step:        "run-cool-function",
+								FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+							}},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{},
+					Existing: 1,
+				},
+			},
+		},
+		"PreserveRecordedDeletionPolicy": {
+			reason: "We should keep the deletion policy the XR recorded when we apply its status, because functions don't return it and the apply would delete it.",
+			params: params{
+				c: &test.MockClient{
+					MockList:  mockListFunctionRevisions(),
+					MockGet:   mockGetFunction(nil),
+					MockPatch: test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil, func(obj client.Object) error {
+						xr, ok := obj.(*composite.Unstructured)
+						if !ok {
+							return nil
+						}
+						if got := xr.GetDeletionPolicy(); got != v1.CompositionDeletionPolicyPipeline {
+							return errors.Errorf("want deletion policy %q in the status patch, got %q", v1.CompositionDeletionPolicyPipeline, got)
+						}
+
+						return nil
+					}),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					return &fnv1.RunFunctionResponse{Desired: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: MustStruct(map[string]any{
+							"apiVersion": "test.crossplane.io/v1",
+							"kind":       "CoolComposite",
+						})},
+					}}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return ComposedResourceStates{}, nil
+					})),
+				},
+			},
+			args: args{
+				xr: func() *composite.Unstructured {
+					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+						Group:   "test.crossplane.io",
+						Version: "v1",
+						Kind:    "CoolComposite",
+					}))
+					xr.SetDeletionPolicy(v1.CompositionDeletionPolicyPipeline)
+
+					return xr
+				}(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{{
+								Step:        "run-cool-function",
+								FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+							}},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{},
+				},
+			},
+		},
+		"DeletingPipelineStopsDesiringResources": {
+			reason: "When the XR is being deleted we should garbage collect the composed resources the pipeline no longer desires",
+			params: params{
+				c: &test.MockClient{
+					MockList:        mockListFunctionRevisions(),
+					MockGet:         mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))),
+					MockPatch:       test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					// A function that handles deletion. It saw the XR's deletion
+					// timestamp, and stopped desiring its composed resource.
+					return &fnv1.RunFunctionResponse{
+						Desired: &fnv1.State{},
+					}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return ComposedResourceStates{
+							"observed-resource-a": ComposedResourceState{
+								Resource: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-a", OwnerReferences: []metav1.OwnerReference{{Controller: new(true)}}}},
+							},
+						}, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, observed, desired ComposedResourceStates) error {
+						if _, ok := observed["observed-resource-a"]; !ok {
+							return errors.New("observed-resource-a should be observed")
+						}
+						if len(desired) != 0 {
+							return errors.New("nothing should be desired")
+						}
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+					Group:   "test.crossplane.io",
+					Version: "v1",
+					Kind:    "CoolComposite",
+				})),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{{
+								Step:        "run-cool-function",
+								FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+							}},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{},
+					Existing: 1,
+				},
 			},
 		},
 		"ResourceReferencesWithoutObservedResources": {
 			reason: "When XR has resourceRefs but the actual resources don't exist, the function should use a deterministic name (same as resourceRefs).",
 			params: params{
 				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "Deployment"}, "")), // all names are available
+					MockList: mockListFunctionRevisions(),
+					MockGet:  mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "Deployment"}, ""))), // all names are available
 					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
 						// Check if the composed resource uses the expected name from resourceRefs
 						if cd, ok := obj.(*composed.Unstructured); ok {
@@ -1436,7 +2516,7 @@ func TestFunctionCompose(t *testing.T) {
 							Pipeline: []v1.PipelineStep{
 								{
 									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
 								},
 							},
 						},
@@ -1885,7 +2965,8 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	type params struct {
-		client client.Writer
+		client                     client.Writer
+		functionControlledDeletion bool
 	}
 
 	type args struct {
@@ -1965,6 +3046,209 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 			want: want{
 				err: nil,
 			},
+		},
+		"ForegroundDeletionByDefault": {
+			reason: "We should delete a composed resource with foreground propagation, so that a nested XR's own composed resources are deleted before it is.",
+			params: params{
+				client: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+					MockDelete: func(_ context.Context, _ client.Object, opts ...client.DeleteOption) error {
+						do := &client.DeleteOptions{}
+						for _, o := range opts {
+							o.ApplyToDelete(do)
+						}
+						if do.PropagationPolicy == nil || *do.PropagationPolicy != metav1.DeletePropagationForeground {
+							return errors.Errorf("want foreground propagation, got %v", do.PropagationPolicy)
+						}
+
+						return nil
+					},
+				},
+			},
+			args: args{
+				owner: &fake.Composite{ObjectMeta: metav1.ObjectMeta{UID: "cool-xr"}},
+				observed: ComposedResourceStates{
+					"undesired-resource": ComposedResourceState{Resource: &fake.Composed{
+						ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+							Controller: new(true),
+							UID:        "cool-xr",
+						}}},
+					}},
+				},
+			},
+			want: want{err: nil},
+		},
+		"DontDeleteResourcesBeingDeleted": {
+			reason: "We shouldn't delete a composed resource that's already being deleted when deletion policies are enabled. We keep referencing it until it's gone, and deleting it again would trigger another reconcile.",
+			params: params{
+				functionControlledDeletion: true,
+				client: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(errors.New("shouldn't update a resource that's being deleted")),
+					MockDelete: test.NewMockDeleteFn(errors.New("shouldn't delete a resource that's being deleted")),
+				},
+			},
+			args: args{
+				owner: &fake.Composite{ObjectMeta: metav1.ObjectMeta{UID: "cool-xr"}},
+				observed: ComposedResourceStates{
+					"deleting-resource": ComposedResourceState{Resource: &fake.Composed{
+						ObjectMeta: metav1.ObjectMeta{
+							DeletionTimestamp: &metav1.Time{},
+							OwnerReferences: []metav1.OwnerReference{{
+								Controller: new(true),
+								UID:        "cool-xr",
+							}},
+						},
+					}},
+				},
+			},
+			want: want{err: nil},
+		},
+		"BackgroundDeletionForForegroundXRs": {
+			reason: "With function-controlled deletion, we should delete a composed XR with the Foreground policy using background propagation. It deletes its own composed resources, so Kubernetes garbage collection shouldn't.",
+			params: params{
+				functionControlledDeletion: true,
+				client: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+					MockDelete: func(_ context.Context, _ client.Object, opts ...client.DeleteOption) error {
+						do := &client.DeleteOptions{}
+						for _, o := range opts {
+							o.ApplyToDelete(do)
+						}
+						if do.PropagationPolicy == nil || *do.PropagationPolicy != metav1.DeletePropagationBackground {
+							return errors.Errorf("want background propagation, got %v", do.PropagationPolicy)
+						}
+
+						return nil
+					},
+				},
+			},
+			args: args{
+				owner: &fake.Composite{ObjectMeta: metav1.ObjectMeta{UID: "cool-xr"}},
+				observed: ComposedResourceStates{
+					"undesired-resource": ComposedResourceState{Resource: func() *composed.Unstructured {
+						cd := composed.New()
+						cd.SetOwnerReferences([]metav1.OwnerReference{{
+							Controller: new(true),
+							UID:        "cool-xr",
+						}})
+						// This composed resource is an XR whose deletion policy is
+						// Foreground.
+						_ = fieldpath.Pave(cd.Object).SetValue("status.crossplane.deletionPolicy", "Foreground")
+						return cd
+					}()},
+				},
+			},
+			want: want{err: nil},
+		},
+		"BackgroundDeletionForPipelineXRs": {
+			reason: "With function-controlled deletion, we should delete a composed XR with the Pipeline policy using background propagation. It deletes its own composed resources, so Kubernetes garbage collection shouldn't.",
+			params: params{
+				functionControlledDeletion: true,
+				client: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+					MockDelete: func(_ context.Context, _ client.Object, opts ...client.DeleteOption) error {
+						do := &client.DeleteOptions{}
+						for _, o := range opts {
+							o.ApplyToDelete(do)
+						}
+						if do.PropagationPolicy == nil || *do.PropagationPolicy != metav1.DeletePropagationBackground {
+							return errors.Errorf("want background propagation, got %v", do.PropagationPolicy)
+						}
+
+						return nil
+					},
+				},
+			},
+			args: args{
+				owner: &fake.Composite{ObjectMeta: metav1.ObjectMeta{UID: "cool-xr"}},
+				observed: ComposedResourceStates{
+					"undesired-resource": ComposedResourceState{Resource: func() *composed.Unstructured {
+						cd := composed.New()
+						cd.SetOwnerReferences([]metav1.OwnerReference{{
+							Controller: new(true),
+							UID:        "cool-xr",
+						}})
+						// This composed resource is an XR whose deletion policy is
+						// Pipeline.
+						_ = fieldpath.Pave(cd.Object).SetValue("status.crossplane.deletionPolicy", "Pipeline")
+						return cd
+					}()},
+				},
+			},
+			want: want{err: nil},
+		},
+		"ForegroundDeletionWhenPoliciesDisabled": {
+			reason: "A deletion policy recorded while deletion policies were enabled means nothing once they're disabled, so we should keep foreground propagation.",
+			params: params{
+				client: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+					MockDelete: func(_ context.Context, _ client.Object, opts ...client.DeleteOption) error {
+						do := &client.DeleteOptions{}
+						for _, o := range opts {
+							o.ApplyToDelete(do)
+						}
+						if do.PropagationPolicy == nil || *do.PropagationPolicy != metav1.DeletePropagationForeground {
+							return errors.Errorf("want foreground propagation, got %v", do.PropagationPolicy)
+						}
+
+						return nil
+					},
+				},
+			},
+			args: args{
+				owner: &fake.Composite{ObjectMeta: metav1.ObjectMeta{UID: "cool-xr"}},
+				observed: ComposedResourceStates{
+					"undesired-resource": ComposedResourceState{Resource: func() *composed.Unstructured {
+						cd := composed.New()
+						cd.SetOwnerReferences([]metav1.OwnerReference{{
+							Controller: new(true),
+							UID:        "cool-xr",
+						}})
+						// This composed resource is an XR whose deletion policy is
+						// Pipeline.
+						_ = fieldpath.Pave(cd.Object).SetValue("status.crossplane.deletionPolicy", "Pipeline")
+						return cd
+					}()},
+				},
+			},
+			want: want{err: nil},
+		},
+		"ForegroundDeletionForBackgroundXRs": {
+			reason: "A composed XR whose deletion policy is Background leaves its composed resources to Kubernetes, so we should keep foreground propagation to delete them bottom up.",
+			params: params{
+				functionControlledDeletion: true,
+				client: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+					MockDelete: func(_ context.Context, _ client.Object, opts ...client.DeleteOption) error {
+						do := &client.DeleteOptions{}
+						for _, o := range opts {
+							o.ApplyToDelete(do)
+						}
+						if do.PropagationPolicy == nil || *do.PropagationPolicy != metav1.DeletePropagationForeground {
+							return errors.Errorf("want foreground propagation, got %v", do.PropagationPolicy)
+						}
+
+						return nil
+					},
+				},
+			},
+			args: args{
+				owner: &fake.Composite{ObjectMeta: metav1.ObjectMeta{UID: "cool-xr"}},
+				observed: ComposedResourceStates{
+					"undesired-resource": ComposedResourceState{Resource: func() *composed.Unstructured {
+						cd := composed.New()
+						cd.SetOwnerReferences([]metav1.OwnerReference{{
+							Controller: new(true),
+							UID:        "cool-xr",
+						}})
+						// This composed resource is an XR whose deletion policy is
+						// Background.
+						_ = fieldpath.Pave(cd.Object).SetValue("status.crossplane.deletionPolicy", "Background")
+						return cd
+					}()},
+				},
+			},
+			want: want{err: nil},
 		},
 		"UpdateError": {
 			reason: "We should return any error encountered updating the resource with removed labels.",
@@ -2113,7 +3397,7 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			d := NewDeletingComposedResourceGarbageCollector(tc.params.client)
+			d := NewDeletingComposedResourceGarbageCollector(tc.params.client, WithDeletionPolicies(tc.params.functionControlledDeletion))
 
 			err := d.GarbageCollectComposedResources(tc.args.ctx, tc.args.owner, tc.args.observed, tc.args.desired)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -2185,6 +3469,31 @@ func TestUpdateResourceRefs(t *testing.T) {
 							{Namespace: "a", Name: "never-created-b-42"},
 							{Namespace: "b", Name: "never-created-b-42"},
 							{Namespace: "c", Name: "never-created-c-42"},
+						},
+					},
+				},
+			},
+		},
+		"ObservedResourceUID": {
+			reason: "We shouldn't include an observed resource's UID in its reference, because the XR's resourceRefs schema has no uid field.",
+			args: args{
+				xr: &fake.Composite{},
+				drs: ComposedResourceStates{
+					"observed": ComposedResourceState{
+						Resource: &fake.Composed{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "observed-42",
+								UID:  "observed-uid",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				xr: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
+						Refs: []corev1.ObjectReference{
+							{Name: "observed-42"},
 						},
 					},
 				},
@@ -2295,5 +3604,93 @@ func TestPipelineFatalErrorAs(t *testing.T) {
 	}
 	if diff := cmp.Diff(pfe, got); diff != "" {
 		t.Errorf("errors.As recovered PipelineFatalError: -want, +got:\n%s", diff)
+	}
+}
+
+func TestReferenced(t *testing.T) {
+	xr := &fake.Composite{ObjectMeta: metav1.ObjectMeta{UID: "xr-uid"}}
+
+	desired := &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "desired"}}
+	deleting := &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "deleting", OwnerReferences: []metav1.OwnerReference{{UID: "xr-uid", Controller: new(true)}}}}
+	orphaned := &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "orphaned"}}
+	other := &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "other", OwnerReferences: []metav1.OwnerReference{{UID: "other-uid", Controller: new(true)}}}}
+
+	type args struct {
+		xr       metav1.Object
+		desired  ComposedResourceStates
+		observed ComposedResourceStates
+		retain   bool
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   []ResourceName
+	}{
+		"DontRetain": {
+			reason: "We should only reference desired resources when we're not retaining references.",
+			args: args{
+				xr:       xr,
+				desired:  ComposedResourceStates{"desired": {Resource: desired}},
+				observed: ComposedResourceStates{"deleting": {Resource: deleting}},
+				retain:   false,
+			},
+			want: []ResourceName{"desired"},
+		},
+		"RetainControlled": {
+			reason: "We should keep referencing a controlled resource that still exists after we stop desiring it.",
+			args: args{
+				xr:       xr,
+				desired:  ComposedResourceStates{"desired": {Resource: desired}},
+				observed: ComposedResourceStates{"deleting": {Resource: deleting}},
+				retain:   true,
+			},
+			want: []ResourceName{"deleting", "desired"},
+		},
+		"DontRetainUncontrolled": {
+			reason: "We should stop referencing a resource without a controller reference, because we'll never delete it.",
+			args: args{
+				xr:       xr,
+				desired:  ComposedResourceStates{"desired": {Resource: desired}},
+				observed: ComposedResourceStates{"orphaned": {Resource: orphaned}},
+				retain:   true,
+			},
+			want: []ResourceName{"desired"},
+		},
+		"DontRetainControlledByOthers": {
+			reason: "We should stop referencing a resource another owner controls, because we'll never delete it.",
+			args: args{
+				xr:       xr,
+				desired:  ComposedResourceStates{"desired": {Resource: desired}},
+				observed: ComposedResourceStates{"other": {Resource: other}},
+				retain:   true,
+			},
+			want: []ResourceName{"desired"},
+		},
+		"KeepDesiredUncontrolled": {
+			reason: "We should keep referencing a desired resource, even if it doesn't have a controller reference yet.",
+			args: args{
+				xr:       xr,
+				desired:  ComposedResourceStates{"orphaned": {Resource: orphaned}},
+				observed: ComposedResourceStates{"orphaned": {Resource: orphaned}},
+				retain:   true,
+			},
+			want: []ResourceName{"orphaned"},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := referenced(tc.args.xr, tc.args.desired, tc.args.observed, tc.args.retain)
+
+			names := make([]ResourceName, 0, len(got))
+			for n := range got {
+				names = append(names, n)
+			}
+
+			if diff := cmp.Diff(tc.want, names, cmpopts.SortSlices(func(a, b ResourceName) bool { return a < b })); diff != "" {
+				t.Errorf("\n%s\nreferenced(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
 	}
 }

@@ -157,6 +157,17 @@
       ],
     },
     {
+      description: 'Group all non-major go dependency updates into a single PR to avoid merge conflicts',
+      matchDatasources: [
+        'go',
+      ],
+      matchUpdateTypes: [
+        'minor',
+        'patch',
+      ],
+      groupName: 'go dependencies',
+    },
+    {
       description: "Ignore oss-fuzz, it's not using tags, we'll stick to master",
       matchDepTypes: [
         'action',

@@ -39,6 +39,8 @@ import (
 
 const (
 	errDeleteFunctionDeployment               = "cannot delete function package deployment"
+	errFmtDeleteFunctionService               = "cannot delete function package service %q"
+	errDeleteFunctionSecret                   = "cannot delete function package secret"
 	errApplyFunctionDeployment                = "cannot apply function package deployment"
 	errApplyFunctionSecret                    = "cannot apply function package secret"
 	errApplyFunctionSA                        = "cannot apply function package service account"
@@ -190,15 +192,44 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 		return errors.Wrap(err, errDeleteFunctionDeployment)
 	}
 
+	svc := h.service(pr, rc)
+	if err := deleteRuntimeObjectControlledBy(ctx, h.client.Client, pr, svc); err != nil {
+		return errors.Wrapf(err, errFmtDeleteFunctionService, svc.Name)
+	}
+
+	// Clean up the per-function service from previous Crossplane versions,
+	// which is no longer used. Ignore DeploymentRuntimeConfigs for this
+	// purpose, since a user-supplied name could still be in use by the
+	// function.
+	//
+	// TODO(adamwg): Delete this for Crossplane v2.6.
+	fnSvc := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: corev1.SchemeGroupVersion.Identifier(),
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: h.namespace,
+			Name:      h.packageName(pr),
+		},
+	}
+	if err := deleteRuntimeObjectControlledBy(ctx, h.client.Client, pr, fnSvc); err != nil {
+		return errors.Wrapf(err, errFmtDeleteFunctionService, fnSvc.Name)
+	}
+
+	secServer := h.tlsServerSecret(pr)
+	if secServer != nil {
+		if err := deleteRuntimeObjectControlledBy(ctx, h.client.Client, pr, secServer); err != nil {
+			return errors.Wrap(err, errDeleteFunctionSecret)
+		}
+	}
+
 	// NOTE(turkenh): We don't delete the service account here because it might
 	// be used by other package revisions, e.g. user might have specified a
 	// service account name in the runtime config. This should not be a problem
 	// because we add the owner reference to the service account when we create
 	// them, and they will be garbage collected when the package revision is
 	// deleted if they are not used by any other package revisions.
-
-	// NOTE(ezgidemirel): Service and secret are created per package. Therefore,
-	// we're not deleting them here.
 
 	// NOTE(jbw976): We leave our owner references on those shared objects alone, controlling flag
 	// included. The revision taking over demotes us as part of claiming them, which keeps the
@@ -361,7 +392,7 @@ func (h *FunctionHooks) service(pr v1.PackageRevisionWithRuntime, rc *v1beta1.De
 	for _, o := range []ServiceOverride{
 		// Optional defaults, will be used only if the runtime config does not
 		// specify them.
-		ServiceWithOptionalName(h.packageName(pr)),
+		ServiceWithOptionalName(pr.GetName()),
 
 		// Overrides that we are opinionated about.
 		ServiceWithNamespace(h.namespace),

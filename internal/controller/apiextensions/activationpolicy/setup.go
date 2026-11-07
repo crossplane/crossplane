@@ -20,6 +20,8 @@ import (
 	"strings"
 
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -30,8 +32,7 @@ import (
 	apiextensionscontroller "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/controller"
 )
 
-// Setup adds a controller that reconciles CompositeResourceDefinitions by
-// defining a composite resource and starting a controller to reconcile it.
+// Setup adds a controller that reconciles ManagedResourceActivationPolicies.
 func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 	name := "mrap/" + strings.ToLower(v1alpha1.ManagedResourceActivationPolicyKind)
 
@@ -44,7 +45,8 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 		Named(name).
 		For(&v1alpha1.ManagedResourceActivationPolicy{}).
 		Watches(&v1alpha1.ManagedResourceDefinition{},
-			EnqueueActivationPolicyForManagedResourceDefinition(mgr.GetClient(), r.log)).
+			EnqueueActivationPolicyForManagedResourceDefinition(mgr.GetClient(), r.log),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(errors.WithSilentRequeueOnConflict(r))
 }

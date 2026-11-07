@@ -86,10 +86,16 @@ type PackageWithRuntime interface {
 
 	GetRuntimeConfigRef() *RuntimeConfigReference
 	SetRuntimeConfigRef(r *RuntimeConfigReference)
+}
 
-	GetTLSServerSecretName() *string
+// PackageWithExternalRevisions is the interface satisfied by packages whose
+// revisions may be managed externally, rather than by the package manager.
+// +k8s:deepcopy-gen=false
+type PackageWithExternalRevisions interface {
+	Package
 
-	GetTLSClientSecretName() *string
+	GetExternalRevisionRefs() []corev1.LocalObjectReference
+	SetExternalRevisionRefs(refs []corev1.LocalObjectReference)
 }
 
 // SetAppliedImageConfigRefs sets applied image config refs, replacing any
@@ -310,16 +316,6 @@ func (p *Provider) GetCommonAnnotations() map[string]string {
 // SetCommonAnnotations of this Provider.
 func (p *Provider) SetCommonAnnotations(a map[string]string) {
 	p.Spec.CommonAnnotations = a
-}
-
-// GetTLSServerSecretName of this Provider.
-func (p *Provider) GetTLSServerSecretName() *string {
-	return GetSecretNameWithSuffix(p.GetName(), TLSServerSecretNameSuffix)
-}
-
-// GetTLSClientSecretName of this Provider.
-func (p *Provider) GetTLSClientSecretName() *string {
-	return GetSecretNameWithSuffix(p.GetName(), TLSClientSecretNameSuffix)
 }
 
 // GetAppliedImageConfigRefs of this Provider.
@@ -1185,14 +1181,14 @@ func (f *Function) SetCommonAnnotations(a map[string]string) {
 	f.Spec.CommonAnnotations = a
 }
 
-// GetTLSServerSecretName of this Function.
-func (f *Function) GetTLSServerSecretName() *string {
-	return GetSecretNameWithSuffix(f.GetName(), TLSServerSecretNameSuffix)
+// GetExternalRevisionRefs of this Function.
+func (f *Function) GetExternalRevisionRefs() []corev1.LocalObjectReference {
+	return f.Status.ExternalRevisionRefs
 }
 
-// GetTLSClientSecretName of this Function.
-func (f *Function) GetTLSClientSecretName() *string {
-	return nil
+// SetExternalRevisionRefs of this Function.
+func (f *Function) SetExternalRevisionRefs(refs []corev1.LocalObjectReference) {
+	f.Status.ExternalRevisionRefs = refs
 }
 
 // GetAppliedImageConfigRefs of this Function.

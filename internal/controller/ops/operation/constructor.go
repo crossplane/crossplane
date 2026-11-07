@@ -27,6 +27,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
@@ -43,7 +44,8 @@ func Setup(mgr ctrl.Manager, o opscontroller.Options) error {
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
 		WithFunctionRunner(o.FunctionRunner),
-		WithRequiredSchemasFetcher(xfn.NewOpenAPIRequiredSchemasFetcher(o.OpenAPIClient)))
+		WithRequiredSchemasFetcher(xfn.NewOpenAPIRequiredSchemasFetcher(o.OpenAPIClient)),
+		WithFeatures(o.Features))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -97,6 +99,13 @@ func WithRequiredSchemasFetcher(f xfn.RequiredSchemasFetcher) ReconcilerOption {
 	}
 }
 
+// WithFeatures specifies which feature flags are enabled.
+func WithFeatures(f *feature.Flags) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.features = f
+	}
+}
+
 // NewReconciler returns a Reconciler of Operations.
 func NewReconciler(c client.Client, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
@@ -107,6 +116,7 @@ func NewReconciler(c client.Client, opts ...ReconcilerOption) *Reconciler {
 		functions:  xfn.NewRevisionCapabilityChecker(c),
 		resources:  xfn.NewExistingRequiredResourcesFetcher(c),
 		schemas:    xfn.NopRequiredSchemasFetcher{},
+		features:   &feature.Flags{},
 	}
 
 	for _, f := range opts {

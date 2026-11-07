@@ -1536,11 +1536,11 @@ func TestActivationPolicyAutomatic(t *testing.T) {
 				// Check that the function's deployment uses the correct image
 				// and its service targets the correct deployment.
 				funcs.ResourceHasFieldValueWithin(2*time.Minute, deployment(funcrev1.Name), "spec.template.spec.containers[0].image", "xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.0"),
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-function-dummy"), "spec.selector[pkg.crossplane.io/revision]", funcrev1.Name),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, service(funcrev1.Name), "spec.selector[pkg.crossplane.io/revision]", funcrev1.Name),
 				// Check that the active revision is the sole owner of the
-				// objects that are shared by every revision of the function.
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-function-dummy"), "metadata.ownerReferences", funcs.SolelyOwnedBy(funcrev1.Name)),
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret("e2e-activation-function-dummy-tls-server"), "metadata.ownerReferences", funcs.SolelyOwnedBy(funcrev1.Name)),
+				// objects. These objects are not shared for functions.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, service(funcrev1.Name), "metadata.ownerReferences", funcs.SolelyOwnedBy(funcrev1.Name)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret(funcrev1.Name+"-tls-server"), "metadata.ownerReferences", funcs.SolelyOwnedBy(funcrev1.Name)),
 			)).
 			Assess("InstallProvider", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-1.yaml"),
@@ -1588,12 +1588,11 @@ func TestActivationPolicyAutomatic(t *testing.T) {
 				// Check that the function's deployment uses the correct image
 				// and its service targets the correct deployment.
 				funcs.ResourceHasFieldValueWithin(2*time.Minute, deployment(funcrev2.Name), "spec.template.spec.containers[0].image", "xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.1"),
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-function-dummy"), "spec.selector[pkg.crossplane.io/revision]", funcrev2.Name),
-				// Check that the incoming revision took sole ownership of the
-				// objects it shares with the revision it replaced, leaving the
-				// outgoing revision no owner reference at all.
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, service("e2e-activation-function-dummy"), "metadata.ownerReferences", funcs.SolelyOwnedBy(funcrev2.Name)),
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret("e2e-activation-function-dummy-tls-server"), "metadata.ownerReferences", funcs.SolelyOwnedBy(funcrev2.Name)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, service(funcrev2.Name), "spec.selector[pkg.crossplane.io/revision]", funcrev2.Name),
+				// Check that the new revision is the sole owner of its
+				// objects. These objects are not shared for functions.
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, service(funcrev2.Name), "metadata.ownerReferences", funcs.SolelyOwnedBy(funcrev2.Name)),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, secret(funcrev2.Name+"-tls-server"), "metadata.ownerReferences", funcs.SolelyOwnedBy(funcrev2.Name)),
 			)).
 			Assess("UpdateProvider", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-2.yaml"),
@@ -1640,3 +1639,75 @@ func TestActivationPolicyAutomatic(t *testing.T) {
 
 // TODO(adamwg): Add an equivalent test for the manual revision activation
 // policy.
+
+// TestCompositionFunctionUpgradeFromDependency tests the upgrade path where a
+// function is first installed as a normal dependency of a Configuration (whose
+// Composition references it by name), and a new version of the Composition then
+// references a new version of the same function by OCI ref. The
+// composition-owned external FunctionRevision should be added to the existing,
+// manager-owned Function.
+func TestCompositionFunctionUpgradeFromDependency(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/composition-function-upgrade"
+
+	// externalRefsLen returns a checker that passes when
+	// status.externalRevisionRefs has exactly n entries.
+	externalRefsLen := func(n int) funcs.FieldValueChecker {
+		return func(got any) bool {
+			s, ok := got.([]any)
+			return ok && len(s) == n
+		}
+	}
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests upgrading a Configuration with a function dependency to one containing a composition that references the function by OCI ref.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuitePipelineOCIReferences).
+			WithSetup("InstallConfigurationV1", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("DependencyFunctionInstalled", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "function.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "function.yaml", "spec.package", "xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.0"),
+			)).
+			Assess("XRIsReadyOnV1", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "xr.yaml", xpv2.Available()),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "status.coolerField", "served-by-v1-composition"),
+			)).
+			Assess("UpgradeToV2AddsExternalRevision", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration-updated.yaml"),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "configuration-updated.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveFieldValueWithin(3*time.Minute, manifests, "function.yaml", "status.externalRevisionRefs", externalRefsLen(1)),
+				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "function.yaml", "spec.package", "xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.0"),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "function.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "xr.yaml", xpv2.Available()),
+				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "xr.yaml", "status.coolerField", "served-by-v2-composition"),
+			)).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "xr.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "configuration-updated.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "configuration-updated.yaml"),
+				// Deleting the Configuration deletes its CompositionRevisions.
+				// The Function was installed as a dependency, so it must not be
+				// garbage collected with them, but the external revisions
+				// they owned are, so the package manager should drop them
+				// from the Function's status.
+				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "function.yaml", "status.externalRevisionRefs", funcs.NotFound),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "function.yaml", "spec.package", "xpkg.crossplane.io/crossplane-contrib/function-dummy:v0.4.0"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "function.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			// Dependencies are not deleted automatically; clean up the Function.
+			WithTeardown("DeleteFunction", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "function.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "function.yaml"),
+			)).
+			Feature(),
+	)
+}

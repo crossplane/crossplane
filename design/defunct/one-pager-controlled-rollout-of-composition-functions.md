@@ -2,7 +2,7 @@
 
 * Owner: Adam Wolfe Gordon (@adamwg)
 * Reviewers: Crossplane Maintainers
-* Status: Accepted
+* Status: Superseded by [v2]
 
 ## Background
 
@@ -221,3 +221,4 @@ condition on the XR and raise an event.
 
 [crossplane#6139]: https://github.com/crossplane/crossplane/issues/6139
 [crossplane#5294]: https://github.com/crossplane/crossplane/issues/5294
+[v2]: ../one-pager-controlled-rollout-of-composition-functions-v2.md

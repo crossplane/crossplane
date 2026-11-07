@@ -50,9 +50,9 @@ func TestRunFunction(t *testing.T) {
 	}
 
 	type args struct {
-		ctx  context.Context
-		name string
-		req  *fnv1.RunFunctionRequest
+		ctx context.Context
+		rev string
+		req *fnv1.RunFunctionRequest
 	}
 
 	type want struct {
@@ -66,119 +66,72 @@ func TestRunFunction(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ListFunctionRevisionError": {
-			reason: "We should return an error if we can't get (or verify) a client connection because we can't list FunctionRevisions",
+		"GetFunctionRevisionError": {
+			reason: "We should return an error if we can't get (or verify) a client connection because we can't get the FunctionRevision",
 			params: params{
 				c: &test.MockClient{
-					MockList: test.NewMockListFn(errBoom),
+					MockGet: test.NewMockGetFn(errBoom),
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
-				name: "cool-fn",
+				ctx: context.Background(),
+				rev: "cool-fn-revision-a",
 			},
 			want: want{
-				err: errors.Wrapf(errors.Wrap(errBoom, errListFunctionRevisions), errFmtGetClientConn, "cool-fn"),
+				err: errors.Wrapf(errors.Wrap(errBoom, errGetFunctionRevision), errFmtGetClientConn, "cool-fn-revision-a"),
 			},
 		},
-		"NoActiveRevisions": {
-			reason: "We should return an error if we can't get (or verify) a client connection because no FunctionRevision is active",
+		"InactiveRevision": {
+			reason: "We should return an error if we can't get (or verify) a client connection because the FunctionRevision is not active",
 			params: params{
 				c: &test.MockClient{
-					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						obj.(*pkgv1.FunctionRevisionList).Items = []pkgv1.FunctionRevision{
-							{
-								Spec: pkgv1.FunctionRevisionSpec{
-									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
-										DesiredState: pkgv1.PackageRevisionInactive, // This revision is not active.
-									},
-								},
-							},
-						}
-						return nil
-					}),
+					MockGet: NewGetFn(pkgv1.PackageRevisionInactive, "dns:///localhost:1234"), // This revision is not active.
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
-				name: "cool-fn",
+				ctx: context.Background(),
+				rev: "cool-fn-revision-a",
 			},
 			want: want{
-				err: errors.Wrapf(errors.New(errNoActiveRevisions), errFmtGetClientConn, "cool-fn"),
+				err: errors.Wrapf(errors.Errorf(errFmtInactiveRevision, "cool-fn-revision-a"), errFmtGetClientConn, "cool-fn-revision-a"),
 			},
 		},
 		"ActiveRevisionHasNoEndpoint": {
 			reason: "We should return an error if we can't get (or verify) a client connection because the active FunctionRevision has an empty status.endpoint",
 			params: params{
 				c: &test.MockClient{
-					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						obj.(*pkgv1.FunctionRevisionList).Items = []pkgv1.FunctionRevision{
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "cool-fn-revision-a",
-								},
-								Spec: pkgv1.FunctionRevisionSpec{
-									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
-										DesiredState: pkgv1.PackageRevisionActive,
-									},
-								},
-								Status: pkgv1.FunctionRevisionStatus{
-									Endpoint: "", // An empty endpoint.
-								},
-							},
-						}
-						return nil
-					}),
+					MockGet: NewGetFn(pkgv1.PackageRevisionActive, ""), // An empty endpoint.
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
-				name: "cool-fn",
+				ctx: context.Background(),
+				rev: "cool-fn-revision-a",
 			},
 			want: want{
-				err: errors.Wrapf(errors.Errorf(errFmtEmptyEndpoint, "cool-fn-revision-a"), errFmtGetClientConn, "cool-fn"),
+				err: errors.Wrapf(errors.Errorf(errFmtEmptyEndpoint, "cool-fn-revision-a"), errFmtGetClientConn, "cool-fn-revision-a"),
 			},
 		},
 		"SuccessfulRequest": {
 			reason: "We should create a new client connection and successfully make a request if no client already exists",
 			params: params{
 				c: &test.MockClient{
-					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
 						// Start a gRPC server.
 						lis := NewGRPCServer(t, &MockFunctionServer{rsp: &fnv1.RunFunctionResponse{
 							Meta: &fnv1.ResponseMeta{Tag: "hi!"},
 						}})
 						listeners = append(listeners, lis)
 
-						l, ok := obj.(*pkgv1.FunctionRevisionList)
-						if !ok {
-							// If we're called to list Functions we want to
-							// return none, to make sure we GC everything.
-							return nil
-						}
-						l.Items = []pkgv1.FunctionRevision{
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "cool-fn-revision-a",
-								},
-								Spec: pkgv1.FunctionRevisionSpec{
-									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
-										DesiredState: pkgv1.PackageRevisionActive,
-									},
-								},
-								Status: pkgv1.FunctionRevisionStatus{
-									Endpoint: strings.Replace(lis.Addr().String(), "127.0.0.1", "dns:///localhost", 1),
-								},
-							},
-						}
-						return nil
-					}),
+						return NewGetFn(pkgv1.PackageRevisionActive, strings.Replace(lis.Addr().String(), "127.0.0.1", "dns:///localhost", 1))(ctx, key, obj)
+					},
+					// Return no FunctionRevisions, to make sure we GC everything.
+					MockList: test.NewMockListFn(nil),
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
-				name: "cool-fn",
-				req:  &fnv1.RunFunctionRequest{},
+				ctx: context.Background(),
+				rev: "cool-fn-revision-a",
+				req: &fnv1.RunFunctionRequest{},
 			},
 			want: want{
 				rsp: &fnv1.RunFunctionResponse{
@@ -190,42 +143,23 @@ func TestRunFunction(t *testing.T) {
 			reason: "We should create a new client connection and successfully make a v1beta1 request if the server doesn't yet implement v1",
 			params: params{
 				c: &test.MockClient{
-					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
 						// Start a gRPC server.
 						lis := NewBetaGRPCServer(t, &MockBetaFunctionServer{rsp: &fnv1beta1.RunFunctionResponse{
 							Meta: &fnv1beta1.ResponseMeta{Tag: "hi!"},
 						}})
 						listeners = append(listeners, lis)
 
-						l, ok := obj.(*pkgv1.FunctionRevisionList)
-						if !ok {
-							// If we're called to list Functions we want to
-							// return none, to make sure we GC everything.
-							return nil
-						}
-						l.Items = []pkgv1.FunctionRevision{
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "cool-fn-revision-a",
-								},
-								Spec: pkgv1.FunctionRevisionSpec{
-									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
-										DesiredState: pkgv1.PackageRevisionActive,
-									},
-								},
-								Status: pkgv1.FunctionRevisionStatus{
-									Endpoint: strings.Replace(lis.Addr().String(), "127.0.0.1", "dns:///localhost", 1),
-								},
-							},
-						}
-						return nil
-					}),
+						return NewGetFn(pkgv1.PackageRevisionActive, strings.Replace(lis.Addr().String(), "127.0.0.1", "dns:///localhost", 1))(ctx, key, obj)
+					},
+					// Return no FunctionRevisions, to make sure we GC everything.
+					MockList: test.NewMockListFn(nil),
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
-				name: "cool-fn",
-				req:  &fnv1.RunFunctionRequest{},
+				ctx: context.Background(),
+				rev: "cool-fn-revision-a",
+				req: &fnv1.RunFunctionRequest{},
 			},
 			want: want{
 				rsp: &fnv1.RunFunctionResponse{
@@ -238,7 +172,7 @@ func TestRunFunction(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewPackagedFunctionRunner(tc.params.c, tc.params.o...)
-			rsp, err := r.RunFunction(tc.args.ctx, tc.args.name, tc.args.req)
+			rsp, err := r.RunFunction(tc.args.ctx, tc.args.rev, tc.args.req)
 
 			if diff := cmp.Diff(tc.want.rsp, rsp, protocmp.Transform()); diff != "" {
 				t.Errorf("\n%s\nr.RunFunction(...): -want, +got:\n%s", tc.reason, diff)
@@ -278,14 +212,15 @@ func TestGetClientConn(t *testing.T) {
 	target := strings.Replace(lis.Addr().String(), "127.0.0.1", "dns:///localhost", 1)
 
 	c := &test.MockClient{
-		MockList: NewListFn(target),
+		MockGet:  NewGetFn(pkgv1.PackageRevisionActive, target),
+		MockList: test.NewMockListFn(nil),
 	}
 
 	r := NewPackagedFunctionRunner(c)
 
 	// We should be able to create a new connection.
 	t.Run("CreateNewConnection", func(t *testing.T) {
-		conn, err := r.getClientConn(context.Background(), "cool-fn")
+		conn, err := r.getClientConn(context.Background(), "cool-fn-revision-a")
 
 		if diff := cmp.Diff(target, conn.Target()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want, +got:\n%s", diff)
@@ -299,7 +234,7 @@ func TestGetClientConn(t *testing.T) {
 	// If we're called again and our FunctionRevision's endpoint hasn't changed,
 	// we should return our cached connection.
 	t.Run("ReuseExistingConnection", func(t *testing.T) {
-		conn, err := r.getClientConn(context.Background(), "cool-fn")
+		conn, err := r.getClientConn(context.Background(), "cool-fn-revision-a")
 
 		if diff := cmp.Diff(target, conn.Target()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want, +got:\n%s", diff)
@@ -317,12 +252,12 @@ func TestGetClientConn(t *testing.T) {
 	defer lis2.Close()
 
 	target = strings.Replace(lis2.Addr().String(), "127.0.0.1", "dns:///localhost", 1)
-	c.MockList = NewListFn(target)
+	c.MockGet = NewGetFn(pkgv1.PackageRevisionActive, target)
 
 	// If we're called again and our FunctionRevision's endpoint _has_ changed,
 	// we should close our cached connection and create a new one.
 	t.Run("ReplaceExistingConnection", func(t *testing.T) {
-		conn, err := r.getClientConn(context.Background(), "cool-fn")
+		conn, err := r.getClientConn(context.Background(), "cool-fn-revision-a")
 
 		if diff := cmp.Diff(target, conn.Target()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want, +got:\n%s", diff)
@@ -334,6 +269,48 @@ func TestGetClientConn(t *testing.T) {
 	})
 
 	// Close any gRPC clients.
+	if _, err := r.GarbageCollectConnectionsNow(context.Background()); err != nil {
+		t.Logf("Error closing client connections: %s", err)
+	}
+}
+
+type MockInterceptorCreator struct {
+	names []string
+	pkgs  []string
+}
+
+func (m *MockInterceptorCreator) CreateInterceptor(name, pkg string) grpc.UnaryClientInterceptor {
+	m.names = append(m.names, name)
+	m.pkgs = append(m.pkgs, pkg)
+
+	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
+
+func TestGetClientConnInterceptors(t *testing.T) {
+	ic := &MockInterceptorCreator{}
+	c := &test.MockClient{
+		MockGet:  NewGetFn(pkgv1.PackageRevisionActive, "dns:///localhost:1234"),
+		MockList: test.NewMockListFn(nil),
+	}
+	r := NewPackagedFunctionRunner(c, WithInterceptorCreators(ic))
+
+	if _, err := r.getClientConn(context.Background(), "cool-fn-revision-a"); err != nil {
+		t.Fatalf("r.getClientConn(...): %s", err)
+	}
+
+	// Interceptors should be labelled with the parent Function's name, not the
+	// FunctionRevision's, so that labels (e.g. metrics) are stable across
+	// revisions.
+	if diff := cmp.Diff([]string{"cool-fn"}, ic.names); diff != "" {
+		t.Errorf("\nCreateInterceptor(name, ...): -want, +got:\n%s", diff)
+	}
+
+	if diff := cmp.Diff([]string{"xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0"}, ic.pkgs); diff != "" {
+		t.Errorf("\nCreateInterceptor(..., pkg): -want, +got:\n%s", diff)
+	}
+
 	if _, err := r.GarbageCollectConnectionsNow(context.Background()); err != nil {
 		t.Logf("Error closing client connections: %s", err)
 	}
@@ -362,17 +339,22 @@ func TestGarbageCollectConnectionsNow(t *testing.T) {
 
 	// Add our connection to our pool.
 	r.connsMx.Lock()
-	r.conns["cool-fn"] = conn
+	r.conns["cool-fn-abc"] = conn
 	r.connsMx.Unlock()
 
 	ctx := context.Background()
 
 	t.Run("FunctionStillExistsDoNotGarbageCollect", func(t *testing.T) {
 		c.MockList = test.NewMockListFn(nil, func(obj client.ObjectList) error {
-			obj.(*pkgv1.FunctionList).Items = []pkgv1.Function{
+			obj.(*pkgv1.FunctionRevisionList).Items = []pkgv1.FunctionRevision{
 				{
-					// This Function exists!
-					ObjectMeta: metav1.ObjectMeta{Name: "cool-fn"},
+					ObjectMeta: metav1.ObjectMeta{Name: "cool-fn-abc"},
+					Spec: pkgv1.FunctionRevisionSpec{
+						PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+							Package:      "xpkg.crossplane.io/example/cool-function:v1.0.0",
+							DesiredState: pkgv1.PackageRevisionActive,
+						},
+					},
 				},
 			}
 
@@ -406,28 +388,30 @@ func TestGarbageCollectConnectionsNow(t *testing.T) {
 	})
 }
 
-func NewListFn(target string) test.MockListFn {
-	return test.NewMockListFn(nil, func(obj client.ObjectList) error {
-		l, ok := obj.(*pkgv1.FunctionRevisionList)
+// NewGetFn returns a MockGetFn that gets a FunctionRevision named
+// cool-fn-revision-a with the supplied desired state and endpoint.
+func NewGetFn(state pkgv1.PackageRevisionDesiredState, endpoint string) test.MockGetFn {
+	return test.NewMockGetFn(nil, func(obj client.Object) error {
+		rev, ok := obj.(*pkgv1.FunctionRevision)
 		if !ok {
-			// If we're called to list Functions we want to
-			// return none, to make sure we GC everything.
-			return nil
+			return errors.Errorf("unexpected object type %T", obj)
 		}
 
-		l.Items = []pkgv1.FunctionRevision{
-			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "cool-fn-revision-a",
+		*rev = pkgv1.FunctionRevision{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "cool-fn-revision-a",
+				Labels: map[string]string{
+					pkgv1.LabelParentPackage: "cool-fn",
 				},
-				Spec: pkgv1.FunctionRevisionSpec{
-					PackageRevisionSpec: pkgv1.PackageRevisionSpec{
-						DesiredState: pkgv1.PackageRevisionActive,
-					},
+			},
+			Spec: pkgv1.FunctionRevisionSpec{
+				PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+					Package:      "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0",
+					DesiredState: state,
 				},
-				Status: pkgv1.FunctionRevisionStatus{
-					Endpoint: target,
-				},
+			},
+			Status: pkgv1.FunctionRevisionStatus{
+				Endpoint: endpoint,
 			},
 		}
 

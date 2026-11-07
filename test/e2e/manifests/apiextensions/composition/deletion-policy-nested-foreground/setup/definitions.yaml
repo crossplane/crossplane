@@ -1,0 +1,45 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: nesteddeletionparents.example.org
+spec:
+  scope: Namespaced
+  group: example.org
+  names:
+    kind: NestedDeletionParent
+    plural: nesteddeletionparents
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+          status:
+            type: object
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: nesteddeletionchildren.example.org
+spec:
+  scope: Namespaced
+  group: example.org
+  names:
+    kind: NestedDeletionChild
+    plural: nesteddeletionchildren
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+          status:
+            type: object

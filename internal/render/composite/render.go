@@ -37,7 +37,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	managed "github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	xpresource "github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
@@ -49,6 +51,7 @@ import (
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
 	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composition"
+	"github.com/crossplane/crossplane/v2/internal/features"
 	"github.com/crossplane/crossplane/v2/internal/render"
 	"github.com/crossplane/crossplane/v2/internal/ssa"
 	"github.com/crossplane/crossplane/v2/internal/xfn"
@@ -56,8 +59,12 @@ import (
 )
 
 // Render runs one real XR reconcile loop using the real reconciler engine
-// backed by a fake in-memory client.
-func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.CompositeInput) (*renderv1alpha1.CompositeOutput, error) {
+// backed by a fake in-memory client, with the supplied features enabled.
+func Render(ctx context.Context, log logging.Logger, ff *feature.Flags, in *renderv1alpha1.CompositeInput) (*renderv1alpha1.CompositeOutput, error) {
+	if ff == nil {
+		ff = &feature.Flags{}
+	}
+
 	s := runtime.NewScheme()
 	if err := corev1.AddToScheme(s); err != nil {
 		return nil, errors.Wrap(err, "cannot add core/v1 to scheme")
@@ -125,6 +132,11 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		return nil, errors.Wrap(err, "cannot convert composition from protobuf")
 	}
 
+	// With function-controlled deletion an XR records its deletion policy, and
+	// a deleted XR renders as Crossplane would delete it using that policy.
+	functionControlledDeletion := ff.Enabled(features.EnableAlphaFunctionControlledDeletion)
+	isDeleting := prepareDeletion(xr, comp, observed, functionControlledDeletion)
+
 	// Synthesize a CompositionRevision from the Composition.
 	rev := composition.NewCompositionRevision(comp, 1)
 	rev.Status.SetConditions(apiextensionsv1.ValidPipeline())
@@ -161,6 +173,14 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		store = append(store, *u)
 	}
 
+	// Seed synthetic Function and FunctionRevision resources so the
+	// FunctionComposer can resolve each pipeline step to a FunctionRevision.
+	fns, err := render.SyntheticFunctions(in.GetFunctions())
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot build synthetic functions")
+	}
+	store = append(store, fns...)
+
 	c := render.NewInMemoryClient(s, store...)
 
 	runner, err := render.NewFunctionRunner(in.GetFunctions())
@@ -176,27 +196,38 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 	sf := xfn.NewOpenAPIRequiredSchemasFetcher(oc)
 	rsf := render.NewRecordingRequiredSchemasFetcher(sf)
 	rrf := render.NewRecordingRequiredResourcesFetcher(xfn.NewExistingRequiredResourcesFetcher(c))
+	// For render purposes, there's no harm in unconditionally enabling this
+	// feature.
+	ff.Enable(features.EnableAlphaPipelineOCIReferences)
+
+	gc := composite.NewDeletingComposedResourceGarbageCollector(c, composite.WithDeletionPolicies(functionControlledDeletion))
 
 	fc := composite.NewFunctionComposer(c, c,
-		xfn.NewFetchingFunctionRunner(runner, rrf, rsf),
+		xfn.NewFetchingFunctionRunner(render.NewFunctionRevisionRunner(runner, c, in.GetFunctions()), rrf, rsf),
 		composite.WithComposedResourceObserver(
 			composite.NewExistingComposedResourceObserver(c, c,
 				composite.NewSecretConnectionDetailsFetcher(c))),
-		composite.WithComposedResourceGarbageCollector(
-			composite.NewDeletingComposedResourceGarbageCollector(c)),
 		composite.WithCompositeConnectionDetailsFetcher(
 			composite.NewSecretConnectionDetailsFetcher(c)),
 		composite.WithManagedFieldsUpgrader(&ssa.NopManagedFieldsUpgrader{}),
 		composite.WithRequiredSchemasFetcher(rsf),
 		composite.WithRequiredResourcesFetcher(rrf),
+		composite.WithComposedResourceGarbageCollector(gc),
+		composite.WithFunctionControlledDeletion(functionControlledDeletion),
 	)
+
+	fin := &recordingFinalizer{}
 
 	rec := &render.EventRecorder{}
 
 	r := composite.NewReconciler(c, gvk,
 		composite.WithCompositeSchema(cschema),
 		composite.WithComposer(fc),
-		composite.WithCompositeFinalizer(xpresource.NewNopFinalizer()),
+		composite.WithCompositeFinalizer(fin),
+		composite.WithForegroundDeletion(
+			composite.NewExistingComposedResourceObserver(c, c,
+				composite.NewSecretConnectionDetailsFetcher(c)),
+			gc),
 		composite.WithCompositionSelector(CompositionSelector(comp)),
 		composite.WithCompositionRevisionSelector(composite.CompositionRevisionSelectorFn(
 			func(_ context.Context, _ xpresource.Composite) error { return nil },
@@ -219,6 +250,7 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 		composite.WithCircuitBreaker(&circuit.NopBreaker{}),
 		composite.WithRecorder(rec),
 		composite.WithLogger(log),
+		composite.WithFeatures(ff),
 	)
 
 	req := reconcile.Request{NamespacedName: types.NamespacedName{
@@ -238,6 +270,15 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 			u.GetNamespace() == xr.GetNamespace() &&
 			u.GetName() == xr.GetName()
 	}, rec, rrf, rsf)
+
+	// Put back the deletion timestamp and finalizers the in-memory client
+	// dropped when the XR was composed. Crossplane's finalizer stays only if
+	// Crossplane isn't done deleting the XR, so callers can tell from it
+	// whether deletion is done.
+	if berr == nil && isDeleting && out.GetCompositeResource() != nil {
+		berr = setDeletionMetadata(out, xr, fin.removed)
+	}
+
 	switch {
 	case berr != nil:
 		// Surface BuildOutput's failure. If reconcile also failed, join
@@ -262,6 +303,83 @@ func Render(ctx context.Context, log logging.Logger, in *renderv1alpha1.Composit
 	}
 
 	return out, nil
+}
+
+// prepareDeletion prepares a deleted XR to be rendered. It returns true if
+// Crossplane would delete the XR. It doesn't delete paused XRs.
+//
+// An XR passed to render may never have been reconciled, so Crossplane hasn't
+// finished deleting it. prepareDeletion adds Crossplane's finalizer, because
+// Crossplane ignores a deleted XR without it.
+//
+// With function-controlled deletion Crossplane deletes an XR using the policy
+// the XR recorded while it was live, so prepareDeletion records the
+// Composition's policy if the XR has none.
+//
+// Crossplane only deletes and waits for composed resources the XR controls.
+// Render generates the XR's UID if it has none, so observed resources often
+// lack a matching controller ref. prepareDeletion makes the XR the controller of
+// observed resources that have no controller.
+func prepareDeletion(xr *ucomposite.Unstructured, comp *apiextensionsv1.Composition, observed []kunstructured.Unstructured, functionControlledDeletion bool) bool {
+	if !meta.WasDeleted(xr) || meta.IsPaused(xr) {
+		return false
+	}
+
+	meta.AddFinalizer(xr, composite.Finalizer)
+
+	if functionControlledDeletion && xr.GetDeletionPolicy() == "" {
+		xr.SetDeletionPolicy(comp.Spec.DeletionPolicy)
+	}
+
+	ref := meta.AsController(meta.TypedReferenceTo(xr, xr.GroupVersionKind()))
+	for i := range observed {
+		if metav1.GetControllerOf(&observed[i]) == nil {
+			meta.AddOwnerReference(&observed[i], ref)
+		}
+	}
+
+	return true
+}
+
+// recordingFinalizer records whether the reconciler removed the XR's
+// finalizer, without writing to the XR.
+type recordingFinalizer struct {
+	removed bool
+}
+
+func (f *recordingFinalizer) AddFinalizer(_ context.Context, _ xpresource.Object) error {
+	return nil
+}
+
+func (f *recordingFinalizer) RemoveFinalizer(_ context.Context, _ xpresource.Object) error {
+	f.removed = true
+	return nil
+}
+
+// setDeletionMetadata sets the rendered XR's deletion timestamp and finalizers
+// to the input XR's. It keeps Crossplane's finalizer unless Crossplane is done
+// deleting the XR.
+func setDeletionMetadata(out *renderv1alpha1.CompositeOutput, in metav1.Object, done bool) error {
+	u := &kunstructured.Unstructured{}
+	if err := xfn.FromStruct(u, out.GetCompositeResource()); err != nil {
+		return errors.Wrap(err, "cannot convert composite resource from protobuf")
+	}
+
+	u.SetDeletionTimestamp(in.GetDeletionTimestamp())
+	u.SetFinalizers(in.GetFinalizers())
+	if done {
+		meta.RemoveFinalizer(u, composite.Finalizer)
+	} else {
+		meta.AddFinalizer(u, composite.Finalizer)
+	}
+
+	s, err := xfn.AsStruct(u)
+	if err != nil {
+		return errors.Wrap(err, "cannot convert composite resource to protobuf")
+	}
+	out.CompositeResource = s
+
+	return nil
 }
 
 // selectSchema picks the composite.Schema for an input XR. With no XRD

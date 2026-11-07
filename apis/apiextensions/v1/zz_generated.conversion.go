@@ -20,6 +20,7 @@ func (c *GeneratedRevisionSpecConverter) FromRevisionSpec(source CompositionRevi
 			v1CompositionSpec.Pipeline[i] = c.v1PipelineStepToV1PipelineStep(source.Pipeline[i])
 		}
 	}
+	v1CompositionSpec.DeletionPolicy = c.v1CompositionDeletionPolicyToV1CompositionDeletionPolicy(source.DeletionPolicy)
 	if source.WriteConnectionSecretsToNamespace != nil {
 		xstring := *source.WriteConnectionSecretsToNamespace
 		v1CompositionSpec.WriteConnectionSecretsToNamespace = &xstring
@@ -36,6 +37,7 @@ func (c *GeneratedRevisionSpecConverter) ToRevisionSpec(source CompositionSpec) 
 			v1CompositionRevisionSpec.Pipeline[i] = c.v1PipelineStepToV1PipelineStep(source.Pipeline[i])
 		}
 	}
+	v1CompositionRevisionSpec.DeletionPolicy = c.v1CompositionDeletionPolicyToV1CompositionDeletionPolicy(source.DeletionPolicy)
 	if source.WriteConnectionSecretsToNamespace != nil {
 		xstring := *source.WriteConnectionSecretsToNamespace
 		v1CompositionRevisionSpec.WriteConnectionSecretsToNamespace = &xstring
@@ -49,6 +51,15 @@ func (c *GeneratedRevisionSpecConverter) pRuntimeRawExtensionToPRuntimeRawExtens
 		pRuntimeRawExtension = &runtimeRawExtension
 	}
 	return pRuntimeRawExtension
+}
+func (c *GeneratedRevisionSpecConverter) pV1FunctionReferenceToPV1FunctionReference(source *FunctionReference) *FunctionReference {
+	var pV1FunctionReference *FunctionReference
+	if source != nil {
+		var v1FunctionReference FunctionReference
+		v1FunctionReference.Name = (*source).Name
+		pV1FunctionReference = &v1FunctionReference
+	}
+	return pV1FunctionReference
 }
 func (c *GeneratedRevisionSpecConverter) pV1FunctionRequirementsToPV1FunctionRequirements(source *FunctionRequirements) *FunctionRequirements {
 	var pV1FunctionRequirements *FunctionRequirements
@@ -80,6 +91,19 @@ func (c *GeneratedRevisionSpecConverter) pV2SecretReferenceToPV2SecretReference(
 	}
 	return pV2SecretReference
 }
+func (c *GeneratedRevisionSpecConverter) v1CompositionDeletionPolicyToV1CompositionDeletionPolicy(source CompositionDeletionPolicy) CompositionDeletionPolicy {
+	var v1CompositionDeletionPolicy CompositionDeletionPolicy
+	switch source {
+	case CompositionDeletionPolicyBackground:
+		v1CompositionDeletionPolicy = CompositionDeletionPolicyBackground
+	case CompositionDeletionPolicyForeground:
+		v1CompositionDeletionPolicy = CompositionDeletionPolicyForeground
+	case CompositionDeletionPolicyPipeline:
+		v1CompositionDeletionPolicy = CompositionDeletionPolicyPipeline
+	default: // ignored
+	}
+	return v1CompositionDeletionPolicy
+}
 func (c *GeneratedRevisionSpecConverter) v1CompositionModeToV1CompositionMode(source CompositionMode) CompositionMode {
 	var v1CompositionMode CompositionMode
 	switch source {
@@ -88,6 +112,17 @@ func (c *GeneratedRevisionSpecConverter) v1CompositionModeToV1CompositionMode(so
 	default: // ignored
 	}
 	return v1CompositionMode
+}
+func (c *GeneratedRevisionSpecConverter) v1CredentialResolvePolicyToV1CredentialResolvePolicy(source CredentialResolvePolicy) CredentialResolvePolicy {
+	var v1CredentialResolvePolicy CredentialResolvePolicy
+	switch source {
+	case CredentialResolvePolicyOptional:
+		v1CredentialResolvePolicy = CredentialResolvePolicyOptional
+	case CredentialResolvePolicyRequired:
+		v1CredentialResolvePolicy = CredentialResolvePolicyRequired
+	default: // ignored
+	}
+	return v1CredentialResolvePolicy
 }
 func (c *GeneratedRevisionSpecConverter) v1FunctionCredentialsSourceToV1FunctionCredentialsSource(source FunctionCredentialsSource) FunctionCredentialsSource {
 	var v1FunctionCredentialsSource FunctionCredentialsSource
@@ -105,17 +140,17 @@ func (c *GeneratedRevisionSpecConverter) v1FunctionCredentialsToV1FunctionCreden
 	v1FunctionCredentials.Name = source.Name
 	v1FunctionCredentials.Source = c.v1FunctionCredentialsSourceToV1FunctionCredentialsSource(source.Source)
 	v1FunctionCredentials.SecretRef = c.pV2SecretReferenceToPV2SecretReference(source.SecretRef)
+	if source.ResolvePolicy != nil {
+		v1CredentialResolvePolicy := c.v1CredentialResolvePolicyToV1CredentialResolvePolicy(*source.ResolvePolicy)
+		v1FunctionCredentials.ResolvePolicy = &v1CredentialResolvePolicy
+	}
 	return v1FunctionCredentials
-}
-func (c *GeneratedRevisionSpecConverter) v1FunctionReferenceToV1FunctionReference(source FunctionReference) FunctionReference {
-	var v1FunctionReference FunctionReference
-	v1FunctionReference.Name = source.Name
-	return v1FunctionReference
 }
 func (c *GeneratedRevisionSpecConverter) v1PipelineStepToV1PipelineStep(source PipelineStep) PipelineStep {
 	var v1PipelineStep PipelineStep
 	v1PipelineStep.Step = source.Step
-	v1PipelineStep.FunctionRef = c.v1FunctionReferenceToV1FunctionReference(source.FunctionRef)
+	v1PipelineStep.FunctionRef = c.pV1FunctionReferenceToPV1FunctionReference(source.FunctionRef)
+	v1PipelineStep.Function = source.Function
 	v1PipelineStep.Input = c.pRuntimeRawExtensionToPRuntimeRawExtension(source.Input)
 	if source.Credentials != nil {
 		v1PipelineStep.Credentials = make([]FunctionCredentials, len(source.Credentials))

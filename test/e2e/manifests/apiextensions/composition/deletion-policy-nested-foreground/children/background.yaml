@@ -1,0 +1,7 @@
+# Composed by the parent XR. The test doesn't apply this, it only uses it to
+# find the child XR.
+apiVersion: example.org/v1alpha1
+kind: NestedDeletionChild
+metadata:
+  namespace: default
+  name: deletion-policy-nested-background

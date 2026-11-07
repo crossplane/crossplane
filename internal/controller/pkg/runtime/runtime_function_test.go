@@ -62,7 +62,10 @@ func TestFunctionPreHook(t *testing.T) {
 					Spec: pkgmetav1.FunctionSpec{},
 				},
 				rev: &v1.FunctionRevision{
-					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1.LabelParentPackage: "some-service"}},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "some-service-abcdef",
+						Labels: map[string]string{v1.LabelParentPackage: "some-service"},
+					},
 					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							DesiredState: v1.PackageRevisionActive,
@@ -86,7 +89,10 @@ func TestFunctionPreHook(t *testing.T) {
 			},
 			want: want{
 				rev: &v1.FunctionRevision{
-					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1.LabelParentPackage: "some-service"}},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "some-service-abcdef",
+						Labels: map[string]string{v1.LabelParentPackage: "some-service"},
+					},
 					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							DesiredState: v1.PackageRevisionActive,
@@ -96,7 +102,7 @@ func TestFunctionPreHook(t *testing.T) {
 						},
 					},
 					Status: v1.FunctionRevisionStatus{
-						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "some-service", namespace, GRPCPort),
+						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "some-service-abcdef", namespace, GRPCPort),
 						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
 							TLSServerSecretName: new("some-server-secret"),
 						},
@@ -131,56 +137,7 @@ func TestFunctionPreHook(t *testing.T) {
 						PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
 					},
 					Status: v1.FunctionRevisionStatus{
-						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "shared-service", namespace, GRPCPort),
-					},
-				},
-			},
-		},
-		"TakesControlFromOutgoingRevision": {
-			reason: "Should demote the outgoing revision's owner reference in the same apply that claims the shared object.",
-			args: args{
-				pkg: &pkgmetav1.Function{},
-				rev: &v1.FunctionRevision{
-					ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID, Labels: map[string]string{v1.LabelParentPackage: "shared-service"}},
-					Spec: v1.FunctionRevisionSpec{
-						PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
-						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSServerSecretName: new("server-tls"),
-						},
-					},
-				},
-				client: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-						if key.Name == "shared-service" || key.Name == "server-tls" {
-							obj.SetOwnerReferences([]metav1.OwnerReference{outgoing})
-						}
-						return nil
-					},
-					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
-						// The incoming revision should claim the shared objects,
-						// demoting the outgoing revision in the same apply.
-						if diff := cmp.Diff([]metav1.OwnerReference{incoming, demoted}, obj.GetOwnerReferences()); diff != "" {
-							t.Errorf("h.Pre(...): %s: -want owner references, +got:\n%s", obj.GetName(), diff)
-						}
-						return nil
-					},
-					MockUpdate: test.NewMockUpdateFn(nil),
-				},
-			},
-			want: want{
-				rev: &v1.FunctionRevision{
-					ObjectMeta: metav1.ObjectMeta{Name: incoming.Name, UID: incoming.UID, Labels: map[string]string{v1.LabelParentPackage: "shared-service"}},
-					Spec: v1.FunctionRevisionSpec{
-						PackageRevisionSpec: v1.PackageRevisionSpec{DesiredState: v1.PackageRevisionActive},
-						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSServerSecretName: new("server-tls"),
-						},
-					},
-					Status: v1.FunctionRevisionStatus{
-						Endpoint: fmt.Sprintf(ServiceEndpointFmt, "shared-service", namespace, GRPCPort),
-						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
-							TLSServerSecretName: new("server-tls"),
-						},
+						Endpoint: fmt.Sprintf(ServiceEndpointFmt, incoming.Name, namespace, GRPCPort),
 					},
 				},
 			},
@@ -659,7 +616,9 @@ func TestFunctionDeactivateHook(t *testing.T) {
 		"ErrDeleteDeployment": {
 			reason: "Should return error if we fail to delete deployment.",
 			args: args{
-				rev: &v1.FunctionRevision{},
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: "some-function-1"},
+				},
 				client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
@@ -675,7 +634,71 @@ func TestFunctionDeactivateHook(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errDeleteFunctionDeployment),
-				rev: &v1.FunctionRevision{},
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: "some-function-1"},
+				},
+			},
+		},
+		"ErrDeleteService": {
+			reason: "Should return error if we fail to delete service.",
+			args: args{
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: "some-function-1"},
+				},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
+						return nil
+					}),
+					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
+						if _, ok := obj.(*corev1.Service); ok {
+							return errBoom
+						}
+						return nil
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errBoom, errFmtDeleteFunctionService, "some-function-1"),
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: "some-function-1"},
+				},
+			},
+		},
+		"ErrDeleteSecret": {
+			reason: "Should return error if we fail to delete secret.",
+			args: args{
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: "some-function-1"},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: new("some-secret"),
+						},
+					},
+				},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
+						return nil
+					}),
+					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errBoom
+						}
+						return nil
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteFunctionSecret),
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: "some-function-1"},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionRuntimeStatus: v1.PackageRevisionRuntimeStatus{
+							TLSServerSecretName: new("some-secret"),
+						},
+					},
+				},
 			},
 		},
 		"Successful": {
@@ -721,8 +744,24 @@ func TestFunctionDeactivateHook(t *testing.T) {
 						return nil
 					}),
 					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
-						if _, ok := obj.(*appsv1.Deployment); ok {
-							return errors.New("deployment should not be deleted")
+						switch obj.(type) {
+						case *corev1.ServiceAccount:
+							return errors.New("service account should not be deleted during deactivation")
+						case *appsv1.Deployment:
+							if obj.GetName() != "some-deployment" {
+								return errors.New("unexpected deployment name")
+							}
+							return nil
+						case *corev1.Service:
+							if obj.GetName() != "some-service" {
+								return errors.New("unexpected service name")
+							}
+							return nil
+						case *corev1.Secret:
+							if obj.GetName() != "server-tls" {
+								return errors.New("unexpected secret name")
+							}
+							return nil
 						}
 						return nil
 					},

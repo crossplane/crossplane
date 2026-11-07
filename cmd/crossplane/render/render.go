@@ -29,9 +29,11 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 
 	xcomposite "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/v2/internal/features"
 	"github.com/crossplane/crossplane/v2/internal/render/composite"
 	"github.com/crossplane/crossplane/v2/internal/render/operation"
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
@@ -48,6 +50,8 @@ const ExitCodePipelineFatal = 3
 // protobuf RenderResponse to stdout.
 type Command struct {
 	Timeout time.Duration `default:"2m" help:"Timeout for the render operation."`
+
+	EnableFunctionControlledDeletion bool `group:"Alpha Features:" help:"Render deleted XRs as Crossplane would delete them using their Composition's deletion policy."`
 
 	// stdin and stdout default to os.Stdin/os.Stdout. They are unexported
 	// so they don't expand the production API surface; in-package tests can
@@ -94,9 +98,14 @@ func (c *Command) Run(log logging.Logger) error {
 	// stdout AND a typed error with a distinct exit code.
 	var renderErr error
 
+	ff := &feature.Flags{}
+	if c.EnableFunctionControlledDeletion {
+		ff.Enable(features.EnableAlphaFunctionControlledDeletion)
+	}
+
 	switch in := req.GetInput().(type) {
 	case *renderv1alpha1.RenderRequest_Composite:
-		out, err := composite.Render(ctx, log, in.Composite)
+		out, err := composite.Render(ctx, log, ff, in.Composite)
 		if out != nil {
 			rsp.Output = &renderv1alpha1.RenderResponse_Composite{Composite: out}
 		}

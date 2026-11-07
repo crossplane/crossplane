@@ -53,6 +53,21 @@ const (
 	// automatically protecting Providers from deletion when they still have
 	// active managed resources. Requires EnableBetaUsages to also be enabled.
 	EnableAlphaProviderDeletionProtection feature.Flag = "EnableAlphaProviderDeletionProtection"
+
+	// EnableAlphaPipelineOCIReferences enables alpha support for referencing
+	// functions directly by OCI reference in Composition and Operation
+	// pipelines, using a pipeline step's function field rather than its
+	// functionRef.
+	EnableAlphaPipelineOCIReferences feature.Flag = "EnableAlphaPipelineOCIReferences"
+
+	// EnableAlphaCompositionRevisionGC enables alpha support for garbage
+	// collecting unused CompositionRevisions, according to each Composition's
+	// unusedRevisionHistoryLimit.
+	EnableAlphaCompositionRevisionGC feature.Flag = "EnableAlphaCompositionRevisionGC"
+	// EnableAlphaFunctionControlledDeletion enables alpha support for
+	// Composition deletion policies. See the below design for more details.
+	// https://github.com/crossplane/crossplane/blob/main/design/one-pager-function-controlled-deletion.md
+	EnableAlphaFunctionControlledDeletion feature.Flag = "EnableAlphaFunctionControlledDeletion"
 )
 
 // Beta Feature Flags.

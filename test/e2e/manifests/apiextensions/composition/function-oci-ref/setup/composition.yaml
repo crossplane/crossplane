@@ -1,0 +1,12 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: ocireffn-composition
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: OCIRefFn
+  mode: Pipeline
+  pipeline:
+  - step: report-revision-id
+    function: xpkg.crossplane.io/crossplane/e2e-function-revision-id@sha256:05bd9797c55254889a4aebb42f3ea9ecabd1232df4e813416a9f89425494ee61 # v1

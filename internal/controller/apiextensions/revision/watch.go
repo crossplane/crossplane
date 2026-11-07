@@ -28,6 +28,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
 )
 
 // EnqueueCompositionRevisionsForFunctionRevision enqueues a reconcile for all CompositionRevisions
@@ -53,10 +54,24 @@ func EnqueueCompositionRevisionsForFunctionRevision(kube client.Reader, log logg
 			return nil
 		}
 
+		// Steps may reference the revision's package with or without a tag,
+		// so compare normalized packages.
+		var pkg string
+		if ref, err := composite.NormalizeFunctionOCIRef(fr.Spec.Package); err == nil {
+			pkg = ref.Name()
+		}
+
 		var matches []reconcile.Request
 		for _, rev := range revs.Items {
 			for _, fn := range rev.Spec.Pipeline {
-				if fn.FunctionRef.Name != name {
+				if fn.Function != "" {
+					ref, err := composite.NormalizeFunctionOCIRef(fn.Function)
+					if err != nil || pkg == "" || ref.Name() != pkg {
+						continue
+					}
+				}
+
+				if fn.FunctionRef != nil && fn.FunctionRef.Name != name {
 					continue
 				}
 

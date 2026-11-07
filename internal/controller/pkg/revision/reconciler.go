@@ -19,6 +19,7 @@ package revision
 
 import (
 	"context"
+	"maps"
 	"sort"
 	"strings"
 	"time"
@@ -570,26 +571,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	pkgMeta, _ := xpkg.TryConvertToPkg(pkg.Package.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{}, &pkgmetav1.Function{})
 
+	labelsBefore := maps.Clone(pr.GetLabels())
+	annotationsBefore := maps.Clone(pr.GetAnnotations())
 	meta.AddLabels(pr, pkgMeta.GetLabels())
 	meta.AddAnnotations(pr, pkgMeta.GetAnnotations())
 
-	if err := r.kube.Update(ctx, pr); err != nil {
-		if kerrors.IsConflict(err) {
-			return reconcile.Result{Requeue: true}, nil
+	if !maps.Equal(labelsBefore, pr.GetLabels()) || !maps.Equal(annotationsBefore, pr.GetAnnotations()) {
+		if err := r.kube.Update(ctx, pr); err != nil {
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
+
+			err = errors.Wrap(err, errUpdateMeta)
+			status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
+
+			_ = r.kube.Status().Update(ctx, pr)
+
+			r.record.Event(pr, event.Warning(reasonSync, err))
+
+			return reconcile.Result{}, err
 		}
-
-		err = errors.Wrap(err, errUpdateMeta)
-		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
-
-		_ = r.kube.Status().Update(ctx, pr)
-
-		r.record.Event(pr, event.Warning(reasonSync, err))
-
-		return reconcile.Result{}, err
 	}
 
-	// Re-apply status changes that were wiped by r.kube.Update() above. Update()
-	// overwrites pr with the server's response, which doesn't include status.
+	// If Update ran above it wiped status changes because its server response
+	// doesn't include status, so re-apply them here.
 	pr.SetResolvedSource(pkg.ResolvedRef())
 
 	for _, reason := range xpkg.SupportedImageConfigs() {

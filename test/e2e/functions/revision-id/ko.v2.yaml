@@ -1,0 +1,7 @@
+builds:
+  - id: e2e-function-revision-id
+    dir: .
+    main: .
+    ldflags:
+      - -s -w
+      - -X main.Identity=revision-two

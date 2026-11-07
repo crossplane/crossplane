@@ -85,15 +85,18 @@ spec:
                 type: boolean
               package:
                 description: |-
-                  Package is the name of the package that is being requested.
-                  must be a fully qualified image name, including the registry,
-                  repository, and tag. for example, "registry.example.com/repo/package:tag".
+                  Package is the name of the package that is being requested. Must be a
+                  fully qualified OCI reference, including the registry, repository, and
+                  tag. For example, "registry.example.com/repo/package:tag". May be empty
+                  when revisions are managed externally, in which case the package manager
+                  will not manage revisions for the package, but will propagate the status
+                  of any externally-managed revisions.
                 type: string
                 x-kubernetes-validations:
                 - message: must be a fully qualified image name, including the registry,
                     repository, and tag or digest. For example, 'registry.example.com/repo/package:tag'
                     or 'registry.example.com/repo/package[:tag]@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'.
-                  rule: self.matches('^[^\\.\\/]+(\\.[^\\.\\/]+)+(\\/[^\\/:@]+)+(:[^:@]+(@sha256.+)?|@sha256.+)$')
+                  rule: self == '' || self.matches('^[^\\.\\/]+(\\.[^\\.\\/]+)+(\\/[^\\/:@]+)+(:[^:@]+(@sha256.+)?|@sha256.+)$')
               packagePullPolicy:
                 default: IfNotPresent
                 description: |-
@@ -165,8 +168,6 @@ spec:
                   unintended consequences.
                   Default is false.
                 type: boolean
-            required:
-            - package
             type: object
           status:
             description: FunctionStatus represents the observed state of a Function.
@@ -253,6 +254,34 @@ spec:
                   reflect the most up to date revision, whether it has been activated or
                   not.
                 type: string
+              externalRevisionRefs:
+                description: |-
+                  ExternalRevisionRefs are references to the FunctionRevisions of this
+                  Function that are managed externally, rather than by the package
+                  manager. For example, Crossplane creates external revisions for
+                  composition and operation pipeline steps that reference a function by
+                  OCI reference. When spec.package is empty, the Function's status
+                  reflects the status of its external revisions.
+                items:
+                  description: |-
+                    LocalObjectReference contains enough information to let you locate the
+                    referenced object inside the same namespace.
+                  properties:
+                    name:
+                      default: ""
+                      description: |-
+                        Name of the referent.
+                        This field is effectively required, but due to backwards compatibility is
+                        allowed to be empty. Instances of this type with an empty value here are
+                        almost certainly wrong.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      type: string
+                  type: object
+                  x-kubernetes-map-type: atomic
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
               resolvedPackage:
                 description: |-
                   ResolvedPackage is the name of the package that was used for version
@@ -333,15 +362,18 @@ spec:
                 type: boolean
               package:
                 description: |-
-                  Package is the name of the package that is being requested.
-                  must be a fully qualified image name, including the registry,
-                  repository, and tag. for example, "registry.example.com/repo/package:tag".
+                  Package is the name of the package that is being requested. Must be a
+                  fully qualified OCI reference, including the registry, repository, and
+                  tag. For example, "registry.example.com/repo/package:tag". May be empty
+                  when revisions are managed externally, in which case the package manager
+                  will not manage revisions for the package, but will propagate the status
+                  of any externally-managed revisions.
                 type: string
                 x-kubernetes-validations:
                 - message: must be a fully qualified image name, including the registry,
                     repository, and tag or digest. For example, 'registry.example.com/repo/package:tag'
                     or 'registry.example.com/repo/package[:tag]@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'.
-                  rule: self.matches('^[^\\.\\/]+(\\.[^\\.\\/]+)+(\\/[^\\/:@]+)+(:[^:@]+(@sha256.+)?|@sha256.+)$')
+                  rule: self == '' || self.matches('^[^\\.\\/]+(\\.[^\\.\\/]+)+(\\/[^\\/:@]+)+(:[^:@]+(@sha256.+)?|@sha256.+)$')
               packagePullPolicy:
                 default: IfNotPresent
                 description: |-
@@ -413,8 +445,6 @@ spec:
                   unintended consequences.
                   Default is false.
                 type: boolean
-            required:
-            - package
             type: object
           status:
             description: FunctionStatus represents the observed state of a Function.
@@ -501,6 +531,34 @@ spec:
                   reflect the most up to date revision, whether it has been activated or
                   not.
                 type: string
+              externalRevisionRefs:
+                description: |-
+                  ExternalRevisionRefs are references to the FunctionRevisions of this
+                  Function that are managed externally, rather than by the package
+                  manager. For example, Crossplane creates external revisions for
+                  composition and operation pipeline steps that reference a function by
+                  OCI reference. When spec.package is empty, the Function's status
+                  reflects the status of its external revisions.
+                items:
+                  description: |-
+                    LocalObjectReference contains enough information to let you locate the
+                    referenced object inside the same namespace.
+                  properties:
+                    name:
+                      default: ""
+                      description: |-
+                        Name of the referent.
+                        This field is effectively required, but due to backwards compatibility is
+                        allowed to be empty. Instances of this type with an empty value here are
+                        almost certainly wrong.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      type: string
+                  type: object
+                  x-kubernetes-map-type: atomic
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
               resolvedPackage:
                 description: |-
                   ResolvedPackage is the name of the package that was used for version

@@ -1,0 +1,77 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: deletion-policy-foreground
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: DeletionPolicyTest
+  mode: Pipeline
+  deletionPolicy: Foreground
+  pipeline:
+  - step: compose-configmaps
+    functionRef:
+      name: function-python-deletion-policy-foreground
+    input:
+      apiVersion: python.fn.crossplane.io/v1beta1
+      kind: Script
+      script: |
+        from crossplane.function import resource
+        from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+
+        def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+            # Compose two ConfigMaps. The e2e test holds them with a finalizer,
+            # so it can see when Crossplane and Kubernetes delete them.
+            for name in ("first", "second"):
+                resource.update(rsp.desired.resources[name], {
+                    "apiVersion": "v1",
+                    "kind": "ConfigMap",
+                    "metadata": {
+                        "labels": {
+                            "e2e.crossplane.io/deletion-policy": "foreground",
+                            "e2e.crossplane.io/resource": name,
+                        },
+                        "finalizers": ["e2e.crossplane.io/hold"],
+                    },
+                    "data": {"name": name},
+                })
+                rsp.desired.resources[name].ready = fnv1.READY_TRUE
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: deletion-policy-background
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: DeletionPolicyTest
+  mode: Pipeline
+  deletionPolicy: Background
+  pipeline:
+  - step: compose-configmaps
+    functionRef:
+      name: function-python-deletion-policy-foreground
+    input:
+      apiVersion: python.fn.crossplane.io/v1beta1
+      kind: Script
+      script: |
+        from crossplane.function import resource
+        from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+
+        def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+            # Compose two ConfigMaps. The e2e test holds them with a finalizer,
+            # so it can see when Crossplane and Kubernetes delete them.
+            for name in ("first", "second"):
+                resource.update(rsp.desired.resources[name], {
+                    "apiVersion": "v1",
+                    "kind": "ConfigMap",
+                    "metadata": {
+                        "labels": {
+                            "e2e.crossplane.io/deletion-policy": "background",
+                            "e2e.crossplane.io/resource": name,
+                        },
+                        "finalizers": ["e2e.crossplane.io/hold"],
+                    },
+                    "data": {"name": name},
+                })
+                rsp.desired.resources[name].ready = fnv1.READY_TRUE

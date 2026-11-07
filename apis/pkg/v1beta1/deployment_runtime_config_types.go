@@ -93,7 +93,7 @@ type DeploymentRuntimeConfigSpec struct {
 // Read the Crossplane documentation for
 // [more information about DeploymentRuntimeConfigs](https://docs.crossplane.io/latest/packages/providers/#runtime-configuration).
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:scope=Cluster,categories={crossplane}
+// +kubebuilder:resource:scope=Cluster,categories={crossplane},shortName=drc
 type DeploymentRuntimeConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

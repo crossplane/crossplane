@@ -31,10 +31,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xcomposite "github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/v2/internal/features"
 	"github.com/crossplane/crossplane/v2/internal/render/rendertest"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 	renderv1alpha1 "github.com/crossplane/crossplane/v2/proto/render/v1alpha1"
@@ -58,6 +61,17 @@ var ignoreTimestamps = cmp.FilterPath(func(p cmp.Path) bool {
 }, cmp.Ignore())
 
 func TestRender(t *testing.T) {
+	// Steps may reference function packages by digest. Rendering doesn't
+	// install functions, so the function must be supplied using its package as
+	// its name.
+	const pkg = "xpkg.crossplane.io/crossplane-contrib/function-cool@sha256:c0ffee1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+
+	addr := rendertest.StartFunctionServer(t, &rendertest.StaticFunctionServer{
+		Response: &fnv1.RunFunctionResponse{
+			Results: []*fnv1.Result{{Severity: fnv1.Severity_SEVERITY_NORMAL, Message: "cool function ran"}},
+		},
+	})
+
 	type want struct {
 		err error
 		out *renderv1alpha1.CompositeOutput
@@ -403,11 +417,67 @@ func TestRender(t *testing.T) {
 				},
 			},
 		},
+		"FunctionByPackage": {
+			reason: "A pipeline step that references its function by package OCI reference should be routed to the function supplied with that package as its name.",
+			input: &renderv1alpha1.CompositeInput{
+				CompositeResource: mustStruct(map[string]any{
+					"apiVersion": "example.org/v1alpha1",
+					"kind":       "XBucket",
+					"metadata":   map[string]any{"name": "my-bucket"},
+				}),
+				Composition: mustStruct(map[string]any{
+					"metadata": map[string]any{"name": "bucket-composition"},
+					"spec": map[string]any{
+						"compositeTypeRef": map[string]any{
+							"apiVersion": "example.org/v1alpha1",
+							"kind":       "XBucket",
+						},
+						"mode": "Pipeline",
+						"pipeline": []any{
+							map[string]any{
+								"step":     "cool",
+								"function": pkg,
+							},
+						},
+					},
+				}),
+				Functions: []*renderv1alpha1.FunctionInput{
+					{Name: pkg, Address: addr},
+				},
+			},
+			want: want{
+				out: &renderv1alpha1.CompositeOutput{
+					CompositeResource: mustStruct(map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XBucket",
+						"metadata":   map[string]any{"name": "my-bucket"},
+						"spec": map[string]any{
+							"crossplane": map[string]any{
+								"resourceRefs": []any{},
+							},
+						},
+						"status": map[string]any{
+							"conditions": []any{
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
+								map[string]any{"type": "Ready", "status": "True", "reason": "Available"},
+							},
+						},
+					}),
+					// Our function's result surfaces as an event. Seeing it
+					// means we routed to the function by package.
+					Events: []*renderv1alpha1.Event{
+						{Type: "Normal", Reason: "SelectComposition", Message: "Successfully selected composition: bucket-composition"},
+						{Type: "Normal", Reason: "ComposeResources", Message: "Pipeline step \"cool\": cool function ran"},
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			out, err := Render(t.Context(), logging.NewNopLogger(), tc.input)
+			out, err := Render(t.Context(), logging.NewNopLogger(), &feature.Flags{}, tc.input)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRender(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -679,7 +749,7 @@ func TestRenderErrors(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			out, err := Render(t.Context(), logging.NewNopLogger(), tc.input(t))
+			out, err := Render(t.Context(), logging.NewNopLogger(), &feature.Flags{}, tc.input(t))
 
 			if err == nil {
 				t.Fatalf("%s\nRender(...) expected error, got nil", tc.reason)
@@ -880,4 +950,660 @@ func mustStruct(m map[string]any) *structpb.Struct {
 		panic(err)
 	}
 	return s
+}
+
+func TestRenderDeletion(t *testing.T) {
+	// A function that only desires first, e.g. to delete second before it.
+	first := rendertest.StartFunctionServer(t, &rendertest.StaticFunctionServer{
+		Response: &fnv1.RunFunctionResponse{
+			Desired: &fnv1.State{
+				Resources: map[string]*fnv1.Resource{
+					"first": {Resource: mustStruct(map[string]any{
+						"apiVersion": "v1",
+						"kind":       "ConfigMap",
+						"metadata":   map[string]any{"name": "first", "namespace": "default"},
+					})},
+				},
+			},
+		},
+	})
+
+	// A function that desires nothing.
+	nothing := rendertest.StartFunctionServer(t, &rendertest.StaticFunctionServer{
+		Response: &fnv1.RunFunctionResponse{},
+	})
+
+	// The XR, Composition, and composed resources the cases share.
+	xr := mustStruct(map[string]any{
+		"apiVersion": "example.org/v1alpha1",
+		"kind":       "XThing",
+		"metadata": map[string]any{
+			"name":              "my-xr",
+			"namespace":         "default",
+			"uid":               "xr-uid",
+			"deletionTimestamp": "2026-11-02T00:00:00Z",
+		},
+	})
+	composition := func(policy string) *structpb.Struct {
+		return mustStruct(map[string]any{
+			"metadata": map[string]any{"name": "things"},
+			"spec": map[string]any{
+				"compositeTypeRef": map[string]any{"apiVersion": "example.org/v1alpha1", "kind": "XThing"},
+				"mode":             "Pipeline",
+				"deletionPolicy":   policy,
+				"pipeline": []any{map[string]any{
+					"step":        "teardown",
+					"functionRef": map[string]any{"name": "function-teardown"},
+				}},
+			},
+		})
+	}
+	composed := func(name string) *structpb.Struct {
+		return mustStruct(map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name":        name,
+				"namespace":   "default",
+				"annotations": map[string]any{"crossplane.io/composition-resource-name": name},
+				"ownerReferences": []any{map[string]any{
+					"apiVersion":         "example.org/v1alpha1",
+					"kind":               "XThing",
+					"name":               "my-xr",
+					"uid":                "xr-uid",
+					"controller":         true,
+					"blockOwnerDeletion": true,
+				}},
+			},
+		})
+	}
+	unowned := func(name string) *structpb.Struct {
+		return mustStruct(map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name":        name,
+				"namespace":   "default",
+				"annotations": map[string]any{"crossplane.io/composition-resource-name": name},
+			},
+		})
+	}
+	ref := func(name string) map[string]any {
+		return map[string]any{"apiVersion": "v1", "kind": "ConfigMap", "name": name}
+	}
+
+	// Flags with function-controlled deletion enabled.
+	fcd := &feature.Flags{}
+	fcd.Enable(features.EnableAlphaFunctionControlledDeletion)
+
+	type args struct {
+		ff    *feature.Flags
+		input *renderv1alpha1.CompositeInput
+	}
+
+	type want struct {
+		err error
+		out *renderv1alpha1.CompositeOutput
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"FeatureOff": {
+			reason: "Without function-controlled deletion a deleted XR should be done deleting whatever its Composition's policy: Crossplane removes its finalizer, and leaves its composed resources to Kubernetes.",
+			args: args{
+				ff: &feature.Flags{},
+				input: &renderv1alpha1.CompositeInput{
+					CompositeResource: xr,
+					Composition:       composition("Pipeline"),
+					ObservedResources: []*structpb.Struct{composed("first")},
+					Functions:         []*renderv1alpha1.FunctionInput{{Name: "function-teardown", Address: first}},
+				},
+			},
+			want: want{
+				out: &renderv1alpha1.CompositeOutput{
+					CompositeResource: mustStruct(map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XThing",
+						"metadata": map[string]any{
+							"name":              "my-xr",
+							"namespace":         "default",
+							"uid":               "xr-uid",
+							"resourceVersion":   "999",
+							"deletionTimestamp": "2026-11-02T00:00:00Z",
+							"finalizers":        []any{},
+						},
+						"spec": map[string]any{
+							"crossplane": map[string]any{"resourceRefs": []any{ref("first")}},
+						},
+						"status": map[string]any{
+							"conditions": []any{
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Ready", "status": "False", "reason": "Deleting"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
+							},
+						},
+					}),
+				},
+			},
+		},
+		"Background": {
+			reason: "A deleted XR whose Composition has the Background policy should be done deleting: Crossplane removes its finalizer, and leaves its composed resources to Kubernetes.",
+			args: args{
+				ff: fcd,
+				input: &renderv1alpha1.CompositeInput{
+					CompositeResource: xr,
+					Composition:       composition("Background"),
+					ObservedResources: []*structpb.Struct{composed("first")},
+					Functions:         []*renderv1alpha1.FunctionInput{{Name: "function-teardown", Address: first}},
+				},
+			},
+			want: want{
+				out: &renderv1alpha1.CompositeOutput{
+					CompositeResource: mustStruct(map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XThing",
+						"metadata": map[string]any{
+							"name":              "my-xr",
+							"namespace":         "default",
+							"uid":               "xr-uid",
+							"resourceVersion":   "999",
+							"deletionTimestamp": "2026-11-02T00:00:00Z",
+							"finalizers":        []any{},
+						},
+						"spec": map[string]any{
+							"crossplane": map[string]any{"resourceRefs": []any{ref("first")}},
+						},
+						"status": map[string]any{
+							"conditions": []any{
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Ready", "status": "False", "reason": "Deleting"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
+							},
+							"crossplane": map[string]any{"deletionPolicy": "Background"},
+						},
+					}),
+				},
+			},
+		},
+		"Foreground": {
+			reason: "A deleted XR whose Composition has the Foreground policy should delete its composed resources without running its pipeline, and keep Crossplane's finalizer until they're gone.",
+			args: args{
+				ff: fcd,
+				input: &renderv1alpha1.CompositeInput{
+					CompositeResource: xr,
+					Composition:       composition("Foreground"),
+					ObservedResources: []*structpb.Struct{composed("first"), composed("second")},
+					Functions:         []*renderv1alpha1.FunctionInput{{Name: "function-teardown", Address: first}},
+				},
+			},
+			want: want{
+				out: &renderv1alpha1.CompositeOutput{
+					CompositeResource: mustStruct(map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XThing",
+						"metadata": map[string]any{
+							"name":              "my-xr",
+							"namespace":         "default",
+							"uid":               "xr-uid",
+							"resourceVersion":   "999",
+							"deletionTimestamp": "2026-11-02T00:00:00Z",
+							"finalizers":        []any{"composite.apiextensions.crossplane.io"},
+						},
+						"spec": map[string]any{
+							"crossplane": map[string]any{"resourceRefs": []any{ref("first"), ref("second")}},
+						},
+						"status": map[string]any{
+							"conditions": []any{
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Ready", "status": "False", "reason": "Deleting", "message": "Waiting for 2 composed resource(s) to be deleted"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
+							},
+							"crossplane": map[string]any{"deletionPolicy": "Foreground"},
+						},
+					}),
+					DeletedResources: []*structpb.Struct{composed("first"), composed("second")},
+				},
+			},
+		},
+		"ForegroundWithoutControllerRefs": {
+			reason: "A deleted XR should control observed resources that have no controller, so Crossplane deletes and waits for them.",
+			args: args{
+				ff: fcd,
+				input: &renderv1alpha1.CompositeInput{
+					CompositeResource: xr,
+					Composition:       composition("Foreground"),
+					ObservedResources: []*structpb.Struct{unowned("first"), unowned("second")},
+					Functions:         []*renderv1alpha1.FunctionInput{{Name: "function-teardown", Address: first}},
+				},
+			},
+			want: want{
+				out: &renderv1alpha1.CompositeOutput{
+					CompositeResource: mustStruct(map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XThing",
+						"metadata": map[string]any{
+							"name":              "my-xr",
+							"namespace":         "default",
+							"uid":               "xr-uid",
+							"resourceVersion":   "999",
+							"deletionTimestamp": "2026-11-02T00:00:00Z",
+							"finalizers":        []any{"composite.apiextensions.crossplane.io"},
+						},
+						"spec": map[string]any{
+							"crossplane": map[string]any{"resourceRefs": []any{ref("first"), ref("second")}},
+						},
+						"status": map[string]any{
+							"conditions": []any{
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Ready", "status": "False", "reason": "Deleting", "message": "Waiting for 2 composed resource(s) to be deleted"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
+							},
+							"crossplane": map[string]any{"deletionPolicy": "Foreground"},
+						},
+					}),
+					DeletedResources: []*structpb.Struct{composed("first"), composed("second")},
+				},
+			},
+		},
+		"Pipeline": {
+			reason: "A deleted XR whose Composition has the Pipeline policy should run its pipeline, delete the composed resources it no longer desires, and keep Crossplane's finalizer while some remain.",
+			args: args{
+				ff: fcd,
+				input: &renderv1alpha1.CompositeInput{
+					CompositeResource: xr,
+					Composition:       composition("Pipeline"),
+					ObservedResources: []*structpb.Struct{composed("first"), composed("second")},
+					Functions:         []*renderv1alpha1.FunctionInput{{Name: "function-teardown", Address: first}},
+				},
+			},
+			want: want{
+				out: &renderv1alpha1.CompositeOutput{
+					CompositeResource: mustStruct(map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XThing",
+						"metadata": map[string]any{
+							"name":              "my-xr",
+							"namespace":         "default",
+							"deletionTimestamp": "2026-11-02T00:00:00Z",
+							"finalizers":        []any{"composite.apiextensions.crossplane.io"},
+						},
+						"spec": map[string]any{
+							// Crossplane keeps referencing second until it's gone.
+							"crossplane": map[string]any{"resourceRefs": []any{ref("first"), ref("second")}},
+						},
+						"status": map[string]any{
+							"conditions": []any{
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Ready", "status": "False", "reason": "Deleting", "message": "Waiting for the function pipeline to delete composed resources"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
+							},
+							"crossplane": map[string]any{"deletionPolicy": "Pipeline"},
+						},
+					}),
+					ComposedResources: []*structpb.Struct{mustStruct(map[string]any{
+						"apiVersion": "v1",
+						"kind":       "ConfigMap",
+						"metadata": map[string]any{
+							"name":        "first",
+							"namespace":   "default",
+							"annotations": map[string]any{"crossplane.io/composition-resource-name": "first"},
+							"labels":      map[string]any{"crossplane.io/composite": "my-xr"},
+							"ownerReferences": []any{map[string]any{
+								"apiVersion":         "example.org/v1alpha1",
+								"kind":               "XThing",
+								"name":               "my-xr",
+								"uid":                "xr-uid",
+								"controller":         true,
+								"blockOwnerDeletion": true,
+							}},
+						},
+					})},
+					DeletedResources: []*structpb.Struct{composed("second")},
+					Events: []*renderv1alpha1.Event{
+						{Type: "Normal", Reason: "SelectComposition", Message: "Successfully selected composition: things"},
+						{Type: "Normal", Reason: "ComposeResources", Message: "Composed resource \"first\" is not yet ready"},
+					},
+				},
+			},
+		},
+		"PipelineDone": {
+			reason: "A deleted Pipeline XR whose pipeline desires nothing, with no composed resources left, should be done deleting: Crossplane removes its finalizer and keeps the others.",
+			args: args{
+				ff: fcd,
+				input: &renderv1alpha1.CompositeInput{
+					CompositeResource: mustStruct(map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XThing",
+						"metadata": map[string]any{
+							"name":              "my-xr",
+							"namespace":         "default",
+							"uid":               "xr-uid",
+							"deletionTimestamp": "2026-11-02T00:00:00Z",
+							"finalizers":        []any{"example.org/other"},
+						},
+					}),
+					Composition: composition("Pipeline"),
+					Functions:   []*renderv1alpha1.FunctionInput{{Name: "function-teardown", Address: nothing}},
+				},
+			},
+			want: want{
+				out: &renderv1alpha1.CompositeOutput{
+					CompositeResource: mustStruct(map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XThing",
+						"metadata": map[string]any{
+							"name":              "my-xr",
+							"namespace":         "default",
+							"deletionTimestamp": "2026-11-02T00:00:00Z",
+							"finalizers":        []any{"example.org/other"},
+						},
+						"spec": map[string]any{
+							"crossplane": map[string]any{"resourceRefs": []any{}},
+						},
+						"status": map[string]any{
+							"conditions": []any{
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Ready", "status": "False", "reason": "Deleting"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
+							},
+							"crossplane": map[string]any{"deletionPolicy": "Pipeline"},
+						},
+					}),
+					Events: []*renderv1alpha1.Event{
+						{Type: "Normal", Reason: "SelectComposition", Message: "Successfully selected composition: things"},
+					},
+				},
+			},
+		},
+		"PipelineWaitsForDeletingResource": {
+			reason: "A deleted Pipeline XR whose pipeline desires nothing should keep Crossplane's finalizer while a composed resource it controls is still being deleted.",
+			args: args{
+				ff: fcd,
+				input: &renderv1alpha1.CompositeInput{
+					CompositeResource: xr,
+					Composition:       composition("Pipeline"),
+					ObservedResources: []*structpb.Struct{mustStruct(map[string]any{
+						"apiVersion": "v1",
+						"kind":       "ConfigMap",
+						"metadata": map[string]any{
+							"name":              "first",
+							"namespace":         "default",
+							"deletionTimestamp": "2026-11-02T00:00:00Z",
+							"finalizers":        []any{"example.org/hold"},
+							"annotations":       map[string]any{"crossplane.io/composition-resource-name": "first"},
+							"ownerReferences": []any{map[string]any{
+								"apiVersion":         "example.org/v1alpha1",
+								"kind":               "XThing",
+								"name":               "my-xr",
+								"uid":                "xr-uid",
+								"controller":         true,
+								"blockOwnerDeletion": true,
+							}},
+						},
+					})},
+					Functions: []*renderv1alpha1.FunctionInput{{Name: "function-teardown", Address: nothing}},
+				},
+			},
+			want: want{
+				out: &renderv1alpha1.CompositeOutput{
+					CompositeResource: mustStruct(map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XThing",
+						"metadata": map[string]any{
+							"name":              "my-xr",
+							"namespace":         "default",
+							"deletionTimestamp": "2026-11-02T00:00:00Z",
+							"finalizers":        []any{"composite.apiextensions.crossplane.io"},
+						},
+						"spec": map[string]any{
+							// Crossplane keeps referencing first until it's gone.
+							"crossplane": map[string]any{"resourceRefs": []any{ref("first")}},
+						},
+						"status": map[string]any{
+							"conditions": []any{
+								map[string]any{"type": "Responsive", "status": "True", "reason": "WatchCircuitClosed"},
+								map[string]any{"type": "Ready", "status": "False", "reason": "Deleting", "message": "Waiting for the function pipeline to delete composed resources"},
+								map[string]any{"type": "Synced", "status": "True", "reason": "ReconcileSuccess"},
+							},
+							"crossplane": map[string]any{"deletionPolicy": "Pipeline"},
+						},
+					}),
+					Events: []*renderv1alpha1.Event{
+						{Type: "Normal", Reason: "SelectComposition", Message: "Successfully selected composition: things"},
+					},
+				},
+			},
+		},
+	}
+
+	// Crossplane deletes composed resources in no particular order.
+	byName := protocmp.SortRepeated(func(a, b *structpb.Struct) bool {
+		return a.GetFields()["metadata"].GetStructValue().GetFields()["name"].GetStringValue() <
+			b.GetFields()["metadata"].GetStructValue().GetFields()["name"].GetStringValue()
+	})
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			out, err := Render(t.Context(), logging.NewNopLogger(), tc.args.ff, tc.args.input)
+
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nRender(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty(), protocmp.Transform(), byName, ignoreTimestamps); diff != "" {
+				t.Errorf("\n%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestPrepareDeletion(t *testing.T) {
+	deleted := metav1.Now()
+
+	controller := metav1.OwnerReference{
+		APIVersion:         "example.org/v1alpha1",
+		Kind:               "XThing",
+		Name:               "my-xr",
+		UID:                "xr-uid",
+		Controller:         new(true),
+		BlockOwnerDeletion: new(true),
+	}
+	owner := metav1.OwnerReference{APIVersion: "v1", Kind: "ConfigMap", Name: "owner", UID: "owner-uid"}
+
+	composed := func(name string, refs ...metav1.OwnerReference) kunstructured.Unstructured {
+		u := kunstructured.Unstructured{}
+		u.SetAPIVersion("v1")
+		u.SetKind("ConfigMap")
+		u.SetName(name)
+		u.SetOwnerReferences(refs)
+		return u
+	}
+
+	type args struct {
+		xr                         *ucomposite.Unstructured
+		comp                       *apiextensionsv1.Composition
+		observed                   []kunstructured.Unstructured
+		functionControlledDeletion bool
+	}
+
+	type want struct {
+		xr       *ucomposite.Unstructured
+		observed []kunstructured.Unstructured
+		deleting bool
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NotDeleted": {
+			reason: "We shouldn't touch an XR that isn't deleted.",
+			args: args{
+				xr:                         ucomposite.New(),
+				comp:                       &apiextensionsv1.Composition{},
+				functionControlledDeletion: true,
+			},
+			want: want{
+				xr: ucomposite.New(),
+			},
+		},
+		"Paused": {
+			reason: "We shouldn't touch a paused XR, because Crossplane doesn't delete it.",
+			args: args{
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New()
+					xr.SetDeletionTimestamp(&deleted)
+					xr.SetAnnotations(map[string]string{"crossplane.io/paused": "true"})
+					return xr
+				}(),
+				comp:                       &apiextensionsv1.Composition{},
+				observed:                   []kunstructured.Unstructured{composed("first")},
+				functionControlledDeletion: true,
+			},
+			want: want{
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New()
+					xr.SetDeletionTimestamp(&deleted)
+					xr.SetAnnotations(map[string]string{"crossplane.io/paused": "true"})
+					return xr
+				}(),
+				observed: []kunstructured.Unstructured{composed("first")},
+			},
+		},
+		"FunctionControlledDeletionDisabled": {
+			reason: "Without function-controlled deletion we should only add Crossplane's finalizer.",
+			args: args{
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New()
+					xr.SetDeletionTimestamp(&deleted)
+					return xr
+				}(),
+				comp: &apiextensionsv1.Composition{Spec: apiextensionsv1.CompositionSpec{DeletionPolicy: apiextensionsv1.CompositionDeletionPolicyPipeline}},
+			},
+			want: want{
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New()
+					xr.SetDeletionTimestamp(&deleted)
+					xr.SetFinalizers([]string{xcomposite.Finalizer})
+					return xr
+				}(),
+				deleting: true,
+			},
+		},
+		"RecordCompositionPolicy": {
+			reason: "We should add Crossplane's finalizer, and record the Composition's policy if the XR has none.",
+			args: args{
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New()
+					xr.SetDeletionTimestamp(&deleted)
+					return xr
+				}(),
+				comp:                       &apiextensionsv1.Composition{Spec: apiextensionsv1.CompositionSpec{DeletionPolicy: apiextensionsv1.CompositionDeletionPolicyPipeline}},
+				functionControlledDeletion: true,
+			},
+			want: want{
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New()
+					xr.SetDeletionTimestamp(&deleted)
+					xr.SetFinalizers([]string{xcomposite.Finalizer})
+					xr.SetDeletionPolicy(apiextensionsv1.CompositionDeletionPolicyPipeline)
+					return xr
+				}(),
+				deleting: true,
+			},
+		},
+		"KeepRecordedPolicy": {
+			reason: "We should keep the policy the XR recorded, even if its Composition's differs, because Crossplane deletes an XR using the policy it recorded.",
+			args: args{
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New()
+					xr.SetDeletionTimestamp(&deleted)
+					xr.SetDeletionPolicy(apiextensionsv1.CompositionDeletionPolicyForeground)
+					return xr
+				}(),
+				comp:                       &apiextensionsv1.Composition{Spec: apiextensionsv1.CompositionSpec{DeletionPolicy: apiextensionsv1.CompositionDeletionPolicyPipeline}},
+				functionControlledDeletion: true,
+			},
+			want: want{
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New()
+					xr.SetDeletionTimestamp(&deleted)
+					xr.SetFinalizers([]string{xcomposite.Finalizer})
+					xr.SetDeletionPolicy(apiextensionsv1.CompositionDeletionPolicyForeground)
+					return xr
+				}(),
+				deleting: true,
+			},
+		},
+		"ControlObservedResources": {
+			reason: "We should make the XR the controller of observed resources that have no controller, keeping their other owners, because Crossplane only deletes resources the XR controls.",
+			args: args{
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New()
+					xr.SetAPIVersion("example.org/v1alpha1")
+					xr.SetKind("XThing")
+					xr.SetName("my-xr")
+					xr.SetUID("xr-uid")
+					xr.SetDeletionTimestamp(&deleted)
+					return xr
+				}(),
+				comp:     &apiextensionsv1.Composition{},
+				observed: []kunstructured.Unstructured{composed("first", owner), composed("second", controller)},
+			},
+			want: want{
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New()
+					xr.SetAPIVersion("example.org/v1alpha1")
+					xr.SetKind("XThing")
+					xr.SetName("my-xr")
+					xr.SetUID("xr-uid")
+					xr.SetDeletionTimestamp(&deleted)
+					xr.SetFinalizers([]string{xcomposite.Finalizer})
+					return xr
+				}(),
+				observed: []kunstructured.Unstructured{composed("first", owner, controller), composed("second", controller)},
+				deleting: true,
+			},
+		},
+		"LegacyXR": {
+			reason: "We should only add Crossplane's finalizer to a legacy XR, because legacy XRs don't support deletion policies.",
+			args: args{
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New(ucomposite.WithSchema(ucomposite.SchemaLegacy))
+					xr.SetDeletionTimestamp(&deleted)
+					return xr
+				}(),
+				comp:                       &apiextensionsv1.Composition{Spec: apiextensionsv1.CompositionSpec{DeletionPolicy: apiextensionsv1.CompositionDeletionPolicyPipeline}},
+				functionControlledDeletion: true,
+			},
+			want: want{
+				xr: func() *ucomposite.Unstructured {
+					xr := ucomposite.New(ucomposite.WithSchema(ucomposite.SchemaLegacy))
+					xr.SetDeletionTimestamp(&deleted)
+					xr.SetFinalizers([]string{xcomposite.Finalizer})
+					return xr
+				}(),
+				deleting: true,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			deleting := prepareDeletion(tc.args.xr, tc.args.comp, tc.args.observed, tc.args.functionControlledDeletion)
+
+			if diff := cmp.Diff(tc.want.deleting, deleting); diff != "" {
+				t.Errorf("\n%s\nprepareDeletion(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.xr.Object, tc.args.xr.Object); diff != "" {
+				t.Errorf("\n%s\nprepareDeletion(...): -want XR, +got XR:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.observed, tc.args.observed); diff != "" {
+				t.Errorf("\n%s\nprepareDeletion(...): -want observed, +got observed:\n%s", tc.reason, diff)
+			}
+		})
+	}
 }

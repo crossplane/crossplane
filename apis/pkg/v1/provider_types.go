@@ -48,6 +48,7 @@ type Provider struct {
 
 // ProviderSpec specifies details about a request to install a provider to
 // Crossplane.
+// +kubebuilder:validation:XValidation:rule="has(self.package) && self.package != \"\"",message="package is required"
 type ProviderSpec struct {
 	PackageSpec        `json:",inline"`
 	PackageRuntimeSpec `json:",inline"`

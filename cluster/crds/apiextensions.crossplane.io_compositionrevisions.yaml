@@ -81,6 +81,29 @@ spec:
                 x-kubernetes-validations:
                 - message: Value is immutable
                   rule: self == oldSelf
+              deletionPolicy:
+                description: |-
+                  DeletionPolicy determines how this Composition handles the deletion of
+                  its composite resources. "Background" is Crossplane's default behavior,
+                  used when this field is unset. It stops managing the composite resource
+                  as soon as it's deleted, and Kubernetes deletes its composed resources
+                  once it's gone. "Foreground" deletes the composed resources and keeps
+                  the composite resource until they're gone. "Pipeline" is like
+                  "Foreground", but keeps running the function pipeline, which decides
+                  when each composed resource may be deleted. The pipeline must
+                  eventually stop desiring every composed resource, or the composite
+                  resource will never finish deleting.
+
+                  Crossplane ignores this field for legacy cluster scoped composite
+                  resources, which always use "Background".
+
+                  This is an alpha field. It's ignored unless Crossplane runs with the
+                  --enable-function-controlled-deletion flag.
+                enum:
+                - Background
+                - Foreground
+                - Pipeline
+                type: string
               mode:
                 default: Pipeline
                 description: |-
@@ -107,11 +130,37 @@ spec:
                         needs.
                       items:
                         description: |-
-                          FunctionCredentials are optional credentials that a function
-                          needs to run.
+                          FunctionCredentials specifies credentials that a function needs to run.
+                          Credentials are typically sourced from Kubernetes secrets and passed to
+                          functions during pipeline execution.
+
+                          Credentials can be marked as optional, allowing functions to run even when
+                          the referenced secret does not exist. This is useful for functions that can
+                          operate with or without certain credentials, or during initial setup when
+                          secrets may not yet be provisioned.
                         properties:
                           name:
                             description: Name of this set of credentials.
+                            type: string
+                          resolvePolicy:
+                            default: Required
+                            description: |-
+                              ResolvePolicy specifies how to handle missing credentials. When set to
+                              "Optional", if the referenced secret does not exist, the function will be
+                              called without these credentials rather than failing the pipeline step.
+                              When set to "Required" or unspecified, missing credentials will cause
+                              the pipeline step to fail with an error.
+
+                              Note that only "not found" errors are handled gracefully when ResolvePolicy
+                              is "Optional". Permission errors (forbidden, unauthorized) will still cause
+                              the pipeline step to fail regardless of this setting. Similarly, if the
+                              secret exists but the referenced key is missing, the pipeline step will fail.
+
+                              When an optional secret is not found, an informational event is recorded
+                              on the composite resource, but reconciliation continues normally.
+                            enum:
+                            - Required
+                            - Optional
                             type: string
                           secretRef:
                             description: |-
@@ -145,6 +194,17 @@ spec:
                       x-kubernetes-list-map-keys:
                       - name
                       x-kubernetes-list-type: map
+                    function:
+                      description: |-
+                        Function is a fully-qualified OCI reference to the function package this
+                        step should execute. The package must be specified by digest.
+                      maxLength: 512
+                      type: string
+                      x-kubernetes-validations:
+                      - message: must be a fully qualified OCI reference specified
+                          by digest, including the registry and repository. For example,
+                          'registry.example.com/repo/package@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'.
+                        rule: self.matches('^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*(:[0-9]+)?(\\/[a-z0-9]+((\\.|_|__|-+)[a-z0-9]+)*)+(:[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127})?@[a-z0-9]+:[a-f0-9]+$')
                     functionRef:
                       description: |-
                         FunctionRef is a reference to the function this step should
@@ -251,9 +311,14 @@ spec:
                       description: Step name. Must be unique within its Pipeline.
                       type: string
                   required:
-                  - functionRef
                   - step
                   type: object
+                  x-kubernetes-validations:
+                  - message: exactly one of functionRef or function must be provided
+                    rule: (has(self.functionRef) && !has(self.function)) || (has(self.function)
+                      && !has(self.functionRef))
+                maxItems: 99
+                minItems: 1
                 type: array
                 x-kubernetes-list-map-keys:
                 - step

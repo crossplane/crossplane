@@ -49,6 +49,7 @@ type Configuration struct {
 
 // ConfigurationSpec specifies details about a request to install a
 // configuration to Crossplane.
+// +kubebuilder:validation:XValidation:rule="has(self.package) && self.package != \"\"",message="package is required"
 type ConfigurationSpec struct {
 	PackageSpec `json:",inline"`
 }

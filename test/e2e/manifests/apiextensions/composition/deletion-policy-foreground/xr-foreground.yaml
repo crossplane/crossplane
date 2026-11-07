@@ -1,0 +1,9 @@
+apiVersion: example.org/v1alpha1
+kind: DeletionPolicyTest
+metadata:
+  namespace: default
+  name: deletion-policy-foreground
+spec:
+  crossplane:
+    compositionRef:
+      name: deletion-policy-foreground

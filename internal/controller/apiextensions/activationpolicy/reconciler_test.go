@@ -241,6 +241,24 @@ func TestReconcile(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
+		"MRAPBeingDeletedStatusUnchanged": {
+			reason: "Status unchanged when deleted MRAP already Terminating",
+			args: args{
+				c: &test.MockClient{
+					MockGet: WithMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
+						mrap.SetDeletionTimestamp(&now)
+						mrap.SetConditions(v1alpha1.TerminatingActivationPolicy())
+					})),
+					MockStatusUpdate: func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
+						t.Error("status was written although it did not change")
+						return nil
+					},
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
 		"ReconciliationPaused": {
 			reason: "We should return no error and no requeue when reconciliation is paused.",
 			args: args{
@@ -280,6 +298,24 @@ func TestReconcile(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
+		"ListMRDErrorStatusUnchanged": {
+			reason: "Status unchanged when list error and MRAP already Blocked",
+			args: args{
+				c: &test.MockClient{
+					MockGet: WithMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
+						mrap.SetConditions(v1alpha1.BlockedActivationPolicy().WithMessage("cannot list ManagedResourceDefinition"))
+					})),
+					MockList: test.NewMockListFn(errBoom),
+					MockStatusUpdate: func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
+						t.Error("status was written although it did not change")
+						return nil
+					},
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
 		"NoMRDsToActivate": {
 			reason: "We should succeed when no MRDs match the activation policy.",
 			args: args{
@@ -294,6 +330,27 @@ func TestReconcile(t *testing.T) {
 						mrap.Status.Activated = nil
 						mrap.SetConditions(v1alpha1.Healthy())
 					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"StatusUnchanged": {
+			reason: "We should not update status when the activated MRDs and health condition are unchanged.",
+			args: args{
+				c: &test.MockClient{
+					MockGet: WithMRAP(t, NewMRAP(func(mrap *v1alpha1.ManagedResourceActivationPolicy) {
+						mrap.Status.Activated = []string{"bucket.aws.crossplane.io"}
+						mrap.SetConditions(v1alpha1.Healthy())
+					})),
+					MockList: WithMRDList(t,
+						NewMRD("bucket.aws.crossplane.io", WithMRDState(v1alpha1.ManagedResourceDefinitionActive)),
+					),
+					MockStatusUpdate: func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
+						t.Error("Status().Update() called for unchanged status")
+						return nil
+					},
 				},
 			},
 			want: want{

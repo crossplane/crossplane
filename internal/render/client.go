@@ -31,6 +31,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
 
 // storeKey uniquely identifies a resource in the fake client's store.
@@ -137,7 +139,7 @@ func (c *InMemoryClient) Get(_ context.Context, key client.ObjectKey, obj client
 
 // List lists resources from the in-memory store, filtering by GVK, namespace,
 // and label selector.
-func (c *InMemoryClient) List(_ context.Context, list client.ObjectList, opts ...client.ListOption) error {
+func (c *InMemoryClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
 	listOpts := &client.ListOptions{}
 	for _, o := range opts {
 		o.ApplyToList(listOpts)
@@ -145,7 +147,20 @@ func (c *InMemoryClient) List(_ context.Context, list client.ObjectList, opts ..
 
 	ul, ok := list.(*unstructured.UnstructuredList)
 	if !ok {
-		return kerrors.NewInternalError(nil)
+		// For typed lists, list unstructured resources of the list's GVK and
+		// convert them.
+		gvks, _, err := c.scheme.ObjectKinds(list)
+		if err != nil || len(gvks) == 0 {
+			return kerrors.NewInternalError(errors.Errorf("cannot determine GroupVersionKind of %T", list))
+		}
+
+		tmp := &unstructured.UnstructuredList{}
+		tmp.SetGroupVersionKind(gvks[0])
+		if err := c.List(ctx, tmp, opts...); err != nil {
+			return err
+		}
+
+		return runtime.DefaultUnstructuredConverter.FromUnstructured(tmp.UnstructuredContent(), list)
 	}
 
 	gvk := ul.GroupVersionKind()
@@ -309,7 +324,7 @@ func (w *inMemoryStatusWriter) Update(_ context.Context, obj client.Object, _ ..
 
 	// Write the merged state back into the caller's object so the reconciler
 	// sees the full resource (spec + status) after this call.
-	copyInto(obj, merged)
+	copyInto(obj, withUID(merged, u))
 
 	return nil
 }
@@ -326,7 +341,7 @@ func (w *inMemoryStatusWriter) Patch(_ context.Context, obj client.Object, _ cli
 	w.client.applied = append(w.client.applied, *merged.DeepCopy())
 
 	// Write the merged state back so the reconciler sees the full object.
-	copyInto(obj, merged)
+	copyInto(obj, withUID(merged, u))
 
 	return nil
 }
@@ -445,4 +460,19 @@ func copyInto(dst client.Object, src *unstructured.Unstructured) {
 	}
 	// For typed objects, best-effort conversion.
 	_ = runtime.DefaultUnstructuredConverter.FromUnstructured(src.Object, dst)
+}
+
+// withUID returns the merged resource with the incoming resource's UID if it
+// has none. Patch stores only the fields it's given, so the stored resource can
+// lose its UID. A real API server never returns a resource without one, and the
+// XR reconciler uses it to find the composed resources the XR controls.
+func withUID(merged, incoming *unstructured.Unstructured) *unstructured.Unstructured {
+	if merged.GetUID() != "" || incoming.GetUID() == "" {
+		return merged
+	}
+
+	out := merged.DeepCopy()
+	out.SetUID(incoming.GetUID())
+
+	return out
 }
