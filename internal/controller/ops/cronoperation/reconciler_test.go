@@ -608,7 +608,8 @@ func TestNewOperation(t *testing.T) {
 								},
 							},
 							Spec: v1alpha1.OperationSpec{
-								Mode: v1alpha1.OperationModePipeline,
+								Mode:         v1alpha1.OperationModePipeline,
+								FieldManager: new("ops.crossplane.io/cronoperation/test-cron"),
 								Pipeline: []v1alpha1.PipelineStep{
 									{
 										Step: "test-step",
@@ -643,7 +644,8 @@ func TestNewOperation(t *testing.T) {
 						},
 					},
 					Spec: v1alpha1.OperationSpec{
-						Mode: v1alpha1.OperationModePipeline,
+						Mode:         v1alpha1.OperationModePipeline,
+						FieldManager: new("ops.crossplane.io/cronoperation/test-cron"),
 						Pipeline: []v1alpha1.PipelineStep{
 							{
 								Step: "test-step",
@@ -657,6 +659,14 @@ func TestNewOperation(t *testing.T) {
 			},
 		},
 	}
+
+	omitted := cases["Success"]
+	omitted.reason = "Should preserve an omitted field manager so the child uses its UID-based default"
+	omitted.args.co = omitted.args.co.DeepCopy()
+	omitted.want.op = omitted.want.op.DeepCopy()
+	omitted.args.co.Spec.OperationTemplate.Spec.FieldManager = nil
+	omitted.want.op.Spec.FieldManager = nil
+	cases["OmittedFieldManager"] = omitted
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

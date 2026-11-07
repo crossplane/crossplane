@@ -15,6 +15,7 @@ spec:
   operationTemplate:
     spec:
       mode: Pipeline
+      fieldManager: ops.crossplane.io/watchoperation/basic-watchop
       pipeline:
       - step: nop
         functionRef:

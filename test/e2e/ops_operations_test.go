@@ -17,12 +17,18 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
@@ -261,8 +267,9 @@ func TestCronOperationScheduling(t *testing.T) {
 					&v1alpha1.OperationList{},
 					2, // At least 2 Operations should exist
 					func(o k8s.Object) bool {
-						// Check if this Operation was created by our CronOperation
-						return o.GetLabels()[v1alpha1.LabelCronOperationName] == "basic-cronop"
+						op, ok := o.(*v1alpha1.Operation)
+						return ok && op.GetLabels()[v1alpha1.LabelCronOperationName] == "basic-cronop" &&
+							op.Spec.FieldManager != nil && *op.Spec.FieldManager == "ops.crossplane.io/cronoperation/basic-cronop"
 					}),
 			)).
 			WithTeardown("DeleteCronOperation", funcs.AllOf(
@@ -392,8 +399,9 @@ func TestWatchOperationResourceChanges(t *testing.T) {
 					&v1alpha1.OperationList{},
 					4, // At least 4 Operations should exist
 					func(o k8s.Object) bool {
-						// Check if this Operation was created by our WatchOperation
-						return o.GetLabels()[v1alpha1.LabelWatchOperationName] == "basic-watchop"
+						op, ok := o.(*v1alpha1.Operation)
+						return ok && op.GetLabels()[v1alpha1.LabelWatchOperationName] == "basic-watchop" &&
+							op.Spec.FieldManager != nil && *op.Spec.FieldManager == "ops.crossplane.io/watchoperation/basic-watchop"
 					}),
 			)).
 			WithTeardown("DeleteSecondWatchedResource", funcs.AllOf(
@@ -409,6 +417,199 @@ func TestWatchOperationResourceChanges(t *testing.T) {
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Feature(),
+	)
+}
+
+func TestOperationFieldManager(t *testing.T) {
+	cm := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "operation-field-manager"}}
+	manifests := "test/e2e/manifests/ops/operations/field-manager"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that successive Operations can remove their finalizer using a shared field manager.").
+			WithLabel(LabelArea, LabelAreaOps).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteOps).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ApplyResources(FieldManager, manifests, "configmap.yaml"),
+			)).
+			Assess("AddFinalizer", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "add.yaml"),
+				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "add.yaml", v1alpha1.Complete()),
+				funcs.ResourceHasFieldValueWithin(30*time.Second, cm, "metadata.finalizers", funcs.FieldValueChecker(func(got any) bool {
+					fs, ok := got.([]any)
+					return ok && len(fs) == 2 && slices.Contains(fs, "example.org/operation") && slices.Contains(fs, "example.org/other-controller")
+				})),
+			)).
+			Assess("DeleteConfigMap", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configmap.yaml"),
+				funcs.ResourceHasFieldValueWithin(30*time.Second, cm, "metadata.deletionTimestamp", funcs.Any),
+			)).
+			Assess("RemoveOperationFinalizer", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "remove.yaml"),
+				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "remove.yaml", v1alpha1.Complete()),
+				funcs.ResourceHasFieldValueWithin(30*time.Second, cm, "metadata.finalizers", []any{"example.org/other-controller"}),
+			)).
+			Assess("FinishDeletion", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "release.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "configmap.yaml"),
+			)).
+			WithTeardown("DeleteConfigMap", funcs.RemoveFinalizersAndDelete(cm)).
+			WithTeardown("DeleteOperations", funcs.AllOf(
+				funcs.DeleteResources(manifests, "add.yaml"),
+				funcs.DeleteResources(manifests, "remove.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResourcesWithPropagationPolicy(manifests, "setup/*.yaml", metav1.DeletePropagationForeground),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestOperationFieldManagerValidation(t *testing.T) {
+	type args struct {
+		manager *string
+	}
+
+	type want struct {
+		valid bool
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"Default": {
+			reason: "An omitted field manager should be accepted.",
+			want:   want{valid: true},
+		},
+		"ASCII": {
+			reason: "A printable ASCII field manager should be accepted.",
+			args:   args{manager: new("ops.crossplane.io/test")},
+			want:   want{valid: true},
+		},
+		"Chinese": {
+			reason: "Printable Chinese characters should be accepted.",
+			args:   args{manager: new("\u4f60\u597d")},
+			want:   want{valid: true},
+		},
+		"Emoji": {
+			reason: "Printable emoji should be accepted.",
+			args:   args{manager: new("🍔")},
+			want:   want{valid: true},
+		},
+		"CombiningMark": {
+			reason: "Printable combining marks should be accepted.",
+			args:   args{manager: new("e\u0301")},
+			want:   want{valid: true},
+		},
+		"Space": {
+			reason: "An ASCII space should be accepted.",
+			args:   args{manager: new("field manager")},
+			want:   want{valid: true},
+		},
+		"ASCIIAtLimit": {
+			reason: "An ASCII field manager of exactly 128 bytes should be accepted.",
+			args:   args{manager: new(strings.Repeat("a", 128))},
+			want:   want{valid: true},
+		},
+		"UnicodeAtLimit": {
+			reason: "A Unicode field manager of exactly 128 bytes should be accepted.",
+			args:   args{manager: new(strings.Repeat("é", 64))},
+			want:   want{valid: true},
+		},
+		"Empty": {
+			reason: "An explicitly empty field manager should be rejected.",
+			args:   args{manager: new("")},
+		},
+		"ASCIIOverLimit": {
+			reason: "An ASCII field manager exceeding 128 bytes should be rejected.",
+			args:   args{manager: new(strings.Repeat("a", 129))},
+		},
+		"UnicodeOverLimit": {
+			reason: "A Unicode field manager exceeding 128 bytes should be rejected even with fewer than 128 characters.",
+			args:   args{manager: new(strings.Repeat("é", 65))},
+		},
+		"Newline": {
+			reason: "A newline is not printable and should be rejected.",
+			args:   args{manager: new("field\nmanager")},
+		},
+		"Tab": {
+			reason: "A tab is not printable and should be rejected.",
+			args:   args{manager: new("field\tmanager")},
+		},
+		"Null": {
+			reason: "A null character is not printable and should be rejected.",
+			args:   args{manager: new("field\x00manager")},
+		},
+		"Delete": {
+			reason: "A delete character is not printable and should be rejected.",
+			args:   args{manager: new("field\x7fmanager")},
+		},
+		"NonBreakingSpace": {
+			reason: "A non-breaking space is not printable under Kubernetes field-manager rules.",
+			args:   args{manager: new("field\u00a0manager")},
+		},
+		"ZeroWidthSpace": {
+			reason: "A zero-width space is not printable and should be rejected.",
+			args:   args{manager: new("field\u200bmanager")},
+		},
+	}
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests field manager admission for Operations and parent templates.").
+			WithLabel(LabelArea, LabelAreaOps).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteOps).
+			Assess("ValidateFieldManagers", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+				t.Helper()
+
+				for _, kind := range []string{"Operation", "CronOperation", "WatchOperation"} {
+					for name, tc := range cases {
+						t.Run(kind+"/"+name, func(t *testing.T) {
+							op := map[string]any{
+								"mode": "Pipeline",
+								"pipeline": []any{map[string]any{
+									"step": "test", "functionRef": map[string]any{"name": "function-test"},
+								}},
+							}
+							if tc.args.manager != nil {
+								op["fieldManager"] = *tc.args.manager
+							}
+							spec := op
+							switch kind {
+							case "CronOperation":
+								spec = map[string]any{"schedule": "* * * * *", "operationTemplate": map[string]any{"spec": op}}
+							case "WatchOperation":
+								spec = map[string]any{
+									"watch":             map[string]any{"apiVersion": "v1", "kind": "ConfigMap"},
+									"operationTemplate": map[string]any{"spec": op},
+								}
+							}
+							o := &unstructured.Unstructured{Object: map[string]any{
+								"apiVersion": "ops.crossplane.io/v1alpha1", "kind": kind,
+								"metadata": map[string]any{"name": "field-manager-validation"}, "spec": spec,
+							}}
+							// Dry-run admission without creating Operations that would execute.
+							err := c.Client().Resources().Create(ctx, o, func(opts *metav1.CreateOptions) {
+								opts.DryRun = []string{metav1.DryRunAll}
+							})
+							if tc.want.valid {
+								if err != nil {
+									t.Errorf("%s\ncannot admit valid field manager: %v", tc.reason, err)
+								}
+								return
+							}
+							if !apierrors.IsInvalid(err) || !strings.Contains(err.Error(), "fieldManager") {
+								t.Errorf("%s\nwant fieldManager validation error, got: %v", tc.reason, err)
+							}
+						})
+					}
+				}
+				return ctx
+			}).Feature(),
 	)
 }
 
