@@ -324,7 +324,7 @@ func (w *inMemoryStatusWriter) Update(_ context.Context, obj client.Object, _ ..
 
 	// Write the merged state back into the caller's object so the reconciler
 	// sees the full resource (spec + status) after this call.
-	copyInto(obj, merged)
+	copyInto(obj, withUID(merged, u))
 
 	return nil
 }
@@ -341,7 +341,7 @@ func (w *inMemoryStatusWriter) Patch(_ context.Context, obj client.Object, _ cli
 	w.client.applied = append(w.client.applied, *merged.DeepCopy())
 
 	// Write the merged state back so the reconciler sees the full object.
-	copyInto(obj, merged)
+	copyInto(obj, withUID(merged, u))
 
 	return nil
 }
@@ -460,4 +460,19 @@ func copyInto(dst client.Object, src *unstructured.Unstructured) {
 	}
 	// For typed objects, best-effort conversion.
 	_ = runtime.DefaultUnstructuredConverter.FromUnstructured(src.Object, dst)
+}
+
+// withUID returns the merged resource with the incoming resource's UID if it
+// has none. Patch stores only the fields it's given, so the stored resource can
+// lose its UID. A real API server never returns a resource without one, and the
+// XR reconciler uses it to find the composed resources the XR controls.
+func withUID(merged, incoming *unstructured.Unstructured) *unstructured.Unstructured {
+	if merged.GetUID() != "" || incoming.GetUID() == "" {
+		return merged
+	}
+
+	out := merged.DeepCopy()
+	out.SetUID(incoming.GetUID())
+
+	return out
 }
