@@ -52,7 +52,7 @@ spec:
       runtimeClassName: {{ .Values.runtimeClassName | quote }}
       {{- end }}
       initContainers:
-      - name: {{ .Chart.Name }}-init
+      - name: {{ template "crossplane.name" . }}-init
         {{- if .Values.image.ignoreTag }}
         image: "{{ .Values.image.repository }}"
         {{- else }}
@@ -72,17 +72,17 @@ spec:
           - name: GOMAXPROCS
             valueFrom:
               resourceFieldRef:
-                containerName: {{ .Chart.Name }}-init
+                containerName: {{ template "crossplane.name" . }}-init
                 resource: limits.cpu
                 divisor: "1"
           - name: GOMEMLIMIT
             valueFrom:
               resourceFieldRef:
-                containerName: {{ .Chart.Name }}-init
+                containerName: {{ template "crossplane.name" . }}-init
                 resource: limits.memory
                 divisor: "1"
       containers:
-      - name: {{ .Chart.Name }}
+      - name: {{ template "crossplane.name" . }}
         {{- if .Values.image.ignoreTag }}
         image: "{{ .Values.image.repository }}"
         {{- else }}
@@ -111,13 +111,13 @@ spec:
           - name: GOMAXPROCS
             valueFrom:
               resourceFieldRef:
-                containerName: {{ .Chart.Name }}
+                containerName: {{ template "crossplane.name" . }}
                 resource: limits.cpu
                 divisor: "1"
           - name: GOMEMLIMIT
             valueFrom:
               resourceFieldRef:
-                containerName: {{ .Chart.Name }}
+                containerName: {{ template "crossplane.name" . }}
                 resource: limits.memory
                 divisor: "1"
           - name: LEADER_ELECTION
