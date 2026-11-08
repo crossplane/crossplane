@@ -1,0 +1,180 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.1
+  name: externalinventories.apiextensions.crossplane.io
+spec:
+  group: apiextensions.crossplane.io
+  names:
+    categories:
+    - crossplane
+    kind: ExternalInventory
+    listKind: ExternalInventoryList
+    plural: externalinventories
+    shortNames:
+    - extinv
+    singular: externalinventory
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.mrdRef.name
+      name: MRD
+      type: string
+    - jsonPath: .status.lastListed
+      name: LAST-LISTED
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          ExternalInventory records the external resources of one managed resource
+          kind, as listed by its provider. One ExternalInventory exists per
+          ManagedResourceDefinition and is written by the provider, not by Crossplane.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ExternalInventorySpec describes which kind an inventory covers.
+            properties:
+              mrdRef:
+                description: MRDRef references the ManagedResourceDefinition whose
+                  kind is listed.
+                properties:
+                  apiVersion:
+                    description: APIVersion of the referenced object.
+                    type: string
+                  kind:
+                    description: Kind of the referenced object.
+                    type: string
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                  uid:
+                    description: UID of the referenced object.
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
+              providerConfigRef:
+                description: |-
+                  ProviderConfigRef is the ProviderConfig the provider used to list the
+                  resources. The listing is scoped to that account, project or credentials.
+                properties:
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                  policy:
+                    description: Policies for referencing.
+                    properties:
+                      resolution:
+                        default: Required
+                        description: |-
+                          Resolution specifies whether resolution of this reference is required.
+                          The default is 'Required', which means the reconcile will fail if the
+                          reference cannot be resolved. 'Optional' means this reference will be
+                          a no-op if it cannot be resolved.
+                        enum:
+                        - Required
+                        - Optional
+                        type: string
+                      resolve:
+                        description: |-
+                          Resolve specifies when this reference should be resolved. The default
+                          is 'IfNotPresent', which will attempt to resolve the reference only when
+                          the corresponding field is not present. Use 'Always' to resolve the
+                          reference on every reconcile.
+                        enum:
+                        - Always
+                        - IfNotPresent
+                        type: string
+                    type: object
+                required:
+                - name
+                type: object
+            required:
+            - mrdRef
+            type: object
+          status:
+            description: ExternalInventoryStatus is the most recent listing, published
+              by the provider.
+            properties:
+              lastListed:
+                description: LastListed is when the provider last completed a listing
+                  of this kind.
+                format: date-time
+                type: string
+              scopes:
+                description: |-
+                  Scopes holds the result of listing each scope of the kind. An unscoped
+                  kind has a single entry with an empty scope.
+                items:
+                  description: ExternalInventoryScopeStatus is the result of listing
+                    one scope.
+                  properties:
+                    error:
+                      description: |-
+                        Error describes why listing this scope failed. It is empty when the scope
+                        was listed successfully.
+                      type: string
+                    items:
+                      description: Items are the external resources found in this
+                        scope so far.
+                      items:
+                        description: ExternalInventoryItem is one external resource
+                          published by a provider.
+                        properties:
+                          externalName:
+                            description: |-
+                              ExternalName is the identifier of the resource in the external system. It
+                              is the value used in the crossplane.io/external-name annotation.
+                            type: string
+                          scope:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              Scope holds the spec.forProvider fields, beyond the external name, that the
+                              provider's Observe needs to locate the resource.
+                            type: object
+                        required:
+                        - externalName
+                        type: object
+                      type: array
+                    nextPageToken:
+                      description: |-
+                        NextPageToken is set while this scope is only partially listed. The
+                        provider resumes from this token on its next run.
+                      type: string
+                    scope:
+                      additionalProperties:
+                        type: string
+                      description: Scope is the scope that was listed.
+                      type: object
+                  type: object
+                type: array
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
