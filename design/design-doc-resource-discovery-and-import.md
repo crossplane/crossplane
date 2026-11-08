@@ -64,6 +64,27 @@ Each method is keyed by the managed resource object—implicitly by its
 `external-name` annotation. There is no `List()` or `Discover()` method, and
 adding one would require a breaking change to the interface contract.
 
+### Scoped Resources
+
+Many external resource kinds are identified by a parent set in addition to
+their external name. Examples include a DNS record within a zone, a
+client within an identity realm, a robot account within a project, an action
+within a repository, and an authentication method at a mount path. The parent
+set is a field of the managed resource's `spec.forProvider`, and `Observe`
+requires it to locate the external resource.
+
+Consequences for enumeration:
+
+- Enumerating a scoped kind requires a scope: a provider lists within one
+  parent set at a time, and must be able to enumerate the sets themselves.
+- The same external name can exist in more than one set, so the identity of
+  an external resource is the pair of its scope and its external name.
+- A scope may be optional. An optional scope field makes the empty value a
+  scope of its own (for example, system-level robot accounts that have no
+  project).
+- Adoption must populate the scope fields alongside the external name, because
+  `Observe` reads them.
+
 ### Distinction from Prior Work: Querying and Filtering
 
 The [design-doc-observe-only-resources.md](design-doc-observe-only-resources.md)
@@ -105,6 +126,10 @@ resources of this kind, as identifiers only." It is simpler, scoped differently
    surfacing (not auto-adopting) is the default; auto-import is controlled
    by explicit configuration.
 
+6. **Support scoped resource kinds** — enumeration covers kinds identified by
+   a parent set (see "Scoped Resources"). Providers can enumerate the parent
+   sets, and each external resource is reported with the scope it belongs to.
+
 ## Non-Goals
 
 1. **Real-time discovery** — this is a coarse-interval operation (like
@@ -126,25 +151,40 @@ resources of this kind, as identifiers only." It is simpler, scoped differently
 
 5. **Multi-account or multi-provider aggregation** — discovery is per
    ProviderConfig, per resource kind. Aggregating results across accounts or
-   clouds is left to higher-level tooling.
+   clouds is left to higher-level tooling. Scopes enumerated for a kind are
+   always within one ProviderConfig.
 
 ## Proposal
 
 ### 1. New Optional Interface: ExternalLister (crossplane-runtime)
 
 In the `crossplane-runtime` repository (`github.com/crossplane/crossplane-runtime`),
-add an optional interface that providers may implement:
+add optional interfaces that providers may implement:
 
 ```go
+// ExternalListScope identifies one set of external resources. Its keys are
+// spec.forProvider JSON field names, for example {"zone": "abc"}. An empty
+// scope denotes the top level of a kind that is not scoped.
+type ExternalListScope map[string]string
+
+// ExternalListItem is one external resource found by ExternalLister.List.
+type ExternalListItem struct {
+    // ExternalName matches the format expected by ExternalClient.Observe when
+    // used as crossplane.io/external-name.
+    ExternalName string
+
+    // Scope holds the spec.forProvider fields, beyond the external name, that
+    // Observe needs in order to locate the resource. Empty for kinds that are
+    // not scoped.
+    Scope ExternalListScope
+}
+
 // ExternalListResult is returned by ExternalLister.List.
 type ExternalListResult struct {
-    // ExternalNames is a list of external resource identifiers discovered.
-    // Providers must ensure these identifiers match the format expected by
-    // ExternalClient.Observe when used as crossplane.io/external-name.
-    ExternalNames []string
+    Items []ExternalListItem
 
-    // NextPageToken, if non-empty, indicates there are more results.
-    // Callers should invoke List again with this token.
+    // NextPageToken, if non-empty, indicates there are more results. Callers
+    // invoke List again with this token and the same scope.
     NextPageToken string
 }
 
@@ -152,35 +192,68 @@ type ExternalListResult struct {
 // provider's external system. It is an optional interface; providers that do
 // not wish to support discovery may leave it unimplemented.
 type ExternalLister interface {
-    // List enumerates external resources of the kind represented by the MRD.
-    // The ProviderConfig (passed via context or method argument) scopes the
-    // search to a specific cloud account, project, etc.
+    // List enumerates external resources of the kind represented by the MRD,
+    // within the given scope. The ProviderConfig scopes the search to a
+    // specific cloud account, project, credentials, or similar context.
+    //
+    // A kind that is not scoped ignores the scope argument. A kind that
+    // requires a scope and is called without one returns ErrScopeRequired,
+    // naming the required keys.
     //
     // Callers must check NextPageToken and invoke List again until it is empty.
-    // Implementations should respect reasonable rate limiting and timeouts
-    // to avoid overwhelming the external API.
-    List(ctx context.Context, pc resource.ProviderConfig, pageToken string) (ExternalListResult, error)
+    // Implementations should respect reasonable rate limiting and timeouts.
+    List(ctx context.Context, pc resource.ProviderConfig, scope ExternalListScope, pageToken string) (ExternalListResult, error)
+}
+
+// ExternalScopeListResult is returned by ExternalScopeLister.ListScopes.
+type ExternalScopeListResult struct {
+    Scopes        []ExternalListScope
+    NextPageToken string
+}
+
+// ExternalScopeLister enumerates the scopes of a kind, so that callers can
+// list each scope in turn. It is an optional companion to ExternalLister for
+// kinds that are scoped.
+type ExternalScopeLister interface {
+    // ListScopes enumerates the child scopes of parent. A nil or empty parent
+    // enumerates the top-level scopes. Hierarchies with more than one level are
+    // enumerated by calling ListScopes with a returned scope as the parent.
+    ListScopes(ctx context.Context, pc resource.ProviderConfig, parent ExternalListScope, pageToken string) (ExternalScopeListResult, error)
 }
 ```
 
 **Design rationale:**
 
-- **Optional / non-breaking** — Providers implement `ExternalLister` via type
-  assertion in calling code (same pattern already used in the managed reconciler
-  for other optional capabilities). Providers that don't implement it simply
-  return "not supported" or "disabled"; existing providers are unaffected.
+- **Optional / non-breaking** — Providers implement `ExternalLister` (and
+  `ExternalScopeLister` where scoped) via type assertion in calling code, the
+  same pattern the managed reconciler already uses for other optional
+  capabilities. Providers that don't implement them are unaffected.
 
 - **ProviderConfig-scoped** — Discovery is always within a specific
   ProviderConfig (account, project, credentials). This bounds the blast radius
   of any IAM or API call permissions and prevents accidental cross-account
   listing.
 
-- **External names only** — `List()` returns identifiers, not full state.
-  `Observe()` will be called separately on any adopted resource to fetch full
-  state and populate status fields. This keeps `List()` cheap and focused.
+- **Scope-aware** — A scoped kind is enumerated one scope at a time. Its
+  scopes are discovered through `ExternalScopeLister`, and the items returned
+  carry the scope they belong to, so adoption can populate `spec.forProvider`
+  with the same fields that `Observe` reads.
+
+- **Identity is the scope and the external name** — The same external name may
+  exist in several scopes, so an item is identified by its scope together with
+  its external name.
+
+- **Optional scope keys** — When a scope key is optional, its empty value is a
+  scope of its own. A system-level resource with no parent set is reported
+  under the empty value.
 
 - **Paginated** — External APIs often return results in pages. Pagination
-  tokens are opaque to Crossplane; the provider controls the format.
+  tokens are opaque to Crossplane; the provider controls the format. Each call
+  to `List` or `ListScopes` has its own token sequence.
+
+- **External names only in the list** — `List()` returns identifiers and the
+  scope fields `Observe` needs, not full state. `Observe()` is called separately
+  on any adopted resource to fetch full state and populate status fields.
 
 ### 2. Consumption Path A: One-shot Import Workflow
 
@@ -190,27 +263,41 @@ A new CLI subcommand discovers external resources and emits YAML for adoption:
 
 ```bash
 crossplane beta import \
-  --kind=Bucket \
-  --group=s3.minio.crossplane.io \
+  --kind=Record \
+  --group=dns.cloudflare.m.crossplane.io \
   --provider-config=default \
   --namespace=crossplane-system \
+  [--scope zone=<zone-id>]... \
+  [--all-scopes] \
   [--dry-run]  # (default: true)
 ```
+
+`--scope key=value` (repeatable) lists within the given scope. `--all-scopes`
+enumerates every scope of the kind through `ExternalScopeLister` and lists each
+one in turn. Scoped kinds require one of the two; unscoped kinds ignore both.
 
 **Behavior:**
 
 1. Look up the MRD for the given `kind` and `group`.
 2. Fetch the named ProviderConfig.
-3. Instantiate the provider's ExternalClient for that ProviderConfig.
-4. If the client implements `ExternalLister`, call `List()` repeatedly until
-   all pages are consumed, collecting external names.
-5. Query the Kubernetes API for all existing MRs of that kind (using
-   `kubectl get <kind> -A`).
-6. Extract the `crossplane.io/external-name` annotation from each existing MR.
-7. Compute the set difference: external names not yet managed.
-8. For each unmanaged name, emit a CR with:
-   - `metadata.name` = generated or user-provided (e.g., hash of external name)
+3. Build the provider's ExternalClient from a probe managed resource of that
+   kind that carries only `providerConfigRef`, since `Connect` takes a managed
+   resource.
+4. Determine the scopes to list: the `--scope` value if given, every scope from
+   `ExternalScopeLister.ListScopes()` (following its pages) if `--all-scopes` is
+   given, or the empty scope for an unscoped kind.
+5. For each scope, if the client implements `ExternalLister`, call `List()`
+   until all pages are consumed, collecting items. A failing scope is reported
+   and the run continues with the remaining scopes.
+6. Query the Kubernetes API for all existing MRs of that kind (using
+   `kubectl get <kind> -A`), and read each MR's `crossplane.io/external-name`
+   annotation together with the scope fields in its `spec.forProvider`.
+7. Compute the set difference on the identity tuple, `(scope, external name)`:
+   items not yet managed.
+8. For each unmanaged item, emit a CR with:
+   - `metadata.name` = generated or user-provided (e.g., hash of the identity tuple)
    - `metadata.annotations["crossplane.io/external-name"]` = external name
+   - `spec.forProvider` = the item's scope fields
    - `spec.managementPolicies: [Observe, LateInitialize]`
    - `spec.providerConfigRef.name` = the ProviderConfig used
    - All other spec fields left empty or filled with defaults
@@ -218,29 +305,19 @@ crossplane beta import \
 10. If `--dry-run=false` and `--auto-import=true`, `kubectl apply` the YAML
     and print a summary.
 
-**Example output:**
+**Example output** (cloudflare DNS Record, scope `zone`):
 
 ```yaml
-apiVersion: s3.minio.crossplane.io/v1alpha1
-kind: Bucket
+apiVersion: dns.cloudflare.m.crossplane.io/v1beta1
+kind: Record
 metadata:
-  name: bucket-existing-bucket-1
-  namespace: default
+  name: record-5a1c9e2f7d
+  namespace: crossplane-system
   annotations:
-    crossplane.io/external-name: existing-bucket-1
+    crossplane.io/external-name: 023e105f4ecef8ad9ca31a8372d0c353
 spec:
-  managementPolicies: [Observe, LateInitialize]
-  providerConfigRef:
-    name: default
----
-apiVersion: s3.minio.crossplane.io/v1alpha1
-kind: Bucket
-metadata:
-  name: bucket-existing-bucket-2
-  namespace: default
-  annotations:
-    crossplane.io/external-name: existing-bucket-2
-spec:
+  forProvider:
+    zone: 9d2b5f1c0a7e4d3b8f6a2c1e0d9b8a7f
   managementPolicies: [Observe, LateInitialize]
   providerConfigRef:
     name: default
@@ -249,8 +326,9 @@ spec:
 **Safety notes:**
 
 - `--dry-run=true` by default; requires explicit `--auto-import=true` to apply.
-- Emits warnings if duplicate external names are found (e.g., multiple MRs
-  already adopt the same external resource).
+- Emits warnings if the same identity tuple is adopted by more than one MR.
+  External names repeat across scopes, so a repeated external name is not on
+  its own a duplicate.
 - Does not delete or modify existing MRs; only reports new ones to be adopted.
 
 ### 3. Consumption Path B: Recurring Orphan-Detection Controller
@@ -280,15 +358,23 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 For each ManagedResourceDefinition with a provider that implements
 `ExternalLister`:
 
-1. Fetch all external names via `List()`.
-2. Query Kubernetes for all MRs of that kind (all namespaces, all
-   ProviderConfigs).
-3. Extract the `crossplane.io/external-name` annotation from each MR.
-4. Compute unmanaged = external names not in the MR set.
+1. Determine the scopes of the kind: for a scoped kind, enumerate them via
+   `ExternalScopeLister.ListScopes()` (following its pages), bounded by a
+   configured maximum number of scopes per run. For an unscoped kind, use the
+   empty scope.
+2. For each scope, fetch all items via `List()`, following pages, with bounded
+   concurrency across scopes. A failing scope is reported and skipped for the
+   run.
+3. Query Kubernetes for all MRs of that kind (all namespaces, all
+   ProviderConfigs), and read each MR's `crossplane.io/external-name` annotation
+   together with its scope fields.
+4. Compute unmanaged = items whose identity tuple `(scope, external name)` is
+   not in the MR set.
 5. Emit a Kubernetes Event or update a lightweight DiscoveryReport CRD
-   (open question; see below) with findings.
-6. If `--auto-import=true`, optionally create new MRs for unmanaged resources
-   (same as CLI path). Default: off.
+   (open question; see below) with findings. Each finding records the scope it
+   belongs to.
+6. If `--auto-import=true`, optionally create new MRs for unmanaged items
+   (same as CLI path), with their scope fields populated. Default: off.
 
 **Output: Events or DiscoveryReport CRD?** (Open question to be resolved in
 community review)
@@ -356,20 +442,21 @@ future addition of DiscoveryReport if persistent audit/metrics are needed.
 ### 4. Implementation Scope: What Lives Where
 
 **crossplane-runtime** (separate repository)
-- `ExternalLister` interface and `ExternalListResult` struct
+- `ExternalLister`, `ExternalListScope`, `ExternalListItem`,
+  `ExternalListResult`, `ExternalScopeLister` and `ExternalScopeListResult`
 - Optional integration in the managed reconciler to enable discovery workflows
   (no required changes to existing reconcile logic)
 
 **crossplane/crossplane** (this repository)
-- CLI command `crossplane beta import` (or similar packaging)
-- DiscoveryReconciler in `internal/controller/apiextensions/discovery/` (if
-  orphan detection is implemented)
+- CLI command `crossplane beta import` with `--scope` and `--all-scopes`
+- DiscoveryReconciler in `internal/controller/apiextensions/discovery/`, iterating
+  scopes, comparing on the identity tuple (if orphan detection is implemented)
 - Feature gate: `--enable-alpha-resource-discovery` (default: false)
 - Per-resource opt-in: `crossplane.io/discovery-interval` annotation on MRD
 
 **Provider repositories** (e.g., provider-aws, provider-gcp, provider-minio)
 - Implement `ExternalLister.List()` for each managed resource kind that wishes
-  to support discovery
+  to support discovery; scoped kinds also implement `ExternalScopeLister`
 - Opt-in; not required for existing resources
 - Migrate incrementally
 
@@ -377,9 +464,11 @@ future addition of DiscoveryReport if persistent audit/metrics are needed.
 
 #### IAM Permissions
 
-`List()` requires permission to enumerate resources, which is often a different
-IAM action than per-resource `Get` (used by `Observe()`). Providers must
-document the permission required (e.g., `s3:ListBucket`, `ec2:DescribeInstances`).
+`ListScopes()` and `List()` require permission to enumerate resources, which is
+often a different IAM action than per-resource `Get` (used by `Observe()`).
+Enumerating scopes can need different permissions from enumerating the members
+of a scope, for example listing zones versus listing the DNS records within
+them. Providers must document the permissions required for each.
 
 ProviderConfig-scoped discovery bounds the blast radius: listing is only
 within the account/project/credentials of that ProviderConfig.
@@ -387,10 +476,14 @@ within the account/project/credentials of that ProviderConfig.
 #### Rate Limiting and Cost
 
 Calling `List()` on large external systems can be expensive (API quota, cost).
+For a scoped kind the number of calls is the number of scopes multiplied by the
+number of pages per scope, so the bounded concurrency and the maximum scopes
+per run apply to both.
 
 - Discovery runs on a long interval (default 1 hour), not per-resource polling
   (default 1 minute).
-- Providers may implement their own rate limiting and caching within `List()`.
+- Providers may implement their own rate limiting and caching within `List()`
+  and `ListScopes()`.
 - Operators can disable discovery entirely or tune the interval per MRD.
 
 #### Duplicate Adoption Races
@@ -400,8 +493,10 @@ simultaneously, both may create an MR. Crossplane's existing duplicate-detection
 (external-name uniqueness per MRD within the cluster) will surface the conflict,
 and the later one will be blocked by the existing MR's update conflicts.
 
-This is acceptable (rare in practice); the operator should resolve it by
-deleting the duplicate and retaining the first one.
+Identity is the tuple `(scope, external name)`, so the same external name in
+two scopes is two distinct resources, not a race. Adoptions of the same tuple
+race as described above and are resolved the same way: the operator deletes the
+duplicate and retains the first one.
 
 #### Feature Gating
 
@@ -437,6 +532,23 @@ following the precedent in
    credentials directly, or are there cases where it needs additional
    secrets/IRSA? Proposal: use the same mechanism as `Observe()` (existing
    ProviderConfig plumbing).
+
+6. **Discovering required scope keys** — how does a caller learn which scope
+   keys a kind requires before calling `List()`? Options: the typed
+   `ErrScopeRequired` error alone, or a machine-readable annotation on the MRD
+   (for example `crossplane.io/discovery-scope-keys`) that lists the keys.
+
+7. **Page tokens across scopes** — a `NextPageToken` is valid only with the scope
+   that produced it. Proposal: callers keep each scope's token separate, and a
+   token is never reused across scopes.
+
+8. **Hierarchy depth** — `ListScopes` composes for multi-level hierarchies. Is a
+   maximum depth needed, and should the maximum scopes per run be a per-MRD
+   setting?
+
+9. **Connect without a managed resource** — discovery builds the client from a
+   probe managed resource that carries only `providerConfigRef`. Should the
+   runtime gain a ProviderConfig-based constructor so that no probe is needed?
 
 ## Alternatives Considered
 
@@ -485,7 +597,40 @@ MRD, supporting filters and parameterized lookup.
 interface is a better foundation. Query Resources could be built on top of it
 in the future if filtered lookup becomes a priority.
 
-### Alternative 3: Status Quo (Manual Enumeration Scripts)
+### Alternative 3: Passing a Managed Resource as the List Input
+
+`List()` takes a partially filled managed resource carrying the parent fields
+(for example `spec.forProvider.zone`), and the provider reads the scope from it.
+
+**Pros:**
+- Matches how `Connect` and `Observe` already receive a managed resource.
+
+**Cons:**
+- Couples the discovery contract to typed managed-resource objects, which
+  differ per kind and per provider.
+- Requires the caller to construct a managed resource for each scope, including
+  for scopes that do not yet exist as MRs.
+
+**Recommendation:** Reject. The scope map carries the same information without
+depending on managed-resource types.
+
+### Alternative 4: Scopes Declared in the ProviderConfig Only
+
+Each ProviderConfig lists the scopes to enumerate (for example its zones), and
+`List()` uses those.
+
+**Pros:**
+- No `ExternalScopeLister` needed.
+
+**Cons:**
+- Duplicates data that the external system already knows, and drifts from it
+  when scopes are created or removed.
+- Can only enumerate scopes the operator has declared.
+
+**Recommendation:** Reject as the sole mechanism. The ProviderConfig can still
+be a source of scopes for the CLI's `--scope` flag, which callers may choose.
+
+### Alternative 5: Status Quo (Manual Enumeration Scripts)
 
 Continue asking operators to write per-provider scripts (`mc ls`, `aws s3 ls`,
 etc.) and hand-generate YAML. Examples: MinIO bucket adoption workflow
