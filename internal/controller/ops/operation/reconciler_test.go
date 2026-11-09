@@ -31,6 +31,7 @@ import (
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -886,6 +887,93 @@ func TestReconcile(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.r, got); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want result, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestReconcileFieldManager(t *testing.T) {
+	type args struct {
+		fieldManager *string
+	}
+
+	type want struct {
+		fieldManager string
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"Default": {
+			reason: "An Operation without a field manager should use its UID.",
+			want:   want{fieldManager: FieldOwnerPrefix + "test-uid"},
+		},
+		"Explicit": {
+			reason: "An Operation should use its configured field manager.",
+			args:   args{fieldManager: new("ops.crossplane.io/watchoperation/test-watch")},
+			want:   want{fieldManager: "ops.crossplane.io/watchoperation/test-watch"},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			patched := false
+			c := &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					switch obj := obj.(type) {
+					case *v1alpha1.Operation:
+						obj.SetUID("test-uid")
+						obj.Spec.FieldManager = tc.args.fieldManager
+						obj.Spec.Pipeline = []v1alpha1.PipelineStep{{Step: "apply", FunctionRef: &v1alpha1.FunctionReference{Name: "function-test"}}}
+					case *pkgv1.Function:
+						obj.SetUID("function-uid")
+					}
+					return nil
+				}),
+				MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+					obj.(*pkgv1.FunctionRevisionList).Items = []pkgv1.FunctionRevision{{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "function-test-revision",
+							OwnerReferences: []metav1.OwnerReference{{
+								UID: "function-uid", Controller: new(true),
+							}},
+						},
+						Spec: pkgv1.FunctionRevisionSpec{
+							PackageRevisionSpec: pkgv1.PackageRevisionSpec{DesiredState: pkgv1.PackageRevisionActive},
+						},
+					}}
+					return nil
+				}),
+				MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				MockPatch: func(_ context.Context, _ client.Object, patch client.Patch, opts ...client.PatchOption) error {
+					patched = true
+					if patch.Type() != types.ApplyPatchType {
+						t.Errorf("%s\nPatch type: want %s, got %s", tc.reason, types.ApplyPatchType, patch.Type())
+					}
+					got := &client.PatchOptions{}
+					got.ApplyOptions(opts)
+					want := &client.PatchOptions{FieldManager: tc.want.fieldManager, Force: new(true)}
+					if diff := cmp.Diff(want, got); diff != "" {
+						t.Errorf("%s\nPatch options: -want, +got:\n%s", tc.reason, diff)
+					}
+					return nil
+				},
+			}
+			r := NewReconciler(c,
+				WithCapabilityChecker(xfn.CapabilityCheckerFn(func(_ context.Context, _ []string, _ ...string) error { return nil })),
+				WithFunctionRunner(xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					return &fnv1.RunFunctionResponse{Desired: &fnv1.State{Resources: map[string]*fnv1.Resource{
+						"configmap": {Resource: MustStructJSON(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"test","namespace":"default"}}`)},
+					}}}, nil
+				})),
+			)
+			if _, err := r.Reconcile(context.Background(), reconcile.Request{}); err != nil {
+				t.Fatalf("%s\nReconcile(...): %v", tc.reason, err)
+			}
+			if !patched {
+				t.Fatal("Reconcile did not apply the desired resource")
 			}
 		})
 	}
