@@ -188,6 +188,19 @@ that already exists: the existing package keeps running and keeps satisfying the
 dependency, because the Lock and the DAG key on source. The new name takes
 effect the next time the package is installed from scratch.
 
+For the same reason, Crossplane never looks up an existing package by the name
+it would derive now. The derived name can change whenever an `ImageConfig` is
+added, edited or deleted. Before creating a package, the dependency resolver
+looks for an installed package of the same kind whose `spec.package` has the
+same repository. It does this even when the installed version doesn't satisfy
+the constraints and dependency version upgrades are disabled. Likewise, a
+Function referenced by OCI ref resolves to an existing Function for that
+repository, found through its `spec.package` or its FunctionRevisions' parent
+label, before an `ImageConfig` is consulted. Otherwise, deleting the
+`ImageConfig` that named a package and then bumping that package's version would
+install a second package for the same image under the default name. The two
+packages would then fight over the same CRDs.
+
 **A broad prefix plus a literal `name` will collide.** Every package matched by
 that `ImageConfig` wants the same object name, and only the first one installed
 gets it. This is what `template` is for, and the field documentation says so.

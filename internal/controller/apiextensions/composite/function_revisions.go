@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"slices"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,6 +38,7 @@ import (
 const (
 	errGetFunction           = "cannot get Function"
 	errGetFunctionRevision   = "cannot get FunctionRevision"
+	errListFunctions         = "cannot list Functions"
 	errListFunctionRevisions = "cannot list FunctionRevisions"
 
 	errFmtNoActiveFunctionRevision   = "Function %q has no active FunctionRevision"
@@ -157,9 +159,84 @@ func FunctionName(ref name.Digest) string {
 // any ImageConfig that names the package. Names are constructed using the same
 // method the package manager uses when installing dependencies, so we may share
 // functions with the package manager.
+//
+// If a Function for the package's repository already exists its name is
+// returned, regardless of what name would be derived now. A package's name is
+// only derived when the package is first installed; changing or deleting the
+// ImageConfig that named it must not cause a second Function to be created for
+// the same repository.
 func FunctionNameFor(ctx context.Context, c client.Reader, ref name.Digest) (string, error) {
+	existing, err := existingFunctionName(ctx, c, ref)
+	if err != nil {
+		return "", errors.Wrapf(err, errFmtFunctionName, ref.Name())
+	}
+
+	if existing != "" {
+		return existing, nil
+	}
+
 	fnName, _, err := imageconfig.NewNamer(c).Name(ctx, ref)
+
 	return fnName, errors.Wrapf(err, errFmtFunctionName, ref.Name())
+}
+
+// existingFunctionName returns the name of an existing Function for the
+// supplied package reference's repository, or an empty string if none exists.
+// A Function managed by the package manager is found by its spec.package. A
+// Function whose revisions are managed externally has no spec.package, so it is
+// found through the parent label of its FunctionRevisions. Candidates are
+// sorted by name so the result is deterministic should there be more than one.
+func existingFunctionName(ctx context.Context, c client.Reader, ref name.Digest) (string, error) {
+	repo := ref.Context().Name()
+
+	fns := &pkgv1.FunctionList{}
+	if err := c.List(ctx, fns); err != nil {
+		return "", errors.Wrap(err, errListFunctions)
+	}
+
+	names := make([]string, 0)
+	for _, fn := range fns.Items {
+		if sameRepository(fn.Spec.Package, repo) {
+			names = append(names, fn.GetName())
+		}
+	}
+
+	if len(names) == 0 {
+		revs := &pkgv1.FunctionRevisionList{}
+		if err := c.List(ctx, revs); err != nil {
+			return "", errors.Wrap(err, errListFunctionRevisions)
+		}
+
+		for _, rev := range revs.Items {
+			parent := rev.GetLabels()[pkgv1.LabelParentPackage]
+			if parent != "" && sameRepository(rev.Spec.Package, repo) {
+				names = append(names, parent)
+			}
+		}
+	}
+
+	if len(names) == 0 {
+		return "", nil
+	}
+
+	slices.Sort(names)
+
+	return names[0], nil
+}
+
+// sameRepository returns true if the supplied package reference is for the
+// supplied repository.
+func sameRepository(pkg, repo string) bool {
+	if pkg == "" {
+		return false
+	}
+
+	r, err := name.ParseReference(pkg, name.StrictValidation)
+	if err != nil {
+		return false
+	}
+
+	return r.Context().Name() == repo
 }
 
 // FunctionRevisionName derives a FunctionRevision name from a package

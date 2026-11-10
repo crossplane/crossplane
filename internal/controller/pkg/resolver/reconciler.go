@@ -349,49 +349,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	)
 
 	if r.features.Enabled(features.EnableAlphaDependencyVersionUpgrades) {
-		l, err := NewPackageList(&dep.Dependency)
-		if err != nil {
+		if pkg, installedVersion, err = r.findInstalledPackage(ctx, &dep.Dependency, ref); err != nil {
 			log.Debug(errGetDependency, "error", err)
 			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errGetDependency)))
 
 			_ = r.kube.Status().Update(ctx, lock)
 
 			return reconcile.Result{}, errors.Wrap(err, errGetDependency)
-		}
-
-		if err := r.kube.List(ctx, l); err != nil {
-			log.Debug(errGetDependency, "error", err)
-			status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errGetDependency)))
-
-			_ = r.kube.Status().Update(ctx, lock)
-
-			return reconcile.Result{}, errors.Wrap(err, errGetDependency)
-		}
-
-		for _, p := range l.Items {
-			// Packages in the lock are always referred to by their original
-			// sources, without any ImageConfig rewriting applied, so we need to
-			// match find packages using spec.package rather than
-			// status.resolvedPackage.
-			source, _ := fieldpath.Pave(p.Object).GetString("spec.package")
-
-			pref, err := name.ParseReference(source, name.StrictValidation)
-			if err != nil {
-				continue
-			}
-
-			if pref.Context().Name() == ref.Context().Name() {
-				pkg = &p
-				installedVersion = pref.Identifier()
-				// Use the resolved package for the installed version if it is
-				// set, since the version could have been rewritten by an
-				// ImageConfig.
-				if resolved, err := fieldpath.Pave(p.Object).GetString("status.resolvedPackage"); err == nil && resolved != "" {
-					if rref, err := name.ParseReference(resolved, name.StrictValidation); err == nil {
-						installedVersion = rref.Identifier()
-					}
-				}
-			}
 		}
 	}
 
@@ -415,6 +379,36 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			status.MarkConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtNoValidVersion, depID, dep.Constraints)))
 
 			return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, lock), errCannotUpdateStatus)
+		}
+
+		// A package for this dependency may already be installed, just not at
+		// a version that satisfies its constraints. We must not create a
+		// second package for the same source, which would happen if the
+		// existing package's name differs from the one we'd compute now -
+		// e.g. because it was installed by hand, or because the ImageConfig
+		// that named it was changed or deleted. Package names only apply when
+		// a package is first created. When upgrades are enabled we already
+		// looked for the package above.
+		if !r.features.Enabled(features.EnableAlphaDependencyVersionUpgrades) {
+			existing, installed, err := r.findInstalledPackage(ctx, &dep.Dependency, ref)
+			if err != nil {
+				log.Debug(errGetDependency, "error", err)
+				status.MarkConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errGetDependency)))
+
+				_ = r.kube.Status().Update(ctx, lock)
+
+				return reconcile.Result{}, errors.Wrap(err, errGetDependency)
+			}
+
+			if existing != nil {
+				log.Debug("Dependency package is installed but does not satisfy its constraints, and dependency version upgrades are not enabled. Not creating another package for the same source.",
+					"package", existing.GetName(),
+					"installed-version", installed,
+					"constraints", dep.Constraints)
+				status.MarkConditions(v1beta1.ResolutionSucceeded())
+
+				return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, lock), errCannotUpdateStatus)
+			}
 		}
 
 		objName, icName, err := r.namer.Name(ctx, ref)
@@ -861,6 +855,52 @@ func NewPackage(dep *v1beta1.Dependency, version string, ref name.Reference, obj
 	}
 
 	return pack, nil
+}
+
+// findInstalledPackage returns the installed package, if any, whose source is
+// the supplied dependency reference, along with its installed version. Packages
+// are matched by source rather than by name, since a package's name isn't
+// guaranteed to be derivable from its source.
+func (r *Reconciler) findInstalledPackage(ctx context.Context, dep *v1beta1.Dependency, ref name.Reference) (*unstructured.Unstructured, string, error) {
+	l, err := NewPackageList(dep)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if err := r.kube.List(ctx, l); err != nil {
+		return nil, "", err
+	}
+
+	for i := range l.Items {
+		p := &l.Items[i]
+		// Packages in the lock are always referred to by their original
+		// sources, without any ImageConfig rewriting applied, so we need to
+		// match packages using spec.package rather than
+		// status.resolvedPackage.
+		source, _ := fieldpath.Pave(p.Object).GetString("spec.package")
+
+		pref, err := name.ParseReference(source, name.StrictValidation)
+		if err != nil {
+			continue
+		}
+
+		if pref.Context().Name() != ref.Context().Name() {
+			continue
+		}
+
+		installedVersion := pref.Identifier()
+		// Use the resolved package for the installed version if it is set,
+		// since the version could have been rewritten by an ImageConfig.
+		if resolved, err := fieldpath.Pave(p.Object).GetString("status.resolvedPackage"); err == nil && resolved != "" {
+			if rref, err := name.ParseReference(resolved, name.StrictValidation); err == nil {
+				installedVersion = rref.Identifier()
+			}
+		}
+
+		return p, installedVersion, nil
+	}
+
+	return nil, "", nil
 }
 
 // NewPackageList creates an empty package list suitable to get packages.

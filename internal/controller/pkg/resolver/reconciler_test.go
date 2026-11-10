@@ -809,6 +809,142 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
+		"ExistingDependencyWithDifferentNameNotRecreated": {
+			reason: "We should not create a second package for a dependency that is installed under a different name than we would compute, but doesn't satisfy its constraints.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "nop-48ffa3505115",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/crossplane-contrib/provider-nop",
+							Version: "v0.6.0",
+						}}),
+						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							l, ok := obj.(*unstructured.UnstructuredList)
+							if !ok {
+								// No ImageConfigs, so the computed name would be
+								// crossplane-contrib-provider-nop.
+								return nil
+							}
+							p := &unstructured.Unstructured{}
+							p.SetName("nop")
+							_ = fieldpath.Pave(p.Object).SetString("spec.package", "xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.6.0")
+							l.Items = []unstructured.Unstructured{*p}
+							return nil
+						}),
+						MockCreate: test.NewMockCreateFn(nil, func(o client.Object) error {
+							return errors.Errorf("unexpected create of package %q", o.GetName())
+						}),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return []dag.Node{
+									&dag.DependencyNode{
+										Dependency: v1beta1.Dependency{
+											Package:     "xpkg.crossplane.io/crossplane-contrib/provider-nop",
+											Constraints: "=v0.3.1",
+											Type:        ptr.To(v1beta1.ProviderPackageType),
+										},
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
+					}),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v0.3.1", "v0.6.0"}, nil),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"ExistingDependencyWithDifferentNameUpdatedInPlace": {
+			reason: "We should update an installed dependency in place, keeping its name, when upgrades are enabled.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: getLockFn([]v1beta1.LockPackage{{
+							Name:    "nop-e956f0998e8f",
+							Type:    ptr.To(v1beta1.ProviderPackageType),
+							Source:  "xpkg.crossplane.io/crossplane-contrib/provider-nop",
+							Version: "v0.3.1",
+						}}),
+						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							l, ok := obj.(*unstructured.UnstructuredList)
+							if !ok {
+								return nil
+							}
+							p := &unstructured.Unstructured{}
+							p.SetName("nop")
+							_ = fieldpath.Pave(p.Object).SetString("spec.package", "xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.3.1")
+							l.Items = []unstructured.Unstructured{*p}
+							return nil
+						}),
+						MockCreate: test.NewMockCreateFn(nil, func(o client.Object) error {
+							return errors.Errorf("unexpected create of package %q", o.GetName())
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+							if _, ok := o.(*unstructured.Unstructured); !ok {
+								return nil
+							}
+							if o.GetName() != "nop" {
+								return errors.Errorf("incorrect package updated; want nop, got %s", o.GetName())
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithFeatures(upgradesEnabled),
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return []dag.Node{
+									&dag.DependencyNode{
+										Dependency: v1beta1.Dependency{
+											Package:     "xpkg.crossplane.io/crossplane-contrib/provider-nop",
+											Constraints: ">=v0.6.0",
+											Type:        ptr.To(v1beta1.ProviderPackageType),
+										},
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+							MockGetNode: func(_ string) (dag.Node, error) {
+								return &dag.DependencyNode{
+									Dependency: v1beta1.Dependency{
+										Package:           "xpkg.crossplane.io/crossplane-contrib/provider-nop",
+										ParentConstraints: []string{">=v0.6.0"},
+										Type:              ptr.To(v1beta1.ProviderPackageType),
+									},
+								}, nil
+							},
+						}
+					}),
+					WithClient(&fakexpkg.MockClient{
+						MockListVersions: fakexpkg.NewMockListVersionsFn([]string{"v0.3.1", "v0.6.0"}, nil),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
 		"SuccessfulUpdateDependency": {
 			reason: "We should update the dependency if the flag is enabled and there is a valid version.",
 			args: args{

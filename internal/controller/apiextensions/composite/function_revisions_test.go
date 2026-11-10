@@ -258,16 +258,57 @@ func TestFunctionNameFor(t *testing.T) {
 		"ImageConfig": {
 			reason: "We should use the name from a matching ImageConfig, so that we share the Function with the package manager.",
 			c: &test.MockClient{MockList: test.NewMockListFn(nil, func(l client.ObjectList) error {
-				l.(*pkgv1beta1.ImageConfigList).Items = []pkgv1beta1.ImageConfig{{
-					ObjectMeta: metav1.ObjectMeta{Name: "cool"},
-					Spec: pkgv1beta1.ImageConfigSpec{
-						MatchImages: []pkgv1beta1.ImageMatch{{Prefix: "xpkg.crossplane.io/example/"}},
-						PackageName: "<< .Remainder >>",
-					},
-				}}
+				if l, ok := l.(*pkgv1beta1.ImageConfigList); ok {
+					l.Items = []pkgv1beta1.ImageConfig{coolImageConfig}
+				}
 				return nil
 			})},
 			want: "function-cool",
+		},
+		"ExistingFunction": {
+			reason: "We should use the name of an existing Function for the repository, even if an ImageConfig would now name it differently.",
+			c: &test.MockClient{MockList: test.NewMockListFn(nil, func(l client.ObjectList) error {
+				switch l := l.(type) {
+				case *pkgv1beta1.ImageConfigList:
+					l.Items = []pkgv1beta1.ImageConfig{coolImageConfig}
+				case *pkgv1.FunctionList:
+					l.Items = []pkgv1.Function{
+						{
+							ObjectMeta: metav1.ObjectMeta{Name: "unrelated"},
+							Spec:       pkgv1.FunctionSpec{PackageSpec: pkgv1.PackageSpec{Package: "xpkg.crossplane.io/example/function-other:v1.0.0"}},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{Name: "cool-by-hand"},
+							Spec:       pkgv1.FunctionSpec{PackageSpec: pkgv1.PackageSpec{Package: "xpkg.crossplane.io/example/function-cool:v0.1.0"}},
+						},
+					}
+				}
+				return nil
+			})},
+			want: "cool-by-hand",
+		},
+		"ExistingExternalFunctionRevision": {
+			reason: "We should use the parent of an existing FunctionRevision for the repository, since externally managed Functions have no package.",
+			c: &test.MockClient{MockList: test.NewMockListFn(nil, func(l client.ObjectList) error {
+				switch l := l.(type) {
+				case *pkgv1beta1.ImageConfigList:
+					l.Items = []pkgv1beta1.ImageConfig{coolImageConfig}
+				case *pkgv1.FunctionList:
+					l.Items = []pkgv1.Function{{ObjectMeta: metav1.ObjectMeta{Name: "example-function-cool"}}}
+				case *pkgv1.FunctionRevisionList:
+					l.Items = []pkgv1.FunctionRevision{{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:   "example-function-cool-1234567890ab",
+							Labels: map[string]string{pkgv1.LabelParentPackage: "example-function-cool"},
+						},
+						Spec: pkgv1.FunctionRevisionSpec{PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+							Package: "xpkg.crossplane.io/example/function-cool@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+						}},
+					}}
+				}
+				return nil
+			})},
+			want: "example-function-cool",
 		},
 	}
 
@@ -289,6 +330,14 @@ func TestFunctionNameFor(t *testing.T) {
 			}
 		})
 	}
+}
+
+var coolImageConfig = pkgv1beta1.ImageConfig{
+	ObjectMeta: metav1.ObjectMeta{Name: "cool"},
+	Spec: pkgv1beta1.ImageConfigSpec{
+		MatchImages: []pkgv1beta1.ImageMatch{{Prefix: "xpkg.crossplane.io/example/"}},
+		PackageName: "<< .Remainder >>",
+	},
 }
 
 func mustRevisionName(t *testing.T, c client.Reader, ref name.Digest) string {
