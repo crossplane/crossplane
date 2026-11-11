@@ -18,8 +18,10 @@ package watchoperation
 
 import (
 	"context"
+	"errors"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -126,23 +128,55 @@ func TestWatchedResourceHandlerDropsWhenWatchOperationDeleted(t *testing.T) {
 }
 
 // A map handler has no requeue, so a transient Get failure must not drop the
-// event: the handler fails open and lets the reconciler's own Get decide.
+// event: the handler fails open and lets the reconciler decide.
 func TestWatchedResourceHandlerEnqueuesOnTransientGetError(t *testing.T) {
-	kube := &test.MockClient{
-		MockGet: test.NewMockGetFn(kerrors.NewServiceUnavailable("apiserver hiccup")),
+	type args struct {
+		getErr error
 	}
-	h := NewWatchedResourceHandler(kube, types.NamespacedName{Name: "transient"})
+	type want struct {
+		names []string
+	}
 
-	u := &unstructured.Unstructured{}
-	u.SetAPIVersion("v1")
-	u.SetKind("ConfigMap")
-	u.SetName("watched-cm")
-	u.SetNamespace("default")
+	cm := func() *unstructured.Unstructured {
+		u := &unstructured.Unstructured{}
+		u.SetAPIVersion("v1")
+		u.SetKind("ConfigMap")
+		u.SetName("watched-cm")
+		u.SetNamespace("default")
+		return u
+	}
 
-	q := &recordingQueue{}
-	h.Create(context.Background(), event.CreateEvent{Object: u}, q)
-	if len(q.names) != 1 || q.names[0] != "watched-cm" {
-		t.Errorf("transient Get error should fail open and enqueue the resource, got %v", q.names)
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ServiceUnavailableEnqueues": {
+			reason: "A transient apiserver error should fail open and enqueue the resource",
+			args:   args{getErr: kerrors.NewServiceUnavailable("apiserver hiccup")},
+			want:   want{names: []string{"watched-cm"}},
+		},
+		"InternalErrorEnqueues": {
+			reason: "Any non-NotFound Get error should fail open and enqueue the resource",
+			args:   args{getErr: kerrors.NewInternalError(errors.New("apiserver hiccup"))},
+			want:   want{names: []string{"watched-cm"}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			kube := &test.MockClient{
+				MockGet: test.NewMockGetFn(tc.args.getErr),
+			}
+			h := NewWatchedResourceHandler(kube, types.NamespacedName{Name: "transient"})
+
+			q := &recordingQueue{}
+			h.Create(context.Background(), event.CreateEvent{Object: cm()}, q)
+
+			if diff := cmp.Diff(tc.want.names, q.names); diff != "" {
+				t.Errorf("\n%s\nhandler.Create(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
 	}
 }
 

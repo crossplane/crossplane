@@ -55,8 +55,9 @@ func NewWatchedResourceHandler(c client.Client, key types.NamespacedName) handle
 
 			// Fail open on any other error. A map handler has no requeue,
 			// so an event dropped here is lost until the watched resource
-			// changes again. Enqueue the resource and let the reconciler's
-			// own Get decide, where an error becomes a requeue with backoff.
+			// changes again. Enqueue the resource and let the reconciler
+			// decide: it re-fetches the WatchOperation and re-applies its
+			// filters, and an error there becomes a requeue with backoff.
 			return []reconcile.Request{
 				{NamespacedName: types.NamespacedName{Name: u.GetName(), Namespace: u.GetNamespace()}},
 			}
