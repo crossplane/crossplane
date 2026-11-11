@@ -19,6 +19,7 @@ package watchoperation
 import (
 	"context"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -47,7 +48,18 @@ func NewWatchedResourceHandler(c client.Client, key types.NamespacedName) handle
 
 		wo := &v1alpha1.WatchOperation{}
 		if err := c.Get(ctx, key, wo); err != nil {
-			return nil
+			// The WatchOperation is gone, so there is nothing to run.
+			if kerrors.IsNotFound(err) {
+				return nil
+			}
+
+			// Fail open on any other error. A map handler has no requeue,
+			// so an event dropped here is lost until the watched resource
+			// changes again. Enqueue the resource and let the reconciler's
+			// own Get decide, where an error becomes a requeue with backoff.
+			return []reconcile.Request{
+				{NamespacedName: types.NamespacedName{Name: u.GetName(), Namespace: u.GetNamespace()}},
+			}
 		}
 
 		// Apply namespace filtering if specified

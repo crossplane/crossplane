@@ -106,7 +106,7 @@ func TestWatchedResourceHandlerFollowsSpecChanges(t *testing.T) {
 	}
 }
 
-func TestWatchedResourceHandlerDropsOnGetError(t *testing.T) {
+func TestWatchedResourceHandlerDropsWhenWatchOperationDeleted(t *testing.T) {
 	kube := &test.MockClient{
 		MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "watchoperations"}, "gone")),
 	}
@@ -122,6 +122,27 @@ func TestWatchedResourceHandlerDropsOnGetError(t *testing.T) {
 	h.Create(context.Background(), event.CreateEvent{Object: u}, q)
 	if len(q.names) > 0 {
 		t.Errorf("deleted WatchOperation should enqueue nothing, got %v", q.names)
+	}
+}
+
+// A map handler has no requeue, so a transient Get failure must not drop the
+// event: the handler fails open and lets the reconciler's own Get decide.
+func TestWatchedResourceHandlerEnqueuesOnTransientGetError(t *testing.T) {
+	kube := &test.MockClient{
+		MockGet: test.NewMockGetFn(kerrors.NewServiceUnavailable("apiserver hiccup")),
+	}
+	h := NewWatchedResourceHandler(kube, types.NamespacedName{Name: "transient"})
+
+	u := &unstructured.Unstructured{}
+	u.SetAPIVersion("v1")
+	u.SetKind("ConfigMap")
+	u.SetName("watched-cm")
+	u.SetNamespace("default")
+
+	q := &recordingQueue{}
+	h.Create(context.Background(), event.CreateEvent{Object: u}, q)
+	if len(q.names) != 1 || q.names[0] != "watched-cm" {
+		t.Errorf("transient Get error should fail open and enqueue the resource, got %v", q.names)
 	}
 }
 
