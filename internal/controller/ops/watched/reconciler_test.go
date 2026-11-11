@@ -53,11 +53,16 @@ func TestReconcile(t *testing.T) {
 		err    error
 	}
 
+	// Counts Operation creations for the DeletedResourceWithLabelSelector
+	// case, so the test fails if reconciliation skips creating one.
+	deletedWithLabelSelectorCreates := 0
+
 	cases := map[string]struct {
 		reason string
 		params params
 		args   args
 		want   want
+		check  func(t *testing.T)
 	}{
 		"CreateOperationForDeletedResource": {
 			reason: "Should create Operation with synthetic resource when watched resource is deleted",
@@ -682,7 +687,10 @@ func TestReconcile(t *testing.T) {
 						}
 						return errBoom
 					},
-					MockCreate: test.NewMockCreateFn(nil),
+					MockCreate: test.NewMockCreateFn(nil, func(_ client.Object) error {
+						deletedWithLabelSelectorCreates++
+						return nil
+					}),
 				},
 				wo: &v1alpha1.WatchOperation{
 					ObjectMeta: metav1.ObjectMeta{
@@ -723,6 +731,12 @@ func TestReconcile(t *testing.T) {
 				result: reconcile.Result{},
 				err:    nil,
 			},
+			check: func(t *testing.T) {
+				t.Helper()
+				if deletedWithLabelSelectorCreates != 1 {
+					t.Errorf("Reconcile(...): want exactly 1 Operation creation for the deleted resource, got %d", deletedWithLabelSelectorCreates)
+				}
+			},
 		},
 	}
 
@@ -736,6 +750,9 @@ func TestReconcile(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.result, got); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want result, +got result:\n%s", tc.reason, diff)
+			}
+			if tc.check != nil {
+				tc.check(t)
 			}
 		})
 	}
