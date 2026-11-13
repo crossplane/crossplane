@@ -189,7 +189,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Start the Watched controller.
 	wr := watched.NewReconciler(r.engine.GetCached(), wo,
 		watched.WithLogger(r.log.WithValues("controller", WatchedControllerName(wo.GetName()))),
-		watched.WithRecorder(r.record.WithAnnotations("controller", WatchedControllerName(wo.GetName()))))
+		watched.WithRecorder(r.record))
 
 	ko := r.options.ForControllerRuntime()
 	ko.Reconciler = errors.WithSilentRequeueOnConflict(wr)
