@@ -2369,6 +2369,70 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 		},
+		"PreserveLastHandledReconcileAt": {
+			reason: "We should keep the reconcile request token the reconciler recorded when we apply the XR's status, because functions don't return it and the apply would delete it.",
+			params: params{
+				c: &test.MockClient{
+					MockList:  mockListFunctionRevisions(),
+					MockGet:   mockGetFunction(nil),
+					MockPatch: test.NewMockPatchFn(nil),
+					MockStatusPatch: test.NewMockSubResourcePatchFn(nil, func(obj client.Object) error {
+						xr, ok := obj.(*composite.Unstructured)
+						if !ok {
+							return nil
+						}
+						if got := xr.GetLastHandledReconcileAt(); got != "2026-11-12T15:33:00Z" {
+							return errors.Errorf("want reconcile request token %q in the status patch, got %q", "2026-11-12T15:33:00Z", got)
+						}
+
+						return nil
+					}),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					return &fnv1.RunFunctionResponse{Desired: &fnv1.State{
+						Composite: &fnv1.Resource{Resource: MustStruct(map[string]any{
+							"apiVersion": "test.crossplane.io/v1",
+							"kind":       "CoolComposite",
+						})},
+					}}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return ComposedResourceStates{}, nil
+					})),
+				},
+			},
+			args: args{
+				xr: func() *composite.Unstructured {
+					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+						Group:   "test.crossplane.io",
+						Version: "v1",
+						Kind:    "CoolComposite",
+					}))
+					xr.SetLastHandledReconcileAt("2026-11-12T15:33:00Z")
+
+					return xr
+				}(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{{
+								Step:        "run-cool-function",
+								FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+							}},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{},
+				},
+			},
+		},
 		"DeletingPipelineStopsDesiringResources": {
 			reason: "When the XR is being deleted we should garbage collect the composed resources the pipeline no longer desires",
 			params: params{
