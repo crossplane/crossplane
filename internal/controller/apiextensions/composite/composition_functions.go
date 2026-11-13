@@ -796,6 +796,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	u := xr.GetUID()
 	cs := xr.GetConditions()
 	dp := xr.GetDeletionPolicy()
+	token := xr.GetLastHandledReconcileAt()
 
 	if err := xfn.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
@@ -818,6 +819,12 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// Keep the recorded deletion policy. The pipeline can't change it, and
 	// leaving it out of this apply would delete it.
 	xr.SetDeletionPolicy(dp)
+
+	// Keep the reconcile request token the reconciler recorded for the same
+	// reason.
+	if token != "" {
+		xr.SetLastHandledReconcileAt(token)
+	}
 
 	// NOTE(phisco): Here we are fine using a hardcoded field owner as there is
 	// no risk of conflict between different XRs.
