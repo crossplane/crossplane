@@ -19,6 +19,7 @@ package watchoperation
 import (
 	"context"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,12 +33,34 @@ import (
 // NewWatchedResourceHandler returns a handler that enqueues reconcile requests
 // for the WatchOperation when watched resources change, filtering based on the
 // WatchOperation's matchLabels and namespace specifications.
-func NewWatchedResourceHandler(wo *v1alpha1.WatchOperation) handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(_ context.Context, obj client.Object) []reconcile.Request {
+//
+// The WatchOperation is read on every event instead of captured at watch
+// start: the engine keeps an already-running watch as-is, so a handler holding
+// the first fetched spec would keep filtering on a stale selector after a
+// spec change.
+func NewWatchedResourceHandler(c client.Client, key types.NamespacedName) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
 		// Convert to unstructured to handle any resource type
 		u, ok := obj.(*unstructured.Unstructured)
 		if !ok {
 			return nil
+		}
+
+		wo := &v1alpha1.WatchOperation{}
+		if err := c.Get(ctx, key, wo); err != nil {
+			// The WatchOperation is gone, so there is nothing to run.
+			if kerrors.IsNotFound(err) {
+				return nil
+			}
+
+			// Fail open on any other error. A map handler has no requeue,
+			// so an event dropped here is lost until the watched resource
+			// changes again. Enqueue the resource and let the reconciler
+			// decide: it re-fetches the WatchOperation and re-applies its
+			// filters, and an error there becomes a requeue with backoff.
+			return []reconcile.Request{
+				{NamespacedName: types.NamespacedName{Name: u.GetName(), Namespace: u.GetNamespace()}},
+			}
 		}
 
 		// Apply namespace filtering if specified
