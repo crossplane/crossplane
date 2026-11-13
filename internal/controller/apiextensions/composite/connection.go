@@ -21,6 +21,7 @@ import (
 	"maps"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -94,6 +95,16 @@ func (cdf *SecretConnectionDetailsFetcher) FetchConnection(ctx context.Context, 
 	nn := types.NamespacedName{Namespace: ns, Name: sref.Name}
 	if err := cdf.client.Get(ctx, nn, s); client.IgnoreNotFound(err) != nil {
 		return nil, errors.Wrap(err, errGetSecret)
+	}
+
+	// Make sure the owner controls the secret it references before we read
+	// it. This ensures a resource cannot use Crossplane to circumvent RBAC
+	// by reading a secret it does not own. We treat a secret we don't
+	// control as if it didn't exist, rather than returning an error. A
+	// resource can reference an uncontrolled secret it intends to take
+	// control of when its connection details are next published.
+	if c := metav1.GetControllerOf(s); c == nil || c.UID != o.GetUID() {
+		return nil, nil
 	}
 
 	return s.Data, nil
