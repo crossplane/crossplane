@@ -308,10 +308,24 @@ spec:
                   to retain.
                 format: int32
                 type: integer
+              timeZone:
+                description: |-
+                  TimeZone is the name of the IANA time zone the schedule is evaluated
+                  in, for example Europe/Berlin. When unset the schedule is evaluated in
+                  the time zone of the Crossplane pod, which is usually UTC. The schedule
+                  must not carry a TZ or CRON_TZ prefix when a time zone is set.
+                minLength: 1
+                type: string
+                x-kubernetes-validations:
+                - message: timeZone must be an explicit IANA time zone
+                  rule: self.lowerAscii() != 'local'
             required:
             - operationTemplate
             - schedule
             type: object
+            x-kubernetes-validations:
+            - message: cannot use both timeZone and a TZ or CRON_TZ prefix in schedule
+              rule: '!has(self.timeZone) || !self.schedule.contains(''TZ'')'
           status:
             description: CronOperationStatus represents the observed state of a CronOperation.
             properties:
