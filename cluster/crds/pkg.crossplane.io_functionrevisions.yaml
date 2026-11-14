@@ -211,52 +211,6 @@ spec:
                 items:
                   type: string
                 type: array
-              conditions:
-                description: Conditions of the resource.
-                items:
-                  description: A Condition that may apply to a resource.
-                  properties:
-                    lastTransitionTime:
-                      description: |-
-                        LastTransitionTime is the last time this condition transitioned from one
-                        status to another.
-                      format: date-time
-                      type: string
-                    message:
-                      description: |-
-                        A Message containing details about this condition's last transition from
-                        one status to another, if any.
-                      type: string
-                    observedGeneration:
-                      description: |-
-                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
-                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
-                        with respect to the current state of the instance.
-                      format: int64
-                      type: integer
-                    reason:
-                      description: A Reason for this condition's last transition from
-                        one status to another.
-                      type: string
-                    status:
-                      description: Status of this condition; is it currently True,
-                        False, or Unknown?
-                      type: string
-                    type:
-                      description: |-
-                        Type of this condition. At most one of each condition type may apply to
-                        a resource at any point in time.
-                      type: string
-                  required:
-                  - lastTransitionTime
-                  - reason
-                  - status
-                  - type
-                  type: object
-                type: array
-                x-kubernetes-list-map-keys:
-                - type
-                x-kubernetes-list-type: map
               endpoint:
                 description: |-
                   Endpoint is the gRPC endpoint where Crossplane will send
@@ -274,29 +228,7 @@ spec:
                 type: integer
               objectRefs:
                 description: References to objects owned by PackageRevision.
-                items:
-                  description: |-
-                    A TypedReference refers to an object by Name, Kind, and APIVersion. It is
-                    commonly used to reference cluster-scoped objects or objects where the
-                    namespace is already known.
-                  properties:
-                    apiVersion:
-                      description: APIVersion of the referenced object.
-                      type: string
-                    kind:
-                      description: Kind of the referenced object.
-                      type: string
-                    name:
-                      description: Name of the referenced object.
-                      type: string
-                    uid:
-                      description: UID of the referenced object.
-                      type: string
-                  required:
-                  - apiVersion
-                  - kind
-                  - name
-                  type: object
+                items: {}
                 type: array
               resolvedImage:
                 description: |-
@@ -514,52 +446,6 @@ spec:
                 items:
                   type: string
                 type: array
-              conditions:
-                description: Conditions of the resource.
-                items:
-                  description: A Condition that may apply to a resource.
-                  properties:
-                    lastTransitionTime:
-                      description: |-
-                        LastTransitionTime is the last time this condition transitioned from one
-                        status to another.
-                      format: date-time
-                      type: string
-                    message:
-                      description: |-
-                        A Message containing details about this condition's last transition from
-                        one status to another, if any.
-                      type: string
-                    observedGeneration:
-                      description: |-
-                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
-                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
-                        with respect to the current state of the instance.
-                      format: int64
-                      type: integer
-                    reason:
-                      description: A Reason for this condition's last transition from
-                        one status to another.
-                      type: string
-                    status:
-                      description: Status of this condition; is it currently True,
-                        False, or Unknown?
-                      type: string
-                    type:
-                      description: |-
-                        Type of this condition. At most one of each condition type may apply to
-                        a resource at any point in time.
-                      type: string
-                  required:
-                  - lastTransitionTime
-                  - reason
-                  - status
-                  - type
-                  type: object
-                type: array
-                x-kubernetes-list-map-keys:
-                - type
-                x-kubernetes-list-type: map
               endpoint:
                 description: |-
                   Endpoint is the gRPC endpoint where Crossplane will send
@@ -577,29 +463,7 @@ spec:
                 type: integer
               objectRefs:
                 description: References to objects owned by PackageRevision.
-                items:
-                  description: |-
-                    A TypedReference refers to an object by Name, Kind, and APIVersion. It is
-                    commonly used to reference cluster-scoped objects or objects where the
-                    namespace is already known.
-                  properties:
-                    apiVersion:
-                      description: APIVersion of the referenced object.
-                      type: string
-                    kind:
-                      description: Kind of the referenced object.
-                      type: string
-                    name:
-                      description: Name of the referenced object.
-                      type: string
-                    uid:
-                      description: UID of the referenced object.
-                      type: string
-                  required:
-                  - apiVersion
-                  - kind
-                  - name
-                  type: object
+                items: {}
                 type: array
               resolvedImage:
                 description: |-
