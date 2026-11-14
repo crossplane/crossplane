@@ -257,7 +257,7 @@ type OperationStatus struct {
 
 	// AppliedResourceCount is the number of resources applied by this Operation.
 	// +optional
-	AppliedResourceCount int64 `json:"appliedResourceCount,omitempty"`
+	AppliedResourceCount int64 `json:"appliedResourceCount"`
 }
 
 // PipelineStepStatus represents the status of an individual pipeline step.
