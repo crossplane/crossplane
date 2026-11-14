@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"sync"
 	"time"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,6 +41,7 @@ import (
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane/apis/v2/ops/v1alpha1"
 	"github.com/crossplane/crossplane/v2/internal/ops/lifecycle"
+	"github.com/crossplane/crossplane/v2/internal/ops/watchcondition"
 )
 
 const (
@@ -51,6 +53,7 @@ const (
 	reasonListOperations          event.Reason = "ListOperations"
 	reasonReplaceRunningOperation event.Reason = "ReplaceRunningOperation"
 	reasonCreateOperation         event.Reason = "CreateOperation"
+	reasonEvaluateWatchConditions event.Reason = "EvaluateWatchConditions"
 	reasonWatchOperationGet       event.Reason = "GetWatchOperation"
 )
 
@@ -61,13 +64,15 @@ type Reconciler struct {
 	log    logging.Logger
 	record event.Recorder
 
-	watchOpName string
-	watchedGVK  schema.GroupVersionKind
+	watchOpName  string
+	watchedGVK   schema.GroupVersionKind
+	program      *watchcondition.Program
+	fingerprints sync.Map
 }
 
 // Reconcile is triggered when a watched resource changes, and creates an
 // Operation using the WatchOperation's template.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Reconcilers are typically complex
 	log := r.log.WithValues(
 		"request", req,
 		"gvk", r.watchedGVK,
@@ -101,6 +106,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// We could also force access to the deleted event by adding a
 		// finalizer to all watched resources, but that's way too
 		// invasive for my taste.
+		//
+		// The synthetic object only has metadata. when and onChange
+		// expressions that read other fields must guard that access
+		// with deleted.
 
 		log.Debug("Watched resource was deleted, using synthetic resource to process deletion event")
 
@@ -133,6 +142,42 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Don't reconcile if the WatchOperation is being deleted.
 	if meta.WasDeleted(wo) {
 		log.Debug("WatchOperation is being deleted")
+		return reconcile.Result{Requeue: false}, nil
+	}
+
+	deleted := watched.GetResourceVersion() == v1alpha1.SyntheticResourceVersionDeleted
+
+	previousFingerprint := ""
+	if v, ok := r.fingerprints.Load(req.NamespacedName); ok {
+		previousFingerprint, _ = v.(string)
+	}
+
+	report, changeFingerprint, err := r.program.ShouldReport(watched, deleted, previousFingerprint)
+	// The resource is gone. Drop any stored fingerprint, including when
+	// evaluation fails, so a later resource with the same name starts clean.
+	if deleted {
+		r.fingerprints.Delete(req.NamespacedName)
+	}
+	if err != nil {
+		err = errors.Wrap(err, "cannot evaluate watch conditions")
+		if deleted {
+			log.Debug(
+				"Skipping deleted watched resource after watch condition evaluation failed; no Operation will be created. Guard non-metadata field access with deleted in when and onChange expressions",
+				"error", err,
+				"watched-gvk", r.watchedGVK,
+				"watched-resource", req.NamespacedName,
+				"watch-operation", wo.GetName(),
+			)
+			r.record.Event(wo, event.Warning(reasonEvaluateWatchConditions, errors.Wrap(err,
+				"cannot evaluate watch conditions for deleted watched resource; no Operation will be created. Guard non-metadata field access with deleted in when and onChange expressions")))
+			return reconcile.Result{Requeue: false}, nil
+		}
+		log.Debug("Cannot evaluate watch conditions", "error", err)
+		r.record.Event(wo, event.Warning(reasonEvaluateWatchConditions, err))
+		return reconcile.Result{}, err
+	}
+	if !report {
+		log.Debug("Watch conditions not met, skipping Operation")
 		return reconcile.Result{Requeue: false}, nil
 	}
 
@@ -177,12 +222,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Generate a unique name for the Operation.
-	name := OperationName(wo, watched)
+	name := OperationName(wo, watched, changeFingerprint)
 
 	// Check if we've already created an Operation for this resource version.
 	for _, op := range ol.Items {
 		if op.GetName() == name {
 			log.Debug("Operation already exists for this resource version", "operation", name)
+			// The operation was created on an earlier attempt. Remember the
+			// fingerprint so a later resource version with the same change
+			// does not create another Operation.
+			if r.program.HasOnChange() && !deleted {
+				r.fingerprints.Store(req.NamespacedName, changeFingerprint)
+			}
 			return reconcile.Result{}, nil
 		}
 	}
@@ -197,18 +248,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	log.Debug("Created Operation for watched resource", "operation", op.GetName(), "resource", watched.GetName())
+
+	if r.program.HasOnChange() && !deleted {
+		r.fingerprints.Store(req.NamespacedName, changeFingerprint)
+	}
+
 	return reconcile.Result{}, nil
 }
 
 // OperationName generates a deterministic and unique name for an Operation
 // based on the WatchOperation name and a hash of the watched resource's GVK,
-// namespace, name, UID, resource version, and deletion timestamp.
-func OperationName(wo *v1alpha1.WatchOperation, watched *unstructured.Unstructured) string {
+// namespace, name, UID, resource version, change fingerprint, and deletion
+// timestamp. The resource version stays in the hash when a change fingerprint
+// is set so a retry of the same version keeps the same name.
+func OperationName(wo *v1alpha1.WatchOperation, watched *unstructured.Unstructured, changeFingerprint string) string {
 	in := watched.GroupVersionKind().String() + "/" +
 		watched.GetNamespace() + "/" +
 		watched.GetName() + "/" +
 		string(watched.GetUID()) + "/" +
 		watched.GetResourceVersion()
+	if changeFingerprint != "" {
+		in += "/" + changeFingerprint
+	}
 
 	// For synthetic deletion events, a unique deletion timestamp is set to
 	// ensure different resource instances (even with the same
