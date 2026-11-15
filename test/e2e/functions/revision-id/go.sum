@@ -22,8 +22,8 @@ github.com/cenkalti/backoff/v5 v5.0.3/go.mod h1:rkhZdG3JZukswDf7f0cwqPNk4K0sa+F9
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
-github.com/crossplane/crossplane-runtime/v2 v2.3.1 h1:g2jT8aWl8bVuM62oeUiCv4FcrwoNcmJBXWj2ZpV+2Kw=
-github.com/crossplane/crossplane-runtime/v2 v2.3.1/go.mod h1:kl5xmOCH7pOVs0vMeDyQ5utqCxjmHd3Qa79i9Cc4mw0=
+github.com/crossplane/crossplane-runtime/v2 v2.3.3 h1:seIYf6pk7dLhXd7uSh/N9rVB8IdbCthy3LB6TSn91OI=
+github.com/crossplane/crossplane-runtime/v2 v2.3.3/go.mod h1:UBxoZEXVZz9Ql2W5u5ssFE+egQ21BYqGGc2F3dozUvI=
 github.com/crossplane/crossplane/apis/v2 v2.3.1 h1:gaJX/DSp5qnfLoThMxbJZOEziIJBEGbcRl7HjT3R1fk=
 github.com/crossplane/crossplane/apis/v2 v2.3.1/go.mod h1:o+D0ktZQKJCFcpfzMKA4n53aTo2sFqqDsADBNIRuIyE=
 github.com/crossplane/function-sdk-go v0.7.1 h1:BEM2b7nAr8rJYc9tjwnoMfVVy1veCA/juD8APYCVLi0=
