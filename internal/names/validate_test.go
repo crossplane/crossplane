@@ -209,3 +209,57 @@ func TestValidateNameChars(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateNameError(t *testing.T) {
+	type args struct {
+		name string
+		gk   schema.GroupKind
+	}
+	type want struct {
+		result bool
+		err    bool
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ValidNameNoError": {
+			reason: "A valid name should return true and a nil error.",
+			args: args{
+				name: "valid-resource-name",
+				gk:   schema.GroupKind{Group: "apps", Kind: "Deployment"},
+			},
+			want: want{
+				result: true,
+				err:    false,
+			},
+		},
+		"InvalidNameReturnsError": {
+			reason: "An invalid name should return false and a non-nil error.",
+			args: args{
+				name: "invalid_name",
+				gk:   schema.GroupKind{Group: "apps", Kind: "Deployment"},
+			},
+			want: want{
+				result: false,
+				err:    true,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := ValidateName(tc.args.name, tc.args.gk)
+
+			if diff := cmp.Diff(tc.want.result, got); diff != "" {
+				t.Errorf("\n%s\nValidateName(...): -want result, +got result:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.err, err != nil); diff != "" {
+				t.Errorf("\n%s\nValidateName(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}

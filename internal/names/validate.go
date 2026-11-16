@@ -54,6 +54,8 @@ func ValidateName(name string, gk schema.GroupKind) (bool, error) {
 	if _, exists := rbacGroupKind[gk]; exists {
 		name = strings.ReplaceAll(name, ":", "")
 	}
-	errs := validation.IsDNS1123Subdomain(name)
-	return len(errs) == 0, fmt.Errorf("%s", strings.Join(errs, ", "))
+	if errs := validation.IsDNS1123Subdomain(name); len(errs) > 0 {
+		return false, fmt.Errorf("%s", strings.Join(errs, ", "))
+	}
+	return true, nil
 }
