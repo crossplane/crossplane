@@ -21,7 +21,6 @@ import (
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -47,13 +46,14 @@ func (e *APIEstablisher) establishMRDCRDOwnership(ctx context.Context, obj, pare
 		return nil
 	}
 
-	crd := &unstructured.Unstructured{}
+	// Only ownership matters here, so avoid reading the CRD's schema.
+	crd := &metav1.PartialObjectMetadata{}
 	crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
 	if err := e.client.Get(ctx, client.ObjectKey{Name: mrd.GetName()}, crd); err != nil {
-		return errors.Wrap(resource.IgnoreNotFound(err), "cannot get CRD for package MRD")
+		return errors.Wrapf(resource.IgnoreNotFound(err), "cannot get CustomResourceDefinition %q for ManagedResourceDefinition", mrd.GetName())
 	}
 	if mrd.GetUID() == "" || pr.GetUID() == "" {
-		return errors.New("cannot establish CRD ownership without MRD and ProviderRevision UIDs")
+		return errors.Errorf("cannot link CustomResourceDefinition %q to ManagedResourceDefinition and ProviderRevision %q before both have UIDs", mrd.GetName(), pr.GetName())
 	}
 	mrdRef := meta.AsOwner(meta.TypedReferenceTo(mrd, v1alpha1.ManagedResourceDefinitionGroupVersionKind))
 	prRef := meta.AsOwner(meta.TypedReferenceTo(pr, v1.ProviderRevisionGroupVersionKind))
@@ -81,7 +81,7 @@ func (e *APIEstablisher) establishMRDCRDOwnership(ctx context.Context, obj, pare
 	// The revision retains grants even while the MRD is inactive. Leave the
 	// CRD's current controller and schema to the MRD controller, and reject
 	// concurrent changes to the ownership we checked.
-	return errors.Wrap(e.client.Patch(ctx, crd, client.MergeFromWithOptions(before, client.MergeFromWithOptimisticLock{})), "cannot establish package MRD ownership of CRD")
+	return errors.Wrapf(e.client.Patch(ctx, crd, client.MergeFromWithOptions(before, client.MergeFromWithOptimisticLock{})), "cannot add ManagedResourceDefinition and ProviderRevision %q as owners of CustomResourceDefinition %q", pr.GetName(), crd.GetName())
 }
 
 func hasOwner(obj metav1.Object, want metav1.OwnerReference) bool {
