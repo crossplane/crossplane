@@ -17,6 +17,7 @@ limitations under the License.
 package roles
 
 import (
+	"slices"
 	"sort"
 
 	coordinationv1 "k8s.io/api/coordination/v1"
@@ -27,6 +28,7 @@ import (
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/v2/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/grant"
 )
 
 const (
@@ -95,11 +97,6 @@ type Resource struct {
 
 // RenderClusterRoles returns ClusterRoles for the supplied ProviderRevision.
 func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.ClusterRole {
-	// Return early if we have no resources to render roles for.
-	if len(rs) == 0 {
-		return nil
-	}
-
 	// Our list of resources has no guaranteed order, so we sort them in order
 	// to ensure we don't reorder our RBAC rules on each update.
 	sort.Slice(rs, func(i, j int) bool {
@@ -109,16 +106,25 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 	groups := make([]string, 0) // Allows deterministic iteration over groups.
 
 	resources := make(map[string][]string) // Resources by group.
+	finalizers := make(map[string][]string)
 	for _, r := range rs {
+		// Keep built-in APIs and wildcard selectors out of generated grants.
+		if !grant.Permitted(r.Group, r.Plural) {
+			continue
+		}
+
 		if _, ok := resources[r.Group]; !ok {
 			resources[r.Group] = make([]string, 0)
 			groups = append(groups, r.Group)
 		}
 
-		resources[r.Group] = append(resources[r.Group], r.Plural, r.Plural+suffixStatus)
+		if !slices.Contains(resources[r.Group], r.Plural) {
+			resources[r.Group] = append(resources[r.Group], r.Plural, r.Plural+suffixStatus)
+			finalizers[r.Group] = append(finalizers[r.Group], r.Plural+suffixFinalizers)
+		}
 	}
 
-	rules := []rbacv1.PolicyRule{}
+	rules := make([]rbacv1.PolicyRule, 0, len(groups))
 	for _, g := range groups {
 		rules = append(rules, rbacv1.PolicyRule{
 			APIGroups: []string{g},
@@ -130,10 +136,13 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 	// These secrets are controlled (in the owner reference sense) by the managed resource.
 	// Crossplane needs permission to set finalizers on managed resources in order to create secrets
 	// that block their deletion when the OwnerReferencesPermissionEnforcement admission controller is enabled.
-	ruleFinalizers := rbacv1.PolicyRule{
-		APIGroups: groups,
-		Resources: []string{rbacv1.ResourceAll + suffixFinalizers},
-		Verbs:     verbsUpdate,
+	// Scope finalizer access to each owned resource, rather than all resources
+	// in its group (which may include unrelated CRDs).
+	rulesFinalizers := make([]rbacv1.PolicyRule, 0, len(groups))
+	for _, g := range groups {
+		rulesFinalizers = append(rulesFinalizers, rbacv1.PolicyRule{
+			APIGroups: []string{g}, Resources: finalizers[g], Verbs: verbsUpdate,
+		})
 	}
 
 	edit := &rbacv1.ClusterRole{
@@ -174,7 +183,7 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 				keyProviderName: pr.GetName(),
 			},
 		},
-		Rules: append(append(withVerbs(rules, verbsSystem), ruleFinalizers), rulesSystemExtra...),
+		Rules: append(append(withVerbs(rules, verbsSystem), rulesFinalizers...), rulesSystemExtra...),
 	}
 
 	if pkgmetav1.CapabilitiesContainFuzzyMatch(pr.GetCapabilities(), pkgmetav1.ProviderCapabilitySafeStart) {
@@ -185,6 +194,8 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 		}}, verbsView)...)
 	}
 
+	// Always apply roles to revoke stale derived grants. Fixed system rules
+	// let providers start and SafeStart providers watch for their first CRD.
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}
 	for i := range roles {
 		ref := meta.AsController(meta.TypedReferenceTo(pr, v1.ProviderRevisionGroupVersionKind))
@@ -195,6 +206,9 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 }
 
 func withVerbs(r []rbacv1.PolicyRule, verbs []string) []rbacv1.PolicyRule {
+	if len(r) == 0 {
+		return nil
+	}
 	verbal := make([]rbacv1.PolicyRule, len(r))
 	for i := range r {
 		verbal[i] = r[i]

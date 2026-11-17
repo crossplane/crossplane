@@ -23,27 +23,65 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	rbacv1 "k8s.io/api/rbac/v1"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
-	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	v1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
 )
+
+func TestDiscoveryConflictsRequeueWithoutEvents(t *testing.T) {
+	for _, source := range []string{"CRDs", "ProviderFamily"} {
+		t.Run(source, func(t *testing.T) {
+			recorder := record.NewFakeRecorder(1)
+			c := &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					obj.SetName("provider")
+					obj.SetUID("revision-uid")
+					obj.SetLabels(map[string]string{v1.LabelProviderFamily: "family"})
+					return nil
+				}),
+				MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+					if _, ok := list.(*metav1.PartialObjectMetadataList); ok && source != "CRDs" {
+						return nil
+					}
+					return kerrors.NewConflict(schema.GroupResource{}, "provider", nil)
+				},
+			}
+			r := NewReconciler(&fake.Manager{}, WithRecorder(event.NewAPIRecorder(recorder)), WithClientApplicator(resource.ClientApplicator{
+				Client: c,
+				Applicator: resource.ApplyFn(func(context.Context, client.Object, ...resource.ApplyOption) error {
+					t.Error("must not apply roles after a discovery conflict")
+					return nil
+				}),
+			}))
+			result, err := r.Reconcile(context.Background(), reconcile.Request{})
+			if err != nil || result != (reconcile.Result{Requeue: true}) {
+				t.Errorf("Reconcile = %v, %v; want a quiet retry", result, err)
+			}
+			select {
+			case e := <-recorder.Events:
+				t.Errorf("conflict emitted event %q", e)
+			default:
+			}
+		})
+	}
+}
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
@@ -204,6 +242,9 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
+								if _, ok := o.(*metav1.PartialObjectMetadataList); ok {
+									return nil
+								}
 								l := o.(*v1.ProviderRevisionList)
 								l.Items = []v1.ProviderRevision{
 									{
@@ -278,55 +319,16 @@ func TestReconcile(t *testing.T) {
 }
 
 func TestDefinedResources(t *testing.T) {
-	cases := map[string]struct {
-		refs []xpv2.TypedReference
+	for name, tc := range map[string]struct {
+		crds []metav1.PartialObjectMetadata
 		want []Resource
 	}{
-		"UnparseableAPIVersion": {
-			refs: []xpv2.TypedReference{{
-				APIVersion: "too/many/slashes",
-			}},
-			want: []Resource{},
-		},
-		"WrongGroup": {
-			refs: []xpv2.TypedReference{{
-				APIVersion: "example.org/v1",
-				Kind:       "CustomResourceDefinition",
-			}},
-			want: []Resource{},
-		},
-		"WrongKind": {
-			refs: []xpv2.TypedReference{{
-				APIVersion: extv1.SchemeGroupVersion.String(),
-				Kind:       "ConversionReview",
-			}},
-			want: []Resource{},
-		},
-		"InvalidName": {
-			refs: []xpv2.TypedReference{{
-				APIVersion: extv1.SchemeGroupVersion.String(),
-				Kind:       "CustomResourceDefinition",
-				Name:       "I'm different!",
-			}},
-			want: []Resource{},
-		},
-		"DefinedResource": {
-			refs: []xpv2.TypedReference{{
-				APIVersion: extv1.SchemeGroupVersion.String(),
-				Kind:       "CustomResourceDefinition",
-				Name:       "pinballs.example.org",
-			}},
-			want: []Resource{{
-				Group:  "example.org",
-				Plural: "pinballs",
-			}},
-		},
-	}
-
-	for name, tc := range cases {
+		"Empty":           {want: []Resource{}},
+		"InvalidName":     {crds: []metav1.PartialObjectMetadata{{ObjectMeta: metav1.ObjectMeta{Name: "invalid"}}}, want: []Resource{}},
+		"DefinedResource": {crds: []metav1.PartialObjectMetadata{{ObjectMeta: metav1.ObjectMeta{Name: "pinballs.example.org"}}}, want: []Resource{{Group: "example.org", Plural: "pinballs"}}},
+	} {
 		t.Run(name, func(t *testing.T) {
-			got := DefinedResources(tc.refs)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
+			if diff := cmp.Diff(tc.want, DefinedResources(tc.crds)); diff != "" {
 				t.Errorf("DefinedResources(...): -want, +got:\n%s", diff)
 			}
 		})
