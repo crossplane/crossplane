@@ -19,7 +19,7 @@ package composition
 
 import (
 	"context"
-	"strconv"
+	"fmt"
 	"strings"
 	"time"
 
@@ -72,7 +72,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	opts := []ReconcilerOption{
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorder(name), o.EventFilterFunctions...)),
 		WithFeatures(o.Features),
 	}
 
@@ -279,7 +279,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		log.Debug("Created new revision", "revision", latestRev+1)
-		r.record.Event(comp, event.Normal(reasonCreateRev, "Created new revision", "revision", strconv.FormatInt(latestRev+1, 10)))
+		r.record.Event(comp, event.Normal(reasonCreateRev, fmt.Sprintf("Created new revision %d", latestRev+1)))
 	}
 
 	// Garbage collection errors don't fail the reconcile. We've already
@@ -289,7 +289,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	n, err := r.gc.GarbageCollect(ctx, comp, rl.Items)
 	if n > 0 {
 		log.Debug("Garbage collected revisions", "count", n)
-		r.record.Event(comp, event.Normal(reasonGarbageCollect, "Garbage collected unused revisions", "count", strconv.Itoa(n)))
+		r.record.Event(comp, event.Normal(reasonGarbageCollect, fmt.Sprintf("Garbage collected %d unused revisions", n)))
 	}
 
 	if err != nil {

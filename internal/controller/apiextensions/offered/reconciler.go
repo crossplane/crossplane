@@ -150,7 +150,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 
 	r := NewReconciler(NewClientApplicator(mgr.GetClient()),
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorder(name), o.EventFilterFunctions...)),
 		WithControllerEngine(o.ControllerEngine),
 		WithOptions(o))
 
@@ -462,7 +462,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	o := []claim.ReconcilerOption{
 		claim.WithLogger(log.WithValues("controller", claim.ControllerName(d.GetName()))),
-		claim.WithRecorder(r.record.WithAnnotations("controller", claim.ControllerName(d.GetName()))),
+		claim.WithRecorder(r.record),
 	}
 
 	// We only want to use the server-side XR syncer if the relevant feature

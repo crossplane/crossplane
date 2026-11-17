@@ -312,7 +312,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	status := r.conditions.For(cm)
 
-	record := r.record.WithAnnotations("external-name", meta.GetExternalName(cm))
+	record := r.record
 	log = log.WithValues(
 		"uid", cm.GetUID(),
 		"version", cm.GetResourceVersion(),
@@ -333,7 +333,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xr := composite.New(composite.WithGroupVersionKind(r.gvkXR), composite.WithSchema(composite.SchemaLegacy))
 
 	if ref := cm.GetResourceReference(); ref != nil {
-		record = record.WithAnnotations("composite-name", cm.GetResourceReference().Name)
 		log = log.WithValues("composite-name", cm.GetResourceReference().Name)
 
 		if err := r.client.Get(ctx, types.NamespacedName{Name: ref.Name}, xr); resource.IgnoreNotFound(err) != nil {

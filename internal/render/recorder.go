@@ -45,9 +45,3 @@ func (r *EventRecorder) Events() []*renderv1alpha1.Event {
 	copy(out, r.events)
 	return out
 }
-
-// WithAnnotations returns the same recorder. Annotation support is not needed
-// for render output.
-func (r *EventRecorder) WithAnnotations(_ ...string) event.Recorder {
-	return r
-}
