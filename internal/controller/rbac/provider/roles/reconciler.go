@@ -268,7 +268,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
-		r.record.Event(pr, event.Warning(reasonApplyRoles, err))
+		// Discovery reads the cache, so failures are transient. Retry quietly.
+		log.Debug("Cannot discover owned CustomResourceDefinitions", "error", err)
 		return reconcile.Result{}, err
 	}
 
