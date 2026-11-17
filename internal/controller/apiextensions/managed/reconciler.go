@@ -136,7 +136,7 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	}
 
 	if getErr == nil && !mayApplyTo(mrd, crd) {
-		err := errors.New("CustomResourceDefinition is not owned by this ManagedResourceDefinition")
+		err := errors.Errorf("CustomResourceDefinition %q already exists and is not owned by this ManagedResourceDefinition; check which package or tool installed it", crd.GetName())
 		r.record.Event(mrd, event.Warning(reasonApplyCRD, err))
 		status.MarkConditions(v1alpha1.BlockedManaged().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ogctx, mrd)
