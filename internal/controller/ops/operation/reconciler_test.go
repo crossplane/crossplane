@@ -1011,7 +1011,8 @@ func TestAddResourceRef(t *testing.T) {
 	}
 
 	type want struct {
-		refs []v1alpha1.AppliedResourceRef
+		refs  []v1alpha1.AppliedResourceRef
+		count int64
 	}
 
 	// Test resources
@@ -1065,7 +1066,8 @@ func TestAddResourceRef(t *testing.T) {
 				u:    clusterResource,
 			},
 			want: want{
-				refs: []v1alpha1.AppliedResourceRef{clusterRef},
+				refs:  []v1alpha1.AppliedResourceRef{clusterRef},
+				count: 1,
 			},
 		},
 		"AddClusterScopedResource": {
@@ -1075,7 +1077,8 @@ func TestAddResourceRef(t *testing.T) {
 				u:    clusterResource,
 			},
 			want: want{
-				refs: []v1alpha1.AppliedResourceRef{clusterRef},
+				refs:  []v1alpha1.AppliedResourceRef{clusterRef},
+				count: 1,
 			},
 		},
 		"AddNamespacedResource": {
@@ -1085,7 +1088,8 @@ func TestAddResourceRef(t *testing.T) {
 				u:    namespacedResource,
 			},
 			want: want{
-				refs: []v1alpha1.AppliedResourceRef{namespacedRef},
+				refs:  []v1alpha1.AppliedResourceRef{namespacedRef},
+				count: 1,
 			},
 		},
 		"AddMultipleResourcesSorted": {
@@ -1095,7 +1099,8 @@ func TestAddResourceRef(t *testing.T) {
 				u:    clusterResource,
 			},
 			want: want{
-				refs: []v1alpha1.AppliedResourceRef{clusterRef, namespacedRef},
+				refs:  []v1alpha1.AppliedResourceRef{clusterRef, namespacedRef},
+				count: 2,
 			},
 		},
 		"AddDuplicateResource": {
@@ -1105,7 +1110,8 @@ func TestAddResourceRef(t *testing.T) {
 				u:    clusterResource,
 			},
 			want: want{
-				refs: []v1alpha1.AppliedResourceRef{clusterRef},
+				refs:  []v1alpha1.AppliedResourceRef{clusterRef},
+				count: 1,
 			},
 		},
 		"AddResourceToSortedSlice": {
@@ -1115,7 +1121,8 @@ func TestAddResourceRef(t *testing.T) {
 				u:    anotherNamespacedResource,
 			},
 			want: want{
-				refs: []v1alpha1.AppliedResourceRef{clusterRef, namespacedRef, anotherNamespacedRef},
+				refs:  []v1alpha1.AppliedResourceRef{clusterRef, namespacedRef, anotherNamespacedRef},
+				count: 2,
 			},
 		},
 		"AddDuplicateNamespacedResource": {
@@ -1125,7 +1132,8 @@ func TestAddResourceRef(t *testing.T) {
 				u:    namespacedResource,
 			},
 			want: want{
-				refs: []v1alpha1.AppliedResourceRef{namespacedRef},
+				refs:  []v1alpha1.AppliedResourceRef{namespacedRef},
+				count: 1,
 			},
 		},
 	}

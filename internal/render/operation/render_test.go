@@ -103,7 +103,7 @@ func TestRender(t *testing.T) {
 							"pipeline": []any{},
 						},
 						"status": map[string]any{
-							"appliedResourceCount": 0,
+							"appliedResources": 0,
 							"conditions": []any{
 								map[string]any{"type": "Succeeded", "status": "True", "reason": "PipelineSuccess"},
 								map[string]any{"type": "ValidPipeline", "status": "True", "reason": "ValidPipeline"},
@@ -158,7 +158,7 @@ func TestRender(t *testing.T) {
 							},
 						},
 						"status": map[string]any{
-							"appliedResourceCount": 0,
+							"appliedResources": 0,
 							"conditions": []any{
 								map[string]any{"type": "Succeeded", "status": "True", "reason": "PipelineSuccess"},
 								map[string]any{"type": "ValidPipeline", "status": "True", "reason": "ValidPipeline"},
