@@ -123,7 +123,7 @@ func TestReconcileReplacesStaleRules(t *testing.T) {
 				var want []rbacv1.PolicyRule
 				if suffix == ":system" {
 					want = []rbacv1.PolicyRule{{
-						APIGroups: []string{"", "coordination.k8s.io", "events.k8s.io"},
+						APIGroups: []string{"", "coordination.k8s.io"},
 						Resources: []string{"secrets", "configmaps", "events", "leases"}, Verbs: []string{"*"},
 					}}
 				}

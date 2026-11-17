@@ -156,7 +156,7 @@ func TestCRDPrunesFieldsAfterCreate(t *testing.T) {
 	}
 	for _, manager := range crd.ManagedFields {
 		if manager.Subresource == "" && manager.Operation != metav1.ManagedFieldsOperationApply {
-			t.Errorf("create-time field manager remains: %s (%s) %s", manager.Manager, manager.Operation, manager.FieldsV1.GetRawString())
+			t.Errorf("create-time field manager remains: %s (%s) %s", manager.Manager, manager.Operation, manager.FieldsV1.Raw)
 		}
 	}
 }
