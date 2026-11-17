@@ -503,11 +503,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		err = errors.Wrap(err, errApplyCRD)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
-		// Report the error on the XRD itself, so it's visible without looking
-		// at events. Established is left alone because ControllerNeedsRestart
-		// relies on it.
-		status.MarkConditions(xpv2.ReconcileError(err))
-		_ = r.client.Status().Update(ctx, d)
+		// Report a rejected CRD (for example an invalid schema) on the XRD
+		// itself, so it's visible without looking at events. Transient API
+		// errors are only returned for retry. Established is left alone
+		// because ControllerNeedsRestart relies on it.
+		if kerrors.IsInvalid(err) || kerrors.IsBadRequest(err) {
+			status.MarkConditions(xpv2.ReconcileError(err))
+			_ = r.client.Status().Update(ctx, d)
+		}
 
 		return reconcile.Result{}, err
 	}
