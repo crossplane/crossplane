@@ -601,13 +601,9 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		}
 
 		// If the XR is namespaced then the composed resource must be too.
-		// NOTE(lsviben): We only check resources which do not have a namespace
-		// set, although the namespace for all resources composed by a
-		// namespaced XR is set in the RenderComposedResourceMetadata
-		// step. But as in the previous step we set the namespace of observed
-		// resources, we are effectively checking only once per resource,
-		// before we create it.
-		if xr.GetNamespace() != "" && cd.GetNamespace() == "" {
+		// Check every resource, even if it has a namespace set, because
+		// functions can set one on cluster scoped resources.
+		if xr.GetNamespace() != "" {
 			isNs, err := c.client.IsObjectNamespaced(cd)
 			if err != nil {
 				return CompositionResult{}, errors.Wrapf(err, errFmtGetResourceMapping, name, cd.GetKind(), cd.GetName())

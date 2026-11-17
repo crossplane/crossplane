@@ -1258,6 +1258,71 @@ func TestFunctionCompose(t *testing.T) {
 				err: errors.Errorf(errFmtNamespacedXRClusterResource, "cluster-resource", "ClusterComposed", "cluster-resource"),
 			},
 		},
+		"NamespacedXRClusterCompositionWithNamespaceError": {
+			reason: "We should return an error when a namespaced XR tries to compose cluster-scoped resources, even if the function sets a namespace on them",
+			params: params{
+				c: &test.MockClient{
+					MockList:               mockListFunctionRevisions(),
+					MockGet:                mockGetFunction(nil),
+					MockPatch:              test.NewMockPatchFn(nil),
+					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
+					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, false),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+					d := &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							"cluster-resource": {
+								Resource: MustStruct(map[string]any{
+									"apiVersion": "test.crossplane.io/v1",
+									"kind":       "ClusterComposed",
+									"metadata": map[string]any{
+										"name":      "cluster-resource",
+										"namespace": "test-namespace",
+									},
+								}),
+							},
+						},
+					}
+					return &fnv1.RunFunctionResponse{Desired: d}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: func() *composite.Unstructured {
+					xr := WithParentLabel()
+					xr.SetNamespace("test-namespace") // Make the XR namespaced
+					return xr
+				}(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: &v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Errorf(errFmtNamespacedXRClusterResource, "cluster-resource", "ClusterComposed", "cluster-resource"),
+			},
+		},
 		"NamespacedXRNamespacedComposition": {
 			reason: "We should succeed when a namespaced XR tries to compose namespaced-scoped resources",
 			params: params{
@@ -1328,10 +1393,11 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should emit a warning when a namespaced XR composes a resource with a different namespace",
 			params: params{
 				c: &test.MockClient{
-					MockList:        mockListFunctionRevisions(),
-					MockGet:         mockGetFunction(nil),
-					MockPatch:       test.NewMockPatchFn(nil),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+					MockList:               mockListFunctionRevisions(),
+					MockGet:                mockGetFunction(nil),
+					MockPatch:              test.NewMockPatchFn(nil),
+					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
+					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, true),
 				},
 				uc: &test.MockClient{
 					MockGet: test.NewMockGetFn(errBoom),
@@ -1404,10 +1470,11 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should not emit a warning when a namespaced XR composes a resource with the same namespace",
 			params: params{
 				c: &test.MockClient{
-					MockList:        mockListFunctionRevisions(),
-					MockGet:         mockGetFunction(nil),
-					MockPatch:       test.NewMockPatchFn(nil),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+					MockList:               mockListFunctionRevisions(),
+					MockGet:                mockGetFunction(nil),
+					MockPatch:              test.NewMockPatchFn(nil),
+					MockStatusPatch:        test.NewMockSubResourcePatchFn(nil),
+					MockIsObjectNamespaced: test.NewMockIsObjectNamespacedFn(nil, true),
 				},
 				uc: &test.MockClient{
 					MockGet: test.NewMockGetFn(errBoom),
