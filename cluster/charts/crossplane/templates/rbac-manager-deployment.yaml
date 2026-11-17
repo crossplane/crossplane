@@ -85,7 +85,11 @@ spec:
         {{- range $arg := .Values.rbacManager.args }}
         - {{ $arg }}
         {{- end }}
-        {{- if not (or (include "crossplane.namespaceArg" .Values.rbacManager.args) (hasKey (default dict .Values.extraEnvVarsRBACManager) "POD_NAMESPACE")) }}
+        {{- $rbacEnv := dict }}
+        {{- range $key, $value := .Values.extraEnvVarsRBACManager }}
+        {{- $_ := set $rbacEnv ($key | replace "." "_") $value }}
+        {{- end }}
+        {{- if not (or (include "crossplane.namespaceArg" .Values.rbacManager.args) (hasKey $rbacEnv "POD_NAMESPACE")) }}
         {{- with include "crossplane.packageRuntimeNamespace" . }}
         - {{ printf "--namespace=%s" . | quote }}
         {{- end }}
