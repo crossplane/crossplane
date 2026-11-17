@@ -94,8 +94,10 @@ spec:
         {{- range $arg := .Values.rbacManager.args }}
         - {{ $arg }}
         {{- end }}
+        {{- if not (or (include "crossplane.namespaceArg" .Values.rbacManager.args) (hasKey (default dict .Values.extraEnvVarsRBACManager) "POD_NAMESPACE")) }}
         {{- with include "crossplane.packageRuntimeNamespace" . }}
         - {{ printf "--namespace=%s" . | quote }}
+        {{- end }}
         {{- end }}
         - --provider-clusterrole={{ template "crossplane.name" . }}:allowed-provider-permissions
         imagePullPolicy: {{ .Values.image.pullPolicy }}
