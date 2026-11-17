@@ -21,10 +21,12 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -83,6 +85,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
 		Cache: cache.Options{
 			SyncPeriod: &c.SyncInterval,
+			// Provider runtime Deployments run in the package runtime namespace,
+			// including those an external package runtime creates, so only
+			// watch and cache Deployments there.
+			ByObject: map[client.Object]cache.ByObject{
+				&appsv1.Deployment{}: {Namespaces: map[string]cache.Config{c.Namespace: {}}},
+			},
 		},
 		PprofBindAddress: c.Profile,
 	})

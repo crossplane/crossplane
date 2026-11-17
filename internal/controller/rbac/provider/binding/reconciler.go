@@ -197,7 +197,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Core Crossplane creates package runtime Deployments in its own namespace,
-	// so only Deployments there can belong to a ProviderRevision.
+	// and an external package runtime must use the same namespace. Only
+	// Deployments there can belong to a ProviderRevision.
 	subjects := make([]rbacv1.Subject, 0)
 	subjectStrings := make([]string, 0)
 	for i := range l.Items {
