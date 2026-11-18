@@ -30,8 +30,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -68,15 +71,24 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
+		WithNamespace(o.Namespace),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name), o.EventFilterFunctions...)))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ProviderRevision{}).
 		Owns(&rbacv1.ClusterRoleBinding{}).
-		Watches(&appsv1.Deployment{}, handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &v1.ProviderRevision{})).
+		Watches(&appsv1.Deployment{},
+			handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &v1.ProviderRevision{}),
+			builder.WithPredicates(inNamespace(o.Namespace))).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(errors.WithSilentRequeueOnConflict(r))
+}
+
+func inNamespace(namespace string) predicate.Funcs {
+	return predicate.NewPredicateFuncs(func(o client.Object) bool {
+		return o.GetNamespace() == namespace
+	})
 }
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -104,6 +116,14 @@ func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
 	}
 }
 
+// WithNamespace specifies the namespace in which core Crossplane creates
+// package runtime Deployments.
+func WithNamespace(namespace string) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.namespace = namespace
+	}
+}
+
 // NewReconciler returns a Reconciler of ProviderRevisions.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
@@ -126,7 +146,8 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 
 // A Reconciler reconciles ProviderRevisions.
 type Reconciler struct {
-	client resource.ClientApplicator
+	client    resource.ClientApplicator
+	namespace string
 
 	log    logging.Logger
 	record event.Recorder
@@ -169,33 +190,39 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	l := &appsv1.DeploymentList{}
-	if err := r.client.List(ctx, l); err != nil {
+	if err := r.client.List(ctx, l, client.InNamespace(r.namespace)); err != nil {
 		err = errors.Wrap(err, errDeployments)
 		r.record.Event(pr, event.Warning(reasonBind, err))
 
 		return reconcile.Result{}, err
 	}
 
-	// Filter down to the Deployments that are owned by this
-	// ProviderRevision. Each revision should control at most one, but it's easy
-	// and relatively harmless for us to handle there being many.
+	// Core Crossplane creates package runtime Deployments in its own namespace,
+	// and an external package runtime must use the same namespace. Only
+	// Deployments there can belong to a ProviderRevision.
 	subjects := make([]rbacv1.Subject, 0)
 	subjectStrings := make([]string, 0)
 
-	for _, d := range l.Items {
-		for _, ref := range d.GetOwnerReferences() {
-			if ref.UID == pr.GetUID() {
-				sa := d.Spec.Template.Spec.ServiceAccountName
-				ns := d.Namespace
+	for i := range l.Items {
+		d := &l.Items[i]
+		ref := metav1.GetControllerOfNoCopy(d)
 
-				subjects = append(subjects, rbacv1.Subject{
-					Kind:      rbacv1.ServiceAccountKind,
-					Namespace: ns,
-					Name:      sa,
-				})
-				subjectStrings = append(subjectStrings, ns+"/"+sa)
-			}
+		if d.GetNamespace() != r.namespace || ref == nil ||
+			ref.APIVersion != v1.SchemeGroupVersion.String() ||
+			ref.Kind != v1.ProviderRevisionKind ||
+			ref.Name != pr.GetName() || ref.UID != pr.GetUID() {
+			continue
 		}
+
+		sa := d.Spec.Template.Spec.ServiceAccountName
+		ns := d.Namespace
+
+		subjects = append(subjects, rbacv1.Subject{
+			Kind:      rbacv1.ServiceAccountKind,
+			Namespace: ns,
+			Name:      sa,
+		})
+		subjectStrings = append(subjectStrings, ns+"/"+sa)
 	}
 
 	n := roles.SystemClusterRoleName(pr.GetName())

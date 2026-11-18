@@ -20,10 +20,12 @@ package rbac
 import (
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -48,6 +50,8 @@ func (c *Command) Run() error {
 
 type startCommand struct {
 	Profile string `help:"Serve runtime profiling data via HTTP at /debug/pprof." placeholder:"host:port"`
+
+	Namespace string `default:"crossplane-system" env:"POD_NAMESPACE" help:"Namespace in which packages are unpacked and run. Must match core Crossplane's --namespace." short:"n"`
 
 	ProviderClusterRole string `help:"A ClusterRole enumerating the permissions provider packages may request." name:"provider-clusterrole"`
 	LeaderElection      bool   `env:"LEADER_ELECTION"                                                           help:"Use leader election for the controller manager." name:"leader-election" short:"l"`
@@ -81,6 +85,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
 		Cache: cache.Options{
 			SyncPeriod: &c.SyncInterval,
+			// Provider runtime Deployments run in the package runtime namespace,
+			// including those an external package runtime creates, so only
+			// watch and cache Deployments there.
+			ByObject: map[client.Object]cache.ByObject{
+				&appsv1.Deployment{}: {Namespaces: map[string]cache.Config{c.Namespace: {}}},
+			},
 		},
 		PprofBindAddress: c.Profile,
 	})
@@ -95,6 +105,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 			PollInterval:            c.PollInterval,
 		},
 		AllowClusterRole: c.ProviderClusterRole,
+		Namespace:        c.Namespace,
 	}
 
 	if err := rbac.Setup(mgr, o); err != nil {
