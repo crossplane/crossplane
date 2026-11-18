@@ -31,7 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -689,7 +688,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							}
 							return nil
 						}
-						return nil
+						return kerrors.NewNotFound(schema.GroupResource{}, obj.GetName())
 					},
 					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 						// Verify the merge logic for all combinations
@@ -1027,8 +1026,8 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 				err: nil,
 			},
 		},
-		"OwnedIfNotAlready": {
-			reason: "ReleaseObjects should put owner reference back if we are not already the owner.",
+		"UnownedStatusReference": {
+			reason: "ReleaseObjects must not establish ownership from a status reference alone.",
 			args: args{
 				est: newAPIEstablisher(&test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
@@ -1044,23 +1043,8 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 						})
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
-						o := obj.(*unstructured.Unstructured)
-						if len(o.GetOwnerReferences()) != 2 {
-							t.Errorf("expected 2 owner references, got %d", len(o.GetOwnerReferences()))
-						}
-						found := false
-						for _, ref := range o.GetOwnerReferences() {
-							if ref.Kind == "ProviderRevision" && ref.UID == "some-unique-uid-2312" {
-								found = true
-								if ptr.Deref(ref.Controller, false) {
-									t.Errorf("expected controller to be false, got %t", *ref.Controller)
-								}
-							}
-						}
-						if !found {
-							t.Errorf("expected to find owner reference for revision with uid some-unique-uid-2312")
-						}
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+						t.Error("must not change an object the revision does not own")
 						return nil
 					},
 				}),
