@@ -359,6 +359,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// So, we can proceed with the deletion of the usage.
 
 		// Get the used resource
+		policy, replay := "", false
 		if err := r.client.Get(ctx, client.ObjectKeyFromObject(used), used); xpresource.IgnoreNotFound(err) != nil {
 			log.Debug(errGetUsed, "error", err)
 			err = errors.Wrap(err, errGetUsed)
@@ -375,10 +376,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 				return reconcile.Result{}, err
 			}
+
+			if ptr.Deref(u.GetReplayDeletion(), false) {
+				policy, replay = used.GetAnnotations()[protection.AnnotationKeyDeletionAttempt]
+			}
+
 			// There are no "other" usageResource's referencing the used resource,
-			// so we can remove the in-use label from the used resource
+			// so we can remove the in-use label from the used resource. We also
+			// forget any recorded deletion attempt, so a Usage created later
+			// can't replay a deletion that this one blocked.
 			if len(usages) < 2 {
 				meta.RemoveLabels(used, inUseLabelKey)
+				meta.RemoveAnnotations(used, protection.AnnotationKeyDeletionAttempt)
 
 				if err = r.client.Update(ctx, used); err != nil {
 					log.Debug(errRemoveInUseLabel, "error", err)
@@ -395,23 +404,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 		}
 
-		if ptr.Deref(u.GetReplayDeletion(), false) && used.GetAnnotations() != nil {
-			if policy, ok := used.GetAnnotations()[protection.AnnotationKeyDeletionAttempt]; ok {
-				// We have already recorded a deletion attempt and want to replay deletion, let's delete the used resource.
+		if replay {
+			// We have already recorded a deletion attempt and want to replay deletion, let's delete the used resource.
 
-				//nolint:contextcheck,gosec // G118: We cannot use the context from the reconcile function since it will be cancelled after the reconciliation.
-				go func() {
-					// We do the deletion async and after some delay to make sure the usage is deleted before the
-					// deletion attempt. We remove the finalizer on this Usage right below, so, we know it will disappear
-					// very soon.
-					time.Sleep(2 * time.Second)
-					log.Info("Replaying deletion of the used resource", "apiVersion", used.GetAPIVersion(), "kind", used.GetKind(), "name", used.GetName(), "policy", policy)
+			//nolint:contextcheck,gosec // G118: We cannot use the context from the reconcile function since it will be cancelled after the reconciliation.
+			go func() {
+				// We do the deletion async and after some delay to make sure the usage is deleted before the
+				// deletion attempt. We remove the finalizer on this Usage right below, so, we know it will disappear
+				// very soon.
+				time.Sleep(2 * time.Second)
+				log.Info("Replaying deletion of the used resource", "apiVersion", used.GetAPIVersion(), "kind", used.GetKind(), "name", used.GetName(), "policy", policy)
 
-					if err := r.client.Delete(context.Background(), used, client.PropagationPolicy(policy)); err != nil {
-						log.Info("Error when replaying deletion of the used resource", "apiVersion", used.GetAPIVersion(), "kind", used.GetKind(), "name", used.GetName(), "err", err)
-					}
-				}()
-			}
+				if err := r.client.Delete(context.Background(), used, client.PropagationPolicy(policy)); err != nil {
+					log.Info("Error when replaying deletion of the used resource", "apiVersion", used.GetAPIVersion(), "kind", used.GetKind(), "name", used.GetName(), "err", err)
+				}
+			}()
 		}
 
 		// Remove the finalizer from the usage
