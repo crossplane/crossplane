@@ -66,10 +66,24 @@ func TestRenderClusterRoles(t *testing.T) {
 		want   []rbacv1.ClusterRole
 	}{
 		"EmptyResources": {
-			reason: "If there are no resources (yet) we should not produce any ClusterRoles.",
+			reason: "Revoke derived grants while preserving provider startup permissions when no resources are permitted.",
 			args: args{
 				pr:        &v1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: prName, UID: prUID}},
 				resources: []Resource{},
+			},
+			want: []rbacv1.ClusterRole{
+				{ObjectMeta: metav1.ObjectMeta{
+					Name: nameEdit, OwnerReferences: []metav1.OwnerReference{crCtrlr},
+					Labels: map[string]string{keyAggregateToCrossplane: valTrue, keyAggregateToAdmin: valTrue, keyAggregateToEdit: valTrue},
+				}},
+				{ObjectMeta: metav1.ObjectMeta{
+					Name: nameView, OwnerReferences: []metav1.OwnerReference{crCtrlr},
+					Labels: map[string]string{keyAggregateToView: valTrue},
+				}},
+				{ObjectMeta: metav1.ObjectMeta{
+					Name: nameSystem, OwnerReferences: []metav1.OwnerReference{crCtrlr},
+					Labels: map[string]string{keyProviderName: prName},
+				}, Rules: rulesSystemExtra},
 			},
 		},
 		"MergeGroups": {
@@ -154,8 +168,13 @@ func TestRenderClusterRoles(t *testing.T) {
 							Verbs:     verbsSystem,
 						},
 						{
-							APIGroups: []string{groupA, groupC},
-							Resources: []string{rbacv1.ResourceAll + suffixFinalizers},
+							APIGroups: []string{groupA},
+							Resources: []string{pluralA + suffixFinalizers, pluralB + suffixFinalizers},
+							Verbs:     verbsUpdate,
+						},
+						{
+							APIGroups: []string{groupC},
+							Resources: []string{pluralC + suffixFinalizers},
 							Verbs:     verbsUpdate,
 						},
 					}, rulesSystemExtra...),
@@ -229,7 +248,7 @@ func TestRenderClusterRoles(t *testing.T) {
 						},
 						{
 							APIGroups: []string{groupA},
-							Resources: []string{rbacv1.ResourceAll + suffixFinalizers},
+							Resources: []string{pluralA + suffixFinalizers},
 							Verbs:     verbsUpdate,
 						},
 						{
@@ -247,6 +266,37 @@ func TestRenderClusterRoles(t *testing.T) {
 			},
 		},
 	}
+
+	refused := []Resource{
+		{Group: "*", Plural: "*"},
+		{Group: "", Plural: "secrets"},
+		{Group: "apps", Plural: "deployments"},
+		{Group: "rbac.authorization.k8s.io", Plural: "clusterroles"},
+		{Group: "rbac.authorization.k8s.io", Plural: "clusterrolebindings"},
+		{Group: "pkg.crossplane.io", Plural: "providerrevisions"},
+		{Group: groupA, Plural: "*"},
+		{Group: groupA, Plural: "*/status"},
+	}
+
+	allRefused := cases["EmptyResources"]
+	allRefused.args.resources = refused
+	cases["AllResourcesRefused"] = allRefused
+
+	// Safe-start providers must be able to watch for CRDs before any appear.
+	allRefused.args.pr = allRefused.args.pr.DeepCopy()
+	allRefused.args.pr.Status.Capabilities = []string{pkgmetav1.ProviderCapabilitySafeStart}
+	allRefused.want = append([]rbacv1.ClusterRole(nil), allRefused.want...)
+	allRefused.want[2].Rules = append(append([]rbacv1.PolicyRule(nil), rulesSystemExtra...), rbacv1.PolicyRule{
+		APIGroups: []string{"apiextensions.k8s.io"}, Resources: []string{"customresourcedefinitions"}, Verbs: verbsView,
+	})
+	cases["AllResourcesRefusedWithSafeStart"] = allRefused
+	allRefused.args.resources = nil
+	cases["EmptyResourcesWithSafeStart"] = allRefused
+
+	mixed := cases["MergeGroups"]
+	mixed.reason = "Refused resources must not change the roles granted for valid resources alongside them."
+	mixed.args.resources = append(mixed.args.resources, refused...)
+	cases["MixedResources"] = mixed
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
