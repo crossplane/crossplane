@@ -18,16 +18,25 @@ limitations under the License.
 package rbac
 
 import (
+	"context"
+
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 
 	"github.com/crossplane/crossplane/v2/internal/controller/rbac/controller"
 	"github.com/crossplane/crossplane/v2/internal/controller/rbac/definition"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/grant"
 	"github.com/crossplane/crossplane/v2/internal/controller/rbac/provider/binding"
 	"github.com/crossplane/crossplane/v2/internal/controller/rbac/provider/roles"
 )
 
 // Setup RBAC manager controllers.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), grant.CRDMetadata(), grant.IndexOwnerUID, grant.OwnerUIDs); err != nil {
+		return errors.Wrap(err, "cannot index CustomResourceDefinitions by owner")
+	}
+
 	for _, setup := range []func(ctrl.Manager, controller.Options) error{
 		definition.Setup,
 		binding.Setup,

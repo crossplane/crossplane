@@ -23,6 +23,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
@@ -97,6 +98,7 @@ func CRDAsUnstructured(mrd *v1alpha1.ManagedResourceDefinition) (*unstructured.U
 
 	// Add owner references
 	meta.AddOwnerReference(u, meta.AsOwner(meta.TypedReferenceTo(mrd, v1alpha1.ManagedResourceDefinitionGroupVersionKind)))
+	// This reference records the installing package.
 	if owner := metav1.GetControllerOf(mrd); owner != nil {
 		meta.AddOwnerReference(u, *owner)
 	}
@@ -147,4 +149,15 @@ func buildVersion(version v1alpha1.CustomResourceDefinitionVersion) (map[string]
 	}
 
 	return p.UnstructuredContent(), nil
+}
+
+// mayApplyTo permits updates only to CRDs already owned by this MRD.
+func mayApplyTo(mrd *v1alpha1.ManagedResourceDefinition, crd metav1.Object) bool {
+	for _, owner := range crd.GetOwnerReferences() {
+		if owner.UID != "" && owner.UID == mrd.GetUID() && owner.Name == mrd.GetName() &&
+			schema.FromAPIVersionAndKind(owner.APIVersion, owner.Kind).GroupKind() == v1alpha1.ManagedResourceDefinitionGroupVersionKind.GroupKind() {
+			return true
+		}
+	}
+	return false
 }

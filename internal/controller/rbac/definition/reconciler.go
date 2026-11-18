@@ -28,6 +28,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -39,6 +40,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	"github.com/crossplane/crossplane/v2/internal/controller/rbac/controller"
+	"github.com/crossplane/crossplane/v2/internal/controller/rbac/grant"
 )
 
 const (
@@ -81,6 +83,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1.CompositeResourceDefinition{}).
 		Owns(&rbacv1.ClusterRole{}).
+		Watches(grant.CRDMetadata(), handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &v1.CompositeResourceDefinition{})).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(errors.WithSilentRequeueOnConflict(r))
 }
@@ -179,9 +182,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
+	crds, err := grant.OwnedCRDs(ctx, r.client, d, v1.CompositeResourceDefinitionGroupVersionKind.GroupKind())
+	if err != nil {
+		// Discovery reads the cache, so failures are transient. Retry quietly.
+		log.Debug("Cannot discover owned CustomResourceDefinitions", "error", err)
+		return reconcile.Result{}, err
+	}
+	names := make(map[string]bool, len(crds))
+	for _, crd := range crds {
+		names[crd.Name] = true
+	}
+	// Check composite and claim CRDs independently so loss of one revokes
+	// only its grants. Keep the XRD identity to update existing roles.
+	desired := d.DeepCopy()
+	if !names[d.Spec.Names.Plural+"."+d.Spec.Group] {
+		desired.Spec.Names.Plural = ""
+	}
+	if d.Spec.ClaimNames != nil && !names[d.Spec.ClaimNames.Plural+"."+d.Spec.Group] {
+		desired.Spec.ClaimNames = nil
+	}
+
 	applied := make([]string, 0)
 
-	for _, cr := range r.rbac.RenderClusterRoles(d) {
+	for _, cr := range r.rbac.RenderClusterRoles(desired) {
 		log := log.WithValues("role-name", cr.GetName())
 		origRV := ""
 
