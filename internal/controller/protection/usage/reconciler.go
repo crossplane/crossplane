@@ -284,7 +284,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	of := u.GetUserOf()
-	by := u.GetUsedBy()
 
 	// Validate APIVersion of used object provided as input.
 	// We parse this value while indexing the objects, and we need to make sure it is valid.
@@ -301,6 +300,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		return reconcile.Result{}, err
 	}
+
+	// Resolving selectors sets the references of the resources they selected.
+	// Read the used and using resources again to see those references.
+	of = u.GetUserOf()
+	by := u.GetUsedBy()
 
 	status := r.conditions.For(uu)
 

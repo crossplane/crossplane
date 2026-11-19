@@ -144,6 +144,88 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errResolveSelectors),
 			},
 		},
+		"UsedResourceFromResolvedSelector": {
+			reason: "We should look up the used resource the selector resolved to, not the unresolved selector we read from the API server.",
+			args: args{
+				mgr: &fake.Manager{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								switch o := obj.(type) {
+								case *v1beta1.Usage:
+									o.Spec.Of.ResourceSelector = &v1beta1.NamespacedResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
+								case *composed.Unstructured:
+									if o.GetName() != "resolved-used" {
+										return errors.Errorf("unexpected resource %q", o.GetName())
+									}
+									return errBoom
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, u protection.Usage) error {
+							of := u.GetUserOf()
+							of.ResourceRef = &protection.ResourceRef{Name: "resolved-used"}
+							u.SetUserOf(of)
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetUsed),
+			},
+		},
+		"UsingResourceFromResolvedSelector": {
+			reason: "We should look up the using resource the selector resolved to, not the unresolved selector we read from the API server.",
+			args: args{
+				mgr: &fake.Manager{},
+				u:   func() protection.Usage { return &protection.InternalUsage{} },
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								switch o := obj.(type) {
+								case *v1beta1.Usage:
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
+									o.Spec.By = &v1beta1.Resource{
+										ResourceSelector: &v1beta1.ResourceSelector{MatchLabels: map[string]string{"foo": "bar"}},
+									}
+								case *composed.Unstructured:
+									if o.GetName() == "resolved-using" {
+										return errBoom
+									}
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, u protection.Usage) error {
+							by := u.GetUsedBy()
+							by.ResourceRef = &protection.ResourceRef{Name: "resolved-using"}
+							u.SetUsedBy(by)
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetUsing),
+			},
+		},
 		"CannotAddFinalizer": {
 			reason: "We should return an error if we cannot add finalizer.",
 			args: args{
