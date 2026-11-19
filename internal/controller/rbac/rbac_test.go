@@ -52,6 +52,9 @@ func TestReconcileReplacesStaleRules(t *testing.T) {
 	if err := rbacv1.AddToScheme(scheme); err != nil {
 		t.Fatal(err)
 	}
+	if err := extv1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
 
 	pr := &pkgv1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: "unowned", UID: "unowned"}}
 	pr.Status.ObjectRefs = []xpv1.TypedReference{{
@@ -119,7 +122,7 @@ func TestReconcileReplacesStaleRules(t *testing.T) {
 				var want []rbacv1.PolicyRule
 				if suffix == ":system" {
 					want = []rbacv1.PolicyRule{{
-						APIGroups: []string{"", "coordination.k8s.io", "events.k8s.io"},
+						APIGroups: []string{"", "coordination.k8s.io"},
 						Resources: []string{"secrets", "configmaps", "events", "leases"}, Verbs: []string{"*"},
 					}}
 				}

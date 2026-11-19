@@ -185,7 +185,7 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 	}
 
 	// Always apply roles to revoke stale derived grants. Fixed system rules
-	// let providers start and SafeStart providers watch for their first CRD.
+	// and approved permission requests let providers start.
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}
 	for i := range roles {
 		ref := meta.AsController(meta.TypedReferenceTo(pr, v1.ProviderRevisionGroupVersionKind))
