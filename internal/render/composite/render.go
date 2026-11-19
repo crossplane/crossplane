@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -265,11 +266,7 @@ func Render(ctx context.Context, log logging.Logger, ff *feature.Flags, in *rend
 	// useful state — in particular the resource selectors a function
 	// requested before returning a fatal result — that callers iterating on
 	// requirements need to make progress. See issue #7446.
-	out, berr := BuildOutput(c, func(u kunstructured.Unstructured) bool {
-		return u.GroupVersionKind() == gvk &&
-			u.GetNamespace() == xr.GetNamespace() &&
-			u.GetName() == xr.GetName()
-	}, rec, rrf, rsf)
+	out, berr := BuildOutput(ctx, c, xr, rec, rrf, rsf)
 
 	// Put back the deletion timestamp and finalizers the in-memory client
 	// dropped when the XR was composed. Crossplane's finalizer stays only if
@@ -519,38 +516,28 @@ func CompositionSelector(comp *apiextensionsv1.Composition) composite.Compositio
 }
 
 // BuildOutput assembles a CompositeOutput from the fake client's captured
-// state and the event recorder. The isPrimary predicate identifies the
-// primary resource (the XR) so it can be separated from composed resources.
-func BuildOutput(c *render.InMemoryClient, isPrimary func(kunstructured.Unstructured) bool, rec *render.EventRecorder, rrf *render.RecordingRequiredResourcesFetcher, rsf *render.RecordingRequiredSchemasFetcher) (*renderv1alpha1.CompositeOutput, error) {
-	out := &renderv1alpha1.CompositeOutput{}
-
-	// Find the final XR state. It's the last Status().Update or
-	// Status().Patch call for the XR.
-	for _, u := range slices.Backward(c.Updated()) {
-		if isPrimary(u) {
-			s, err := xfn.AsStruct(&u)
-			if err != nil {
-				return nil, errors.Wrap(err, "cannot convert composite resource to protobuf")
-			}
-			out.CompositeResource = s
-			break
-		}
+// state and the event recorder. The primary XR is identified by its object key.
+func BuildOutput(ctx context.Context, c *render.InMemoryClient, primary *ucomposite.Unstructured, rec *render.EventRecorder, rrf *render.RecordingRequiredResourcesFetcher, rsf *render.RecordingRequiredSchemasFetcher) (*renderv1alpha1.CompositeOutput, error) {
+	xr := &kunstructured.Unstructured{}
+	xr.SetGroupVersionKind(primary.GroupVersionKind())
+	if err := c.Get(ctx, client.ObjectKeyFromObject(primary), xr); err != nil {
+		return nil, errors.Wrap(err, "cannot get rendered composite resource")
 	}
-
-	// If the XR wasn't in the updated list, check applied (from
-	// Status().Patch, which records to applied).
-	if out.GetCompositeResource() == nil {
-		for _, u := range slices.Backward(c.Applied()) {
-			if isPrimary(u) {
-				s, err := xfn.AsStruct(&u)
-				if err != nil {
-					return nil, errors.Wrap(err, "cannot convert composite resource to protobuf")
-				}
-				out.CompositeResource = s
-				break
-			}
-		}
+	isPrimary := func(u kunstructured.Unstructured) bool {
+		return u.GroupVersionKind() == xr.GroupVersionKind() &&
+			u.GetNamespace() == xr.GetNamespace() &&
+			u.GetName() == xr.GetName()
 	}
+	// Composition refs carry the fake version used for optimistic writes.
+	// Keep it out of composed output, as before.
+	if slices.ContainsFunc(c.Applied(), isPrimary) {
+		xr.SetResourceVersion("")
+	}
+	s, err := xfn.AsStruct(xr)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot convert composite resource to protobuf")
+	}
+	out := &renderv1alpha1.CompositeOutput{CompositeResource: s}
 
 	// Collect composed resources from applied (SSA Patch). Exclude the XR
 	// itself and the XR resourceRefs patch.

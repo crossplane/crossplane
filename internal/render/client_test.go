@@ -29,6 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	ucomposite "github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 )
 
 var _ client.Client = &InMemoryClient{}
@@ -414,6 +416,94 @@ func TestInMemoryClientStatusMerge(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.obj, *obj); diff != "" {
 				t.Errorf("\n%s\nStatus().Update(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestInMemoryClientStatusApply(t *testing.T) {
+	xr := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "example.org/v1", "kind": "XR",
+		"metadata": map[string]any{"name": "widget"},
+		"status": map[string]any{"conditions": []any{
+			map[string]any{"type": "External", "status": "True", "reason": "Verified"},
+			map[string]any{"type": "Ready", "status": "False", "reason": "Creating", "message": "old failure"},
+		}},
+	}}
+	c := NewInMemoryClient(runtime.NewScheme(), *xr)
+	refs := &unstructured.Unstructured{}
+	refs.SetGroupVersionKind(xr.GroupVersionKind())
+	refs.SetName(xr.GetName())
+	refs.Object["spec"] = map[string]any{"crossplane": map[string]any{"resourceRefs": []any{}}}
+	//nolint:staticcheck // Exercise the apply used to persist XR refs.
+	if err := c.Patch(t.Context(), refs, client.Apply); err != nil {
+		t.Fatal(err)
+	}
+	intent := &unstructured.Unstructured{}
+	intent.SetGroupVersionKind(xr.GroupVersionKind())
+	intent.SetName(xr.GetName())
+	intent.Object["status"] = map[string]any{"conditions": []any{
+		map[string]any{"type": "Ready", "status": "True", "reason": "Available", "message": ""},
+	}}
+	//nolint:staticcheck // Status apply must preserve conditions outside its intent.
+	if err := c.Status().Patch(t.Context(), intent, client.Apply); err != nil {
+		t.Fatal(err)
+	}
+	conditions, _, _ := unstructured.NestedSlice(intent.Object, "status", "conditions")
+	want := []any{
+		map[string]any{"type": "External", "status": "True", "reason": "Verified"},
+		map[string]any{"type": "Ready", "status": "True", "reason": "Available", "message": ""},
+	}
+	if diff := cmp.Diff(want, conditions); diff != "" {
+		t.Errorf("applied conditions (-want +got):\n%s", diff)
+	}
+	// A status Update still replaces the list, as the API server does.
+	intent.Object["status"] = map[string]any{"conditions": want[1:]}
+	if err := c.Status().Update(t.Context(), intent); err != nil {
+		t.Fatal(err)
+	}
+	conditions, _, _ = unstructured.NestedSlice(intent.Object, "status", "conditions")
+	if diff := cmp.Diff(want[1:], conditions); diff != "" {
+		t.Errorf("updated conditions (-want +got):\n%s", diff)
+	}
+}
+
+func TestInMemoryClientRefsApply(t *testing.T) {
+	for name, s := range map[string]ucomposite.Schema{
+		"Legacy": ucomposite.SchemaLegacy,
+		"Modern": ucomposite.SchemaModern,
+	} {
+		t.Run(name, func(t *testing.T) {
+			gvk := schema.GroupVersionKind{Group: "example.org", Version: "v1", Kind: "XR"}
+			xr := ucomposite.New(ucomposite.WithSchema(s), ucomposite.WithGroupVersionKind(gvk))
+			xr.SetName("widget")
+			xr.SetUID("xr-uid")
+			xr.SetGeneration(3)
+			xr.SetLabels(map[string]string{"app": "example"})
+			xr.SetAnnotations(map[string]string{"example.org/keep": "value"})
+			xr.Object["spec"] = map[string]any{"region": "us-east-1"}
+			xr.Object["status"] = map[string]any{"phase": "ready"}
+			xr.SetCompositionReference(&corev1.ObjectReference{Name: "example"})
+			xr.SetResourceReferences([]corev1.ObjectReference{{APIVersion: "v1", Kind: "ConfigMap", Name: "old"}})
+			c := NewInMemoryClient(runtime.NewScheme(), xr.Unstructured)
+			refs := ucomposite.New(ucomposite.WithSchema(s), ucomposite.WithGroupVersionKind(gvk))
+			refs.SetName(xr.GetName())
+			refs.SetResourceReferences([]corev1.ObjectReference{{APIVersion: "v1", Kind: "ConfigMap", Name: "new"}})
+			want := xr.DeepCopy()
+			want.SetResourceReferences(refs.GetResourceReferences())
+			//nolint:staticcheck // Exercise the composer's refs apply.
+			if err := c.Patch(t.Context(), refs, client.Apply); err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(want.Object, refs.Object); diff != "" {
+				t.Errorf("refs apply response (-want +got):\n%s", diff)
+			}
+			stored := ucomposite.New(ucomposite.WithSchema(s), ucomposite.WithGroupVersionKind(gvk))
+			if err := c.Get(t.Context(), client.ObjectKeyFromObject(xr), stored); err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(want.Object, stored.Object); diff != "" {
+				t.Errorf("refs apply stored object (-want +got):\n%s", diff)
 			}
 		})
 	}
