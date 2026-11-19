@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/conditions"
@@ -678,7 +679,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// they failed transiently on a previous attempt.
 	if err := r.engine.StartWatches(ctx, controllerName,
 		engine.WatchFor(xr, engine.WatchTypeCompositeResource, h),
-		engine.WatchFor(&v1.CompositionRevision{}, engine.WatchTypeCompositionRevision, crh),
+		// Informer resyncs deliver updates with the same resource version for
+		// every retained revision. Drop them before they hit the circuit breaker.
+		engine.WatchFor(&v1.CompositionRevision{}, engine.WatchTypeCompositionRevision, crh, predicate.ResourceVersionChangedPredicate{}),
 	); err != nil {
 		log.Debug(errStartWatches, "error", err)
 		err = errors.Wrap(err, errStartWatches)
