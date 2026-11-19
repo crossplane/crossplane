@@ -26,16 +26,15 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/name"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -45,6 +44,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/controller/rbac/controller"
+	"github.com/crossplane/crossplane/internal/controller/rbac/grant"
 )
 
 const (
@@ -54,7 +54,8 @@ const (
 	errListPRs             = "cannot list ProviderRevisions"
 	errApplyRole           = "cannot apply ClusterRole"
 	errValidatePermissions = "cannot validate permission requests"
-	errRejectedPermission  = "refusing to apply any RBAC roles due to request for disallowed permission"
+	errRejectedPermission  = "refusing to grant disallowed permission request"
+	errInvalidPermission   = "refusing to grant invalid permission request"
 )
 
 // Event reasons.
@@ -99,6 +100,7 @@ func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1.ProviderRevision, rs []R
 // resources it defines.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "rbac-roles/" + strings.ToLower(v1.ProviderRevisionGroupKind)
+	sfh := &EnqueueRequestForAllRevisionsInFamily{client: mgr.GetClient()}
 
 	if o.AllowClusterRole == "" {
 		r := NewReconciler(mgr,
@@ -109,6 +111,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 			Named(name).
 			For(&v1.ProviderRevision{}).
 			Owns(&rbacv1.ClusterRole{}).
+			Watches(grant.CRDMetadata(), handler.EnqueueRequestsFromMapFunc(sfh.ForCRD)).
+			Watches(&v1.ProviderRevision{}, sfh).
 			WithOptions(o.ForControllerRuntime()).
 			Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 	}
@@ -116,10 +120,6 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	wrh := &EnqueueRequestForAllRevisionsWithRequests{
 		client:          mgr.GetClient(),
 		clusterRoleName: o.AllowClusterRole,
-	}
-
-	sfh := &EnqueueRequestForAllRevisionsInFamily{
-		client: mgr.GetClient(),
 	}
 
 	r := NewReconciler(mgr,
@@ -133,6 +133,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1.ProviderRevision{}).
 		Owns(&rbacv1.ClusterRole{}).
 		Watches(&rbacv1.ClusterRole{}, wrh).
+		Watches(grant.CRDMetadata(), handler.EnqueueRequestsFromMapFunc(sfh.ForCRD)).
 		Watches(&v1.ProviderRevision{}, sfh).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
@@ -263,54 +264,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	resources := DefinedResources(pr.Status.ObjectRefs)
-
-	// If this revision is part of a provider family we consider it to 'own' all
-	// of the family's CRDs (despite it not actually being an owner reference).
-	// This allows the revision to use core types installed by another provider,
-	// e.g. ProviderConfigs. It also allows the provider to cross-resource
-	// reference resources from other providers within its family.
-	//
-	// TODO(negz): Once generic cross-resource references are implemented we can
-	// reduce this to only allowing access to core types, like ProviderConfig.
-	// https://github.com/crossplane/crossplane/issues/1770
-	if family := pr.GetLabels()[v1.LabelProviderFamily]; family != "" {
-		// TODO(negz): Get active revisions in family.
-		prs := &v1.ProviderRevisionList{}
-		if err := r.client.List(ctx, prs, client.MatchingLabels{v1.LabelProviderFamily: family}); err != nil {
-			if kerrors.IsConflict(err) {
-				return reconcile.Result{Requeue: true}, nil
-			}
-			err = errors.Wrap(err, errListPRs)
-			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
-			return reconcile.Result{}, err
+	resources, err := r.definedResources(ctx, pr)
+	if err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
 		}
-
-		// TODO(negz): Should we filter down to only active revisions? I don't
-		// think there's any benefit. If the revision is inactive and never
-		// created any CRDs there will be no CRDs to grant permissions for. If
-		// it's inactive but did create (or would share) CRDs then this provider
-		// might try use them, and we should let it.
-		for _, member := range prs.Items {
-			// We already added our own resources.
-			if member.GetUID() == pr.GetUID() {
-				continue
-			}
-
-			// We only allow packages in the same OCI registry and org to be
-			// part of the same family. This prevents a malicious provider from
-			// declaring itself part of a family and thus being granted RBAC
-			// access to its types.
-			// TODO(negz): Consider using package signing here in future.
-			if r.org.Differs(pr.Spec.Package, member.Spec.Package) {
-				continue
-			}
-
-			resources = append(resources, DefinedResources(member.Status.ObjectRefs)...)
-		}
+		// Discovery reads the cache, so failures are transient. Retry quietly.
+		log.Debug("Cannot discover owned CustomResourceDefinitions", "error", err)
+		return reconcile.Result{}, err
 	}
 
-	rejected, err := r.rbac.ValidatePermissionRequests(ctx, pr.Status.PermissionRequests...)
+	requests := make([]rbacv1.PolicyRule, 0, len(pr.Status.PermissionRequests))
+	for _, rq := range pr.Status.PermissionRequests {
+		// The API server rejects a ClusterRole with an invalid rule, which
+		// would stop us revoking stale grants.
+		if !validPolicyRule(rq) {
+			r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Errorf("%s %s", errInvalidPermission, rq.String())))
+			continue
+		}
+		requests = append(requests, rq)
+	}
+
+	approved, rejected, err := r.approvedPermissionRequests(ctx, requests)
 	if err != nil {
 		err = errors.Wrap(err, errValidatePermissions)
 		r.record.Event(pr, event.Warning(reasonApplyRoles, err))
@@ -321,18 +296,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Errorf("%s %s", errRejectedPermission, rule)))
 	}
 
-	// We return early and don't grant _any_ RBAC permissions if we would reject
-	// any requested permission. It's better for the provider to be completely
-	// and obviously broken than for it to be subtly broken in a way that may
-	// not surface immediately, i.e. due to missing an RBAC permission it only
-	// occasionally needs. There's no need to requeue - the revisions requests
-	// won't change, and we're watching the ClusterRole of allowed requests.
-	if len(rejected) > 0 {
-		return reconcile.Result{Requeue: false}, nil
-	}
+	// Rejected requests must not stop us applying roles, or rules granted
+	// earlier would never be revoked. Grant only the approved requests. There's
+	// no need to requeue - we're watching the ClusterRole of allowed requests.
+	desired := pr.DeepCopy()
+	desired.Status.PermissionRequests = approved
 
 	applied := make([]string, 0)
-	for _, cr := range r.rbac.RenderClusterRoles(pr, resources) {
+	for _, cr := range r.rbac.RenderClusterRoles(desired, resources) {
 		log := log.WithValues("role-name", cr.GetName())
 		origRV := ""
 		err := r.client.Apply(ctx, &cr,
@@ -369,21 +340,103 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{Requeue: false}, nil
 }
 
-// DefinedResources returns the resources defined by the supplied references.
-func DefinedResources(refs []xpv1.TypedReference) []Resource {
-	out := make([]Resource, 0, len(refs))
-	for _, ref := range refs {
-		// This would only return an error if the APIVersion contained more than
-		// one "/". This should be impossible, but if it somehow happens we'll
-		// just skip this resource since it can't be a CRD.
-		gv, _ := schema.ParseGroupVersion(ref.APIVersion)
+// validPolicyRule returns true if the API server would accept rule in a
+// ClusterRole.
+func validPolicyRule(rule rbacv1.PolicyRule) bool {
+	if len(rule.Verbs) == 0 {
+		return false
+	}
+	if len(rule.NonResourceURLs) > 0 {
+		return len(rule.APIGroups) == 0 && len(rule.Resources) == 0 && len(rule.ResourceNames) == 0
+	}
+	return len(rule.APIGroups) > 0 && len(rule.Resources) > 0
+}
 
-		// We're only concerned with CRDs.
-		if gv.Group != apiextensions.GroupName || ref.Kind != "CustomResourceDefinition" {
-			continue
+// approvedPermissionRequests returns the permission requests that are allowed
+// in full, and the rules rejected from any others.
+func (r *Reconciler) approvedPermissionRequests(ctx context.Context, requests []rbacv1.PolicyRule) ([]rbacv1.PolicyRule, []Rule, error) {
+	rejected, err := r.rbac.ValidatePermissionRequests(ctx, requests...)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(rejected) == 0 {
+		return requests, nil, nil
+	}
+
+	approved := make([]rbacv1.PolicyRule, 0, len(requests))
+	for _, rq := range requests {
+		denied, err := r.rbac.ValidatePermissionRequests(ctx, rq)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(denied) == 0 {
+			approved = append(approved, rq)
+		}
+	}
+	return approved, rejected, nil
+}
+
+// definedResources discovers the CRDs owned by this revision and its family.
+func (r *Reconciler) definedResources(ctx context.Context, pr *v1.ProviderRevision) ([]Resource, error) {
+	crds, err := grant.OwnedCRDs(ctx, r.client, pr, v1.ProviderRevisionGroupVersionKind.GroupKind())
+	if err != nil {
+		return nil, err
+	}
+	resources := DefinedResources(crds)
+
+	// If this revision is part of a provider family we consider it to 'own' all
+	// of the family's CRDs (despite it not actually being an owner reference).
+	// This allows the revision to use core types installed by another provider,
+	// e.g. ProviderConfigs. It also allows the provider to cross-resource
+	// reference resources from other providers within its family.
+	//
+	// TODO(negz): Once generic cross-resource references are implemented we can
+	// reduce this to only allowing access to core types, like ProviderConfig.
+	// https://github.com/crossplane/crossplane/issues/1770
+	if family := pr.GetLabels()[v1.LabelProviderFamily]; family != "" {
+		// TODO(negz): Get active revisions in family.
+		prs := &v1.ProviderRevisionList{}
+		if err := r.client.List(ctx, prs, client.MatchingLabels{v1.LabelProviderFamily: family}); err != nil {
+			return nil, errors.Wrap(err, errListPRs)
 		}
 
-		p, g, valid := strings.Cut(ref.Name, ".")
+		// TODO(negz): Should we filter down to only active revisions? I don't
+		// think there's any benefit. If the revision is inactive and never
+		// created any CRDs there will be no CRDs to grant permissions for. If
+		// it's inactive but did create (or would share) CRDs then this provider
+		// might try use them, and we should let it.
+		for _, member := range prs.Items {
+			// We already added our own resources.
+			if member.GetUID() == pr.GetUID() {
+				continue
+			}
+
+			// We only allow packages in the same OCI registry and org to be
+			// part of the same family. This prevents a malicious provider from
+			// declaring itself part of a family and thus being granted RBAC
+			// access to its types.
+			// TODO(negz): Consider using package signing here in future.
+			if r.org.Differs(pr.Spec.Package, member.Spec.Package) {
+				continue
+			}
+
+			crds, err := grant.OwnedCRDs(ctx, r.client, &member, v1.ProviderRevisionGroupVersionKind.GroupKind())
+			if err != nil {
+				return nil, err
+			}
+			resources = append(resources, DefinedResources(crds)...)
+		}
+	}
+
+	return resources, nil
+}
+
+// DefinedResources returns the resources defined by existing CRDs. Kubernetes
+// validates that each CRD is named <spec.names.plural>.<spec.group>.
+func DefinedResources(crds []metav1.PartialObjectMetadata) []Resource {
+	out := make([]Resource, 0, len(crds))
+	for _, crd := range crds {
+		p, g, valid := strings.Cut(crd.Name, ".")
 		if !valid {
 			// This shouldn't be possible - CRDs must be named <plural>.<group>.
 			continue

@@ -48,6 +48,7 @@ import (
 	secretsv1alpha1 "github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/claim"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/ownership"
 	"github.com/crossplane/crossplane/internal/engine"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/names"
@@ -413,7 +414,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	origRV := ""
-	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID()), resource.StoreCurrentRV(&origRV)); err != nil {
+	if err := r.client.Apply(ctx, crd, ownership.MustBeControlledBy(d), resource.StoreCurrentRV(&origRV)); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
