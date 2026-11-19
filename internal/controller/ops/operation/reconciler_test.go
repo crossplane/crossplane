@@ -823,7 +823,13 @@ func TestReconcile(t *testing.T) {
 
 						return nil
 					}),
-					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
+						op := obj.(*v1alpha1.Operation)
+						if want, got := int64(len(op.Status.AppliedResourceRefs)), op.Status.AppliedResources; got != want {
+							t.Errorf("Status().Update(): want %d applied resources, got %d", want, got)
+						}
+						return nil
+					}),
 					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
 						want := MustUnstructJSON(`{
 								"apiVersion": "example.org/v1",
@@ -1011,8 +1017,7 @@ func TestAddResourceRef(t *testing.T) {
 	}
 
 	type want struct {
-		refs  []v1alpha1.AppliedResourceRef
-		count int64
+		refs []v1alpha1.AppliedResourceRef
 	}
 
 	// Test resources
@@ -1066,8 +1071,7 @@ func TestAddResourceRef(t *testing.T) {
 				u:    clusterResource,
 			},
 			want: want{
-				refs:  []v1alpha1.AppliedResourceRef{clusterRef},
-				count: 1,
+				refs: []v1alpha1.AppliedResourceRef{clusterRef},
 			},
 		},
 		"AddClusterScopedResource": {
@@ -1077,8 +1081,7 @@ func TestAddResourceRef(t *testing.T) {
 				u:    clusterResource,
 			},
 			want: want{
-				refs:  []v1alpha1.AppliedResourceRef{clusterRef},
-				count: 1,
+				refs: []v1alpha1.AppliedResourceRef{clusterRef},
 			},
 		},
 		"AddNamespacedResource": {
@@ -1088,8 +1091,7 @@ func TestAddResourceRef(t *testing.T) {
 				u:    namespacedResource,
 			},
 			want: want{
-				refs:  []v1alpha1.AppliedResourceRef{namespacedRef},
-				count: 1,
+				refs: []v1alpha1.AppliedResourceRef{namespacedRef},
 			},
 		},
 		"AddMultipleResourcesSorted": {
@@ -1099,8 +1101,7 @@ func TestAddResourceRef(t *testing.T) {
 				u:    clusterResource,
 			},
 			want: want{
-				refs:  []v1alpha1.AppliedResourceRef{clusterRef, namespacedRef},
-				count: 2,
+				refs: []v1alpha1.AppliedResourceRef{clusterRef, namespacedRef},
 			},
 		},
 		"AddDuplicateResource": {
@@ -1110,8 +1111,7 @@ func TestAddResourceRef(t *testing.T) {
 				u:    clusterResource,
 			},
 			want: want{
-				refs:  []v1alpha1.AppliedResourceRef{clusterRef},
-				count: 1,
+				refs: []v1alpha1.AppliedResourceRef{clusterRef},
 			},
 		},
 		"AddResourceToSortedSlice": {
@@ -1121,8 +1121,7 @@ func TestAddResourceRef(t *testing.T) {
 				u:    anotherNamespacedResource,
 			},
 			want: want{
-				refs:  []v1alpha1.AppliedResourceRef{clusterRef, namespacedRef, anotherNamespacedRef},
-				count: 2,
+				refs: []v1alpha1.AppliedResourceRef{clusterRef, namespacedRef, anotherNamespacedRef},
 			},
 		},
 		"AddDuplicateNamespacedResource": {
@@ -1132,8 +1131,7 @@ func TestAddResourceRef(t *testing.T) {
 				u:    namespacedResource,
 			},
 			want: want{
-				refs:  []v1alpha1.AppliedResourceRef{namespacedRef},
-				count: 1,
+				refs: []v1alpha1.AppliedResourceRef{namespacedRef},
 			},
 		},
 	}
