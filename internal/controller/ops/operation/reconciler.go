@@ -131,11 +131,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// We only want to run this Operation to completion once.
 	if op.IsComplete() {
-		if syncAppliedResources(op) {
-			if err := r.client.Status().Update(ctx, op); err != nil {
-				return reconcile.Result{}, errors.Wrap(err, "cannot update Operation status")
-			}
-		}
 		log.Debug("Operation is already complete. Nothing to do.")
 		return reconcile.Result{Requeue: false}, nil
 	}
@@ -483,14 +478,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 }
 
 // syncAppliedResources updates AppliedResources from AppliedResourceRefs.
-// It returns true when the count changed.
-func syncAppliedResources(op *v1alpha1.Operation) bool {
+func syncAppliedResources(op *v1alpha1.Operation) {
 	want := int64(len(op.Status.AppliedResourceRefs))
-	if op.Status.AppliedResources == want {
-		return false
-	}
 	op.Status.AppliedResources = want
-	return true
 }
 
 // functionRevisionForStep returns the name of the FunctionRevision that should
