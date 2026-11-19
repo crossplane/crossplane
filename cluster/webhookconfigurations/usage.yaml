@@ -28,4 +28,4 @@ webhooks:
           - DELETE
         resources:
           - '*'
-    sideEffects: None
+    sideEffects: NoneOnDryRun

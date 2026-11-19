@@ -135,8 +135,9 @@ func (h *Handler) Handle(ctx context.Context, request admission.Request) admissi
 
 		// If the resource is being deleted, we want to record the first deletion attempt
 		// so that we can track whether a deletion was attempted at least once.
+		// A dry-run delete isn't an attempt, and must not have side effects.
 		policy := string(ptr.Deref(opts.PropagationPolicy, metav1.DeletePropagationBackground))
-		if u.GetAnnotations() == nil || u.GetAnnotations()[protection.AnnotationKeyDeletionAttempt] != policy {
+		if !ptr.Deref(request.DryRun, false) && (u.GetAnnotations() == nil || u.GetAnnotations()[protection.AnnotationKeyDeletionAttempt] != policy) {
 			orig := u.DeepCopy()
 			xpmeta.AddAnnotations(u, map[string]string{protection.AnnotationKeyDeletionAttempt: policy})
 			// Patch the resource to add the deletion attempt annotation
