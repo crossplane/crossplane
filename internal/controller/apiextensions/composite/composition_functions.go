@@ -30,6 +30,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -60,7 +61,6 @@ const (
 	errBuildObserved            = "cannot build observed state for RunFunctionRequest"
 	errGarbageCollectCDs        = "cannot garbage collect composed resources that are no longer desired"
 	errApplyXRRefs              = "cannot update composed resource references"
-	errApplyXRStatus            = "cannot apply composite resource status"
 	errAnonymousCD              = "encountered composed resource without required \"" + xcrd.AnnotationKeyCompositionResourceName + "\" annotation"
 	errUnmarshalDesiredXRStatus = "cannot unmarshal desired composite resource status from RunFunctionResponse"
 	errXRAsStruct               = "cannot encode composite resource to protocol buffer Struct well-known type"
@@ -702,12 +702,13 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	refs := composite.New(composite.WithSchema(xr.Schema), composite.WithGroupVersionKind(xr.GroupVersionKind()))
 	refs.SetNamespace(xr.GetNamespace())
 	refs.SetName(xr.GetName())
+	refs.SetResourceVersion(xr.GetResourceVersion())
 	UpdateResourceRefs(refs, known)
 
 	// Persist our updated composed resource references. We want this to be an
-	// atomic replace of the entire array. Note that we're relying on the status
-	// patch that immediately follows to load the latest version of uxr from the
-	// API server.
+	// atomic replace of the entire array. The resource version ensures that
+	// the status we started with is still current before we carry forward the
+	// version returned by this spec-only patch.
 	//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
 	if err := c.client.Patch(ctx, refs, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerXR)); err != nil {
 		// It's important we don't proceed if this fails, because we need to be
@@ -715,6 +716,10 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// composed resources below.
 		return CompositionResult{}, errors.Wrap(err, errApplyXRRefs)
 	}
+
+	xr.SetResourceVersion(refs.GetResourceVersion())
+	xr.SetGeneration(refs.GetGeneration())
+	xr.SetResourceReferences(refs.GetResourceReferences())
 
 	// TODO: Remove this call to Upgrade once no supported version of Crossplane
 	// have native P&T available. We only need to upgrade field managers if the
@@ -779,50 +784,14 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		resources = append(resources, ComposedResource{ResourceName: name, Ready: cd.Ready, Synced: true})
 	}
 
-	// Our goal here is to patch our XR's status using server-side apply. We
-	// want the resulting, patched object loaded into uxr. We need to pass in
-	// only our "fully specified intent" - i.e. only the fields that we actually
-	// care about. FromStruct will replace uxr's backing map[string]any with the
-	// content of GetResource (i.e. the desired status). We then need to set its
-	// GVK and name so that our client knows what resource to patch.
-	v := xr.GetAPIVersion()
-	k := xr.GetKind()
-	ns := xr.GetNamespace()
-	n := xr.GetName()
-	u := xr.GetUID()
-	cs := xr.GetConditions()
-	dp := xr.GetDeletionPolicy()
-
-	if err := xfn.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
+	// Return the function's desired status so the reconciler can apply it
+	// together with the final conditions in one write.
+	desiredStatus, _, err := kunstructured.NestedMap(d.GetComposite().GetResource().AsMap(), "status")
+	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
 	}
-
-	xr.SetAPIVersion(v)
-	xr.SetKind(k)
-	xr.SetNamespace(ns)
-	xr.SetName(n)
-	xr.SetUID(u)
-
-	// Include any pending conditions so we don't lose them. SetConditions
-	// will set conditions to nil if it's not passed any arguments. SSA
-	// interprets this as null and rejects it, so we only set them if
-	// there's actually some to set.
-	if len(cs) > 0 {
-		xr.SetConditions(cs...)
-	}
-
-	// Keep the recorded deletion policy. The pipeline can't change it, and
-	// leaving it out of this apply would delete it.
-	xr.SetDeletionPolicy(dp)
-
-	// NOTE(phisco): Here we are fine using a hardcoded field owner as there is
-	// no risk of conflict between different XRs.
-	//nolint:staticcheck // TODO(adamwg) Stop using client.Apply after the v2.2 release.
-	if err := c.client.Status().Patch(ctx, xr, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerXR)); err != nil {
-		// Note(phisco): here we are fine with this error being terminal, as
-		// there is no other resource to apply that might eventually resolve
-		// this issue.
-		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
+	if desiredStatus == nil {
+		desiredStatus = make(map[string]any)
 	}
 
 	var ready *bool
@@ -851,6 +820,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 	return CompositionResult{
 		Composed:          resources,
+		DesiredStatus:     desiredStatus,
 		ConnectionDetails: d.GetComposite().GetConnectionDetails(),
 		Ready:             ready,
 		Events:            events,
