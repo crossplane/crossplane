@@ -58,7 +58,8 @@ func ChildName(parentName, parentUID, childName string) string {
 	if maxParentLen > 0 && !strings.HasSuffix(parentName[:maxParentLen], "-") {
 		// Need room for a hyphen
 		maxParentLen--
-		truncatedParent := parentName[:maxParentLen] + "-"
+		// A period followed by a hyphen isn't valid in a name.
+		truncatedParent := strings.TrimRight(parentName[:maxParentLen], ".") + "-"
 		return truncatedParent + suffix
 	}
 

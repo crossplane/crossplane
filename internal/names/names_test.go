@@ -80,6 +80,15 @@ func TestChildName(t *testing.T) {
 			},
 			want: "very-long-parent-name-without-ending-hyphenvery-lo-38ce86992a27",
 		},
+		"TruncateAtPeriod": {
+			reason: "Should drop a trailing period from the truncated parent name, because a period followed by a hyphen isn't a valid name",
+			args: args{
+				parentName: "my-composite-resource-for-the-platform-team-alpha.example.com-", // 62 characters, period at index 49
+				parentUID:  "75e4a668-035f-4ce8-8c45-f4d3ac850155",
+				childName:  "database",
+			},
+			want: "my-composite-resource-for-the-platform-team-alpha-38ce86992a27",
+		},
 		"EmptyParentName": {
 			reason: "Should handle empty parent name",
 			args: args{
