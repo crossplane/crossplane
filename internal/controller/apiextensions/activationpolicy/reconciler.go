@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -127,10 +128,16 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 	mrap.Status.ClearActivated()
 
 	// For each, see if it is activated by the activation policy.
-	var errs []error
+	var (
+		errs           []error
+		hasActivated   bool
+		allEstablished = true
+	)
 	for _, mrd := range mrds.Items {
 		if mrap.Activates(mrd.GetName()) {
+			hasActivated = true
 			if mrd.Spec.State != v1alpha1.ManagedResourceDefinitionActive {
+				allEstablished = false
 				orig := mrd.DeepCopy()
 				mrd.Spec.State = v1alpha1.ManagedResourceDefinitionActive
 				// Patch to ignore any other updates. Just focused on the spec.state value.
@@ -143,6 +150,9 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 				r.record.Event(mrap, event.Normal(reasonActivatedMRD, reconcileActivateSuccessMsg))
 			}
 			mrap.Status.AppendActivated(mrd.GetName())
+			if mrd.GetCondition(v1alpha1.TypeEstablished).Status != corev1.ConditionTrue {
+				allEstablished = false
+			}
 		}
 	}
 	if errs != nil {
@@ -150,6 +160,11 @@ func (r *Reconciler) Reconcile(ogctx context.Context, req reconcile.Request) (re
 			fmt.Sprintf("failed to activate %d of %d ManagedResourceDefinitions", len(errs), len(mrap.Status.Activated))))
 	} else {
 		status.MarkConditions(v1alpha1.Healthy())
+	}
+	if hasActivated && allEstablished {
+		status.MarkConditions(v1alpha1.EstablishedManaged())
+	} else {
+		status.MarkConditions(v1alpha1.PendingManaged())
 	}
 
 	if !cmp.Equal(statusBefore, &mrap.Status) {
