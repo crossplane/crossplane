@@ -814,6 +814,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 				return reconcile.Result{}, err
 			}
+			statusBefore, _, _ = kunstructured.NestedFieldCopy(xr.Object, statusField)
 
 			if deleting {
 				return reconcile.Result{Requeue: true}, nil

@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
@@ -109,6 +110,86 @@ func TestWriteCompositionStatus(t *testing.T) {
 	}
 	if calls != 1 {
 		t.Fatalf("got %d status applies, want 1", calls)
+	}
+}
+
+func TestWriteCompositionStatusTransientErrors(t *testing.T) {
+	gr := schema.GroupResource{Group: "test.crossplane.io", Resource: "xwidgets"}
+	for name, patchErr := range map[string]error{
+		"Conflict":           kerrors.NewConflict(gr, "widget", errors.New("conflict")),
+		"ServiceUnavailable": kerrors.NewServiceUnavailable("apiserver unavailable"),
+		"Timeout":            kerrors.NewTimeoutError("request timed out", 1),
+		"ServerTimeout":      kerrors.NewServerTimeout(gr, "patch", 1),
+		"TooManyRequests":    kerrors.NewTooManyRequests("rate limited", 1),
+		"DeadlineExceeded":   context.DeadlineExceeded,
+		"Canceled":           context.Canceled,
+	} {
+		t.Run(name, func(t *testing.T) {
+			xr := composite.New(composite.WithSchema(composite.SchemaModern),
+				composite.WithGroupVersionKind(schema.GroupVersionKind{Group: "test.crossplane.io", Version: "v1", Kind: "XWidget"}))
+			xr.SetName("widget")
+			xr.SetConditions(xpv2.ReconcileSuccess(), xpv2.Available())
+			statusBefore, _, _ := kunstructured.NestedFieldCopy(xr.Object, statusField)
+			updates := 0
+			c := &test.MockClient{
+				MockStatusPatch: test.NewMockSubResourcePatchFn(patchErr),
+				MockStatusUpdate: func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
+					updates++
+					return nil
+				},
+			}
+			recorder := record.NewFakeRecorder(10)
+			r := NewReconciler(c, xr.GroupVersionKind(), WithRecorder(event.NewAPIRecorder(recorder)))
+			err := r.writeCompositionStatus(t.Context(), xr, CompositionResult{DesiredStatus: map[string]any{"widgets": int64(1)}}, statusBefore)
+			if !errors.Is(err, patchErr) || updates != 0 || len(recorder.Events) != 0 {
+				t.Errorf("writeCompositionStatus() = %v (updates=%d, events=%d), want %v with no fallback or events", err, updates, len(recorder.Events), patchErr)
+			}
+		})
+	}
+}
+
+func TestCompositionConditionsRawObservedGeneration(t *testing.T) {
+	oldTime := metav1.NewTime(time.Unix(100, 0).UTC())
+	newerTime := metav1.NewTime(time.Unix(200, 0).UTC())
+	for name, tc := range map[string]struct {
+		existingGen int64
+		rawGen      int64
+	}{
+		"ClearsWhenOmitted": {existingGen: 3, rawGen: 0},
+		"SetsWhenAdded":     {existingGen: 0, rawGen: 5},
+	} {
+		t.Run(name, func(t *testing.T) {
+			xr := composite.New()
+			existing := xpv2.Condition{
+				Type: xpv2.TypeHealthy, Status: corev1.ConditionTrue, Reason: "Healthy",
+				Message: "ok", LastTransitionTime: oldTime, ObservedGeneration: tc.existingGen,
+			}
+			xr.SetConditions(existing)
+			xr.SetManagedFields([]metav1.ManagedFieldsEntry{{
+				Manager: FieldOwnerXR, Operation: metav1.ManagedFieldsOperationApply, Subresource: statusField,
+				FieldsV1: &metav1.FieldsV1{Raw: []byte(`{"f:status":{"f:conditions":{"k:{\"type\":\"Healthy\"}":{}}}}`)},
+			}})
+			statusBefore, _, _ := kunstructured.NestedFieldCopy(xr.Object, statusField)
+			raw := map[string]any{
+				"type": string(xpv2.TypeHealthy), "status": "True", "reason": "Healthy",
+				"message": "ok", "lastTransitionTime": newerTime.Format(time.RFC3339),
+			}
+			if tc.rawGen != 0 {
+				raw["observedGeneration"] = tc.rawGen
+			}
+			conditions, err := compositionConditions(xr, CompositionResult{
+				DesiredStatus: map[string]any{"conditions": []any{raw}},
+			}, statusBefore)
+			if err != nil {
+				t.Fatal(err)
+			}
+			xr.Object[statusField] = map[string]any{"conditions": conditions}
+			want := existing
+			want.ObservedGeneration = tc.rawGen
+			if diff := cmp.Diff(want, xr.GetCondition(xpv2.TypeHealthy)); diff != "" {
+				t.Errorf("raw condition (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -411,40 +492,87 @@ func TestCompositionStatusApply(t *testing.T) {
 }
 
 func TestInvalidCompositionStatus(t *testing.T) {
+	external := map[string]any{
+		"type": "External", "status": "True", "reason": "Verified",
+		"message": "", "lastTransitionTime": "2026-01-01T00:00:00Z",
+	}
 	for name, tc := range map[string]struct {
-		status    map[string]any
-		invalid   bool
-		published bool
-		fresh     bool
+		status     map[string]any
+		conditions []*fnv1.Condition
+		policy     v1.CompositionDeletionPolicy
+		invalid    bool
+		published  bool
+		fresh      bool
 	}{
-		"SchemaInvalid":            {status: map[string]any{"widgets": -1}, invalid: true},
-		"MalformedConditions":      {status: map[string]any{"conditions": "not a condition list"}, invalid: true},
-		"WrongFieldType":           {status: map[string]any{"widgets": "not an integer"}},
-		"WrongObjectType":          {status: map[string]any{"connectionDetails": "not an object"}},
-		"WrongPublishedObjectType": {status: map[string]any{"connectionDetails": "not an object"}, invalid: true, published: true},
-		"FirstMalformedConditions": {status: map[string]any{"conditions": "not a condition list"}, invalid: true, fresh: true},
+		"SchemaInvalid":             {status: map[string]any{"widgets": -1}, invalid: true},
+		"MalformedConditions":       {status: map[string]any{"conditions": "not a condition list"}, invalid: true},
+		"WrongFieldType":            {status: map[string]any{"widgets": "not an integer"}},
+		"WrongObjectType":           {status: map[string]any{"connectionDetails": "not an object"}},
+		"WrongPublishedObjectType":  {status: map[string]any{"connectionDetails": "not an object"}, invalid: true, published: true},
+		"FirstMalformedConditions":  {status: map[string]any{"conditions": "not a condition list"}, invalid: true, fresh: true},
+		"FreshModernDeletionPolicy": {status: map[string]any{"widgets": -1}, policy: v1.CompositionDeletionPolicyPipeline, invalid: true, fresh: true},
+		"InvalidFunctionCondition": {
+			status: map[string]any{"widgets": 2},
+			conditions: []*fnv1.Condition{{
+				Type: "BadCondition", Status: fnv1.Status_STATUS_CONDITION_TRUE, Reason: "Invalid",
+				Target: new(fnv1.Target_TARGET_COMPOSITE_AND_CLAIM),
+			}},
+			invalid: true,
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			api, gvk := newCompositionStatusAPI(t, v1.CompositeResourceScopeLegacyCluster)
+			scope := v1.CompositeResourceScopeLegacyCluster
+			schema := composite.SchemaLegacy
+			if tc.policy != "" {
+				scope = v1.CompositeResourceScopeCluster
+				schema = composite.SchemaModern
+			}
+			api, gvk := newCompositionStatusAPI(t, scope)
 			ctx := t.Context()
-			xr := composite.New(composite.WithGroupVersionKind(gvk), composite.WithSchema(composite.SchemaLegacy))
+			xr := composite.New(composite.WithGroupVersionKind(gvk), composite.WithSchema(schema))
 			xr.SetName("invalid-widget")
 			if err := api.Create(ctx, xr); err != nil {
 				t.Fatal(err)
 			}
 			desiredStatus := map[string]any{"widgets": 1}
 			updates := 0
+			rejectBadCondition := func(obj client.Object) error {
+				if u, ok := obj.(*composite.Unstructured); ok && len(tc.conditions) > 0 && u.GetCondition("BadCondition").Reason != "" {
+					return kerrors.NewInvalid(gvk.GroupKind(), u.GetName(), nil)
+				}
+				return nil
+			}
 			funcs := interceptor.Funcs{
+				SubResourcePatch: func(ctx context.Context, c client.Client, sub string, obj client.Object, p client.Patch, opts ...client.SubResourcePatchOption) error {
+					if err := rejectBadCondition(obj); err != nil {
+						return err
+					}
+					return c.SubResource(sub).Patch(ctx, obj, p, opts...)
+				},
 				SubResourceUpdate: func(ctx context.Context, c client.Client, sub string, obj client.Object, opts ...client.SubResourceUpdateOption) error {
 					updates++
+					if err := rejectBadCondition(obj); err != nil {
+						return err
+					}
 					return c.SubResource(sub).Update(ctx, obj, opts...)
 				},
 			}
+			var desiredConditions []*fnv1.Condition
+			var desiredReady fnv1.Ready
 			runner := FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-				return &fnv1.RunFunctionResponse{Desired: &fnv1.State{Composite: &fnv1.Resource{Resource: MustStruct(map[string]any{"status": desiredStatus})}}}, nil
+				return &fnv1.RunFunctionResponse{
+					Desired:    &fnv1.State{Composite: &fnv1.Resource{Resource: MustStruct(map[string]any{"status": desiredStatus}), Ready: desiredReady}},
+					Conditions: desiredConditions,
+				}, nil
 			})
 			recorder := record.NewFakeRecorder(10)
-			r := newCompositionStatusReconciler(api, xr, "", runner, funcs, WithRecorder(event.NewAPIRecorder(recorder)))
+			opts := []ReconcilerOption{WithRecorder(event.NewAPIRecorder(recorder))}
+			if tc.policy != "" {
+				ff := &feature.Flags{}
+				ff.Enable(features.EnableAlphaFunctionControlledDeletion)
+				opts = append(opts, WithFeatures(ff))
+			}
+			r := newCompositionStatusReconciler(api, xr, tc.policy, runner, funcs, opts...)
 			req := reconcile.Request{NamespacedName: client.ObjectKeyFromObject(xr)}
 			if !tc.fresh {
 				if _, err := r.Reconcile(ctx, req); err != nil {
@@ -456,15 +584,29 @@ func TestInvalidCompositionStatus(t *testing.T) {
 				if xr.GetCondition(xpv2.TypeSynced).Status != corev1.ConditionTrue {
 					t.Fatal("XR should be synced before the function returns invalid status")
 				}
+				ext := composite.New(composite.WithGroupVersionKind(gvk))
+				ext.SetName(xr.GetName())
+				ext.Object[statusField] = map[string]any{"conditions": []any{external}}
+				//nolint:staticcheck // Seed an external condition with an explicit empty message.
+				if err := api.Status().Patch(ctx, ext, client.Apply, client.FieldOwner("external")); err != nil {
+					t.Fatal(err)
+				}
 			}
 			published := metav1.NewTime(time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC))
 			if tc.published {
+				if err := api.Get(ctx, client.ObjectKeyFromObject(xr), xr); err != nil {
+					t.Fatal(err)
+				}
 				xr.SetConnectionDetailsLastPublishedTime(&published)
 				if err := api.Status().Update(ctx, xr); err != nil {
 					t.Fatal(err)
 				}
 			}
 			desiredStatus = tc.status
+			desiredConditions = tc.conditions
+			if len(tc.conditions) > 0 {
+				desiredReady = fnv1.Ready_READY_FALSE
+			}
 			if _, err := r.Reconcile(ctx, req); err == nil || kerrors.IsInvalid(err) != tc.invalid {
 				t.Fatalf("status reconcile error = %v, want error with Invalid=%t", err, tc.invalid)
 			}
@@ -472,11 +614,18 @@ func TestInvalidCompositionStatus(t *testing.T) {
 			if tc.invalid {
 				message = errInvalidResources
 			}
-			if updates != 1 {
-				t.Fatalf("got %d fallback status updates, want 1", updates)
+			wantUpdates := 1
+			if tc.policy != "" {
+				wantUpdates = 2 // deletionPolicy persistence + fallback ReconcileError
+			}
+			if updates != wantUpdates {
+				t.Fatalf("got %d status updates, want %d", updates, wantUpdates)
 			}
 			if err := api.Get(ctx, client.ObjectKeyFromObject(xr), xr); err != nil {
 				t.Fatal(err)
+			}
+			if tc.policy != "" && xr.GetDeletionPolicy() != tc.policy {
+				t.Errorf("fallback lost deletionPolicy = %q, want %q", xr.GetDeletionPolicy(), tc.policy)
 			}
 			got := xr.GetCondition(xpv2.TypeSynced)
 			if got.Status != corev1.ConditionFalse || got.Reason != xpv2.ReasonReconcileError || got.Message != message {
@@ -484,6 +633,29 @@ func TestInvalidCompositionStatus(t *testing.T) {
 			}
 			if widgets, found, _ := kunstructured.NestedInt64(xr.Object, "status", "widgets"); (!tc.fresh && widgets != 1) || (tc.fresh && found) {
 				t.Error("invalid desired status replaced the last good function status")
+			}
+			if !tc.fresh {
+				conditions, _, _ := kunstructured.NestedSlice(xr.Object, statusField, "conditions")
+				var gotExt any
+				for _, item := range conditions {
+					if m, ok := item.(map[string]any); ok && m["type"] == "External" {
+						gotExt = m
+					}
+				}
+				if diff := cmp.Diff(external, gotExt); diff != "" {
+					t.Errorf("fallback modified external condition (-want +got):\n%s", diff)
+				}
+			}
+			if len(tc.conditions) > 0 {
+				if got := xr.GetCondition("BadCondition"); got.Status != corev1.ConditionUnknown || got.Reason != "" {
+					t.Errorf("fallback persisted pending function condition: %+v", got)
+				}
+				if got := xr.GetClaimConditionTypes(); len(got) != 0 {
+					t.Errorf("fallback persisted pending claimConditionTypes: %v", got)
+				}
+				if got := xr.GetCondition(xpv2.TypeReady); got.Status != corev1.ConditionTrue {
+					t.Errorf("fallback overwrote prior Ready condition: %+v", got)
+				}
 			}
 			if tc.published {
 				if got := xr.GetConnectionDetailsLastPublishedTime(); got == nil || !published.Equal(got) {
@@ -502,6 +674,9 @@ func TestInvalidCompositionStatus(t *testing.T) {
 			time.Sleep(1100 * time.Millisecond)
 			if _, err := r.Reconcile(ctx, req); err == nil {
 				t.Fatal("repeated invalid status should still fail")
+			}
+			if updates != wantUpdates {
+				t.Errorf("repeated invalid reconcile issued extra status updates: got %d, want %d", updates, wantUpdates)
 			}
 			if err := api.Get(ctx, client.ObjectKeyFromObject(xr), xr); err != nil {
 				t.Fatal(err)
@@ -570,7 +745,7 @@ func TestCompletedPipelineDeletionStatus(t *testing.T) {
 					if failing {
 						failurePatches++
 						if tc.compound && failurePatches == 2 {
-							return kerrors.NewServiceUnavailable("second status apply failed")
+							return kerrors.NewInternalError(errors.New("second status apply failed"))
 						}
 					}
 					if retrying && obj.(*composite.Unstructured).GetCondition(xpv2.TypeSynced).Status == corev1.ConditionTrue {

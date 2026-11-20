@@ -19,6 +19,7 @@ package composite
 import (
 	"context"
 	"encoding/json"
+	"slices"
 
 	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +31,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
@@ -42,7 +44,7 @@ const statusField = "status"
 // optimistic lock, so a stale reconcile cannot overwrite newer status.
 func (r *Reconciler) writeCompositionStatus(ctx context.Context, xr *composite.Unstructured, res CompositionResult, statusBefore any) error {
 	err := r.applyCompositionStatus(ctx, xr, res, statusBefore)
-	if err == nil || res.DesiredStatus == nil || kerrors.IsConflict(err) {
+	if err == nil || res.DesiredStatus == nil || isTransientStatusError(err) {
 		return err
 	}
 	// SSA type errors can precede CRD validation. Report failures with valid
@@ -53,18 +55,81 @@ func (r *Reconciler) writeCompositionStatus(ctx context.Context, xr *composite.U
 		message = errInvalidResources
 	}
 	r.conditions.For(xr).MarkConditions(xpv2.ReconcileError(errors.New(message)))
-	// Merge against persisted conditions to retain unchanged transition times.
-	previous := composite.New(composite.WithSchema(xr.Schema))
-	if statusBefore != nil {
-		previous.Object[statusField] = runtime.DeepCopyJSONValue(statusBefore)
+	// Keep the last valid function status. Only the reconcile error, circuit
+	// state, deletion state, and reconciler bookkeeping describe work
+	// independently of the rejected pipeline status.
+	pending := []xpv2.Condition{xr.GetCondition(xpv2.TypeSynced)}
+	if c := xr.GetCondition(v1.TypeResponsive); c.Reason != "" {
+		pending = append(pending, c)
 	}
-	previous.SetConditions(xr.GetConditions()...)
-	conditions, _, _ := kunstructured.NestedSlice(previous.Object, statusField, "conditions")
-	_ = kunstructured.SetNestedSlice(xr.Object, conditions, statusField, "conditions")
+	if c := xr.GetCondition(xpv2.TypeReady); meta.WasDeleted(xr) && c.Reason == xpv2.ReasonDeleting {
+		pending = append(pending, c)
+	}
+	token, hasToken, _ := kunstructured.NestedFieldCopy(xr.Object, statusField, "lastHandledReconcileAt")
+	published := xr.GetConnectionDetailsLastPublishedTime()
+	policy := xr.GetDeletionPolicy()
+	if statusBefore != nil {
+		xr.Object[statusField] = runtime.DeepCopyJSONValue(statusBefore)
+	} else {
+		delete(xr.Object, statusField)
+	}
+	if mergeStatusConditions(xr, pending...) != nil {
+		return err
+	}
+	if hasToken {
+		_ = kunstructured.SetNestedField(xr.Object, token, statusField, "lastHandledReconcileAt")
+	}
+	if published != nil {
+		xr.SetConnectionDetailsLastPublishedTime(published)
+	}
+	if policy != "" {
+		xr.SetDeletionPolicy(policy)
+	}
 	if !cmp.Equal(statusBefore, xr.Object[statusField]) {
 		_ = r.client.Status().Update(ctx, xr)
 	}
 	return err
+}
+
+func isTransientStatusError(err error) bool {
+	return kerrors.IsConflict(err) || kerrors.IsServiceUnavailable(err) ||
+		kerrors.IsTimeout(err) || kerrors.IsServerTimeout(err) || kerrors.IsTooManyRequests(err) ||
+		errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
+}
+
+// mergeStatusConditions replaces only the supplied types, preserving raw fields
+// on other controllers' conditions and unchanged verdicts' transition times.
+func mergeStatusConditions(xr *composite.Unstructured, conditions ...xpv2.Condition) error {
+	stored, _, err := kunstructured.NestedSlice(xr.Object, statusField, "conditions")
+	if err != nil {
+		return err
+	}
+	for _, c := range conditions {
+		i := slices.IndexFunc(stored, func(item any) bool {
+			value, ok := item.(map[string]any)
+			return ok && value["type"] == string(c.Type)
+		})
+		if i >= 0 {
+			prior := xpv2.Condition{}
+			value, _ := stored[i].(map[string]any)
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(value, &prior); err != nil {
+				return err
+			}
+			if prior.Equal(c) {
+				c.LastTransitionTime = prior.LastTransitionTime
+			}
+		}
+		value, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&c)
+		if err != nil {
+			return err
+		}
+		if i < 0 {
+			stored = append(stored, value)
+		} else {
+			stored[i] = value
+		}
+	}
+	return kunstructured.SetNestedSlice(xr.Object, stored, statusField, "conditions")
 }
 
 func (r *Reconciler) applyCompositionStatus(ctx context.Context, xr *composite.Unstructured, res CompositionResult, statusBefore any) error {
@@ -162,7 +227,17 @@ func compositionConditions(xr *composite.Unstructured, res CompositionResult, st
 	}
 	for _, c := range raw.Conditions {
 		if !wanted[c.Type] {
-			final.SetConditions(c)
+			i := slices.IndexFunc(final.Conditions, func(existing xpv2.Condition) bool { return existing.Type == c.Type })
+			if i < 0 {
+				final.Conditions = append(final.Conditions, c)
+				continue
+			}
+			if final.Conditions[i].Equal(c) {
+				c.LastTransitionTime = final.Conditions[i].LastTransitionTime
+			}
+			// Equal ignores a missing observedGeneration. Replace the value
+			// anyway so an omitted or newly set generation is never dropped.
+			final.Conditions[i] = c
 		}
 	}
 
