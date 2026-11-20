@@ -51,6 +51,7 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/internal/controller/pkg/signature"
 	"github.com/crossplane/crossplane/internal/dag"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/version"
@@ -107,6 +108,7 @@ const (
 	errCannotBuildMetaSchema         = "cannot build meta scheme for package parser"
 	errCannotBuildObjectSchema       = "cannot build object scheme for package parser"
 	errCannotBuildFetcher            = "cannot build fetcher for package parser"
+	errCannotBuildValidator          = "cannot build cosign validator for package parser"
 
 	errGetControllerConfig = "cannot get referenced controller config"
 	errNoRuntimeConfig     = "no deployment runtime config set"
@@ -284,6 +286,23 @@ type Reconciler struct {
 	newPackageRevision func() v1.PackageRevision
 }
 
+// imageBackendOptions returns the options the image backend needs to verify the
+// signature of the image it installs. Verification is alpha, and building a
+// cosign validator fetches Fulcio roots and CT log keys, so this is a no-op
+// unless the feature is enabled.
+func imageBackendOptions(mgr ctrl.Manager, cs kubernetes.Interface, o controller.Options) ([]ImageBackendOption, error) {
+	if !o.Features.Enabled(features.EnableAlphaSignatureVerification) {
+		return nil, nil
+	}
+
+	v, err := signature.NewCosignValidator(mgr.GetClient(), cs, o.Namespace, o.ServiceAccount)
+	if err != nil {
+		return nil, errors.Wrap(err, errCannotBuildValidator)
+	}
+
+	return []ImageBackendOption{WithVerification(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace), v)}, nil
+}
+
 // SetupProviderRevision adds a controller that reconciles ProviderRevisions.
 func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 	name := "packages/" + strings.ToLower(v1.ProviderRevisionGroupKind)
@@ -307,6 +326,11 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
+	ibo, err := imageBackendOptions(mgr, clientset, o)
+	if err != nil {
+		return err
+	}
+
 	log := o.Logger.WithValues("controller", name)
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -326,7 +350,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
+		WithParserBackend(NewImageBackend(fetcher, append(ibo, WithDefaultRegistry(o.DefaultRegistry))...)),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLinter(xpkg.NewProviderLinter()),
 		WithLogger(log),
@@ -373,6 +397,11 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
+	ibo, err := imageBackendOptions(mgr, cs, o)
+	if err != nil {
+		return err
+	}
+
 	log := o.Logger.WithValues("controller", name)
 	r := NewReconciler(mgr,
 		WithCache(o.Cache),
@@ -380,7 +409,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(nr),
 		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers)),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(f, WithDefaultRegistry(o.DefaultRegistry))),
+		WithParserBackend(NewImageBackend(f, append(ibo, WithDefaultRegistry(o.DefaultRegistry))...)),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLinter(xpkg.NewConfigurationLinter()),
 		WithLogger(log),
@@ -421,6 +450,11 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
+	ibo, err := imageBackendOptions(mgr, clientset, o)
+	if err != nil {
+		return err
+	}
+
 	log := o.Logger.WithValues("controller", name)
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -440,7 +474,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
+		WithParserBackend(NewImageBackend(fetcher, append(ibo, WithDefaultRegistry(o.DefaultRegistry))...)),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLinter(xpkg.NewFunctionLinter()),
 		WithLogger(log),
