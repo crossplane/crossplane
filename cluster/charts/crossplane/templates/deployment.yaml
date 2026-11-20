@@ -28,7 +28,7 @@ spec:
       {{- end }}
       {{- if .Values.metrics.enabled }}
         prometheus.io/path: /metrics
-        prometheus.io/port: "8080"
+        prometheus.io/port: {{ .Values.metrics.port | default 8080 | quote }}
         prometheus.io/scrape: "true"
       {{- end }}
       {{- with .Values.customAnnotations }}
