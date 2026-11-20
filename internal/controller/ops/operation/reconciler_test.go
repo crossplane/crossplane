@@ -823,7 +823,13 @@ func TestReconcile(t *testing.T) {
 
 						return nil
 					}),
-					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
+						op := obj.(*v1alpha1.Operation)
+						if want, got := int64(len(op.Status.AppliedResourceRefs)), op.Status.AppliedResources; got != want {
+							t.Errorf("Status().Update(): want %d applied resources, got %d", want, got)
+						}
+						return nil
+					}),
 					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
 						want := MustUnstructJSON(`{
 								"apiVersion": "example.org/v1",
