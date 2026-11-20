@@ -195,7 +195,12 @@ Crossplane does not intend to exhaustively restrict the controller workloads
 that are run as extensions in the control plane. Users have the ability to
 configure the `Deployment` that manages the extension's pod (and therefore
 internal controllers), but the specific execution and runtime of the extension
-is not restricted further by Crossplane.
+is not restricted further by Crossplane. In particular, Crossplane is not
+responsible for pulling runtime container images for Crossplane packages and
+therefore does not attempt to validate or restrict them. Users wishing to
+restrict runtime images (for example, by verifying signatures to ensure
+provenance) should use an admission controller such as the sigstore policy
+controller or Kyverno.
 
 ## Self-assessment Use
 
