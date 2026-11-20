@@ -176,7 +176,9 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			Assess("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
-				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
+				// Switching Crossplane versions replaces the function pods. Crossplane's next function call can
+				// block for up to 30s until gRPC re-resolves their DNS, which delays deleting the XR.
+				funcs.ResourcesDeletedWithin(90*time.Second, manifests, "claim.yaml"),
 
 				// TODO(negz): We're seeing composed resources
 				// sticking around after the claim is deleted,
@@ -258,7 +260,9 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			Assess("ClaimIsStillAvailable", funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "claim.yaml", xpv2.Available())).
 			Assess("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResourcesWithPropagationPolicy(manifests, "claim.yaml", metav1.DeletePropagationForeground),
-				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
+				// Switching Crossplane versions replaces the function pods. Crossplane's next function call can
+				// block for up to 30s until gRPC re-resolves their DNS, which delays deleting the XR.
+				funcs.ResourcesDeletedWithin(90*time.Second, manifests, "claim.yaml"),
 
 				// TODO(negz): We're seeing composed resources
 				// sticking around after the claim is deleted,
