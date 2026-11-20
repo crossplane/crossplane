@@ -1,0 +1,29 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: status-conditions
+spec:
+  compositeTypeRef:
+    apiVersion: status.e2e.crossplane.io/v1alpha1
+    kind: StatusGate
+  mode: Pipeline
+  pipeline:
+  - step: respond
+    functionRef:
+      name: function-dummy-status-conditions
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      response:
+        desired:
+          composite:
+            resource:
+              status:
+                phase: waiting
+            ready: READY_FALSE
+        conditions:
+        - type: Gate
+          status: STATUS_CONDITION_FALSE
+          reason: Waiting
+          message: Waiting for backend
+          target: TARGET_COMPOSITE
