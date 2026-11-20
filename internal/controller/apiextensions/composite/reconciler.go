@@ -923,6 +923,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// updated with this XR's dependencies as it was composed above.
 	if err := r.startWatches(ctx, log); err != nil {
 		r.record.Event(xr, event.Warning(reasonWatch, err))
+		r.handleCommonCompositionResult(updateCtx, res, xr)
 		status.MarkConditions(xpv2.ReconcileError(err))
 		_ = r.writeCompositionStatus(updateCtx, xr, res, statusBefore)
 
@@ -949,6 +950,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 			err = errors.Wrap(err, errPublish)
 			r.record.Event(xr, event.Warning(reasonPublish, err))
+			r.handleCommonCompositionResult(updateCtx, res, xr)
 			status.MarkConditions(xpv2.ReconcileError(err))
 			_ = r.writeCompositionStatus(updateCtx, xr, res, statusBefore)
 

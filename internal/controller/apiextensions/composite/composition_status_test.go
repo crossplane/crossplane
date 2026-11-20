@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -51,6 +52,8 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	pkgv1 "github.com/crossplane/crossplane/apis/v2/pkg/v1"
+	"github.com/crossplane/crossplane/v2/internal/controller/apiextensions/composite/dependency"
+	"github.com/crossplane/crossplane/v2/internal/engine"
 	"github.com/crossplane/crossplane/v2/internal/features"
 	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
@@ -116,15 +119,39 @@ func TestWriteCompositionStatus(t *testing.T) {
 
 func TestWriteCompositionStatusTransientErrors(t *testing.T) {
 	gr := schema.GroupResource{Group: "test.crossplane.io", Resource: "xwidgets"}
-	for name, patchErr := range map[string]error{
-		"Conflict":           kerrors.NewConflict(gr, "widget", errors.New("conflict")),
-		"ServiceUnavailable": kerrors.NewServiceUnavailable("apiserver unavailable"),
-		"Timeout":            kerrors.NewTimeoutError("request timed out", 1),
-		"ServerTimeout":      kerrors.NewServerTimeout(gr, "patch", 1),
-		"TooManyRequests":    kerrors.NewTooManyRequests("rate limited", 1),
-		"DeadlineExceeded":   context.DeadlineExceeded,
-		"Canceled":           context.Canceled,
-	} {
+
+	type args struct {
+		patchErr error
+	}
+	type want struct {
+		err     error
+		updates int
+		events  int
+	}
+	type testCase struct {
+		reason string
+		args   args
+		want   want
+	}
+	newCase := func(reason string, patchErr error) testCase {
+		return testCase{
+			reason: reason,
+			args:   args{patchErr: patchErr},
+			want:   want{err: patchErr},
+		}
+	}
+
+	cases := map[string]testCase{
+		"Conflict":           newCase("Optimistic-lock conflicts should return without fallback writes or events.", kerrors.NewConflict(gr, "widget", errors.New("conflict"))),
+		"ServiceUnavailable": newCase("ServiceUnavailable errors should return without fallback writes or events.", kerrors.NewServiceUnavailable("apiserver unavailable")),
+		"Timeout":            newCase("Timeout errors should return without fallback writes or events.", kerrors.NewTimeoutError("request timed out", 1)),
+		"ServerTimeout":      newCase("ServerTimeout errors should return without fallback writes or events.", kerrors.NewServerTimeout(gr, "patch", 1)),
+		"TooManyRequests":    newCase("TooManyRequests errors should return without fallback writes or events.", kerrors.NewTooManyRequests("rate limited", 1)),
+		"DeadlineExceeded":   newCase("DeadlineExceeded errors should return without fallback writes or events.", context.DeadlineExceeded),
+		"Canceled":           newCase("Canceled errors should return without fallback writes or events.", context.Canceled),
+	}
+
+	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			xr := composite.New(composite.WithSchema(composite.SchemaModern),
 				composite.WithGroupVersionKind(schema.GroupVersionKind{Group: "test.crossplane.io", Version: "v1", Kind: "XWidget"}))
@@ -133,7 +160,7 @@ func TestWriteCompositionStatusTransientErrors(t *testing.T) {
 			statusBefore, _, _ := kunstructured.NestedFieldCopy(xr.Object, statusField)
 			updates := 0
 			c := &test.MockClient{
-				MockStatusPatch: test.NewMockSubResourcePatchFn(patchErr),
+				MockStatusPatch: test.NewMockSubResourcePatchFn(tc.args.patchErr),
 				MockStatusUpdate: func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
 					updates++
 					return nil
@@ -142,8 +169,17 @@ func TestWriteCompositionStatusTransientErrors(t *testing.T) {
 			recorder := record.NewFakeRecorder(10)
 			r := NewReconciler(c, xr.GroupVersionKind(), WithRecorder(event.NewAPIRecorder(recorder)))
 			err := r.writeCompositionStatus(t.Context(), xr, CompositionResult{DesiredStatus: map[string]any{"widgets": int64(1)}}, statusBefore)
-			if !errors.Is(err, patchErr) || updates != 0 || len(recorder.Events) != 0 {
-				t.Errorf("writeCompositionStatus() = %v (updates=%d, events=%d), want %v with no fallback or events", err, updates, len(recorder.Events), patchErr)
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nwriteCompositionStatus(...): -want err, +got err:\n%s", tc.reason, diff)
+			}
+			if !errors.Is(err, tc.args.patchErr) {
+				t.Errorf("\n%s\nwriteCompositionStatus(...) = %v, want error wrapping %v", tc.reason, err, tc.args.patchErr)
+			}
+			if diff := cmp.Diff(tc.want.updates, updates); diff != "" {
+				t.Errorf("\n%s\nfallback status updates: -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.events, len(recorder.Events)); diff != "" {
+				t.Errorf("\n%s\nemitted events: -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -986,5 +1022,73 @@ func TestCompositionStatusOwnedConditionEncoding(t *testing.T) {
 	}
 	if got := xr.GetCondition(condition.Type); !got.Equal(condition) {
 		t.Errorf("previously applied condition = %+v, want %+v", got, condition)
+	}
+}
+
+func TestCompositionStatusControllerErrors(t *testing.T) {
+	for _, failure := range []string{"WatchStart", "Publish"} {
+		t.Run(failure, func(t *testing.T) {
+			api, gvk := newCompositionStatusAPI(t, v1.CompositeResourceScopeLegacyCluster)
+			xr := composite.New(composite.WithGroupVersionKind(gvk), composite.WithSchema(composite.SchemaLegacy))
+			xr.SetName("controller-error")
+			if err := api.Create(t.Context(), xr); err != nil {
+				t.Fatal(err)
+			}
+			failing := false
+			controllerErr := errors.New("controller failure")
+			runner := FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				condition := &fnv1.Condition{
+					Type: "Gate", Status: fnv1.Status_STATUS_CONDITION_FALSE, Reason: "Before",
+					Target: new(fnv1.Target_TARGET_COMPOSITE_AND_CLAIM),
+				}
+				if failing {
+					condition.Status = fnv1.Status_STATUS_CONDITION_TRUE
+					condition.Reason = "Current"
+				}
+				return &fnv1.RunFunctionResponse{
+					Desired: &fnv1.State{Composite: &fnv1.Resource{Resource: MustStruct(map[string]any{"status": map[string]any{
+						"widgets": 1,
+						"conditions": []any{map[string]any{
+							"type": "Gate", "status": "False", "reason": "Raw", "lastTransitionTime": "2026-01-01T00:00:00Z",
+						}},
+					}})}},
+					Conditions: []*fnv1.Condition{condition},
+				}, nil
+			})
+			r := newCompositionStatusReconciler(api, xr, "", runner, interceptor.Funcs{},
+				WithWatchStarter("test", nil, WatchStarterFn(func(_ context.Context, _ string, _ ...engine.Watch) error {
+					if failing && failure == "WatchStart" {
+						return controllerErr
+					}
+					return nil
+				}), dependency.NopTracker{}),
+				WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ ConnectionSecretOwner, _ managed.ConnectionDetails) (bool, error) {
+					if failing && failure == "Publish" {
+						return false, controllerErr
+					}
+					return false, nil
+				})),
+			)
+			req := reconcile.Request{NamespacedName: client.ObjectKeyFromObject(xr)}
+			if _, err := r.Reconcile(t.Context(), req); err != nil {
+				t.Fatal(err)
+			}
+			failing = true
+			if _, err := r.Reconcile(t.Context(), req); !errors.Is(err, controllerErr) {
+				t.Fatalf("reconcile error = %v, want original controller error", err)
+			}
+			if err := api.Get(t.Context(), req.NamespacedName, xr); err != nil {
+				t.Fatal(err)
+			}
+			if got := xr.GetCondition("Gate"); got.Status != corev1.ConditionTrue || got.Reason != "Current" {
+				t.Errorf("controller failure published stale targeted condition: %+v", got)
+			}
+			if diff := cmp.Diff([]xpv2.ConditionType{"Gate"}, xr.GetClaimConditionTypes()); diff != "" {
+				t.Errorf("claim condition types (-want +got):\n%s", diff)
+			}
+			if got := xr.GetCondition(xpv2.TypeSynced); got.Status != corev1.ConditionFalse || got.Reason != xpv2.ReasonReconcileError || !strings.Contains(got.Message, controllerErr.Error()) {
+				t.Errorf("controller failure Synced = %+v, want ReconcileError", got)
+			}
+		})
 	}
 }
