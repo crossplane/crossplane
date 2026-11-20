@@ -702,6 +702,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	refs := composite.New(composite.WithSchema(xr.Schema), composite.WithGroupVersionKind(xr.GroupVersionKind()))
 	refs.SetNamespace(xr.GetNamespace())
 	refs.SetName(xr.GetName())
+	refs.SetUID(xr.GetUID())
 	refs.SetResourceVersion(xr.GetResourceVersion())
 	UpdateResourceRefs(refs, known)
 
