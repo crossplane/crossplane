@@ -115,10 +115,11 @@ func TestFunctionCompose(t *testing.T) {
 	errFmtFetchBootstrapRequirements := "cannot fetch bootstrap required resources for requirement %q"
 
 	type params struct {
-		c  client.Client
-		uc client.Client
-		r  FunctionRunner
-		o  []FunctionComposerOption
+		c     client.Client
+		uc    client.Client
+		r     FunctionRunner
+		o     []FunctionComposerOption
+		check func(*testing.T)
 	}
 
 	type args struct {
@@ -2359,11 +2360,22 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "When the XR is being deleted we should garbage collect the composed resources the pipeline no longer desires",
 			params: func() params {
 				gcCalled := false
+				patchCalled := false
 				return params{
+					check: func(t *testing.T) {
+						t.Helper()
+						if !gcCalled {
+							t.Error("Compose did not garbage collect composed resources")
+						}
+						if !patchCalled {
+							t.Error("Compose did not persist resourceRefs")
+						}
+					},
 					c: &test.MockClient{
 						MockList: mockListFunctionRevisions(),
 						MockGet:  mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))),
 						MockPatch: test.NewMockPatchFn(nil, func(_ client.Object) error {
+							patchCalled = true
 							if !gcCalled {
 								return errors.New("garbage collection should run before persisting resourceRefs")
 							}
@@ -2540,6 +2552,9 @@ func TestFunctionCompose(t *testing.T) {
 			c := NewFunctionComposer(tc.params.c, tc.params.uc, tc.params.r, tc.params.o...)
 
 			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
+			if tc.params.check != nil {
+				tc.params.check(t)
+			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
 			}
