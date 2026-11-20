@@ -12,7 +12,7 @@ not start properly. Either it will crash, or it will run without being able to
 reconcile any resource. This is due to the core's manager's cache watching
 resources in all namespaces by default.
 
-Additionnaly, Crossplane will attempt to create events on cluster-scoped resources
+Additionally, Crossplane will attempt to create events on cluster-scoped resources
 in the `default` namespace. If it does not have the rights to do so, logs can be
 polluted by error messages.
 
@@ -75,7 +75,7 @@ To enable compatibility between Crossplane and these minimal permissions, this
 document proposes a new `--namespace-restricted` option for the core crossplane
 command. This option would, for now, have 2 consequences :
 
-1. Make the previously mentionned cache watch resources in Crossplane's namespace 
+1. Make the previously mentioned cache watch resources in Crossplane's namespace 
    instead of the whole cluster.
 1. Disable the creation of events on cluster-wide resources, since it requires
    permissions on the `default` namespace.
