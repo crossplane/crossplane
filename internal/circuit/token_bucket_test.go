@@ -270,6 +270,33 @@ func TestTokenBucketBreakerGetState(t *testing.T) {
 				},
 			},
 		},
+		"CooldownExpired": {
+			reason: "Getting state for a target whose circuit opened longer ago than the cooldown should return a closed circuit, even if no event has been recorded since",
+			breaker: NewTokenBucketBreaker(
+				"test-controller",
+				WithBurst(1),
+				WithRefillRatePerSecond(0.1),
+				WithOpenDuration(50*time.Millisecond),
+				WithHalfOpenInterval(30*time.Second),
+			),
+			setup: func(b *TokenBucketBreaker) {
+				ctx := context.Background()
+				// Open circuit by exhausting tokens
+				b.RecordEvent(ctx, target, source, EventAllowed)
+				b.RecordEvent(ctx, target, source, EventAllowed)
+				// Wait for the cooldown to expire. No more events arrive.
+				time.Sleep(100 * time.Millisecond)
+			},
+			args: args{
+				ctx:    context.Background(),
+				target: target,
+			},
+			want: want{
+				state: State{
+					IsOpen: false,
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
