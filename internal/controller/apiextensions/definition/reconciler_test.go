@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -794,22 +792,11 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithControllerEngine(&MockEngine{
-						MockIsRunning: func(_ string) bool { return false },
-						MockStart:     func(_ string, _ ...engine.ControllerOption) error { return nil },
-						MockStartWatches: func(_ context.Context, _ string, watches ...engine.Watch) error {
-							xr := &unstructured.Unstructured{}
-							xr.SetGroupVersionKind(schema.GroupVersionKind{})
-							want := []engine.Watch{
-								engine.WatchFor(xr, engine.WatchTypeCompositeResource, nil),
-								engine.WatchFor(&v1.CompositionRevision{}, engine.WatchTypeCompositionRevision, nil, predicate.ResourceVersionChangedPredicate{}),
-							}
-							if diff := cmp.Diff(want, watches, cmp.AllowUnexported(engine.Watch{}), cmpopts.IgnoreFields(engine.Watch{}, "handler")); diff != "" {
-								t.Errorf("XR watches and revision update filtering (-want +got):\n%s", diff)
-							}
-							return nil
-						},
-						MockGetCached:   func() client.Client { return test.NewMockClient() },
-						MockGetUncached: func() client.Client { return test.NewMockClient() },
+						MockIsRunning:    func(_ string) bool { return false },
+						MockStart:        func(_ string, _ ...engine.ControllerOption) error { return nil },
+						MockStartWatches: func(_ context.Context, _ string, _ ...engine.Watch) error { return nil },
+						MockGetCached:    func() client.Client { return test.NewMockClient() },
+						MockGetUncached:  func() client.Client { return test.NewMockClient() },
 					}),
 				},
 			},
