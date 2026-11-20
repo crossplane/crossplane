@@ -26,6 +26,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -43,6 +44,12 @@ func TestSecretConnectionDetailsFetcher(t *testing.T) {
 	errBoom := errors.New("boom")
 	sref := &xpv2.SecretReference{Name: "foo", Namespace: "bar"}
 	s := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			OwnerReferences: []metav1.OwnerReference{{
+				UID:        "cool-owner-uid",
+				Controller: ptr.To(true),
+			}},
+		},
 		Data: map[string][]byte{
 			"foo": []byte("a"),
 			"bar": []byte("b"),
@@ -119,6 +126,7 @@ func TestSecretConnectionDetailsFetcher(t *testing.T) {
 			},
 			args: args{
 				o: &fake.Composed{
+					ObjectMeta:               metav1.ObjectMeta{UID: "cool-owner-uid"},
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
 			},
@@ -127,6 +135,53 @@ func TestSecretConnectionDetailsFetcher(t *testing.T) {
 					"foo": s.Data["foo"],
 					"bar": s.Data["bar"],
 				},
+			},
+		},
+		"SecretNotControlled": {
+			reason: "Should not fetch connection details from a connection secret that has no controller reference.",
+			params: params{
+				kube: &test.MockClient{MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+					if sobj, ok := obj.(*corev1.Secret); ok {
+						s.DeepCopyInto(sobj)
+						sobj.SetOwnerReferences(nil)
+						return nil
+					}
+					return errBoom
+				}},
+			},
+			args: args{
+				o: &fake.Composed{
+					ObjectMeta:               metav1.ObjectMeta{UID: "cool-owner-uid"},
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+			},
+			want: want{
+				conn: nil,
+			},
+		},
+		"SecretControlledBySomeoneElse": {
+			reason: "Should not fetch connection details from a connection secret that is controlled by a different resource.",
+			params: params{
+				kube: &test.MockClient{MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+					if sobj, ok := obj.(*corev1.Secret); ok {
+						s.DeepCopyInto(sobj)
+						sobj.SetOwnerReferences([]metav1.OwnerReference{{
+							UID:        "other-owner-uid",
+							Controller: ptr.To(true),
+						}})
+						return nil
+					}
+					return errBoom
+				}},
+			},
+			args: args{
+				o: &fake.Composed{
+					ObjectMeta:               metav1.ObjectMeta{UID: "cool-owner-uid"},
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+			},
+			want: want{
+				conn: nil,
 			},
 		},
 		"NamespacedOwner": {
@@ -145,7 +200,7 @@ func TestSecretConnectionDetailsFetcher(t *testing.T) {
 			},
 			args: args{
 				o: &fake.Composed{
-					ObjectMeta:               metav1.ObjectMeta{Namespace: "baz"},
+					ObjectMeta:               metav1.ObjectMeta{Namespace: "baz", UID: "cool-owner-uid"},
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
 			},
