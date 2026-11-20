@@ -139,6 +139,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	limit := ptr.Deref(op.Spec.RetryLimit, DefaultRetryLimit)
 	if op.Status.Failures >= limit {
 		log.Debug("Operation failure limit reached. Not running again.", "limit", limit)
+		syncAppliedResources(op)
 		status.MarkConditions(xpv2.ReconcileSuccess(), v1alpha1.Failed(fmt.Sprintf("failure limit of %d reached", limit)))
 
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
@@ -465,11 +466,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// count, but it's pretty useful to know what resources an
 		// Operation applied...
 		op.Status.AppliedResourceRefs = AddResourceRef(op.Status.AppliedResourceRefs, u)
+		// Sync here so AppliedResources is correct if a later apply fails
+		// and we return early without reaching the post-loop sync below.
+		syncAppliedResources(op)
 	}
 
+	syncAppliedResources(op)
 	status.MarkConditions(xpv2.ReconcileSuccess(), v1alpha1.Complete())
 
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
+}
+
+// syncAppliedResources updates AppliedResources from AppliedResourceRefs.
+func syncAppliedResources(op *v1alpha1.Operation) {
+	want := int64(len(op.Status.AppliedResourceRefs))
+	op.Status.AppliedResources = want
 }
 
 // functionRevisionForStep returns the name of the FunctionRevision that should
