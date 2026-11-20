@@ -747,6 +747,12 @@ func TestCompositionStatusConditions(t *testing.T) {
 							t.Fatal(err)
 						}
 						if phase == "waiting" && !ready {
+							if gate := xr.GetCondition("Gate"); gate.Status == corev1.ConditionTrue {
+								t.Fatalf("XR phase is waiting at version %s but Gate = %+v", xr.GetResourceVersion(), gate)
+							}
+							if r := xr.GetCondition(xpv2.TypeReady); r.Status == corev1.ConditionTrue {
+								t.Fatalf("XR phase is waiting at version %s but Ready = %+v", xr.GetResourceVersion(), r)
+							}
 							continue
 						}
 						if phase != "ready" {
