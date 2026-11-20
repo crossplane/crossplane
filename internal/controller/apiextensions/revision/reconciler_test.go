@@ -103,6 +103,7 @@ func TestReconcile(t *testing.T) {
 			params: params{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
+						MockList: test.NewMockListFn(nil),
 						MockGet: test.NewMockGetFn(nil, func(_ client.Object) error {
 							return kerrors.NewNotFound(schema.GroupResource{}, "")
 						}),
@@ -225,6 +226,7 @@ func TestReconcile(t *testing.T) {
 			params: params{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
+						MockList: test.NewMockListFn(nil),
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							if o, ok := obj.(*v1.CompositionRevision); ok {
 								*o = v1.CompositionRevision{
@@ -282,6 +284,7 @@ func TestReconcile(t *testing.T) {
 			params: params{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
+						MockList: test.NewMockListFn(nil),
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							switch o := obj.(type) {
 							case *v1.CompositionRevision:
@@ -391,7 +394,8 @@ func TestEnsureFunctions(t *testing.T) {
 		var createdFn *pkgv1.Function
 
 		c := &test.MockClient{
-			MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+			MockList: test.NewMockListFn(nil),
+			MockGet:  test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 			MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
 				switch o := obj.(type) {
 				case *pkgv1.FunctionRevision:
@@ -446,6 +450,7 @@ func TestEnsureFunctions(t *testing.T) {
 		var updated []client.Object
 
 		c := &test.MockClient{
+			MockList: test.NewMockListFn(nil),
 			// Both the FunctionRevision and the Function already exist, owned
 			// by a different CompositionRevision. The FunctionRevision has
 			// somehow been deactivated.
@@ -494,6 +499,7 @@ func TestEnsureFunctions(t *testing.T) {
 		var updatedFn *pkgv1.Function
 
 		c := &test.MockClient{
+			MockList: test.NewMockListFn(nil),
 			MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 				switch o := obj.(type) {
 				case *pkgv1.FunctionRevision:
@@ -532,6 +538,7 @@ func TestEnsureFunctions(t *testing.T) {
 
 	t.Run("RejectsFunctionRevisionForDifferentPackage", func(t *testing.T) {
 		c := &test.MockClient{
+			MockList: test.NewMockListFn(nil),
 			MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 				if o, ok := obj.(*pkgv1.FunctionRevision); ok {
 					o.SetOwnerReferences([]metav1.OwnerReference{otherRevOwner})
@@ -567,7 +574,8 @@ func TestEnsureFunctions(t *testing.T) {
 			}
 
 			c := &test.MockClient{
-				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+				MockList: test.NewMockListFn(nil),
+				MockGet:  test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
 					if o, ok := obj.(*pkgv1.FunctionRevision); ok {
 						created[p] = o
@@ -624,6 +632,7 @@ func TestEnsureFunctions(t *testing.T) {
 				}
 
 				c := &test.MockClient{
+					MockList:   test.NewMockListFn(nil),
 					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 					MockCreate: test.NewMockCreateFn(nil, func(_ client.Object) error { return nil }),
 				}
