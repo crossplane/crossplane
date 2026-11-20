@@ -128,7 +128,52 @@ in
         nativeBuildInputs = [ pkgs.kubernetes-helm ];
       }
       ''
-        helm lint ${self}/cluster/charts/crossplane
+        chart=${self}/cluster/charts/crossplane
+        helm lint "$chart"
+
+        helm template crossplane "$chart" > "$TMPDIR/default.yaml"
+        test "$(grep -c 'runAsNonRoot: true' "$TMPDIR/default.yaml")" -eq 4
+        test "$(grep -c 'allowPrivilegeEscalation: false' "$TMPDIR/default.yaml")" -eq 4
+        test "$(grep -c 'readOnlyRootFilesystem: true' "$TMPDIR/default.yaml")" -eq 4
+        test "$(grep -c -- '- ALL' "$TMPDIR/default.yaml")" -eq 4
+        test "$(grep -c 'type: RuntimeDefault' "$TMPDIR/default.yaml")" -eq 4
+        if grep -q '^kind: NetworkPolicy$' "$TMPDIR/default.yaml"; then
+          echo "NetworkPolicy must be disabled by default"
+          exit 1
+        fi
+
+        cat > "$TMPDIR/security-values.yaml" <<EOF
+        webhooks:
+          port: 8080
+        metrics:
+          enabled: true
+          port: 9100
+        networkPolicy:
+          enabled: true
+          metricsIngressFrom:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: monitoring
+        EOF
+
+        helm template crossplane "$chart" \
+          --values "$TMPDIR/security-values.yaml" > "$TMPDIR/security.yaml"
+        helm template crossplane "$chart" \
+          --values "$TMPDIR/security-values.yaml" \
+          --show-only templates/networkpolicy.yaml > "$TMPDIR/networkpolicy.yaml"
+        grep -q '^kind: NetworkPolicy$' "$TMPDIR/security.yaml"
+        grep -q 'kubernetes.io/metadata.name: monitoring' "$TMPDIR/security.yaml"
+        grep -q 'value: "8080"' "$TMPDIR/security.yaml"
+        grep -q 'containerPort: 8080' "$TMPDIR/security.yaml"
+        grep -q 'containerPort: 9100' "$TMPDIR/security.yaml"
+        grep -q 'targetPort: 8080' "$TMPDIR/security.yaml"
+        grep -q 'port: webhooks' "$TMPDIR/networkpolicy.yaml"
+        grep -q 'port: metrics' "$TMPDIR/networkpolicy.yaml"
+        if grep -Eq '^[[:space:]]+port: [0-9]+$' "$TMPDIR/networkpolicy.yaml"; then
+          echo "NetworkPolicy must use named container ports"
+          exit 1
+        fi
+
         mkdir -p $out
         touch $out/.lint-passed
       '';
