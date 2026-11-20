@@ -251,6 +251,13 @@ func (b *TokenBucketBreaker) GetState(_ context.Context, target types.Namespaced
 		return State{IsOpen: false}
 	}
 
+	// The circuit closes when its cooldown expires. RecordEvent records that
+	// when the next event arrives, but until then the circuit shouldn't be
+	// reported as open.
+	if time.Since(state.openedAt) >= b.config.cooldownTime {
+		return State{IsOpen: false}
+	}
+
 	return State{
 		IsOpen:        state.isOpen,
 		TriggeredBy:   state.triggerSource,
