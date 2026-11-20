@@ -68,6 +68,12 @@ const (
 	// Composition deletion policies. See the below design for more details.
 	// https://github.com/crossplane/crossplane/blob/main/design/one-pager-function-controlled-deletion.md
 	EnableAlphaFunctionControlledDeletion feature.Flag = "EnableAlphaFunctionControlledDeletion"
+
+	// EnableAlphaResourceDiscovery enables alpha support for discovering
+	// external resources not yet managed by Crossplane. When enabled, the
+	// discovery controller will scan for unmanaged resources and populate
+	// DiscoveryReport CRDs for use by the import workflow.
+	EnableAlphaResourceDiscovery feature.Flag = "EnableAlphaResourceDiscovery"
 )
 
 // Beta Feature Flags.
