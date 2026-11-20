@@ -53,11 +53,16 @@ func TestReconcile(t *testing.T) {
 		err    error
 	}
 
+	// Counts Operation creations for the DeletedResourceWithLabelSelector
+	// case, so the test fails if reconciliation skips creating one.
+	deletedWithLabelSelectorCreates := 0
+
 	cases := map[string]struct {
 		reason string
 		params params
 		args   args
 		want   want
+		check  func(t *testing.T)
 	}{
 		"CreateOperationForDeletedResource": {
 			reason: "Should create Operation with synthetic resource when watched resource is deleted",
@@ -524,6 +529,215 @@ func TestReconcile(t *testing.T) {
 				err:    nil,
 			},
 		},
+		"NamespaceMismatch": {
+			reason: "Should not create an Operation for a watched resource outside the watched namespace",
+			params: params{
+				client: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if u, ok := obj.(*unstructured.Unstructured); ok {
+							// Return watched resource in the default namespace.
+							u.SetUID("test-uid")
+							u.SetResourceVersion("123")
+							u.SetNamespace("default")
+							return nil
+						}
+						if wo, ok := obj.(*v1alpha1.WatchOperation); ok {
+							// Return WatchOperation watching another namespace.
+							wo.SetName("test-watch")
+							wo.SetUID("test-uid")
+							wo.Spec.Watch.Namespace = "other"
+							return nil
+						}
+						return errBoom
+					},
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						if ol, ok := list.(*v1alpha1.OperationList); ok {
+							// Return empty list
+							ol.Items = []v1alpha1.Operation{}
+							return nil
+						}
+						return errBoom
+					},
+					// Fail the test if an Operation is created for the excluded resource.
+					MockCreate: test.NewMockCreateFn(errBoom),
+				},
+				wo: &v1alpha1.WatchOperation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-watch",
+						UID:  types.UID("test-uid"),
+					},
+					Spec: v1alpha1.WatchOperationSpec{
+						Watch: v1alpha1.WatchSpec{
+							APIVersion: "v1",
+							Kind:       "Pod",
+						},
+					},
+				},
+			},
+			args: args{
+				ctx: context.Background(),
+				req: reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: "default",
+						Name:      "test-pod",
+					},
+				},
+			},
+			want: want{
+				result: reconcile.Result{Requeue: false},
+				err:    nil,
+			},
+		},
+		"LabelMismatch": {
+			reason: "Should not create an Operation for a watched resource that does not match the label selector",
+			params: params{
+				client: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if u, ok := obj.(*unstructured.Unstructured); ok {
+							// Return watched resource with non-matching labels.
+							u.SetUID("test-uid")
+							u.SetResourceVersion("123")
+							u.SetNamespace("default")
+							u.SetLabels(map[string]string{"track": "old"})
+							return nil
+						}
+						if wo, ok := obj.(*v1alpha1.WatchOperation); ok {
+							// Return WatchOperation selecting other labels.
+							wo.SetName("test-watch")
+							wo.SetUID("test-uid")
+							wo.Spec.Watch.MatchLabels = map[string]string{"track": "new"}
+							return nil
+						}
+						return errBoom
+					},
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						if ol, ok := list.(*v1alpha1.OperationList); ok {
+							// Return empty list
+							ol.Items = []v1alpha1.Operation{}
+							return nil
+						}
+						return errBoom
+					},
+					// Fail the test if an Operation is created for the excluded resource.
+					MockCreate: test.NewMockCreateFn(errBoom),
+				},
+				wo: &v1alpha1.WatchOperation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-watch",
+						UID:  types.UID("test-uid"),
+					},
+					Spec: v1alpha1.WatchOperationSpec{
+						Watch: v1alpha1.WatchSpec{
+							APIVersion: "v1",
+							Kind:       "Pod",
+						},
+					},
+				},
+			},
+			args: args{
+				ctx: context.Background(),
+				req: reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: "default",
+						Name:      "test-pod",
+					},
+				},
+			},
+			want: want{
+				result: reconcile.Result{Requeue: false},
+				err:    nil,
+			},
+		},
+		"DeletedResourceWithLabelSelector": {
+			reason: "Should still create an Operation for a deleted resource even when a label selector is set, as the synthetic resource carries no labels",
+			params: params{
+				client: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if _, ok := obj.(*unstructured.Unstructured); ok {
+							// Return not found for the watched resource (deletion scenario)
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						}
+						if wo, ok := obj.(*v1alpha1.WatchOperation); ok {
+							// Return WatchOperation with a label selector.
+							wo.SetName("test-watch")
+							wo.SetUID("test-uid")
+							wo.Spec.Watch.MatchLabels = map[string]string{"track": "new"}
+							wo.Spec.OperationTemplate = v1alpha1.OperationTemplate{
+								Spec: v1alpha1.OperationSpec{
+									Mode: v1alpha1.OperationModePipeline,
+									Pipeline: []v1alpha1.PipelineStep{
+										{
+											Step: "test-step",
+											FunctionRef: &v1alpha1.FunctionReference{
+												Name: "test-function",
+											},
+										},
+									},
+								},
+							}
+							return nil
+						}
+						return errBoom
+					},
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						if ol, ok := list.(*v1alpha1.OperationList); ok {
+							// Return empty list
+							ol.Items = []v1alpha1.Operation{}
+							return nil
+						}
+						return errBoom
+					},
+					MockCreate: test.NewMockCreateFn(nil, func(_ client.Object) error {
+						deletedWithLabelSelectorCreates++
+						return nil
+					}),
+				},
+				wo: &v1alpha1.WatchOperation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-watch",
+						UID:  types.UID("test-uid"),
+					},
+					Spec: v1alpha1.WatchOperationSpec{
+						Watch: v1alpha1.WatchSpec{
+							APIVersion: "v1",
+							Kind:       "Pod",
+						},
+						OperationTemplate: v1alpha1.OperationTemplate{
+							Spec: v1alpha1.OperationSpec{
+								Mode: v1alpha1.OperationModePipeline,
+								Pipeline: []v1alpha1.PipelineStep{
+									{
+										Step: "test-step",
+										FunctionRef: &v1alpha1.FunctionReference{
+											Name: "test-function",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			args: args{
+				ctx: context.Background(),
+				req: reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: "default",
+						Name:      "test-pod",
+					},
+				},
+			},
+			want: want{
+				result: reconcile.Result{},
+				err:    nil,
+			},
+			check: func(t *testing.T) {
+				t.Helper()
+				if deletedWithLabelSelectorCreates != 1 {
+					t.Errorf("Reconcile(...): want exactly 1 Operation creation for the deleted resource, got %d", deletedWithLabelSelectorCreates)
+				}
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -536,6 +750,9 @@ func TestReconcile(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.result, got); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want result, +got result:\n%s", tc.reason, diff)
+			}
+			if tc.check != nil {
+				tc.check(t)
 			}
 		})
 	}
