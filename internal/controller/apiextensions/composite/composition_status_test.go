@@ -31,6 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -687,19 +688,33 @@ func TestInvalidCompositionStatus(t *testing.T) {
 }
 
 func TestCompletedPipelineDeletionStatus(t *testing.T) {
+	external := map[string]any{
+		"type": "External", "status": "True", "reason": "Concurrent",
+		"message": "", "lastTransitionTime": "2026-01-01T00:00:00Z",
+	}
 	for name, tc := range map[string]struct {
-		status   map[string]any
-		invalid  bool
-		compound bool
-		retry    bool
-		last     bool
+		status        map[string]any
+		conditions    []*fnv1.Condition
+		invalid       bool
+		compound      bool
+		retry         bool
+		completionErr string // "conflict" or "unavailable"
+		last          bool
 	}{
-		"ValidCompletion":               {},
+		"ValidCompletion": {},
+		"TargetedConditionCompletion": {
+			conditions: []*fnv1.Condition{{
+				Type: "Cleanup", Status: fnv1.Status_STATUS_CONDITION_TRUE, Reason: "Complete",
+				Target: new(fnv1.Target_TARGET_COMPOSITE),
+			}},
+		},
 		"SchemaInvalidCompletion":       {status: map[string]any{"widgets": -1}, invalid: true},
 		"MalformedCompletionConditions": {status: map[string]any{"conditions": "not a condition list"}, invalid: true},
 		"WrongCompletionFieldType":      {status: map[string]any{"widgets": "not an integer"}},
 		"FinalizerAndStatusFailure":     {compound: true},
 		"RepeatedFinalizerFailure":      {retry: true},
+		"CompletionConflict":            {retry: true, completionErr: "conflict"},
+		"CompletionUnavailable":         {retry: true, completionErr: "unavailable"},
 		"LastFinalizerFailure":          {retry: true, last: true},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -726,8 +741,10 @@ func TestCompletedPipelineDeletionStatus(t *testing.T) {
 			}
 			deletionPatches := 0
 			statusUpdates := 0
+			pipelineCalls := 0
 			failing := false
 			retrying := false
+			injectCompletionErr := ""
 			failurePatches := 0
 			funcs := interceptor.Funcs{
 				Update: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
@@ -742,6 +759,21 @@ func TestCompletedPipelineDeletionStatus(t *testing.T) {
 				},
 				SubResourcePatch: func(ctx context.Context, c client.Client, sub string, obj client.Object, p client.Patch, opts ...client.SubResourcePatchOption) error {
 					deletionPatches++
+					if injectCompletionErr != "" && p.Type() == types.MergePatchType {
+						mode := injectCompletionErr
+						injectCompletionErr = ""
+						current := read()
+						current.Object[statusField].(map[string]any)["externalField"] = "from-other"
+						conditions, _, _ := kunstructured.NestedSlice(current.Object, statusField, "conditions")
+						_ = kunstructured.SetNestedSlice(current.Object, append(conditions, external), statusField, "conditions")
+						if err := api.Status().Update(ctx, current); err != nil {
+							return err
+						}
+						if mode == "unavailable" {
+							return kerrors.NewServiceUnavailable("completion status unavailable")
+						}
+						// Forward the optimistic-lock merge patch so the real API server returns 409 Conflict.
+					}
 					if failing {
 						failurePatches++
 						if tc.compound && failurePatches == 2 {
@@ -754,8 +786,13 @@ func TestCompletedPipelineDeletionStatus(t *testing.T) {
 					return c.SubResource(sub).Patch(ctx, obj, p, opts...)
 				},
 			}
+			var desiredConditions []*fnv1.Condition
 			runner := FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-				return &fnv1.RunFunctionResponse{Desired: &fnv1.State{Composite: &fnv1.Resource{Resource: MustStruct(map[string]any{"status": desiredStatus})}}}, nil
+				pipelineCalls++
+				return &fnv1.RunFunctionResponse{
+					Desired:    &fnv1.State{Composite: &fnv1.Resource{Resource: MustStruct(map[string]any{"status": desiredStatus})}},
+					Conditions: desiredConditions,
+				}, nil
 			})
 			ff := &feature.Flags{}
 			ff.Enable(features.EnableAlphaFunctionControlledDeletion)
@@ -778,6 +815,16 @@ func TestCompletedPipelineDeletionStatus(t *testing.T) {
 			}
 			if err := api.Delete(ctx, xr); err != nil {
 				t.Fatal(err)
+			}
+			desiredConditions = tc.conditions
+			if len(tc.conditions) > 0 {
+				// Include a raw condition of the same type to verify targeted precedence.
+				desiredStatus = map[string]any{
+					"conditions": []any{map[string]any{
+						"type": tc.conditions[0].GetType(), "status": "False", "reason": "Raw",
+						"lastTransitionTime": "2026-01-01T00:00:00Z",
+					}},
+				}
 			}
 			if tc.compound || tc.retry {
 				desiredStatus = map[string]any{"widgets": 2}
@@ -841,7 +888,24 @@ func TestCompletedPipelineDeletionStatus(t *testing.T) {
 				desiredStatus = map[string]any{}
 			}
 			before := deletionPatches
-			if _, err := r.Reconcile(ctx, req); err != nil {
+			injectCompletionErr = tc.completionErr
+			_, err := r.Reconcile(ctx, req)
+			if tc.completionErr != "" {
+				if (tc.completionErr == "conflict" && !kerrors.IsConflict(err)) || (tc.completionErr == "unavailable" && !kerrors.IsServiceUnavailable(err)) {
+					t.Fatalf("completion error = %v, want %s", err, tc.completionErr)
+				}
+				xr = read()
+				if slices.Contains(xr.GetFinalizers(), Finalizer) || xr.GetCondition(xpv2.TypeSynced).Status != corev1.ConditionFalse {
+					t.Fatal("failed completion should leave only the retained XR's status unfinished")
+				}
+				calls := pipelineCalls
+				if _, err := r.Reconcile(ctx, req); err != nil {
+					t.Fatal(err)
+				}
+				if pipelineCalls != calls {
+					t.Errorf("completion retry reran the pipeline: %d -> %d", calls, pipelineCalls)
+				}
+			} else if err != nil {
 				t.Fatal(err)
 			}
 			if tc.last {
@@ -855,8 +919,26 @@ func TestCompletedPipelineDeletionStatus(t *testing.T) {
 			if tc.compound || tc.retry || tc.status != nil {
 				wantPatches++
 			}
+			if tc.completionErr != "" {
+				wantPatches++
+			}
 			if deletionPatches != before+wantPatches {
 				t.Errorf("completed deletion used %d status applies, want %d", deletionPatches-before, wantPatches)
+			}
+			if tc.completionErr != "" {
+				if got, _, _ := kunstructured.NestedString(xr.Object, statusField, "externalField"); got != "from-other" {
+					t.Errorf("completion retry overwrote external status = %q, want from-other", got)
+				}
+				conditions, _, _ := kunstructured.NestedSlice(xr.Object, statusField, "conditions")
+				var gotExt any
+				for _, item := range conditions {
+					if m, ok := item.(map[string]any); ok && m["type"] == "External" {
+						gotExt = m
+					}
+				}
+				if diff := cmp.Diff(external, gotExt); diff != "" {
+					t.Errorf("completion retry modified external condition (-want +got):\n%s", diff)
+				}
 			}
 			if diff := cmp.Diff([]string{"test.crossplane.io/retain"}, xr.GetFinalizers()); diff != "" {
 				t.Errorf("remaining finalizers (-want +got):\n%s", diff)
@@ -870,6 +952,12 @@ func TestCompletedPipelineDeletionStatus(t *testing.T) {
 			}
 			if got := xr.GetLastHandledReconcileAt(); got != "deleting" {
 				t.Errorf("handled reconcile token = %q, want deleting", got)
+			}
+			for _, want := range tc.conditions {
+				got := xr.GetCondition(xpv2.ConditionType(want.GetType()))
+				if got.Status != corev1.ConditionTrue || got.Reason != xpv2.ConditionReason(want.GetReason()) {
+					t.Errorf("completed deletion condition %s = %+v, want True/%s", want.GetType(), got, want.GetReason())
+				}
 			}
 		})
 	}

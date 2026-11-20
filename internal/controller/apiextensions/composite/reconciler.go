@@ -672,6 +672,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// it around, so there's nothing left for us to do.
 		if !slices.Contains(xr.GetFinalizers(), Finalizer) {
 			log.Debug("Composite resource is waiting for other finalizers to be removed")
+			if xr.GetCondition(xpv2.TypeReady).Reason == xpv2.ReasonDeleting && xr.GetCondition(xpv2.TypeSynced).Status == corev1.ConditionFalse {
+				// The circuit condition setter converted the list to typed
+				// conditions. Restore the raw read before changing only Synced.
+				xr.Object[statusField] = statusBefore
+				return reconcile.Result{}, r.writeDeletionCompletionStatus(updateCtx, xr)
+			}
 			return reconcile.Result{}, nil
 		}
 
@@ -926,6 +932,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// The pipeline is done deleting: it desires nothing, and nothing exists.
 	if deleting && res.Existing == 0 && len(res.Composed) == 0 {
 		log.Debug("Functions deleted all composed resources")
+		r.handleCommonCompositionResult(updateCtx, res, xr)
 
 		return r.finishDelete(ctx, updateCtx, log, status, xr, res, statusBefore)
 	}
@@ -1163,8 +1170,21 @@ func (r *Reconciler) finishDelete(ctx, updateCtx context.Context, log logging.Lo
 	if res.DesiredStatus != nil && (!deferSuccess || len(xr.GetFinalizers()) == 0) {
 		return reconcile.Result{}, nil
 	}
+	if res.DesiredStatus != nil {
+		return reconcile.Result{}, r.writeDeletionCompletionStatus(updateCtx, xr)
+	}
 	status.MarkConditions(xpv2.ReconcileSuccess())
 	return reconcile.Result{}, r.writeCompositionStatus(updateCtx, xr, res, statusBefore)
+}
+
+// writeDeletionCompletionStatus retries only the completion condition after
+// finalizer removal. A retained XR may have received unrelated status writes.
+func (r *Reconciler) writeDeletionCompletionStatus(ctx context.Context, xr *composite.Unstructured) error {
+	before := xr.DeepCopy()
+	if err := mergeStatusConditions(xr, xpv2.ReconcileSuccess().WithObservedGeneration(xr.GetGeneration())); err != nil {
+		return errors.Wrap(err, errUpdateStatus)
+	}
+	return errors.Wrap(resource.IgnoreNotFound(r.client.Status().Patch(ctx, xr, client.MergeFromWithOptions(before, client.MergeFromWithOptimisticLock{}))), errUpdateStatus)
 }
 
 type compositionResultMeta struct {
