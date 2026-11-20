@@ -829,6 +829,32 @@ func DeleteResources(dir, pattern string, options ...decoder.DecodeOption) featu
 	return DeleteResourcesWithPropagationPolicy(dir, pattern, metav1.DeletePropagationBackground, options...)
 }
 
+// RemoveFinalizersAndDelete cleans up a test resource, including after a failed test.
+func RemoveFinalizersAndDelete(o k8s.Object) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		r := c.Client().Resources()
+		if err := r.Get(ctx, o.GetName(), o.GetNamespace(), o); err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				t.Errorf("cannot get resource for cleanup: %v", err)
+			}
+			return ctx
+		}
+
+		o.SetFinalizers(nil)
+		if err := r.Update(ctx, o); client.IgnoreNotFound(err) != nil {
+			t.Errorf("cannot remove finalizers: %v", err)
+			return ctx
+		}
+		if err := r.Delete(ctx, o); client.IgnoreNotFound(err) != nil {
+			t.Errorf("cannot delete resource: %v", err)
+		}
+
+		return ctx
+	}
+}
+
 // ClaimUnderTestMustNotChangeWithin asserts that the claim available in
 // the test context does not change within the given time.
 func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
