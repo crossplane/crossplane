@@ -720,6 +720,8 @@ func TestCompositionStatusConditions(t *testing.T) {
 				timer := time.NewTimer(time.Minute)
 				defer timer.Stop()
 				ready := false
+				generationObserved := false
+				var initialGeneration, bumpedGeneration int64
 				for {
 					select {
 					case <-ctx.Done():
@@ -727,6 +729,9 @@ func TestCompositionStatusConditions(t *testing.T) {
 					case <-timer.C:
 						if !ready {
 							t.Fatal("XR did not publish ready status within one minute")
+						}
+						if !generationObserved {
+							t.Fatalf("XR conditions did not observe generation %d within one minute", bumpedGeneration)
 						}
 						return ctx
 					case event, ok := <-stream.ResultChan():
@@ -751,17 +756,58 @@ func TestCompositionStatusConditions(t *testing.T) {
 						if gate.Status != corev1.ConditionTrue || gate.Reason != "Passed" || gate.Message != "" {
 							t.Fatalf("XR phase is ready at version %s but Gate = %+v", xr.GetResourceVersion(), gate)
 						}
+						allObserved := true
+						var eventObservedGen int64
 						for _, want := range []xpv2.Condition{xpv2.Available(), xpv2.ReconcileSuccess()} {
 							got := xr.GetCondition(want.Type)
-							if got.Status != want.Status || got.Reason != want.Reason || got.Message != "" || got.ObservedGeneration != xr.GetGeneration() {
+							if got.Status != want.Status || got.Reason != want.Reason || got.Message != "" {
 								t.Fatalf("XR phase is ready at version %s, generation %d, but %s = %+v", xr.GetResourceVersion(), xr.GetGeneration(), want.Type, got)
+							}
+							switch {
+							case !ready:
+								if got.ObservedGeneration != xr.GetGeneration() {
+									t.Fatalf("XR phase is ready at version %s, generation %d, but %s = %+v", xr.GetResourceVersion(), xr.GetGeneration(), want.Type, got)
+								}
+							case !generationObserved:
+								if got.ObservedGeneration != initialGeneration && got.ObservedGeneration != bumpedGeneration {
+									t.Fatalf("XR at version %s, generation %d has unexpected %s ObservedGeneration = %d (want %d or %d)", xr.GetResourceVersion(), xr.GetGeneration(), want.Type, got.ObservedGeneration, initialGeneration, bumpedGeneration)
+								}
+								if eventObservedGen == 0 {
+									eventObservedGen = got.ObservedGeneration
+								} else if got.ObservedGeneration != eventObservedGen {
+									t.Fatalf("XR at version %s, generation %d split ObservedGeneration across conditions: %s = %d, previous = %d", xr.GetResourceVersion(), xr.GetGeneration(), want.Type, got.ObservedGeneration, eventObservedGen)
+								}
+								if got.ObservedGeneration != bumpedGeneration {
+									allObserved = false
+								}
+							default:
+								if got.ObservedGeneration != bumpedGeneration {
+									t.Fatalf("XR at version %s, generation %d replayed stale %s ObservedGeneration = %d (want %d)", xr.GetResourceVersion(), xr.GetGeneration(), want.Type, got.ObservedGeneration, bumpedGeneration)
+								}
 							}
 						}
 						if !ready {
 							ready = true
+							initialGeneration = xr.GetGeneration()
+							t.Logf("XR status and conditions became ready together at version %s, generation %d", xr.GetResourceVersion(), initialGeneration)
+
+							patched := xr.Unstructured.DeepCopy()
+							if err := unstructured.SetNestedField(patched.Object, "bump-generation", "spec", "note"); err != nil {
+								t.Fatal(err)
+							}
+							if err := api.Patch(ctx, patched, client.MergeFrom(&xr.Unstructured)); err != nil {
+								t.Fatal(err)
+							}
+							bumpedGeneration = patched.GetGeneration()
+							if bumpedGeneration <= initialGeneration {
+								t.Fatalf("spec patch did not bump generation: got %d, want > %d", bumpedGeneration, initialGeneration)
+							}
+							timer.Reset(time.Minute)
+						} else if !generationObserved && allObserved {
+							generationObserved = true
 							// Observe follow-up reconciles for stale replays.
 							timer.Reset(5 * time.Second)
-							t.Logf("XR status and conditions became ready together at version %s", xr.GetResourceVersion())
+							t.Logf("XR conditions observed generation %d at version %s", bumpedGeneration, xr.GetResourceVersion())
 						}
 					}
 				}

@@ -18,6 +18,9 @@ spec:
         properties:
           spec:
             type: object
+            properties:
+              note:
+                type: string
           status:
             type: object
             properties:
