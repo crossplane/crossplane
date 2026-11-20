@@ -2357,50 +2357,66 @@ func TestFunctionCompose(t *testing.T) {
 		},
 		"DeletingPipelineStopsDesiringResources": {
 			reason: "When the XR is being deleted we should garbage collect the composed resources the pipeline no longer desires",
-			params: params{
-				c: &test.MockClient{
-					MockList:  mockListFunctionRevisions(),
-					MockGet:   mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))),
-					MockPatch: test.NewMockPatchFn(nil),
-				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-					// A function that handles deletion. It saw the XR's deletion
-					// timestamp, and stopped desiring its composed resource.
-					return &fnv1.RunFunctionResponse{
-						Desired: &fnv1.State{},
-					}, nil
-				}),
-				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
-						return ComposedResourceStates{
-							"observed-resource-a": ComposedResourceState{
-								Resource: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-a", OwnerReferences: []metav1.OwnerReference{{Controller: new(true)}}}},
-							},
+			params: func() params {
+				gcCalled := false
+				return params{
+					c: &test.MockClient{
+						MockList: mockListFunctionRevisions(),
+						MockGet:  mockGetFunction(test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))),
+						MockPatch: test.NewMockPatchFn(nil, func(_ client.Object) error {
+							if !gcCalled {
+								return errors.New("garbage collection should run before persisting resourceRefs")
+							}
+							return nil
+						}),
+					},
+					r: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+						timestamp, found, err := unstructured.NestedString(req.GetObserved().GetComposite().GetResource().AsMap(), "metadata", "deletionTimestamp")
+						if err != nil || !found || timestamp != "2026-01-01T00:00:00Z" {
+							return nil, errors.New("function request should contain the XR deletion timestamp")
+						}
+						return &fnv1.RunFunctionResponse{
+							Desired: &fnv1.State{},
 						}, nil
-					})),
-					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, observed, desired ComposedResourceStates) error {
-						if _, ok := observed["observed-resource-a"]; !ok {
-							return errors.New("observed-resource-a should be observed")
-						}
-						if len(desired) != 0 {
-							return errors.New("nothing should be desired")
-						}
-						return nil
-					})),
-				},
-			},
+					}),
+					o: []FunctionComposerOption{
+						WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+							return nil, nil
+						})),
+						WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+							return ComposedResourceStates{
+								"observed-resource-a": ComposedResourceState{
+									Resource: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-a", OwnerReferences: []metav1.OwnerReference{{Controller: new(true)}}}},
+								},
+							}, nil
+						})),
+						WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, observed, desired ComposedResourceStates) error {
+							gcCalled = true
+							if _, ok := observed["observed-resource-a"]; !ok {
+								return errors.New("observed-resource-a should be observed")
+							}
+							if len(desired) != 0 {
+								return errors.New("nothing should be desired")
+							}
+							return nil
+						})),
+					},
+				}
+			}(),
 			args: args{
 				xr: composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
 					Group:   "test.crossplane.io",
 					Version: "v1",
 					Kind:    "CoolComposite",
-				})),
+				}), func(xr *composite.Unstructured) {
+					deleted := metav1.NewTime(time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC))
+					xr.SetDeletionTimestamp(&deleted)
+					xr.SetDeletionPolicy(v1.CompositionDeletionPolicyPipeline)
+				}),
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{
 						Spec: v1.CompositionRevisionSpec{
+							DeletionPolicy: v1.CompositionDeletionPolicyPipeline,
 							Pipeline: []v1.PipelineStep{{
 								Step:        "run-cool-function",
 								FunctionRef: &v1.FunctionReference{Name: "cool-function"},
