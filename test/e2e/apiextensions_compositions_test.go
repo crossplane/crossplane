@@ -28,6 +28,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/watch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
@@ -37,6 +39,7 @@ import (
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
@@ -656,6 +659,118 @@ func TestCompositionRevisionGarbageCollection(t *testing.T) {
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifests, "composition.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "composition.yaml"),
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
+}
+
+func TestCompositionStatusConditions(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/status-conditions"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that function status and conditions are published together without replaying old conditions.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("XRStartsWaiting", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesHaveFieldValueWithin(time.Minute, manifests, "xr.yaml", "status.phase", "waiting"),
+				funcs.ResourcesHaveConditionWithin(time.Minute, manifests, "xr.yaml", xpv2.Condition{Type: "Gate", Status: corev1.ConditionFalse, Reason: "Waiting"}),
+			)).
+			Assess("StatusAndConditionsChangeTogether", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+				t.Helper()
+				api, err := client.NewWithWatch(cfg.Client().RESTConfig(), client.Options{})
+				if err != nil {
+					t.Fatal(err)
+				}
+				list := &unstructured.UnstructuredList{}
+				list.SetAPIVersion("status.e2e.crossplane.io/v1alpha1")
+				list.SetKind("StatusGateList")
+				opts := &client.ListOptions{Namespace: "default", FieldSelector: fields.OneTermEqualSelector("metadata.name", "status-gate")}
+				if err := api.List(ctx, list, opts); err != nil {
+					t.Fatal(err)
+				}
+				if len(list.Items) != 1 {
+					t.Fatalf("got %d XRs, want one", len(list.Items))
+				}
+				xr := composite.New(composite.WithSchema(composite.SchemaModern))
+				xr.Unstructured = list.Items[0]
+				gate := xr.GetCondition("Gate")
+				if gate.Status != corev1.ConditionFalse || gate.Reason != "Waiting" || gate.Message != "Waiting for backend" {
+					t.Fatalf("initial Gate condition = %+v, want False/Waiting with its waiting message", gate)
+				}
+				// Start from the LIST's version so no update during the Composition change is missed.
+				opts.Raw = &metav1.ListOptions{ResourceVersion: list.GetResourceVersion()}
+				stream, err := api.Watch(ctx, list, opts)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer stream.Stop()
+				ctx = funcs.ApplyResources(FieldManager, manifests, "composition-ready.yaml")(ctx, t, cfg)
+				if t.Failed() {
+					return ctx
+				}
+				timer := time.NewTimer(time.Minute)
+				defer timer.Stop()
+				ready := false
+				for {
+					select {
+					case <-ctx.Done():
+						t.Fatal(ctx.Err())
+					case <-timer.C:
+						if !ready {
+							t.Fatal("XR did not publish ready status within one minute")
+						}
+						return ctx
+					case event, ok := <-stream.ResultChan():
+						if !ok {
+							t.Fatal("XR watch closed before the assessment completed")
+						}
+						if event.Type != watch.Added && event.Type != watch.Modified {
+							t.Fatalf("unexpected XR watch event: %s", event.Type)
+						}
+						xr.Unstructured = *event.Object.(*unstructured.Unstructured)
+						phase, _, err := unstructured.NestedString(xr.Object, "status", "phase")
+						if err != nil {
+							t.Fatal(err)
+						}
+						if phase == "waiting" && !ready {
+							continue
+						}
+						if phase != "ready" {
+							t.Fatalf("XR status at version %s has phase %q after becoming ready", xr.GetResourceVersion(), phase)
+						}
+						gate := xr.GetCondition("Gate")
+						if gate.Status != corev1.ConditionTrue || gate.Reason != "Passed" || gate.Message != "" {
+							t.Fatalf("XR phase is ready at version %s but Gate = %+v", xr.GetResourceVersion(), gate)
+						}
+						for _, want := range []xpv2.Condition{xpv2.Available(), xpv2.ReconcileSuccess()} {
+							got := xr.GetCondition(want.Type)
+							if got.Status != want.Status || got.Reason != want.Reason || got.Message != "" || got.ObservedGeneration != xr.GetGeneration() {
+								t.Fatalf("XR phase is ready at version %s, generation %d, but %s = %+v", xr.GetResourceVersion(), xr.GetGeneration(), want.Type, got)
+							}
+						}
+						if !ready {
+							ready = true
+							// Observe follow-up reconciles for stale replays.
+							timer.Reset(5 * time.Second)
+							t.Logf("XR status and conditions became ready together at version %s", xr.GetResourceVersion())
+						}
+					}
+				}
+			}).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResources(manifests, "xr.yaml"),
+				funcs.ResourcesDeletedWithin(time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifests, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).

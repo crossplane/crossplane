@@ -1,0 +1,10 @@
+apiVersion: status.e2e.crossplane.io/v1alpha1
+kind: StatusGate
+metadata:
+  name: status-gate
+  namespace: default
+spec:
+  crossplane:
+    compositionRef:
+      name: status-conditions
+    compositionUpdatePolicy: Automatic
