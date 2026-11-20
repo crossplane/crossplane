@@ -124,6 +124,19 @@ and their default values.
 | `resourcesRBACManager.requests.cpu` | CPU resource requests for the RBAC Manager pod. | `"100m"` |
 | `resourcesRBACManager.requests.memory` | Memory resource requests for the RBAC Manager pod. | `"256Mi"` |
 | `revisionHistoryLimit` | The number of Crossplane ReplicaSets to retain. | `nil` |
+| `rootCA.bootstrap.enabled` | Enable the pre-install/pre-upgrade hook job that creates the three crossplane TLS Secrets on first install and preserves them on subsequent upgrades. Has no effect when `rootCA.manageLifecycle` is false. | `true` |
+| `rootCA.bootstrap.image.repository` | Container image for the hook job. Must contain a `kubectl` binary. | `"registry.k8s.io/kubernetes/kubectl"` |
+| `rootCA.bootstrap.image.tag` | Tag for the hook job container image. Should be a kubectl version compatible with the Kubernetes server (see `kubeVersion` in Chart.yaml). | `"v1.31.1"` |
+| `rootCA.bootstrap.resources` | Resource requests and limits for the hook job container. | `{"limits":{"cpu":"100m","memory":"64Mi"},"requests":{"cpu":"10m","memory":"32Mi"}}` |
+| `rootCA.bootstrap.resources.limits.cpu` | CPU limit for the hook job container. | `"100m"` |
+| `rootCA.bootstrap.resources.limits.memory` | Memory limit for the hook job container. | `"64Mi"` |
+| `rootCA.bootstrap.resources.requests.cpu` | CPU request for the hook job container. | `"10m"` |
+| `rootCA.bootstrap.resources.requests.memory` | Memory request for the hook job container. | `"32Mi"` |
+| `rootCA.bootstrap.securityContext` | Security context for the hook job container. Hardened defaults: non-root, no privilege escalation, read-only root filesystem. | `{"allowPrivilegeEscalation":false,"readOnlyRootFilesystem":true,"runAsNonRoot":true}` |
+| `rootCA.bootstrap.securityContext.allowPrivilegeEscalation` | Disable privilege escalation. | `false` |
+| `rootCA.bootstrap.securityContext.readOnlyRootFilesystem` | Mount root filesystem as read-only. | `true` |
+| `rootCA.bootstrap.securityContext.runAsNonRoot` | Run as non-root user. The kubectl image runs as user 65532 by default. | `true` |
+| `rootCA.manageLifecycle` | Manage the lifecycle of the crossplane-root-ca, crossplane-tls-server, and crossplane-tls-client Secrets via Helm hook jobs. When true (default), a pre-install/pre-upgrade hook creates the Secrets only if missing (so existing CAs and per-pod TLS material survive upgrades), and a pre-delete hook removes them on `helm uninstall`. Set to false to fall back to the upstream behavior of having Helm manage the Secrets directly, which will rotate the CA and per-pod TLS material on every upgrade and break mTLS with installed provider/function packages. | `true` |
 | `runtimeClassName` | The runtimeClassName name to apply to the Crossplane and RBAC Manager pods. | `""` |
 | `secrets.customAnnotations` | Add custom annotations to Crossplane Secret resources. | `{}` |
 | `securityContextCrossplane.allowPrivilegeEscalation` | Enable `allowPrivilegeEscalation` for the Crossplane pod. | `false` |
