@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -29,9 +30,76 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplane/crossplane/v2/internal/xfn"
+	fnv1 "github.com/crossplane/crossplane/v2/proto/fn/v1"
 )
 
 var _ client.Client = &InMemoryClient{}
+
+func TestRequiredResourcesFetcherListKind(t *testing.T) {
+	widget := unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "test.crossplane.io/v1",
+		"kind":       "Widget",
+		"metadata":   map[string]any{"name": "wrong-kind", "namespace": "default", "labels": map[string]any{"app": "test"}},
+	}}
+	required := unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "test.crossplane.io/v1",
+		"kind":       "WidgetList",
+		"metadata":   map[string]any{"name": "required", "namespace": "default", "labels": map[string]any{"app": "test"}},
+	}}
+	otherNamespace := *required.DeepCopy()
+	otherNamespace.SetNamespace("other")
+	unlabeled := *required.DeepCopy()
+	unlabeled.SetName("unlabeled")
+	unlabeled.SetLabels(nil)
+	requiredStruct, err := xfn.AsStruct(&required)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unlabeledStruct, err := xfn.AsStruct(&unlabeled)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type args struct {
+		selector *fnv1.ResourceSelector
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   *fnv1.Resources
+	}{
+		"MatchAll": {
+			reason: "Match-all selectors should return only the requested kind and namespace.",
+			args:   args{selector: &fnv1.ResourceSelector{ApiVersion: "test.crossplane.io/v1", Kind: "WidgetList", Namespace: new("default")}},
+			want: &fnv1.Resources{Items: []*fnv1.Resource{
+				{Resource: requiredStruct},
+				{Resource: unlabeledStruct},
+			}},
+		},
+		"MatchLabels": {
+			reason: "Label selectors should return only the requested kind, namespace, and labels.",
+			args: args{selector: &fnv1.ResourceSelector{
+				ApiVersion: "test.crossplane.io/v1", Kind: "WidgetList", Namespace: new("default"),
+				Match: &fnv1.ResourceSelector_MatchLabels{MatchLabels: &fnv1.MatchLabels{Labels: map[string]string{"app": "test"}}},
+			}},
+			want: &fnv1.Resources{Items: []*fnv1.Resource{{Resource: requiredStruct}}},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := NewInMemoryClient(runtime.NewScheme(), widget, required, otherNamespace, unlabeled)
+			got, err := xfn.NewExistingRequiredResourcesFetcher(c).Fetch(context.Background(), tc.args.selector)
+			if err != nil {
+				t.Fatalf("%s\nFetch(...): %v", tc.reason, err)
+			}
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("%s\nFetch(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
 
 func TestInMemoryClientGet(t *testing.T) {
 	type args struct {
