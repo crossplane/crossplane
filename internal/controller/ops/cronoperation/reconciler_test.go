@@ -181,7 +181,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: test.NewMockSubResourceUpdateFn(errors.New("status update failed")),
 				},
 				opts: []ReconcilerOption{
-					WithScheduler(SchedulerFn(func(_ string, _ time.Time) (time.Time, error) {
+					WithScheduler(SchedulerFn(func(_, _ string, _ time.Time) (time.Time, error) {
 						return time.Time{}, errors.New("invalid schedule")
 					})),
 				},
@@ -189,6 +189,40 @@ func TestReconcile(t *testing.T) {
 			want: want{
 				r:   reconcile.Result{},
 				err: cmpopts.AnyError,
+			},
+		},
+		"TimeZonePassedToScheduler": {
+			reason: "We should hand the scheduler the schedule and the time zone",
+			params: params{
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						co := &v1alpha1.CronOperation{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "test-cron",
+								CreationTimestamp: metav1.Time{Time: past},
+							},
+							Spec: v1alpha1.CronOperationSpec{
+								Schedule: "0 18 * * *",
+								TimeZone: new("Europe/Berlin"),
+							},
+						}
+						co.DeepCopyInto(obj.(*v1alpha1.CronOperation))
+						return nil
+					}),
+					MockList:         test.NewMockListFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				},
+				opts: []ReconcilerOption{
+					WithScheduler(SchedulerFn(func(schedule, timeZone string, _ time.Time) (time.Time, error) {
+						if schedule != "0 18 * * *" || timeZone != "Europe/Berlin" {
+							return time.Time{}, errors.Errorf("unexpected schedule %q in time zone %q", schedule, timeZone)
+						}
+						return future, nil
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: time.Hour},
 			},
 		},
 		"NextScheduledInFuture": {
@@ -212,7 +246,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
-					WithScheduler(SchedulerFn(func(_ string, _ time.Time) (time.Time, error) {
+					WithScheduler(SchedulerFn(func(_, _ string, _ time.Time) (time.Time, error) {
 						return future, nil
 					})),
 				},
@@ -243,7 +277,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
-					WithScheduler(SchedulerFn(func(_ string, last time.Time) (time.Time, error) {
+					WithScheduler(SchedulerFn(func(_, _ string, last time.Time) (time.Time, error) {
 						if last.Before(past) {
 							// First call: return a time that's past deadline
 							return past.Add(-2 * time.Hour), nil
@@ -302,7 +336,7 @@ func TestReconcile(t *testing.T) {
 					MockDelete:       test.NewMockDeleteFn(nil),
 				},
 				opts: []ReconcilerOption{
-					WithScheduler(SchedulerFn(func(_ string, last time.Time) (time.Time, error) {
+					WithScheduler(SchedulerFn(func(_, _ string, last time.Time) (time.Time, error) {
 						if last.Before(past) {
 							// First call: return a time that's due now
 							return past.Add(-30 * time.Minute), nil
@@ -361,7 +395,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
-					WithScheduler(SchedulerFn(func(_ string, _ time.Time) (time.Time, error) {
+					WithScheduler(SchedulerFn(func(_, _ string, _ time.Time) (time.Time, error) {
 						// Return a time that's due now
 						return past.Add(-30 * time.Minute), nil
 					})),
@@ -407,7 +441,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
-					WithScheduler(SchedulerFn(func(_ string, _ time.Time) (time.Time, error) {
+					WithScheduler(SchedulerFn(func(_, _ string, _ time.Time) (time.Time, error) {
 						// Return a time that's due now
 						return past.Add(-30 * time.Minute), nil
 					})),
@@ -467,7 +501,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
-					WithScheduler(SchedulerFn(func(_ string, last time.Time) (time.Time, error) {
+					WithScheduler(SchedulerFn(func(_, _ string, last time.Time) (time.Time, error) {
 						if last.Before(past) {
 							// First call: return a time that's due now
 							return past.Add(-30 * time.Minute), nil
@@ -545,7 +579,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				opts: []ReconcilerOption{
-					WithScheduler(SchedulerFn(func(_ string, _ time.Time) (time.Time, error) {
+					WithScheduler(SchedulerFn(func(_, _ string, _ time.Time) (time.Time, error) {
 						return future, nil
 					})),
 				},
@@ -665,5 +699,75 @@ func TestNewOperation(t *testing.T) {
 				t.Errorf("\n%s\nNewOperation(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
+	}
+}
+
+func TestCronSchedule(t *testing.T) {
+	type args struct {
+		schedule string
+		timeZone string
+	}
+	type want struct {
+		schedule string
+		err      error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NoTimeZone": {
+			reason: "Without a time zone the schedule is used as is",
+			args:   args{schedule: "0 18 * * *"},
+			want:   want{schedule: "0 18 * * *"},
+		},
+		"TimeZoneApplied": {
+			reason: "A time zone becomes the CRON_TZ prefix",
+			args:   args{schedule: "0 18 * * *", timeZone: "Europe/Berlin"},
+			want:   want{schedule: "CRON_TZ=Europe/Berlin 0 18 * * *"},
+		},
+		"PrefixConflict": {
+			reason: "A schedule that already carries a time zone prefix cannot be combined with timeZone",
+			args:   args{schedule: "CRON_TZ=UTC 0 18 * * *", timeZone: "Europe/Berlin"},
+			want:   want{err: cmpopts.AnyError},
+		},
+		"LocalTimeZone": {
+			reason: "Local is not an explicit time zone",
+			args:   args{schedule: "0 18 * * *", timeZone: "local"},
+			want:   want{err: cmpopts.AnyError},
+		},
+		"UnknownTimeZone": {
+			reason: "A time zone that cannot be loaded is rejected",
+			args:   args{schedule: "0 18 * * *", timeZone: "Mars/Olympus_Mons"},
+			want:   want{err: cmpopts.AnyError},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := cronSchedule(tc.args.schedule, tc.args.timeZone)
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ncronSchedule(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.schedule, got); diff != "" {
+				t.Errorf("\n%s\ncronSchedule(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestDefaultSchedulerHonoursTimeZone(t *testing.T) {
+	// 18:00 in Berlin on a January day is 17:00 UTC.
+	last := time.Date(2026, time.January, 15, 0, 0, 0, 0, time.UTC)
+	want := time.Date(2026, time.January, 15, 17, 0, 0, 0, time.UTC)
+
+	got, err := NewReconciler(nil).schedule.Next("0 18 * * *", "Europe/Berlin", last)
+	if err != nil {
+		t.Fatalf("Next(...): %v", err)
+	}
+
+	if !got.Equal(want) {
+		t.Errorf("Next(...): want %s, got %s", want, got)
 	}
 }

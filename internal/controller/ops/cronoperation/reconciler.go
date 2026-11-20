@@ -49,17 +49,18 @@ const (
 	reasonCreateOperation          = "CreateOperation"
 )
 
-// A Scheduler determines when the next Operation should run.
+// A Scheduler determines when the next Operation should run. The time zone
+// is the IANA name the schedule is evaluated in, or empty for the local one.
 type Scheduler interface {
-	Next(schedule string, last time.Time) (time.Time, error)
+	Next(schedule, timeZone string, last time.Time) (time.Time, error)
 }
 
 // A SchedulerFn is a function that satisfies Scheduler.
-type SchedulerFn func(schedule string, last time.Time) (time.Time, error)
+type SchedulerFn func(schedule, timeZone string, last time.Time) (time.Time, error)
 
 // Next returns the next time an Operation should run.
-func (fn SchedulerFn) Next(schedule string, last time.Time) (time.Time, error) {
-	return fn(schedule, last)
+func (fn SchedulerFn) Next(schedule, timeZone string, last time.Time) (time.Time, error) {
+	return fn(schedule, timeZone, last)
 }
 
 // A Reconciler reconciles CronOperations.
@@ -145,9 +146,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	next, err := r.schedule.Next(co.Spec.Schedule, last)
+	timeZone := ptr.Deref(co.Spec.TimeZone, "")
+
+	next, err := r.schedule.Next(co.Spec.Schedule, timeZone, last)
 	if err != nil {
-		r.log.Info("Invalid cron schedule", "error", err, "schedule", co.Spec.Schedule)
+		r.log.Info("Invalid cron schedule", "error", err, "schedule", co.Spec.Schedule, "timeZone", timeZone)
 		err = errors.Wrapf(err, "cannot parse cron schedule %q", co.Spec.Schedule)
 		r.record.Event(co, event.Warning(reasonInvalidSchedule, err))
 		status.MarkConditions(v1alpha1.ScheduleInvalid(err.Error()), xpv2.ReconcileError(err))
@@ -169,7 +172,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Figure out the next scheduled operation that's in the future. We know
 	// we won't hit an error parsing the schedule because it worked above.
-	future, _ := r.schedule.Next(co.Spec.Schedule, now)
+	future, _ := r.schedule.Next(co.Spec.Schedule, timeZone, now)
 
 	// If the next scheduled operation is in the past, but we missed its
 	// deadline, requeue in time for the first one scheduled in the future.
