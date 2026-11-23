@@ -314,6 +314,88 @@ func TestTokenBucketBreakerGetState(t *testing.T) {
 	}
 }
 
+// countingMetrics counts circuit open and close transitions.
+type countingMetrics struct {
+	mu            sync.Mutex
+	opens, closes int
+}
+
+func (m *countingMetrics) IncOpen(_ string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.opens++
+}
+
+func (m *countingMetrics) IncClose(_ string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.closes++
+}
+
+func (m *countingMetrics) IncEvent(_, _ string) {}
+
+func (m *countingMetrics) counts() (opens, closes int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.opens, m.closes
+}
+
+func TestTokenBucketBreakerGetStateClosesCircuit(t *testing.T) {
+	target := types.NamespacedName{Name: "test-xr", Namespace: "default"}
+	source := EventSource{
+		GVK:       schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Bucket"},
+		Name:      "test-bucket",
+		Namespace: "default",
+	}
+
+	metrics := &countingMetrics{}
+	breaker := NewTokenBucketBreaker(
+		"test-controller",
+		WithBurst(1),
+		WithRefillRatePerSecond(0.1),
+		WithOpenDuration(50*time.Millisecond),
+		WithHalfOpenInterval(30*time.Second),
+		WithMetrics(metrics),
+	)
+
+	ctx := context.Background()
+
+	// Open the circuit by exhausting the tokens.
+	breaker.RecordEvent(ctx, target, source, EventAllowed)
+	breaker.RecordEvent(ctx, target, source, EventAllowed)
+	if opens, closes := metrics.counts(); opens != 1 || closes != 0 {
+		t.Fatalf("Expected 1 open and 0 closes after exhausting tokens, got %d opens and %d closes", opens, closes)
+	}
+
+	// Wait for the cooldown to expire. No more events arrive.
+	time.Sleep(100 * time.Millisecond)
+
+	// GetState should close the circuit and record the close.
+	if got := breaker.GetState(ctx, target); got.IsOpen {
+		t.Errorf("TokenBucketBreaker.GetState(...): expected a closed circuit after the cooldown, got %+v", got)
+	}
+	if _, closes := metrics.counts(); closes != 1 {
+		t.Errorf("Expected GetState to record 1 close after the cooldown, got %d", closes)
+	}
+	breaker.mu.RLock()
+	s := breaker.targets[target]
+	breaker.mu.RUnlock()
+	s.mu.RLock()
+	isOpen := s.isOpen
+	s.mu.RUnlock()
+	if isOpen {
+		t.Error("Expected GetState to close the circuit's internal state after the cooldown")
+	}
+
+	// The circuit is already closed, so neither another GetState nor the next
+	// RecordEvent should record a second close.
+	breaker.GetState(ctx, target)
+	breaker.RecordEvent(ctx, target, source, EventAllowed)
+	if _, closes := metrics.counts(); closes != 1 {
+		t.Errorf("Expected the close to be recorded once, got %d", closes)
+	}
+}
+
 func TestTokenBucketBreakerSourceTracking(t *testing.T) {
 	breaker := NewTokenBucketBreaker(
 		"test-controller",
@@ -369,7 +451,7 @@ func TestTokenBucketBreakerTokenRefill(t *testing.T) {
 		"test-controller",
 		WithBurst(2),
 		WithRefillRatePerSecond(10),            // Fast refill for test
-		WithOpenDuration(200*time.Millisecond), // Longer cooldown
+		WithOpenDuration(400*time.Millisecond), // Longer cooldown
 		WithHalfOpenInterval(30*time.Second),   // Explicit for test stability
 	)
 
@@ -406,7 +488,7 @@ func TestTokenBucketBreakerTokenRefill(t *testing.T) {
 	}
 
 	// Wait for cooldown to expire
-	time.Sleep(150 * time.Millisecond)
+	time.Sleep(350 * time.Millisecond)
 
 	// Record another event - tokens should have refilled enough to allow it
 	breaker.RecordEvent(ctx, target, source, EventAllowed)
