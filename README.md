@@ -24,25 +24,17 @@ documentation].
 
 | Release | Release Date |   EOL    |
 |:-------:|:------------:|:--------:|
-|  v1.20  | May 21, 2025 | Nov 2026 |
-|  v2.2   | Feb 18, 2026 | Nov 2026 |
 |  v2.3   | May 21, 2026 | Feb 2027 |
 |  v2.4   | Aug 20, 2026 | May 2027 |
-|  v2.5   |   Nov 2026   | Aug 2027 |
+|  v2.5   | Nov 24, 2026 | Aug 2027 |
 |  v2.6   |   Feb 2027   | Nov 2027 |
 |  v2.7   |   May 2027   | Feb 2028 |
+|  v2.8   |   Aug 2027   | May 2028 |
 
 You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
 
 The release process is fully documented in the [`crossplane/release`] repo.
-
-### v1.20 end-of-life (EOL)
-
-When v2.5 is released in Nov 2026, v1.20 will reach its EOL and no longer receive any support or
-maintenance by the Crossplane project.
-
-More details can be found in the [v2.4.0 release notes].
 
 ## Roadmap
 
