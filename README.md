@@ -36,13 +36,6 @@ find the most recent releases on the [releases] page.
 
 The release process is fully documented in the [`crossplane/release`] repo.
 
-### v1.20 end-of-life (EOL)
-
-When v2.5 is released in Nov 2026, v1.20 will reach its EOL and no longer receive any support or
-maintenance by the Crossplane project.
-
-More details can be found in the [v2.4.0 release notes].
-
 ## Roadmap
 
 The public roadmap for Crossplane is published as a GitHub project board. Issues
